@@ -1,0 +1,13 @@
+name: Trigger publish on push main
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  publish-to-github-packages:
+    uses: ./.github/workflows/release.yml
+    with:
+      deploymentTarget: GitHub
+    secrets: inherit

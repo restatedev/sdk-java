@@ -1,0 +1,13 @@
+name: Trigger publish on push tag
+
+on:
+  push:
+    tags:
+      - v**
+
+jobs:
+  publish-to-jfrog:
+    uses: ./.github/workflows/release.yml
+    with:
+      deploymentTarget: JFrog
+    secrets: inherit

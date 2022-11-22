@@ -1,0 +1,20 @@
+name: Trigger publish manually
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploymentTarget:
+        description: 'Deployment target'
+        required: true
+        default: 'GitHub'
+        type: choice
+        options:
+          - GitHub
+          - JFrog
+
+jobs:
+  publish:
+    uses: ./.github/workflows/release.yml
+    with:
+      deploymentTarget: ${{ inputs.deploymentTarget }}
+    secrets: inherit
