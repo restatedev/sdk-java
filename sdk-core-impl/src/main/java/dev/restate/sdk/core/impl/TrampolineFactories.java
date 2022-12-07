@@ -8,7 +8,6 @@ import dev.restate.sdk.core.syscalls.DeferredResult;
 import dev.restate.sdk.core.syscalls.ReadyResult;
 import io.grpc.MethodDescriptor;
 import io.grpc.ServerCall;
-import io.grpc.StatusRuntimeException;
 import java.time.Duration;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
@@ -148,26 +147,47 @@ public class TrampolineFactories {
     }
 
     @Override
-    public <T> void sideEffect(
+    public <T> void enterSideEffectBlock(
         TypeTag<T> typeTag,
-        SideEffectClosure<T> closure,
-        Consumer<T> successResultCallback,
-        Consumer<StatusRuntimeException> errorResultCallback,
+        Runnable noStoredResultCallback,
+        Consumer<ReadyResult<T>> storedResultCallback,
         Consumer<Throwable> failureCallback) {
       syscallsExecutor.execute(
           () ->
-              syscalls.sideEffect(
-                  typeTag, closure, successResultCallback, errorResultCallback, failureCallback));
+              syscalls.enterSideEffectBlock(
+                  typeTag, noStoredResultCallback, storedResultCallback, failureCallback));
+    }
+
+    @Override
+    public <T> void exitSideEffectBlock(
+        TypeTag<T> typeTag,
+        T toWrite,
+        Consumer<ReadyResult<T>> storedResultCallback,
+        Consumer<Throwable> failureCallback) {
+      syscallsExecutor.execute(
+          () ->
+              syscalls.exitSideEffectBlock(
+                  typeTag, toWrite, storedResultCallback, failureCallback));
+    }
+
+    @Override
+    public void exitSideEffectBlockWithException(
+        Throwable toWrite,
+        Consumer<Throwable> storedFailureCallback,
+        Consumer<Throwable> failureCallback) {
+      syscallsExecutor.execute(
+          () ->
+              syscalls.exitSideEffectBlockWithException(
+                  toWrite, storedFailureCallback, failureCallback));
     }
 
     @Override
     public <T> void callback(
         TypeTag<T> typeTag,
-        CallbackClosure closure,
-        SyscallDeferredResultCallback<T> deferredCallback,
+        SyscallDeferredResultWithIdentifierCallback<T> deferredResultCallback,
         Consumer<Throwable> failureCallback) {
       syscallsExecutor.execute(
-          () -> syscalls.callback(typeTag, closure, deferredCallback, failureCallback));
+          () -> syscalls.callback(typeTag, deferredResultCallback, failureCallback));
     }
 
     @Override

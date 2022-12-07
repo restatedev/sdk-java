@@ -10,6 +10,7 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
 import java.util.Objects;
 import java.util.concurrent.Flow;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -207,7 +208,7 @@ public class InvocationStateMachine implements InvocationFlow.InvocationProcesso
       Function<T, ProtocolException> checkEntryHeader,
       Function<T, ReadyResult<R>> entryParser,
       Function<Protocol.CompletionMessage, ReadyResult<R>> completionParser,
-      Consumer<DeferredResult<R>> deferredCallback,
+      BiConsumer<Integer, DeferredResult<R>> deferredCallback,
       Consumer<Throwable> failureCallback) {
     if (Objects.equals(this.state, State.CLOSED)) {
       failureCallback.accept(SuspendedException.INSTANCE);
@@ -231,9 +232,10 @@ public class InvocationStateMachine implements InvocationFlow.InvocationProcesso
             } else if (waitForCompletion.test(actualEntry)) {
               this.completionStore.wantCompletion(entryIndex);
               deferredCallback.accept(
+                  entryIndex,
                   ResultTreeNodes.waiting(entryIndex, completionParser, inputEntry.getClass()));
             } else {
-              deferredCallback.accept(entryParser.apply(actualEntry));
+              deferredCallback.accept(entryIndex, entryParser.apply(actualEntry));
             }
           },
           failureCallback);
@@ -250,7 +252,7 @@ public class InvocationStateMachine implements InvocationFlow.InvocationProcesso
       // Invoke the deferred callback
       this.completionStore.wantCompletion(entryIndex);
       deferredCallback.accept(
-          ResultTreeNodes.waiting(entryIndex, completionParser, inputEntry.getClass()));
+          entryIndex, ResultTreeNodes.waiting(entryIndex, completionParser, inputEntry.getClass()));
     } else {
       throw new IllegalStateException(
           "This method was invoked when the state machine is not ready to process user code. This is probably an SDK bug");
@@ -301,10 +303,10 @@ public class InvocationStateMachine implements InvocationFlow.InvocationProcesso
     }
   }
 
-  void processSideEffectJournalEntry(
-      Consumer<Consumer<Protocol.SideEffectEntryMessage>> executeSideEffect,
+  void enterSideEffectJournalEntry(
       Consumer<Span> traceFn,
       Consumer<Protocol.SideEffectEntryMessage> entryCallback,
+      Runnable noEntryCallback,
       Consumer<Throwable> failureCallback) {
     if (Objects.equals(this.state, State.CLOSED)) {
       failureCallback.accept(SuspendedException.INSTANCE);
@@ -329,13 +331,51 @@ public class InvocationStateMachine implements InvocationFlow.InvocationProcesso
               // Reset the ack to wait
               this.lastNotAckedSideEffect = -1;
 
-              executeSideEffectThenWrite(executeSideEffect, traceFn, entryCallback);
+              if (span.isRecording()) {
+                traceFn.accept(span);
+              }
+              noEntryCallback.run();
             },
             failureCallback);
       } else {
-
-        executeSideEffectThenWrite(executeSideEffect, traceFn, entryCallback);
+        if (span.isRecording()) {
+          traceFn.accept(span);
+        }
+        noEntryCallback.run();
       }
+    } else {
+      throw new IllegalStateException(
+          "This method was invoked when the state machine is not ready to process user code. This is probably an SDK bug");
+    }
+  }
+
+  public void exitSideEffectBlock(
+      Protocol.SideEffectEntryMessage sideEffectToWrite,
+      Consumer<Span> traceFn,
+      Consumer<Protocol.SideEffectEntryMessage> entryCallback,
+      Consumer<Throwable> failureCallback) {
+    if (Objects.equals(this.state, State.REPLAYING)) {
+      throw new IllegalStateException(
+          "exitSideEffect has been invoked when the state machine is in replaying mode. "
+              + "This is probably an SDK bug and might be caused by a missing enterSideEffectBlock invocation before exitSideEffectBlock.");
+    } else if (this.lastNotAckedSideEffect != -1) {
+      throw new IllegalStateException(
+          "exitSideEffect has been invoked when a side effect still needs to be flushed. "
+              + "This is probably an SDK bug and might be caused by a missing enterSideEffectBlock invocation before exitSideEffectBlock.");
+    } else if (Objects.equals(this.state, State.CLOSED)) {
+      failureCallback.accept(SuspendedException.INSTANCE);
+    } else if (this.state.canWriteOut()) {
+      if (span.isRecording()) {
+        traceFn.accept(span);
+      }
+
+      // Write new entry
+      this.write(sideEffectToWrite);
+      this.lastNotAckedSideEffect = this.currentJournalIndex;
+      this.completionStore.wantCompletion(this.currentJournalIndex);
+      this.incrementCurrentIndex();
+
+      entryCallback.accept(sideEffectToWrite);
     } else {
       throw new IllegalStateException(
           "This method was invoked when the state machine is not ready to process user code. This is probably an SDK bug");
@@ -452,26 +492,6 @@ public class InvocationStateMachine implements InvocationFlow.InvocationProcesso
           getCompletion(journalIndex, entryCallback, failureCallback);
         },
         failureCallback);
-  }
-
-  private void executeSideEffectThenWrite(
-      Consumer<Consumer<Protocol.SideEffectEntryMessage>> executeSideEffect,
-      Consumer<Span> traceFn,
-      Consumer<Protocol.SideEffectEntryMessage> entryCallback) {
-    executeSideEffect.accept(
-        sideEffectEntryMessage -> {
-          if (span.isRecording()) {
-            traceFn.accept(span);
-          }
-
-          // Write new entry
-          this.write(sideEffectEntryMessage);
-          this.lastNotAckedSideEffect = this.currentJournalIndex;
-          this.completionStore.wantCompletion(this.currentJournalIndex);
-          this.incrementCurrentIndex();
-
-          entryCallback.accept(sideEffectEntryMessage);
-        });
   }
 
   private void failRead(Throwable cause) {

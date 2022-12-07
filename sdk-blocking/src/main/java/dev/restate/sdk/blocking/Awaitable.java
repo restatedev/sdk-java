@@ -43,10 +43,6 @@ public class Awaitable<T> {
       this.deferredResult = Util.awaitCompletableFuture(fut);
     }
 
-    ReadyResult<T> res = (ReadyResult<T>) this.deferredResult;
-    if (res.isOk()) {
-      return res.getResult();
-    }
-    throw (RuntimeException) res.getFailure();
+    return Util.unwrapReadyResult((ReadyResult<T>) this.deferredResult);
   }
 }

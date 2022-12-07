@@ -6,8 +6,8 @@ import dev.restate.generated.core.CallbackIdentifier;
 import dev.restate.sdk.core.TypeTag;
 import io.grpc.Context;
 import io.grpc.MethodDescriptor;
-import io.grpc.StatusRuntimeException;
 import java.time.Duration;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -69,17 +69,26 @@ public interface Syscalls {
       Runnable okCallback,
       Consumer<Throwable> failureCallback);
 
-  <T> void sideEffect(
+  <T> void enterSideEffectBlock(
       TypeTag<T> typeTag,
-      SideEffectClosure<T> closure,
-      Consumer<T> successResultCallback,
-      Consumer<StatusRuntimeException> errorResultCallback,
+      Runnable noStoredResultCallback,
+      Consumer<ReadyResult<T>> storedResultCallback,
+      Consumer<Throwable> failureCallback);
+
+  <T> void exitSideEffectBlock(
+      TypeTag<T> typeTag,
+      T toWrite,
+      Consumer<ReadyResult<T>> storedResultCallback,
+      Consumer<Throwable> failureCallback);
+
+  void exitSideEffectBlockWithException(
+      Throwable toWrite,
+      Consumer<Throwable> storedFailureCallback,
       Consumer<Throwable> failureCallback);
 
   <T> void callback(
       TypeTag<T> typeTag,
-      CallbackClosure closure,
-      SyscallDeferredResultCallback<T> deferredResultCallback,
+      SyscallDeferredResultWithIdentifierCallback<T> deferredResultCallback,
       Consumer<Throwable> failureCallback);
 
   void completeCallback(
@@ -94,18 +103,9 @@ public interface Syscalls {
       Consumer<Throwable> failureCallback);
 
   @FunctionalInterface
-  interface SideEffectClosure<T> {
-
-    void execute(Consumer<T> resultCallback, Consumer<Throwable> errorCallback);
-  }
-
-  @FunctionalInterface
-  interface CallbackClosure {
-
-    void execute(
-        CallbackIdentifier identifier, Runnable okCallback, Consumer<Throwable> errorCallback);
-  }
-
-  @FunctionalInterface
   interface SyscallDeferredResultCallback<T> extends Consumer<DeferredResult<T>> {}
+
+  @FunctionalInterface
+  interface SyscallDeferredResultWithIdentifierCallback<T>
+      extends BiConsumer<CallbackIdentifier, DeferredResult<T>> {}
 }

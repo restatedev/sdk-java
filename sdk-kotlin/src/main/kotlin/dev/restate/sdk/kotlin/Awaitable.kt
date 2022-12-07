@@ -8,17 +8,17 @@ sealed interface Awaitable<T> {
   suspend fun await(): T
 }
 
-internal abstract class BaseAwaitableImpl<JT, RT>
+internal abstract class BaseAwaitableImpl<JAVA_T, KT_T>
 internal constructor(
     private val syscalls: Syscalls,
-    private var deferredResult: DeferredResult<JT>
-) : Awaitable<RT> {
+    private var deferredResult: DeferredResult<JAVA_T>
+) : Awaitable<KT_T> {
 
-  abstract fun unpackReady(readyResult: ReadyResult<JT>): RT
+  abstract fun unpackReady(readyResult: ReadyResult<JAVA_T>): KT_T
 
-  override suspend fun await(): RT {
-    val readyResult: ReadyResult<JT> =
-        if (deferredResult is ReadyResult<*>) deferredResult as ReadyResult<JT>
+  override suspend fun await(): KT_T {
+    val readyResult: ReadyResult<JAVA_T> =
+        if (deferredResult is ReadyResult<*>) deferredResult as ReadyResult<JAVA_T>
         else resolveDeferred(syscalls, deferredResult)
 
     // Make sure we store it if the user accesses it again

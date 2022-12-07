@@ -38,9 +38,14 @@ sealed interface RestateContext {
       parameter: T
   )
 
-  suspend fun <T> sideEffect(typeTag: TypeTag<T>, sideEffectAction: suspend () -> T): T
+  suspend fun <T> sideEffect(typeTag: TypeTag<T>, sideEffectAction: suspend () -> T?): T?
 
-  suspend fun sideEffect(sideEffectAction: suspend () -> Unit)
+  suspend fun sideEffect(sideEffectAction: suspend () -> Unit) {
+    sideEffect(TypeTag.VOID) {
+      sideEffectAction()
+      null
+    }
+  }
 
   suspend fun <T> callback(
       typeTag: TypeTag<T>,

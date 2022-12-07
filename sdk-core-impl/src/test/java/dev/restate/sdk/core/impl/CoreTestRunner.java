@@ -14,6 +14,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.TestInstance;
@@ -39,7 +40,7 @@ abstract class CoreTestRunner {
                                 c.getMethod(),
                                 c.getInput(),
                                 threadingModel,
-                                c.getExpectedOutput())));
+                                c.getOutputAssert())));
   }
 
   @ParameterizedTest(name = "{index}: {0}")
@@ -50,7 +51,7 @@ abstract class CoreTestRunner {
       String method,
       List<MessageLite> input,
       ThreadingModel threadingModel,
-      List<MessageLite> expectedOutput) {
+      Consumer<List<MessageLite>> outputAssert) {
     Executor syscallsExecutor =
         threadingModel == ThreadingModel.UNBUFFERED_MULTI_THREAD
             ? Executors.newSingleThreadExecutor()
@@ -112,7 +113,7 @@ abstract class CoreTestRunner {
     // Check completed
     assertThat(outputSubscriber.getFuture())
         .succeedsWithin(futureWaitTime)
-        .isEqualTo(expectedOutput);
+        .satisfies(outputAssert::accept);
     assertThat(inputSubscription.isCancelled()).isTrue();
   }
 
@@ -130,7 +131,7 @@ abstract class CoreTestRunner {
 
     HashSet<ThreadingModel> getThreadingModels();
 
-    List<MessageLite> getExpectedOutput();
+    Consumer<List<MessageLite>> getOutputAssert();
 
     String testCaseName();
   }
@@ -209,12 +210,15 @@ abstract class CoreTestRunner {
       }
 
       ExpectingOutputMessages expectingOutput(MessageLite... messages) {
-        return new ExpectingOutputMessages(
-            svc, method, input, threadingModels, Arrays.asList(messages));
+        return assertingOutput(actual -> assertThat(actual).asList().containsExactly(messages));
       }
 
       ExpectingOutputMessages expectingNoOutput() {
-        return expectingOutput();
+        return assertingOutput(messages -> assertThat(messages).asList().isEmpty());
+      }
+
+      ExpectingOutputMessages assertingOutput(Consumer<List<MessageLite>> messages) {
+        return new ExpectingOutputMessages(svc, method, input, threadingModels, messages);
       }
     }
 
@@ -223,7 +227,7 @@ abstract class CoreTestRunner {
       private final String method;
       private final List<MessageLite> input;
       private final HashSet<ThreadingModel> threadingModels;
-      private final List<MessageLite> expectedOutput;
+      private final Consumer<List<MessageLite>> outputAssert;
       private final String named;
 
       ExpectingOutputMessages(
@@ -231,13 +235,13 @@ abstract class CoreTestRunner {
           String method,
           List<MessageLite> input,
           HashSet<ThreadingModel> threadingModels,
-          List<MessageLite> expectedOutput) {
+          Consumer<List<MessageLite>> outputAssert) {
         this(
             svc,
             method,
             input,
             threadingModels,
-            expectedOutput,
+            outputAssert,
             "Test " + svc.getServiceDescriptor().getName() + "/" + method);
       }
 
@@ -246,19 +250,18 @@ abstract class CoreTestRunner {
           String method,
           List<MessageLite> input,
           HashSet<ThreadingModel> threadingModels,
-          List<MessageLite> expectedOutput,
+          Consumer<List<MessageLite>> outputAssert,
           String named) {
         this.svc = svc;
         this.method = method;
         this.input = input;
         this.threadingModels = threadingModels;
-        this.expectedOutput = expectedOutput;
+        this.outputAssert = outputAssert;
         this.named = named;
       }
 
       ExpectingOutputMessages named(String name) {
-        return new ExpectingOutputMessages(
-            svc, method, input, threadingModels, expectedOutput, name);
+        return new ExpectingOutputMessages(svc, method, input, threadingModels, outputAssert, name);
       }
 
       @Override
@@ -282,8 +285,8 @@ abstract class CoreTestRunner {
       }
 
       @Override
-      public List<MessageLite> getExpectedOutput() {
-        return expectedOutput;
+      public Consumer<List<MessageLite>> getOutputAssert() {
+        return outputAssert;
       }
 
       @Override

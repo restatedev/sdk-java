@@ -6,10 +6,7 @@ import dev.restate.sdk.core.*
 import dev.restate.sdk.core.syscalls.DeferredResult
 import dev.restate.sdk.core.syscalls.ReadyResult
 import dev.restate.sdk.core.syscalls.Syscalls
-import dev.restate.sdk.core.syscalls.Syscalls.CallbackClosure
-import dev.restate.sdk.core.syscalls.Syscalls.SideEffectClosure
 import io.grpc.MethodDescriptor
-import java.util.function.Consumer
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.time.Duration
@@ -71,46 +68,55 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
     }
   }
 
-  override suspend fun <T> sideEffect(typeTag: TypeTag<T>, sideEffectAction: suspend () -> T): T {
-    val scope = CoroutineScope(Dispatchers.Unconfined) // Capture the scope
+  override suspend fun <T> sideEffect(typeTag: TypeTag<T>, sideEffectAction: suspend () -> T?): T? {
+    val enterResult =
+        suspendCancellableCoroutine { cont: CancellableContinuation<ReadyResult<T>?> ->
+          syscalls.enterSideEffectBlock(
+              typeTag, { cont.resume(null) }, { cont.resume(it) }, { cont.cancel(it) })
+        }
 
-    return suspendCancellableCoroutine { cont: CancellableContinuation<T> ->
-      syscalls.sideEffect(
-          typeTag,
-          SideEffectClosureBridge(scope, sideEffectAction),
-          { cont.resume(it) },
-          { cont.resumeWithException(it) },
-          { cont.cancel(it) })
+    if (enterResult != null) {
+      return unpackNullableReady(enterResult)
     }
-  }
 
-  override suspend fun sideEffect(sideEffectAction: suspend () -> Unit) {
-    val scope = CoroutineScope(Dispatchers.Unconfined) // Capture the scope
-
-    return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-      syscalls.sideEffect(
-          TypeTag.ofClass(Unit.javaClass),
-          SideEffectClosureBridge(scope, sideEffectAction),
-          { cont.resume(Unit) },
-          { cont.resumeWithException(it) },
-          { cont.cancel(it) })
+    var actionReturnValue: T? = null
+    var actionFailure: Throwable? = null
+    try {
+      actionReturnValue = sideEffectAction()
+    } catch (e: Throwable) {
+      actionFailure = e
     }
+
+    val exitResult =
+        if (actionFailure != null) {
+          suspendCancellableCoroutine { cont: CancellableContinuation<ReadyResult<T>> ->
+            syscalls.exitSideEffectBlockWithException(
+                actionFailure, { cont.resumeWithException(it) }, { cont.resumeWithException(it) })
+          }
+        } else {
+          suspendCancellableCoroutine { cont: CancellableContinuation<ReadyResult<T>> ->
+            syscalls.exitSideEffectBlock(
+                typeTag, actionReturnValue, { cont.resume(it) }, { cont.resumeWithException(it) })
+          }
+        }
+
+    return unpackNullableReady(exitResult)
   }
 
   override suspend fun <T> callbackAsync(
       typeTag: TypeTag<T>,
       callbackAction: suspend (CallbackIdentifier) -> Unit
   ): Awaitable<T> {
-    val scope = CoroutineScope(Dispatchers.Unconfined) // Capture the scope
-
-    val deferredResult: DeferredResult<T> =
-        suspendCancellableCoroutine { cont: CancellableContinuation<DeferredResult<T>> ->
+    val (cid, deferredResult) =
+        suspendCancellableCoroutine {
+            cont: CancellableContinuation<Pair<CallbackIdentifier, DeferredResult<T>>> ->
           syscalls.callback(
               typeTag,
-              CallbackClosureBridge(scope, callbackAction),
-              { cont.resume(it) },
+              { cid, deferredResult -> cont.resume(cid to deferredResult) },
               { cont.resumeWithException(it) })
         }
+
+    this.sideEffect { callbackAction(cid) }
 
     return NonNullAwaitableImpl(syscalls, deferredResult)
   }
@@ -119,47 +125,6 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
       syscalls.completeCallback(
           id, payload, { cont.resume(Unit) }, { cont.resumeWithException(it) })
-    }
-  }
-
-  private class SideEffectClosureBridge<T>(
-      val scope: CoroutineScope,
-      val sideEffectAction: suspend () -> T
-  ) : SideEffectClosure<T> {
-
-    // TODO we need a test here to check that we correctly use the scope, and we get the context
-    // propagated
-    //  We might not need this though by splitting the side effect syscall
-    // https://github.com/vert-x3/vertx-lang-kotlin/blob/master/vertx-lang-kotlin-coroutines/src/test/kotlin/io/vertx/kotlin/coroutines/CoroutineContextTest.kt#L104
-
-    override fun execute(resultCallback: Consumer<T>, errorCallback: Consumer<Throwable>) {
-      scope.launch {
-        try {
-          resultCallback.accept(sideEffectAction())
-        } catch (e: Throwable) {
-          errorCallback.accept(e)
-        }
-      }
-    }
-  }
-
-  private class CallbackClosureBridge(
-      val scope: CoroutineScope,
-      val callbackAction: suspend (CallbackIdentifier) -> Unit
-  ) : CallbackClosure {
-    override fun execute(
-        identifier: CallbackIdentifier,
-        okCallback: java.lang.Runnable,
-        errorCallback: Consumer<Throwable>
-    ) {
-      scope.launch {
-        try {
-          callbackAction(identifier)
-          okCallback.run()
-        } catch (e: Throwable) {
-          errorCallback.accept(e)
-        }
-      }
     }
   }
 }
