@@ -1,0 +1,221 @@
+@startuml
+
+set namespaceSeparator none
+top to bottom direction
+hide empty members
+
+skinparam {
+    NodeSep 20
+    RankSep 10
+}
+
+package "dev.restate.sdk:java-sdk-core" <<Frame>> {
+
+    package dev.restate.sdk.core {
+        class SuspendableException
+        class StateKey
+        class TypeTag
+        class CallbackIdentifier
+        class DecodedCallbackIdentifier
+    }
+
+    package dev.restate.sdk.core.serde {
+        interface Serde
+        note left: Implementations are\ndiscovered through SPI.
+
+        class ChainedSerde implements Serde
+    }
+
+    package dev.restate.sdk.core.syscalls {
+        interface Syscalls {
+            {abstract} getState(StateKey, callback)
+            {abstract} call(io.grpc.MethodDescriptor, parameter, callback)
+            {method} [...]
+        }
+        note left: Callback based interface.\nFor internal usage only.
+    }
+}
+
+package "dev.restate.sdk:java-sdk-core-impl" <<Frame>> {
+    package dev.restate.sdk.core.impl {
+        class SyscallsImpl implements Syscalls {
+            {field} Channel channel
+            {field} InvocationStateMachine invocationStateMachine
+        }
+
+        class InvocationStateMachine
+        note left: Helper to implement syscalls\nand keep track of invocation state.
+        SyscallsImpl -[hidden]- InvocationStateMachine
+
+        interface Channel {
+            read(callback)
+            write(Message, callback)
+            close(callback)
+        }
+        note right: Callback based interface.\nImplemented by HTTP servers.
+        SyscallsImpl -[hidden]- Channel
+
+        class RestateGrpcServerBuilder {
+            addService(io.grpc.BindableService)
+            addInterceptor(io.grpc.ServerInterceptor)
+            RestateGrpcServer build()
+        }
+
+        class RestateGrpcServer {
+            handle(String, String, Channel, callback)
+        }
+        RestateGrpcServerBuilder -[hidden]- RestateGrpcServer
+    }
+
+    package dev.restate.sdk.core.serde.protobuf {
+        class ProtobufSerde implements Serde
+    }
+}
+"dev.restate.sdk:java-sdk-core" +-down- "dev.restate.sdk:java-sdk-core-impl"
+
+package "dev.restate.sdk:sdk-serde-jackson" <<Frame>> {
+    package dev.restate.sdk.core.serde.jackson {
+        class JacksonSerde implements Serde
+        note right of JacksonSerde: Provides a default serde\nbased on Jackson/CBOR.
+    }
+}
+"dev.restate.sdk:java-sdk-core" +-right- "dev.restate.sdk:sdk-serde-jackson"
+
+package "dev.restate.sdk:java-sdk-vertx" <<Frame>> {
+    package dev.restate.sdk.vertx {
+        class VertxRestateServerBuilder {
+            setPort(int)
+            addService(io.grpc.BindableService)
+            addInterceptor(io.grpc.ServerInterceptor)
+            VertxRestateServer build()
+        }
+
+        class VertxRestateServer {
+            listen()
+        }
+        VertxRestateServerBuilder -[hidden]- VertxRestateServer
+
+        interface dev.restate.sdk.vertx.RestateContext {
+            {static} RestateContext current()
+            Future<T> getState(StateKey)
+            Future<T> call(io.grpc.MethodDescriptor, parameter)
+            {method} [...]
+        }
+        note left of dev.restate.sdk.vertx.RestateContext: Vert.x Futures\nbased interface.
+
+        class dev.restate.sdk.vertx.RestateContextImpl implements dev.restate.sdk.vertx.RestateContext {
+            {field} Syscalls syscalls
+        }
+        note left of dev.restate.sdk.vertx.RestateContextImpl: Resolves SyscallsImpl\nthrough io.grpc.Context
+    }
+
+    package io.grpc.override {
+        class ContextStorageOverride
+        note bottom: Propagate io.grpc.Context\nthrough io.vertx.Context
+    }
+
+}
+"dev.restate.sdk:java-sdk-core-impl" +-- "dev.restate.sdk:java-sdk-vertx"
+
+package "dev.restate.sdk:java-sdk-quarkus" <<Frame>> {
+    package dev.restate.sdk.quarkus {
+        interface dev.restate.sdk.quarkus.RestateContext {
+            {static} RestateContext current()
+            Mono<T> getState(StateKey)
+            Mono<T> call(io.grpc.MethodDescriptor, parameter)
+            {method} [...]
+        }
+        note left of dev.restate.sdk.quarkus.RestateContext: Quarkus Mutiny\nbased interface.
+
+        class dev.restate.sdk.quarkus.RestateContextImpl implements dev.restate.sdk.quarkus.RestateContext {
+            {field} Syscalls syscalls
+        }
+        note left of dev.restate.sdk.quarkus.RestateContextImpl: Resolves SyscallsImpl\nthrough io.grpc.Context
+
+        class RestateServerProcessor
+        note bottom of RestateServerProcessor: Figure out the dependency\ninjection code and starts\nVert.x HTTP server
+        ' https://github.com/quarkusio/quarkus/blob/main/extensions/grpc/deployment/src/main/java/io/quarkus/grpc/deployment/GrpcServerProcessor.java#L623
+    }
+
+}
+"dev.restate.sdk:java-sdk-vertx" +-- "dev.restate.sdk:java-sdk-quarkus"
+
+package "dev.restate.sdk:java-sdk-blocking" <<Frame>> {
+    package dev.restate.sdk.blocking {
+        interface dev.restate.sdk.blocking.RestateContext {
+            {static} RestateContext current()
+            T getState(StateKey)
+            T call(io.grpc.MethodDescriptor, parameter)
+            {method} [...]
+        }
+        note left of dev.restate.sdk.blocking.RestateContext: Blocking interface
+
+        class dev.restate.sdk.blocking.RestateContextImpl implements dev.restate.sdk.blocking.RestateContext {
+            {field} Syscalls syscalls
+        }
+        note left of dev.restate.sdk.blocking.RestateContextImpl: Resolves SyscallsImpl\nthrough io.grpc.Context
+    }
+}
+"dev.restate.sdk:java-sdk-core" +-- "dev.restate.sdk:java-sdk-blocking"
+
+package "dev.restate.sdk:java-sdk-lambda" <<Frame>> {
+    package dev.restate.sdk.lambda {
+        class LambdaRestateServerBuilder {
+            setPort(int)
+            addService(io.grpc.BindableService)
+            addInterceptor(io.grpc.ServerInterceptor)
+            LambdaRestateServer build()
+        }
+
+        class LambdaRestateServer {
+            listen()
+        }
+
+        LambdaRestateServerBuilder -[hidden]- LambdaRestateServer
+    }
+}
+"dev.restate.sdk:java-sdk-core-impl" +-- "dev.restate.sdk:java-sdk-lambda"
+"dev.restate.sdk:java-sdk-blocking" +-- "dev.restate.sdk:java-sdk-lambda"
+
+package "dev.restate.sdk:java-sdk-kotlin" <<Frame>> {
+        interface dev.restate.sdk.kotlin.RestateContext {
+            {static} RestateContext current()
+            suspend T getState(StateKey)
+            suspend T call(io.grpc.MethodDescriptor, parameter)
+            {method} [...]
+        }
+        note left of dev.restate.sdk.kotlin.RestateContext: Coroutines interface
+
+        class dev.restate.sdk.kotlin.RestateContextImpl implements dev.restate.sdk.kotlin.RestateContext {
+            {field} Syscalls syscalls
+        }
+        note left of dev.restate.sdk.kotlin.RestateContextImpl: Resolves SyscallsImpl\nthrough io.grpc.Context
+}
+"dev.restate.sdk:java-sdk-core" +-- "dev.restate.sdk:java-sdk-kotlin"
+
+package "dev.restate.sdk:java-sdk-testing" <<Frame>> {
+    package dev.restate.sdk.testing {
+        class SyscallsMock implements Syscalls
+
+        class MockRestateServerBuilder {
+            void addService(io.grpc.BindableService)
+            void addInterceptor(io.grpc.ServerInterceptor)
+            MockRestateServer build()
+        }
+
+        class MockRestateServer {
+            void start()
+            void stop()
+        }
+
+        MockRestateServerBuilder -[hidden]- MockRestateServer
+    }
+    package dev.restate.sdk.testing.junit5 {
+        annotation InjectBlockingStub
+        annotation InjectSyscallMock
+
+        class RestateExtension
+    }
+}
+"dev.restate.sdk:java-sdk-core" +-- "dev.restate.sdk:java-sdk-testing"
+@enduml
