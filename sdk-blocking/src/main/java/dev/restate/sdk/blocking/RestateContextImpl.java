@@ -5,10 +5,13 @@ import dev.restate.generated.core.CallbackIdentifier;
 import dev.restate.sdk.core.StateKey;
 import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.core.syscalls.DeferredResult;
+import dev.restate.sdk.core.syscalls.ReadyResult;
 import dev.restate.sdk.core.syscalls.Syscalls;
 import io.grpc.MethodDescriptor;
 import io.grpc.StatusRuntimeException;
 import java.time.Duration;
+import java.util.AbstractMap.SimpleImmutableEntry;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -81,48 +84,56 @@ public class RestateContextImpl implements RestateContext {
 
   @Override
   public <T> T sideEffect(TypeTag<T> typeTag, Supplier<T> action) {
-    CompletableFuture<T> fut = new CompletableFuture<>();
-
-    syscalls.sideEffect(
+    CompletableFuture<Optional<ReadyResult<T>>> enterFut = new CompletableFuture<>();
+    syscalls.enterSideEffectBlock(
         typeTag,
-        (resultCallback, errorCallback) -> {
-          T res;
-          try {
-            res = action.get();
-          } catch (Throwable e) {
-            errorCallback.accept(e);
-            return;
-          }
-          resultCallback.accept(res);
-        },
-        fut::complete,
-        fut::completeExceptionally,
-        fut::completeExceptionally);
-    return Util.awaitCompletableFuture(fut);
+        () -> enterFut.complete(Optional.empty()),
+        storedResult -> enterFut.complete(Optional.of(storedResult)),
+        enterFut::completeExceptionally);
+
+    Optional<ReadyResult<T>> readyResult = Util.awaitCompletableFuture(enterFut);
+    if (readyResult.isPresent()) {
+      // We already have a result, we don't need to execute the action
+      return Util.unwrapReadyResult(readyResult.get());
+    }
+
+    T res = null;
+    Throwable failure = null;
+    try {
+      res = action.get();
+    } catch (Throwable e) {
+      failure = e;
+    }
+
+    CompletableFuture<ReadyResult<T>> exitFut = new CompletableFuture<>();
+
+    if (failure != null) {
+      syscalls.exitSideEffectBlockWithException(
+          failure, exitFut::completeExceptionally, exitFut::completeExceptionally);
+    } else {
+      syscalls.exitSideEffectBlock(typeTag, res, exitFut::complete, exitFut::completeExceptionally);
+    }
+
+    return Util.unwrapReadyResult(Util.awaitCompletableFuture(exitFut));
   }
 
   @Override
   public <T> Awaitable<T> callback(TypeTag<T> typeTag, Consumer<CallbackIdentifier> action)
       throws StatusRuntimeException {
-    CompletableFuture<DeferredResult<T>> fut = new CompletableFuture<>();
-
+    // Retrieve the awakeable
+    CompletableFuture<Map.Entry<CallbackIdentifier, DeferredResult<T>>> enterFut =
+        new CompletableFuture<>();
     syscalls.callback(
         typeTag,
-        (identifier, okCallback, errorCallback) -> {
-          try {
-            action.accept(identifier);
-          } catch (Throwable e) {
-            errorCallback.accept(e);
-            return;
-          }
-          okCallback.run();
-        },
-        fut::complete,
-        fut::completeExceptionally);
+        (cid, deferred) -> enterFut.complete(new SimpleImmutableEntry<>(cid, deferred)),
+        enterFut::completeExceptionally);
+    Map.Entry<CallbackIdentifier, DeferredResult<T>> awakeable =
+        Util.awaitCompletableFuture(enterFut);
 
-    DeferredResult<T> result = Util.awaitCompletableFuture(fut);
+    // Run the side effect
+    this.sideEffect(() -> action.accept(awakeable.getKey()));
 
-    return new Awaitable<>(syscalls, result);
+    return new Awaitable<>(syscalls, awakeable.getValue());
   }
 
   @Override

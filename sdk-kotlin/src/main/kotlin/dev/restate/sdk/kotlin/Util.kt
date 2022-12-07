@@ -18,3 +18,10 @@ internal suspend fun <T> resolveDeferred(
         { ex: Throwable -> it.resumeWithException(ex) })
   }
 }
+
+internal fun <T> unpackNullableReady(readyResult: ReadyResult<T>): T? {
+  if (!readyResult.isOk) {
+    throw readyResult.failure!!
+  }
+  return readyResult.result
+}

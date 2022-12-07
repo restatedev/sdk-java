@@ -8,7 +8,6 @@ import dev.restate.sdk.core.syscalls.DeferredResult;
 import dev.restate.sdk.core.syscalls.ReadyResult;
 import dev.restate.sdk.core.syscalls.Syscalls;
 import io.grpc.MethodDescriptor;
-import io.grpc.StatusRuntimeException;
 import java.time.Duration;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -64,18 +63,29 @@ public class SyscallsMock implements Syscalls {
       Consumer<Throwable> failureCallback) {}
 
   @Override
-  public <T> void sideEffect(
+  public <T> void enterSideEffectBlock(
       TypeTag<T> typeTag,
-      SideEffectClosure<T> closure,
-      Consumer<T> successResultCallback,
-      Consumer<StatusRuntimeException> errorResultCallback,
+      Runnable noStoredResultCallback,
+      Consumer<ReadyResult<T>> storedResultCallback,
+      Consumer<Throwable> failureCallback) {}
+
+  @Override
+  public <T> void exitSideEffectBlock(
+      TypeTag<T> typeTag,
+      T toWrite,
+      Consumer<ReadyResult<T>> storedResultCallback,
+      Consumer<Throwable> failureCallback) {}
+
+  @Override
+  public void exitSideEffectBlockWithException(
+      Throwable toWrite,
+      Consumer<Throwable> storedFailureCallback,
       Consumer<Throwable> failureCallback) {}
 
   @Override
   public <T> void callback(
       TypeTag<T> typeTag,
-      CallbackClosure closure,
-      SyscallDeferredResultCallback<T> deferredResultCallback,
+      SyscallDeferredResultWithIdentifierCallback<T> deferredResultCallback,
       Consumer<Throwable> failureCallback) {}
 
   @Override

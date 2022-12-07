@@ -11,7 +11,6 @@ import dev.restate.sdk.core.serde.Serde;
 import dev.restate.sdk.core.syscalls.DeferredResult;
 import dev.restate.sdk.core.syscalls.ReadyResult;
 import io.grpc.MethodDescriptor;
-import io.grpc.StatusRuntimeException;
 import io.opentelemetry.api.common.Attributes;
 import java.time.Duration;
 import java.util.Objects;
@@ -45,7 +44,7 @@ public final class SyscallsImpl implements SyscallsInternal {
         e -> null,
         entry -> deserializeWithProto(mapper, entry.getValue()),
         completionMessage -> deserializeWithProto(mapper, completionMessage.getValue()),
-        deferredResultCallback,
+        (index, deferredResult) -> deferredResultCallback.accept(deferredResult),
         failureCallback);
   }
 
@@ -95,7 +94,7 @@ public final class SyscallsImpl implements SyscallsInternal {
             (completionMessage.getResultCase() == Protocol.CompletionMessage.ResultCase.EMPTY)
                 ? ResultTreeNodes.empty()
                 : deserializeWithSerde(ty, completionMessage.getValue()),
-        deferredCallback,
+        (index, deferredResult) -> deferredCallback.accept(deferredResult),
         failureCallback);
   }
 
@@ -134,6 +133,7 @@ public final class SyscallsImpl implements SyscallsInternal {
         failureCallback);
   }
 
+  @SuppressWarnings({"rawtypes", "unchecked"})
   @Override
   public void sleep(
       Duration duration,
@@ -148,7 +148,7 @@ public final class SyscallsImpl implements SyscallsInternal {
         e -> null,
         entry -> ResultTreeNodes.empty(),
         completionMessage -> ResultTreeNodes.empty(),
-        deferredResultCallback,
+        (index, deferredResult) -> deferredResultCallback.accept((DeferredResult) deferredResult),
         failureCallback);
   }
 
@@ -198,7 +198,7 @@ public final class SyscallsImpl implements SyscallsInternal {
                     i -> methodDescriptor.parseResponse(i.newInput()), completionMessage.getValue())
                 : ResultTreeNodes.failure(
                     Util.toGrpcStatus(completionMessage.getFailure()).asRuntimeException()),
-        deferredResultCallback,
+        (index, deferredResult) -> deferredResultCallback.accept(deferredResult),
         failureCallback);
   }
 
@@ -233,93 +233,96 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public <T> void sideEffect(
+  public <T> void enterSideEffectBlock(
       TypeTag<T> typeTag,
-      SideEffectClosure<T> closure,
-      Consumer<T> successResultCallback,
-      Consumer<StatusRuntimeException> errorResultCallback,
+      Runnable noStoredResultCallback,
+      Consumer<ReadyResult<T>> storedResultCallback,
       Consumer<Throwable> failureCallback) {
-    this.stateMachine.processSideEffectJournalEntry(
-        sideEffectEntryCallback ->
-            closure.execute(
-                res -> {
-                  ByteString serialized;
-                  try {
-                    serialized = serialize(res);
-                  } catch (Throwable e) {
-                    // Record the serialization failure
-                    sideEffectEntryCallback.accept(
-                        Protocol.SideEffectEntryMessage.newBuilder()
-                            .setFailure(toProtocolFailure(e))
-                            .build());
-                    return;
-                  }
-                  sideEffectEntryCallback.accept(
-                      Protocol.SideEffectEntryMessage.newBuilder().setValue(serialized).build());
-                },
-                throwable ->
-                    sideEffectEntryCallback.accept(
-                        Protocol.SideEffectEntryMessage.newBuilder()
-                            .setFailure(toProtocolFailure(throwable))
-                            .build())),
-        span -> span.addEvent("SideEffect"),
-        sideEffectEntry -> {
-          if (sideEffectEntry.hasValue()) {
-            deserializeWithSerdeCallback(
-                typeTag, sideEffectEntry.getValue(), successResultCallback, failureCallback);
-          } else {
-            errorResultCallback.accept(
-                Util.toGrpcStatus(sideEffectEntry.getFailure()).asRuntimeException());
-          }
-        },
+    this.stateMachine.enterSideEffectJournalEntry(
+        span -> span.addEvent("Enter SideEffect"),
+        sideEffectEntryHandler(typeTag, storedResultCallback),
+        noStoredResultCallback,
+        failureCallback);
+  }
+
+  @Override
+  public <T> void exitSideEffectBlock(
+      TypeTag<T> typeTag,
+      T toWrite,
+      Consumer<ReadyResult<T>> storedResultCallback,
+      Consumer<Throwable> failureCallback) {
+    Protocol.SideEffectEntryMessage.Builder sideEffectToWrite =
+        Protocol.SideEffectEntryMessage.newBuilder();
+    try {
+      sideEffectToWrite.setValue(serialize(toWrite));
+    } catch (Throwable e) {
+      // Record the serialization failure
+      sideEffectToWrite.setFailure(toProtocolFailure(e));
+    }
+
+    this.stateMachine.exitSideEffectBlock(
+        sideEffectToWrite.build(),
+        span -> span.addEvent("Exit SideEffect"),
+        sideEffectEntryHandler(typeTag, storedResultCallback),
+        failureCallback);
+  }
+
+  private <T> Consumer<Protocol.SideEffectEntryMessage> sideEffectEntryHandler(
+      TypeTag<T> typeTag, Consumer<ReadyResult<T>> storedResultCallback) {
+    return sideEffectEntry -> {
+      if (sideEffectEntry.hasValue()) {
+        storedResultCallback.accept(deserializeWithSerde(typeTag, sideEffectEntry.getValue()));
+      } else {
+        storedResultCallback.accept(
+            ResultTreeNodes.failure(
+                Util.toGrpcStatus(sideEffectEntry.getFailure()).asRuntimeException()));
+      }
+    };
+  }
+
+  @Override
+  public void exitSideEffectBlockWithException(
+      Throwable toWrite,
+      Consumer<Throwable> storedFailureCallback,
+      Consumer<Throwable> failureCallback) {
+    this.stateMachine.exitSideEffectBlock(
+        Protocol.SideEffectEntryMessage.newBuilder().setFailure(toProtocolFailure(toWrite)).build(),
+        span -> span.addEvent("Exit SideEffect"),
+        sideEffectEntry ->
+            storedFailureCallback.accept(
+                Util.toGrpcStatus(sideEffectEntry.getFailure()).asRuntimeException()),
         failureCallback);
   }
 
   @Override
   public <T> void callback(
       TypeTag<T> typeTag,
-      CallbackClosure callbackClosure,
-      SyscallDeferredResultCallback<T> deferredResultCallback,
+      SyscallDeferredResultWithIdentifierCallback<T> deferredResultCallback,
       Consumer<Throwable> failureCallback) {
-    this.sideEffect(
-        TypeTag.VOID,
-        (sideEffectResultCallback, sideEffectErrorCallback) ->
-            callbackClosure.execute(
+    this.stateMachine.processCompletableJournalEntry(
+        Protocol.CallbackEntryMessage.getDefaultInstance(),
+        entry -> entry.getResultCase() == Protocol.CallbackEntryMessage.ResultCase.RESULT_NOT_SET,
+        span -> span.addEvent("Callback"),
+        e -> null,
+        entry ->
+            entry.hasValue()
+                ? deserializeWithSerde(typeTag, entry.getValue())
+                : ResultTreeNodes.failure(
+                    Util.toGrpcStatus(entry.getFailure()).asRuntimeException()),
+        completionMessage ->
+            completionMessage.hasValue()
+                ? deserializeWithSerde(typeTag, completionMessage.getValue())
+                : ResultTreeNodes.failure(
+                    Util.toGrpcStatus(completionMessage.getFailure()).asRuntimeException()),
+        (index, deferredResult) ->
+            deferredResultCallback.accept(
                 CallbackIdentifier.newBuilder()
                     .setServiceName(this.stateMachine.getServiceName())
                     .setInstanceKey(this.stateMachine.getInstanceKey())
                     .setInvocationId(this.stateMachine.getInvocationId())
-                    // The + 1 is needed here because the callback entry is the next entry,
-                    // and not the current one, which will be the SideEffectEntryMessage
-                    .setEntryIndex(this.stateMachine.getCurrentJournalIndex() + 1)
+                    .setEntryIndex(index)
                     .build(),
-                () -> sideEffectResultCallback.accept(null),
-                sideEffectErrorCallback),
-        success ->
-            this.stateMachine.processCompletableJournalEntry(
-                Protocol.CallbackEntryMessage.getDefaultInstance(),
-                entry ->
-                    entry.getResultCase()
-                        == Protocol.CallbackEntryMessage.ResultCase.RESULT_NOT_SET,
-                span -> span.addEvent("Callback"),
-                e -> null,
-                entry ->
-                    entry.hasValue()
-                        ? deserializeWithSerde(typeTag, entry.getValue())
-                        : ResultTreeNodes.failure(
-                            Util.toGrpcStatus(entry.getFailure()).asRuntimeException()),
-                completionMessage ->
-                    completionMessage.hasValue()
-                        ? deserializeWithSerde(typeTag, completionMessage.getValue())
-                        : ResultTreeNodes.failure(
-                            Util.toGrpcStatus(completionMessage.getFailure()).asRuntimeException()),
-                deferredResultCallback,
-                failureCallback),
-        errorResult ->
-            // TODO is this the correct behaviour? Should we skip creating the callback entry if the
-            //  closure failed? If yes, what about we receive a completion for that?
-            //  https://github.com/restatedev/service-protocol/issues/1
-            deferredResultCallback.accept(ResultTreeNodes.failure(errorResult)),
+                deferredResult),
         failureCallback);
   }
 
@@ -388,21 +391,6 @@ public final class SyscallsImpl implements SyscallsInternal {
     } catch (Throwable e) {
       return ResultTreeNodes.failure(e);
     }
-  }
-
-  private <T> void deserializeWithSerdeCallback(
-      TypeTag<T> ty,
-      ByteString value,
-      Consumer<T> valueResultCallback,
-      Consumer<Throwable> failureCallback) {
-    T mapped;
-    try {
-      mapped = deserialize(ty.get(), value);
-    } catch (Throwable e) {
-      failureCallback.accept(e);
-      return;
-    }
-    valueResultCallback.accept(mapped);
   }
 
   private ByteString serialize(Object obj) {
