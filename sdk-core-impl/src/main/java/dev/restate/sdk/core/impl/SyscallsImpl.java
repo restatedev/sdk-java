@@ -9,16 +9,19 @@ import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.core.serde.CustomSerdeFunctionsTypeTag;
 import dev.restate.sdk.core.serde.Serde;
-import dev.restate.sdk.core.syscalls.DeferredResult;
-import dev.restate.sdk.core.syscalls.ReadyResult;
+import dev.restate.sdk.core.syscalls.*;
 import io.grpc.MethodDescriptor;
 import io.opentelemetry.api.common.Attributes;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public final class SyscallsImpl implements SyscallsInternal {
+
+  private static final Logger LOG = LogManager.getLogger(SyscallsImpl.class);
 
   private final InvocationStateMachine stateMachine;
   private final Serde serde;
@@ -36,8 +39,9 @@ public final class SyscallsImpl implements SyscallsInternal {
   @Override
   public <T extends MessageLite> void pollInput(
       Function<ByteString, T> mapper,
-      SyscallDeferredResultCallback<T> deferredResultCallback,
-      Consumer<Throwable> failureCallback) {
+      SyscallCallback<Void> requestCallback,
+      DeferredResultCallback<T> deferredResultCallback) {
+    LOG.trace("pollInput");
     this.stateMachine.processCompletableJournalEntry(
         Protocol.PollInputStreamEntryMessage.getDefaultInstance(),
         entry -> false,
@@ -45,38 +49,38 @@ public final class SyscallsImpl implements SyscallsInternal {
         e -> null,
         entry -> deserializeWithProto(mapper, entry.getValue()),
         completionMessage -> deserializeWithProto(mapper, completionMessage.getValue()),
-        (index, deferredResult) -> deferredResultCallback.accept(deferredResult),
-        failureCallback);
+        deferredResultCallback,
+        SyscallCallback.completingEmpty(requestCallback));
   }
 
   @Override
-  public <T extends MessageLite> void writeOutput(
-      T value, Runnable okCallback, Consumer<Throwable> failureCallback) {
+  public <T extends MessageLite> void writeOutput(T value, SyscallCallback<Void> requestCallback) {
+    LOG.trace("writeOutput success");
     Protocol.OutputStreamEntryMessage entry =
         Protocol.OutputStreamEntryMessage.newBuilder().setValue(value.toByteString()).build();
     this.stateMachine.processJournalEntryWithoutWaitingAck(
-        entry, span -> span.addEvent("OutputStream"), e -> null, okCallback, failureCallback);
+        entry, span -> span.addEvent("OutputStream"), e -> null, requestCallback);
   }
 
   @Override
-  public void writeOutput(
-      Throwable throwable, Runnable okCallback, Consumer<Throwable> failureCallback) {
+  public void writeOutput(Throwable throwable, SyscallCallback<Void> requestCallback) {
+    LOG.trace("writeOutput failure");
     this.stateMachine.processJournalEntryWithoutWaitingAck(
         Protocol.OutputStreamEntryMessage.newBuilder()
             .setFailure(toProtocolFailure(throwable))
             .build(),
         span -> span.addEvent("OutputStream"),
         e -> null,
-        okCallback,
-        failureCallback);
+        requestCallback);
   }
 
   @Override
   public <T> void get(
       String name,
       TypeTag<T> ty,
-      SyscallDeferredResultCallback<T> deferredCallback,
-      Consumer<Throwable> failureCallback) {
+      SyscallCallback<Void> requestCallback,
+      DeferredResultCallback<T> deferredResultCallback) {
+    LOG.trace("get {}", name);
     Protocol.GetStateEntryMessage expectedEntry =
         Protocol.GetStateEntryMessage.newBuilder().setKey(ByteString.copyFromUtf8(name)).build();
     this.stateMachine.processCompletableJournalEntry(
@@ -89,40 +93,36 @@ public final class SyscallsImpl implements SyscallsInternal {
                 : null,
         entry ->
             (entry.getResultCase() == Protocol.GetStateEntryMessage.ResultCase.EMPTY)
-                ? ResultTreeNodes.empty()
+                ? ReadyResult.empty()
                 : deserializeWithSerde(ty, entry.getValue()),
         completionMessage ->
             (completionMessage.getResultCase() == Protocol.CompletionMessage.ResultCase.EMPTY)
-                ? ResultTreeNodes.empty()
+                ? ReadyResult.empty()
                 : deserializeWithSerde(ty, completionMessage.getValue()),
-        (index, deferredResult) -> deferredCallback.accept(deferredResult),
-        failureCallback);
+        deferredResultCallback,
+        SyscallCallback.completingEmpty(requestCallback));
   }
 
   @Override
-  public void clear(String name, Runnable okCallback, Consumer<Throwable> failureCallback) {
+  public void clear(String name, SyscallCallback<Void> requestCallback) {
+    LOG.trace("clear {}", name);
     Protocol.ClearStateEntryMessage expectedEntry =
         Protocol.ClearStateEntryMessage.newBuilder().setKey(ByteString.copyFromUtf8(name)).build();
     this.stateMachine.processJournalEntryWithoutWaitingAck(
         expectedEntry,
         span -> span.addEvent("ClearState", Attributes.of(Tracing.RESTATE_STATE_KEY, name)),
         checkEntryEquality(expectedEntry),
-        okCallback,
-        failureCallback);
+        requestCallback);
   }
 
   @Override
-  public <T> void set(
-      String name,
-      TypeTag<T> ty,
-      T value,
-      Runnable okCallback,
-      Consumer<Throwable> failureCallback) {
+  public <T> void set(String name, TypeTag<T> ty, T value, SyscallCallback<Void> requestCallback) {
+    LOG.trace("set {}", name);
     ByteString serialized;
     try {
       serialized = serialize(ty, value);
     } catch (Throwable e) {
-      failureCallback.accept(e);
+      requestCallback.onCancel(e);
       return;
     }
     Protocol.SetStateEntryMessage expectedEntry =
@@ -134,16 +134,16 @@ public final class SyscallsImpl implements SyscallsInternal {
         expectedEntry,
         span -> span.addEvent("SetState", Attributes.of(Tracing.RESTATE_STATE_KEY, name)),
         checkEntryEquality(expectedEntry),
-        okCallback,
-        failureCallback);
+        requestCallback);
   }
 
   @SuppressWarnings({"rawtypes", "unchecked"})
   @Override
   public void sleep(
       Duration duration,
-      SyscallDeferredResultCallback<Void> deferredResultCallback,
-      Consumer<Throwable> failureCallback) {
+      SyscallCallback<Void> requestCallback,
+      DeferredResultCallback<Void> deferredResultCallback) {
+    LOG.trace("sleep {}", duration);
     this.stateMachine.processCompletableJournalEntry(
         Protocol.SleepEntryMessage.getDefaultInstance(),
         actualEntry -> !actualEntry.hasResult(),
@@ -151,20 +151,21 @@ public final class SyscallsImpl implements SyscallsInternal {
             span.addEvent(
                 "Sleep", Attributes.of(Tracing.RESTATE_SLEEP_DURATION, duration.toMillis())),
         e -> null,
-        entry -> ResultTreeNodes.empty(),
-        completionMessage -> ResultTreeNodes.empty(),
-        (index, deferredResult) -> deferredResultCallback.accept((DeferredResult) deferredResult),
-        failureCallback);
+        entry -> ReadyResult.empty(),
+        completionMessage -> ReadyResult.empty(),
+        deferredResultCallback,
+        SyscallCallback.completingEmpty(requestCallback));
   }
 
   @Override
   public <T extends MessageLite, R extends MessageLite> void call(
       MethodDescriptor<T, R> methodDescriptor,
       T parameter,
-      SyscallDeferredResultCallback<R> deferredResultCallback,
-      Consumer<Throwable> failureCallback) {
+      SyscallCallback<Void> requestCallback,
+      DeferredResultCallback<R> deferredResultCallback) {
     String serviceName = methodDescriptor.getServiceName();
     String methodName = methodDescriptor.getBareMethodName();
+    LOG.trace("call {}/{}", serviceName, methodName);
 
     Protocol.InvokeEntryMessage expectedEntry =
         Protocol.InvokeEntryMessage.newBuilder()
@@ -195,26 +196,25 @@ public final class SyscallsImpl implements SyscallsInternal {
             entry.hasValue()
                 ? deserializeWithProto(
                     i -> methodDescriptor.parseResponse(i.newInput()), entry.getValue())
-                : ResultTreeNodes.failure(
-                    Util.toGrpcStatus(entry.getFailure()).asRuntimeException()),
+                : ReadyResult.failure(Util.toGrpcStatus(entry.getFailure()).asRuntimeException()),
         completionMessage ->
             completionMessage.hasValue()
                 ? deserializeWithProto(
                     i -> methodDescriptor.parseResponse(i.newInput()), completionMessage.getValue())
-                : ResultTreeNodes.failure(
+                : ReadyResult.failure(
                     Util.toGrpcStatus(completionMessage.getFailure()).asRuntimeException()),
-        (index, deferredResult) -> deferredResultCallback.accept(deferredResult),
-        failureCallback);
+        deferredResultCallback,
+        SyscallCallback.completingEmpty(requestCallback));
   }
 
   @Override
   public <T extends MessageLite> void backgroundCall(
       MethodDescriptor<T, ? extends MessageLite> methodDescriptor,
       T parameter,
-      Runnable okCallback,
-      Consumer<Throwable> failureCallback) {
+      SyscallCallback<Void> requestCallback) {
     String serviceName = methodDescriptor.getServiceName();
     String methodName = methodDescriptor.getBareMethodName();
+    LOG.trace("backgroundCall {}/{}", serviceName, methodName);
 
     Protocol.BackgroundInvokeEntryMessage expectedEntry =
         Protocol.BackgroundInvokeEntryMessage.newBuilder()
@@ -233,29 +233,24 @@ public final class SyscallsImpl implements SyscallsInternal {
                     Tracing.RESTATE_COORDINATION_CALL_METHOD,
                     methodName)),
         checkEntryEquality(expectedEntry),
-        okCallback,
-        failureCallback);
+        requestCallback);
   }
 
   @Override
   public <T> void enterSideEffectBlock(
-      TypeTag<T> typeTag,
-      Runnable noStoredResultCallback,
-      Consumer<ReadyResult<T>> storedResultCallback,
-      Consumer<Throwable> failureCallback) {
+      TypeTag<T> typeTag, EnterSideEffectSyscallCallback<T> callback) {
+    LOG.trace("enterSideEffectBlock");
     this.stateMachine.enterSideEffectJournalEntry(
         span -> span.addEvent("Enter SideEffect"),
-        sideEffectEntryHandler(typeTag, storedResultCallback),
-        noStoredResultCallback,
-        failureCallback);
+        sideEffectEntryHandler(typeTag, callback),
+        callback::onNotExecuted,
+        callback::onCancel);
   }
 
   @Override
   public <T> void exitSideEffectBlock(
-      TypeTag<T> typeTag,
-      T toWrite,
-      Consumer<ReadyResult<T>> storedResultCallback,
-      Consumer<Throwable> failureCallback) {
+      TypeTag<T> typeTag, T toWrite, ExitSideEffectSyscallCallback<T> callback) {
+    LOG.trace("exitSideEffectBlock with success");
     Protocol.SideEffectEntryMessage.Builder sideEffectToWrite =
         Protocol.SideEffectEntryMessage.newBuilder();
     try {
@@ -268,42 +263,47 @@ public final class SyscallsImpl implements SyscallsInternal {
     this.stateMachine.exitSideEffectBlock(
         sideEffectToWrite.build(),
         span -> span.addEvent("Exit SideEffect"),
-        sideEffectEntryHandler(typeTag, storedResultCallback),
-        failureCallback);
+        sideEffectEntryHandler(typeTag, callback),
+        callback::onCancel);
   }
 
   private <T> Consumer<Protocol.SideEffectEntryMessage> sideEffectEntryHandler(
-      TypeTag<T> typeTag, Consumer<ReadyResult<T>> storedResultCallback) {
+      TypeTag<T> typeTag, NonEmptyDeferredResultCallback<T> callback) {
     return sideEffectEntry -> {
+      ReadyResult<T> result;
       if (sideEffectEntry.hasValue()) {
-        storedResultCallback.accept(deserializeWithSerde(typeTag, sideEffectEntry.getValue()));
+        result = deserializeWithSerde(typeTag, sideEffectEntry.getValue());
       } else {
-        storedResultCallback.accept(
-            ResultTreeNodes.failure(
-                Util.toGrpcStatus(sideEffectEntry.getFailure()).asRuntimeException()));
+        result =
+            ReadyResult.failure(
+                Util.toGrpcStatus(sideEffectEntry.getFailure()).asRuntimeException());
       }
+
+      result.publish(
+          DeferredResultCallback.ofNonEmpty(
+              callback::onResult, callback::onFailure, callback::onCancel));
     };
   }
 
   @Override
   public void exitSideEffectBlockWithException(
-      Throwable toWrite,
-      Consumer<Throwable> storedFailureCallback,
-      Consumer<Throwable> failureCallback) {
+      Throwable toWrite, ExitSideEffectSyscallCallback<?> callback) {
+    LOG.trace("exitSideEffectBlock with failure");
     this.stateMachine.exitSideEffectBlock(
         Protocol.SideEffectEntryMessage.newBuilder().setFailure(toProtocolFailure(toWrite)).build(),
         span -> span.addEvent("Exit SideEffect"),
         sideEffectEntry ->
-            storedFailureCallback.accept(
+            callback.onFailure(
                 Util.toGrpcStatus(sideEffectEntry.getFailure()).asRuntimeException()),
-        failureCallback);
+        callback::onCancel);
   }
 
   @Override
   public <T> void callback(
       TypeTag<T> typeTag,
-      SyscallDeferredResultWithIdentifierCallback<T> deferredResultCallback,
-      Consumer<Throwable> failureCallback) {
+      SyscallCallback<CallbackIdentifier> requestCallback,
+      DeferredResultCallback<T> deferredResultCallback) {
+    LOG.trace("callback");
     this.stateMachine.processCompletableJournalEntry(
         Protocol.CallbackEntryMessage.getDefaultInstance(),
         entry -> entry.getResultCase() == Protocol.CallbackEntryMessage.ResultCase.RESULT_NOT_SET,
@@ -312,37 +312,33 @@ public final class SyscallsImpl implements SyscallsInternal {
         entry ->
             entry.hasValue()
                 ? deserializeWithSerde(typeTag, entry.getValue())
-                : ResultTreeNodes.failure(
-                    Util.toGrpcStatus(entry.getFailure()).asRuntimeException()),
+                : ReadyResult.failure(Util.toGrpcStatus(entry.getFailure()).asRuntimeException()),
         completionMessage ->
             completionMessage.hasValue()
                 ? deserializeWithSerde(typeTag, completionMessage.getValue())
-                : ResultTreeNodes.failure(
+                : ReadyResult.failure(
                     Util.toGrpcStatus(completionMessage.getFailure()).asRuntimeException()),
-        (index, deferredResult) ->
-            deferredResultCallback.accept(
+        deferredResultCallback,
+        SyscallCallback.completing(
+            requestCallback,
+            index ->
                 CallbackIdentifier.newBuilder()
-                    .setServiceName(this.stateMachine.getServiceName())
-                    .setInstanceKey(this.stateMachine.getInstanceKey())
-                    .setInvocationId(this.stateMachine.getInvocationId())
+                    .setServiceName(stateMachine.getServiceName())
+                    .setInstanceKey(stateMachine.getInstanceKey())
+                    .setInvocationId(stateMachine.getInvocationId())
                     .setEntryIndex(index)
-                    .build(),
-                deferredResult),
-        failureCallback);
+                    .build()));
   }
 
   @Override
   public <T> void completeCallback(
-      CallbackIdentifier id,
-      TypeTag<T> ty,
-      Object payload,
-      Runnable okCallback,
-      Consumer<Throwable> failureCallback) {
+      CallbackIdentifier id, TypeTag<T> ty, T payload, SyscallCallback<Void> requestCallback) {
+    LOG.trace("completeCallback");
     ByteString serialized;
     try {
       serialized = serialize(ty, payload);
     } catch (Throwable e) {
-      failureCallback.accept(e);
+      requestCallback.onCancel(e);
       return;
     }
 
@@ -358,16 +354,7 @@ public final class SyscallsImpl implements SyscallsInternal {
         expectedEntry,
         span -> span.addEvent("CompleteCallback"),
         checkEntryEquality(expectedEntry),
-        okCallback,
-        failureCallback);
-  }
-
-  @Override
-  public <T> void resolveDeferred(
-      DeferredResult<T> deferredToResolve,
-      Consumer<ReadyResult<T>> resultCallback,
-      Consumer<Throwable> failureCallback) {
-    this.stateMachine.resolveDeferred(deferredToResolve, resultCallback, failureCallback);
+        requestCallback);
   }
 
   @Override
@@ -385,17 +372,17 @@ public final class SyscallsImpl implements SyscallsInternal {
   private <T extends MessageLite> ReadyResult<T> deserializeWithProto(
       Function<ByteString, T> mapper, ByteString value) {
     try {
-      return ResultTreeNodes.success(mapper.apply(value));
+      return ReadyResult.success(mapper.apply(value));
     } catch (Throwable e) {
-      return ResultTreeNodes.failure(e);
+      return ReadyResult.failure(e);
     }
   }
 
   private <T> ReadyResult<T> deserializeWithSerde(TypeTag<T> ty, ByteString value) {
     try {
-      return ResultTreeNodes.success(deserialize(ty, value));
+      return ReadyResult.success(deserialize(ty, value));
     } catch (Throwable e) {
-      return ResultTreeNodes.failure(e);
+      return ReadyResult.failure(e);
     }
   }
 

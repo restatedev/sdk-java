@@ -4,12 +4,9 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
 import dev.restate.generated.core.CallbackIdentifier;
 import dev.restate.sdk.core.TypeTag;
-import dev.restate.sdk.core.syscalls.DeferredResult;
-import dev.restate.sdk.core.syscalls.ReadyResult;
-import dev.restate.sdk.core.syscalls.Syscalls;
+import dev.restate.sdk.core.syscalls.*;
 import io.grpc.MethodDescriptor;
 import java.time.Duration;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 public class SyscallsMock implements Syscalls {
@@ -17,92 +14,66 @@ public class SyscallsMock implements Syscalls {
   @Override
   public <T extends MessageLite> void pollInput(
       Function<ByteString, T> mapper,
-      SyscallDeferredResultCallback<T> deferredResultCallback,
-      Consumer<Throwable> failureCallback) {}
+      SyscallCallback<Void> requestCallback,
+      DeferredResultCallback<T> deferredResultCallback) {}
 
   @Override
-  public <T extends MessageLite> void writeOutput(
-      T value, Runnable okCallback, Consumer<Throwable> failureCallback) {}
+  public <T extends MessageLite> void writeOutput(T value, SyscallCallback<Void> callback) {}
 
   @Override
-  public void writeOutput(
-      Throwable throwable, Runnable okCallback, Consumer<Throwable> failureCallback) {}
+  public void writeOutput(Throwable throwable, SyscallCallback<Void> callback) {}
 
   @Override
   public <T> void get(
       String name,
       TypeTag<T> ty,
-      SyscallDeferredResultCallback<T> deferredResultCallback,
-      Consumer<Throwable> failureCallback) {}
+      SyscallCallback<Void> requestCallback,
+      DeferredResultCallback<T> deferredResultCallback) {}
 
   @Override
-  public void clear(String name, Runnable okCallback, Consumer<Throwable> failureCallback) {}
+  public void clear(String name, SyscallCallback<Void> callback) {}
 
   @Override
-  public <T> void set(
-      String name,
-      TypeTag<T> ty,
-      T value,
-      Runnable okCallback,
-      Consumer<Throwable> failureCallback) {}
+  public <T> void set(String name, TypeTag<T> ty, T value, SyscallCallback<Void> callback) {}
 
   @Override
   public void sleep(
       Duration duration,
-      SyscallDeferredResultCallback<Void> deferredResultCallback,
-      Consumer<Throwable> failureCallback) {}
+      SyscallCallback<Void> requestCallback,
+      DeferredResultCallback<Void> deferredResultCallback) {}
 
   @Override
   public <T extends MessageLite, R extends MessageLite> void call(
       MethodDescriptor<T, R> methodDescriptor,
       T parameter,
-      SyscallDeferredResultCallback<R> deferredResultCallback,
-      Consumer<Throwable> failureCallback) {}
+      SyscallCallback<Void> requestCallback,
+      DeferredResultCallback<R> deferredResultCallback) {}
 
   @Override
   public <T extends MessageLite> void backgroundCall(
       MethodDescriptor<T, ? extends MessageLite> methodDescriptor,
       T parameter,
-      Runnable okCallback,
-      Consumer<Throwable> failureCallback) {}
+      SyscallCallback<Void> requestCallback) {}
 
   @Override
   public <T> void enterSideEffectBlock(
-      TypeTag<T> typeTag,
-      Runnable noStoredResultCallback,
-      Consumer<ReadyResult<T>> storedResultCallback,
-      Consumer<Throwable> failureCallback) {}
+      TypeTag<T> typeTag, EnterSideEffectSyscallCallback<T> callback) {}
 
   @Override
   public <T> void exitSideEffectBlock(
-      TypeTag<T> typeTag,
-      T toWrite,
-      Consumer<ReadyResult<T>> storedResultCallback,
-      Consumer<Throwable> failureCallback) {}
+      TypeTag<T> typeTag, T toWrite, ExitSideEffectSyscallCallback<T> callback) {}
 
   @Override
   public void exitSideEffectBlockWithException(
-      Throwable toWrite,
-      Consumer<Throwable> storedFailureCallback,
-      Consumer<Throwable> failureCallback) {}
+      Throwable toWrite, ExitSideEffectSyscallCallback<?> callback) {}
 
   @Override
   public <T> void callback(
       TypeTag<T> typeTag,
-      SyscallDeferredResultWithIdentifierCallback<T> deferredResultCallback,
-      Consumer<Throwable> failureCallback) {}
+      SyscallCallback<CallbackIdentifier> requestCallback,
+      DeferredResultCallback<T> deferredResultCallback) {}
 
   @Override
   public <T> void completeCallback(
-      CallbackIdentifier id,
-      TypeTag<T> ty,
-      Object payload,
-      Runnable okCallback,
-      Consumer<Throwable> failureCallback) {}
-
-  @Override
-  public <T> void resolveDeferred(
-      DeferredResult<T> deferredToResolve,
-      Consumer<ReadyResult<T>> resultCallback,
-      Consumer<Throwable> failureCallback) {}
+      CallbackIdentifier id, TypeTag<T> ty, T payload, SyscallCallback<Void> requestCallback) {}
 }

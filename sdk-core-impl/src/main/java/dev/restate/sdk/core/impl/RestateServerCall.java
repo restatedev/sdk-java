@@ -1,6 +1,8 @@
 package dev.restate.sdk.core.impl;
 
 import com.google.protobuf.MessageLite;
+import dev.restate.sdk.core.syscalls.DeferredResultCallback;
+import dev.restate.sdk.core.syscalls.SyscallCallback;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.grpc.ServerCall;
@@ -56,7 +58,9 @@ class RestateServerCall extends ServerCall<MessageLite, MessageLite> {
   @Override
   public void sendMessage(MessageLite message) {
     syscalls.writeOutput(
-        message, () -> LOG.trace("Wrote output message:\n{}", message), this::onError);
+        message,
+        SyscallCallback.ofVoid(
+            () -> LOG.trace("Wrote output message:\n{}", message), this::onError));
   }
 
   @Override
@@ -79,11 +83,12 @@ class RestateServerCall extends ServerCall<MessageLite, MessageLite> {
         // the journal
         syscalls.writeOutput(
             status.asRuntimeException(),
-            () -> {
-              LOG.trace("Closed correctly with non ok status {}", status);
-              syscalls.close();
-            },
-            this::onError);
+            SyscallCallback.ofVoid(
+                () -> {
+                  LOG.trace("Closed correctly with non ok status {}", status);
+                  syscalls.close();
+                },
+                this::onError));
       }
     }
   }
@@ -121,18 +126,17 @@ class RestateServerCall extends ServerCall<MessageLite, MessageLite> {
     // read, then in callback invoke listener with unary call
     syscalls.pollInput(
         b -> methodDescriptor.parseRequest(b.newInput()),
-        deferredValue ->
-            syscalls.resolveDeferred(
-                deferredValue,
-                result -> {
-                  Objects.requireNonNull(listener);
+        SyscallCallback.ofVoid(() -> {}, this::onError),
+        DeferredResultCallback.ofNonEmpty(
+            messageLite -> {
+              Objects.requireNonNull(listener);
 
-                  LOG.trace("Read input message:\n{}", result.getResult());
-                  listener.onMessage(result.getResult());
-                  listener.onHalfClose();
-                },
-                this::onError),
-        this::onError);
+              LOG.trace("Read input message:\n{}", messageLite);
+              listener.onMessage(messageLite);
+              listener.onHalfClose();
+            },
+            this::onError,
+            this::onError));
   }
 
   private void onError(Throwable cause) {

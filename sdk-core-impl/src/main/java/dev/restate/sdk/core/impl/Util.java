@@ -49,6 +49,7 @@ public final class Util {
   }
 
   public static boolean containsSuspendedException(Throwable throwable) {
+    // TODO it probably makes sense to check for CancellationException as well
     return findCause(throwable, t -> t == SuspendedException.INSTANCE).isPresent();
   }
 

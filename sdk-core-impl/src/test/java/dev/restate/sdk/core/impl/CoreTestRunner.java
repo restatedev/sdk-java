@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import com.google.protobuf.MessageLite;
+import com.google.protobuf.MessageLiteOrBuilder;
 import io.grpc.BindableService;
 import io.grpc.MethodDescriptor;
 import io.grpc.ServerServiceDefinition;
@@ -16,6 +17,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -166,7 +168,7 @@ abstract class CoreTestRunner {
         this.method = method;
       }
 
-      WithInputBuilder withInput(MessageLite... messages) {
+      WithInputBuilder withInput(MessageLiteOrBuilder... messages) {
         return new WithInputBuilder(svc, method, Arrays.asList(messages));
       }
     }
@@ -174,9 +176,10 @@ abstract class CoreTestRunner {
     static class WithInputBuilder {
       private final ServerServiceDefinition svc;
       private final String method;
-      private final List<MessageLite> input;
+      private final List<MessageLiteOrBuilder> input;
 
-      WithInputBuilder(ServerServiceDefinition svc, String method, List<MessageLite> input) {
+      WithInputBuilder(
+          ServerServiceDefinition svc, String method, List<MessageLiteOrBuilder> input) {
         this.svc = svc;
         this.method = method;
         this.input = input;
@@ -195,13 +198,13 @@ abstract class CoreTestRunner {
     static class UsingThreadingModelsBuilder {
       private final ServerServiceDefinition svc;
       private final String method;
-      private final List<MessageLite> input;
+      private final List<MessageLiteOrBuilder> input;
       private final HashSet<ThreadingModel> threadingModels;
 
       UsingThreadingModelsBuilder(
           ServerServiceDefinition svc,
           String method,
-          List<MessageLite> input,
+          List<MessageLiteOrBuilder> input,
           HashSet<ThreadingModel> threadingModels) {
         this.svc = svc;
         this.method = method;
@@ -209,8 +212,10 @@ abstract class CoreTestRunner {
         this.threadingModels = threadingModels;
       }
 
-      ExpectingOutputMessages expectingOutput(MessageLite... messages) {
-        return assertingOutput(actual -> assertThat(actual).asList().containsExactly(messages));
+      ExpectingOutputMessages expectingOutput(MessageLiteOrBuilder... messages) {
+        List<MessageLite> builtMessages =
+            Arrays.stream(messages).map(ProtoUtils::build).collect(Collectors.toList());
+        return assertingOutput(actual -> assertThat(actual).asList().isEqualTo(builtMessages));
       }
 
       ExpectingOutputMessages expectingNoOutput() {
@@ -225,7 +230,7 @@ abstract class CoreTestRunner {
     static class ExpectingOutputMessages implements TestDefinition {
       private final ServerServiceDefinition svc;
       private final String method;
-      private final List<MessageLite> input;
+      private final List<MessageLiteOrBuilder> input;
       private final HashSet<ThreadingModel> threadingModels;
       private final Consumer<List<MessageLite>> outputAssert;
       private final String named;
@@ -233,7 +238,7 @@ abstract class CoreTestRunner {
       ExpectingOutputMessages(
           ServerServiceDefinition svc,
           String method,
-          List<MessageLite> input,
+          List<MessageLiteOrBuilder> input,
           HashSet<ThreadingModel> threadingModels,
           Consumer<List<MessageLite>> outputAssert) {
         this(
@@ -248,7 +253,7 @@ abstract class CoreTestRunner {
       ExpectingOutputMessages(
           ServerServiceDefinition svc,
           String method,
-          List<MessageLite> input,
+          List<MessageLiteOrBuilder> input,
           HashSet<ThreadingModel> threadingModels,
           Consumer<List<MessageLite>> outputAssert,
           String named) {
@@ -276,7 +281,7 @@ abstract class CoreTestRunner {
 
       @Override
       public List<MessageLite> getInput() {
-        return input;
+        return input.stream().map(ProtoUtils::build).collect(Collectors.toList());
       }
 
       @Override

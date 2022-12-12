@@ -1,10 +1,8 @@
 package dev.restate.sdk.blocking;
 
 import dev.restate.sdk.core.SuspendedException;
-import dev.restate.sdk.core.syscalls.DeferredResult;
-import dev.restate.sdk.core.syscalls.ReadyResult;
-import dev.restate.sdk.core.syscalls.Syscalls;
 import io.grpc.StatusRuntimeException;
+import java.util.Arrays;
 import java.util.concurrent.*;
 
 /**
@@ -16,14 +14,12 @@ import java.util.concurrent.*;
  *
  * @param <T> type of the awaitable result
  */
-public class Awaitable<T> {
+public final class Awaitable<T> {
 
-  private final Syscalls syscalls;
-  private DeferredResult<T> deferredResult;
+  private final CompletableFuture<T> future;
 
-  Awaitable(Syscalls syscalls, DeferredResult<T> deferredResult) {
-    this.syscalls = syscalls;
-    this.deferredResult = deferredResult;
+  public Awaitable(CompletableFuture<T> future) {
+    this.future = future;
   }
 
   /**
@@ -37,12 +33,22 @@ public class Awaitable<T> {
    */
   @SuppressWarnings("unchecked")
   public T await() throws StatusRuntimeException {
-    if (!(this.deferredResult instanceof ReadyResult)) {
-      CompletableFuture<ReadyResult<T>> fut = new CompletableFuture<>();
-      this.syscalls.resolveDeferred(this.deferredResult, fut::complete, fut::completeExceptionally);
-      this.deferredResult = Util.awaitCompletableFuture(fut);
-    }
+    return Util.awaitCompletableFuture(this.future);
+  }
 
-    return Util.unwrapReadyResult((ReadyResult<T>) this.deferredResult);
+  private CompletableFuture<T> getFuture() {
+    return future;
+  }
+
+  public static Awaitable<Void> allOf(Awaitable<?>... awaitables) {
+    return new Awaitable<>(
+        CompletableFuture.allOf(
+            Arrays.stream(awaitables).map(Awaitable::getFuture).toArray(CompletableFuture[]::new)));
+  }
+
+  public static Awaitable<Object> anyOf(Awaitable<?>... awaitables) {
+    return new Awaitable<>(
+        CompletableFuture.anyOf(
+            Arrays.stream(awaitables).map(Awaitable::getFuture).toArray(CompletableFuture[]::new)));
   }
 }

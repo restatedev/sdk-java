@@ -4,13 +4,11 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
 import dev.restate.generated.core.CallbackIdentifier;
 import dev.restate.sdk.core.TypeTag;
-import dev.restate.sdk.core.syscalls.DeferredResult;
-import dev.restate.sdk.core.syscalls.ReadyResult;
+import dev.restate.sdk.core.syscalls.*;
 import io.grpc.MethodDescriptor;
 import io.grpc.ServerCall;
 import java.time.Duration;
 import java.util.concurrent.Executor;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 public class TrampolineFactories {
@@ -81,143 +79,106 @@ public class TrampolineFactories {
     @Override
     public <T extends MessageLite> void pollInput(
         Function<ByteString, T> mapper,
-        SyscallDeferredResultCallback<T> deferredCallback,
-        Consumer<Throwable> failureCallback) {
-      syscallsExecutor.execute(() -> syscalls.pollInput(mapper, deferredCallback, failureCallback));
+        SyscallCallback<Void> requestCallback,
+        DeferredResultCallback<T> deferredResultCallback) {
+      syscallsExecutor.execute(
+          () -> syscalls.pollInput(mapper, requestCallback, deferredResultCallback));
     }
 
     @Override
-    public <T extends MessageLite> void writeOutput(
-        T value, Runnable okCallback, Consumer<Throwable> failureCallback) {
-      syscallsExecutor.execute(() -> syscalls.writeOutput(value, okCallback, failureCallback));
+    public <T extends MessageLite> void writeOutput(T value, SyscallCallback<Void> callback) {
+      syscallsExecutor.execute(() -> syscalls.writeOutput(value, callback));
     }
 
     @Override
-    public void writeOutput(
-        Throwable throwable, Runnable okCallback, Consumer<Throwable> failureCallback) {
-      syscallsExecutor.execute(() -> syscalls.writeOutput(throwable, okCallback, failureCallback));
+    public void writeOutput(Throwable throwable, SyscallCallback<Void> callback) {
+      syscallsExecutor.execute(() -> syscalls.writeOutput(throwable, callback));
     }
 
     @Override
     public <T> void get(
         String name,
         TypeTag<T> ty,
-        SyscallDeferredResultCallback<T> deferredCallback,
-        Consumer<Throwable> failureCallback) {
-      syscallsExecutor.execute(() -> syscalls.get(name, ty, deferredCallback, failureCallback));
+        SyscallCallback<Void> requestCallback,
+        DeferredResultCallback<T> deferredResultCallback) {
+      syscallsExecutor.execute(
+          () -> syscalls.get(name, ty, requestCallback, deferredResultCallback));
     }
 
     @Override
-    public void clear(String name, Runnable okCallback, Consumer<Throwable> failureCallback) {
-      syscallsExecutor.execute(() -> syscalls.clear(name, okCallback, failureCallback));
+    public void clear(String name, SyscallCallback<Void> callback) {
+      syscallsExecutor.execute(() -> syscalls.clear(name, callback));
     }
 
     @Override
-    public <T> void set(
-        String name,
-        TypeTag<T> ty,
-        T value,
-        Runnable okCallback,
-        Consumer<Throwable> failureCallback) {
-      syscallsExecutor.execute(() -> syscalls.set(name, ty, value, okCallback, failureCallback));
+    public <T> void set(String name, TypeTag<T> typeTag, T value, SyscallCallback<Void> callback) {
+      syscallsExecutor.execute(() -> syscalls.set(name, typeTag, value, callback));
     }
 
     @Override
     public void sleep(
         Duration duration,
-        SyscallDeferredResultCallback<Void> deferredCallback,
-        Consumer<Throwable> failureCallback) {
-      syscallsExecutor.execute(() -> syscalls.sleep(duration, deferredCallback, failureCallback));
+        SyscallCallback<Void> requestCallback,
+        DeferredResultCallback<Void> deferredResultCallback) {
+      syscallsExecutor.execute(
+          () -> syscalls.sleep(duration, requestCallback, deferredResultCallback));
     }
 
     @Override
     public <T extends MessageLite, R extends MessageLite> void call(
         MethodDescriptor<T, R> methodDescriptor,
         T parameter,
-        SyscallDeferredResultCallback<R> deferredCallback,
-        Consumer<Throwable> failureCallback) {
+        SyscallCallback<Void> requestCallback,
+        DeferredResultCallback<R> deferredResultCallback) {
       syscallsExecutor.execute(
-          () -> syscalls.call(methodDescriptor, parameter, deferredCallback, failureCallback));
+          () ->
+              syscalls.call(methodDescriptor, parameter, requestCallback, deferredResultCallback));
     }
 
     @Override
     public <T extends MessageLite> void backgroundCall(
         MethodDescriptor<T, ? extends MessageLite> methodDescriptor,
         T parameter,
-        Runnable okCallback,
-        Consumer<Throwable> failureCallback) {
+        SyscallCallback<Void> requestCallback) {
       syscallsExecutor.execute(
-          () -> syscalls.backgroundCall(methodDescriptor, parameter, okCallback, failureCallback));
+          () -> syscalls.backgroundCall(methodDescriptor, parameter, requestCallback));
     }
 
     @Override
     public <T> void enterSideEffectBlock(
-        TypeTag<T> typeTag,
-        Runnable noStoredResultCallback,
-        Consumer<ReadyResult<T>> storedResultCallback,
-        Consumer<Throwable> failureCallback) {
-      syscallsExecutor.execute(
-          () ->
-              syscalls.enterSideEffectBlock(
-                  typeTag, noStoredResultCallback, storedResultCallback, failureCallback));
+        TypeTag<T> typeTag, EnterSideEffectSyscallCallback<T> callback) {
+      syscallsExecutor.execute(() -> syscalls.enterSideEffectBlock(typeTag, callback));
     }
 
     @Override
     public <T> void exitSideEffectBlock(
-        TypeTag<T> typeTag,
-        T toWrite,
-        Consumer<ReadyResult<T>> storedResultCallback,
-        Consumer<Throwable> failureCallback) {
-      syscallsExecutor.execute(
-          () ->
-              syscalls.exitSideEffectBlock(
-                  typeTag, toWrite, storedResultCallback, failureCallback));
+        TypeTag<T> typeTag, T toWrite, ExitSideEffectSyscallCallback<T> callback) {
+      syscallsExecutor.execute(() -> syscalls.exitSideEffectBlock(typeTag, toWrite, callback));
     }
 
     @Override
     public void exitSideEffectBlockWithException(
-        Throwable toWrite,
-        Consumer<Throwable> storedFailureCallback,
-        Consumer<Throwable> failureCallback) {
-      syscallsExecutor.execute(
-          () ->
-              syscalls.exitSideEffectBlockWithException(
-                  toWrite, storedFailureCallback, failureCallback));
+        Throwable toWrite, ExitSideEffectSyscallCallback<?> callback) {
+      syscallsExecutor.execute(() -> syscalls.exitSideEffectBlockWithException(toWrite, callback));
     }
 
     @Override
     public <T> void callback(
         TypeTag<T> typeTag,
-        SyscallDeferredResultWithIdentifierCallback<T> deferredResultCallback,
-        Consumer<Throwable> failureCallback) {
+        SyscallCallback<CallbackIdentifier> requestCallback,
+        DeferredResultCallback<T> deferredResultCallback) {
       syscallsExecutor.execute(
-          () -> syscalls.callback(typeTag, deferredResultCallback, failureCallback));
+          () -> syscalls.callback(typeTag, requestCallback, deferredResultCallback));
     }
 
     @Override
     public <T> void completeCallback(
         CallbackIdentifier id,
-        TypeTag<T> ty,
-        Object payload,
-        Runnable okCallback,
-        Consumer<Throwable> failureCallback) {
+        TypeTag<T> typeTag,
+        T payload,
+        SyscallCallback<Void> requestCallback) {
       syscallsExecutor.execute(
-          () -> syscalls.completeCallback(id, ty, payload, okCallback, failureCallback));
-    }
-
-    @Override
-    public <T> void resolveDeferred(
-        DeferredResult<T> deferredToResolve,
-        Consumer<ReadyResult<T>> resultCallback,
-        Consumer<Throwable> failureCallback) {
-      // No need to switch executor for this
-      if (deferredToResolve instanceof ReadyResult) {
-        resultCallback.accept((ReadyResult<T>) deferredToResolve);
-        return;
-      }
-
-      syscallsExecutor.execute(
-          () -> syscalls.resolveDeferred(deferredToResolve, resultCallback, failureCallback));
+          () -> syscalls.completeCallback(id, typeTag, payload, requestCallback));
     }
 
     @Override

@@ -7,8 +7,6 @@ import dev.restate.sdk.core.TypeTag;
 import io.grpc.Context;
 import io.grpc.MethodDescriptor;
 import java.time.Duration;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -30,88 +28,57 @@ public interface Syscalls {
 
   <T extends MessageLite> void pollInput(
       Function<ByteString, T> mapper,
-      SyscallDeferredResultCallback<T> deferredResultCallback,
-      Consumer<Throwable> failureCallback);
+      SyscallCallback<Void> requestCallback,
+      // TODO do another pass to check whether to use empty and non empty deferred result interfaces
+      DeferredResultCallback<T> deferredResultCallback);
 
-  <T extends MessageLite> void writeOutput(
-      T value, Runnable okCallback, Consumer<Throwable> failureCallback);
+  <T extends MessageLite> void writeOutput(T value, SyscallCallback<Void> callback);
 
-  void writeOutput(Throwable throwable, Runnable okCallback, Consumer<Throwable> failureCallback);
+  void writeOutput(Throwable throwable, SyscallCallback<Void> callback);
 
   // ----- State
 
   <T> void get(
       String name,
       TypeTag<T> ty,
-      SyscallDeferredResultCallback<T> deferredResultCallback,
-      Consumer<Throwable> failureCallback);
+      SyscallCallback<Void> requestCallback,
+      DeferredResultCallback<T> deferredResultCallback);
 
-  void clear(String name, Runnable okCallback, Consumer<Throwable> failureCallback);
+  void clear(String name, SyscallCallback<Void> callback);
 
-  <T> void set(
-      String name,
-      TypeTag<T> ty,
-      T value,
-      Runnable okCallback,
-      Consumer<Throwable> failureCallback);
+  <T> void set(String name, TypeTag<T> ty, T value, SyscallCallback<Void> callback);
 
   // ----- Syscalls
 
   void sleep(
       Duration duration,
-      SyscallDeferredResultCallback<Void> deferredResultCallback,
-      Consumer<Throwable> failureCallback);
+      SyscallCallback<Void> requestCallback,
+      DeferredResultCallback<Void> deferredResultCallback);
 
   <T extends MessageLite, R extends MessageLite> void call(
       MethodDescriptor<T, R> methodDescriptor,
       T parameter,
-      SyscallDeferredResultCallback<R> deferredResultCallback,
-      Consumer<Throwable> failureCallback);
+      SyscallCallback<Void> requestCallback,
+      DeferredResultCallback<R> deferredResultCallback);
 
   <T extends MessageLite> void backgroundCall(
       MethodDescriptor<T, ? extends MessageLite> methodDescriptor,
       T parameter,
-      Runnable okCallback,
-      Consumer<Throwable> failureCallback);
+      SyscallCallback<Void> requestCallback);
 
-  <T> void enterSideEffectBlock(
-      TypeTag<T> typeTag,
-      Runnable noStoredResultCallback,
-      Consumer<ReadyResult<T>> storedResultCallback,
-      Consumer<Throwable> failureCallback);
+  <T> void enterSideEffectBlock(TypeTag<T> typeTag, EnterSideEffectSyscallCallback<T> callback);
 
   <T> void exitSideEffectBlock(
-      TypeTag<T> typeTag,
-      T toWrite,
-      Consumer<ReadyResult<T>> storedResultCallback,
-      Consumer<Throwable> failureCallback);
+      TypeTag<T> typeTag, T toWrite, ExitSideEffectSyscallCallback<T> callback);
 
   void exitSideEffectBlockWithException(
-      Throwable toWrite,
-      Consumer<Throwable> storedFailureCallback,
-      Consumer<Throwable> failureCallback);
+      Throwable toWrite, ExitSideEffectSyscallCallback<?> callback);
 
   <T> void callback(
       TypeTag<T> typeTag,
-      SyscallDeferredResultWithIdentifierCallback<T> deferredResultCallback,
-      Consumer<Throwable> failureCallback);
+      SyscallCallback<CallbackIdentifier> requestCallback,
+      DeferredResultCallback<T> deferredResultCallback);
 
   <T> void completeCallback(
-      CallbackIdentifier id,
-      TypeTag<T> ty,
-      Object payload,
-      Runnable okCallback,
-      Consumer<Throwable> failureCallback);
-
-  <T> void resolveDeferred(
-      DeferredResult<T> deferredToResolve,
-      Consumer<ReadyResult<T>> resultCallback,
-      Consumer<Throwable> failureCallback);
-
-  @FunctionalInterface
-  interface SyscallDeferredResultCallback<T> extends Consumer<DeferredResult<T>> {}
-
-  @FunctionalInterface
-  interface SyscallDeferredResultWithIdentifierCallback<T>
-      extends BiConsumer<CallbackIdentifier, DeferredResult<T>> {}
+      CallbackIdentifier id, TypeTag<T> ty, T payload, SyscallCallback<Void> requestCallback);
 }

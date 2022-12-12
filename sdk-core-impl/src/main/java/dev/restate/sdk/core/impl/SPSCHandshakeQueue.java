@@ -3,23 +3,28 @@ package dev.restate.sdk.core.impl;
 import com.google.protobuf.MessageLite;
 import dev.restate.sdk.core.SuspendedException;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Queue;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-class MessageQueue {
+class SPSCHandshakeQueue {
 
   private final Queue<MessageLite> unprocessedMessages;
 
   private BiConsumer<MessageLite, Throwable> callback;
   private boolean closed;
 
-  MessageQueue() {
+  SPSCHandshakeQueue() {
     this.unprocessedMessages = new ArrayDeque<>();
+
     this.closed = false;
   }
 
   void offer(MessageLite msg) {
+    checkClosed();
+
     this.unprocessedMessages.offer(msg);
 
     if (this.callback != null) {
@@ -33,6 +38,7 @@ class MessageQueue {
     if (this.callback != null) {
       throw new IllegalStateException("Two concurrent reads were requested.");
     }
+    checkClosed();
 
     MessageLite popped = this.unprocessedMessages.poll();
     if (popped != null) {
@@ -51,7 +57,19 @@ class MessageQueue {
     }
   }
 
-  void closeInput(Throwable e) {
+  List<MessageLite> drainAndClose() {
+    if (this.callback != null) {
+      throw new IllegalStateException("Cannot drain when there is a registered callback.");
+    }
+    checkClosed();
+    this.closed = true;
+
+    List<MessageLite> out = new ArrayList<>(this.unprocessedMessages);
+    this.unprocessedMessages.clear();
+    return out;
+  }
+
+  void abort(Throwable e) {
     this.closed = true;
     if (this.callback != null) {
       popCallback().accept(null, e);
@@ -62,5 +80,11 @@ class MessageQueue {
     BiConsumer<MessageLite, Throwable> callback = this.callback;
     this.callback = null;
     return callback;
+  }
+
+  private void checkClosed() {
+    if (this.closed) {
+      throw new IllegalStateException("Cannot read when closed");
+    }
   }
 }

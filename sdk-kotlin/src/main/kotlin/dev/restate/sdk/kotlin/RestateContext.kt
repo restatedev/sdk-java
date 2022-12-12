@@ -6,6 +6,7 @@ import dev.restate.sdk.core.StateKey
 import dev.restate.sdk.core.TypeTag
 import io.grpc.MethodDescriptor
 import kotlin.time.Duration
+import kotlinx.coroutines.Deferred
 
 sealed interface RestateContext {
 
@@ -19,7 +20,7 @@ sealed interface RestateContext {
     timer(duration).await()
   }
 
-  suspend fun timer(duration: Duration): Awaitable<Unit>
+  suspend fun timer(duration: Duration): Deferred<Unit>
 
   suspend fun <T : MessageLite, R : MessageLite> call(
       methodDescriptor: MethodDescriptor<T, R>,
@@ -31,7 +32,7 @@ sealed interface RestateContext {
   suspend fun <T : MessageLite, R : MessageLite> callAsync(
       methodDescriptor: MethodDescriptor<T, R>,
       parameter: T
-  ): Awaitable<R>
+  ): Deferred<R>
 
   suspend fun <T : MessageLite> backgroundCall(
       methodDescriptor: MethodDescriptor<T, MessageLite>,
@@ -57,7 +58,7 @@ sealed interface RestateContext {
   suspend fun <T> callbackAsync(
       typeTag: TypeTag<T>,
       callbackAction: suspend (CallbackIdentifier) -> Unit
-  ): Awaitable<T>
+  ): Deferred<T>
 
   suspend fun <T> completeCallback(id: CallbackIdentifier, typeTag: TypeTag<T>, payload: T)
 }

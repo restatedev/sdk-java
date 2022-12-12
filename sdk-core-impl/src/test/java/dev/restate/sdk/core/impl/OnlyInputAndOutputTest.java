@@ -1,6 +1,7 @@
 package dev.restate.sdk.core.impl;
 
 import static dev.restate.sdk.core.impl.CoreTestRunner.TestCaseBuilder.testInvocation;
+import static dev.restate.sdk.core.impl.ProtoUtils.*;
 
 import com.google.protobuf.ByteString;
 import dev.restate.generated.service.protocol.Protocol;
@@ -38,12 +39,22 @@ class OnlyInputAndOutputTest extends CoreTestRunner {
                     .build())
             .usingAllThreadingModels()
             .expectingOutput(
-                Protocol.OutputStreamEntryMessage.newBuilder()
-                    .setValue(
-                        GreetingResponse.newBuilder()
-                            .setMessage("Hello Francesco")
-                            .build()
-                            .toByteString())
-                    .build()));
+                orderMessage(0),
+                outputMessage(GreetingResponse.newBuilder().setMessage("Hello Francesco").build()))
+            .named("Without order message"),
+        testInvocation(new NoSyscallsGreeter(), GreeterGrpc.getGreetMethod())
+            .withInput(
+                Protocol.StartMessage.newBuilder()
+                    .setInstanceKey(ByteString.copyFromUtf8("abc"))
+                    .setInvocationId(ByteString.copyFromUtf8("123"))
+                    .setKnownEntries(2)
+                    .setKnownServiceVersion(1)
+                    .build(),
+                inputMessage(GreetingRequest.newBuilder().setName("Francesco")),
+                orderMessage(0))
+            .usingAllThreadingModels()
+            .expectingOutput(
+                outputMessage(GreetingResponse.newBuilder().setMessage("Hello Francesco")))
+            .named("With order message"));
   }
 }
