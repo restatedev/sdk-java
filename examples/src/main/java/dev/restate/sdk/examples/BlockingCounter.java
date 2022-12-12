@@ -4,12 +4,10 @@ import com.google.protobuf.Empty;
 import dev.restate.sdk.blocking.RestateBlockingService;
 import dev.restate.sdk.blocking.RestateContext;
 import dev.restate.sdk.core.StateKey;
-import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.examples.generated.*;
 import dev.restate.sdk.vertx.RestateHttpServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.vertx.core.Vertx;
-import java.nio.ByteBuffer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -17,8 +15,7 @@ public class BlockingCounter extends CounterGrpc.CounterImplBase implements Rest
 
   private static final Logger LOG = LogManager.getLogger(BlockingCounter.class);
 
-  // TODO Replace with proper serde!
-  private static final StateKey<byte[]> TOTAL = StateKey.of("total", TypeTag.BYTES);
+  private static final StateKey<Long> TOTAL = StateKey.of("total", Long.class);
 
   @Override
   public void reset(CounterRequest request, StreamObserver<Empty> responseObserver) {
@@ -32,9 +29,9 @@ public class BlockingCounter extends CounterGrpc.CounterImplBase implements Rest
   public void add(CounterAddRequest request, StreamObserver<Empty> responseObserver) {
     RestateContext ctx = restateContext();
 
-    long currentValue = ctx.get(TOTAL).map(b -> ByteBuffer.wrap(b).getLong()).orElse(0L);
+    long currentValue = ctx.get(TOTAL).orElse(0L);
     long newValue = currentValue + request.getValue();
-    ctx.set(TOTAL, ByteBuffer.allocate(8).putLong(newValue).array());
+    ctx.set(TOTAL, newValue);
 
     responseObserver.onNext(Empty.getDefaultInstance());
     responseObserver.onCompleted();
@@ -42,8 +39,7 @@ public class BlockingCounter extends CounterGrpc.CounterImplBase implements Rest
 
   @Override
   public void get(CounterRequest request, StreamObserver<GetResponse> responseObserver) {
-    long currentValue =
-        restateContext().get(TOTAL).map(b -> ByteBuffer.wrap(b).getLong()).orElse(0L);
+    long currentValue = restateContext().get(TOTAL).orElse(0L);
 
     responseObserver.onNext(GetResponse.newBuilder().setValue(currentValue).build());
     responseObserver.onCompleted();
@@ -56,9 +52,9 @@ public class BlockingCounter extends CounterGrpc.CounterImplBase implements Rest
 
     RestateContext ctx = restateContext();
 
-    long currentValue = ctx.get(TOTAL).map(b -> ByteBuffer.wrap(b).getLong()).orElse(0L);
+    long currentValue = ctx.get(TOTAL).orElse(0L);
     long newValue = currentValue + request.getValue();
-    ctx.set(TOTAL, ByteBuffer.allocate(8).putLong(newValue).array());
+    ctx.set(TOTAL, newValue);
 
     responseObserver.onNext(
         CounterUpdateResult.newBuilder().setOldValue(currentValue).setNewValue(newValue).build());

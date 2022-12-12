@@ -48,7 +48,12 @@ public interface Syscalls {
 
   void clear(String name, Runnable okCallback, Consumer<Throwable> failureCallback);
 
-  <T> void set(String name, T value, Runnable okCallback, Consumer<Throwable> failureCallback);
+  <T> void set(
+      String name,
+      TypeTag<T> ty,
+      T value,
+      Runnable okCallback,
+      Consumer<Throwable> failureCallback);
 
   // ----- Syscalls
 
@@ -91,8 +96,9 @@ public interface Syscalls {
       SyscallDeferredResultWithIdentifierCallback<T> deferredResultCallback,
       Consumer<Throwable> failureCallback);
 
-  void completeCallback(
+  <T> void completeCallback(
       CallbackIdentifier id,
+      TypeTag<T> ty,
       Object payload,
       Runnable okCallback,
       Consumer<Throwable> failureCallback);

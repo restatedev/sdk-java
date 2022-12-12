@@ -46,7 +46,8 @@ public class RestateContextImpl implements RestateContext {
   @Override
   public <T> void set(StateKey<T> key, T value) {
     CompletableFuture<Void> fut = new CompletableFuture<>();
-    syscalls.set(key.name(), value, () -> fut.complete(null), fut::completeExceptionally);
+    syscalls.set(
+        key.name(), key.typeTag(), value, () -> fut.complete(null), fut::completeExceptionally);
     Util.awaitCompletableFuture(fut);
   }
 
@@ -137,9 +138,10 @@ public class RestateContextImpl implements RestateContext {
   }
 
   @Override
-  public void completeCallback(CallbackIdentifier id, Object payload) {
+  public <T> void completeCallback(CallbackIdentifier id, TypeTag<T> typeTag, T payload) {
     CompletableFuture<Void> fut = new CompletableFuture<>();
-    syscalls.completeCallback(id, payload, () -> fut.complete(null), fut::completeExceptionally);
+    syscalls.completeCallback(
+        id, typeTag, payload, () -> fut.complete(null), fut::completeExceptionally);
     Util.awaitCompletableFuture(fut);
   }
 }

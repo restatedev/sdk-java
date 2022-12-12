@@ -11,6 +11,11 @@ import java.lang.reflect.InvocationTargetException;
 public class ProtobufSerde implements Serde {
 
   @Override
+  public boolean supportsAnyType() {
+    return false;
+  }
+
+  @Override
   @SuppressWarnings("unchecked")
   public <T> T deserialize(Class<T> clazz, byte[] bytes) {
     if (MessageLite.class.isAssignableFrom(clazz)) {

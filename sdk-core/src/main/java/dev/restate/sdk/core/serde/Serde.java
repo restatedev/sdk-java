@@ -6,7 +6,17 @@ package dev.restate.sdk.core.serde;
  */
 public interface Serde {
 
-  // TODO add priority system for SPI (additional iface for SPI)
+  /**
+   * @return {@code true} when this implementation can try to ser/de every type, independently of
+   *     the fact that they're tagged or not for this specific serde. In other words, when this
+   *     method returns true, {@link #deserialize(Class, byte[])} and {@link #serialize(Object)}
+   *     should never throw {@link UnsupportedOperationException}. For example, Jackson serde will
+   *     return true for this method, because it can deserialize every object, even when not tagged
+   *     with Jackson annotations. Protobuf serde will return false, as it can ser/de only types
+   *     extending the protobuf {@link com.google.protobuf.MessageLite} interface.
+   *     <p>When chaining multiple {@link Serde}, only one instance can support any type.
+   */
+  boolean supportsAnyType();
 
   /**
    * Deserialize {@code bytes} into {@code T}.
@@ -15,7 +25,8 @@ public interface Serde {
    * @param bytes the bytes to deserialize
    * @return the deserialized value
    * @param <T> the deserialized value type
-   * @throws UnsupportedOperationException if this cannot deserialize to the provided class
+   * @throws UnsupportedOperationException if this implementation cannot deserialize using the
+   *     provided class
    */
   <T> T deserialize(Class<T> clazz, byte[] bytes);
 
@@ -25,7 +36,6 @@ public interface Serde {
    *
    * @see #deserialize(Class, byte[])
    */
-  // TODO https://github.com/restatedev/java-sdk/issues/37
   @SuppressWarnings({"unchecked", "TypeParameterUnusedInFormals"})
   default <T> T deserialize(Object typeTag, byte[] value) {
     if (typeTag instanceof Class<?>) {
@@ -40,8 +50,8 @@ public interface Serde {
    * @param value the value to serialize
    * @return the serialized value
    * @param <T> the type of the value to serialize
-   * @throws UnsupportedOperationException if this cannot serialize the provided value because it
-   *     doesn't support it
+   * @throws UnsupportedOperationException if this implementation cannot serialize the provided
+   *     value
    */
   <T> byte[] serialize(T value);
 }

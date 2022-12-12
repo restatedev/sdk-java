@@ -104,7 +104,7 @@ public class RestateGrpcServer {
   public static class Builder {
 
     private final List<ServerServiceDefinition> services = new ArrayList<>();
-    private Serde serde; // TODO discover Serde here!!!
+    private Serde serde;
     private Tracer tracer = OpenTelemetry.noop().getTracer("NOOP");
 
     public Builder withService(BindableService service) {
@@ -117,8 +117,8 @@ public class RestateGrpcServer {
       return this;
     }
 
-    public Builder withSerde(Serde serde) {
-      this.serde = serde;
+    public Builder withSerde(Serde... serde) {
+      this.serde = Serdes.chain(serde);
       return this;
     }
 
@@ -128,6 +128,10 @@ public class RestateGrpcServer {
     }
 
     public RestateGrpcServer build() {
+      if (serde == null) {
+        serde = Serdes.getInstance().getDiscoveredSerde();
+      }
+
       return new RestateGrpcServer(
           this.services.stream()
               .collect(

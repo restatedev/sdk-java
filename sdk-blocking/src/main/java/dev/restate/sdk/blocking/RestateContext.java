@@ -111,18 +111,18 @@ public interface RestateContext {
   /**
    * This function executes the provided {@code caller} function and suspends this function once
    * {@link Awaitable#await()} is invoked. Another function can then resume this function again by
-   * using {@link #completeCallback(CallbackIdentifier, Object)}.
+   * using {@link #completeCallback(CallbackIdentifier, TypeTag, Object)}.
    *
    * <p>You can use this feature to implement external asynchronous systems interactions, for
    * example you can send a Kafka record within the {@code caller}, by including in the record the
    * serialized {@link CallbackIdentifier}, and then let another service consume from Kafka
    * responses of this external system interaction by using {@link
-   * #completeCallback(CallbackIdentifier, Object)}.
+   * #completeCallback(CallbackIdentifier, TypeTag, Object)}.
    *
    * @param typeTag the response type tag to use for deserializing
    * @param caller the function executing the external system interaction
    * @return the result value of the external system interaction, that is the value the wake up-per
-   *     passes to {@link #completeCallback(CallbackIdentifier, Object)}
+   *     passes to {@link #completeCallback(CallbackIdentifier, TypeTag, Object)}
    * @throws StatusRuntimeException if the {@code caller} closure fails. The exception will never
    *     contain the cause, as it's not persisted in the journal, so it can't be deterministically
    *     reproduced.
@@ -140,5 +140,5 @@ public interface RestateContext {
    *     configured {@link Serde}
    * @see #callback(Class, Consumer)
    */
-  void completeCallback(CallbackIdentifier id, Object payload);
+  <T> void completeCallback(CallbackIdentifier id, TypeTag<T> typeTag, T payload);
 }

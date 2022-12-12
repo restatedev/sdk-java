@@ -114,8 +114,12 @@ public class TrampolineFactories {
 
     @Override
     public <T> void set(
-        String name, T value, Runnable okCallback, Consumer<Throwable> failureCallback) {
-      syscallsExecutor.execute(() -> syscalls.set(name, value, okCallback, failureCallback));
+        String name,
+        TypeTag<T> ty,
+        T value,
+        Runnable okCallback,
+        Consumer<Throwable> failureCallback) {
+      syscallsExecutor.execute(() -> syscalls.set(name, ty, value, okCallback, failureCallback));
     }
 
     @Override
@@ -191,13 +195,14 @@ public class TrampolineFactories {
     }
 
     @Override
-    public void completeCallback(
+    public <T> void completeCallback(
         CallbackIdentifier id,
+        TypeTag<T> ty,
         Object payload,
         Runnable okCallback,
         Consumer<Throwable> failureCallback) {
       syscallsExecutor.execute(
-          () -> syscalls.completeCallback(id, payload, okCallback, failureCallback));
+          () -> syscalls.completeCallback(id, ty, payload, okCallback, failureCallback));
     }
 
     @Override

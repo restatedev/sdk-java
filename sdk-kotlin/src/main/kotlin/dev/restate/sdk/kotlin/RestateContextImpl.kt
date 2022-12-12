@@ -27,7 +27,8 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
 
   override suspend fun <T> set(key: StateKey<T>, value: T) {
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-      syscalls.set(key.name(), value, { cont.resume(Unit) }, { cont.resumeWithException(it) })
+      syscalls.set(
+          key.name(), key.typeTag(), value, { cont.resume(Unit) }, { cont.resumeWithException(it) })
     }
   }
 
@@ -121,10 +122,14 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
     return NonNullAwaitableImpl(syscalls, deferredResult)
   }
 
-  override suspend fun completeCallback(id: CallbackIdentifier, payload: Any) {
+  override suspend fun <T> completeCallback(
+      id: CallbackIdentifier,
+      typeTag: TypeTag<T>,
+      payload: T
+  ) {
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
       syscalls.completeCallback(
-          id, payload, { cont.resume(Unit) }, { cont.resumeWithException(it) })
+          id, typeTag, payload, { cont.resume(Unit) }, { cont.resumeWithException(it) })
     }
   }
 }
