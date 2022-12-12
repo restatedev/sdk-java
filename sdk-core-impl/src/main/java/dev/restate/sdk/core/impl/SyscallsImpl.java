@@ -7,6 +7,7 @@ import com.google.protobuf.MessageLite;
 import dev.restate.generated.core.CallbackIdentifier;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.TypeTag;
+import dev.restate.sdk.core.serde.CustomSerdeFunctionsTypeTag;
 import dev.restate.sdk.core.serde.Serde;
 import dev.restate.sdk.core.syscalls.DeferredResult;
 import dev.restate.sdk.core.syscalls.ReadyResult;
@@ -112,10 +113,14 @@ public final class SyscallsImpl implements SyscallsInternal {
 
   @Override
   public <T> void set(
-      String name, T value, Runnable okCallback, Consumer<Throwable> failureCallback) {
+      String name,
+      TypeTag<T> ty,
+      T value,
+      Runnable okCallback,
+      Consumer<Throwable> failureCallback) {
     ByteString serialized;
     try {
-      serialized = serialize(value);
+      serialized = serialize(ty, value);
     } catch (Throwable e) {
       failureCallback.accept(e);
       return;
@@ -254,7 +259,7 @@ public final class SyscallsImpl implements SyscallsInternal {
     Protocol.SideEffectEntryMessage.Builder sideEffectToWrite =
         Protocol.SideEffectEntryMessage.newBuilder();
     try {
-      sideEffectToWrite.setValue(serialize(toWrite));
+      sideEffectToWrite.setValue(serialize(typeTag, toWrite));
     } catch (Throwable e) {
       // Record the serialization failure
       sideEffectToWrite.setFailure(toProtocolFailure(e));
@@ -327,14 +332,15 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public void completeCallback(
+  public <T> void completeCallback(
       CallbackIdentifier id,
+      TypeTag<T> ty,
       Object payload,
       Runnable okCallback,
       Consumer<Throwable> failureCallback) {
     ByteString serialized;
     try {
-      serialized = serialize(payload);
+      serialized = serialize(ty, payload);
     } catch (Throwable e) {
       failureCallback.accept(e);
       return;
@@ -387,13 +393,19 @@ public final class SyscallsImpl implements SyscallsInternal {
 
   private <T> ReadyResult<T> deserializeWithSerde(TypeTag<T> ty, ByteString value) {
     try {
-      return ResultTreeNodes.success(deserialize(ty.get(), value));
+      return ResultTreeNodes.success(deserialize(ty, value));
     } catch (Throwable e) {
       return ResultTreeNodes.failure(e);
     }
   }
 
-  private ByteString serialize(Object obj) {
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  private ByteString serialize(TypeTag ty, Object obj) {
+    if (ty instanceof CustomSerdeFunctionsTypeTag) {
+      return ByteString.copyFrom(
+          ((CustomSerdeFunctionsTypeTag<Object>) ty).getSerializer().apply(obj));
+    }
+
     if (obj == null) {
       return ByteString.EMPTY;
     }
@@ -406,7 +418,12 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @SuppressWarnings({"unchecked", "TypeParameterUnusedInFormals"})
-  private <T> T deserialize(Object typeTag, ByteString bytes) {
+  private <T> T deserialize(TypeTag<T> ty, ByteString bytes) {
+    if (ty instanceof CustomSerdeFunctionsTypeTag) {
+      return ((CustomSerdeFunctionsTypeTag<T>) ty).getDeserializer().apply(bytes.toByteArray());
+    }
+
+    Object typeTag = ty.get();
     if (byte[].class.equals(typeTag)) {
       return (T) bytes.toByteArray();
     } else if (ByteString.class.equals(typeTag)) {

@@ -59,5 +59,5 @@ sealed interface RestateContext {
       callbackAction: suspend (CallbackIdentifier) -> Unit
   ): Awaitable<T>
 
-  suspend fun completeCallback(id: CallbackIdentifier, payload: Any)
+  suspend fun <T> completeCallback(id: CallbackIdentifier, typeTag: TypeTag<T>, payload: T)
 }

@@ -48,7 +48,7 @@ public class RestateHttpServerBuilder {
     return this;
   }
 
-  public RestateHttpServerBuilder withSerde(Serde serde) {
+  public RestateHttpServerBuilder withSerde(Serde... serde) {
     this.restateGrpcServerBuilder.withSerde(serde);
     return this;
   }

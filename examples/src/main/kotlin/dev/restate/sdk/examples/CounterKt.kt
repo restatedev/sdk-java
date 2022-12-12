@@ -1,12 +1,10 @@
 import com.google.protobuf.Empty
 import dev.restate.sdk.core.StateKey
-import dev.restate.sdk.core.TypeTag
 import dev.restate.sdk.examples.BlockingCounter
 import dev.restate.sdk.examples.generated.*
 import dev.restate.sdk.vertx.RestateHttpServerBuilder
 import io.vertx.core.Vertx
 import io.vertx.kotlin.coroutines.dispatcher
-import java.nio.ByteBuffer
 import kotlin.coroutines.CoroutineContext
 import org.apache.logging.log4j.LogManager
 
@@ -15,8 +13,7 @@ class CounterKt(coroutineContext: CoroutineContext) :
 
   private val LOG = LogManager.getLogger(BlockingCounter::class.java)
 
-  // TODO Replace with proper serde!
-  private val TOTAL = StateKey.of("total", TypeTag.BYTES)
+  private val TOTAL = StateKey.of("total", Long::class.java)
 
   override suspend fun reset(request: CounterRequest): Empty {
     restateContext().clear(TOTAL)
@@ -42,14 +39,14 @@ class CounterKt(coroutineContext: CoroutineContext) :
   }
 
   private suspend fun getCounter(): Long {
-    return restateContext().get(TOTAL)?.let { ByteBuffer.wrap(it) }?.long ?: 0L
+    return restateContext().get(TOTAL) ?: 0L
   }
 
   private suspend fun updateCounter(add: Long): Pair<Long, Long> {
     val currentValue = getCounter()
     val newValue = currentValue + add
 
-    restateContext().set(TOTAL, ByteBuffer.allocate(8).putLong(newValue).array())
+    restateContext().set(TOTAL, newValue)
 
     return currentValue to newValue
   }

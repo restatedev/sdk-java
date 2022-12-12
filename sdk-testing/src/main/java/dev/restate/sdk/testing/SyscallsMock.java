@@ -40,7 +40,11 @@ public class SyscallsMock implements Syscalls {
 
   @Override
   public <T> void set(
-      String name, T value, Runnable okCallback, Consumer<Throwable> failureCallback) {}
+      String name,
+      TypeTag<T> ty,
+      T value,
+      Runnable okCallback,
+      Consumer<Throwable> failureCallback) {}
 
   @Override
   public void sleep(
@@ -89,8 +93,9 @@ public class SyscallsMock implements Syscalls {
       Consumer<Throwable> failureCallback) {}
 
   @Override
-  public void completeCallback(
+  public <T> void completeCallback(
       CallbackIdentifier id,
+      TypeTag<T> ty,
       Object payload,
       Runnable okCallback,
       Consumer<Throwable> failureCallback) {}

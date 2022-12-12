@@ -19,6 +19,7 @@ dependencies {
   implementation(project(":sdk-blocking"))
   implementation(project(":sdk-vertx"))
   implementation(project(":sdk-kotlin"))
+  implementation(project(":sdk-serde-jackson"))
 
   implementation(coreLibs.protobuf.java)
   implementation(coreLibs.protobuf.kotlin)
