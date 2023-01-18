@@ -36,14 +36,6 @@ jobs:
           # See https://github.com/actions/delete-package-versions/issues/61
           ignore-versions: '^.*(?<!SNAPSHOT)$'
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Delete old java-sdk-testing artifacts from GitHub packages
-        if: ${{ inputs.deploymentTarget == 'GitHub' }}
-        uses: actions/delete-package-versions@v3
-        with:
-          package-name: 'dev.restate.sdk.java-sdk-testing'
-          min-versions-to-keep: 0
-          ignore-versions: '^.*(?<!SNAPSHOT)$'
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build with Gradle & publish to JFrog repository
         if: ${{ inputs.deploymentTarget == 'JFrog' }}
