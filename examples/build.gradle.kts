@@ -31,6 +31,8 @@ dependencies {
   implementation(vertxLibs.vertx.core)
   implementation(vertxLibs.vertx.kotlin.coroutines)
 
+  implementation(kotlinLibs.kotlinx.coroutines)
+
   implementation(coreLibs.log4j.core)
 }
 
