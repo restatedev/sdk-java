@@ -6,7 +6,7 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
 import java.util.concurrent.Flow;
 
-class HttpRequestFlowAdapter implements InvocationFlow.InvocationOutputPublisher {
+class HttpRequestFlowAdapter implements InvocationFlow.InvocationInputPublisher {
 
   private final HttpServerRequest httpServerRequest;
   private final MessageDecoder decoder;
