@@ -1,9 +1,8 @@
 package dev.restate.sdk.core.impl;
 
 import static dev.restate.sdk.core.impl.CoreTestRunner.TestCaseBuilder.testInvocation;
+import static dev.restate.sdk.core.impl.ProtoUtils.*;
 
-import com.google.protobuf.ByteString;
-import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.blocking.RestateContext;
 import dev.restate.sdk.core.StateKey;
 import dev.restate.sdk.core.TypeTag;
@@ -11,8 +10,6 @@ import dev.restate.sdk.core.impl.testservices.GreeterGrpc;
 import dev.restate.sdk.core.impl.testservices.GreetingRequest;
 import dev.restate.sdk.core.impl.testservices.GreetingResponse;
 import io.grpc.stub.StreamObserver;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.stream.Stream;
 
 class GetAndSetStateTest extends CoreTestRunner {
@@ -22,11 +19,9 @@ class GetAndSetStateTest extends CoreTestRunner {
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = RestateContext.current();
 
-      String state =
-          new String(ctx.get(StateKey.of("STATE", TypeTag.BYTES)).get(), Charset.defaultCharset());
+      String state = ctx.get(StateKey.of("STATE", TypeTag.STRING_UTF8)).get();
 
-      ctx.set(
-          StateKey.of("STATE", TypeTag.BYTES), request.getName().getBytes(StandardCharsets.UTF_8));
+      ctx.set(StateKey.of("STATE", TypeTag.STRING_UTF8), request.getName());
 
       responseObserver.onNext(GreetingResponse.newBuilder().setMessage("Hello " + state).build());
       responseObserver.onCompleted();
@@ -38,93 +33,34 @@ class GetAndSetStateTest extends CoreTestRunner {
     return Stream.of(
         testInvocation(new GetAndSetGreeter(), GreeterGrpc.getGreetMethod())
             .withInput(
-                Protocol.StartMessage.newBuilder()
-                    .setInstanceKey(ByteString.copyFromUtf8("abc"))
-                    .setInvocationId(ByteString.copyFromUtf8("123"))
-                    .setKnownEntries(3)
-                    .setKnownServiceVersion(1)
-                    .build(),
-                Protocol.PollInputStreamEntryMessage.newBuilder()
-                    .setValue(GreetingRequest.newBuilder().setName("Till").build().toByteString())
-                    .build(),
-                Protocol.GetStateEntryMessage.newBuilder()
-                    .setKey(ByteString.copyFromUtf8("STATE"))
-                    .setValue(ByteString.copyFromUtf8("Francesco"))
-                    .build(),
-                Protocol.SetStateEntryMessage.newBuilder()
-                    .setKey(ByteString.copyFromUtf8("STATE"))
-                    .setValue(ByteString.copyFromUtf8("Till"))
-                    .build())
+                startMessage(3),
+                inputMessage(GreetingRequest.newBuilder().setName("Till")),
+                getStateMessage("STATE", "Francesco"),
+                setStateMessage("STATE", "Till"))
             .usingAllThreadingModels()
             .expectingOutput(
-                Protocol.OutputStreamEntryMessage.newBuilder()
-                    .setValue(
-                        GreetingResponse.newBuilder()
-                            .setMessage("Hello Francesco")
-                            .build()
-                            .toByteString())
-                    .build())
+                outputMessage(GreetingResponse.newBuilder().setMessage("Hello Francesco")))
             .named("With GetState and SetState"),
         testInvocation(new GetAndSetGreeter(), GreeterGrpc.getGreetMethod())
             .withInput(
-                Protocol.StartMessage.newBuilder()
-                    .setInstanceKey(ByteString.copyFromUtf8("abc"))
-                    .setInvocationId(ByteString.copyFromUtf8("123"))
-                    .setKnownEntries(2)
-                    .setKnownServiceVersion(1)
-                    .build(),
-                Protocol.PollInputStreamEntryMessage.newBuilder()
-                    .setValue(GreetingRequest.newBuilder().setName("Till").build().toByteString())
-                    .build(),
-                Protocol.GetStateEntryMessage.newBuilder()
-                    .setKey(ByteString.copyFromUtf8("STATE"))
-                    .setValue(ByteString.copyFromUtf8("Francesco"))
-                    .build())
+                startMessage(2),
+                inputMessage(GreetingRequest.newBuilder().setName("Till")),
+                getStateMessage("STATE", "Francesco"))
             .usingAllThreadingModels()
             .expectingOutput(
-                Protocol.SetStateEntryMessage.newBuilder()
-                    .setKey(ByteString.copyFromUtf8("STATE"))
-                    .setValue(ByteString.copyFromUtf8("Till"))
-                    .build(),
-                Protocol.OutputStreamEntryMessage.newBuilder()
-                    .setValue(
-                        GreetingResponse.newBuilder()
-                            .setMessage("Hello Francesco")
-                            .build()
-                            .toByteString())
-                    .build())
+                setStateMessage("STATE", "Till"),
+                outputMessage(GreetingResponse.newBuilder().setMessage("Hello Francesco")))
             .named("With GetState already completed"),
         testInvocation(new GetAndSetGreeter(), GreeterGrpc.getGreetMethod())
             .withInput(
-                Protocol.StartMessage.newBuilder()
-                    .setInstanceKey(ByteString.copyFromUtf8("abc"))
-                    .setInvocationId(ByteString.copyFromUtf8("123"))
-                    .setKnownEntries(1)
-                    .setKnownServiceVersion(1)
-                    .build(),
-                Protocol.PollInputStreamEntryMessage.newBuilder()
-                    .setValue(GreetingRequest.newBuilder().setName("Till").build().toByteString())
-                    .build(),
-                Protocol.CompletionMessage.newBuilder()
-                    .setEntryIndex(1)
-                    .setValue(ByteString.copyFromUtf8("Francesco"))
-                    .build())
+                startMessage(1),
+                inputMessage(GreetingRequest.newBuilder().setName("Till")),
+                completionMessage(1, "Francesco"))
             .usingThreadingModels(ThreadingModel.UNBUFFERED_MULTI_THREAD)
             .expectingOutput(
-                Protocol.GetStateEntryMessage.newBuilder()
-                    .setKey(ByteString.copyFromUtf8("STATE"))
-                    .build(),
-                Protocol.SetStateEntryMessage.newBuilder()
-                    .setKey(ByteString.copyFromUtf8("STATE"))
-                    .setValue(ByteString.copyFromUtf8("Till"))
-                    .build(),
-                Protocol.OutputStreamEntryMessage.newBuilder()
-                    .setValue(
-                        GreetingResponse.newBuilder()
-                            .setMessage("Hello Francesco")
-                            .build()
-                            .toByteString())
-                    .build())
+                getStateMessage("STATE"),
+                setStateMessage("STATE", "Till"),
+                outputMessage(GreetingResponse.newBuilder().setMessage("Hello Francesco")))
             .named("With GetState completed later"));
   }
 }

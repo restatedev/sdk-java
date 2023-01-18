@@ -1,6 +1,7 @@
 package dev.restate.sdk.core.impl;
 
 import static dev.restate.sdk.core.impl.CoreTestRunner.TestCaseBuilder.testInvocation;
+import static dev.restate.sdk.core.impl.ProtoUtils.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
@@ -12,7 +13,6 @@ import dev.restate.sdk.core.impl.testservices.GreeterGrpc;
 import dev.restate.sdk.core.impl.testservices.GreetingRequest;
 import dev.restate.sdk.core.impl.testservices.GreetingResponse;
 import io.grpc.stub.StreamObserver;
-import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.stream.Stream;
 
@@ -30,14 +30,9 @@ class SideEffectTest extends CoreTestRunner {
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = RestateContext.current();
 
-      byte[] result =
-          ctx.sideEffect(
-              TypeTag.BYTES, () -> this.sideEffectOutput.getBytes(StandardCharsets.UTF_8));
+      String result = ctx.sideEffect(TypeTag.STRING_UTF8, () -> this.sideEffectOutput);
 
-      responseObserver.onNext(
-          GreetingResponse.newBuilder()
-              .setMessage("Hello " + new String(result, StandardCharsets.UTF_8))
-              .build());
+      responseObserver.onNext(GreetingResponse.newBuilder().setMessage("Hello " + result).build());
       responseObserver.onCompleted();
     }
   }
@@ -54,21 +49,11 @@ class SideEffectTest extends CoreTestRunner {
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = RestateContext.current();
 
-      byte[] firstResult =
-          ctx.sideEffect(
-              TypeTag.BYTES, () -> this.sideEffectOutput.getBytes(StandardCharsets.UTF_8));
-      byte[] secondResult =
-          ctx.sideEffect(
-              TypeTag.BYTES,
-              () ->
-                  new String(firstResult, StandardCharsets.UTF_8)
-                      .toUpperCase()
-                      .getBytes(StandardCharsets.UTF_8));
+      String firstResult = ctx.sideEffect(TypeTag.STRING_UTF8, () -> this.sideEffectOutput);
+      String secondResult = ctx.sideEffect(TypeTag.STRING_UTF8, firstResult::toUpperCase);
 
       responseObserver.onNext(
-          GreetingResponse.newBuilder()
-              .setMessage("Hello " + new String(secondResult, StandardCharsets.UTF_8))
-              .build());
+          GreetingResponse.newBuilder().setMessage("Hello " + secondResult).build());
       responseObserver.onCompleted();
     }
   }
@@ -79,12 +64,9 @@ class SideEffectTest extends CoreTestRunner {
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       String currentThread = Thread.currentThread().getName();
 
-      byte[] result =
+      String sideEffectThread =
           RestateContext.current()
-              .sideEffect(
-                  TypeTag.BYTES,
-                  () -> Thread.currentThread().getName().getBytes(StandardCharsets.UTF_8));
-      String sideEffectThread = new String(result, StandardCharsets.UTF_8);
+              .sideEffect(TypeTag.STRING_UTF8, () -> Thread.currentThread().getName());
 
       if (!Objects.equals(currentThread, sideEffectThread)) {
         throw new IllegalStateException(
@@ -103,85 +85,35 @@ class SideEffectTest extends CoreTestRunner {
   Stream<TestDefinition> definitions() {
     return Stream.of(
         testInvocation(new SideEffectGreeter("Francesco"), GreeterGrpc.getGreetMethod())
-            .withInput(
-                Protocol.StartMessage.newBuilder()
-                    .setInstanceKey(ByteString.copyFromUtf8("abc"))
-                    .setInvocationId(ByteString.copyFromUtf8("123"))
-                    .setKnownEntries(1)
-                    .setKnownServiceVersion(1)
-                    .build(),
-                Protocol.PollInputStreamEntryMessage.newBuilder()
-                    .setValue(GreetingRequest.newBuilder().setName("Till").build().toByteString())
-                    .build())
+            .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
             .usingAllThreadingModels()
             .expectingOutput(
                 Protocol.SideEffectEntryMessage.newBuilder()
-                    .setValue(ByteString.copyFromUtf8("Francesco"))
-                    .build(),
-                Protocol.OutputStreamEntryMessage.newBuilder()
-                    .setValue(
-                        GreetingResponse.newBuilder()
-                            .setMessage("Hello Francesco")
-                            .build()
-                            .toByteString())
-                    .build())
+                    .setValue(ByteString.copyFromUtf8("Francesco")),
+                outputMessage(GreetingResponse.newBuilder().setMessage("Hello Francesco")))
             .named("Simple side effect"),
         testInvocation(new ConsecutiveSideEffectGreeter("Francesco"), GreeterGrpc.getGreetMethod())
-            .withInput(
-                Protocol.StartMessage.newBuilder()
-                    .setInstanceKey(ByteString.copyFromUtf8("abc"))
-                    .setInvocationId(ByteString.copyFromUtf8("123"))
-                    .setKnownEntries(1)
-                    .setKnownServiceVersion(1)
-                    .build(),
-                Protocol.PollInputStreamEntryMessage.newBuilder()
-                    .setValue(GreetingRequest.newBuilder().setName("Till").build().toByteString())
-                    .build())
+            .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
             .usingAllThreadingModels()
             .expectingOutput(
                 Protocol.SideEffectEntryMessage.newBuilder()
-                    .setValue(ByteString.copyFromUtf8("Francesco"))
-                    .build())
+                    .setValue(ByteString.copyFromUtf8("Francesco")))
             .named("Consecutive side effect without ack"),
         testInvocation(new ConsecutiveSideEffectGreeter("Francesco"), GreeterGrpc.getGreetMethod())
             .withInput(
-                Protocol.StartMessage.newBuilder()
-                    .setInstanceKey(ByteString.copyFromUtf8("abc"))
-                    .setInvocationId(ByteString.copyFromUtf8("123"))
-                    .setKnownEntries(1)
-                    .setKnownServiceVersion(1)
-                    .build(),
-                Protocol.PollInputStreamEntryMessage.newBuilder()
-                    .setValue(GreetingRequest.newBuilder().setName("Till").build().toByteString())
-                    .build(),
-                Protocol.CompletionMessage.newBuilder().setEntryIndex(1).build())
-            .usingAllThreadingModels()
+                startMessage(1),
+                inputMessage(GreetingRequest.newBuilder().setName("Till")),
+                Protocol.CompletionMessage.newBuilder().setEntryIndex(1))
+            .usingThreadingModels(ThreadingModel.UNBUFFERED_MULTI_THREAD)
             .expectingOutput(
                 Protocol.SideEffectEntryMessage.newBuilder()
-                    .setValue(ByteString.copyFromUtf8("Francesco"))
-                    .build(),
+                    .setValue(ByteString.copyFromUtf8("Francesco")),
                 Protocol.SideEffectEntryMessage.newBuilder()
-                    .setValue(ByteString.copyFromUtf8("FRANCESCO"))
-                    .build(),
-                Protocol.OutputStreamEntryMessage.newBuilder()
-                    .setValue(
-                        GreetingResponse.newBuilder()
-                            .setMessage("Hello FRANCESCO")
-                            .build()
-                            .toByteString())
-                    .build())
+                    .setValue(ByteString.copyFromUtf8("FRANCESCO")),
+                outputMessage(GreetingResponse.newBuilder().setMessage("Hello FRANCESCO")))
             .named("Consecutive side effect with ack"),
         testInvocation(new CheckCorrectThreadTrampolineGreeter(), GreeterGrpc.getGreetMethod())
-            .withInput(
-                Protocol.StartMessage.newBuilder()
-                    .setInstanceKey(ByteString.copyFromUtf8("abc"))
-                    .setInvocationId(ByteString.copyFromUtf8("123"))
-                    .setKnownEntries(1)
-                    .setKnownServiceVersion(1)
-                    .build(),
-                Protocol.PollInputStreamEntryMessage.newBuilder()
-                    .setValue(GreetingRequest.getDefaultInstance().toByteString())
-                    .build())
+            .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
             .usingThreadingModels(ThreadingModel.UNBUFFERED_MULTI_THREAD)
             .assertingOutput(
                 actualOutputMessages -> {

@@ -1,9 +1,8 @@
 package dev.restate.sdk.core.impl;
 
 import static dev.restate.sdk.core.impl.CoreTestRunner.TestCaseBuilder.testInvocation;
+import static dev.restate.sdk.core.impl.ProtoUtils.*;
 
-import com.google.protobuf.ByteString;
-import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.impl.testservices.GreeterGrpc;
 import dev.restate.sdk.core.impl.testservices.GreetingRequest;
 import dev.restate.sdk.core.impl.testservices.GreetingResponse;
@@ -26,24 +25,10 @@ class OnlyInputAndOutputTest extends CoreTestRunner {
     return Stream.of(
         testInvocation(new NoSyscallsGreeter(), GreeterGrpc.getGreetMethod())
             .withInput(
-                Protocol.StartMessage.newBuilder()
-                    .setInstanceKey(ByteString.copyFromUtf8("abc"))
-                    .setInvocationId(ByteString.copyFromUtf8("123"))
-                    .setKnownEntries(1)
-                    .setKnownServiceVersion(1)
-                    .build(),
-                Protocol.PollInputStreamEntryMessage.newBuilder()
-                    .setValue(
-                        GreetingRequest.newBuilder().setName("Francesco").build().toByteString())
-                    .build())
+                startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Francesco")))
             .usingAllThreadingModels()
             .expectingOutput(
-                Protocol.OutputStreamEntryMessage.newBuilder()
-                    .setValue(
-                        GreetingResponse.newBuilder()
-                            .setMessage("Hello Francesco")
-                            .build()
-                            .toByteString())
-                    .build()));
+                outputMessage(
+                    GreetingResponse.newBuilder().setMessage("Hello Francesco").build())));
   }
 }

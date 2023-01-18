@@ -1,9 +1,8 @@
 package dev.restate.sdk.core.impl;
 
 import static dev.restate.sdk.core.impl.CoreTestRunner.TestCaseBuilder.testInvocation;
+import static dev.restate.sdk.core.impl.ProtoUtils.*;
 
-import com.google.protobuf.ByteString;
-import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.impl.testservices.GreeterGrpc;
 import dev.restate.sdk.core.impl.testservices.GreetingRequest;
 import dev.restate.sdk.core.impl.testservices.GreetingResponse;
@@ -23,20 +22,8 @@ class FailuresTest extends CoreTestRunner {
   Stream<TestDefinition> definitions() {
     return Stream.of(
         testInvocation(new FailingGreeter(), GreeterGrpc.getGreetMethod())
-            .withInput(
-                Protocol.StartMessage.newBuilder()
-                    .setInstanceKey(ByteString.copyFromUtf8("abc"))
-                    .setInvocationId(ByteString.copyFromUtf8("123"))
-                    .setKnownEntries(1)
-                    .setKnownServiceVersion(1)
-                    .build(),
-                Protocol.PollInputStreamEntryMessage.newBuilder()
-                    .setValue(GreetingRequest.newBuilder().setName("Till").build().toByteString())
-                    .build())
+            .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
             .usingAllThreadingModels()
-            .expectingOutput(
-                Protocol.OutputStreamEntryMessage.newBuilder()
-                    .setFailure(Util.toProtocolFailure(new IllegalStateException("Whatever")))
-                    .build()));
+            .expectingOutput(outputMessage(new IllegalStateException("Whatever"))));
   }
 }
