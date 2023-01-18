@@ -45,7 +45,8 @@ public class ProtocolException extends RuntimeException {
   }
 
   static ProtocolException entryDoNotMatch(MessageLite expected, MessageLite actual) {
-    return new ProtocolException("Journal entry do not match: " + expected + " != " + actual);
+    return new ProtocolException(
+        "Journal entry " + expected.getClass() + " do not match: " + expected + " != " + actual);
   }
 
   static ProtocolException completionDoNotMatch(
