@@ -2,7 +2,6 @@ package dev.restate.sdk.blocking;
 
 import dev.restate.sdk.core.SuspendedException;
 import dev.restate.sdk.core.syscalls.DeferredResult;
-import dev.restate.sdk.core.syscalls.ReadyResult;
 import dev.restate.sdk.core.syscalls.Syscalls;
 import io.grpc.StatusRuntimeException;
 import java.util.concurrent.*;
@@ -19,7 +18,7 @@ import java.util.concurrent.*;
 public class Awaitable<T> {
 
   private final Syscalls syscalls;
-  private DeferredResult<T> deferredResult;
+  private final DeferredResult<T> deferredResult;
 
   Awaitable(Syscalls syscalls, DeferredResult<T> deferredResult) {
     this.syscalls = syscalls;
@@ -35,14 +34,11 @@ public class Awaitable<T> {
    *
    * @throws StatusRuntimeException if the awaitable is ready and contains a failure
    */
-  @SuppressWarnings("unchecked")
   public T await() throws StatusRuntimeException {
-    if (!(this.deferredResult instanceof ReadyResult)) {
-      CompletableFuture<ReadyResult<T>> fut = new CompletableFuture<>();
-      this.syscalls.resolveDeferred(this.deferredResult, fut::complete, fut::completeExceptionally);
-      this.deferredResult = Util.awaitCompletableFuture(fut);
+    if (!this.deferredResult.isCompleted()) {
+      Util.<Void>blockOnSyscall(cb -> syscalls.resolveDeferred(this.deferredResult, cb));
     }
 
-    return Util.unwrapReadyResult((ReadyResult<T>) this.deferredResult);
+    return Util.unwrapReadyResult(this.deferredResult.toReadyResult());
   }
 }
