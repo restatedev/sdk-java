@@ -15,7 +15,6 @@ include(
     "sdk-serde-jackson",
     "sdk-vertx",
     "sdk-blocking",
-    "sdk-jdk-future",
     "sdk-lambda",
     "sdk-kotlin",
     "sdk-testing",
