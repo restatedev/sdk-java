@@ -2,6 +2,7 @@ package dev.restate.sdk.core.impl;
 
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.Parser;
+import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 
 public enum MessageType {
@@ -25,7 +26,10 @@ public enum MessageType {
   BackgroundInvokeEntryMessage,
   AwakeableEntryMessage,
   CompleteAwakeableEntryMessage,
-  SideEffectEntryMessage;
+  SideEffectEntryMessage,
+
+  // SDK specific
+  CombinatorAwaitableEntryMessage;
 
   public Parser<? extends MessageLite> messageParser() {
     switch (this) {
@@ -59,6 +63,8 @@ public enum MessageType {
         return Protocol.CompleteAwakeableEntryMessage.parser();
       case SideEffectEntryMessage:
         return Protocol.SideEffectEntryMessage.parser();
+      case CombinatorAwaitableEntryMessage:
+        return Java.CombinatorAwaitableEntryMessage.parser();
     }
     throw new IllegalStateException();
   }
@@ -95,6 +101,8 @@ public enum MessageType {
         return 0x0C04;
       case SideEffectEntryMessage:
         return 0x0C05;
+      case CombinatorAwaitableEntryMessage:
+        return (short) 0xFC00;
     }
     throw new IllegalStateException();
   }
@@ -131,6 +139,8 @@ public enum MessageType {
         return CompleteAwakeableEntryMessage;
       case 0x0C05:
         return SideEffectEntryMessage;
+      case (short) 0xFC00:
+        return CombinatorAwaitableEntryMessage;
     }
     throw ProtocolException.unknownMessageType(value);
   }

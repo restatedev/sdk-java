@@ -1,6 +1,8 @@
 package dev.restate.sdk.core.impl;
 
 import com.google.protobuf.MessageLite;
+import dev.restate.generated.sdk.java.Java;
+import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.SuspendedException;
 import io.grpc.*;
@@ -107,7 +109,8 @@ public final class Util {
         || msg instanceof Protocol.BackgroundInvokeEntryMessage
         || msg instanceof Protocol.SideEffectEntryMessage
         || msg instanceof Protocol.AwakeableEntryMessage
-        || msg instanceof Protocol.CompleteAwakeableEntryMessage;
+        || msg instanceof Protocol.CompleteAwakeableEntryMessage
+        || msg instanceof Java.CombinatorAwaitableEntryMessage;
   }
 
   @SuppressWarnings("unchecked")

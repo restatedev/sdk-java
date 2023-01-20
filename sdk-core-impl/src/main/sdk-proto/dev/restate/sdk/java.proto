@@ -4,5 +4,9 @@ package dev.restate.sdk.java;
 
 import "google/protobuf/any.proto";
 
-option java_multiple_files = true;
 option java_package = "dev.restate.generated.sdk.java";
+
+// Type: 0xFC00 + 0
+message CombinatorAwaitableEntryMessage {
+  repeated uint32 entry_index = 2;
+}
