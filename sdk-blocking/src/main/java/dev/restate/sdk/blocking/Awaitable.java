@@ -4,6 +4,9 @@ import dev.restate.sdk.core.SuspendedException;
 import dev.restate.sdk.core.syscalls.DeferredResult;
 import dev.restate.sdk.core.syscalls.Syscalls;
 import io.grpc.StatusRuntimeException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.*;
 
 /**
@@ -15,7 +18,7 @@ import java.util.concurrent.*;
  *
  * @param <T> type of the awaitable result
  */
-public class Awaitable<T> {
+public final class Awaitable<T> {
 
   private final Syscalls syscalls;
   private final DeferredResult<T> deferredResult;
@@ -40,5 +43,25 @@ public class Awaitable<T> {
     }
 
     return Util.unwrapReadyResult(this.deferredResult.toReadyResult());
+  }
+
+  public static Awaitable<Object> any(
+      Awaitable<?> first, Awaitable<?> second, Awaitable<?>... others) {
+    List<DeferredResult<?>> deferred = new ArrayList<>(2 + others.length);
+    deferred.add(first.deferredResult);
+    deferred.add(second.deferredResult);
+    Arrays.stream(others).map(a -> a.deferredResult).forEach(deferred::add);
+
+    return new Awaitable<>(first.syscalls, first.syscalls.createAnyDeferred(deferred));
+  }
+
+  public static Awaitable<Void> all(
+      Awaitable<?> first, Awaitable<?> second, Awaitable<?>... others) {
+    List<DeferredResult<?>> deferred = new ArrayList<>(2 + others.length);
+    deferred.add(first.deferredResult);
+    deferred.add(second.deferredResult);
+    Arrays.stream(others).map(a -> a.deferredResult).forEach(deferred::add);
+
+    return new Awaitable<>(first.syscalls, first.syscalls.createAllDeferred(deferred));
   }
 }
