@@ -23,8 +23,8 @@ public enum MessageType {
   SleepEntryMessage,
   InvokeEntryMessage,
   BackgroundInvokeEntryMessage,
-  CallbackEntryMessage,
-  CompleteCallbackEntryMessage,
+  AwakeableEntryMessage,
+  CompleteAwakeableEntryMessage,
   SideEffectEntryMessage;
 
   public Parser<? extends MessageLite> messageParser() {
@@ -53,10 +53,10 @@ public enum MessageType {
         return Protocol.InvokeEntryMessage.parser();
       case BackgroundInvokeEntryMessage:
         return Protocol.BackgroundInvokeEntryMessage.parser();
-      case CallbackEntryMessage:
-        return Protocol.CallbackEntryMessage.parser();
-      case CompleteCallbackEntryMessage:
-        return Protocol.CompleteCallbackEntryMessage.parser();
+      case AwakeableEntryMessage:
+        return Protocol.AwakeableEntryMessage.parser();
+      case CompleteAwakeableEntryMessage:
+        return Protocol.CompleteAwakeableEntryMessage.parser();
       case SideEffectEntryMessage:
         return Protocol.SideEffectEntryMessage.parser();
     }
@@ -89,9 +89,9 @@ public enum MessageType {
         return 0x0C01;
       case BackgroundInvokeEntryMessage:
         return 0x0C02;
-      case CallbackEntryMessage:
+      case AwakeableEntryMessage:
         return 0x0C03;
-      case CompleteCallbackEntryMessage:
+      case CompleteAwakeableEntryMessage:
         return 0x0C04;
       case SideEffectEntryMessage:
         return 0x0C05;
@@ -126,9 +126,9 @@ public enum MessageType {
       case 0x0C02:
         return BackgroundInvokeEntryMessage;
       case 0x0C03:
-        return CallbackEntryMessage;
+        return AwakeableEntryMessage;
       case 0x0C04:
-        return CompleteCallbackEntryMessage;
+        return CompleteAwakeableEntryMessage;
       case 0x0C05:
         return SideEffectEntryMessage;
     }

@@ -2,7 +2,7 @@ package dev.restate.sdk.core.impl;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
-import dev.restate.generated.core.CallbackIdentifier;
+import dev.restate.generated.core.AwakeableIdentifier;
 import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.core.syscalls.*;
 import io.grpc.MethodDescriptor;
@@ -155,20 +155,20 @@ class ExecutorSwitchingWrappers {
     }
 
     @Override
-    public <T> void callback(
+    public <T> void awakeable(
         TypeTag<T> typeTag,
-        SyscallCallback<Map.Entry<CallbackIdentifier, DeferredResult<T>>> callback) {
-      syscallsExecutor.execute(() -> syscalls.callback(typeTag, callback));
+        SyscallCallback<Map.Entry<AwakeableIdentifier, DeferredResult<T>>> callback) {
+      syscallsExecutor.execute(() -> syscalls.awakeable(typeTag, callback));
     }
 
     @Override
-    public <T> void completeCallback(
-        CallbackIdentifier id,
+    public <T> void completeAwakeable(
+        AwakeableIdentifier id,
         TypeTag<T> typeTag,
         T payload,
         SyscallCallback<Void> requestCallback) {
       syscallsExecutor.execute(
-          () -> syscalls.completeCallback(id, typeTag, payload, requestCallback));
+          () -> syscalls.completeAwakeable(id, typeTag, payload, requestCallback));
     }
 
     @Override

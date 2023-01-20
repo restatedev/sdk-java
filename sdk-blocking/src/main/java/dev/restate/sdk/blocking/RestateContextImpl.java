@@ -1,7 +1,7 @@
 package dev.restate.sdk.blocking;
 
 import com.google.protobuf.MessageLite;
-import dev.restate.generated.core.CallbackIdentifier;
+import dev.restate.generated.core.AwakeableIdentifier;
 import dev.restate.sdk.core.StateKey;
 import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.core.syscalls.*;
@@ -11,7 +11,6 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 
@@ -135,20 +134,16 @@ public class RestateContextImpl implements RestateContext {
   }
 
   @Override
-  public <T> Awaitable<T> callback(TypeTag<T> typeTag, Consumer<CallbackIdentifier> action)
-      throws StatusRuntimeException {
+  public <T> Awakeable<T> awakeable(TypeTag<T> typeTag) throws StatusRuntimeException {
     // Retrieve the awakeable
-    Map.Entry<CallbackIdentifier, DeferredResult<T>> cbIdAndResult =
-        Util.blockOnSyscall(cb -> syscalls.callback(typeTag, cb));
+    Map.Entry<AwakeableIdentifier, DeferredResult<T>> awakeable =
+        Util.blockOnSyscall(cb -> syscalls.awakeable(typeTag, cb));
 
-    // Run the side effect
-    this.sideEffect(() -> action.accept(cbIdAndResult.getKey()));
-
-    return new Awaitable<>(syscalls, cbIdAndResult.getValue());
+    return new Awakeable<>(syscalls, awakeable.getValue(), awakeable.getKey());
   }
 
   @Override
-  public <T> void completeCallback(CallbackIdentifier id, TypeTag<T> typeTag, T payload) {
-    Util.<Void>blockOnSyscall(cb -> syscalls.completeCallback(id, typeTag, payload, cb));
+  public <T> void completeAwakeable(AwakeableIdentifier id, TypeTag<T> typeTag, T payload) {
+    Util.<Void>blockOnSyscall(cb -> syscalls.completeAwakeable(id, typeTag, payload, cb));
   }
 }

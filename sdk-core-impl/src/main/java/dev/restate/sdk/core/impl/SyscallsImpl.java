@@ -4,7 +4,7 @@ import static dev.restate.sdk.core.impl.Util.toProtocolFailure;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
-import dev.restate.generated.core.CallbackIdentifier;
+import dev.restate.generated.core.AwakeableIdentifier;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.generated.service.protocol.Protocol.PollInputStreamEntryMessage;
 import dev.restate.sdk.core.TypeTag;
@@ -191,17 +191,17 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public <T> void callback(
+  public <T> void awakeable(
       TypeTag<T> typeTag,
-      SyscallCallback<Map.Entry<CallbackIdentifier, DeferredResult<T>>> callback) {
+      SyscallCallback<Map.Entry<AwakeableIdentifier, DeferredResult<T>>> callback) {
     LOG.trace("callback");
     this.stateMachine.processCompletableJournalEntry(
-        Protocol.CallbackEntryMessage.getDefaultInstance(),
-        new CallbackEntry<>(serdeDeserializer(typeTag)),
+        Protocol.AwakeableEntryMessage.getDefaultInstance(),
+        new AwakeableEntry<>(serdeDeserializer(typeTag)),
         SyscallCallback.mappingTo(
             deferredResult ->
                 new AbstractMap.SimpleImmutableEntry<>(
-                    CallbackIdentifier.newBuilder()
+                    AwakeableIdentifier.newBuilder()
                         .setServiceName(stateMachine.getServiceName())
                         .setInstanceKey(stateMachine.getInstanceKey())
                         .setInvocationId(stateMachine.getInvocationId())
@@ -212,13 +212,13 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public <T> void completeCallback(
-      CallbackIdentifier id, TypeTag<T> ty, T payload, SyscallCallback<Void> callback) {
-    LOG.trace("completeCallback");
+  public <T> void completeAwakeable(
+      AwakeableIdentifier id, TypeTag<T> ty, T payload, SyscallCallback<Void> callback) {
+    LOG.trace("completeAwakeable");
     ByteString serialized = serialize(ty, payload);
 
-    Protocol.CompleteCallbackEntryMessage expectedEntry =
-        Protocol.CompleteCallbackEntryMessage.newBuilder()
+    Protocol.CompleteAwakeableEntryMessage expectedEntry =
+        Protocol.CompleteAwakeableEntryMessage.newBuilder()
             .setServiceName(id.getServiceName())
             .setInstanceKey(id.getInstanceKey())
             .setInvocationId(id.getInvocationId())
@@ -226,7 +226,7 @@ public final class SyscallsImpl implements SyscallsInternal {
             .setPayload(serialized)
             .build();
     this.stateMachine.processJournalEntryWithoutWaitingAck(
-        expectedEntry, CompleteCallbackEntry.INSTANCE, callback);
+        expectedEntry, CompleteAwakeableEntry.INSTANCE, callback);
   }
 
   @Override

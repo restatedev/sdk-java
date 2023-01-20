@@ -277,26 +277,26 @@ final class Entries {
     }
   }
 
-  static final class CallbackEntry<R> extends CompletableJournalEntry<CallbackEntryMessage, R> {
+  static final class AwakeableEntry<R> extends CompletableJournalEntry<AwakeableEntryMessage, R> {
 
     private final Function<ByteString, ReadyResultInternal<R>> valueParser;
 
-    CallbackEntry(Function<ByteString, ReadyResultInternal<R>> valueParser) {
+    AwakeableEntry(Function<ByteString, ReadyResultInternal<R>> valueParser) {
       this.valueParser = valueParser;
     }
 
     @Override
-    void trace(CallbackEntryMessage expected, Span span) {
-      span.addEvent("Callback");
+    void trace(AwakeableEntryMessage expected, Span span) {
+      span.addEvent("Awakeable");
     }
 
     @Override
-    public boolean hasResult(CallbackEntryMessage actual) {
-      return actual.getResultCase() != Protocol.CallbackEntryMessage.ResultCase.RESULT_NOT_SET;
+    public boolean hasResult(AwakeableEntryMessage actual) {
+      return actual.getResultCase() != Protocol.AwakeableEntryMessage.ResultCase.RESULT_NOT_SET;
     }
 
     @Override
-    public ReadyResultInternal<R> parseEntryResult(CallbackEntryMessage actual) {
+    public ReadyResultInternal<R> parseEntryResult(AwakeableEntryMessage actual) {
       if (actual.hasValue()) {
         return valueParser.apply(actual.getValue());
       }
@@ -315,19 +315,19 @@ final class Entries {
     }
   }
 
-  static final class CompleteCallbackEntry extends JournalEntry<CompleteCallbackEntryMessage> {
+  static final class CompleteAwakeableEntry extends JournalEntry<CompleteAwakeableEntryMessage> {
 
-    static final CompleteCallbackEntry INSTANCE = new CompleteCallbackEntry();
+    static final CompleteAwakeableEntry INSTANCE = new CompleteAwakeableEntry();
 
-    private CompleteCallbackEntry() {}
+    private CompleteAwakeableEntry() {}
 
     @Override
-    public void trace(CompleteCallbackEntryMessage expected, Span span) {
-      span.addEvent("CompleteCallback");
+    public void trace(CompleteAwakeableEntryMessage expected, Span span) {
+      span.addEvent("CompleteAwakeable");
     }
 
     @Override
-    void checkEntryHeader(CompleteCallbackEntryMessage expected, MessageLite actual)
+    void checkEntryHeader(CompleteAwakeableEntryMessage expected, MessageLite actual)
         throws ProtocolException {
       Util.assertEntryEquals(expected, actual);
     }
