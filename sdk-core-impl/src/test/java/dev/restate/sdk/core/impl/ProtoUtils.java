@@ -3,10 +3,12 @@ package dev.restate.sdk.core.impl;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.MessageLiteOrBuilder;
+import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.impl.testservices.GreetingRequest;
 import dev.restate.sdk.core.impl.testservices.GreetingResponse;
 import io.grpc.MethodDescriptor;
+import java.util.Arrays;
 
 public class ProtoUtils {
 
@@ -30,6 +32,13 @@ public class ProtoUtils {
     return Protocol.CompletionMessage.newBuilder()
         .setEntryIndex(index)
         .setValue(build(value).toByteString())
+        .build();
+  }
+
+  static Protocol.CompletionMessage completionMessage(int index, Throwable e) {
+    return Protocol.CompletionMessage.newBuilder()
+        .setEntryIndex(index)
+        .setFailure(Util.toProtocolFailure(e))
         .build();
   }
 
@@ -80,12 +89,23 @@ public class ProtoUtils {
     return invokeMessage(methodDescriptor, parameter).setValue(result.toByteString()).build();
   }
 
+  static <T extends MessageLite, R extends MessageLite> Protocol.InvokeEntryMessage invokeMessage(
+      MethodDescriptor<T, R> methodDescriptor, T parameter, Throwable e) {
+    return invokeMessage(methodDescriptor, parameter).setFailure(Util.toProtocolFailure(e)).build();
+  }
+
   static GreetingRequest greetingRequest(String name) {
     return GreetingRequest.newBuilder().setName(name).build();
   }
 
   static GreetingResponse greetingResponse(String message) {
     return GreetingResponse.newBuilder().setMessage(message).build();
+  }
+
+  static Java.CombinatorAwaitableEntryMessage combinatorsMessage(Integer... order) {
+    return Java.CombinatorAwaitableEntryMessage.newBuilder()
+        .addAllEntryIndex(Arrays.asList(order))
+        .build();
   }
 
   static MessageLite build(MessageLiteOrBuilder value) {
