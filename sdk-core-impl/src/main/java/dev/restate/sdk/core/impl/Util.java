@@ -106,8 +106,8 @@ public final class Util {
         || msg instanceof Protocol.InvokeEntryMessage
         || msg instanceof Protocol.BackgroundInvokeEntryMessage
         || msg instanceof Protocol.SideEffectEntryMessage
-        || msg instanceof Protocol.CallbackEntryMessage
-        || msg instanceof Protocol.CompleteCallbackEntryMessage;
+        || msg instanceof Protocol.AwakeableEntryMessage
+        || msg instanceof Protocol.CompleteAwakeableEntryMessage;
   }
 
   @SuppressWarnings("unchecked")

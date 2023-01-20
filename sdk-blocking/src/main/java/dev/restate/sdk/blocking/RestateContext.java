@@ -1,16 +1,14 @@
 package dev.restate.sdk.blocking;
 
 import com.google.protobuf.MessageLite;
-import dev.restate.generated.core.CallbackIdentifier;
+import dev.restate.generated.core.AwakeableIdentifier;
 import dev.restate.sdk.core.StateKey;
 import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.core.serde.Serde;
 import dev.restate.sdk.core.syscalls.Syscalls;
 import io.grpc.MethodDescriptor;
-import io.grpc.StatusRuntimeException;
 import java.time.Duration;
 import java.util.Optional;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public interface RestateContext {
@@ -103,42 +101,34 @@ public interface RestateContext {
         });
   }
 
-  /** Shorthand for {@link #callback(TypeTag, Consumer)} */
-  default <T> Awaitable<T> callback(Class<T> type, Consumer<CallbackIdentifier> caller) {
-    return callback(TypeTag.ofClass(type), caller);
+  /** Shorthand for {@link #awakeable(TypeTag)} */
+  default <T> Awakeable<T> awakeable(Class<T> type) {
+    return awakeable(TypeTag.ofClass(type));
   }
 
   /**
-   * This function executes the provided {@code caller} function and suspends this function once
-   * {@link Awaitable#await()} is invoked. Another function can then resume this function again by
-   * using {@link #completeCallback(CallbackIdentifier, TypeTag, Object)}.
+   * Create an {@link Awakeable}, addressable through {@link Awakeable#id()}.
    *
    * <p>You can use this feature to implement external asynchronous systems interactions, for
-   * example you can send a Kafka record within the {@code caller}, by including in the record the
-   * serialized {@link CallbackIdentifier}, and then let another service consume from Kafka
-   * responses of this external system interaction by using {@link
-   * #completeCallback(CallbackIdentifier, TypeTag, Object)}.
+   * example you can send a Kafka record including the {@link Awakeable#id()}, and then let another
+   * service consume from Kafka the responses of given external system interaction by using {@link
+   * #completeAwakeable(AwakeableIdentifier, TypeTag, Object)}.
    *
    * @param typeTag the response type tag to use for deserializing
-   * @param caller the function executing the external system interaction
-   * @return the result value of the external system interaction, that is the value the wake up-per
-   *     passes to {@link #completeCallback(CallbackIdentifier, TypeTag, Object)}
-   * @throws StatusRuntimeException if the {@code caller} closure fails. The exception will never
-   *     contain the cause, as it's not persisted in the journal, so it can't be deterministically
-   *     reproduced.
+   * @return the result value of the external system interaction
+   * @see Awakeable
    */
-  <T> Awaitable<T> callback(TypeTag<T> typeTag, Consumer<CallbackIdentifier> caller)
-      throws StatusRuntimeException;
+  <T> Awakeable<T> awakeable(TypeTag<T> typeTag);
 
   /**
-   * Complete the suspended function waiting on the callback identified by the provided {@link
-   * CallbackIdentifier}.
+   * Complete the suspended service instance waiting on the {@link Awakeable} identified by the
+   * provided {@link AwakeableIdentifier}.
    *
-   * @param id the id to identify the callback
+   * @param id the identifier to identify the {@link Awakeable} to complete
    * @param payload the payload of the response. This can be either {@code byte[]}, {@link
    *     com.google.protobuf.ByteString}, or any object, which will be serialized by using the
    *     configured {@link Serde}
-   * @see #callback(Class, Consumer)
+   * @see Awakeable
    */
-  <T> void completeCallback(CallbackIdentifier id, TypeTag<T> typeTag, T payload);
+  <T> void completeAwakeable(AwakeableIdentifier id, TypeTag<T> typeTag, T payload);
 }

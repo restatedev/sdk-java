@@ -1,7 +1,7 @@
 package dev.restate.sdk.kotlin
 
 import com.google.protobuf.MessageLite
-import dev.restate.generated.core.CallbackIdentifier
+import dev.restate.generated.core.AwakeableIdentifier
 import dev.restate.sdk.core.StateKey
 import dev.restate.sdk.core.TypeTag
 import io.grpc.MethodDescriptor
@@ -47,17 +47,7 @@ sealed interface RestateContext {
     }
   }
 
-  suspend fun <T> callback(
-      typeTag: TypeTag<T>,
-      callbackAction: suspend (CallbackIdentifier) -> Unit
-  ): T {
-    return callbackAsync(typeTag, callbackAction).await()
-  }
+  suspend fun <T> awakeable(typeTag: TypeTag<T>): Awakeable<T>
 
-  suspend fun <T> callbackAsync(
-      typeTag: TypeTag<T>,
-      callbackAction: suspend (CallbackIdentifier) -> Unit
-  ): Awaitable<T>
-
-  suspend fun <T> completeCallback(id: CallbackIdentifier, typeTag: TypeTag<T>, payload: T)
+  suspend fun <T> completeAwakeable(id: AwakeableIdentifier, typeTag: TypeTag<T>, payload: T)
 }

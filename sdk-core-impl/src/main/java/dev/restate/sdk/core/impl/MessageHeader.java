@@ -83,15 +83,15 @@ public class MessageHeader {
     } else if (msg instanceof Protocol.BackgroundInvokeEntryMessage) {
       return new MessageHeader(
           MessageType.BackgroundInvokeEntryMessage, msg.getSerializedSize(), false);
-    } else if (msg instanceof Protocol.CallbackEntryMessage) {
+    } else if (msg instanceof Protocol.AwakeableEntryMessage) {
       return new MessageHeader(
-          MessageType.CallbackEntryMessage,
+          MessageType.AwakeableEntryMessage,
           msg.getSerializedSize(),
-          ((Protocol.CallbackEntryMessage) msg).getResultCase()
-              == Protocol.CallbackEntryMessage.ResultCase.RESULT_NOT_SET);
-    } else if (msg instanceof Protocol.CompleteCallbackEntryMessage) {
+          ((Protocol.AwakeableEntryMessage) msg).getResultCase()
+              == Protocol.AwakeableEntryMessage.ResultCase.RESULT_NOT_SET);
+    } else if (msg instanceof Protocol.CompleteAwakeableEntryMessage) {
       return new MessageHeader(
-          MessageType.CompleteCallbackEntryMessage, msg.getSerializedSize(), false);
+          MessageType.CompleteAwakeableEntryMessage, msg.getSerializedSize(), false);
     } else if (msg instanceof Protocol.SideEffectEntryMessage) {
       return new MessageHeader(MessageType.SideEffectEntryMessage, msg.getSerializedSize(), false);
     }

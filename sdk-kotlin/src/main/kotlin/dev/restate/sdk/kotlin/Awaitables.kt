@@ -1,5 +1,6 @@
 package dev.restate.sdk.kotlin
 
+import dev.restate.generated.core.AwakeableIdentifier
 import dev.restate.sdk.core.syscalls.DeferredResult
 import dev.restate.sdk.core.syscalls.Syscalls
 import kotlinx.coroutines.CancellableContinuation
@@ -7,6 +8,10 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 
 sealed interface Awaitable<T> {
   suspend fun await(): T
+}
+
+sealed interface Awakeable<T> : Awaitable<T> {
+  val id: AwakeableIdentifier
 }
 
 internal abstract class BaseAwaitableImpl<JAVA_T, KT_T>
@@ -27,7 +32,7 @@ internal constructor(
   }
 }
 
-internal class NonNullAwaitableImpl<T>
+internal open class NonNullAwaitableImpl<T>
 internal constructor(syscalls: Syscalls, deferredResult: DeferredResult<T>) :
     BaseAwaitableImpl<T, T>(syscalls, deferredResult) {
   override fun unpack(): T {
@@ -50,3 +55,10 @@ internal constructor(syscalls: Syscalls, deferredResult: DeferredResult<Void>) :
     return
   }
 }
+
+internal class AwakeableImpl<T>
+internal constructor(
+    syscalls: Syscalls,
+    deferredResult: DeferredResult<T>,
+    override val id: AwakeableIdentifier
+) : NonNullAwaitableImpl<T>(syscalls, deferredResult), Awakeable<T>

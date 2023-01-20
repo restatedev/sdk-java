@@ -1,7 +1,7 @@
 package dev.restate.sdk.kotlin
 
 import com.google.protobuf.MessageLite
-import dev.restate.generated.core.CallbackIdentifier
+import dev.restate.generated.core.AwakeableIdentifier
 import dev.restate.sdk.core.*
 import dev.restate.sdk.core.syscalls.DeferredResult
 import dev.restate.sdk.core.syscalls.EnterSideEffectSyscallCallback
@@ -144,28 +144,23 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
     return exitResult.await()
   }
 
-  override suspend fun <T> callbackAsync(
-      typeTag: TypeTag<T>,
-      callbackAction: suspend (CallbackIdentifier) -> Unit
-  ): Awaitable<T> {
-    val (cid, deferredResult) =
+  override suspend fun <T> awakeable(typeTag: TypeTag<T>): Awakeable<T> {
+    val (aid, deferredResult) =
         suspendCancellableCoroutine {
-            cont: CancellableContinuation<Map.Entry<CallbackIdentifier, DeferredResult<T>>> ->
-          syscalls.callback(typeTag, completingContinuation(cont))
+            cont: CancellableContinuation<Map.Entry<AwakeableIdentifier, DeferredResult<T>>> ->
+          syscalls.awakeable(typeTag, completingContinuation(cont))
         }
 
-    this.sideEffect { callbackAction(cid) }
-
-    return NonNullAwaitableImpl(syscalls, deferredResult)
+    return AwakeableImpl(syscalls, deferredResult, aid)
   }
 
-  override suspend fun <T> completeCallback(
-      id: CallbackIdentifier,
+  override suspend fun <T> completeAwakeable(
+      id: AwakeableIdentifier,
       typeTag: TypeTag<T>,
       payload: T
   ) {
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-      syscalls.completeCallback(id, typeTag, payload, completingUnitContinuation(cont))
+      syscalls.completeAwakeable(id, typeTag, payload, completingUnitContinuation(cont))
     }
   }
 }
