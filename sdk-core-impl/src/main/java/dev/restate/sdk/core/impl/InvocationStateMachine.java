@@ -2,19 +2,25 @@ package dev.restate.sdk.core.impl;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
+import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.SuspendedException;
 import dev.restate.sdk.core.impl.Entries.JournalEntry;
+import dev.restate.sdk.core.impl.DeferredResults.CombinatorDeferredResult;
+import dev.restate.sdk.core.impl.DeferredResults.ResolvableSingleDeferredResult;
+import dev.restate.sdk.core.impl.DeferredResults.SingleDeferredResultInternal;
+import dev.restate.sdk.core.impl.ReadyResults.ReadyResultInternal;
 import dev.restate.sdk.core.syscalls.DeferredResult;
 import dev.restate.sdk.core.syscalls.SyscallCallback;
 import io.grpc.Status;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.Flow;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.*;
+import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -228,11 +234,11 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
             if (journalEntry.hasResult((E) actualEntryMessage)) {
               ReadyResultInternal<T> readyResultInternal =
                   journalEntry.parseEntryResult((E) actualEntryMessage);
-              callback.onSuccess(readyResultInternal);
+              callback.onSuccess(DeferredResults.completedSingle(entryIndex, readyResultInternal));
             } else {
               this.readyResultPublisher.offerCompletionParser(
                   entryIndex, journalEntry::parseCompletionResult);
-              callback.onSuccess(new SingleDeferredResult<>(entryIndex));
+              callback.onSuccess(DeferredResults.single(entryIndex));
             }
           },
           callback::onCancel);
@@ -245,15 +251,14 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       int entryIndex = this.currentJournalIndex;
 
       // Write out the input entry
-      this.write(expectedEntryMessage);
-      this.incrementCurrentIndex();
+      this.writeEntry(expectedEntryMessage);
 
       // Register the completion parser
       this.readyResultPublisher.offerCompletionParser(
           entryIndex, journalEntry::parseCompletionResult);
 
       // Call the onSuccess
-      callback.onSuccess(new SingleDeferredResult<>(entryIndex));
+      callback.onSuccess(DeferredResults.single(entryIndex));
     } else {
       throw new IllegalStateException(
           "This method was invoked when the state machine is not ready to process user code. This is probably an SDK bug");
@@ -280,8 +285,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       }
 
       // Write new entry
-      this.write(expectedEntryMessage);
-      this.incrementCurrentIndex();
+      this.writeEntry(expectedEntryMessage);
 
       // Invoke the ok callback
       callback.onSuccess(null);
@@ -346,8 +350,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
       // Write new entry
       this.sideEffectAckPublisher.registerExecutedSideEffect(this.currentJournalIndex);
-      this.write(sideEffectToWrite);
-      this.incrementCurrentIndex();
+      this.writeEntry(sideEffectToWrite);
 
       entryCallback.accept(sideEffectToWrite);
     } else {
@@ -356,24 +359,120 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     }
   }
 
+  // --- Deferred
+
   <T> void resolveDeferred(DeferredResult<T> deferredToResolve, SyscallCallback<Void> callback) {
     if (deferredToResolve.isCompleted()) {
       callback.onSuccess(null);
       return;
     }
 
-    if (deferredToResolve instanceof SingleDeferredResult) {
+    maybeTransitionToProcessing();
+
+    if (deferredToResolve instanceof ResolvableSingleDeferredResult) {
+      this.resolveSingleDeferred((ResolvableSingleDeferredResult<T>) deferredToResolve, callback);
+      return;
+    }
+
+    if (deferredToResolve instanceof CombinatorDeferredResult) {
+      this.resolveCombinatorDeferred((CombinatorDeferredResult<T>) deferredToResolve, callback);
+      return;
+    }
+
+    throw new IllegalArgumentException("Unexpected deferred class " + deferredToResolve.getClass());
+  }
+
+  <T> void resolveSingleDeferred(
+      ResolvableSingleDeferredResult<T> deferred, SyscallCallback<Void> callback) {
+    this.readyResultPublisher.onNewReadyResult(
+        new ReadyResultPublisher.OnNewReadyResultCallback() {
+          @Override
+          public boolean onNewReadyResult(Map<Integer, ReadyResultInternal<?>> resultMap) {
+            ReadyResultInternal<?> resolved = resultMap.remove(deferred.entryIndex());
+            if (resolved != null) {
+              deferred.resolve(resolved);
+              callback.onSuccess(null);
+              return true;
+            }
+            return false;
+          }
+
+          @Override
+          public void onCancel(Throwable e) {
+            callback.onCancel(e);
+          }
+        });
+  }
+
+  private void resolveCombinatorDeferred(
+      CombinatorDeferredResult<?> rootDeferred, SyscallCallback<Void> callback) {
+    if (Objects.equals(this.state, State.REPLAYING)) {
+      // Retrieve the CombinatorAwaitableEntryMessage
+      this.entriesQueue.read(
+          (entryIndex, actualMsg) -> {
+            ProtocolException e =
+                checkEntry(actualMsg, Java.CombinatorAwaitableEntryMessage.class, m -> null);
+
+            if (e != null) {
+              callback.onCancel(e);
+              return;
+            }
+
+            assert rootDeferred.tryResolve(
+                ((Java.CombinatorAwaitableEntryMessage) actualMsg).getEntryIndexList());
+            callback.onSuccess(null);
+          },
+          callback::onCancel);
+    } else if (this.state.canWriteOut()) {
+      // Create map of singles to resolve
+      Map<Integer, ResolvableSingleDeferredResult<?>> resolvableSingles = new HashMap<>();
+      List<Integer> resolvedOrder = new ArrayList<>();
+
+      // Walk the tree and populate the resolvable singles, and keep the already known ready results
+      for (Iterator<SingleDeferredResultInternal<?>> it = rootDeferred.leafs().iterator();
+          it.hasNext(); ) {
+        SingleDeferredResultInternal<?> singleDeferred = it.next();
+
+        if (singleDeferred.isCompleted()) {
+          resolvedOrder.add(singleDeferred.entryIndex());
+
+          // Try to resolve the combinator now
+          if (tryResolveCombinatorUsingResolvedOrder(rootDeferred, resolvedOrder, callback)) {
+            return;
+          }
+        }
+
+        // If not completed, then it's a ResolvableSingleDeferredResult
+        resolvableSingles.put(
+            singleDeferred.entryIndex(), (ResolvableSingleDeferredResult<?>) singleDeferred);
+      }
+
+      // Not completed yet, we need to wait on the ReadyResultPublisher
       this.readyResultPublisher.onNewReadyResult(
           new ReadyResultPublisher.OnNewReadyResultCallback() {
             @Override
             public boolean onNewReadyResult(Map<Integer, ReadyResultInternal<?>> resultMap) {
-              boolean resolved =
-                  ((SingleDeferredResult<?>) deferredToResolve).tryResolve(resultMap);
-              if (resolved) {
-                callback.onSuccess(null);
-                return true;
+              boolean foundNewResolved = false;
+
+              for (Iterator<Map.Entry<Integer, ResolvableSingleDeferredResult<?>>> it =
+                      resolvableSingles.entrySet().iterator();
+                  it.hasNext(); ) {
+                Map.Entry<Integer, ResolvableSingleDeferredResult<?>> entry = it.next();
+
+                ReadyResultInternal<?> result = resultMap.remove(entry.getKey());
+                if (result != null) {
+                  resolvedOrder.add(entry.getKey());
+                  entry.getValue().resolve(result);
+                  it.remove();
+                  foundNewResolved = true;
+                }
               }
-              return false;
+
+              if (!foundNewResolved) {
+                return false;
+              }
+
+              return tryResolveCombinatorUsingResolvedOrder(rootDeferred, resolvedOrder, callback);
             }
 
             @Override
@@ -381,10 +480,31 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
               callback.onCancel(e);
             }
           });
-      return;
+    } else {
+      throw new IllegalStateException(
+          "This method was invoked when the state machine is not ready to process user code. This is probably an SDK bug");
+    }
+  }
+
+  private boolean tryResolveCombinatorUsingResolvedOrder(
+      CombinatorDeferredResult<?> rootDeferred,
+      List<Integer> resolvedList,
+      SyscallCallback<Void> callback) {
+    if (!rootDeferred.tryResolve(resolvedList)) {
+      // We need to reiterate
+      return false;
     }
 
-    throw new IllegalArgumentException("Unexpected deferred class " + deferredToResolve.getClass());
+    // Create and write the entry
+    Java.CombinatorAwaitableEntryMessage entry =
+        Java.CombinatorAwaitableEntryMessage.newBuilder().addAllEntryIndex(resolvedList).build();
+    span.addEvent("Combinator");
+    writeEntry(entry);
+
+    // Invoke the ok callback
+    callback.onSuccess(null);
+
+    return true;
   }
 
   // --- Internal callback
@@ -428,6 +548,11 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   private void write(MessageLite message) {
     LOG.trace("Writing to output message {} {}", message.getClass(), message);
     Objects.requireNonNull(this.outputSubscriber).onNext(message);
+  }
+
+  private void writeEntry(MessageLite message) {
+    this.write(message);
+    this.incrementCurrentIndex();
   }
 
   @Override
