@@ -132,7 +132,7 @@ message BackgroundInvokeEntryMessage {
 
 // Kind: Completable JournalEntry
 // Type: 0x0C00 + 3
-message CallbackEntryMessage {
+message AwakeableEntryMessage {
   oneof result {
     bytes value = 14;
     Failure failure = 15;
@@ -141,7 +141,7 @@ message CallbackEntryMessage {
 
 // Kind: Ack-able JournalEntry
 // Type: 0x0C00 + 4
-message CompleteCallbackEntryMessage {
+message CompleteAwakeableEntryMessage {
   string service_name = 1;
   bytes instance_key = 2;
   bytes invocation_id = 3;
