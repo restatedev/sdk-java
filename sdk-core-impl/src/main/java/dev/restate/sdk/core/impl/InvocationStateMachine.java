@@ -14,7 +14,6 @@ import java.util.concurrent.Flow;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -47,9 +46,9 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   private int currentJournalIndex;
 
   // Buffering of messages and completions
-  private final SPSCHandshakeQueue handshakeQueue;
+  private final HandshakeQueue handshakeQueue;
   private final SideEffectAckPublisher sideEffectAckPublisher;
-  private final SPSCEntriesQueue entriesQueue;
+  private final EntriesQueue entriesQueue;
   private final ReadyResultPublisher readyResultPublisher;
 
   // Flow sub/pub
@@ -60,9 +59,9 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     this.serviceName = serviceName;
     this.span = span;
 
-    this.handshakeQueue = new SPSCHandshakeQueue();
+    this.handshakeQueue = new HandshakeQueue();
     this.sideEffectAckPublisher = new SideEffectAckPublisher();
-    this.entriesQueue = new SPSCEntriesQueue();
+    this.entriesQueue = new EntriesQueue();
     this.readyResultPublisher = new ReadyResultPublisher();
   }
 
@@ -226,19 +225,22 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       SyscallCallback<DeferredResult<T>> callback) {
     maybeTransitionToProcessing();
     if (Objects.equals(this.state, State.CLOSED)) {
-      callback.onCancel(null);
+      callback.onCancel(SuspendedException.INSTANCE);
     } else if (Objects.equals(this.state, State.REPLAYING)) {
       // Retrieve the entry
       this.entriesQueue.read(
           (entryIndex, actualMsg) -> {
-            ProtocolException e = checkEntry(actualMsg, inputEntry.getClass(), checkEntryHeader);
+            ProtocolException e =
+                Util.checkEntryClassAndHeader(actualMsg, inputEntry.getClass(), checkEntryHeader);
 
             if (e != null) {
               callback.onCancel(e);
             } else {
               if (waitForCompletion.test((E) actualMsg)) {
                 this.readyResultPublisher.offerCompletionParser(
-                    entryIndex, this.completionParser(inputEntry.getClass(), completionParser));
+                    entryIndex,
+                    Util.createCompletionParserCheckingResultVariant(
+                        inputEntry.getClass(), completionParser));
                 callback.onSuccess(new SingleDeferredResult<>(entryIndex));
               } else {
                 ReadyResultInternal<T> readyResultInternal = entryParser.apply((E) actualMsg);
@@ -261,7 +263,9 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
       // Register the completion parser
       this.readyResultPublisher.offerCompletionParser(
-          entryIndex, this.completionParser(inputEntry.getClass(), completionParser));
+          entryIndex,
+          Util.createCompletionParserCheckingResultVariant(
+              inputEntry.getClass(), completionParser));
 
       // Call the onSuccess
       callback.onSuccess(new SingleDeferredResult<>(entryIndex));
@@ -278,12 +282,13 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       SyscallCallback<Void> callback) {
     maybeTransitionToProcessing();
     if (Objects.equals(this.state, State.CLOSED)) {
-      callback.onCancel(null);
+      callback.onCancel(SuspendedException.INSTANCE);
     } else if (Objects.equals(this.state, State.REPLAYING)) {
       // Retrieve the entry
       this.entriesQueue.read(
           (entryIndex, actualMsg) -> {
-            ProtocolException e = checkEntry(actualMsg, inputEntry.getClass(), checkEntryHeader);
+            ProtocolException e =
+                Util.checkEntryClassAndHeader(actualMsg, inputEntry.getClass(), checkEntryHeader);
 
             if (e != null) {
               callback.onCancel(e);
@@ -321,7 +326,9 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       // Retrieve the entry
       this.entriesQueue.read(
           (entryIndex, msg) -> {
-            ProtocolException e = checkEntry(msg, Protocol.SideEffectEntryMessage.class, v -> null);
+            ProtocolException e =
+                Util.checkEntryClassAndHeader(
+                    msg, Protocol.SideEffectEntryMessage.class, v -> null);
 
             if (e != null) {
               failureCallback.accept(e);
@@ -412,7 +419,6 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       // Cannot move out of the closed state
       return;
     }
-    // Update state
     LOG.debug("Transitioning {} to {}", this, newState);
     this.state = newState;
   }
@@ -437,30 +443,6 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   private void failRead(Throwable cause) {
     fail(ProtocolException.inputPublisherError(cause));
-  }
-
-  private <T> Function<Protocol.CompletionMessage, ReadyResultInternal<?>> completionParser(
-      Class<? extends MessageLite> entryClazz,
-      Function<Protocol.CompletionMessage, ReadyResultInternal<T>> parser) {
-    return completionMsg -> {
-      ProtocolException ex = Util.checkCompletion(entryClazz, completionMsg);
-      if (ex != null) {
-        throw ex;
-      }
-      return parser.apply(completionMsg);
-    };
-  }
-
-  @SuppressWarnings("unchecked")
-  private <T extends MessageLite> @Nullable ProtocolException checkEntry(
-      MessageLite actualMsg,
-      Class<? extends MessageLite> clazz,
-      Function<T, ProtocolException> checkEntryHeader) {
-    if (!clazz.equals(actualMsg.getClass())) {
-      return ProtocolException.unexpectedMessage(clazz, actualMsg);
-    }
-    T actualEntry = (T) actualMsg;
-    return checkEntryHeader.apply(actualEntry);
   }
 
   @Override

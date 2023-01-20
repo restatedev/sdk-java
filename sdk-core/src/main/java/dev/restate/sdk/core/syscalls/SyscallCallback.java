@@ -9,7 +9,14 @@ public interface SyscallCallback<T> {
 
   void onSuccess(@Nullable T value);
 
-  void onCancel(@Nullable Throwable t);
+  /**
+   * The internal state machine invokes this method when a syscall is interrupted due to a
+   * suspension, or a network error.
+   *
+   * <p>In case the user code is blocked on a lock, the implementation of this method should unblock
+   * it.
+   */
+  void onCancel(Throwable t);
 
   static <T> SyscallCallback<T> of(Consumer<T> onSuccess, Consumer<Throwable> onFailure) {
     return new SyscallCallback<>() {
@@ -39,7 +46,7 @@ public interface SyscallCallback<T> {
     };
   }
 
-  static <T, R> SyscallCallback<T> completing(SyscallCallback<R> callback, Function<T, R> mapper) {
+  static <T, R> SyscallCallback<T> mapping(SyscallCallback<R> callback, Function<T, R> mapper) {
     return new SyscallCallback<>() {
       @Override
       public void onSuccess(@Nullable T value) {
@@ -68,6 +75,6 @@ public interface SyscallCallback<T> {
   }
 
   static <T> SyscallCallback<T> completingFuture(CompletableFuture<T> fut) {
-    return of(fut::complete, t -> /* TODO log */ fut.cancel(true));
+    return of(fut::complete, t -> fut.cancel(true));
   }
 }

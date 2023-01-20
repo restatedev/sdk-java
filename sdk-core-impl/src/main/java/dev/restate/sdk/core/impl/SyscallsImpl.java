@@ -258,20 +258,20 @@ public final class SyscallsImpl implements SyscallsInternal {
   private <T> Consumer<Protocol.SideEffectEntryMessage> sideEffectEntryHandler(
       TypeTag<T> typeTag, ExitSideEffectSyscallCallback<T> callback) {
     return sideEffectEntry -> {
-      ReadyResultInternal<T> result;
-      if (sideEffectEntry.hasValue()) {
-        result = deserializeWithSerde(typeTag, sideEffectEntry.getValue());
-      } else {
-        result =
-            ReadyResults.failure(
-                Util.toGrpcStatus(sideEffectEntry.getFailure()).asRuntimeException());
+      if (sideEffectEntry.hasFailure()) {
+        callback.onFailure(Util.toGrpcStatus(sideEffectEntry.getFailure()).asRuntimeException());
+        return;
       }
 
-      if (result.isSuccess()) {
-        callback.onResult(result.getResult());
-      } else {
-        callback.onFailure(result.getFailure());
+      T value;
+      try {
+        value = deserialize(typeTag, sideEffectEntry.getValue());
+      } catch (Exception e) {
+        callback.onFailure(Util.toGrpcStatusErasingCause(e).asRuntimeException());
+        return;
       }
+
+      callback.onResult(value);
     };
   }
 
@@ -307,7 +307,7 @@ public final class SyscallsImpl implements SyscallsInternal {
                 ? deserializeWithSerde(typeTag, completionMessage.getValue())
                 : ReadyResults.failure(
                     Util.toGrpcStatus(completionMessage.getFailure()).asRuntimeException()),
-        SyscallCallback.completing(
+        SyscallCallback.mapping(
             callback,
             deferredResult ->
                 new AbstractMap.SimpleImmutableEntry<>(

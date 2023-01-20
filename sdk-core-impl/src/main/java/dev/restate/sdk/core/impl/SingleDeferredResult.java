@@ -7,7 +7,7 @@ import javax.annotation.Nullable;
 class SingleDeferredResult<T> implements DeferredResultInternal<T> {
 
   private final int entryIndex;
-  private ReadyResultInternal<T> inner;
+  private @Nullable ReadyResultInternal<T> inner;
 
   SingleDeferredResult(int entryIndex) {
     this.entryIndex = entryIndex;

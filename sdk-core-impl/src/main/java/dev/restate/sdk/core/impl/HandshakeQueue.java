@@ -9,14 +9,14 @@ import java.util.Queue;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-class SPSCHandshakeQueue {
+class HandshakeQueue {
 
   private final Queue<MessageLite> unprocessedMessages;
 
   private BiConsumer<MessageLite, Throwable> callback;
   private boolean closed;
 
-  SPSCHandshakeQueue() {
+  HandshakeQueue() {
     this.unprocessedMessages = new ArrayDeque<>();
 
     this.closed = false;

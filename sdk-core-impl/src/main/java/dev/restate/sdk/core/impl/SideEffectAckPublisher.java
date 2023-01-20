@@ -2,15 +2,15 @@ package dev.restate.sdk.core.impl;
 
 import dev.restate.sdk.core.SuspendedException;
 import dev.restate.sdk.core.syscalls.SyscallCallback;
+import javax.annotation.Nullable;
 
 class SideEffectAckPublisher {
 
-  // Last not acked side effect,
-  // used to figure out when to wait for another side effect to complete.
-  // -1 means no side effect waiting to be acked.
-  private int lastCheckpoint = -1;
+  private int lastAcknowledgedEntry = -1;
+  /** -1 means no side effect waiting to be acked. */
   private int lastExecutedSideEffect = -1;
-  private SyscallCallback<Void> sideEffectAckCallback;
+
+  @Nullable private SyscallCallback<Void> sideEffectAckCallback;
   private boolean inputClosed = false;
 
   void executeEnterSideEffect(SyscallCallback<Void> syscallCallback) {
@@ -26,7 +26,7 @@ class SideEffectAckPublisher {
   }
 
   void tryHandleSideEffectAck(int entryIndex) {
-    this.lastCheckpoint = Math.max(entryIndex, this.lastCheckpoint);
+    this.lastAcknowledgedEntry = Math.max(entryIndex, this.lastAcknowledgedEntry);
     if (canExecuteSideEffect()) {
       tryInvokeCallback();
     }
@@ -61,6 +61,6 @@ class SideEffectAckPublisher {
   }
 
   private boolean canExecuteSideEffect() {
-    return this.lastExecutedSideEffect <= this.lastCheckpoint;
+    return this.lastExecutedSideEffect <= this.lastAcknowledgedEntry;
   }
 }

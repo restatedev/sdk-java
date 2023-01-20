@@ -8,15 +8,16 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import javax.annotation.Nullable;
 
-class SPSCEntriesQueue {
+class EntriesQueue {
 
   private final Queue<Map.Entry<Integer, MessageLite>> unprocessedMessages;
 
-  private SyscallCallback<Map.Entry<Integer, MessageLite>> callback;
+  @Nullable private SyscallCallback<Map.Entry<Integer, MessageLite>> callback;
   private boolean closed;
 
-  SPSCEntriesQueue() {
+  EntriesQueue() {
     this.unprocessedMessages = new ArrayDeque<>();
 
     this.closed = false;
@@ -64,6 +65,7 @@ class SPSCEntriesQueue {
     return this.unprocessedMessages.isEmpty();
   }
 
+  @Nullable
   private SyscallCallback<Map.Entry<Integer, MessageLite>> popCallback() {
     SyscallCallback<Map.Entry<Integer, MessageLite>> callback = this.callback;
     this.callback = null;

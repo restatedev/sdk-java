@@ -88,7 +88,6 @@ public class RestateContextImpl implements RestateContext {
 
           @Override
           public void onCancel(Throwable t) {
-            // TODO log
             enterFut.cancel(true);
           }
         });
@@ -114,7 +113,6 @@ public class RestateContextImpl implements RestateContext {
 
           @Override
           public void onCancel(@Nullable Throwable t) {
-            // TODO log
             exitFut.cancel(true);
           }
         };
