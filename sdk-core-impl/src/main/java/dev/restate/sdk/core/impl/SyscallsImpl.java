@@ -6,16 +6,16 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
 import dev.restate.generated.core.CallbackIdentifier;
 import dev.restate.generated.service.protocol.Protocol;
+import dev.restate.generated.service.protocol.Protocol.PollInputStreamEntryMessage;
 import dev.restate.sdk.core.TypeTag;
+import dev.restate.sdk.core.impl.Entries.*;
 import dev.restate.sdk.core.serde.CustomSerdeFunctionsTypeTag;
 import dev.restate.sdk.core.serde.Serde;
 import dev.restate.sdk.core.syscalls.*;
 import io.grpc.MethodDescriptor;
-import io.opentelemetry.api.common.Attributes;
 import java.time.Duration;
 import java.util.AbstractMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.apache.logging.log4j.LogManager;
@@ -38,12 +38,8 @@ public final class SyscallsImpl implements SyscallsInternal {
       Function<ByteString, T> mapper, SyscallCallback<DeferredResult<T>> callback) {
     LOG.trace("pollInput");
     this.stateMachine.processCompletableJournalEntry(
-        Protocol.PollInputStreamEntryMessage.getDefaultInstance(),
-        entry -> false,
-        span -> span.addEvent("PollInputStream"),
-        noEntryCheck(),
-        entry -> deserializeWithProto(mapper, entry.getValue()),
-        completionMessage -> deserializeWithProto(mapper, completionMessage.getValue()),
+        PollInputStreamEntryMessage.getDefaultInstance(),
+        new PollInputEntry<>(protoDeserializer(mapper)),
         callback);
   }
 
@@ -68,42 +64,24 @@ public final class SyscallsImpl implements SyscallsInternal {
   private void writeOutput(
       Protocol.OutputStreamEntryMessage entry, SyscallCallback<Void> callback) {
     this.stateMachine.processJournalEntryWithoutWaitingAck(
-        entry, span -> span.addEvent("OutputStream"), noEntryCheck(), callback);
+        entry, OutputStreamEntry.INSTANCE, callback);
   }
 
   @Override
   public <T> void get(String name, TypeTag<T> ty, SyscallCallback<DeferredResult<T>> callback) {
     LOG.trace("get {}", name);
-    Protocol.GetStateEntryMessage expectedEntry =
-        Protocol.GetStateEntryMessage.newBuilder().setKey(ByteString.copyFromUtf8(name)).build();
     this.stateMachine.processCompletableJournalEntry(
-        expectedEntry,
-        entry -> entry.getResultCase() == Protocol.GetStateEntryMessage.ResultCase.RESULT_NOT_SET,
-        span -> span.addEvent("GetState", Attributes.of(Tracing.RESTATE_STATE_KEY, name)),
-        actualEntry ->
-            !expectedEntry.getKey().equals(actualEntry.getKey())
-                ? ProtocolException.entryDoesNotMatch(expectedEntry, actualEntry)
-                : null,
-        entry ->
-            (entry.getResultCase() == Protocol.GetStateEntryMessage.ResultCase.EMPTY)
-                ? ReadyResults.empty()
-                : deserializeWithSerde(ty, entry.getValue()),
-        completionMessage ->
-            (completionMessage.getResultCase() == Protocol.CompletionMessage.ResultCase.EMPTY)
-                ? ReadyResults.empty()
-                : deserializeWithSerde(ty, completionMessage.getValue()),
+        Protocol.GetStateEntryMessage.newBuilder().setKey(ByteString.copyFromUtf8(name)).build(),
+        new GetStateEntry<>(serdeDeserializer(ty)),
         callback);
   }
 
   @Override
   public void clear(String name, SyscallCallback<Void> callback) {
     LOG.trace("clear {}", name);
-    Protocol.ClearStateEntryMessage expectedEntry =
-        Protocol.ClearStateEntryMessage.newBuilder().setKey(ByteString.copyFromUtf8(name)).build();
     this.stateMachine.processJournalEntryWithoutWaitingAck(
-        expectedEntry,
-        span -> span.addEvent("ClearState", Attributes.of(Tracing.RESTATE_STATE_KEY, name)),
-        checkEntryEquality(expectedEntry),
+        Protocol.ClearStateEntryMessage.newBuilder().setKey(ByteString.copyFromUtf8(name)).build(),
+        ClearStateEntry.INSTANCE,
         callback);
   }
 
@@ -117,15 +95,12 @@ public final class SyscallsImpl implements SyscallsInternal {
       callback.onCancel(e);
       return;
     }
-    Protocol.SetStateEntryMessage expectedEntry =
+    this.stateMachine.processJournalEntryWithoutWaitingAck(
         Protocol.SetStateEntryMessage.newBuilder()
             .setKey(ByteString.copyFromUtf8(name))
             .setValue(serialized)
-            .build();
-    this.stateMachine.processJournalEntryWithoutWaitingAck(
-        expectedEntry,
-        span -> span.addEvent("SetState", Attributes.of(Tracing.RESTATE_STATE_KEY, name)),
-        checkEntryEquality(expectedEntry),
+            .build(),
+        SetStateEntry.INSTANCE,
         callback);
   }
 
@@ -133,15 +108,7 @@ public final class SyscallsImpl implements SyscallsInternal {
   public void sleep(Duration duration, SyscallCallback<DeferredResult<Void>> callback) {
     LOG.trace("sleep {}", duration);
     this.stateMachine.processCompletableJournalEntry(
-        Protocol.SleepEntryMessage.getDefaultInstance(),
-        actualEntry -> !actualEntry.hasResult(),
-        span ->
-            span.addEvent(
-                "Sleep", Attributes.of(Tracing.RESTATE_SLEEP_DURATION, duration.toMillis())),
-        noEntryCheck(),
-        entry -> ReadyResults.empty(),
-        completionMessage -> ReadyResults.empty(),
-        callback);
+        Protocol.SleepEntryMessage.getDefaultInstance(), SleepEntry.INSTANCE, callback);
   }
 
   @Override
@@ -153,42 +120,13 @@ public final class SyscallsImpl implements SyscallsInternal {
     String methodName = methodDescriptor.getBareMethodName();
     LOG.trace("call {}/{}", serviceName, methodName);
 
-    Protocol.InvokeEntryMessage expectedEntry =
+    this.stateMachine.processCompletableJournalEntry(
         Protocol.InvokeEntryMessage.newBuilder()
             .setServiceName(serviceName)
             .setMethodName(methodName)
             .setParameter(parameter.toByteString())
-            .build();
-    this.stateMachine.processCompletableJournalEntry(
-        expectedEntry,
-        invokeEntryMessage ->
-            invokeEntryMessage.getResultCase()
-                == Protocol.InvokeEntryMessage.ResultCase.RESULT_NOT_SET,
-        span ->
-            span.addEvent(
-                "Call",
-                Attributes.of(
-                    Tracing.RESTATE_COORDINATION_CALL_SERVICE,
-                    serviceName,
-                    Tracing.RESTATE_COORDINATION_CALL_METHOD,
-                    methodName)),
-        actualEntry ->
-            !(expectedEntry.getServiceName().equals(actualEntry.getServiceName())
-                    && expectedEntry.getMethodName().equals(actualEntry.getMethodName())
-                    && expectedEntry.getParameter().equals(actualEntry.getParameter()))
-                ? ProtocolException.entryDoesNotMatch(expectedEntry, actualEntry)
-                : null,
-        entry ->
-            entry.hasValue()
-                ? deserializeWithProto(
-                    i -> methodDescriptor.parseResponse(i.newInput()), entry.getValue())
-                : ReadyResults.failure(Util.toGrpcStatus(entry.getFailure()).asRuntimeException()),
-        completionMessage ->
-            completionMessage.hasValue()
-                ? deserializeWithProto(
-                    i -> methodDescriptor.parseResponse(i.newInput()), completionMessage.getValue())
-                : ReadyResults.failure(
-                    Util.toGrpcStatus(completionMessage.getFailure()).asRuntimeException()),
+            .build(),
+        new InvokeEntry<>(protoDeserializer(i -> methodDescriptor.parseResponse(i.newInput()))),
         callback);
   }
 
@@ -201,23 +139,13 @@ public final class SyscallsImpl implements SyscallsInternal {
     String methodName = methodDescriptor.getBareMethodName();
     LOG.trace("backgroundCall {}/{}", serviceName, methodName);
 
-    Protocol.BackgroundInvokeEntryMessage expectedEntry =
+    this.stateMachine.processJournalEntryWithoutWaitingAck(
         Protocol.BackgroundInvokeEntryMessage.newBuilder()
             .setServiceName(serviceName)
             .setMethodName(methodName)
             .setParameter(parameter.toByteString())
-            .build();
-    this.stateMachine.processJournalEntryWithoutWaitingAck(
-        expectedEntry,
-        span ->
-            span.addEvent(
-                "BackgroundCall",
-                Attributes.of(
-                    Tracing.RESTATE_COORDINATION_CALL_SERVICE,
-                    serviceName,
-                    Tracing.RESTATE_COORDINATION_CALL_METHOD,
-                    methodName)),
-        checkEntryEquality(expectedEntry),
+            .build(),
+        BackgroundInvokeEntry.INSTANCE,
         callback);
   }
 
@@ -292,18 +220,7 @@ public final class SyscallsImpl implements SyscallsInternal {
     LOG.trace("callback");
     this.stateMachine.processCompletableJournalEntry(
         Protocol.CallbackEntryMessage.getDefaultInstance(),
-        entry -> entry.getResultCase() == Protocol.CallbackEntryMessage.ResultCase.RESULT_NOT_SET,
-        span -> span.addEvent("Callback"),
-        noEntryCheck(),
-        entry ->
-            entry.hasValue()
-                ? deserializeWithSerde(typeTag, entry.getValue())
-                : ReadyResults.failure(Util.toGrpcStatus(entry.getFailure()).asRuntimeException()),
-        completionMessage ->
-            completionMessage.hasValue()
-                ? deserializeWithSerde(typeTag, completionMessage.getValue())
-                : ReadyResults.failure(
-                    Util.toGrpcStatus(completionMessage.getFailure()).asRuntimeException()),
+        new CallbackEntry<>(serdeDeserializer(typeTag)),
         SyscallCallback.mappingTo(
             deferredResult ->
                 new AbstractMap.SimpleImmutableEntry<>(
@@ -338,10 +255,7 @@ public final class SyscallsImpl implements SyscallsInternal {
             .setPayload(serialized)
             .build();
     this.stateMachine.processJournalEntryWithoutWaitingAck(
-        expectedEntry,
-        span -> span.addEvent("CompleteCallback"),
-        checkEntryEquality(expectedEntry),
-        callback);
+        expectedEntry, CompleteCallbackEntry.INSTANCE, callback);
   }
 
   @Override
@@ -362,21 +276,25 @@ public final class SyscallsImpl implements SyscallsInternal {
 
   // --- Serde utils
 
-  private <T extends MessageLite> ReadyResultInternal<T> deserializeWithProto(
-      Function<ByteString, T> mapper, ByteString value) {
-    try {
-      return ReadyResults.success(mapper.apply(value));
-    } catch (Throwable e) {
-      return ReadyResults.failure(Util.toGrpcStatusErasingCause(e).asRuntimeException());
-    }
+  private <T extends MessageLite> Function<ByteString, ReadyResultInternal<T>> protoDeserializer(
+      Function<ByteString, T> mapper) {
+    return value -> {
+      try {
+        return ReadyResults.success(mapper.apply(value));
+      } catch (Throwable e) {
+        return ReadyResults.failure(Util.toGrpcStatusErasingCause(e).asRuntimeException());
+      }
+    };
   }
 
-  private <T> ReadyResultInternal<T> deserializeWithSerde(TypeTag<T> ty, ByteString value) {
-    try {
-      return ReadyResults.success(deserialize(ty, value));
-    } catch (Throwable e) {
-      return ReadyResults.failure(Util.toGrpcStatusErasingCause(e).asRuntimeException());
-    }
+  private <T> Function<ByteString, ReadyResultInternal<T>> serdeDeserializer(TypeTag<T> ty) {
+    return value -> {
+      try {
+        return ReadyResults.success(deserialize(ty, value));
+      } catch (Throwable e) {
+        return ReadyResults.failure(Util.toGrpcStatusErasingCause(e).asRuntimeException());
+      }
+    };
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
@@ -412,19 +330,5 @@ public final class SyscallsImpl implements SyscallsInternal {
       return null;
     }
     return serde.deserialize(typeTag, bytes.toByteArray());
-  }
-
-  // --- Other utils
-
-  private static <T extends MessageLite> Function<T, ProtocolException> checkEntryEquality(
-      T expectedEntry) {
-    return actualEntry ->
-        !Objects.equals(expectedEntry, actualEntry)
-            ? ProtocolException.entryDoesNotMatch(expectedEntry, actualEntry)
-            : null;
-  }
-
-  private static <T extends MessageLite> Function<T, ProtocolException> noEntryCheck() {
-    return v -> null;
   }
 }

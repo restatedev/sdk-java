@@ -108,10 +108,10 @@ class ReadyResultPublisher {
 
     // Parse to ready result
     ReadyResultInternal<?> readyResult = null;
-    Throwable throwable = null;
+    Exception throwable = null;
     try {
       readyResult = parser.apply(completionMessage);
-    } catch (Throwable t) {
+    } catch (Exception t) {
       throwable = t;
     }
 

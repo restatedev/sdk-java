@@ -10,7 +10,8 @@ final class Tracing {
       AttributeKey.stringKey("restate.invocation.id");
 
   static AttributeKey<String> RESTATE_STATE_KEY = AttributeKey.stringKey("restate.state.key");
-  static AttributeKey<Long> RESTATE_SLEEP_DURATION = AttributeKey.longKey("restate.sleep.duration");
+  static AttributeKey<Long> RESTATE_SLEEP_WAKE_UP_TIME =
+      AttributeKey.longKey("restate.sleep.wake_up_time");
 
   static AttributeKey<String> RESTATE_COORDINATION_CALL_SERVICE =
       AttributeKey.stringKey("restate.coordination.call.service");

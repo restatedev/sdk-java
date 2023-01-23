@@ -1,7 +1,6 @@
 package dev.restate.sdk.core.impl;
 
 import com.google.protobuf.MessageLite;
-import dev.restate.sdk.core.SuspendedException;
 import dev.restate.sdk.core.syscalls.SyscallCallback;
 import java.util.ArrayDeque;
 import java.util.Queue;
@@ -23,7 +22,7 @@ class EntriesQueue {
 
   void offer(MessageLite msg) {
     Util.assertIsEntry(msg);
-    
+
     if (this.callback != null) {
       popCallback().onSuccess(msg);
     } else {
@@ -41,9 +40,12 @@ class EntriesQueue {
 
     MessageLite popped = this.unprocessedMessages.poll();
     if (popped != null) {
-      msgCallback.accept(popped);
-    } else if (this.closed) {
-      errorCallback.accept(SuspendedException.INSTANCE);
+      try {
+        msgCallback.accept(popped);
+        // TODO this is probably wrong :(
+      } catch (Exception e) {
+        errorCallback.accept(e);
+      }
     } else {
       this.callback = SyscallCallback.of(msgCallback, errorCallback);
     }

@@ -4,6 +4,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.SuspendedException;
+import dev.restate.sdk.core.impl.Entries.JournalEntry;
 import dev.restate.sdk.core.syscalls.DeferredResult;
 import dev.restate.sdk.core.syscalls.SyscallCallback;
 import io.opentelemetry.api.common.Attributes;
@@ -13,8 +14,6 @@ import java.util.Objects;
 import java.util.concurrent.Flow;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Predicate;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -206,55 +205,45 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   @SuppressWarnings("unchecked")
   <E extends MessageLite, T> void processCompletableJournalEntry(
-      E inputEntry,
-      Predicate<E> waitForCompletion,
-      Consumer<Span> traceFn,
-      Function<E, ProtocolException> checkEntryHeader,
-      Function<E, ReadyResultInternal<T>> entryParser,
-      Function<Protocol.CompletionMessage, ReadyResultInternal<T>> completionParser,
+      E expectedEntryMessage,
+      Entries.CompletableJournalEntry<E, T> journalEntry,
       SyscallCallback<DeferredResult<T>> callback) {
     if (this.state == State.CLOSED) {
       callback.onCancel(SuspendedException.INSTANCE);
     } else if (this.state == State.REPLAYING) {
       // Retrieve the entry
       this.readEntry(
-          (entryIndex, actualMsg) -> {
-            ProtocolException e =
-                Util.checkEntryClassAndHeader(actualMsg, inputEntry.getClass(), checkEntryHeader);
+          (entryIndex, actualEntryMessage) -> {
+            // TODO what to do with a failure here?
+            journalEntry.checkEntryHeader(expectedEntryMessage, actualEntryMessage);
 
-            if (e != null) {
-              callback.onCancel(e);
+            if (journalEntry.hasResult((E) actualEntryMessage)) {
+              // TODO what to do with the exception here?
+              ReadyResultInternal<T> readyResultInternal =
+                  journalEntry.parseEntryResult((E) actualEntryMessage);
+              callback.onSuccess(readyResultInternal);
             } else {
-              if (waitForCompletion.test((E) actualMsg)) {
-                this.readyResultPublisher.offerCompletionParser(
-                    entryIndex,
-                    Util.createCompletionParserCheckingResultVariant(
-                        inputEntry.getClass(), completionParser));
-                callback.onSuccess(new SingleDeferredResult<>(entryIndex));
-              } else {
-                ReadyResultInternal<T> readyResultInternal = entryParser.apply((E) actualMsg);
-                callback.onSuccess(readyResultInternal);
-              }
+              this.readyResultPublisher.offerCompletionParser(
+                  entryIndex, journalEntry::parseCompletionResult);
+              callback.onSuccess(new SingleDeferredResult<>(entryIndex));
             }
           },
           callback::onCancel);
     } else if (this.state == State.PROCESSING) {
       if (span.isRecording()) {
-        traceFn.accept(span);
+        journalEntry.trace(expectedEntryMessage, span);
       }
 
       // Retrieve the index
       int entryIndex = this.currentJournalIndex;
 
       // Write out the input entry
-      this.write(inputEntry);
+      this.write(expectedEntryMessage);
       this.incrementCurrentIndex();
 
       // Register the completion parser
       this.readyResultPublisher.offerCompletionParser(
-          entryIndex,
-          Util.createCompletionParserCheckingResultVariant(
-              inputEntry.getClass(), completionParser));
+          entryIndex, journalEntry::parseCompletionResult);
 
       // Call the onSuccess
       callback.onSuccess(new SingleDeferredResult<>(entryIndex));
@@ -265,33 +254,26 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   }
 
   <T extends MessageLite> void processJournalEntryWithoutWaitingAck(
-      T inputEntry,
-      Consumer<Span> traceFn,
-      Function<T, ProtocolException> checkEntryHeader,
-      SyscallCallback<Void> callback) {
+      T expectedEntryMessage, JournalEntry<T> journalEntry, SyscallCallback<Void> callback) {
     if (this.state == State.CLOSED) {
       callback.onCancel(SuspendedException.INSTANCE);
     } else if (this.state == State.REPLAYING) {
       // Retrieve the entry
       this.readEntry(
-          (entryIndex, actualMsg) -> {
-            ProtocolException e =
-                Util.checkEntryClassAndHeader(actualMsg, inputEntry.getClass(), checkEntryHeader);
+          (entryIndex, actualEntryMessage) -> {
+            // TODO what to do with a failure here?
+            journalEntry.checkEntryHeader(expectedEntryMessage, actualEntryMessage);
 
-            if (e != null) {
-              callback.onCancel(e);
-            } else {
-              callback.onSuccess(null);
-            }
+            callback.onSuccess(null);
           },
           callback::onCancel);
     } else if (this.state == State.PROCESSING) {
       if (span.isRecording()) {
-        traceFn.accept(span);
+        journalEntry.trace(expectedEntryMessage, span);
       }
 
       // Write new entry
-      this.write(inputEntry);
+      this.write(expectedEntryMessage);
       this.incrementCurrentIndex();
 
       // Invoke the ok callback

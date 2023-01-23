@@ -4,6 +4,7 @@ import com.google.protobuf.MessageLite;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.SuspendedException;
 import io.grpc.*;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -89,6 +90,12 @@ public final class Util {
     }
   }
 
+  static void assertEntryEquals(MessageLite expected, MessageLite actual) {
+    if (!Objects.equals(expected, actual)) {
+      throw ProtocolException.entryDoesNotMatch(expected, actual);
+    }
+  }
+
   static boolean isEntry(MessageLite msg) {
     return msg instanceof Protocol.PollInputStreamEntryMessage
         || msg instanceof Protocol.OutputStreamEntryMessage
@@ -101,67 +108,6 @@ public final class Util {
         || msg instanceof Protocol.SideEffectEntryMessage
         || msg instanceof Protocol.CallbackEntryMessage
         || msg instanceof Protocol.CompleteCallbackEntryMessage;
-  }
-
-  static <T>
-      Function<Protocol.CompletionMessage, ReadyResultInternal<?>>
-          createCompletionParserCheckingResultVariant(
-              Class<? extends MessageLite> entryClazz,
-              Function<Protocol.CompletionMessage, ReadyResultInternal<T>> parser) {
-    return completionMsg -> {
-      ProtocolException ex = checkCompletion(entryClazz, completionMsg);
-      if (ex != null) {
-        throw ex;
-      }
-      return parser.apply(completionMsg);
-    };
-  }
-
-  private static ProtocolException checkCompletion(
-      Class<? extends MessageLite> msgClazz, Protocol.CompletionMessage completionMessage) {
-    Protocol.CompletionMessage.ResultCase resultCase = completionMessage.getResultCase();
-
-    if (Protocol.PollInputStreamEntryMessage.class.equals(msgClazz)
-        && !(resultCase == Protocol.CompletionMessage.ResultCase.VALUE)) {
-      return ProtocolException.completionDoNotMatch(msgClazz, resultCase);
-    } else if (Protocol.OutputStreamEntryMessage.class.equals(msgClazz)
-        && !(resultCase == Protocol.CompletionMessage.ResultCase.VALUE
-            || resultCase == Protocol.CompletionMessage.ResultCase.FAILURE)) {
-      return ProtocolException.completionDoNotMatch(msgClazz, resultCase);
-    } else if (Protocol.GetStateEntryMessage.class.equals(msgClazz)
-        && !(resultCase == Protocol.CompletionMessage.ResultCase.VALUE
-            || resultCase == Protocol.CompletionMessage.ResultCase.EMPTY)) {
-      return ProtocolException.completionDoNotMatch(msgClazz, resultCase);
-    } else if (Protocol.SetStateEntryMessage.class.equals(msgClazz)
-        && !(resultCase == Protocol.CompletionMessage.ResultCase.RESULT_NOT_SET)) {
-      return ProtocolException.completionDoNotMatch(msgClazz, resultCase);
-    } else if (Protocol.ClearStateEntryMessage.class.equals(msgClazz)
-        && !(resultCase == Protocol.CompletionMessage.ResultCase.RESULT_NOT_SET)) {
-      return ProtocolException.completionDoNotMatch(msgClazz, resultCase);
-    } else if (Protocol.SleepEntryMessage.class.equals(msgClazz)
-        && !(resultCase == Protocol.CompletionMessage.ResultCase.EMPTY)) {
-      return ProtocolException.completionDoNotMatch(msgClazz, resultCase);
-    } else if (Protocol.InvokeEntryMessage.class.equals(msgClazz)
-        && !(resultCase == Protocol.CompletionMessage.ResultCase.VALUE
-            || resultCase == Protocol.CompletionMessage.ResultCase.FAILURE)) {
-      return ProtocolException.completionDoNotMatch(msgClazz, resultCase);
-    } else if (Protocol.BackgroundInvokeEntryMessage.class.equals(msgClazz)
-        && !(resultCase == Protocol.CompletionMessage.ResultCase.EMPTY)) {
-      return ProtocolException.completionDoNotMatch(msgClazz, resultCase);
-    } else if (Protocol.CallbackEntryMessage.class.equals(msgClazz)
-        && !(resultCase == Protocol.CompletionMessage.ResultCase.VALUE
-            || resultCase == Protocol.CompletionMessage.ResultCase.FAILURE)) {
-      return ProtocolException.completionDoNotMatch(msgClazz, resultCase);
-    } else if (Protocol.CompleteCallbackEntryMessage.class.equals(msgClazz)
-        && !(resultCase == Protocol.CompletionMessage.ResultCase.EMPTY)) {
-      return ProtocolException.completionDoNotMatch(msgClazz, resultCase);
-    } else if (Protocol.SideEffectEntryMessage.class.equals(msgClazz)
-        && !(resultCase == Protocol.CompletionMessage.ResultCase.VALUE
-            || resultCase == Protocol.CompletionMessage.ResultCase.FAILURE)) {
-      return ProtocolException.completionDoNotMatch(msgClazz, resultCase);
-    }
-
-    return null;
   }
 
   @SuppressWarnings("unchecked")

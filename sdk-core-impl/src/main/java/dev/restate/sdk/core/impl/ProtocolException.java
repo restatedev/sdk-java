@@ -50,9 +50,9 @@ public class ProtocolException extends RuntimeException {
   }
 
   static ProtocolException completionDoNotMatch(
-      Class<? extends MessageLite> expected, Protocol.CompletionMessage.ResultCase actual) {
+      String entry, Protocol.CompletionMessage.ResultCase actual) {
     return new ProtocolException(
-        "Completion for entry " + expected + " don't expect completion variant " + actual);
+        "Completion for entry " + entry + " don't expect completion variant " + actual);
   }
 
   static ProtocolException unknownMessageType(short type) {
