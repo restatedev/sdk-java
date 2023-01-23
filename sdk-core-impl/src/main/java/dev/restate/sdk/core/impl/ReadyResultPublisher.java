@@ -73,7 +73,9 @@ class ReadyResultPublisher {
   }
 
   void onNewReadyResult(OnNewReadyResultCallback callback) {
-    assert this.onNewReadyResultCallback == null;
+    if (this.onNewReadyResultCallback != null) {
+      throw new IllegalStateException("Two concurrent reads were requested.");
+    }
     this.onNewReadyResultCallback = callback;
 
     this.tryProgress();

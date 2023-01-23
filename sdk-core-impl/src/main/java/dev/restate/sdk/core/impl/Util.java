@@ -83,6 +83,12 @@ public final class Util {
     return Status.UNKNOWN.withDescription(throwable.getMessage());
   }
 
+  static void assertIsEntry(MessageLite msg) {
+    if (!isEntry(msg)) {
+      throw new IllegalStateException("Expected input to be entry");
+    }
+  }
+
   static boolean isEntry(MessageLite msg) {
     return msg instanceof Protocol.PollInputStreamEntryMessage
         || msg instanceof Protocol.OutputStreamEntryMessage

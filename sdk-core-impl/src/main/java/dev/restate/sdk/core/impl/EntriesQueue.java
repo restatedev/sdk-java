@@ -22,8 +22,8 @@ class EntriesQueue {
   }
 
   void offer(MessageLite msg) {
-    assert Util.isEntry(msg);
-
+    Util.assertIsEntry(msg);
+    
     if (this.callback != null) {
       popCallback().onSuccess(msg);
     } else {

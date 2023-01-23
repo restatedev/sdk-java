@@ -213,7 +213,6 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       Function<E, ReadyResultInternal<T>> entryParser,
       Function<Protocol.CompletionMessage, ReadyResultInternal<T>> completionParser,
       SyscallCallback<DeferredResult<T>> callback) {
-    maybeTransitionToProcessing();
     if (this.state == State.CLOSED) {
       callback.onCancel(SuspendedException.INSTANCE);
     } else if (this.state == State.REPLAYING) {
@@ -270,7 +269,6 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       Consumer<Span> traceFn,
       Function<T, ProtocolException> checkEntryHeader,
       SyscallCallback<Void> callback) {
-    maybeTransitionToProcessing();
     if (this.state == State.CLOSED) {
       callback.onCancel(SuspendedException.INSTANCE);
     } else if (this.state == State.REPLAYING) {
@@ -309,7 +307,6 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       Consumer<Protocol.SideEffectEntryMessage> entryCallback,
       Runnable noEntryCallback,
       Consumer<Throwable> failureCallback) {
-    maybeTransitionToProcessing();
     if (this.state == State.CLOSED) {
       failureCallback.accept(SuspendedException.INSTANCE);
     } else if (this.state == State.REPLAYING) {
@@ -415,12 +412,11 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   private void incrementCurrentIndex() {
     this.currentJournalIndex++;
-    maybeTransitionToProcessing();
-  }
 
-  private void maybeTransitionToProcessing() {
     if (currentJournalIndex >= entriesToReplay && this.state == State.REPLAYING) {
-      assert this.entriesQueue.isEmpty();
+      if (!this.entriesQueue.isEmpty()) {
+        throw new IllegalStateException("Entries queue should be empty at this point");
+      }
       this.transitionState(State.PROCESSING);
     }
   }
