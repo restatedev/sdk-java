@@ -11,6 +11,7 @@ import io.opentelemetry.api.trace.Span;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Flow;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -124,8 +125,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       }
     } else {
       // We check the index rather than the state, because we might still be replaying
-      this.entriesQueue.offer(this.currentJournalIndex, msg);
-      this.incrementCurrentIndex();
+      this.entriesQueue.offer(msg);
     }
   }
 
@@ -227,7 +227,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       callback.onCancel(SuspendedException.INSTANCE);
     } else if (Objects.equals(this.state, State.REPLAYING)) {
       // Retrieve the entry
-      this.entriesQueue.read(
+      this.readEntry(
           (entryIndex, actualMsg) -> {
             ProtocolException e =
                 Util.checkEntryClassAndHeader(actualMsg, inputEntry.getClass(), checkEntryHeader);
@@ -284,7 +284,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       callback.onCancel(SuspendedException.INSTANCE);
     } else if (Objects.equals(this.state, State.REPLAYING)) {
       // Retrieve the entry
-      this.entriesQueue.read(
+      this.readEntry(
           (entryIndex, actualMsg) -> {
             ProtocolException e =
                 Util.checkEntryClassAndHeader(actualMsg, inputEntry.getClass(), checkEntryHeader);
@@ -323,7 +323,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       failureCallback.accept(SuspendedException.INSTANCE);
     } else if (Objects.equals(this.state, State.REPLAYING)) {
       // Retrieve the entry
-      this.entriesQueue.read(
+      this.readEntry(
           (entryIndex, msg) -> {
             ProtocolException e =
                 Util.checkEntryClassAndHeader(
@@ -428,11 +428,19 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   }
 
   private void maybeTransitionToProcessing() {
-    if (currentJournalIndex >= entriesToReplay
-        && this.state == State.REPLAYING
-        && this.entriesQueue.isEmpty()) {
+    if (currentJournalIndex >= entriesToReplay && this.state == State.REPLAYING) {
+      assert this.entriesQueue.isEmpty();
       this.transitionState(State.PROCESSING);
     }
+  }
+
+  void readEntry(BiConsumer<Integer, MessageLite> msgCallback, Consumer<Throwable> errorCallback) {
+    this.entriesQueue.read(
+        msg -> {
+          incrementCurrentIndex();
+          msgCallback.accept(this.currentJournalIndex - 1, msg);
+        },
+        errorCallback);
   }
 
   private void write(MessageLite message) {
