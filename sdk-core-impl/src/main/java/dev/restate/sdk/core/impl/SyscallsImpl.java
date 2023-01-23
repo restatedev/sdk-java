@@ -34,11 +34,6 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public InvocationStateMachine getStateMachine() {
-    return this.stateMachine;
-  }
-
-  @Override
   public <T extends MessageLite> void pollInput(
       Function<ByteString, T> mapper, SyscallCallback<DeferredResult<T>> callback) {
     LOG.trace("pollInput");

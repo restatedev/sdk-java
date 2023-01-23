@@ -73,11 +73,6 @@ public class TrampolineFactories {
     }
 
     @Override
-    public InvocationStateMachine getStateMachine() {
-      return syscalls.getStateMachine();
-    }
-
-    @Override
     public <T extends MessageLite> void pollInput(
         Function<ByteString, T> mapper, SyscallCallback<DeferredResult<T>> callback) {
       syscallsExecutor.execute(() -> syscalls.pollInput(mapper, callback));

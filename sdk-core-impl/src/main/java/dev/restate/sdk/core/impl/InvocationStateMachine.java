@@ -36,7 +36,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   private final String serviceName;
   private final Span span;
 
-  private volatile State state = State.WAITING_START;
+  private State state = State.WAITING_START;
 
   // Obtained after WAITING_START
   private ByteString instanceKey;
@@ -77,11 +77,6 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   public ByteString getInvocationId() {
     return invocationId;
-  }
-
-  // This might be called concurrently (see InvocationStateMachineGrpcBridge#isCancelled)
-  public boolean isClosed() {
-    return Objects.equals(this.state, State.CLOSED);
   }
 
   // --- Output Publisher impl
