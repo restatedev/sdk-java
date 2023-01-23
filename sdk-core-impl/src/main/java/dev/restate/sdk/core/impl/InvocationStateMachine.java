@@ -46,7 +46,6 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   private int currentJournalIndex;
 
   // Buffering of messages and completions
-  private final HandshakeQueue handshakeQueue;
   private final SideEffectAckPublisher sideEffectAckPublisher;
   private final EntriesQueue entriesQueue;
   private final ReadyResultPublisher readyResultPublisher;
@@ -54,12 +53,12 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   // Flow sub/pub
   private Flow.Subscriber<? super MessageLite> outputSubscriber;
   private Flow.Subscription inputSubscription;
+  private Runnable afterStartCallback;
 
   public InvocationStateMachine(String serviceName, Span span) {
     this.serviceName = serviceName;
     this.span = span;
 
-    this.handshakeQueue = new HandshakeQueue();
     this.sideEffectAckPublisher = new SideEffectAckPublisher();
     this.entriesQueue = new EntriesQueue();
     this.readyResultPublisher = new ReadyResultPublisher();
@@ -106,14 +105,13 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   @Override
   public void onSubscribe(Flow.Subscription subscription) {
     this.inputSubscription = subscription;
-    this.inputSubscription.request(Long.MAX_VALUE);
   }
 
   @Override
   public void onNext(MessageLite msg) {
     LOG.trace("Received input message {} {}", msg.getClass(), msg);
     if (this.state == State.WAITING_START) {
-      this.handshakeQueue.offer(msg);
+      this.onStart(msg);
     } else if (msg instanceof Protocol.CompletionMessage) {
       Protocol.CompletionMessage completionMessage = (Protocol.CompletionMessage) msg;
 
@@ -147,36 +145,39 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   // --- Init routine to wait for the start message
 
   void start(Runnable afterStartCallback) {
-    this.handshakeQueue.read(
-        msg -> {
-          if (!(msg instanceof Protocol.StartMessage)) {
-            this.fail(ProtocolException.unexpectedMessage(Protocol.StartMessage.class, msg));
-            return;
-          }
+    this.afterStartCallback = afterStartCallback;
+    this.inputSubscription.request(1);
+  }
 
-          // Unpack the StartMessage
-          Protocol.StartMessage startMessage = (Protocol.StartMessage) msg;
-          this.instanceKey = startMessage.getInstanceKey();
-          this.invocationId = startMessage.getInvocationId();
-          this.entriesToReplay = startMessage.getKnownEntries();
+  void onStart(MessageLite msg) {
+    if (!(msg instanceof Protocol.StartMessage)) {
+      this.fail(ProtocolException.unexpectedMessage(Protocol.StartMessage.class, msg));
+      return;
+    }
 
-          if (this.span.isRecording()) {
-            span.addEvent(
-                "Start",
-                Attributes.of(Tracing.RESTATE_INVOCATION_ID, this.invocationId.toStringUtf8()));
-          }
+    // Unpack the StartMessage
+    Protocol.StartMessage startMessage = (Protocol.StartMessage) msg;
+    this.instanceKey = startMessage.getInstanceKey();
+    this.invocationId = startMessage.getInvocationId();
+    this.entriesToReplay = startMessage.getKnownEntries();
 
-          // Execute state transition
-          this.transitionState(State.REPLAYING);
-          this.handshakeQueue.drainAndClose().forEach(this::onNext);
-          if (this.entriesToReplay == 0) {
-            this.transitionState(State.PROCESSING);
-          }
+    if (this.span.isRecording()) {
+      span.addEvent(
+          "Start", Attributes.of(Tracing.RESTATE_INVOCATION_ID, this.invocationId.toStringUtf8()));
+    }
 
-          // Now execute the callback after start
-          afterStartCallback.run();
-        },
-        this::failRead);
+    // Execute state transition
+    this.transitionState(State.REPLAYING);
+    if (this.entriesToReplay == 0) {
+      this.transitionState(State.PROCESSING);
+    }
+
+    this.inputSubscription.request(Long.MAX_VALUE);
+
+    // Now execute the callback after start
+    Runnable afterStartCallback = this.afterStartCallback;
+    this.afterStartCallback = null;
+    afterStartCallback.run();
   }
 
   void close() {
@@ -190,7 +191,6 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       }
       this.readyResultPublisher.abort(SuspendedException.INSTANCE);
       this.sideEffectAckPublisher.abort(SuspendedException.INSTANCE);
-      this.handshakeQueue.abort(SuspendedException.INSTANCE);
       this.entriesQueue.abort(SuspendedException.INSTANCE);
     }
   }
@@ -207,7 +207,6 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       }
       this.readyResultPublisher.abort(cause);
       this.sideEffectAckPublisher.abort(cause);
-      this.handshakeQueue.abort(cause);
       this.entriesQueue.abort(cause);
     }
   }

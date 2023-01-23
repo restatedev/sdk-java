@@ -1,9 +1,9 @@
 package dev.restate.sdk.core.impl;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class FlowUtils {
 
@@ -90,33 +90,130 @@ public class FlowUtils {
     }
   }
 
-  public static class MockSubscription implements Flow.Subscription {
+  public static class BufferedMockPublisher<T> implements Flow.Publisher<T> {
 
-    private boolean cancelled = false;
+    private final Collection<T> elements;
+    private final AtomicBoolean subscriptionCancelled;
 
-    @Override
-    public void request(long l) {}
-
-    @Override
-    public void cancel() {
-      this.cancelled = true;
+    public BufferedMockPublisher(Collection<T> elements) {
+      this.elements = elements;
+      this.subscriptionCancelled = new AtomicBoolean(false);
     }
 
-    public boolean isCancelled() {
-      return cancelled;
+    @Override
+    public void subscribe(Flow.Subscriber<? super T> subscriber) {
+      subscriber.onSubscribe(
+          new MockSubscription<>(subscriber, new ArrayDeque<>(elements), subscriptionCancelled));
+    }
+
+    public boolean isSubscriptionCancelled() {
+      return subscriptionCancelled.get();
+    }
+
+    private static class MockSubscription<T> implements Flow.Subscription {
+
+      private final Flow.Subscriber<? super T> subscriber;
+      private final Queue<T> queue;
+      private final AtomicBoolean cancelled;
+
+      private MockSubscription(
+          Flow.Subscriber<? super T> subscriber,
+          Queue<T> queue,
+          AtomicBoolean subscriptionCancelled) {
+        this.subscriber = subscriber;
+        this.queue = queue;
+        this.cancelled = subscriptionCancelled;
+      }
+
+      @Override
+      public void request(long l) {
+        if (this.cancelled.get()) {
+          return;
+        }
+        while (l != 0 && !this.queue.isEmpty()) {
+          subscriber.onNext(queue.remove());
+        }
+
+        if (this.queue.isEmpty()) {
+          subscriber.onComplete();
+        }
+      }
+
+      @Override
+      public void cancel() {
+        this.cancelled.set(true);
+      }
     }
   }
 
-  @SafeVarargs
-  public static <T> void pipe(Flow.Subscriber<T> subscriber, T... values) {
-    for (T val : values) {
-      subscriber.onNext(val);
-    }
-  }
+  public static class UnbufferedMockPublisher<T> implements Flow.Publisher<T> {
 
-  @SafeVarargs
-  public static <T> void pipeAndComplete(Flow.Subscriber<T> subscriber, T... values) {
-    pipe(subscriber, values);
-    subscriber.onComplete();
+    private MockSubscription<T> subscription;
+
+    @Override
+    public void subscribe(Flow.Subscriber<? super T> subscriber) {
+      this.subscription = new MockSubscription<>(subscriber);
+      subscriber.onSubscribe(this.subscription);
+    }
+
+    public boolean isSubscriptionCancelled() {
+      return Objects.requireNonNull(this.subscription).cancelled;
+    }
+
+    public void push(T element) {
+      Objects.requireNonNull(this.subscription).onPush(element);
+    }
+
+    public void close() {
+      Objects.requireNonNull(this.subscription).onClose();
+    }
+
+    private static class MockSubscription<T> implements Flow.Subscription {
+
+      private final Flow.Subscriber<? super T> subscriber;
+      private final Queue<T> queue;
+      private boolean publisherClosed = false;
+      private long request = 0;
+      private boolean cancelled = false;
+
+      private MockSubscription(Flow.Subscriber<? super T> subscriber) {
+        this.subscriber = subscriber;
+        this.queue = new ArrayDeque<>();
+      }
+
+      @Override
+      public void request(long l) {
+        this.request = (l == Long.MAX_VALUE) ? Long.MAX_VALUE : l + this.request;
+        this.doProgress();
+      }
+
+      @Override
+      public void cancel() {
+        this.cancelled = true;
+      }
+
+      private void onPush(T element) {
+        this.queue.offer(element);
+        this.doProgress();
+      }
+
+      private void onClose() {
+        this.publisherClosed = true;
+        this.doProgress();
+      }
+
+      private void doProgress() {
+        if (this.cancelled) {
+          return;
+        }
+        while (this.request != 0 && !this.queue.isEmpty()) {
+          subscriber.onNext(queue.remove());
+          this.request = this.request == Long.MAX_VALUE ? Long.MAX_VALUE : this.request - 1;
+        }
+        if (this.publisherClosed) {
+          subscriber.onComplete();
+        }
+      }
+    }
   }
 }

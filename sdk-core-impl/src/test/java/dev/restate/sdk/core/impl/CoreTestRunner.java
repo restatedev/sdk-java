@@ -6,6 +6,9 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.MessageLiteOrBuilder;
+import dev.restate.sdk.core.impl.FlowUtils.BufferedMockPublisher;
+import dev.restate.sdk.core.impl.FlowUtils.FutureSubscriber;
+import dev.restate.sdk.core.impl.FlowUtils.UnbufferedMockPublisher;
 import io.grpc.BindableService;
 import io.grpc.MethodDescriptor;
 import io.grpc.ServerServiceDefinition;
@@ -63,8 +66,8 @@ abstract class CoreTestRunner {
             ? Executors.newSingleThreadExecutor()
             : Runnable::run;
 
-    FlowUtils.FutureSubscriber<MessageLite> outputSubscriber = new FlowUtils.FutureSubscriber<>();
-    FlowUtils.MockSubscription inputSubscription = new FlowUtils.MockSubscription();
+    // Output subscriber buffers all the output messages and provides a completion future
+    FutureSubscriber<MessageLite> outputSubscriber = new FutureSubscriber<>();
 
     // Start invocation
     RestateGrpcServer server = RestateGrpcServer.newBuilder().withService(svc).build();
@@ -81,42 +84,46 @@ abstract class CoreTestRunner {
                 : Function.identity());
 
     if (threadingModel == ThreadingModel.UNBUFFERED_MULTI_THREAD) {
+      // Create publisher
+      UnbufferedMockPublisher<MessageLite> inputPublisher = new UnbufferedMockPublisher<>();
+
       // Wire invocation and start it
       syscallsExecutor.execute(
           () -> {
             handler.processor().subscribe(outputSubscriber);
-            handler.processor().onSubscribe(inputSubscription);
+            inputPublisher.subscribe(handler.processor());
             handler.start();
           });
 
       // Pipe entries
       for (MessageLite inputEntry : input) {
-        syscallsExecutor.execute(() -> handler.processor().onNext(inputEntry));
+        syscallsExecutor.execute(() -> inputPublisher.push(inputEntry));
       }
       // Complete the input publisher
-      syscallsExecutor.execute(() -> handler.processor().onComplete());
+      syscallsExecutor.execute(inputPublisher::close);
+
+      // Check completed
+      assertThat(outputSubscriber.getFuture())
+          .succeedsWithin(Duration.ofSeconds(1))
+          .satisfies(outputAssert::accept);
+      assertThat(inputPublisher.isSubscriptionCancelled()).isTrue();
     } else {
+      // Create publisher
+      BufferedMockPublisher<MessageLite> inputPublisher = new BufferedMockPublisher<>(input);
+
       // Wire invocation
       handler.processor().subscribe(outputSubscriber);
-      handler.processor().onSubscribe(inputSubscription);
-
-      // Pipe entries and complete the input publisher
-      FlowUtils.pipeAndComplete(handler.processor(), input.toArray(MessageLite[]::new));
+      inputPublisher.subscribe(handler.processor());
 
       // Start invocation
       handler.start();
+
+      // Check completed
+      assertThat(outputSubscriber.getFuture())
+          .succeedsWithin(Duration.ZERO)
+          .satisfies(outputAssert::accept);
+      assertThat(inputPublisher.isSubscriptionCancelled()).isTrue();
     }
-
-    Duration futureWaitTime =
-        threadingModel == ThreadingModel.UNBUFFERED_MULTI_THREAD
-            ? Duration.ofSeconds(1)
-            : Duration.ZERO;
-
-    // Check completed
-    assertThat(outputSubscriber.getFuture())
-        .succeedsWithin(futureWaitTime)
-        .satisfies(outputAssert::accept);
-    assertThat(inputSubscription.isCancelled()).isTrue();
   }
 
   enum ThreadingModel {
