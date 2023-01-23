@@ -41,7 +41,7 @@ public final class SyscallsImpl implements SyscallsInternal {
         Protocol.PollInputStreamEntryMessage.getDefaultInstance(),
         entry -> false,
         span -> span.addEvent("PollInputStream"),
-        e -> null,
+        noEntryCheck(),
         entry -> deserializeWithProto(mapper, entry.getValue()),
         completionMessage -> deserializeWithProto(mapper, completionMessage.getValue()),
         callback);
@@ -50,22 +50,25 @@ public final class SyscallsImpl implements SyscallsInternal {
   @Override
   public <T extends MessageLite> void writeOutput(T value, SyscallCallback<Void> callback) {
     LOG.trace("writeOutput success");
-    Protocol.OutputStreamEntryMessage entry =
-        Protocol.OutputStreamEntryMessage.newBuilder().setValue(value.toByteString()).build();
-    this.stateMachine.processJournalEntryWithoutWaitingAck(
-        entry, span -> span.addEvent("OutputStream"), e -> null, callback);
+    this.writeOutput(
+        Protocol.OutputStreamEntryMessage.newBuilder().setValue(value.toByteString()).build(),
+        callback);
   }
 
   @Override
   public void writeOutput(Throwable throwable, SyscallCallback<Void> callback) {
     LOG.trace("writeOutput failure");
-    this.stateMachine.processJournalEntryWithoutWaitingAck(
+    this.writeOutput(
         Protocol.OutputStreamEntryMessage.newBuilder()
             .setFailure(toProtocolFailure(throwable))
             .build(),
-        span -> span.addEvent("OutputStream"),
-        e -> null,
         callback);
+  }
+
+  private void writeOutput(
+      Protocol.OutputStreamEntryMessage entry, SyscallCallback<Void> callback) {
+    this.stateMachine.processJournalEntryWithoutWaitingAck(
+        entry, span -> span.addEvent("OutputStream"), noEntryCheck(), callback);
   }
 
   @Override
@@ -79,7 +82,7 @@ public final class SyscallsImpl implements SyscallsInternal {
         span -> span.addEvent("GetState", Attributes.of(Tracing.RESTATE_STATE_KEY, name)),
         actualEntry ->
             !expectedEntry.getKey().equals(actualEntry.getKey())
-                ? ProtocolException.entryDoNotMatch(expectedEntry, actualEntry)
+                ? ProtocolException.entryDoesNotMatch(expectedEntry, actualEntry)
                 : null,
         entry ->
             (entry.getResultCase() == Protocol.GetStateEntryMessage.ResultCase.EMPTY)
@@ -126,7 +129,6 @@ public final class SyscallsImpl implements SyscallsInternal {
         callback);
   }
 
-  @SuppressWarnings({"rawtypes", "unchecked"})
   @Override
   public void sleep(Duration duration, SyscallCallback<DeferredResult<Void>> callback) {
     LOG.trace("sleep {}", duration);
@@ -136,7 +138,7 @@ public final class SyscallsImpl implements SyscallsInternal {
         span ->
             span.addEvent(
                 "Sleep", Attributes.of(Tracing.RESTATE_SLEEP_DURATION, duration.toMillis())),
-        e -> null,
+        noEntryCheck(),
         entry -> ReadyResults.empty(),
         completionMessage -> ReadyResults.empty(),
         callback);
@@ -174,7 +176,7 @@ public final class SyscallsImpl implements SyscallsInternal {
             !(expectedEntry.getServiceName().equals(actualEntry.getServiceName())
                     && expectedEntry.getMethodName().equals(actualEntry.getMethodName())
                     && expectedEntry.getParameter().equals(actualEntry.getParameter()))
-                ? ProtocolException.entryDoNotMatch(expectedEntry, actualEntry)
+                ? ProtocolException.entryDoesNotMatch(expectedEntry, actualEntry)
                 : null,
         entry ->
             entry.hasValue()
@@ -292,7 +294,7 @@ public final class SyscallsImpl implements SyscallsInternal {
         Protocol.CallbackEntryMessage.getDefaultInstance(),
         entry -> entry.getResultCase() == Protocol.CallbackEntryMessage.ResultCase.RESULT_NOT_SET,
         span -> span.addEvent("Callback"),
-        e -> null,
+        noEntryCheck(),
         entry ->
             entry.hasValue()
                 ? deserializeWithSerde(typeTag, entry.getValue())
@@ -302,8 +304,7 @@ public final class SyscallsImpl implements SyscallsInternal {
                 ? deserializeWithSerde(typeTag, completionMessage.getValue())
                 : ReadyResults.failure(
                     Util.toGrpcStatus(completionMessage.getFailure()).asRuntimeException()),
-        SyscallCallback.mapping(
-            callback,
+        SyscallCallback.mappingTo(
             deferredResult ->
                 new AbstractMap.SimpleImmutableEntry<>(
                     CallbackIdentifier.newBuilder()
@@ -312,7 +313,8 @@ public final class SyscallsImpl implements SyscallsInternal {
                         .setInvocationId(stateMachine.getInvocationId())
                         .setEntryIndex(((DeferredResultInternal<T>) deferredResult).entryIndex())
                         .build(),
-                    deferredResult)));
+                    deferredResult),
+            callback));
   }
 
   @Override
@@ -418,7 +420,11 @@ public final class SyscallsImpl implements SyscallsInternal {
       T expectedEntry) {
     return actualEntry ->
         !Objects.equals(expectedEntry, actualEntry)
-            ? ProtocolException.entryDoNotMatch(expectedEntry, actualEntry)
+            ? ProtocolException.entryDoesNotMatch(expectedEntry, actualEntry)
             : null;
+  }
+
+  private static <T extends MessageLite> Function<T, ProtocolException> noEntryCheck() {
+    return v -> null;
   }
 }

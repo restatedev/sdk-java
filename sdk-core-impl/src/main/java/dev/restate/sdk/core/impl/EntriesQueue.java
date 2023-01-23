@@ -24,12 +24,10 @@ class EntriesQueue {
   void offer(MessageLite msg) {
     assert Util.isEntry(msg);
 
-    this.unprocessedMessages.offer(msg);
-
     if (this.callback != null) {
-      // There must always be one item here!
-      MessageLite popped = this.unprocessedMessages.poll();
-      popCallback().onSuccess(popped);
+      popCallback().onSuccess(msg);
+    } else {
+      this.unprocessedMessages.offer(msg);
     }
   }
 

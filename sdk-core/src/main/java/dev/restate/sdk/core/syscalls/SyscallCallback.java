@@ -46,25 +46,11 @@ public interface SyscallCallback<T> {
     };
   }
 
-  static <T, R> SyscallCallback<T> mapping(SyscallCallback<R> callback, Function<T, R> mapper) {
+  static <T, R> SyscallCallback<T> mappingTo(Function<T, R> mapper, SyscallCallback<R> callback) {
     return new SyscallCallback<>() {
       @Override
       public void onSuccess(@Nullable T value) {
         callback.onSuccess(mapper.apply(value));
-      }
-
-      @Override
-      public void onCancel(@Nullable Throwable t) {
-        callback.onCancel(t);
-      }
-    };
-  }
-
-  static <T> SyscallCallback<T> completingEmpty(SyscallCallback<Void> callback) {
-    return new SyscallCallback<>() {
-      @Override
-      public void onSuccess(@Nullable T value) {
-        callback.onSuccess(null);
       }
 
       @Override

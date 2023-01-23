@@ -27,10 +27,6 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     REPLAYING,
     PROCESSING,
     CLOSED;
-
-    boolean canWriteOut() {
-      return this == PROCESSING;
-    }
   }
 
   private final String serviceName;
@@ -218,9 +214,9 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       Function<Protocol.CompletionMessage, ReadyResultInternal<T>> completionParser,
       SyscallCallback<DeferredResult<T>> callback) {
     maybeTransitionToProcessing();
-    if (Objects.equals(this.state, State.CLOSED)) {
+    if (this.state == State.CLOSED) {
       callback.onCancel(SuspendedException.INSTANCE);
-    } else if (Objects.equals(this.state, State.REPLAYING)) {
+    } else if (this.state == State.REPLAYING) {
       // Retrieve the entry
       this.readEntry(
           (entryIndex, actualMsg) -> {
@@ -243,7 +239,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
             }
           },
           callback::onCancel);
-    } else if (this.state.canWriteOut()) {
+    } else if (this.state == State.PROCESSING) {
       if (span.isRecording()) {
         traceFn.accept(span);
       }
@@ -275,9 +271,9 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       Function<T, ProtocolException> checkEntryHeader,
       SyscallCallback<Void> callback) {
     maybeTransitionToProcessing();
-    if (Objects.equals(this.state, State.CLOSED)) {
+    if (this.state == State.CLOSED) {
       callback.onCancel(SuspendedException.INSTANCE);
-    } else if (Objects.equals(this.state, State.REPLAYING)) {
+    } else if (this.state == State.REPLAYING) {
       // Retrieve the entry
       this.readEntry(
           (entryIndex, actualMsg) -> {
@@ -291,7 +287,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
             }
           },
           callback::onCancel);
-    } else if (this.state.canWriteOut()) {
+    } else if (this.state == State.PROCESSING) {
       if (span.isRecording()) {
         traceFn.accept(span);
       }
@@ -314,9 +310,9 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       Runnable noEntryCallback,
       Consumer<Throwable> failureCallback) {
     maybeTransitionToProcessing();
-    if (Objects.equals(this.state, State.CLOSED)) {
+    if (this.state == State.CLOSED) {
       failureCallback.accept(SuspendedException.INSTANCE);
-    } else if (Objects.equals(this.state, State.REPLAYING)) {
+    } else if (this.state == State.REPLAYING) {
       // Retrieve the entry
       this.readEntry(
           (entryIndex, msg) -> {
@@ -331,10 +327,10 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
             }
           },
           failureCallback);
-    } else if (this.state.canWriteOut()) {
+    } else if (this.state == State.PROCESSING) {
       this.sideEffectAckPublisher.executeEnterSideEffect(
           SyscallCallback.of(
-              v -> {
+              ignored -> {
                 if (span.isRecording()) {
                   traceFn.accept(span);
                 }
@@ -352,13 +348,13 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       Consumer<Span> traceFn,
       Consumer<Protocol.SideEffectEntryMessage> entryCallback,
       Consumer<Throwable> failureCallback) {
-    if (Objects.equals(this.state, State.REPLAYING)) {
+    if (this.state == State.REPLAYING) {
       throw new IllegalStateException(
           "exitSideEffect has been invoked when the state machine is in replaying mode. "
               + "This is probably an SDK bug and might be caused by a missing enterSideEffectBlock invocation before exitSideEffectBlock.");
-    } else if (Objects.equals(this.state, State.CLOSED)) {
+    } else if (this.state == State.CLOSED) {
       failureCallback.accept(SuspendedException.INSTANCE);
-    } else if (this.state.canWriteOut()) {
+    } else if (this.state == State.PROCESSING) {
       if (span.isRecording()) {
         traceFn.accept(span);
       }

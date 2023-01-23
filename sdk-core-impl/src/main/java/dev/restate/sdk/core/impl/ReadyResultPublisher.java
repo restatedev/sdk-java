@@ -102,6 +102,8 @@ class ReadyResultPublisher {
       return;
     }
 
+    this.completions.remove(entryIndex, completionMessage);
+
     // Parse to ready result
     ReadyResultInternal<?> readyResult = null;
     Throwable throwable = null;
