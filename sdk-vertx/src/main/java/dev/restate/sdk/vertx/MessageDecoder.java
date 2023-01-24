@@ -33,14 +33,14 @@ class MessageDecoder {
     this.lastParsingFailure = null;
   }
 
-  public MessageLite poll() {
+  MessageLite poll() {
     if (this.state == State.FAILED) {
       throw lastParsingFailure;
     }
     return this.parsedMessages.poll();
   }
 
-  public void offer(Buffer buffer) {
+  void offer(Buffer buffer) {
     if (this.state != State.FAILED) {
       this.internalBuffer.writeBytes(buffer.getByteBuf());
       this.tryConsumeInternalBuffer();
