@@ -18,11 +18,11 @@ import java.util.stream.Stream;
 
 class SideEffectTest extends CoreTestRunner {
 
-  private static class SideEffectGreeter extends GreeterGrpc.GreeterImplBase {
+  private static class SideEffect extends GreeterGrpc.GreeterImplBase {
 
     private final String sideEffectOutput;
 
-    SideEffectGreeter(String sideEffectOutput) {
+    SideEffect(String sideEffectOutput) {
       this.sideEffectOutput = sideEffectOutput;
     }
 
@@ -37,11 +37,11 @@ class SideEffectTest extends CoreTestRunner {
     }
   }
 
-  private static class ConsecutiveSideEffectGreeter extends GreeterGrpc.GreeterImplBase {
+  private static class ConsecutiveSideEffect extends GreeterGrpc.GreeterImplBase {
 
     private final String sideEffectOutput;
 
-    ConsecutiveSideEffectGreeter(String sideEffectOutput) {
+    ConsecutiveSideEffect(String sideEffectOutput) {
       this.sideEffectOutput = sideEffectOutput;
     }
 
@@ -58,7 +58,7 @@ class SideEffectTest extends CoreTestRunner {
     }
   }
 
-  private static class CheckCorrectThreadTrampolineGreeter extends GreeterGrpc.GreeterImplBase {
+  private static class CheckContextSwitching extends GreeterGrpc.GreeterImplBase {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
@@ -81,25 +81,36 @@ class SideEffectTest extends CoreTestRunner {
     }
   }
 
+  private static class SideEffectGuard extends GreeterGrpc.GreeterImplBase {
+
+    @Override
+    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
+      RestateContext ctx = RestateContext.current();
+      ctx.sideEffect(
+          () -> ctx.backgroundCall(GreeterGrpc.getGreetMethod(), greetingRequest("something")));
+
+      throw new IllegalStateException("This point should not be reached");
+    }
+  }
+
   @Override
   Stream<TestDefinition> definitions() {
     return Stream.of(
-        testInvocation(new SideEffectGreeter("Francesco"), GreeterGrpc.getGreetMethod())
+        testInvocation(new SideEffect("Francesco"), GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
             .usingAllThreadingModels()
             .expectingOutput(
                 Protocol.SideEffectEntryMessage.newBuilder()
                     .setValue(ByteString.copyFromUtf8("Francesco")),
-                outputMessage(GreetingResponse.newBuilder().setMessage("Hello Francesco")))
-            .named("Simple side effect"),
-        testInvocation(new ConsecutiveSideEffectGreeter("Francesco"), GreeterGrpc.getGreetMethod())
+                outputMessage(GreetingResponse.newBuilder().setMessage("Hello Francesco"))),
+        testInvocation(new ConsecutiveSideEffect("Francesco"), GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
             .usingAllThreadingModels()
             .expectingOutput(
                 Protocol.SideEffectEntryMessage.newBuilder()
                     .setValue(ByteString.copyFromUtf8("Francesco")))
-            .named("Consecutive side effect without ack"),
-        testInvocation(new ConsecutiveSideEffectGreeter("Francesco"), GreeterGrpc.getGreetMethod())
+            .named("Without ack"),
+        testInvocation(new ConsecutiveSideEffect("Francesco"), GreeterGrpc.getGreetMethod())
             .withInput(
                 startMessage(1),
                 inputMessage(GreetingRequest.newBuilder().setName("Till")),
@@ -111,8 +122,8 @@ class SideEffectTest extends CoreTestRunner {
                 Protocol.SideEffectEntryMessage.newBuilder()
                     .setValue(ByteString.copyFromUtf8("FRANCESCO")),
                 outputMessage(GreetingResponse.newBuilder().setMessage("Hello FRANCESCO")))
-            .named("Consecutive side effect with ack"),
-        testInvocation(new CheckCorrectThreadTrampolineGreeter(), GreeterGrpc.getGreetMethod())
+            .named("With ack"),
+        testInvocation(new CheckContextSwitching(), GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
             .usingThreadingModels(ThreadingModel.UNBUFFERED_MULTI_THREAD)
             .assertingOutput(
@@ -132,7 +143,10 @@ class SideEffectTest extends CoreTestRunner {
                                       .build()
                                       .toByteString())
                               .build());
-                })
-            .named("Check thread switching"));
+                }),
+        testInvocation(new SideEffectGuard(), GreeterGrpc.getGreetMethod())
+            .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
+            .usingAllThreadingModels()
+            .assertingFailure(ProtocolException.class));
   }
 }

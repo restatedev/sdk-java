@@ -16,6 +16,7 @@ import io.grpc.MethodDescriptor;
 import java.time.Duration;
 import java.util.AbstractMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.apache.logging.log4j.LogManager;
@@ -181,6 +182,13 @@ public final class SyscallsImpl implements SyscallsInternal {
   public void exitSideEffectBlockWithException(
       Throwable toWrite, ExitSideEffectSyscallCallback<?> callback) {
     LOG.trace("exitSideEffectBlock with failure");
+
+    // If it's a protocol exception, don't write it
+    Optional<ProtocolException> protocolException = Util.findProtocolException(toWrite);
+    if (protocolException.isPresent()) {
+      throw protocolException.get();
+    }
+
     this.stateMachine.exitSideEffectBlock(
         Protocol.SideEffectEntryMessage.newBuilder().setFailure(toProtocolFailure(toWrite)).build(),
         span -> span.addEvent("Exit SideEffect"),

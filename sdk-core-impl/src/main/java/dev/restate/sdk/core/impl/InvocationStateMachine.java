@@ -7,6 +7,7 @@ import dev.restate.sdk.core.SuspendedException;
 import dev.restate.sdk.core.impl.Entries.JournalEntry;
 import dev.restate.sdk.core.syscalls.DeferredResult;
 import dev.restate.sdk.core.syscalls.SyscallCallback;
+import io.grpc.Status;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
 import java.util.Map;
@@ -32,6 +33,9 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   private final Span span;
 
   private State state = State.WAITING_START;
+
+  // Used for the side effect guard
+  private boolean insideSideEffect = false;
 
   // Obtained after WAITING_START
   private ByteString instanceKey;
@@ -197,6 +201,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       if (this.outputSubscriber != null) {
         this.outputSubscriber.onError(cause);
       }
+      this.insideSideEffect = false;
       this.readyResultPublisher.abort(cause);
       this.sideEffectAckPublisher.abort(cause);
       this.entriesQueue.abort(cause);
@@ -210,6 +215,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       E expectedEntryMessage,
       Entries.CompletableJournalEntry<E, T> journalEntry,
       SyscallCallback<DeferredResult<T>> callback) {
+    checkInsideSideEffectGuard();
     if (this.state == State.CLOSED) {
       callback.onCancel(SuspendedException.INSTANCE);
     } else if (this.state == State.REPLAYING) {
@@ -255,6 +261,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   <T extends MessageLite> void processJournalEntryWithoutWaitingAck(
       T expectedEntryMessage, JournalEntry<T> journalEntry, SyscallCallback<Void> callback) {
+    checkInsideSideEffectGuard();
     if (this.state == State.CLOSED) {
       callback.onCancel(SuspendedException.INSTANCE);
     } else if (this.state == State.REPLAYING) {
@@ -288,6 +295,8 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       Consumer<Protocol.SideEffectEntryMessage> entryCallback,
       Runnable noEntryCallback,
       Consumer<Throwable> failureCallback) {
+    checkInsideSideEffectGuard();
+    this.insideSideEffect = true;
     if (this.state == State.CLOSED) {
       failureCallback.accept(SuspendedException.INSTANCE);
     } else if (this.state == State.REPLAYING) {
@@ -322,6 +331,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       Consumer<Span> traceFn,
       Consumer<Protocol.SideEffectEntryMessage> entryCallback,
       Consumer<Throwable> failureCallback) {
+    this.insideSideEffect = false;
     if (this.state == State.REPLAYING) {
       throw new IllegalStateException(
           "exitSideEffect has been invoked when the state machine is in replaying mode. "
@@ -395,6 +405,13 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
         throw new IllegalStateException("Entries queue should be empty at this point");
       }
       this.transitionState(State.PROCESSING);
+    }
+  }
+
+  private void checkInsideSideEffectGuard() {
+    if (this.insideSideEffect) {
+      throw new ProtocolException(
+          "A syscall was invoked from within a side effect closure.", null, Status.Code.UNKNOWN);
     }
   }
 
