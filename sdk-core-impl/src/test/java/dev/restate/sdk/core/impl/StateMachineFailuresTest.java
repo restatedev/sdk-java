@@ -4,7 +4,7 @@ import static dev.restate.sdk.core.impl.CoreTestRunner.TestCaseBuilder.testInvoc
 import static dev.restate.sdk.core.impl.ProtoUtils.*;
 
 import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.blocking.RestateContext;
+import dev.restate.sdk.blocking.RestateBlockingService;
 import dev.restate.sdk.core.StateKey;
 import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.core.impl.testservices.GreeterGrpc;
@@ -16,7 +16,8 @@ import java.util.stream.Stream;
 
 class StateMachineFailuresTest extends CoreTestRunner {
 
-  private static class GetState extends GreeterGrpc.GreeterImplBase {
+  private static class GetState extends GreeterGrpc.GreeterImplBase
+      implements RestateBlockingService {
 
     private static final StateKey<Integer> STATE =
         StateKey.of(
@@ -27,13 +28,14 @@ class StateMachineFailuresTest extends CoreTestRunner {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      RestateContext.current().get(STATE);
+      restateContext().get(STATE);
       responseObserver.onNext(greetingResponse("Francesco"));
       responseObserver.onCompleted();
     }
   }
 
-  private abstract static class SideEffectFailure extends GreeterGrpc.GreeterImplBase {
+  private abstract static class SideEffectFailure extends GreeterGrpc.GreeterImplBase
+      implements RestateBlockingService {
     private final TypeTag<Integer> typeTag;
 
     private SideEffectFailure(TypeTag<Integer> typeTag) {
@@ -42,7 +44,7 @@ class StateMachineFailuresTest extends CoreTestRunner {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      RestateContext.current().sideEffect(typeTag, () -> 0);
+      restateContext().sideEffect(typeTag, () -> 0);
 
       responseObserver.onNext(greetingResponse("Francesco"));
       responseObserver.onCompleted();
