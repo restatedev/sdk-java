@@ -88,13 +88,7 @@ public final class SyscallsImpl implements SyscallsInternal {
   @Override
   public <T> void set(String name, TypeTag<T> ty, T value, SyscallCallback<Void> callback) {
     LOG.trace("set {}", name);
-    ByteString serialized;
-    try {
-      serialized = serialize(ty, value);
-    } catch (Throwable e) {
-      callback.onCancel(e);
-      return;
-    }
+    ByteString serialized = serialize(ty, value);
     this.stateMachine.processJournalEntryWithoutWaitingAck(
         Protocol.SetStateEntryMessage.newBuilder()
             .setKey(ByteString.copyFromUtf8(name))
@@ -164,17 +158,8 @@ public final class SyscallsImpl implements SyscallsInternal {
   public <T> void exitSideEffectBlock(
       TypeTag<T> typeTag, T toWrite, ExitSideEffectSyscallCallback<T> callback) {
     LOG.trace("exitSideEffectBlock with success");
-    Protocol.SideEffectEntryMessage.Builder sideEffectToWrite =
-        Protocol.SideEffectEntryMessage.newBuilder();
-    try {
-      sideEffectToWrite.setValue(serialize(typeTag, toWrite));
-    } catch (Throwable e) {
-      // Record the serialization failure
-      sideEffectToWrite.setFailure(toProtocolFailure(e));
-    }
-
     this.stateMachine.exitSideEffectBlock(
-        sideEffectToWrite.build(),
+        Protocol.SideEffectEntryMessage.newBuilder().setValue(serialize(typeTag, toWrite)).build(),
         span -> span.addEvent("Exit SideEffect"),
         sideEffectEntryHandler(typeTag, callback),
         callback::onCancel);
@@ -188,15 +173,7 @@ public final class SyscallsImpl implements SyscallsInternal {
         return;
       }
 
-      T value;
-      try {
-        value = deserialize(typeTag, sideEffectEntry.getValue());
-      } catch (Exception e) {
-        callback.onFailure(Util.toGrpcStatusErasingCause(e).asRuntimeException());
-        return;
-      }
-
-      callback.onResult(value);
+      callback.onResult(deserialize(typeTag, sideEffectEntry.getValue()));
     };
   }
 
@@ -238,13 +215,7 @@ public final class SyscallsImpl implements SyscallsInternal {
   public <T> void completeCallback(
       CallbackIdentifier id, TypeTag<T> ty, T payload, SyscallCallback<Void> callback) {
     LOG.trace("completeCallback");
-    ByteString serialized;
-    try {
-      serialized = serialize(ty, payload);
-    } catch (Throwable e) {
-      callback.onCancel(e);
-      return;
-    }
+    ByteString serialized = serialize(ty, payload);
 
     Protocol.CompleteCallbackEntryMessage expectedEntry =
         Protocol.CompleteCallbackEntryMessage.newBuilder()
@@ -270,7 +241,7 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public void fail(ProtocolException cause) {
+  public void fail(Throwable cause) {
     this.stateMachine.fail(cause);
   }
 
@@ -278,23 +249,11 @@ public final class SyscallsImpl implements SyscallsInternal {
 
   private <T extends MessageLite> Function<ByteString, ReadyResultInternal<T>> protoDeserializer(
       Function<ByteString, T> mapper) {
-    return value -> {
-      try {
-        return ReadyResults.success(mapper.apply(value));
-      } catch (Throwable e) {
-        return ReadyResults.failure(Util.toGrpcStatusErasingCause(e).asRuntimeException());
-      }
-    };
+    return value -> ReadyResults.success(mapper.apply(value));
   }
 
   private <T> Function<ByteString, ReadyResultInternal<T>> serdeDeserializer(TypeTag<T> ty) {
-    return value -> {
-      try {
-        return ReadyResults.success(deserialize(ty, value));
-      } catch (Throwable e) {
-        return ReadyResults.failure(Util.toGrpcStatusErasingCause(e).asRuntimeException());
-      }
-    };
+    return value -> ReadyResults.success(deserialize(ty, value));
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})

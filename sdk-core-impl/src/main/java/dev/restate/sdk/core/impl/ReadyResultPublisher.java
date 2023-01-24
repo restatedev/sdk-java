@@ -107,20 +107,10 @@ class ReadyResultPublisher {
     this.completions.remove(entryIndex, completionMessage);
 
     // Parse to ready result
-    ReadyResultInternal<?> readyResult = null;
-    Exception throwable = null;
-    try {
-      readyResult = parser.apply(completionMessage);
-    } catch (Exception t) {
-      throwable = t;
-    }
+    ReadyResultInternal<?> readyResult = parser.apply(completionMessage);
 
     // Push to the ready result queue
-    if (throwable != null) {
-      inputChannelClosed = throwable;
-    } else {
-      this.results.put(completionMessage.getEntryIndex(), readyResult);
-    }
+    this.results.put(completionMessage.getEntryIndex(), readyResult);
 
     // We have a new result, let's try to progress
     this.tryProgress();

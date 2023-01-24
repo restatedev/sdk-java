@@ -12,17 +12,17 @@ import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 
-public class TrampolineFactories {
+class TrampolineFactories {
 
   private TrampolineFactories() {}
 
-  public static Function<ServerCall.Listener<MessageLite>, ServerCall.Listener<MessageLite>>
-      serverCallListener(Executor userExecutor) {
-    return sc -> new TrampoliningServerCallListener(sc, userExecutor);
+  static ServerCall.Listener<MessageLite> serverCallListenerTrampoline(
+      ServerCall.Listener<MessageLite> sc, Executor userExecutor) {
+    return new TrampoliningServerCallListener(sc, userExecutor);
   }
 
-  public static Function<SyscallsInternal, SyscallsInternal> syscalls(Executor syscallsExecutor) {
-    return sc -> new TrampoliningSyscalls(sc, syscallsExecutor);
+  static SyscallsInternal syscallsTrampoline(SyscallsInternal sc, Executor syscallsExecutor) {
+    return new TrampoliningSyscalls(sc, syscallsExecutor);
   }
 
   private static class TrampoliningServerCallListener extends ServerCall.Listener<MessageLite> {
@@ -69,7 +69,17 @@ public class TrampolineFactories {
 
     private TrampoliningSyscalls(SyscallsInternal syscalls, Executor syscallsExecutor) {
       this.syscalls = syscalls;
-      this.syscallsExecutor = syscallsExecutor;
+      this.syscallsExecutor =
+          r ->
+              syscallsExecutor.execute(
+                  () -> {
+                    try {
+                      r.run();
+                    } catch (Throwable e) {
+                      syscalls.fail(e);
+                      throw e;
+                    }
+                  });
     }
 
     @Override
@@ -172,7 +182,7 @@ public class TrampolineFactories {
     }
 
     @Override
-    public void fail(ProtocolException cause) {
+    public void fail(Throwable cause) {
       syscallsExecutor.execute(() -> syscalls.fail(cause));
     }
   }

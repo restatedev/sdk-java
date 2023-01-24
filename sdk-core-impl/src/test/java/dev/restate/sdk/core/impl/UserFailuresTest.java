@@ -9,7 +9,7 @@ import dev.restate.sdk.core.impl.testservices.GreetingResponse;
 import io.grpc.stub.StreamObserver;
 import java.util.stream.Stream;
 
-class FailuresTest extends CoreTestRunner {
+class UserFailuresTest extends CoreTestRunner {
 
   private static class FailingGreeter extends GreeterGrpc.GreeterImplBase {
     @Override

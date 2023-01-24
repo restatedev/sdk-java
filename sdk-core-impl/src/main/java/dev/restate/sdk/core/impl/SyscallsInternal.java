@@ -8,5 +8,5 @@ public interface SyscallsInternal extends Syscalls {
 
   void close();
 
-  void fail(ProtocolException cause);
+  void fail(Throwable cause);
 }

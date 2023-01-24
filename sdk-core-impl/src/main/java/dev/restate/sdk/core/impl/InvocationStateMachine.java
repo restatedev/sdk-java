@@ -104,8 +104,9 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     if (this.state == State.WAITING_START) {
       this.onStart(msg);
     } else if (msg instanceof Protocol.CompletionMessage) {
-      // We check the instance rather than the state, because the user code might still be replaying,
-      // but the network layer is already past it and is receiving completions from the runtime.
+      // We check the instance rather than the state, because the user code might still be
+      // replaying, but the network layer is already past it and is receiving completions from the
+      // runtime.
       Protocol.CompletionMessage completionMessage = (Protocol.CompletionMessage) msg;
 
       // If ack, give it to side effect publisher
@@ -123,7 +124,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   @Override
   public void onError(Throwable throwable) {
     LOG.trace("Got failure from input publisher", throwable);
-    failRead(throwable);
+    this.fail(throwable);
   }
 
   @Override
@@ -186,7 +187,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     }
   }
 
-  void fail(ProtocolException cause) {
+  void fail(Throwable cause) {
     if (this.state != State.CLOSED) {
       this.transitionState(State.CLOSED);
       LOG.debug("Close cause", cause);
@@ -215,11 +216,9 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       // Retrieve the entry
       this.readEntry(
           (entryIndex, actualEntryMessage) -> {
-            // TODO what to do with a failure here?
             journalEntry.checkEntryHeader(expectedEntryMessage, actualEntryMessage);
 
             if (journalEntry.hasResult((E) actualEntryMessage)) {
-              // TODO what to do with the exception here?
               ReadyResultInternal<T> readyResultInternal =
                   journalEntry.parseEntryResult((E) actualEntryMessage);
               callback.onSuccess(readyResultInternal);
@@ -262,7 +261,6 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       // Retrieve the entry
       this.readEntry(
           (entryIndex, actualEntryMessage) -> {
-            // TODO what to do with a failure here?
             journalEntry.checkEntryHeader(expectedEntryMessage, actualEntryMessage);
 
             callback.onSuccess(null);
@@ -296,15 +294,11 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       // Retrieve the entry
       this.readEntry(
           (entryIndex, msg) -> {
-            ProtocolException e =
-                Util.checkEntryClassAndHeader(
-                    msg, Protocol.SideEffectEntryMessage.class, v -> null);
-
-            if (e != null) {
-              failureCallback.accept(e);
-            } else {
-              entryCallback.accept((Protocol.SideEffectEntryMessage) msg);
+            if (!(msg instanceof Protocol.SideEffectEntryMessage)) {
+              throw ProtocolException.unexpectedMessage(Protocol.SideEffectEntryMessage.class, msg);
             }
+
+            entryCallback.accept((Protocol.SideEffectEntryMessage) msg);
           },
           failureCallback);
     } else if (this.state == State.PROCESSING) {
@@ -416,10 +410,6 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   private void write(MessageLite message) {
     LOG.trace("Writing to output message {} {}", message.getClass(), message);
     Objects.requireNonNull(this.outputSubscriber).onNext(message);
-  }
-
-  private void failRead(Throwable cause) {
-    fail(ProtocolException.inputPublisherError(cause));
   }
 
   @Override

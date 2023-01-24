@@ -94,7 +94,8 @@ final class Entries {
     }
 
     @Override
-    void checkEntryHeader(GetStateEntryMessage expected, MessageLite actual) throws ProtocolException {
+    void checkEntryHeader(GetStateEntryMessage expected, MessageLite actual)
+        throws ProtocolException {
       if (!(actual instanceof GetStateEntryMessage)) {
         throw ProtocolException.entryDoesNotMatch(expected, actual);
       }

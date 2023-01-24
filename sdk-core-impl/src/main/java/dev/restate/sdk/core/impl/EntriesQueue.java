@@ -40,12 +40,7 @@ class EntriesQueue {
 
     MessageLite popped = this.unprocessedMessages.poll();
     if (popped != null) {
-      try {
-        msgCallback.accept(popped);
-        // TODO this is probably wrong :(
-      } catch (Exception e) {
-        errorCallback.accept(e);
-      }
+      msgCallback.accept(popped);
     } else {
       this.callback = SyscallCallback.of(msgCallback, errorCallback);
     }

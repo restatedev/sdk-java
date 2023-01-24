@@ -93,7 +93,7 @@ class RestateServerCall extends ServerCall<MessageLite, MessageLite> {
       if (protocolException.isPresent()) {
         // If it's a protocol exception, we propagate the failure to syscalls, which will propagate
         // it to the network layer
-        syscalls.fail((ProtocolException) protocolException.get());
+        syscalls.fail(protocolException.get());
       } else {
         // If not a protocol exception, then it's an exception coming from user which we write on
         // the journal
