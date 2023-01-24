@@ -11,6 +11,7 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
+import javax.annotation.Nonnull;
 
 class ExecutorSwitchingWrappers {
 
@@ -110,7 +111,8 @@ class ExecutorSwitchingWrappers {
     }
 
     @Override
-    public <T> void set(String name, TypeTag<T> typeTag, T value, SyscallCallback<Void> callback) {
+    public <T> void set(
+        String name, TypeTag<T> typeTag, @Nonnull T value, SyscallCallback<Void> callback) {
       syscallsExecutor.execute(() -> syscalls.set(name, typeTag, value, callback));
     }
 
@@ -165,7 +167,7 @@ class ExecutorSwitchingWrappers {
     public <T> void completeAwakeable(
         AwakeableIdentifier id,
         TypeTag<T> typeTag,
-        T payload,
+        @Nonnull T payload,
         SyscallCallback<Void> requestCallback) {
       syscallsExecutor.execute(
           () -> syscalls.completeAwakeable(id, typeTag, payload, requestCallback));

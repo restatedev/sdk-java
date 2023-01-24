@@ -16,9 +16,11 @@ import io.grpc.MethodDescriptor;
 import java.time.Duration;
 import java.util.AbstractMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import javax.annotation.Nonnull;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -87,8 +89,10 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public <T> void set(String name, TypeTag<T> ty, T value, SyscallCallback<Void> callback) {
+  public <T> void set(
+      String name, TypeTag<T> ty, @Nonnull T value, SyscallCallback<Void> callback) {
     LOG.trace("set {}", name);
+    Objects.requireNonNull(value);
     ByteString serialized = serialize(ty, value);
     this.stateMachine.processJournalEntryWithoutWaitingAck(
         Protocol.SetStateEntryMessage.newBuilder()
@@ -221,8 +225,9 @@ public final class SyscallsImpl implements SyscallsInternal {
 
   @Override
   public <T> void completeAwakeable(
-      AwakeableIdentifier id, TypeTag<T> ty, T payload, SyscallCallback<Void> callback) {
+      AwakeableIdentifier id, TypeTag<T> ty, @Nonnull T payload, SyscallCallback<Void> callback) {
     LOG.trace("completeAwakeable");
+    Objects.requireNonNull(payload);
     ByteString serialized = serialize(ty, payload);
 
     Protocol.CompleteAwakeableEntryMessage expectedEntry =

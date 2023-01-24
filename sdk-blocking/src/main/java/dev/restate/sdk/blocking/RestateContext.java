@@ -10,6 +10,7 @@ import io.grpc.MethodDescriptor;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.function.Supplier;
+import javax.annotation.Nonnull;
 
 public interface RestateContext {
 
@@ -40,9 +41,9 @@ public interface RestateContext {
    * Serde} in the interceptor.
    *
    * @param key identifying the value to store and its type
-   * @param value to store under the given key
+   * @param value to store under the given key. MUST NOT be null.
    */
-  <T> void set(StateKey<T> key, T value);
+  <T> void set(StateKey<T> key, @Nonnull T value);
 
   /**
    * Causes the current execution of the function invocation to sleep for the given duration.
@@ -127,8 +128,8 @@ public interface RestateContext {
    * @param id the identifier to identify the {@link Awakeable} to complete
    * @param payload the payload of the response. This can be either {@code byte[]}, {@link
    *     com.google.protobuf.ByteString}, or any object, which will be serialized by using the
-   *     configured {@link Serde}
+   *     configured {@link Serde}. MUST NOT be null.
    * @see Awakeable
    */
-  <T> void completeAwakeable(AwakeableIdentifier id, TypeTag<T> typeTag, T payload);
+  <T> void completeAwakeable(AwakeableIdentifier id, TypeTag<T> typeTag, @Nonnull T payload);
 }

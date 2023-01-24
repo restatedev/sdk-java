@@ -39,7 +39,6 @@ public interface ReadyResult<T> extends DeferredResult<T> {
 
   boolean isEmpty();
 
-  /** NOTE: This might return null even when {@link #isEmpty()} is false. */
   @Nullable
   T getResult();
 
