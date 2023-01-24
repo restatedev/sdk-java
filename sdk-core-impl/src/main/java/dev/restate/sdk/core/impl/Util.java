@@ -98,6 +98,12 @@ public final class Util {
     }
   }
 
+  static void assertEntryClass(Class<? extends MessageLite> clazz, MessageLite actual) {
+    if (!clazz.equals(actual.getClass())) {
+      throw ProtocolException.unexpectedMessage(clazz, actual);
+    }
+  }
+
   static boolean isEntry(MessageLite msg) {
     return msg instanceof Protocol.PollInputStreamEntryMessage
         || msg instanceof Protocol.OutputStreamEntryMessage

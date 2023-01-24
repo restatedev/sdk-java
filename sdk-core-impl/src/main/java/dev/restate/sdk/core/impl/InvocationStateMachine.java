@@ -5,10 +5,10 @@ import com.google.protobuf.MessageLite;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.SuspendedException;
-import dev.restate.sdk.core.impl.Entries.JournalEntry;
 import dev.restate.sdk.core.impl.DeferredResults.CombinatorDeferredResult;
 import dev.restate.sdk.core.impl.DeferredResults.ResolvableSingleDeferredResult;
 import dev.restate.sdk.core.impl.DeferredResults.SingleDeferredResultInternal;
+import dev.restate.sdk.core.impl.Entries.JournalEntry;
 import dev.restate.sdk.core.impl.ReadyResults.ReadyResultInternal;
 import dev.restate.sdk.core.syscalls.DeferredResult;
 import dev.restate.sdk.core.syscalls.SyscallCallback;
@@ -19,8 +19,6 @@ import java.util.*;
 import java.util.concurrent.Flow;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.*;
-import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -308,9 +306,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       // Retrieve the entry
       this.readEntry(
           (entryIndex, msg) -> {
-            if (!(msg instanceof Protocol.SideEffectEntryMessage)) {
-              throw ProtocolException.unexpectedMessage(Protocol.SideEffectEntryMessage.class, msg);
-            }
+            Util.assertEntryClass(Protocol.SideEffectEntryMessage.class, msg);
 
             entryCallback.accept((Protocol.SideEffectEntryMessage) msg);
           },
@@ -367,8 +363,6 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       return;
     }
 
-    maybeTransitionToProcessing();
-
     if (deferredToResolve instanceof ResolvableSingleDeferredResult) {
       this.resolveSingleDeferred((ResolvableSingleDeferredResult<T>) deferredToResolve, callback);
       return;
@@ -409,21 +403,17 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     if (Objects.equals(this.state, State.REPLAYING)) {
       // Retrieve the CombinatorAwaitableEntryMessage
       this.entriesQueue.read(
-          (entryIndex, actualMsg) -> {
-            ProtocolException e =
-                checkEntry(actualMsg, Java.CombinatorAwaitableEntryMessage.class, m -> null);
+          actualMsg -> {
+            Util.assertEntryClass(Java.CombinatorAwaitableEntryMessage.class, actualMsg);
 
-            if (e != null) {
-              callback.onCancel(e);
-              return;
+            if (rootDeferred.tryResolve(
+                ((Java.CombinatorAwaitableEntryMessage) actualMsg).getEntryIndexList())) {
+              throw new IllegalStateException("Combinator message cannot be resolved.");
             }
-
-            assert rootDeferred.tryResolve(
-                ((Java.CombinatorAwaitableEntryMessage) actualMsg).getEntryIndexList());
             callback.onSuccess(null);
           },
           callback::onCancel);
-    } else if (this.state.canWriteOut()) {
+    } else if (this.state == State.PROCESSING) {
       // Create map of singles to resolve
       Map<Integer, ResolvableSingleDeferredResult<?>> resolvableSingles = new HashMap<>();
       List<Integer> resolvedOrder = new ArrayList<>();

@@ -29,6 +29,7 @@ abstract class DeferredResults {
   interface DeferredResultInternal<T> extends DeferredResult<T> {
 
     @Nullable
+    @Override
     ReadyResults.ReadyResultInternal<T> toReadyResult();
 
     // Return only single leafs, and not combinators
@@ -42,7 +43,7 @@ abstract class DeferredResults {
 
   private abstract static class BaseDeferredResult<T> implements DeferredResultInternal<T> {
 
-    private ReadyResults.ReadyResultInternal<T> readyResult;
+    @Nullable private ReadyResults.ReadyResultInternal<T> readyResult;
 
     @Override
     public boolean isCompleted() {
@@ -92,6 +93,7 @@ abstract class DeferredResults {
 
     abstract boolean tryResolve(List<Integer> resolvedSingles);
 
+    @Override
     public Stream<DeferredResults.SingleDeferredResultInternal<?>> leafs() {
       return this.children.stream().flatMap(DeferredResultInternal::leafs);
     }
