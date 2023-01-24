@@ -3,7 +3,7 @@ package dev.restate.sdk.core.impl;
 import static dev.restate.sdk.core.impl.CoreTestRunner.TestCaseBuilder.testInvocation;
 import static dev.restate.sdk.core.impl.ProtoUtils.*;
 
-import dev.restate.sdk.blocking.RestateContext;
+import dev.restate.sdk.blocking.RestateBlockingService;
 import dev.restate.sdk.core.StateKey;
 import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.core.impl.testservices.GreeterGrpc;
@@ -14,10 +14,11 @@ import java.util.stream.Stream;
 
 class GetStateTest extends CoreTestRunner {
 
-  private static class GetStateGreeter extends GreeterGrpc.GreeterImplBase {
+  private static class GetStateGreeter extends GreeterGrpc.GreeterImplBase
+      implements RestateBlockingService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      String state = RestateContext.current().get(StateKey.of("STATE", TypeTag.STRING_UTF8)).get();
+      String state = restateContext().get(StateKey.of("STATE", TypeTag.STRING_UTF8)).get();
 
       responseObserver.onNext(GreetingResponse.newBuilder().setMessage("Hello " + state).build());
       responseObserver.onCompleted();

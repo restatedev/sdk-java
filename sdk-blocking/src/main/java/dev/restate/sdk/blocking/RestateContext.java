@@ -5,7 +5,6 @@ import dev.restate.generated.core.AwakeableIdentifier;
 import dev.restate.sdk.core.StateKey;
 import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.core.serde.Serde;
-import dev.restate.sdk.core.syscalls.Syscalls;
 import io.grpc.MethodDescriptor;
 import java.time.Duration;
 import java.util.Optional;
@@ -13,10 +12,6 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 public interface RestateContext {
-
-  static RestateContext current() {
-    return new RestateContextImpl(Syscalls.current());
-  }
 
   /**
    * Gets the state stored under key, deserializing the raw value using the registered {@link Serde}

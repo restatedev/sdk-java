@@ -7,6 +7,7 @@ import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 import com.google.protobuf.ByteString;
 import dev.restate.generated.service.protocol.Protocol;
+import dev.restate.sdk.blocking.RestateBlockingService;
 import dev.restate.sdk.blocking.RestateContext;
 import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.core.impl.testservices.GreeterGrpc;
@@ -18,7 +19,8 @@ import java.util.stream.Stream;
 
 class SideEffectTest extends CoreTestRunner {
 
-  private static class SideEffect extends GreeterGrpc.GreeterImplBase {
+  private static class SideEffect extends GreeterGrpc.GreeterImplBase
+      implements RestateBlockingService {
 
     private final String sideEffectOutput;
 
@@ -28,7 +30,7 @@ class SideEffectTest extends CoreTestRunner {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      RestateContext ctx = RestateContext.current();
+      RestateContext ctx = restateContext();
 
       String result = ctx.sideEffect(TypeTag.STRING_UTF8, () -> this.sideEffectOutput);
 
@@ -37,7 +39,8 @@ class SideEffectTest extends CoreTestRunner {
     }
   }
 
-  private static class ConsecutiveSideEffect extends GreeterGrpc.GreeterImplBase {
+  private static class ConsecutiveSideEffect extends GreeterGrpc.GreeterImplBase
+      implements RestateBlockingService {
 
     private final String sideEffectOutput;
 
@@ -47,7 +50,7 @@ class SideEffectTest extends CoreTestRunner {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      RestateContext ctx = RestateContext.current();
+      RestateContext ctx = restateContext();
 
       String firstResult = ctx.sideEffect(TypeTag.STRING_UTF8, () -> this.sideEffectOutput);
       String secondResult = ctx.sideEffect(TypeTag.STRING_UTF8, firstResult::toUpperCase);
@@ -58,15 +61,15 @@ class SideEffectTest extends CoreTestRunner {
     }
   }
 
-  private static class CheckContextSwitching extends GreeterGrpc.GreeterImplBase {
+  private static class CheckContextSwitching extends GreeterGrpc.GreeterImplBase
+      implements RestateBlockingService {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       String currentThread = Thread.currentThread().getName();
 
       String sideEffectThread =
-          RestateContext.current()
-              .sideEffect(TypeTag.STRING_UTF8, () -> Thread.currentThread().getName());
+          restateContext().sideEffect(TypeTag.STRING_UTF8, () -> Thread.currentThread().getName());
 
       if (!Objects.equals(currentThread, sideEffectThread)) {
         throw new IllegalStateException(
@@ -81,11 +84,12 @@ class SideEffectTest extends CoreTestRunner {
     }
   }
 
-  private static class SideEffectGuard extends GreeterGrpc.GreeterImplBase {
+  private static class SideEffectGuard extends GreeterGrpc.GreeterImplBase
+      implements RestateBlockingService {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      RestateContext ctx = RestateContext.current();
+      RestateContext ctx = restateContext();
       ctx.sideEffect(
           () -> ctx.backgroundCall(GreeterGrpc.getGreetMethod(), greetingRequest("something")));
 
