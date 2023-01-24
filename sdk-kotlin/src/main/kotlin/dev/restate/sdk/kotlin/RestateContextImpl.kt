@@ -38,7 +38,7 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
     return readyResult.result!!
   }
 
-  override suspend fun <T> set(key: StateKey<T>, value: T) {
+  override suspend fun <T : Any> set(key: StateKey<T>, value: T) {
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
       syscalls.set(key.name(), key.typeTag(), value, completingUnitContinuation(cont))
     }
@@ -154,7 +154,7 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
     return AwakeableImpl(syscalls, deferredResult, aid)
   }
 
-  override suspend fun <T> completeAwakeable(
+  override suspend fun <T : Any> completeAwakeable(
       id: AwakeableIdentifier,
       typeTag: TypeTag<T>,
       payload: T

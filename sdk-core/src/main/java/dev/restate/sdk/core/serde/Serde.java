@@ -1,5 +1,7 @@
 package dev.restate.sdk.core.serde;
 
+import javax.annotation.Nonnull;
+
 /**
  * Interface to define serialization and deserialization to be used to store state and data into the
  * journal.
@@ -28,7 +30,7 @@ public interface Serde {
    * @throws UnsupportedOperationException if this implementation cannot deserialize using the
    *     provided class
    */
-  <T> T deserialize(Class<T> clazz, byte[] bytes);
+  <T> @Nonnull T deserialize(Class<T> clazz, byte[] bytes);
 
   /**
    * Same as {@link #deserialize(Class, byte[])}, but with a raw type tag, allowing to use it with
@@ -37,7 +39,7 @@ public interface Serde {
    * @see #deserialize(Class, byte[])
    */
   @SuppressWarnings({"unchecked", "TypeParameterUnusedInFormals"})
-  default <T> T deserialize(Object typeTag, byte[] value) {
+  default <T> @Nonnull T deserialize(Object typeTag, byte[] value) {
     if (typeTag instanceof Class<?>) {
       return deserialize((Class<? extends T>) typeTag, value);
     }
@@ -53,5 +55,5 @@ public interface Serde {
    * @throws UnsupportedOperationException if this implementation cannot serialize the provided
    *     value
    */
-  <T> byte[] serialize(T value);
+  <T> byte[] serialize(@Nonnull T value);
 }

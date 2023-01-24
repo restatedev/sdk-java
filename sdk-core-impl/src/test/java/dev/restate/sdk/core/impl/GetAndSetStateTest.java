@@ -28,6 +28,27 @@ class GetAndSetStateTest extends CoreTestRunner {
     }
   }
 
+  private static class SetNullState extends GreeterGrpc.GreeterImplBase {
+    @Override
+    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
+      RestateContext.current()
+          .set(
+              StateKey.of(
+                  "STATE",
+                  TypeTag.<String>using(
+                      l -> {
+                        throw new IllegalStateException("Unexpected call to serde fn");
+                      },
+                      l -> {
+                        throw new IllegalStateException("Unexpected call to serde fn");
+                      })),
+              null);
+
+      responseObserver.onNext(greetingResponse(""));
+      responseObserver.onCompleted();
+    }
+  }
+
   @Override
   Stream<TestDefinition> definitions() {
     return Stream.of(
@@ -61,6 +82,10 @@ class GetAndSetStateTest extends CoreTestRunner {
                 getStateMessage("STATE"),
                 setStateMessage("STATE", "Till"),
                 outputMessage(GreetingResponse.newBuilder().setMessage("Hello Francesco")))
-            .named("With GetState completed later"));
+            .named("With GetState completed later"),
+        testInvocation(new SetNullState(), GreeterGrpc.getGreetMethod())
+            .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
+            .usingAllThreadingModels()
+            .assertingFailure(NullPointerException.class));
   }
 }

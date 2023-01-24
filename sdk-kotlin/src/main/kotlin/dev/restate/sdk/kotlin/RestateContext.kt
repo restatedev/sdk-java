@@ -11,7 +11,7 @@ sealed interface RestateContext {
 
   suspend fun <T : Any> get(key: StateKey<T>): T?
 
-  suspend fun <T> set(key: StateKey<T>, value: T)
+  suspend fun <T : Any> set(key: StateKey<T>, value: T)
 
   suspend fun clear(key: StateKey<*>)
 
@@ -49,5 +49,5 @@ sealed interface RestateContext {
 
   suspend fun <T> awakeable(typeTag: TypeTag<T>): Awakeable<T>
 
-  suspend fun <T> completeAwakeable(id: AwakeableIdentifier, typeTag: TypeTag<T>, payload: T)
+  suspend fun <T : Any> completeAwakeable(id: AwakeableIdentifier, typeTag: TypeTag<T>, payload: T)
 }

@@ -9,6 +9,7 @@ import io.grpc.MethodDescriptor;
 import java.time.Duration;
 import java.util.Map;
 import java.util.function.Function;
+import javax.annotation.Nonnull;
 
 /**
  * Internal interface to access Restate functionalities. Users can use the ad-hoc RestateContext
@@ -43,7 +44,7 @@ public interface Syscalls {
 
   void clear(String name, SyscallCallback<Void> callback);
 
-  <T> void set(String name, TypeTag<T> ty, T value, SyscallCallback<Void> callback);
+  <T> void set(String name, TypeTag<T> ty, @Nonnull T value, SyscallCallback<Void> callback);
 
   // ----- Syscalls
 
@@ -72,7 +73,10 @@ public interface Syscalls {
       SyscallCallback<Map.Entry<AwakeableIdentifier, DeferredResult<T>>> callback);
 
   <T> void completeAwakeable(
-      AwakeableIdentifier id, TypeTag<T> ty, T payload, SyscallCallback<Void> requestCallback);
+      AwakeableIdentifier id,
+      TypeTag<T> ty,
+      @Nonnull T payload,
+      SyscallCallback<Void> requestCallback);
 
   // ----- Deferred
 

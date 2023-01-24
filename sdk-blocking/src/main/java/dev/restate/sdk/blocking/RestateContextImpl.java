@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class RestateContextImpl implements RestateContext {
@@ -40,7 +41,7 @@ public class RestateContextImpl implements RestateContext {
   }
 
   @Override
-  public <T> void set(StateKey<T> key, T value) {
+  public <T> void set(StateKey<T> key, @Nonnull T value) {
     Util.<Void>blockOnSyscall(cb -> syscalls.set(key.name(), key.typeTag(), value, cb));
   }
 
@@ -143,7 +144,8 @@ public class RestateContextImpl implements RestateContext {
   }
 
   @Override
-  public <T> void completeAwakeable(AwakeableIdentifier id, TypeTag<T> typeTag, T payload) {
+  public <T> void completeAwakeable(
+      AwakeableIdentifier id, TypeTag<T> typeTag, @Nonnull T payload) {
     Util.<Void>blockOnSyscall(cb -> syscalls.completeAwakeable(id, typeTag, payload, cb));
   }
 }
