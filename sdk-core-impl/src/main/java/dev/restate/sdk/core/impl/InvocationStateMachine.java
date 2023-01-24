@@ -104,6 +104,8 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     if (this.state == State.WAITING_START) {
       this.onStart(msg);
     } else if (msg instanceof Protocol.CompletionMessage) {
+      // We check the instance rather than the state, because the user code might still be replaying,
+      // but the network layer is already past it and is receiving completions from the runtime.
       Protocol.CompletionMessage completionMessage = (Protocol.CompletionMessage) msg;
 
       // If ack, give it to side effect publisher
@@ -114,7 +116,6 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
         this.readyResultPublisher.offerCompletion((Protocol.CompletionMessage) msg);
       }
     } else {
-      // We check the index rather than the state, because we might still be replaying
       this.entriesQueue.offer(msg);
     }
   }
