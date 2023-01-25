@@ -56,6 +56,7 @@ dependencyResolutionManagement {
       library("vertx-core", "io.vertx", "vertx-core").withoutVersion()
       library("vertx-kotlin-coroutines", "io.vertx", "vertx-lang-kotlin-coroutines")
           .withoutVersion()
+      library("vertx-junit5", "io.vertx", "vertx-junit5").withoutVersion()
     }
     create("jacksonLibs") {
       version("jackson", "2.14.0")
