@@ -1,27 +1,15 @@
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.core.syscalls.DeferredResult
-import dev.restate.sdk.core.syscalls.ReadyResult
-import dev.restate.sdk.core.syscalls.Syscalls
+import dev.restate.sdk.core.syscalls.SyscallCallback
 import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
-import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.CancellableContinuation
 
-internal suspend fun <T> resolveDeferred(
-    syscalls: Syscalls,
-    deferredResult: DeferredResult<T>
-): ReadyResult<T> {
-  return suspendCancellableCoroutine {
-    syscalls.resolveDeferred(
-        deferredResult,
-        { value: ReadyResult<T> -> it.resume(value) },
-        { ex: Throwable -> it.resumeWithException(ex) })
-  }
+internal fun <T> completingContinuation(cont: CancellableContinuation<T>): SyscallCallback<T> {
+  return SyscallCallback.of(cont::resume, cont::cancel)
 }
 
-internal fun <T> unpackNullableReady(readyResult: ReadyResult<T>): T? {
-  if (!readyResult.isOk) {
-    throw readyResult.failure!!
-  }
-  return readyResult.result
+internal fun completingUnitContinuation(
+    cont: CancellableContinuation<Unit>
+): SyscallCallback<Void> {
+  return SyscallCallback.of({ cont.resume(Unit) }, { cont.cancel(it) })
 }

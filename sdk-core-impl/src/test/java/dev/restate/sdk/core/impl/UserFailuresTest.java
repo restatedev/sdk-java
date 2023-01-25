@@ -9,26 +9,21 @@ import dev.restate.sdk.core.impl.testservices.GreetingResponse;
 import io.grpc.stub.StreamObserver;
 import java.util.stream.Stream;
 
-class OnlyInputAndOutputTest extends CoreTestRunner {
+class UserFailuresTest extends CoreTestRunner {
 
-  private static class NoSyscallsGreeter extends GreeterGrpc.GreeterImplBase {
+  private static class FailingGreeter extends GreeterGrpc.GreeterImplBase {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      responseObserver.onNext(
-          GreetingResponse.newBuilder().setMessage("Hello " + request.getName()).build());
-      responseObserver.onCompleted();
+      throw new IllegalStateException("Whatever");
     }
   }
 
   @Override
   Stream<TestDefinition> definitions() {
     return Stream.of(
-        testInvocation(new NoSyscallsGreeter(), GreeterGrpc.getGreetMethod())
-            .withInput(
-                startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Francesco")))
+        testInvocation(new FailingGreeter(), GreeterGrpc.getGreetMethod())
+            .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
             .usingAllThreadingModels()
-            .expectingOutput(
-                outputMessage(
-                    GreetingResponse.newBuilder().setMessage("Hello Francesco").build())));
+            .expectingOutput(outputMessage(new IllegalStateException("Whatever"))));
   }
 }

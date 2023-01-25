@@ -12,8 +12,10 @@ import io.opentelemetry.semconv.trace.attributes.SemanticAttributes;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executor;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -37,9 +39,8 @@ public class RestateGrpcServer {
       String serviceName,
       String methodName,
       io.opentelemetry.context.Context otelContext,
-      Function<SyscallsInternal, SyscallsInternal> syscallsDecorator,
-      Function<ServerCall.Listener<MessageLite>, ServerCall.Listener<MessageLite>>
-          serverCallListenerDecorator)
+      @Nullable Executor syscallExecutor,
+      @Nullable Executor serverCallListenerExecutor)
       throws ProtocolException {
     // Resolve the service method definition
     ServerServiceDefinition svc = this.services.get(serviceName);
@@ -65,12 +66,24 @@ public class RestateGrpcServer {
 
     // Instantiate state machine, syscall and grpc bridge
     InvocationStateMachine stateMachine = new InvocationStateMachine(serviceName, span);
-    SyscallsInternal syscalls = syscallsDecorator.apply(new SyscallsImpl(stateMachine, this.serde));
+    SyscallsInternal syscalls =
+        syscallExecutor != null
+            ? ExecutorSwitchingWrappers.syscalls(
+                new SyscallsImpl(stateMachine, this.serde), syscallExecutor)
+            // We still wrap with syscalls executor switching to exploit the error handling
+            : ExecutorSwitchingWrappers.syscalls(
+                new SyscallsImpl(stateMachine, this.serde), Runnable::run);
     RestateServerCall bridge = new RestateServerCall(method.getMethodDescriptor(), syscalls);
 
     return new InvocationHandler() {
+
       @Override
-      public InvocationFlow.InvocationProcessor processor() {
+      public InvocationFlow.InvocationInputSubscriber input() {
+        return new ExceptionCatchingInvocationInputSubscriber(stateMachine);
+      }
+
+      @Override
+      public InvocationFlow.InvocationOutputPublisher output() {
         return stateMachine;
       }
 
@@ -87,7 +100,11 @@ public class RestateGrpcServer {
                       new Metadata(),
                       method.getServerCallHandler());
               listener = new ExceptionCatchingServerCallListener<>(listener, bridge);
-              listener = serverCallListenerDecorator.apply(listener);
+              if (serverCallListenerExecutor != null) {
+                listener =
+                    ExecutorSwitchingWrappers.serverCallListener(
+                        listener, serverCallListenerExecutor);
+              }
 
               bridge.setListener(listener);
             });

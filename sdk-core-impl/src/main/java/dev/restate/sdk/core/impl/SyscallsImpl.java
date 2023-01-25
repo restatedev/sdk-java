@@ -6,19 +6,24 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
 import dev.restate.generated.core.CallbackIdentifier;
 import dev.restate.generated.service.protocol.Protocol;
+import dev.restate.generated.service.protocol.Protocol.PollInputStreamEntryMessage;
 import dev.restate.sdk.core.TypeTag;
+import dev.restate.sdk.core.impl.Entries.*;
 import dev.restate.sdk.core.serde.CustomSerdeFunctionsTypeTag;
 import dev.restate.sdk.core.serde.Serde;
-import dev.restate.sdk.core.syscalls.DeferredResult;
-import dev.restate.sdk.core.syscalls.ReadyResult;
+import dev.restate.sdk.core.syscalls.*;
 import io.grpc.MethodDescriptor;
-import io.opentelemetry.api.common.Attributes;
 import java.time.Duration;
-import java.util.Objects;
+import java.util.AbstractMap;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public final class SyscallsImpl implements SyscallsInternal {
+
+  private static final Logger LOG = LogManager.getLogger(SyscallsImpl.class);
 
   private final InvocationStateMachine stateMachine;
   private final Serde serde;
@@ -29,322 +34,188 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public InvocationStateMachine getStateMachine() {
-    return this.stateMachine;
-  }
-
-  @Override
   public <T extends MessageLite> void pollInput(
-      Function<ByteString, T> mapper,
-      SyscallDeferredResultCallback<T> deferredResultCallback,
-      Consumer<Throwable> failureCallback) {
+      Function<ByteString, T> mapper, SyscallCallback<DeferredResult<T>> callback) {
+    LOG.trace("pollInput");
     this.stateMachine.processCompletableJournalEntry(
-        Protocol.PollInputStreamEntryMessage.getDefaultInstance(),
-        entry -> false,
-        span -> span.addEvent("PollInputStream"),
-        e -> null,
-        entry -> deserializeWithProto(mapper, entry.getValue()),
-        completionMessage -> deserializeWithProto(mapper, completionMessage.getValue()),
-        (index, deferredResult) -> deferredResultCallback.accept(deferredResult),
-        failureCallback);
+        PollInputStreamEntryMessage.getDefaultInstance(),
+        new PollInputEntry<>(protoDeserializer(mapper)),
+        callback);
   }
 
   @Override
-  public <T extends MessageLite> void writeOutput(
-      T value, Runnable okCallback, Consumer<Throwable> failureCallback) {
-    Protocol.OutputStreamEntryMessage entry =
-        Protocol.OutputStreamEntryMessage.newBuilder().setValue(value.toByteString()).build();
-    this.stateMachine.processJournalEntryWithoutWaitingAck(
-        entry, span -> span.addEvent("OutputStream"), e -> null, okCallback, failureCallback);
+  public <T extends MessageLite> void writeOutput(T value, SyscallCallback<Void> callback) {
+    LOG.trace("writeOutput success");
+    this.writeOutput(
+        Protocol.OutputStreamEntryMessage.newBuilder().setValue(value.toByteString()).build(),
+        callback);
   }
 
   @Override
-  public void writeOutput(
-      Throwable throwable, Runnable okCallback, Consumer<Throwable> failureCallback) {
-    this.stateMachine.processJournalEntryWithoutWaitingAck(
+  public void writeOutput(Throwable throwable, SyscallCallback<Void> callback) {
+    LOG.trace("writeOutput failure");
+    this.writeOutput(
         Protocol.OutputStreamEntryMessage.newBuilder()
             .setFailure(toProtocolFailure(throwable))
             .build(),
-        span -> span.addEvent("OutputStream"),
-        e -> null,
-        okCallback,
-        failureCallback);
+        callback);
   }
 
-  @Override
-  public <T> void get(
-      String name,
-      TypeTag<T> ty,
-      SyscallDeferredResultCallback<T> deferredCallback,
-      Consumer<Throwable> failureCallback) {
-    Protocol.GetStateEntryMessage expectedEntry =
-        Protocol.GetStateEntryMessage.newBuilder().setKey(ByteString.copyFromUtf8(name)).build();
-    this.stateMachine.processCompletableJournalEntry(
-        expectedEntry,
-        entry -> entry.getResultCase() == Protocol.GetStateEntryMessage.ResultCase.RESULT_NOT_SET,
-        span -> span.addEvent("GetState", Attributes.of(Tracing.RESTATE_STATE_KEY, name)),
-        actualEntry ->
-            !expectedEntry.getKey().equals(actualEntry.getKey())
-                ? ProtocolException.entryDoNotMatch(expectedEntry, actualEntry)
-                : null,
-        entry ->
-            (entry.getResultCase() == Protocol.GetStateEntryMessage.ResultCase.EMPTY)
-                ? ResultTreeNodes.empty()
-                : deserializeWithSerde(ty, entry.getValue()),
-        completionMessage ->
-            (completionMessage.getResultCase() == Protocol.CompletionMessage.ResultCase.EMPTY)
-                ? ResultTreeNodes.empty()
-                : deserializeWithSerde(ty, completionMessage.getValue()),
-        (index, deferredResult) -> deferredCallback.accept(deferredResult),
-        failureCallback);
-  }
-
-  @Override
-  public void clear(String name, Runnable okCallback, Consumer<Throwable> failureCallback) {
-    Protocol.ClearStateEntryMessage expectedEntry =
-        Protocol.ClearStateEntryMessage.newBuilder().setKey(ByteString.copyFromUtf8(name)).build();
+  private void writeOutput(
+      Protocol.OutputStreamEntryMessage entry, SyscallCallback<Void> callback) {
     this.stateMachine.processJournalEntryWithoutWaitingAck(
-        expectedEntry,
-        span -> span.addEvent("ClearState", Attributes.of(Tracing.RESTATE_STATE_KEY, name)),
-        checkEntryEquality(expectedEntry),
-        okCallback,
-        failureCallback);
+        entry, OutputStreamEntry.INSTANCE, callback);
   }
 
   @Override
-  public <T> void set(
-      String name,
-      TypeTag<T> ty,
-      T value,
-      Runnable okCallback,
-      Consumer<Throwable> failureCallback) {
-    ByteString serialized;
-    try {
-      serialized = serialize(ty, value);
-    } catch (Throwable e) {
-      failureCallback.accept(e);
-      return;
-    }
-    Protocol.SetStateEntryMessage expectedEntry =
+  public <T> void get(String name, TypeTag<T> ty, SyscallCallback<DeferredResult<T>> callback) {
+    LOG.trace("get {}", name);
+    this.stateMachine.processCompletableJournalEntry(
+        Protocol.GetStateEntryMessage.newBuilder().setKey(ByteString.copyFromUtf8(name)).build(),
+        new GetStateEntry<>(serdeDeserializer(ty)),
+        callback);
+  }
+
+  @Override
+  public void clear(String name, SyscallCallback<Void> callback) {
+    LOG.trace("clear {}", name);
+    this.stateMachine.processJournalEntryWithoutWaitingAck(
+        Protocol.ClearStateEntryMessage.newBuilder().setKey(ByteString.copyFromUtf8(name)).build(),
+        ClearStateEntry.INSTANCE,
+        callback);
+  }
+
+  @Override
+  public <T> void set(String name, TypeTag<T> ty, T value, SyscallCallback<Void> callback) {
+    LOG.trace("set {}", name);
+    ByteString serialized = serialize(ty, value);
+    this.stateMachine.processJournalEntryWithoutWaitingAck(
         Protocol.SetStateEntryMessage.newBuilder()
             .setKey(ByteString.copyFromUtf8(name))
             .setValue(serialized)
-            .build();
-    this.stateMachine.processJournalEntryWithoutWaitingAck(
-        expectedEntry,
-        span -> span.addEvent("SetState", Attributes.of(Tracing.RESTATE_STATE_KEY, name)),
-        checkEntryEquality(expectedEntry),
-        okCallback,
-        failureCallback);
+            .build(),
+        SetStateEntry.INSTANCE,
+        callback);
   }
 
-  @SuppressWarnings({"rawtypes", "unchecked"})
   @Override
-  public void sleep(
-      Duration duration,
-      SyscallDeferredResultCallback<Void> deferredResultCallback,
-      Consumer<Throwable> failureCallback) {
+  public void sleep(Duration duration, SyscallCallback<DeferredResult<Void>> callback) {
+    LOG.trace("sleep {}", duration);
     this.stateMachine.processCompletableJournalEntry(
-        Protocol.SleepEntryMessage.getDefaultInstance(),
-        actualEntry -> !actualEntry.hasResult(),
-        span ->
-            span.addEvent(
-                "Sleep", Attributes.of(Tracing.RESTATE_SLEEP_DURATION, duration.toMillis())),
-        e -> null,
-        entry -> ResultTreeNodes.empty(),
-        completionMessage -> ResultTreeNodes.empty(),
-        (index, deferredResult) -> deferredResultCallback.accept((DeferredResult) deferredResult),
-        failureCallback);
+        Protocol.SleepEntryMessage.getDefaultInstance(), SleepEntry.INSTANCE, callback);
   }
 
   @Override
   public <T extends MessageLite, R extends MessageLite> void call(
       MethodDescriptor<T, R> methodDescriptor,
       T parameter,
-      SyscallDeferredResultCallback<R> deferredResultCallback,
-      Consumer<Throwable> failureCallback) {
+      SyscallCallback<DeferredResult<R>> callback) {
     String serviceName = methodDescriptor.getServiceName();
     String methodName = methodDescriptor.getBareMethodName();
+    LOG.trace("call {}/{}", serviceName, methodName);
 
-    Protocol.InvokeEntryMessage expectedEntry =
+    this.stateMachine.processCompletableJournalEntry(
         Protocol.InvokeEntryMessage.newBuilder()
             .setServiceName(serviceName)
             .setMethodName(methodName)
             .setParameter(parameter.toByteString())
-            .build();
-    this.stateMachine.processCompletableJournalEntry(
-        expectedEntry,
-        invokeEntryMessage ->
-            invokeEntryMessage.getResultCase()
-                == Protocol.InvokeEntryMessage.ResultCase.RESULT_NOT_SET,
-        span ->
-            span.addEvent(
-                "Call",
-                Attributes.of(
-                    Tracing.RESTATE_COORDINATION_CALL_SERVICE,
-                    serviceName,
-                    Tracing.RESTATE_COORDINATION_CALL_METHOD,
-                    methodName)),
-        actualEntry ->
-            !(expectedEntry.getServiceName().equals(actualEntry.getServiceName())
-                    && expectedEntry.getMethodName().equals(actualEntry.getMethodName())
-                    && expectedEntry.getParameter().equals(actualEntry.getParameter()))
-                ? ProtocolException.entryDoNotMatch(expectedEntry, actualEntry)
-                : null,
-        entry ->
-            entry.hasValue()
-                ? deserializeWithProto(
-                    i -> methodDescriptor.parseResponse(i.newInput()), entry.getValue())
-                : ResultTreeNodes.failure(
-                    Util.toGrpcStatus(entry.getFailure()).asRuntimeException()),
-        completionMessage ->
-            completionMessage.hasValue()
-                ? deserializeWithProto(
-                    i -> methodDescriptor.parseResponse(i.newInput()), completionMessage.getValue())
-                : ResultTreeNodes.failure(
-                    Util.toGrpcStatus(completionMessage.getFailure()).asRuntimeException()),
-        (index, deferredResult) -> deferredResultCallback.accept(deferredResult),
-        failureCallback);
+            .build(),
+        new InvokeEntry<>(protoDeserializer(i -> methodDescriptor.parseResponse(i.newInput()))),
+        callback);
   }
 
   @Override
   public <T extends MessageLite> void backgroundCall(
       MethodDescriptor<T, ? extends MessageLite> methodDescriptor,
       T parameter,
-      Runnable okCallback,
-      Consumer<Throwable> failureCallback) {
+      SyscallCallback<Void> callback) {
     String serviceName = methodDescriptor.getServiceName();
     String methodName = methodDescriptor.getBareMethodName();
+    LOG.trace("backgroundCall {}/{}", serviceName, methodName);
 
-    Protocol.BackgroundInvokeEntryMessage expectedEntry =
+    this.stateMachine.processJournalEntryWithoutWaitingAck(
         Protocol.BackgroundInvokeEntryMessage.newBuilder()
             .setServiceName(serviceName)
             .setMethodName(methodName)
             .setParameter(parameter.toByteString())
-            .build();
-    this.stateMachine.processJournalEntryWithoutWaitingAck(
-        expectedEntry,
-        span ->
-            span.addEvent(
-                "BackgroundCall",
-                Attributes.of(
-                    Tracing.RESTATE_COORDINATION_CALL_SERVICE,
-                    serviceName,
-                    Tracing.RESTATE_COORDINATION_CALL_METHOD,
-                    methodName)),
-        checkEntryEquality(expectedEntry),
-        okCallback,
-        failureCallback);
+            .build(),
+        BackgroundInvokeEntry.INSTANCE,
+        callback);
   }
 
   @Override
   public <T> void enterSideEffectBlock(
-      TypeTag<T> typeTag,
-      Runnable noStoredResultCallback,
-      Consumer<ReadyResult<T>> storedResultCallback,
-      Consumer<Throwable> failureCallback) {
+      TypeTag<T> typeTag, EnterSideEffectSyscallCallback<T> callback) {
+    LOG.trace("enterSideEffectBlock");
     this.stateMachine.enterSideEffectJournalEntry(
         span -> span.addEvent("Enter SideEffect"),
-        sideEffectEntryHandler(typeTag, storedResultCallback),
-        noStoredResultCallback,
-        failureCallback);
+        sideEffectEntryHandler(typeTag, callback),
+        callback::onNotExecuted,
+        callback::onCancel);
   }
 
   @Override
   public <T> void exitSideEffectBlock(
-      TypeTag<T> typeTag,
-      T toWrite,
-      Consumer<ReadyResult<T>> storedResultCallback,
-      Consumer<Throwable> failureCallback) {
-    Protocol.SideEffectEntryMessage.Builder sideEffectToWrite =
-        Protocol.SideEffectEntryMessage.newBuilder();
-    try {
-      sideEffectToWrite.setValue(serialize(typeTag, toWrite));
-    } catch (Throwable e) {
-      // Record the serialization failure
-      sideEffectToWrite.setFailure(toProtocolFailure(e));
-    }
-
+      TypeTag<T> typeTag, T toWrite, ExitSideEffectSyscallCallback<T> callback) {
+    LOG.trace("exitSideEffectBlock with success");
     this.stateMachine.exitSideEffectBlock(
-        sideEffectToWrite.build(),
+        Protocol.SideEffectEntryMessage.newBuilder().setValue(serialize(typeTag, toWrite)).build(),
         span -> span.addEvent("Exit SideEffect"),
-        sideEffectEntryHandler(typeTag, storedResultCallback),
-        failureCallback);
+        sideEffectEntryHandler(typeTag, callback),
+        callback::onCancel);
   }
 
   private <T> Consumer<Protocol.SideEffectEntryMessage> sideEffectEntryHandler(
-      TypeTag<T> typeTag, Consumer<ReadyResult<T>> storedResultCallback) {
+      TypeTag<T> typeTag, ExitSideEffectSyscallCallback<T> callback) {
     return sideEffectEntry -> {
-      if (sideEffectEntry.hasValue()) {
-        storedResultCallback.accept(deserializeWithSerde(typeTag, sideEffectEntry.getValue()));
-      } else {
-        storedResultCallback.accept(
-            ResultTreeNodes.failure(
-                Util.toGrpcStatus(sideEffectEntry.getFailure()).asRuntimeException()));
+      if (sideEffectEntry.hasFailure()) {
+        callback.onFailure(Util.toGrpcStatus(sideEffectEntry.getFailure()).asRuntimeException());
+        return;
       }
+
+      callback.onResult(deserialize(typeTag, sideEffectEntry.getValue()));
     };
   }
 
   @Override
   public void exitSideEffectBlockWithException(
-      Throwable toWrite,
-      Consumer<Throwable> storedFailureCallback,
-      Consumer<Throwable> failureCallback) {
+      Throwable toWrite, ExitSideEffectSyscallCallback<?> callback) {
+    LOG.trace("exitSideEffectBlock with failure");
     this.stateMachine.exitSideEffectBlock(
         Protocol.SideEffectEntryMessage.newBuilder().setFailure(toProtocolFailure(toWrite)).build(),
         span -> span.addEvent("Exit SideEffect"),
         sideEffectEntry ->
-            storedFailureCallback.accept(
+            callback.onFailure(
                 Util.toGrpcStatus(sideEffectEntry.getFailure()).asRuntimeException()),
-        failureCallback);
+        callback::onCancel);
   }
 
   @Override
   public <T> void callback(
       TypeTag<T> typeTag,
-      SyscallDeferredResultWithIdentifierCallback<T> deferredResultCallback,
-      Consumer<Throwable> failureCallback) {
+      SyscallCallback<Map.Entry<CallbackIdentifier, DeferredResult<T>>> callback) {
+    LOG.trace("callback");
     this.stateMachine.processCompletableJournalEntry(
         Protocol.CallbackEntryMessage.getDefaultInstance(),
-        entry -> entry.getResultCase() == Protocol.CallbackEntryMessage.ResultCase.RESULT_NOT_SET,
-        span -> span.addEvent("Callback"),
-        e -> null,
-        entry ->
-            entry.hasValue()
-                ? deserializeWithSerde(typeTag, entry.getValue())
-                : ResultTreeNodes.failure(
-                    Util.toGrpcStatus(entry.getFailure()).asRuntimeException()),
-        completionMessage ->
-            completionMessage.hasValue()
-                ? deserializeWithSerde(typeTag, completionMessage.getValue())
-                : ResultTreeNodes.failure(
-                    Util.toGrpcStatus(completionMessage.getFailure()).asRuntimeException()),
-        (index, deferredResult) ->
-            deferredResultCallback.accept(
-                CallbackIdentifier.newBuilder()
-                    .setServiceName(this.stateMachine.getServiceName())
-                    .setInstanceKey(this.stateMachine.getInstanceKey())
-                    .setInvocationId(this.stateMachine.getInvocationId())
-                    .setEntryIndex(index)
-                    .build(),
-                deferredResult),
-        failureCallback);
+        new CallbackEntry<>(serdeDeserializer(typeTag)),
+        SyscallCallback.mappingTo(
+            deferredResult ->
+                new AbstractMap.SimpleImmutableEntry<>(
+                    CallbackIdentifier.newBuilder()
+                        .setServiceName(stateMachine.getServiceName())
+                        .setInstanceKey(stateMachine.getInstanceKey())
+                        .setInvocationId(stateMachine.getInvocationId())
+                        .setEntryIndex(((DeferredResultInternal<T>) deferredResult).entryIndex())
+                        .build(),
+                    deferredResult),
+            callback));
   }
 
   @Override
   public <T> void completeCallback(
-      CallbackIdentifier id,
-      TypeTag<T> ty,
-      Object payload,
-      Runnable okCallback,
-      Consumer<Throwable> failureCallback) {
-    ByteString serialized;
-    try {
-      serialized = serialize(ty, payload);
-    } catch (Throwable e) {
-      failureCallback.accept(e);
-      return;
-    }
+      CallbackIdentifier id, TypeTag<T> ty, T payload, SyscallCallback<Void> callback) {
+    LOG.trace("completeCallback");
+    ByteString serialized = serialize(ty, payload);
 
     Protocol.CompleteCallbackEntryMessage expectedEntry =
         Protocol.CompleteCallbackEntryMessage.newBuilder()
@@ -355,19 +226,13 @@ public final class SyscallsImpl implements SyscallsInternal {
             .setPayload(serialized)
             .build();
     this.stateMachine.processJournalEntryWithoutWaitingAck(
-        expectedEntry,
-        span -> span.addEvent("CompleteCallback"),
-        checkEntryEquality(expectedEntry),
-        okCallback,
-        failureCallback);
+        expectedEntry, CompleteCallbackEntry.INSTANCE, callback);
   }
 
   @Override
   public <T> void resolveDeferred(
-      DeferredResult<T> deferredToResolve,
-      Consumer<ReadyResult<T>> resultCallback,
-      Consumer<Throwable> failureCallback) {
-    this.stateMachine.resolveDeferred(deferredToResolve, resultCallback, failureCallback);
+      DeferredResult<T> deferredToResolve, SyscallCallback<Void> callback) {
+    this.stateMachine.resolveDeferred(deferredToResolve, callback);
   }
 
   @Override
@@ -376,27 +241,19 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public void fail(ProtocolException cause) {
+  public void fail(Throwable cause) {
     this.stateMachine.fail(cause);
   }
 
   // --- Serde utils
 
-  private <T extends MessageLite> ReadyResult<T> deserializeWithProto(
-      Function<ByteString, T> mapper, ByteString value) {
-    try {
-      return ResultTreeNodes.success(mapper.apply(value));
-    } catch (Throwable e) {
-      return ResultTreeNodes.failure(e);
-    }
+  private <T extends MessageLite> Function<ByteString, ReadyResultInternal<T>> protoDeserializer(
+      Function<ByteString, T> mapper) {
+    return value -> ReadyResults.success(mapper.apply(value));
   }
 
-  private <T> ReadyResult<T> deserializeWithSerde(TypeTag<T> ty, ByteString value) {
-    try {
-      return ResultTreeNodes.success(deserialize(ty, value));
-    } catch (Throwable e) {
-      return ResultTreeNodes.failure(e);
-    }
+  private <T> Function<ByteString, ReadyResultInternal<T>> serdeDeserializer(TypeTag<T> ty) {
+    return value -> ReadyResults.success(deserialize(ty, value));
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
@@ -432,15 +289,5 @@ public final class SyscallsImpl implements SyscallsInternal {
       return null;
     }
     return serde.deserialize(typeTag, bytes.toByteArray());
-  }
-
-  // --- Other utils
-
-  private static <T extends MessageLite> Function<T, ProtocolException> checkEntryEquality(
-      T expectedEntry) {
-    return actualEntry ->
-        !Objects.equals(expectedEntry, actualEntry)
-            ? ProtocolException.entryDoNotMatch(expectedEntry, actualEntry)
-            : null;
   }
 }

@@ -1,31 +1,32 @@
 package dev.restate.sdk.core.impl;
 
 import com.google.protobuf.MessageLite;
-import dev.restate.sdk.core.SuspendedException;
+import dev.restate.sdk.core.syscalls.SyscallCallback;
 import java.util.ArrayDeque;
 import java.util.Queue;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import javax.annotation.Nullable;
 
-class MessageQueue {
+class EntriesQueue {
 
   private final Queue<MessageLite> unprocessedMessages;
 
-  private BiConsumer<MessageLite, Throwable> callback;
+  @Nullable private SyscallCallback<MessageLite> callback;
   private boolean closed;
 
-  MessageQueue() {
+  EntriesQueue() {
     this.unprocessedMessages = new ArrayDeque<>();
+
     this.closed = false;
   }
 
   void offer(MessageLite msg) {
-    this.unprocessedMessages.offer(msg);
+    Util.assertIsEntry(msg);
 
     if (this.callback != null) {
-      // There must always be one item here!
-      MessageLite popped = this.unprocessedMessages.poll();
-      popCallback().accept(popped, null);
+      popCallback().onSuccess(msg);
+    } else {
+      this.unprocessedMessages.offer(msg);
     }
   }
 
@@ -33,33 +34,32 @@ class MessageQueue {
     if (this.callback != null) {
       throw new IllegalStateException("Two concurrent reads were requested.");
     }
+    if (this.closed) {
+      throw new IllegalStateException("Cannot read when closed");
+    }
 
     MessageLite popped = this.unprocessedMessages.poll();
     if (popped != null) {
       msgCallback.accept(popped);
-    } else if (this.closed) {
-      errorCallback.accept(SuspendedException.INSTANCE);
     } else {
-      this.callback =
-          (res, err) -> {
-            if (res != null) {
-              msgCallback.accept(res);
-            } else {
-              errorCallback.accept(err);
-            }
-          };
+      this.callback = SyscallCallback.of(msgCallback, errorCallback);
     }
   }
 
-  void closeInput(Throwable e) {
+  void abort(Throwable e) {
     this.closed = true;
     if (this.callback != null) {
-      popCallback().accept(null, e);
+      popCallback().onCancel(e);
     }
   }
 
-  private BiConsumer<MessageLite, Throwable> popCallback() {
-    BiConsumer<MessageLite, Throwable> callback = this.callback;
+  boolean isEmpty() {
+    return this.unprocessedMessages.isEmpty();
+  }
+
+  @Nullable
+  private SyscallCallback<MessageLite> popCallback() {
+    SyscallCallback<MessageLite> callback = this.callback;
     this.callback = null;
     return callback;
   }

@@ -1,8 +1,6 @@
 package dev.restate.sdk.vertx;
 
-import com.google.protobuf.MessageLite;
 import dev.restate.sdk.core.impl.*;
-import io.grpc.ServerCall;
 import io.grpc.Status;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -19,7 +17,6 @@ import io.vertx.core.http.impl.HttpServerRequestInternal;
 import java.net.URI;
 import java.util.HashSet;
 import java.util.concurrent.Executor;
-import java.util.function.Function;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
@@ -100,10 +97,8 @@ class RequestServerHandler implements Handler<HttpServerRequest> {
               service,
               method,
               otelContext,
-              isBlockingService
-                  ? blockingSyscallsTrampoline(vertxCurrentContext)
-                  : Function.identity(),
-              isBlockingService ? blockingServerCallListenerTrampoline() : Function.identity());
+              isBlockingService ? currentContextExecutor(vertxCurrentContext) : null,
+              isBlockingService ? blockingExecutor() : null);
     } catch (ProtocolException e) {
       LOG.warn("Error when resolving the grpc handler", e);
       request.response().setStatusCode(e.getGrpcCode() == Status.Code.NOT_FOUND ? 404 : 500).end();
@@ -121,20 +116,10 @@ class RequestServerHandler implements Handler<HttpServerRequest> {
     HttpRequestFlowAdapter requestFlowAdapter = new HttpRequestFlowAdapter(request);
     HttpResponseFlowAdapter responseFlowAdapter = new HttpResponseFlowAdapter(response);
 
-    requestFlowAdapter.subscribe(handler.processor());
-    handler.processor().subscribe(responseFlowAdapter);
+    requestFlowAdapter.subscribe(handler.input());
+    handler.output().subscribe(responseFlowAdapter);
 
     handler.start();
-  }
-
-  private Function<SyscallsInternal, SyscallsInternal> blockingSyscallsTrampoline(
-      Context currentContext) {
-    return TrampolineFactories.syscalls(currentContextExecutor(currentContext));
-  }
-
-  private Function<ServerCall.Listener<MessageLite>, ServerCall.Listener<MessageLite>>
-      blockingServerCallListenerTrampoline() {
-    return TrampolineFactories.serverCallListener(blockingExecutor());
   }
 
   private Executor currentContextExecutor(Context currentContext) {

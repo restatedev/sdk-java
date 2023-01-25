@@ -4,8 +4,11 @@ import com.google.protobuf.MessageLite;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.SuspendedException;
 import io.grpc.*;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Predicate;
+import javax.annotation.Nullable;
 
 public final class Util {
   private Util() {}
@@ -81,51 +84,16 @@ public final class Util {
     return Status.UNKNOWN.withDescription(throwable.getMessage());
   }
 
-  static ProtocolException checkCompletion(
-      Class<? extends MessageLite> msgClazz, Protocol.CompletionMessage completionMessage) {
-    Protocol.CompletionMessage.ResultCase resultCase = completionMessage.getResultCase();
-
-    if (Protocol.PollInputStreamEntryMessage.class.equals(msgClazz)
-        && !(resultCase == Protocol.CompletionMessage.ResultCase.VALUE)) {
-      return ProtocolException.completionDoNotMatch(msgClazz, resultCase);
-    } else if (Protocol.OutputStreamEntryMessage.class.equals(msgClazz)
-        && !(resultCase == Protocol.CompletionMessage.ResultCase.VALUE
-            || resultCase == Protocol.CompletionMessage.ResultCase.FAILURE)) {
-      return ProtocolException.completionDoNotMatch(msgClazz, resultCase);
-    } else if (Protocol.GetStateEntryMessage.class.equals(msgClazz)
-        && !(resultCase == Protocol.CompletionMessage.ResultCase.VALUE
-            || resultCase == Protocol.CompletionMessage.ResultCase.EMPTY)) {
-      return ProtocolException.completionDoNotMatch(msgClazz, resultCase);
-    } else if (Protocol.SetStateEntryMessage.class.equals(msgClazz)
-        && !(resultCase == Protocol.CompletionMessage.ResultCase.RESULT_NOT_SET)) {
-      return ProtocolException.completionDoNotMatch(msgClazz, resultCase);
-    } else if (Protocol.ClearStateEntryMessage.class.equals(msgClazz)
-        && !(resultCase == Protocol.CompletionMessage.ResultCase.RESULT_NOT_SET)) {
-      return ProtocolException.completionDoNotMatch(msgClazz, resultCase);
-    } else if (Protocol.SleepEntryMessage.class.equals(msgClazz)
-        && !(resultCase == Protocol.CompletionMessage.ResultCase.EMPTY)) {
-      return ProtocolException.completionDoNotMatch(msgClazz, resultCase);
-    } else if (Protocol.InvokeEntryMessage.class.equals(msgClazz)
-        && !(resultCase == Protocol.CompletionMessage.ResultCase.VALUE
-            || resultCase == Protocol.CompletionMessage.ResultCase.FAILURE)) {
-      return ProtocolException.completionDoNotMatch(msgClazz, resultCase);
-    } else if (Protocol.BackgroundInvokeEntryMessage.class.equals(msgClazz)
-        && !(resultCase == Protocol.CompletionMessage.ResultCase.EMPTY)) {
-      return ProtocolException.completionDoNotMatch(msgClazz, resultCase);
-    } else if (Protocol.CallbackEntryMessage.class.equals(msgClazz)
-        && !(resultCase == Protocol.CompletionMessage.ResultCase.VALUE
-            || resultCase == Protocol.CompletionMessage.ResultCase.FAILURE)) {
-      return ProtocolException.completionDoNotMatch(msgClazz, resultCase);
-    } else if (Protocol.CompleteCallbackEntryMessage.class.equals(msgClazz)
-        && !(resultCase == Protocol.CompletionMessage.ResultCase.EMPTY)) {
-      return ProtocolException.completionDoNotMatch(msgClazz, resultCase);
-    } else if (Protocol.SideEffectEntryMessage.class.equals(msgClazz)
-        && !(resultCase == Protocol.CompletionMessage.ResultCase.VALUE
-            || resultCase == Protocol.CompletionMessage.ResultCase.FAILURE)) {
-      return ProtocolException.completionDoNotMatch(msgClazz, resultCase);
+  static void assertIsEntry(MessageLite msg) {
+    if (!isEntry(msg)) {
+      throw new IllegalStateException("Expected input to be entry");
     }
+  }
 
-    return null;
+  static void assertEntryEquals(MessageLite expected, MessageLite actual) {
+    if (!Objects.equals(expected, actual)) {
+      throw ProtocolException.entryDoesNotMatch(expected, actual);
+    }
   }
 
   static boolean isEntry(MessageLite msg) {
@@ -140,5 +108,17 @@ public final class Util {
         || msg instanceof Protocol.SideEffectEntryMessage
         || msg instanceof Protocol.CallbackEntryMessage
         || msg instanceof Protocol.CompleteCallbackEntryMessage;
+  }
+
+  @SuppressWarnings("unchecked")
+  static <T extends MessageLite> @Nullable ProtocolException checkEntryClassAndHeader(
+      MessageLite actualMsg,
+      Class<? extends MessageLite> clazz,
+      Function<T, ProtocolException> checkEntryHeader) {
+    if (!clazz.equals(actualMsg.getClass())) {
+      return ProtocolException.unexpectedMessage(clazz, actualMsg);
+    }
+    T actualEntry = (T) actualMsg;
+    return checkEntryHeader.apply(actualEntry);
   }
 }

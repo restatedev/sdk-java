@@ -4,11 +4,12 @@ import com.google.protobuf.MessageLite
 import dev.restate.generated.core.CallbackIdentifier
 import dev.restate.sdk.core.*
 import dev.restate.sdk.core.syscalls.DeferredResult
-import dev.restate.sdk.core.syscalls.ReadyResult
+import dev.restate.sdk.core.syscalls.EnterSideEffectSyscallCallback
+import dev.restate.sdk.core.syscalls.ExitSideEffectSyscallCallback
 import dev.restate.sdk.core.syscalls.Syscalls
 import io.grpc.MethodDescriptor
+import io.grpc.StatusRuntimeException
 import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
 import kotlinx.coroutines.*
@@ -18,30 +19,41 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
   override suspend fun <T : Any> get(key: StateKey<T>): T? {
     val deferredResult: DeferredResult<T> =
         suspendCancellableCoroutine { cont: CancellableContinuation<DeferredResult<T>> ->
-          syscalls.get(key.name(), key.typeTag(), { cont.resume(it) }, { cont.cancel(it) })
+          syscalls.get(key.name(), key.typeTag(), completingContinuation(cont))
         }
 
-    val readyResult: ReadyResult<T> = resolveDeferred(syscalls, deferredResult)
-    return readyResult.result
+    if (!deferredResult.isCompleted) {
+      suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
+        syscalls.resolveDeferred(deferredResult, completingUnitContinuation(cont))
+      }
+    }
+
+    val readyResult = deferredResult.toReadyResult()!!
+    if (!readyResult.isSuccess) {
+      throw readyResult.failure!!
+    }
+    if (readyResult.isEmpty) {
+      return null
+    }
+    return readyResult.result!!
   }
 
   override suspend fun <T> set(key: StateKey<T>, value: T) {
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-      syscalls.set(
-          key.name(), key.typeTag(), value, { cont.resume(Unit) }, { cont.resumeWithException(it) })
+      syscalls.set(key.name(), key.typeTag(), value, completingUnitContinuation(cont))
     }
   }
 
   override suspend fun clear(key: StateKey<*>) {
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-      syscalls.clear(key.name(), { cont.resume(Unit) }, { cont.resumeWithException(it) })
+      syscalls.clear(key.name(), completingUnitContinuation(cont))
     }
   }
 
   override suspend fun timer(duration: Duration): Awaitable<Unit> {
     val deferredResult: DeferredResult<Void> =
         suspendCancellableCoroutine { cont: CancellableContinuation<DeferredResult<Void>> ->
-          syscalls.sleep(duration.toJavaDuration(), { cont.resume(it) }, { cont.cancel(it) })
+          syscalls.sleep(duration.toJavaDuration(), completingContinuation(cont))
         }
 
     return UnitAwaitableImpl(syscalls, deferredResult)
@@ -53,7 +65,7 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
   ): Awaitable<R> {
     val deferredResult: DeferredResult<R> =
         suspendCancellableCoroutine { cont: CancellableContinuation<DeferredResult<R>> ->
-          syscalls.call(methodDescriptor, parameter, { cont.resume(it) }, { cont.cancel(it) })
+          syscalls.call(methodDescriptor, parameter, completingContinuation(cont))
         }
 
     return NonNullAwaitableImpl(syscalls, deferredResult)
@@ -64,20 +76,40 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
       parameter: T
   ) {
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-      syscalls.backgroundCall(
-          methodDescriptor, parameter, { cont.resume(Unit) }, { cont.resumeWithException(it) })
+      syscalls.backgroundCall(methodDescriptor, parameter, completingUnitContinuation(cont))
     }
   }
 
   override suspend fun <T> sideEffect(typeTag: TypeTag<T>, sideEffectAction: suspend () -> T?): T? {
-    val enterResult =
-        suspendCancellableCoroutine { cont: CancellableContinuation<ReadyResult<T>?> ->
+    val exitResult =
+        suspendCancellableCoroutine { cont: CancellableContinuation<CompletableDeferred<T?>> ->
           syscalls.enterSideEffectBlock(
-              typeTag, { cont.resume(null) }, { cont.resume(it) }, { cont.cancel(it) })
+              typeTag,
+              object : EnterSideEffectSyscallCallback<T?> {
+                override fun onResult(t: T?) {
+                  val deferred: CompletableDeferred<T?> = CompletableDeferred()
+                  deferred.complete(t)
+                  cont.resume(deferred)
+                }
+
+                override fun onFailure(t: StatusRuntimeException) {
+                  val deferred: CompletableDeferred<T?> = CompletableDeferred()
+                  deferred.completeExceptionally(t)
+                  cont.resume(deferred)
+                }
+
+                override fun onCancel(t: Throwable?) {
+                  cont.cancel(t)
+                }
+
+                override fun onNotExecuted() {
+                  cont.resume(CompletableDeferred())
+                }
+              })
         }
 
-    if (enterResult != null) {
-      return unpackNullableReady(enterResult)
+    if (exitResult.isCompleted) {
+      return exitResult.await()
     }
 
     var actionReturnValue: T? = null
@@ -88,20 +120,28 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
       actionFailure = e
     }
 
-    val exitResult =
-        if (actionFailure != null) {
-          suspendCancellableCoroutine { cont: CancellableContinuation<ReadyResult<T>> ->
-            syscalls.exitSideEffectBlockWithException(
-                actionFailure, { cont.resumeWithException(it) }, { cont.resumeWithException(it) })
+    val exitCallback =
+        object : ExitSideEffectSyscallCallback<T?> {
+          override fun onResult(t: T?) {
+            exitResult.complete(t)
           }
-        } else {
-          suspendCancellableCoroutine { cont: CancellableContinuation<ReadyResult<T>> ->
-            syscalls.exitSideEffectBlock(
-                typeTag, actionReturnValue, { cont.resume(it) }, { cont.resumeWithException(it) })
+
+          override fun onFailure(t: StatusRuntimeException) {
+            exitResult.completeExceptionally(t)
+          }
+
+          override fun onCancel(t: Throwable?) {
+            exitResult.cancel(CancellationException("Suspended", t))
           }
         }
 
-    return unpackNullableReady(exitResult)
+    if (actionFailure != null) {
+      syscalls.exitSideEffectBlockWithException(actionFailure, exitCallback)
+    } else {
+      syscalls.exitSideEffectBlock(typeTag, actionReturnValue, exitCallback)
+    }
+
+    return exitResult.await()
   }
 
   override suspend fun <T> callbackAsync(
@@ -110,11 +150,8 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
   ): Awaitable<T> {
     val (cid, deferredResult) =
         suspendCancellableCoroutine {
-            cont: CancellableContinuation<Pair<CallbackIdentifier, DeferredResult<T>>> ->
-          syscalls.callback(
-              typeTag,
-              { cid, deferredResult -> cont.resume(cid to deferredResult) },
-              { cont.resumeWithException(it) })
+            cont: CancellableContinuation<Map.Entry<CallbackIdentifier, DeferredResult<T>>> ->
+          syscalls.callback(typeTag, completingContinuation(cont))
         }
 
     this.sideEffect { callbackAction(cid) }
@@ -128,8 +165,7 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
       payload: T
   ) {
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-      syscalls.completeCallback(
-          id, typeTag, payload, { cont.resume(Unit) }, { cont.resumeWithException(it) })
+      syscalls.completeCallback(id, typeTag, payload, completingUnitContinuation(cont))
     }
   }
 }

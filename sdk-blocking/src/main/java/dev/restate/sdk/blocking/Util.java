@@ -2,9 +2,12 @@ package dev.restate.sdk.blocking;
 
 import dev.restate.sdk.core.SuspendedException;
 import dev.restate.sdk.core.syscalls.ReadyResult;
+import dev.restate.sdk.core.syscalls.SyscallCallback;
+import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
 
 class Util {
 
@@ -20,10 +23,26 @@ class Util {
     }
   }
 
+  static <T> T blockOnSyscall(Consumer<SyscallCallback<T>> syscallExecutor) {
+    CompletableFuture<T> fut = new CompletableFuture<>();
+    syscallExecutor.accept(SyscallCallback.completingFuture(fut));
+    return Util.awaitCompletableFuture(fut);
+  }
+
   static <T> T unwrapReadyResult(ReadyResult<T> res) {
-    if (res.isOk()) {
+    if (res.isSuccess()) {
       return res.getResult();
     }
-    throw (RuntimeException) res.getFailure();
+    throw res.getFailure();
+  }
+
+  static <T> Optional<T> unwrapOptionalReadyResult(ReadyResult<T> res) {
+    if (!res.isSuccess()) {
+      throw res.getFailure();
+    }
+    if (res.isEmpty()) {
+      return Optional.empty();
+    }
+    return Optional.of(res.getResult());
   }
 }

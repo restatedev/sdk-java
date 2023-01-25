@@ -35,23 +35,15 @@ public class ProtocolException extends RuntimeException {
             + "'");
   }
 
-  static ProtocolException unexpectedMessage(String expected, MessageLite actual) {
+  static ProtocolException entryDoesNotMatch(MessageLite expected, MessageLite actual) {
     return new ProtocolException(
-        "Unexpected message type received from the runtime. Expected "
-            + expected
-            + ", Actual: '"
-            + actual.getClass().getCanonicalName()
-            + "'");
+        "Journal entry " + expected.getClass() + " does not match: " + expected + " != " + actual);
   }
 
-  static ProtocolException entryDoNotMatch(MessageLite expected, MessageLite actual) {
-    return new ProtocolException("Journal entry do not match: " + expected + " != " + actual);
-  }
-
-  static ProtocolException completionDoNotMatch(
-      Class<? extends MessageLite> expected, Protocol.CompletionMessage.ResultCase actual) {
+  static ProtocolException completionDoesNotMatch(
+      String entry, Protocol.CompletionMessage.ResultCase actual) {
     return new ProtocolException(
-        "Completion for entry " + expected + " don't expect completion variant " + actual);
+        "Completion for entry " + entry + " doesn't expect completion variant " + actual);
   }
 
   static ProtocolException unknownMessageType(short type) {
@@ -61,9 +53,5 @@ public class ProtocolException extends RuntimeException {
   static ProtocolException methodNotFound(String svcName, String methodName) {
     return new ProtocolException(
         "Cannot find method '" + svcName + "/" + methodName + "'", Status.Code.NOT_FOUND);
-  }
-
-  static ProtocolException inputPublisherError(Throwable cause) {
-    return new ProtocolException("Error when reading from input", cause, Status.Code.INTERNAL);
   }
 }

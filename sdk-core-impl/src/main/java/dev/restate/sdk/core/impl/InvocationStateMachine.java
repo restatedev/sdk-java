@@ -4,42 +4,34 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.SuspendedException;
+import dev.restate.sdk.core.impl.Entries.JournalEntry;
 import dev.restate.sdk.core.syscalls.DeferredResult;
-import dev.restate.sdk.core.syscalls.ReadyResult;
+import dev.restate.sdk.core.syscalls.SyscallCallback;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Flow;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Predicate;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
+class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
+
+  private static final Logger LOG = LogManager.getLogger(InvocationStateMachine.class);
 
   private enum State {
     WAITING_START,
     REPLAYING,
     PROCESSING,
     CLOSED;
-
-    boolean canWriteOut() {
-      return this == PROCESSING;
-    }
-
-    boolean canReadIn() {
-      return this == REPLAYING || this == PROCESSING;
-    }
   }
-
-  private static final Logger LOG = LogManager.getLogger(InvocationStateMachine.class);
 
   private final String serviceName;
   private final Span span;
 
-  private volatile State state;
+  private State state = State.WAITING_START;
 
   // Obtained after WAITING_START
   private ByteString instanceKey;
@@ -49,31 +41,26 @@ public class InvocationStateMachine implements InvocationFlow.InvocationProcesso
   // Index tracking progress in the journal
   private int currentJournalIndex;
 
-  // Last not acked side effect, used to figure out when to wait for another side effect to complete
-  // -1 means no side effect waiting to be acked.
-  private int lastNotAckedSideEffect = -1;
-
   // Buffering of messages and completions
-  private final MessageQueue messageQueue;
-  private final CompletionStore completionStore;
+  private final SideEffectAckPublisher sideEffectAckPublisher;
+  private final EntriesQueue entriesQueue;
+  private final ReadyResultPublisher readyResultPublisher;
 
   // Flow sub/pub
   private Flow.Subscriber<? super MessageLite> outputSubscriber;
   private Flow.Subscription inputSubscription;
+  private Runnable afterStartCallback;
 
   public InvocationStateMachine(String serviceName, Span span) {
     this.serviceName = serviceName;
     this.span = span;
 
-    this.messageQueue = new MessageQueue();
-    this.completionStore = new CompletionStore();
+    this.sideEffectAckPublisher = new SideEffectAckPublisher();
+    this.entriesQueue = new EntriesQueue();
+    this.readyResultPublisher = new ReadyResultPublisher();
   }
 
   // --- Getters
-
-  public int getCurrentJournalIndex() {
-    return currentJournalIndex;
-  }
 
   public String getServiceName() {
     return serviceName;
@@ -85,11 +72,6 @@ public class InvocationStateMachine implements InvocationFlow.InvocationProcesso
 
   public ByteString getInvocationId() {
     return invocationId;
-  }
-
-  // This might be called concurrently (see InvocationStateMachineGrpcBridge#isCancelled)
-  public boolean isClosed() {
-    return Objects.equals(this.state, State.CLOSED);
   }
 
   // --- Output Publisher impl
@@ -114,61 +96,80 @@ public class InvocationStateMachine implements InvocationFlow.InvocationProcesso
   @Override
   public void onSubscribe(Flow.Subscription subscription) {
     this.inputSubscription = subscription;
-    this.inputSubscription.request(Long.MAX_VALUE);
   }
 
   @Override
   public void onNext(MessageLite msg) {
-    LOG.trace("Enqueuing input message {} {}", msg.getClass(), msg);
-    this.messageQueue.offer(msg);
+    LOG.trace("Received input message {} {}", msg.getClass(), msg);
+    if (this.state == State.WAITING_START) {
+      this.onStart(msg);
+    } else if (msg instanceof Protocol.CompletionMessage) {
+      // We check the instance rather than the state, because the user code might still be
+      // replaying, but the network layer is already past it and is receiving completions from the
+      // runtime.
+      Protocol.CompletionMessage completionMessage = (Protocol.CompletionMessage) msg;
+
+      // If ack, give it to side effect publisher
+      if (completionMessage.getResultCase()
+          == Protocol.CompletionMessage.ResultCase.RESULT_NOT_SET) {
+        this.sideEffectAckPublisher.tryHandleSideEffectAck(completionMessage.getEntryIndex());
+      } else {
+        this.readyResultPublisher.offerCompletion((Protocol.CompletionMessage) msg);
+      }
+    } else {
+      this.entriesQueue.offer(msg);
+    }
   }
 
   @Override
   public void onError(Throwable throwable) {
     LOG.trace("Got failure from input publisher", throwable);
-    failRead(throwable);
+    this.fail(throwable);
   }
 
   @Override
   public void onComplete() {
     LOG.trace("Input publisher closed");
-    this.messageQueue.closeInput(SuspendedException.INSTANCE);
+    this.sideEffectAckPublisher.abort(SuspendedException.INSTANCE);
+    this.readyResultPublisher.abort(SuspendedException.INSTANCE);
   }
 
   // --- Init routine to wait for the start message
 
   void start(Runnable afterStartCallback) {
-    this.transitionState(State.WAITING_START);
+    this.afterStartCallback = afterStartCallback;
+    this.inputSubscription.request(1);
+  }
 
-    this.messageQueue.read(
-        msg -> {
-          if (!(msg instanceof Protocol.StartMessage)) {
-            this.fail(ProtocolException.unexpectedMessage(Protocol.StartMessage.class, msg));
-            return;
-          }
+  void onStart(MessageLite msg) {
+    if (!(msg instanceof Protocol.StartMessage)) {
+      this.fail(ProtocolException.unexpectedMessage(Protocol.StartMessage.class, msg));
+      return;
+    }
 
-          // Unpack the StartMessage
-          Protocol.StartMessage startMessage = (Protocol.StartMessage) msg;
-          this.instanceKey = startMessage.getInstanceKey();
-          this.invocationId = startMessage.getInvocationId();
-          this.entriesToReplay = startMessage.getKnownEntries();
+    // Unpack the StartMessage
+    Protocol.StartMessage startMessage = (Protocol.StartMessage) msg;
+    this.instanceKey = startMessage.getInstanceKey();
+    this.invocationId = startMessage.getInvocationId();
+    this.entriesToReplay = startMessage.getKnownEntries();
 
-          if (this.span.isRecording()) {
-            span.addEvent(
-                "Start",
-                Attributes.of(Tracing.RESTATE_INVOCATION_ID, this.invocationId.toStringUtf8()));
-          }
+    if (this.span.isRecording()) {
+      span.addEvent(
+          "Start", Attributes.of(Tracing.RESTATE_INVOCATION_ID, this.invocationId.toStringUtf8()));
+    }
 
-          // Execute state transition
-          this.transitionState(State.REPLAYING);
-          if (this.entriesToReplay == 0) {
-            this.transitionState(State.PROCESSING);
-          }
+    // Execute state transition
+    this.transitionState(State.REPLAYING);
+    if (this.entriesToReplay == 0) {
+      this.transitionState(State.PROCESSING);
+    }
 
-          // Now execute the callback after start
-          afterStartCallback.run();
-        },
-        this::failRead);
+    this.inputSubscription.request(Long.MAX_VALUE);
+
+    // Now execute the callback after start
+    Runnable afterStartCallback = this.afterStartCallback;
+    this.afterStartCallback = null;
+    afterStartCallback.run();
   }
 
   void close() {
@@ -180,11 +181,13 @@ public class InvocationStateMachine implements InvocationFlow.InvocationProcesso
       if (this.outputSubscriber != null) {
         this.outputSubscriber.onComplete();
       }
-      this.messageQueue.closeInput(SuspendedException.INSTANCE);
+      this.readyResultPublisher.abort(SuspendedException.INSTANCE);
+      this.sideEffectAckPublisher.abort(SuspendedException.INSTANCE);
+      this.entriesQueue.abort(SuspendedException.INSTANCE);
     }
   }
 
-  void fail(ProtocolException cause) {
+  void fail(Throwable cause) {
     if (this.state != State.CLOSED) {
       this.transitionState(State.CLOSED);
       LOG.debug("Close cause", cause);
@@ -194,109 +197,86 @@ public class InvocationStateMachine implements InvocationFlow.InvocationProcesso
       if (this.outputSubscriber != null) {
         this.outputSubscriber.onError(cause);
       }
-      this.messageQueue.closeInput(cause);
+      this.readyResultPublisher.abort(cause);
+      this.sideEffectAckPublisher.abort(cause);
+      this.entriesQueue.abort(cause);
     }
   }
 
   // --- Methods to implement syscalls
 
   @SuppressWarnings("unchecked")
-  <T extends MessageLite, R> void processCompletableJournalEntry(
-      T inputEntry,
-      Predicate<T> waitForCompletion,
-      Consumer<Span> traceFn,
-      Function<T, ProtocolException> checkEntryHeader,
-      Function<T, ReadyResult<R>> entryParser,
-      Function<Protocol.CompletionMessage, ReadyResult<R>> completionParser,
-      BiConsumer<Integer, DeferredResult<R>> deferredCallback,
-      Consumer<Throwable> failureCallback) {
-    if (Objects.equals(this.state, State.CLOSED)) {
-      failureCallback.accept(SuspendedException.INSTANCE);
-    } else if (Objects.equals(this.state, State.REPLAYING)) {
+  <E extends MessageLite, T> void processCompletableJournalEntry(
+      E expectedEntryMessage,
+      Entries.CompletableJournalEntry<E, T> journalEntry,
+      SyscallCallback<DeferredResult<T>> callback) {
+    if (this.state == State.CLOSED) {
+      callback.onCancel(SuspendedException.INSTANCE);
+    } else if (this.state == State.REPLAYING) {
       // Retrieve the entry
-      this.getCurrentEntry(
-          actualMsg -> {
-            int entryIndex = this.currentJournalIndex;
-            this.incrementCurrentIndex();
+      this.readEntry(
+          (entryIndex, actualEntryMessage) -> {
+            journalEntry.checkEntryHeader(expectedEntryMessage, actualEntryMessage);
 
-            if (!inputEntry.getClass().equals(actualMsg.getClass())) {
-              failureCallback.accept(
-                  ProtocolException.unexpectedMessage(inputEntry.getClass(), actualMsg));
-              return;
-            }
-            T actualEntry = (T) actualMsg;
-            ProtocolException e = checkEntryHeader.apply(actualEntry);
-
-            if (e != null) {
-              failureCallback.accept(e);
-            } else if (waitForCompletion.test(actualEntry)) {
-              this.completionStore.wantCompletion(entryIndex);
-              deferredCallback.accept(
-                  entryIndex,
-                  ResultTreeNodes.waiting(entryIndex, completionParser, inputEntry.getClass()));
+            if (journalEntry.hasResult((E) actualEntryMessage)) {
+              ReadyResultInternal<T> readyResultInternal =
+                  journalEntry.parseEntryResult((E) actualEntryMessage);
+              callback.onSuccess(readyResultInternal);
             } else {
-              deferredCallback.accept(entryIndex, entryParser.apply(actualEntry));
+              this.readyResultPublisher.offerCompletionParser(
+                  entryIndex, journalEntry::parseCompletionResult);
+              callback.onSuccess(new SingleDeferredResult<>(entryIndex));
             }
           },
-          failureCallback);
-    } else if (this.state.canWriteOut()) {
+          callback::onCancel);
+    } else if (this.state == State.PROCESSING) {
       if (span.isRecording()) {
-        traceFn.accept(span);
+        journalEntry.trace(expectedEntryMessage, span);
       }
 
-      // Write new entry
-      this.write(inputEntry);
+      // Retrieve the index
       int entryIndex = this.currentJournalIndex;
+
+      // Write out the input entry
+      this.write(expectedEntryMessage);
       this.incrementCurrentIndex();
 
-      // Invoke the deferred callback
-      this.completionStore.wantCompletion(entryIndex);
-      deferredCallback.accept(
-          entryIndex, ResultTreeNodes.waiting(entryIndex, completionParser, inputEntry.getClass()));
+      // Register the completion parser
+      this.readyResultPublisher.offerCompletionParser(
+          entryIndex, journalEntry::parseCompletionResult);
+
+      // Call the onSuccess
+      callback.onSuccess(new SingleDeferredResult<>(entryIndex));
     } else {
       throw new IllegalStateException(
           "This method was invoked when the state machine is not ready to process user code. This is probably an SDK bug");
     }
   }
 
-  @SuppressWarnings("unchecked")
   <T extends MessageLite> void processJournalEntryWithoutWaitingAck(
-      T inputEntry,
-      Consumer<Span> traceFn,
-      Function<T, ProtocolException> checkEntryHeader,
-      Runnable okCallback,
-      Consumer<Throwable> failureCallback) {
-    if (Objects.equals(this.state, State.CLOSED)) {
-      failureCallback.accept(SuspendedException.INSTANCE);
-    } else if (Objects.equals(this.state, State.REPLAYING)) {
+      T expectedEntryMessage, JournalEntry<T> journalEntry, SyscallCallback<Void> callback) {
+    if (this.state == State.CLOSED) {
+      callback.onCancel(SuspendedException.INSTANCE);
+    } else if (this.state == State.REPLAYING) {
       // Retrieve the entry
-      this.getCurrentEntry(
-          actualMsg -> {
-            this.incrementCurrentIndex();
-            if (!inputEntry.getClass().equals(actualMsg.getClass())) {
-              failureCallback.accept(
-                  ProtocolException.unexpectedMessage(inputEntry.getClass(), actualMsg));
-              return;
-            }
-            ProtocolException e = checkEntryHeader.apply((T) actualMsg);
-            if (e != null) {
-              failureCallback.accept(e);
-            } else {
-              okCallback.run();
-            }
+      this.readEntry(
+          (entryIndex, actualEntryMessage) -> {
+            journalEntry.checkEntryHeader(expectedEntryMessage, actualEntryMessage);
+
+            callback.onSuccess(null);
           },
-          failureCallback);
-    } else if (this.state.canWriteOut()) {
+          callback::onCancel);
+    } else if (this.state == State.PROCESSING) {
       if (span.isRecording()) {
-        traceFn.accept(span);
+        journalEntry.trace(expectedEntryMessage, span);
       }
 
       // Write new entry
-      this.write(inputEntry);
+      this.write(expectedEntryMessage);
       this.incrementCurrentIndex();
 
       // Invoke the ok callback
-      okCallback.run();
+      callback.onSuccess(null);
     } else {
       throw new IllegalStateException(
           "This method was invoked when the state machine is not ready to process user code. This is probably an SDK bug");
@@ -308,71 +288,54 @@ public class InvocationStateMachine implements InvocationFlow.InvocationProcesso
       Consumer<Protocol.SideEffectEntryMessage> entryCallback,
       Runnable noEntryCallback,
       Consumer<Throwable> failureCallback) {
-    if (Objects.equals(this.state, State.CLOSED)) {
+    if (this.state == State.CLOSED) {
       failureCallback.accept(SuspendedException.INSTANCE);
-    } else if (Objects.equals(this.state, State.REPLAYING)) {
+    } else if (this.state == State.REPLAYING) {
       // Retrieve the entry
-      this.getCurrentEntry(
-          msg -> {
-            this.incrementCurrentIndex();
-            if (!Protocol.SideEffectEntryMessage.class.equals(msg.getClass())) {
-              failureCallback.accept(
-                  ProtocolException.unexpectedMessage(Protocol.SideEffectEntryMessage.class, msg));
-            } else {
-              entryCallback.accept((Protocol.SideEffectEntryMessage) msg);
+      this.readEntry(
+          (entryIndex, msg) -> {
+            if (!(msg instanceof Protocol.SideEffectEntryMessage)) {
+              throw ProtocolException.unexpectedMessage(Protocol.SideEffectEntryMessage.class, msg);
             }
+
+            entryCallback.accept((Protocol.SideEffectEntryMessage) msg);
           },
           failureCallback);
-    } else if (this.state.canWriteOut()) {
-      if (this.lastNotAckedSideEffect != -1) {
-        this.getCompletion(
-            this.lastNotAckedSideEffect,
-            completionMessage -> {
-              // Reset the ack to wait
-              this.lastNotAckedSideEffect = -1;
-
-              if (span.isRecording()) {
-                traceFn.accept(span);
-              }
-              noEntryCallback.run();
-            },
-            failureCallback);
-      } else {
-        if (span.isRecording()) {
-          traceFn.accept(span);
-        }
-        noEntryCallback.run();
-      }
+    } else if (this.state == State.PROCESSING) {
+      this.sideEffectAckPublisher.executeEnterSideEffect(
+          SyscallCallback.of(
+              ignored -> {
+                if (span.isRecording()) {
+                  traceFn.accept(span);
+                }
+                noEntryCallback.run();
+              },
+              failureCallback));
     } else {
       throw new IllegalStateException(
           "This method was invoked when the state machine is not ready to process user code. This is probably an SDK bug");
     }
   }
 
-  public void exitSideEffectBlock(
+  void exitSideEffectBlock(
       Protocol.SideEffectEntryMessage sideEffectToWrite,
       Consumer<Span> traceFn,
       Consumer<Protocol.SideEffectEntryMessage> entryCallback,
       Consumer<Throwable> failureCallback) {
-    if (Objects.equals(this.state, State.REPLAYING)) {
+    if (this.state == State.REPLAYING) {
       throw new IllegalStateException(
           "exitSideEffect has been invoked when the state machine is in replaying mode. "
               + "This is probably an SDK bug and might be caused by a missing enterSideEffectBlock invocation before exitSideEffectBlock.");
-    } else if (this.lastNotAckedSideEffect != -1) {
-      throw new IllegalStateException(
-          "exitSideEffect has been invoked when a side effect still needs to be flushed. "
-              + "This is probably an SDK bug and might be caused by a missing enterSideEffectBlock invocation before exitSideEffectBlock.");
-    } else if (Objects.equals(this.state, State.CLOSED)) {
+    } else if (this.state == State.CLOSED) {
       failureCallback.accept(SuspendedException.INSTANCE);
-    } else if (this.state.canWriteOut()) {
+    } else if (this.state == State.PROCESSING) {
       if (span.isRecording()) {
         traceFn.accept(span);
       }
 
       // Write new entry
+      this.sideEffectAckPublisher.registerExecutedSideEffect(this.currentJournalIndex);
       this.write(sideEffectToWrite);
-      this.lastNotAckedSideEffect = this.currentJournalIndex;
-      this.completionStore.wantCompletion(this.currentJournalIndex);
       this.incrementCurrentIndex();
 
       entryCallback.accept(sideEffectToWrite);
@@ -382,28 +345,31 @@ public class InvocationStateMachine implements InvocationFlow.InvocationProcesso
     }
   }
 
-  <T> void resolveDeferred(
-      DeferredResult<T> deferredToResolve,
-      Consumer<ReadyResult<T>> resultCallback,
-      Consumer<Throwable> failureCallback) {
-    if (deferredToResolve instanceof ReadyResult) {
-      resultCallback.accept((ReadyResult<T>) deferredToResolve);
+  <T> void resolveDeferred(DeferredResult<T> deferredToResolve, SyscallCallback<Void> callback) {
+    if (deferredToResolve.isCompleted()) {
+      callback.onSuccess(null);
       return;
     }
 
-    if (deferredToResolve instanceof ResultTreeNodes.Waiting) {
-      ResultTreeNodes.Waiting<T> waiting = (ResultTreeNodes.Waiting<T>) deferredToResolve;
-      this.getCompletion(
-          waiting.getJournalIndex(),
-          completionMsg -> {
-            ProtocolException e = Util.checkCompletion(waiting.getInputEntryClass(), completionMsg);
-            if (e != null) {
-              failureCallback.accept(e);
-            } else {
-              resultCallback.accept(waiting.getCompletionParser().apply(completionMsg));
+    if (deferredToResolve instanceof SingleDeferredResult) {
+      this.readyResultPublisher.onNewReadyResult(
+          new ReadyResultPublisher.OnNewReadyResultCallback() {
+            @Override
+            public boolean onNewReadyResult(Map<Integer, ReadyResultInternal<?>> resultMap) {
+              boolean resolved =
+                  ((SingleDeferredResult<?>) deferredToResolve).tryResolve(resultMap);
+              if (resolved) {
+                callback.onSuccess(null);
+                return true;
+              }
+              return false;
             }
-          },
-          failureCallback);
+
+            @Override
+            public void onCancel(Throwable e) {
+              callback.onCancel(e);
+            }
+          });
       return;
     }
 
@@ -423,79 +389,27 @@ public class InvocationStateMachine implements InvocationFlow.InvocationProcesso
 
   private void incrementCurrentIndex() {
     this.currentJournalIndex++;
-    if (currentJournalIndex >= entriesToReplay) {
-      if (this.state == State.REPLAYING) {
-        this.transitionState(State.PROCESSING);
+
+    if (currentJournalIndex >= entriesToReplay && this.state == State.REPLAYING) {
+      if (!this.entriesQueue.isEmpty()) {
+        throw new IllegalStateException("Entries queue should be empty at this point");
       }
+      this.transitionState(State.PROCESSING);
     }
   }
 
-  private void readEntryOrCompletion(
-      Consumer<MessageLite> entryCallback,
-      Consumer<Protocol.CompletionMessage> completionCallback,
-      Consumer<Throwable> failureCallback) {
-    this.messageQueue.read(
+  void readEntry(BiConsumer<Integer, MessageLite> msgCallback, Consumer<Throwable> errorCallback) {
+    this.entriesQueue.read(
         msg -> {
-          if (msg instanceof Protocol.CompletionMessage) {
-            completionCallback.accept((Protocol.CompletionMessage) msg);
-          } else if (Util.isEntry(msg)) {
-            entryCallback.accept(msg);
-          } else {
-            failureCallback.accept(ProtocolException.unexpectedMessage("entry or completion", msg));
-          }
+          incrementCurrentIndex();
+          msgCallback.accept(this.currentJournalIndex - 1, msg);
         },
-        failureCallback);
-  }
-
-  private void getCurrentEntry(
-      Consumer<MessageLite> entryCallback, Consumer<Throwable> failureCallback) {
-    assert this.state == State.REPLAYING;
-    // Because we're replaying, this read HAS to be a journal entry. If not, then there is a
-    // protocol violation
-    this.messageQueue.read(entryCallback, failureCallback);
+        errorCallback);
   }
 
   private void write(MessageLite message) {
     LOG.trace("Writing to output message {} {}", message.getClass(), message);
     Objects.requireNonNull(this.outputSubscriber).onNext(message);
-  }
-
-  private void getCompletion(
-      int journalIndex,
-      Consumer<Protocol.CompletionMessage> entryCallback,
-      Consumer<Throwable> failureCallback) {
-    Protocol.CompletionMessage resolvedCompletion =
-        this.completionStore.getCompletion(journalIndex);
-    if (resolvedCompletion != null) {
-      entryCallback.accept(resolvedCompletion);
-      return;
-    }
-
-    if (!this.state.canReadIn()) {
-      failureCallback.accept(SuspendedException.INSTANCE);
-      return;
-    }
-
-    this.readEntryOrCompletion(
-        // This might happen in case I'm replaying and I need a completion, before waiting the end
-        // of the replay phase
-        this.messageQueue::offer,
-        completion -> {
-          if (completion.getEntryIndex() < this.currentJournalIndex) {
-            this.completionStore.handlePastCompletion(completion);
-          } else {
-            this.completionStore.handleFutureCompletion(completion);
-          }
-
-          // TODO perhaps add a max recursion limit,
-          //  equal to the max buffering we tolerate for completions
-          getCompletion(journalIndex, entryCallback, failureCallback);
-        },
-        failureCallback);
-  }
-
-  private void failRead(Throwable cause) {
-    fail(ProtocolException.inputPublisherError(cause));
   }
 
   @Override
@@ -511,22 +425,5 @@ public class InvocationStateMachine implements InvocationFlow.InvocationProcesso
         + ", invocationId="
         + invocationId
         + '}';
-  }
-
-  @FunctionalInterface
-  static interface EntryOrCompletionDeferred<T extends MessageLite> {
-
-    static <T extends MessageLite> EntryOrCompletionDeferred<T> entry(T e) {
-      return (entryCallback, completionCallback, failureCallback) -> entryCallback.accept(e);
-    }
-
-    static <T extends MessageLite> EntryOrCompletionDeferred<T> failed(Throwable e) {
-      return (entryCallback, completionCallback, failureCallback) -> failureCallback.accept(e);
-    }
-
-    void start(
-        Consumer<T> entryCallback,
-        Consumer<Protocol.CompletionMessage> completionCallback,
-        Consumer<Throwable> failureCallback);
   }
 }

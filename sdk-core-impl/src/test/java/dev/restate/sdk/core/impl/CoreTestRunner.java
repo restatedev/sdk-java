@@ -5,6 +5,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import com.google.protobuf.MessageLite;
+import com.google.protobuf.MessageLiteOrBuilder;
+import dev.restate.generated.service.protocol.Protocol;
+import dev.restate.sdk.core.impl.FlowUtils.BufferedMockPublisher;
+import dev.restate.sdk.core.impl.FlowUtils.FutureSubscriber;
+import dev.restate.sdk.core.impl.FlowUtils.UnbufferedMockPublisher;
 import io.grpc.BindableService;
 import io.grpc.MethodDescriptor;
 import io.grpc.ServerServiceDefinition;
@@ -12,10 +17,12 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -51,18 +58,18 @@ abstract class CoreTestRunner {
       String method,
       List<MessageLite> input,
       ThreadingModel threadingModel,
-      Consumer<List<MessageLite>> outputAssert) {
+      BiConsumer<FutureSubscriber<MessageLite>, Duration> outputAssert) {
     Executor syscallsExecutor =
         threadingModel == ThreadingModel.UNBUFFERED_MULTI_THREAD
             ? Executors.newSingleThreadExecutor()
-            : Runnable::run;
+            : null;
     Executor userExecutor =
         threadingModel == ThreadingModel.UNBUFFERED_MULTI_THREAD
             ? Executors.newSingleThreadExecutor()
-            : Runnable::run;
+            : null;
 
-    FlowUtils.FutureSubscriber<MessageLite> outputSubscriber = new FlowUtils.FutureSubscriber<>();
-    FlowUtils.MockSubscription inputSubscription = new FlowUtils.MockSubscription();
+    // Output subscriber buffers all the output messages and provides a completion future
+    FutureSubscriber<MessageLite> outputSubscriber = new FutureSubscriber<>();
 
     // Start invocation
     RestateGrpcServer server = RestateGrpcServer.newBuilder().withService(svc).build();
@@ -71,50 +78,46 @@ abstract class CoreTestRunner {
             svc.getServiceDescriptor().getName(),
             method,
             io.opentelemetry.context.Context.current(),
-            threadingModel == ThreadingModel.UNBUFFERED_MULTI_THREAD
-                ? TrampolineFactories.syscalls(syscallsExecutor)
-                : Function.identity(),
-            threadingModel == ThreadingModel.UNBUFFERED_MULTI_THREAD
-                ? TrampolineFactories.serverCallListener(userExecutor)
-                : Function.identity());
+            syscallsExecutor,
+            userExecutor);
 
     if (threadingModel == ThreadingModel.UNBUFFERED_MULTI_THREAD) {
+      // Create publisher
+      UnbufferedMockPublisher<MessageLite> inputPublisher = new UnbufferedMockPublisher<>();
+
       // Wire invocation and start it
       syscallsExecutor.execute(
           () -> {
-            handler.processor().subscribe(outputSubscriber);
-            handler.processor().onSubscribe(inputSubscription);
+            handler.output().subscribe(outputSubscriber);
+            inputPublisher.subscribe(handler.input());
             handler.start();
           });
 
       // Pipe entries
       for (MessageLite inputEntry : input) {
-        syscallsExecutor.execute(() -> handler.processor().onNext(inputEntry));
+        syscallsExecutor.execute(() -> inputPublisher.push(inputEntry));
       }
       // Complete the input publisher
-      syscallsExecutor.execute(() -> handler.processor().onComplete());
-    } else {
-      // Wire invocation
-      handler.processor().subscribe(outputSubscriber);
-      handler.processor().onSubscribe(inputSubscription);
+      syscallsExecutor.execute(inputPublisher::close);
 
-      // Pipe entries and complete the input publisher
-      FlowUtils.pipeAndComplete(handler.processor(), input.toArray(MessageLite[]::new));
+      // Check completed
+      outputAssert.accept(outputSubscriber, Duration.ofSeconds(1));
+      assertThat(inputPublisher.isSubscriptionCancelled()).isTrue();
+    } else {
+      // Create publisher
+      BufferedMockPublisher<MessageLite> inputPublisher = new BufferedMockPublisher<>(input);
+
+      // Wire invocation
+      handler.output().subscribe(outputSubscriber);
+      inputPublisher.subscribe(handler.input());
 
       // Start invocation
       handler.start();
+
+      // Check completed
+      outputAssert.accept(outputSubscriber, Duration.ZERO);
+      assertThat(inputPublisher.isSubscriptionCancelled()).isTrue();
     }
-
-    Duration futureWaitTime =
-        threadingModel == ThreadingModel.UNBUFFERED_MULTI_THREAD
-            ? Duration.ofSeconds(1)
-            : Duration.ZERO;
-
-    // Check completed
-    assertThat(outputSubscriber.getFuture())
-        .succeedsWithin(futureWaitTime)
-        .satisfies(outputAssert::accept);
-    assertThat(inputSubscription.isCancelled()).isTrue();
   }
 
   enum ThreadingModel {
@@ -131,7 +134,7 @@ abstract class CoreTestRunner {
 
     HashSet<ThreadingModel> getThreadingModels();
 
-    Consumer<List<MessageLite>> getOutputAssert();
+    BiConsumer<FutureSubscriber<MessageLite>, Duration> getOutputAssert();
 
     String testCaseName();
   }
@@ -166,7 +169,7 @@ abstract class CoreTestRunner {
         this.method = method;
       }
 
-      WithInputBuilder withInput(MessageLite... messages) {
+      WithInputBuilder withInput(MessageLiteOrBuilder... messages) {
         return new WithInputBuilder(svc, method, Arrays.asList(messages));
       }
     }
@@ -174,9 +177,10 @@ abstract class CoreTestRunner {
     static class WithInputBuilder {
       private final ServerServiceDefinition svc;
       private final String method;
-      private final List<MessageLite> input;
+      private final List<MessageLiteOrBuilder> input;
 
-      WithInputBuilder(ServerServiceDefinition svc, String method, List<MessageLite> input) {
+      WithInputBuilder(
+          ServerServiceDefinition svc, String method, List<MessageLiteOrBuilder> input) {
         this.svc = svc;
         this.method = method;
         this.input = input;
@@ -195,13 +199,13 @@ abstract class CoreTestRunner {
     static class UsingThreadingModelsBuilder {
       private final ServerServiceDefinition svc;
       private final String method;
-      private final List<MessageLite> input;
+      private final List<MessageLiteOrBuilder> input;
       private final HashSet<ThreadingModel> threadingModels;
 
       UsingThreadingModelsBuilder(
           ServerServiceDefinition svc,
           String method,
-          List<MessageLite> input,
+          List<MessageLiteOrBuilder> input,
           HashSet<ThreadingModel> threadingModels) {
         this.svc = svc;
         this.method = method;
@@ -209,8 +213,10 @@ abstract class CoreTestRunner {
         this.threadingModels = threadingModels;
       }
 
-      ExpectingOutputMessages expectingOutput(MessageLite... messages) {
-        return assertingOutput(actual -> assertThat(actual).asList().containsExactly(messages));
+      ExpectingOutputMessages expectingOutput(MessageLiteOrBuilder... messages) {
+        List<MessageLite> builtMessages =
+            Arrays.stream(messages).map(ProtoUtils::build).collect(Collectors.toList());
+        return assertingOutput(actual -> assertThat(actual).asList().isEqualTo(builtMessages));
       }
 
       ExpectingOutputMessages expectingNoOutput() {
@@ -220,48 +226,34 @@ abstract class CoreTestRunner {
       ExpectingOutputMessages assertingOutput(Consumer<List<MessageLite>> messages) {
         return new ExpectingOutputMessages(svc, method, input, threadingModels, messages);
       }
-    }
 
-    static class ExpectingOutputMessages implements TestDefinition {
-      private final ServerServiceDefinition svc;
-      private final String method;
-      private final List<MessageLite> input;
-      private final HashSet<ThreadingModel> threadingModels;
-      private final Consumer<List<MessageLite>> outputAssert;
-      private final String named;
-
-      ExpectingOutputMessages(
-          ServerServiceDefinition svc,
-          String method,
-          List<MessageLite> input,
-          HashSet<ThreadingModel> threadingModels,
-          Consumer<List<MessageLite>> outputAssert) {
-        this(
-            svc,
-            method,
-            input,
-            threadingModels,
-            outputAssert,
-            "Test " + svc.getServiceDescriptor().getName() + "/" + method);
+      ExpectingFailure assertingFailure(Class<? extends Throwable> tClass) {
+        return assertingFailure(t -> assertThat(t).isInstanceOf(tClass));
       }
 
-      ExpectingOutputMessages(
+      ExpectingFailure assertingFailure(Consumer<Throwable> assertFailure) {
+        return new ExpectingFailure(svc, method, input, threadingModels, assertFailure);
+      }
+    }
+
+    public abstract static class BaseTestDefinition implements TestDefinition {
+      protected final ServerServiceDefinition svc;
+      protected final String method;
+      protected final List<MessageLiteOrBuilder> input;
+      protected final HashSet<ThreadingModel> threadingModels;
+      protected final String named;
+
+      public BaseTestDefinition(
           ServerServiceDefinition svc,
           String method,
-          List<MessageLite> input,
+          List<MessageLiteOrBuilder> input,
           HashSet<ThreadingModel> threadingModels,
-          Consumer<List<MessageLite>> outputAssert,
           String named) {
         this.svc = svc;
         this.method = method;
         this.input = input;
         this.threadingModels = threadingModels;
-        this.outputAssert = outputAssert;
         this.named = named;
-      }
-
-      ExpectingOutputMessages named(String name) {
-        return new ExpectingOutputMessages(svc, method, input, threadingModels, outputAssert, name);
       }
 
       @Override
@@ -276,7 +268,7 @@ abstract class CoreTestRunner {
 
       @Override
       public List<MessageLite> getInput() {
-        return input;
+        return input.stream().map(ProtoUtils::build).collect(Collectors.toList());
       }
 
       @Override
@@ -285,13 +277,98 @@ abstract class CoreTestRunner {
       }
 
       @Override
-      public Consumer<List<MessageLite>> getOutputAssert() {
-        return outputAssert;
+      public String testCaseName() {
+        return this.named;
+      }
+    }
+
+    static class ExpectingOutputMessages extends BaseTestDefinition {
+      private final Consumer<List<MessageLite>> messagesAssert;
+
+      ExpectingOutputMessages(
+          ServerServiceDefinition svc,
+          String method,
+          List<MessageLiteOrBuilder> input,
+          HashSet<ThreadingModel> threadingModels,
+          Consumer<List<MessageLite>> messagesAssert) {
+        this(
+            svc,
+            method,
+            input,
+            threadingModels,
+            messagesAssert,
+            "Test " + svc.getServiceDescriptor().getName() + "/" + method);
+      }
+
+      ExpectingOutputMessages(
+          ServerServiceDefinition svc,
+          String method,
+          List<MessageLiteOrBuilder> input,
+          HashSet<ThreadingModel> threadingModels,
+          Consumer<List<MessageLite>> messagesAssert,
+          String named) {
+        super(svc, method, input, threadingModels, named);
+        this.messagesAssert = messagesAssert;
+      }
+
+      ExpectingOutputMessages named(String name) {
+        return new TestCaseBuilder.ExpectingOutputMessages(
+            svc, method, input, threadingModels, messagesAssert, name);
       }
 
       @Override
-      public String testCaseName() {
-        return this.named;
+      public BiConsumer<FutureSubscriber<MessageLite>, Duration> getOutputAssert() {
+        return (outputSubscriber, duration) ->
+            assertThat(outputSubscriber.getFuture())
+                .succeedsWithin(duration)
+                .satisfies(messagesAssert::accept);
+      }
+    }
+
+    static class ExpectingFailure extends BaseTestDefinition {
+      private final Consumer<Throwable> throwableAssert;
+
+      ExpectingFailure(
+          ServerServiceDefinition svc,
+          String method,
+          List<MessageLiteOrBuilder> input,
+          HashSet<ThreadingModel> threadingModels,
+          Consumer<Throwable> throwableAssert) {
+        this(
+            svc,
+            method,
+            input,
+            threadingModels,
+            throwableAssert,
+            "Test " + svc.getServiceDescriptor().getName() + "/" + method);
+      }
+
+      ExpectingFailure(
+          ServerServiceDefinition svc,
+          String method,
+          List<MessageLiteOrBuilder> input,
+          HashSet<ThreadingModel> threadingModels,
+          Consumer<Throwable> throwableAssert,
+          String named) {
+        super(svc, method, input, threadingModels, named);
+        this.throwableAssert = throwableAssert;
+      }
+
+      ExpectingFailure named(String name) {
+        return new ExpectingFailure(svc, method, input, threadingModels, throwableAssert, name);
+      }
+
+      @Override
+      public BiConsumer<FutureSubscriber<MessageLite>, Duration> getOutputAssert() {
+        return (outputSubscriber, duration) -> {
+          assertThat(outputSubscriber.getFuture())
+              .failsWithin(duration)
+              .withThrowableOfType(ExecutionException.class)
+              .satisfies(t -> throwableAssert.accept(t.getCause()));
+          // If there was a state machine related failure, no output message should be written
+          assertThat(outputSubscriber.getMessages())
+              .doesNotHaveAnyElementsOfTypes(Protocol.OutputStreamEntryMessage.class);
+        };
       }
     }
   }

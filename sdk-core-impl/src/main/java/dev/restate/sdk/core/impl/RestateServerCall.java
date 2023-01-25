@@ -1,6 +1,7 @@
 package dev.restate.sdk.core.impl;
 
 import com.google.protobuf.MessageLite;
+import dev.restate.sdk.core.syscalls.SyscallCallback;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.grpc.ServerCall;
@@ -17,17 +18,32 @@ class RestateServerCall extends ServerCall<MessageLite, MessageLite> {
   private final MethodDescriptor<MessageLite, MessageLite> methodDescriptor;
   private final SyscallsInternal syscalls;
 
-  private ServerCall.Listener<MessageLite> listener;
-  private int requestCount;
-  private int inputPollRequests;
+  // The RestateServerCall threading model works as follows:
+  // * Before the first polling, this object is owned by the state machine executor. During this
+  // timeframe, only #request() and #setListener() can be invoked (the former invoked by the grpc
+  // generated code)
+  // * After the first polling happens, the listener is invoked. listener.halfClose() will start the
+  // user code.
+  // * From this point onward, the ownership of this object is passed to the user executor, which
+  // might call #request(), #sendHeaders(), #sendMessage() and #close().
+  // * Trampolining back to state machine executor is now provided by the syscalls wrapper.
+  //
+  // The listener reference is volatile in order to guarantee its visibility when the ownership of
+  // this object is transferred through threads.
+  private volatile ServerCall.Listener<MessageLite> listener;
+
+  // These variables don't need to be volatile as they're accessed and mutated only by
+  // #setListener() and #request()
+  private int requestCount = 0;
+  private int inputPollRequests = 0;
 
   RestateServerCall(
       MethodDescriptor<MessageLite, MessageLite> methodDescriptor, SyscallsInternal syscalls) {
     this.methodDescriptor = methodDescriptor;
     this.syscalls = syscalls;
-
-    this.requestCount = 0;
   }
+
+  // --- Invoked in the State machine thread
 
   void setListener(Listener<MessageLite> listener) {
     this.listener = listener;
@@ -48,6 +64,8 @@ class RestateServerCall extends ServerCall<MessageLite, MessageLite> {
     }
   }
 
+  // --- Invoked in the user thread
+
   @Override
   public void sendHeaders(Metadata headers) {
     // We don't support trailers, nor headers!
@@ -56,7 +74,9 @@ class RestateServerCall extends ServerCall<MessageLite, MessageLite> {
   @Override
   public void sendMessage(MessageLite message) {
     syscalls.writeOutput(
-        message, () -> LOG.trace("Wrote output message:\n{}", message), this::onError);
+        message,
+        SyscallCallback.ofVoid(
+            () -> LOG.trace("Wrote output message:\n{}", message), this::onError));
   }
 
   @Override
@@ -73,24 +93,25 @@ class RestateServerCall extends ServerCall<MessageLite, MessageLite> {
       if (protocolException.isPresent()) {
         // If it's a protocol exception, we propagate the failure to syscalls, which will propagate
         // it to the network layer
-        syscalls.fail((ProtocolException) protocolException.get());
+        syscalls.fail(protocolException.get());
       } else {
         // If not a protocol exception, then it's an exception coming from user which we write on
         // the journal
         syscalls.writeOutput(
             status.asRuntimeException(),
-            () -> {
-              LOG.trace("Closed correctly with non ok status {}", status);
-              syscalls.close();
-            },
-            this::onError);
+            SyscallCallback.ofVoid(
+                () -> {
+                  LOG.trace("Closed correctly with non ok status {}", status);
+                  syscalls.close();
+                },
+                this::onError));
       }
     }
   }
 
   @Override
   public boolean isCancelled() {
-    return syscalls.getStateMachine().isClosed();
+    throw new UnsupportedOperationException();
   }
 
   @Override
@@ -99,40 +120,49 @@ class RestateServerCall extends ServerCall<MessageLite, MessageLite> {
   }
 
   private void pollInput() {
-    // Because we don't do streaming ATM, this is simple to implement, and
-    // we can assume the poll input entry is always the first entry here
-    // In the streaming case, when getting an entry we should check whether there's other elements
-    // in the input stream or not. If that's the case, we should recurse the invocations to
-    // pollInput.
+    // Because we don't do streaming now, this function is simple to implement, and
+    // we can assume the poll input entry is always the first entry here.
+    // In the streaming input case, when getting an entry we should check whether there's other
+    // elements
+    // in the input stream or not, and recurse the invocations to pollInput.
+    // We should also revisit the threading model, as this function is implemented assuming only the
+    // state machine
+    // thread invokes it, which might not be the case for streaming?
+
     // Consider that request count is a hint, and not an exact number of elements the upstream gRPC
     // code wants.
     // For unary calls, this value is equal to 2 for java generated stubs.
     // Kotlin stubs will perform new requests in a loop.
-
     requestCount--;
     inputPollRequests++;
+
+    // Unary input cases will skip pollInput after the first request
     if ((methodDescriptor.getType() == MethodDescriptor.MethodType.UNARY
             || methodDescriptor.getType() == MethodDescriptor.MethodType.SERVER_STREAMING)
         && inputPollRequests > 1) {
-      // Unary input cases will skip pollInput after the first request
       return;
     }
 
     // read, then in callback invoke listener with unary call
     syscalls.pollInput(
         b -> methodDescriptor.parseRequest(b.newInput()),
-        deferredValue ->
-            syscalls.resolveDeferred(
-                deferredValue,
-                result -> {
-                  Objects.requireNonNull(listener);
+        SyscallCallback.of(
+            deferredValue ->
+                syscalls.resolveDeferred(
+                    deferredValue,
+                    SyscallCallback.ofVoid(
+                        () -> {
+                          Objects.requireNonNull(listener);
 
-                  LOG.trace("Read input message:\n{}", result.getResult());
-                  listener.onMessage(result.getResult());
-                  listener.onHalfClose();
-                },
-                this::onError),
-        this::onError);
+                          // PollInput can only be result
+                          MessageLite message = deferredValue.toReadyResult().getResult();
+
+                          LOG.trace("Read input message:\n{}", message);
+                          listener.onMessage(message);
+                          listener.onHalfClose();
+                        },
+                        this::onError)),
+            this::onError));
   }
 
   private void onError(Throwable cause) {
