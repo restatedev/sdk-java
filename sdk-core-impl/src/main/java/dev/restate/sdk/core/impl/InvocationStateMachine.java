@@ -179,6 +179,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   void close() {
     if (this.state != State.CLOSED) {
       this.transitionState(State.CLOSED);
+      LOG.debug("Closing state machine");
       if (inputSubscription != null) {
         this.inputSubscription.cancel();
       }
@@ -194,7 +195,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   void fail(Throwable cause) {
     if (this.state != State.CLOSED) {
       this.transitionState(State.CLOSED);
-      LOG.debug("Close cause", cause);
+      LOG.debug("Closing state machine with failure", cause);
       if (inputSubscription != null) {
         this.inputSubscription.cancel();
       }
