@@ -10,7 +10,7 @@ import io.grpc.MethodDescriptor;
 
 public class ProtoUtils {
 
-  static Protocol.StartMessage.Builder startMessage(int entries) {
+  public static Protocol.StartMessage.Builder startMessage(int entries) {
     return Protocol.StartMessage.newBuilder()
         .setInstanceKey(ByteString.copyFromUtf8("abc"))
         .setInvocationId(ByteString.copyFromUtf8("123"))
@@ -18,21 +18,22 @@ public class ProtoUtils {
         .setKnownServiceVersion(1);
   }
 
-  static Protocol.CompletionMessage completionMessage(int index, String value) {
+  public static Protocol.CompletionMessage completionMessage(int index, String value) {
     return Protocol.CompletionMessage.newBuilder()
         .setEntryIndex(index)
         .setValue(ByteString.copyFromUtf8(value))
         .build();
   }
 
-  static Protocol.CompletionMessage completionMessage(int index, MessageLiteOrBuilder value) {
+  public static Protocol.CompletionMessage completionMessage(
+      int index, MessageLiteOrBuilder value) {
     return Protocol.CompletionMessage.newBuilder()
         .setEntryIndex(index)
         .setValue(build(value).toByteString())
         .build();
   }
 
-  static Protocol.PollInputStreamEntryMessage inputMessage(MessageLiteOrBuilder value) {
+  public static Protocol.PollInputStreamEntryMessage inputMessage(MessageLiteOrBuilder value) {
     return Protocol.PollInputStreamEntryMessage.newBuilder()
         .setValue(build(value).toByteString())
         .build();
