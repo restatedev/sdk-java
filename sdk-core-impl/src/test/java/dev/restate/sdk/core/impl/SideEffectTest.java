@@ -133,6 +133,6 @@ class SideEffectTest extends CoreTestRunner {
                                       .toByteString())
                               .build());
                 })
-            .named("Check thread trampolining"));
+            .named("Check thread switching"));
   }
 }

@@ -70,7 +70,7 @@ public class RestateGrpcServer {
         syscallExecutor != null
             ? ExecutorSwitchingWrappers.syscalls(
                 new SyscallsImpl(stateMachine, this.serde), syscallExecutor)
-            // We still wrap with syscalls trampoline to exploit the error handling
+            // We still wrap with syscalls executor switching to exploit the error handling
             : ExecutorSwitchingWrappers.syscalls(
                 new SyscallsImpl(stateMachine, this.serde), Runnable::run);
     RestateServerCall bridge = new RestateServerCall(method.getMethodDescriptor(), syscalls);

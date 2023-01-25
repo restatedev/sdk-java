@@ -35,15 +35,6 @@ public class ProtocolException extends RuntimeException {
             + "'");
   }
 
-  static ProtocolException unexpectedMessage(String expected, MessageLite actual) {
-    return new ProtocolException(
-        "Unexpected message type received from the runtime. Expected "
-            + expected
-            + ", Actual: '"
-            + actual.getClass().getCanonicalName()
-            + "'");
-  }
-
   static ProtocolException entryDoesNotMatch(MessageLite expected, MessageLite actual) {
     return new ProtocolException(
         "Journal entry " + expected.getClass() + " does not match: " + expected + " != " + actual);
@@ -62,9 +53,5 @@ public class ProtocolException extends RuntimeException {
   static ProtocolException methodNotFound(String svcName, String methodName) {
     return new ProtocolException(
         "Cannot find method '" + svcName + "/" + methodName + "'", Status.Code.NOT_FOUND);
-  }
-
-  static ProtocolException inputPublisherError(Throwable cause) {
-    return new ProtocolException("Error when reading from input", cause, Status.Code.INTERNAL);
   }
 }

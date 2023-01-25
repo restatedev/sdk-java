@@ -14,8 +14,8 @@ import java.util.function.Function;
  * Internal interface to access Restate functionalities. Users can use the ad-hoc RestateContext
  * interfaces provided by the various implementations.
  *
- * <p>When using trampolines, the method's {@code callback} will be executed in the state machine
- * executor.
+ * <p>When using executor switching wrappers, the method's {@code callback} will be executed in the
+ * state machine executor.
  */
 public interface Syscalls {
 

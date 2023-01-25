@@ -24,7 +24,7 @@ final class Entries {
     abstract ReadyResultInternal<R> parseEntryResult(E actual);
 
     ReadyResultInternal<R> parseCompletionResult(CompletionMessage actual) {
-      throw ProtocolException.completionDoNotMatch(
+      throw ProtocolException.completionDoesNotMatch(
           this.getClass().getName(), actual.getResultCase());
     }
   }
