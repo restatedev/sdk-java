@@ -52,7 +52,7 @@ public class ProtocolException extends RuntimeException {
   static ProtocolException completionDoNotMatch(
       String entry, Protocol.CompletionMessage.ResultCase actual) {
     return new ProtocolException(
-        "Completion for entry " + entry + " don't expect completion variant " + actual);
+        "Completion for entry " + entry + " doesn't expect completion variant " + actual);
   }
 
   static ProtocolException unknownMessageType(short type) {
