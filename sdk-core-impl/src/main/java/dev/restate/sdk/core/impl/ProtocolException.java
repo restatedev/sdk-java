@@ -49,7 +49,7 @@ public class ProtocolException extends RuntimeException {
         "Journal entry " + expected.getClass() + " does not match: " + expected + " != " + actual);
   }
 
-  static ProtocolException completionDoNotMatch(
+  static ProtocolException completionDoesNotMatch(
       String entry, Protocol.CompletionMessage.ResultCase actual) {
     return new ProtocolException(
         "Completion for entry " + entry + " doesn't expect completion variant " + actual);
