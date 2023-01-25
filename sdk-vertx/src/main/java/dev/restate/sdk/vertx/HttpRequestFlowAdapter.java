@@ -5,8 +5,12 @@ import dev.restate.sdk.core.impl.InvocationFlow;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
 import java.util.concurrent.Flow;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 class HttpRequestFlowAdapter implements InvocationFlow.InvocationInputPublisher {
+
+  private static final Logger LOG = LogManager.getLogger(HttpRequestFlowAdapter.class);
 
   private final HttpServerRequest httpServerRequest;
   private final MessageDecoder decoder;
@@ -59,13 +63,13 @@ class HttpRequestFlowAdapter implements InvocationFlow.InvocationInputPublisher 
       }
     }
 
-    tryProcess();
+    tryProgress();
   }
 
   private void handleIncomingBuffer(Buffer buffer) {
     this.decoder.offer(buffer);
 
-    tryProcess();
+    tryProgress();
   }
 
   private void handleRequestFailure(Throwable e) {
@@ -73,11 +77,12 @@ class HttpRequestFlowAdapter implements InvocationFlow.InvocationInputPublisher 
   }
 
   private void handleRequestEnd(Void v) {
+    LOG.trace("Request end");
     this.inputMessagesSubscriber.onComplete();
     this.inputMessagesSubscriber = null;
   }
 
-  private void tryProcess() {
+  private void tryProgress() {
     while (this.subscriberRequest > 0) {
       MessageLite entry;
       try {
@@ -89,6 +94,7 @@ class HttpRequestFlowAdapter implements InvocationFlow.InvocationInputPublisher 
       if (entry == null) {
         return;
       }
+      LOG.trace("Received entry " + entry);
       this.subscriberRequest--;
       inputMessagesSubscriber.onNext(entry);
     }

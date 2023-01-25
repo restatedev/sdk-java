@@ -105,6 +105,8 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
       return;
     }
 
+    LOG.debug("Handling request to " + service + "/" + method);
+
     // Prepare the header frame to send in the response.
     // Vert.x will send them as soon as we send the first write
     HttpServerResponse response = request.response();

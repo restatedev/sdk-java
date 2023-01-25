@@ -10,10 +10,12 @@ class MessageEncoder {
     return 8 + msg.getSerializedSize();
   }
 
-  static void encode(Buffer buffer, MessageLite msg) {
+  static Buffer encode(Buffer buffer, MessageLite msg) {
     MessageHeader header = MessageHeader.fromMessage(msg);
 
     buffer.appendLong(header.encode());
     buffer.appendBytes(msg.toByteArray());
+
+    return buffer;
   }
 }
