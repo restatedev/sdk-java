@@ -68,10 +68,10 @@ public class RestateGrpcServer {
     InvocationStateMachine stateMachine = new InvocationStateMachine(serviceName, span);
     SyscallsInternal syscalls =
         syscallExecutor != null
-            ? TrampolineFactories.syscallsTrampoline(
+            ? ExecutorSwitchingWrappers.syscalls(
                 new SyscallsImpl(stateMachine, this.serde), syscallExecutor)
             // We still wrap with syscalls trampoline to exploit the error handling
-            : TrampolineFactories.syscallsTrampoline(
+            : ExecutorSwitchingWrappers.syscalls(
                 new SyscallsImpl(stateMachine, this.serde), Runnable::run);
     RestateServerCall bridge = new RestateServerCall(method.getMethodDescriptor(), syscalls);
 
@@ -102,7 +102,7 @@ public class RestateGrpcServer {
               listener = new ExceptionCatchingServerCallListener<>(listener, bridge);
               if (serverCallListenerExecutor != null) {
                 listener =
-                    TrampolineFactories.serverCallListenerTrampoline(
+                    ExecutorSwitchingWrappers.serverCallListener(
                         listener, serverCallListenerExecutor);
               }
 

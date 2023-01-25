@@ -12,25 +12,26 @@ import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 
-class TrampolineFactories {
+class ExecutorSwitchingWrappers {
 
-  private TrampolineFactories() {}
+  private ExecutorSwitchingWrappers() {}
 
-  static ServerCall.Listener<MessageLite> serverCallListenerTrampoline(
+  static ServerCall.Listener<MessageLite> serverCallListener(
       ServerCall.Listener<MessageLite> sc, Executor userExecutor) {
-    return new TrampoliningServerCallListener(sc, userExecutor);
+    return new ExecutorSwitchingServerCallListener(sc, userExecutor);
   }
 
-  static SyscallsInternal syscallsTrampoline(SyscallsInternal sc, Executor syscallsExecutor) {
-    return new TrampoliningSyscalls(sc, syscallsExecutor);
+  static SyscallsInternal syscalls(SyscallsInternal sc, Executor syscallsExecutor) {
+    return new ExecutorSwitchingSyscalls(sc, syscallsExecutor);
   }
 
-  private static class TrampoliningServerCallListener extends ServerCall.Listener<MessageLite> {
+  private static class ExecutorSwitchingServerCallListener
+      extends ServerCall.Listener<MessageLite> {
 
     private final ServerCall.Listener<MessageLite> listener;
     private final Executor userExecutor;
 
-    private TrampoliningServerCallListener(
+    private ExecutorSwitchingServerCallListener(
         ServerCall.Listener<MessageLite> listener, Executor userExecutor) {
       this.listener = listener;
       this.userExecutor = userExecutor;
@@ -62,12 +63,12 @@ class TrampolineFactories {
     }
   }
 
-  private static class TrampoliningSyscalls implements SyscallsInternal {
+  private static class ExecutorSwitchingSyscalls implements SyscallsInternal {
 
     private final SyscallsInternal syscalls;
     private final Executor syscallsExecutor;
 
-    private TrampoliningSyscalls(SyscallsInternal syscalls, Executor syscallsExecutor) {
+    private ExecutorSwitchingSyscalls(SyscallsInternal syscalls, Executor syscallsExecutor) {
       this.syscalls = syscalls;
       this.syscallsExecutor =
           r ->
