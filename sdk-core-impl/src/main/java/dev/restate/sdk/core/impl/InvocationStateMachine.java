@@ -409,7 +409,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
           actualMsg -> {
             Util.assertEntryClass(Java.CombinatorAwaitableEntryMessage.class, actualMsg);
 
-            if (rootDeferred.tryResolve(
+            if (!rootDeferred.tryResolve(
                 ((Java.CombinatorAwaitableEntryMessage) actualMsg).getEntryIndexList())) {
               throw new IllegalStateException("Combinator message cannot be resolved.");
             }

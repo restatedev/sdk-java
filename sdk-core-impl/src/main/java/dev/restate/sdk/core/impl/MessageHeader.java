@@ -1,6 +1,7 @@
 package dev.restate.sdk.core.impl;
 
 import com.google.protobuf.MessageLite;
+import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 
 public class MessageHeader {
@@ -94,6 +95,9 @@ public class MessageHeader {
           MessageType.CompleteAwakeableEntryMessage, msg.getSerializedSize(), false);
     } else if (msg instanceof Protocol.SideEffectEntryMessage) {
       return new MessageHeader(MessageType.SideEffectEntryMessage, msg.getSerializedSize(), false);
+    } else if (msg instanceof Java.CombinatorAwaitableEntryMessage) {
+      return new MessageHeader(
+          MessageType.CombinatorAwaitableEntryMessage, msg.getSerializedSize(), false);
     }
     throw new IllegalStateException();
   }

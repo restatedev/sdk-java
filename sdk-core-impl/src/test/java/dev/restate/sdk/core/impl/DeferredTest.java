@@ -197,6 +197,22 @@ public class DeferredTest extends CoreTestRunner {
             .named("Everything completed will generate the combinators message"),
         testInvocation(new AwaitAll(), GreeterGrpc.getGreetMethod())
             .withInput(
+                startMessage(4),
+                inputMessage(GreetingRequest.newBuilder()),
+                invokeMessage(
+                    GreeterGrpc.getGreetMethod(),
+                    greetingRequest("Francesco"),
+                    greetingResponse("FRANCESCO")),
+                invokeMessage(
+                    GreeterGrpc.getGreetMethod(),
+                    greetingRequest("Till"),
+                    greetingResponse("TILL")),
+                combinatorsMessage(1, 2))
+            .usingAllThreadingModels()
+            .expectingOutput(outputMessage(greetingResponse("FRANCESCO-TILL")))
+            .named("Replay the combinator"),
+        testInvocation(new AwaitAll(), GreeterGrpc.getGreetMethod())
+            .withInput(
                 startMessage(1),
                 inputMessage(GreetingRequest.newBuilder()),
                 completionMessage(1, greetingResponse("FRANCESCO")),
@@ -282,6 +298,22 @@ public class DeferredTest extends CoreTestRunner {
             .usingAllThreadingModels()
             .expectingOutput(combinatorsMessage(1), outputMessage(greetingResponse("FRANCESCO")))
             .named("Everything completed will generate the combinators message"),
+        testInvocation(new AwaitAny(), GreeterGrpc.getGreetMethod())
+            .withInput(
+                startMessage(4),
+                inputMessage(GreetingRequest.newBuilder()),
+                invokeMessage(
+                    GreeterGrpc.getGreetMethod(),
+                    greetingRequest("Francesco"),
+                    greetingResponse("FRANCESCO")),
+                invokeMessage(
+                    GreeterGrpc.getGreetMethod(),
+                    greetingRequest("Till"),
+                    greetingResponse("TILL")),
+                combinatorsMessage(2))
+            .usingAllThreadingModels()
+            .expectingOutput(outputMessage(greetingResponse("TILL")))
+            .named("Replay the combinator"),
         testInvocation(new AwaitAny(), GreeterGrpc.getGreetMethod())
             .withInput(
                 startMessage(1),

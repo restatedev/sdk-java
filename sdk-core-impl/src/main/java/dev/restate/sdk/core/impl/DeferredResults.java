@@ -91,6 +91,7 @@ abstract class DeferredResults {
       this.children = children;
     }
 
+    /** Returns true if it's resolved, that is {@link #isCompleted()} returns true. */
     abstract boolean tryResolve(List<Integer> resolvedSingles);
 
     @Override
