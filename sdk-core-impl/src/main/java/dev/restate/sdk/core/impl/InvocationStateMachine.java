@@ -296,7 +296,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   void enterSideEffectJournalEntry(
       Consumer<Span> traceFn,
-      Consumer<Protocol.SideEffectEntryMessage> entryCallback,
+      Consumer<Java.SideEffectEntryMessage> entryCallback,
       Runnable noEntryCallback,
       Consumer<Throwable> failureCallback) {
     checkInsideSideEffectGuard();
@@ -307,9 +307,9 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       // Retrieve the entry
       this.readEntry(
           (entryIndex, msg) -> {
-            Util.assertEntryClass(Protocol.SideEffectEntryMessage.class, msg);
+            Util.assertEntryClass(Java.SideEffectEntryMessage.class, msg);
 
-            entryCallback.accept((Protocol.SideEffectEntryMessage) msg);
+            entryCallback.accept((Java.SideEffectEntryMessage) msg);
           },
           failureCallback);
     } else if (this.state == State.PROCESSING) {
@@ -329,9 +329,9 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   }
 
   void exitSideEffectBlock(
-      Protocol.SideEffectEntryMessage sideEffectToWrite,
+      Java.SideEffectEntryMessage sideEffectToWrite,
       Consumer<Span> traceFn,
-      Consumer<Protocol.SideEffectEntryMessage> entryCallback,
+      Consumer<Java.SideEffectEntryMessage> entryCallback,
       Consumer<Throwable> failureCallback) {
     this.insideSideEffect = false;
     if (this.state == State.REPLAYING) {

@@ -6,17 +6,17 @@ import dev.restate.generated.service.protocol.Protocol;
 
 public class MessageHeader {
 
-  private static final long DONE_MASK = 0x1_0000_0000L;
+  private static final short DONE_FLAG = 0x0001;
+  private static final short REQUIRES_ACK_FLAG = 0x0001;
 
   private final MessageType type;
+  private final short flags;
   private final int length;
 
-  private final boolean doneFlag;
-
-  private MessageHeader(MessageType type, int length, boolean doneFlag) {
+  private MessageHeader(MessageType type, short flags, int length) {
     this.type = type;
+    this.flags = flags;
     this.length = length;
-    this.doneFlag = doneFlag;
   }
 
   public MessageType getType() {
@@ -30,74 +30,81 @@ public class MessageHeader {
   public long encode() {
     long res = 0L;
     res |= ((long) (type.encode()) << 48);
-    res |= (long) length;
-    if (doneFlag) {
-      res |= DONE_MASK;
-    }
+    res |= ((long) (flags) << 32);
+    res |= length;
     return res;
+  }
+
+  public boolean hasFlag(short flag) {
+    return (this.flags & flag) > 0;
   }
 
   public static MessageHeader parse(long encoded) throws ProtocolException {
     var ty_code = (short) (encoded >> 48);
+    var flags = (short) (encoded >> 32);
     var len = (int) encoded;
 
-    return new MessageHeader(MessageType.decode(ty_code), len, (encoded & DONE_MASK) != 0);
+    return new MessageHeader(MessageType.decode(ty_code), flags, len);
   }
 
   public static MessageHeader fromMessage(MessageLite msg) {
     if (msg instanceof Protocol.StartMessage) {
-      return new MessageHeader(MessageType.StartMessage, msg.getSerializedSize(), false);
+      return new MessageHeader(MessageType.StartMessage, (short) 0, msg.getSerializedSize());
     } else if (msg instanceof Protocol.CompletionMessage) {
-      return new MessageHeader(MessageType.CompletionMessage, msg.getSerializedSize(), false);
-    } else if (msg instanceof Protocol.SupportedVersionRangeMessage) {
-      return new MessageHeader(
-          MessageType.SupportedVersionRangeMessage, msg.getSerializedSize(), false);
-    } else if (msg instanceof Protocol.SuspensionMessage) {
-      return new MessageHeader(MessageType.SuspensionMessage, msg.getSerializedSize(), false);
+      return new MessageHeader(MessageType.CompletionMessage, (short) 0, msg.getSerializedSize());
     } else if (msg instanceof Protocol.PollInputStreamEntryMessage) {
       return new MessageHeader(
-          MessageType.PollInputStreamEntryMessage, msg.getSerializedSize(), false);
+          MessageType.PollInputStreamEntryMessage, (short) 0, msg.getSerializedSize());
     } else if (msg instanceof Protocol.OutputStreamEntryMessage) {
       return new MessageHeader(
-          MessageType.OutputStreamEntryMessage, msg.getSerializedSize(), false);
+          MessageType.OutputStreamEntryMessage, (short) 0, msg.getSerializedSize());
     } else if (msg instanceof Protocol.GetStateEntryMessage) {
       return new MessageHeader(
           MessageType.GetStateEntryMessage,
-          msg.getSerializedSize(),
           ((Protocol.GetStateEntryMessage) msg).getResultCase()
-              != Protocol.GetStateEntryMessage.ResultCase.RESULT_NOT_SET);
+                  != Protocol.GetStateEntryMessage.ResultCase.RESULT_NOT_SET
+              ? DONE_FLAG
+              : 0,
+          msg.getSerializedSize());
     } else if (msg instanceof Protocol.SetStateEntryMessage) {
-      return new MessageHeader(MessageType.SetStateEntryMessage, msg.getSerializedSize(), false);
+      return new MessageHeader(
+          MessageType.SetStateEntryMessage, (short) 0, msg.getSerializedSize());
     } else if (msg instanceof Protocol.ClearStateEntryMessage) {
-      return new MessageHeader(MessageType.ClearStateEntryMessage, msg.getSerializedSize(), false);
+      return new MessageHeader(
+          MessageType.ClearStateEntryMessage, (short) 0, msg.getSerializedSize());
     } else if (msg instanceof Protocol.SleepEntryMessage) {
       return new MessageHeader(
           MessageType.SleepEntryMessage,
-          msg.getSerializedSize(),
-          ((Protocol.SleepEntryMessage) msg).hasResult());
+          ((Protocol.SleepEntryMessage) msg).hasResult() ? DONE_FLAG : 0,
+          msg.getSerializedSize());
     } else if (msg instanceof Protocol.InvokeEntryMessage) {
       return new MessageHeader(
           MessageType.InvokeEntryMessage,
-          msg.getSerializedSize(),
           ((Protocol.InvokeEntryMessage) msg).getResultCase()
-              != Protocol.InvokeEntryMessage.ResultCase.RESULT_NOT_SET);
+                  != Protocol.InvokeEntryMessage.ResultCase.RESULT_NOT_SET
+              ? DONE_FLAG
+              : 0,
+          msg.getSerializedSize());
     } else if (msg instanceof Protocol.BackgroundInvokeEntryMessage) {
       return new MessageHeader(
-          MessageType.BackgroundInvokeEntryMessage, msg.getSerializedSize(), false);
+          MessageType.BackgroundInvokeEntryMessage, (short) 0, msg.getSerializedSize());
     } else if (msg instanceof Protocol.AwakeableEntryMessage) {
       return new MessageHeader(
           MessageType.AwakeableEntryMessage,
-          msg.getSerializedSize(),
           ((Protocol.AwakeableEntryMessage) msg).getResultCase()
-              == Protocol.AwakeableEntryMessage.ResultCase.RESULT_NOT_SET);
+                  != Protocol.AwakeableEntryMessage.ResultCase.RESULT_NOT_SET
+              ? DONE_FLAG
+              : 0,
+          msg.getSerializedSize());
     } else if (msg instanceof Protocol.CompleteAwakeableEntryMessage) {
       return new MessageHeader(
-          MessageType.CompleteAwakeableEntryMessage, msg.getSerializedSize(), false);
-    } else if (msg instanceof Protocol.SideEffectEntryMessage) {
-      return new MessageHeader(MessageType.SideEffectEntryMessage, msg.getSerializedSize(), false);
+          MessageType.CompleteAwakeableEntryMessage, (short) 0, msg.getSerializedSize());
     } else if (msg instanceof Java.CombinatorAwaitableEntryMessage) {
       return new MessageHeader(
-          MessageType.CombinatorAwaitableEntryMessage, msg.getSerializedSize(), false);
+          MessageType.CombinatorAwaitableEntryMessage, (short) 0, msg.getSerializedSize());
+    } else if (msg instanceof Java.SideEffectEntryMessage) {
+      return new MessageHeader(
+          MessageType.SideEffectEntryMessage, REQUIRES_ACK_FLAG, msg.getSerializedSize());
     }
     throw new IllegalStateException();
   }

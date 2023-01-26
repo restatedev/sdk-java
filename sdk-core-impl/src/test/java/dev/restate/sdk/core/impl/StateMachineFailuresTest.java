@@ -3,7 +3,7 @@ package dev.restate.sdk.core.impl;
 import static dev.restate.sdk.core.impl.CoreTestRunner.TestCaseBuilder.testInvocation;
 import static dev.restate.sdk.core.impl.ProtoUtils.*;
 
-import dev.restate.generated.service.protocol.Protocol;
+import dev.restate.generated.sdk.java.Java;
 import dev.restate.sdk.blocking.RestateBlockingService;
 import dev.restate.sdk.core.StateKey;
 import dev.restate.sdk.core.TypeTag;
@@ -104,7 +104,7 @@ class StateMachineFailuresTest extends CoreTestRunner {
             .withInput(
                 startMessage(2),
                 inputMessage(GreetingRequest.newBuilder().setName("Till")),
-                Protocol.SideEffectEntryMessage.newBuilder())
+                Java.SideEffectEntryMessage.newBuilder())
             .usingAllThreadingModels()
             .assertingFailure(IllegalStateException.class));
   }

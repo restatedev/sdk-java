@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 import com.google.protobuf.ByteString;
+import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.blocking.RestateBlockingService;
 import dev.restate.sdk.blocking.RestateContext;
@@ -104,14 +105,14 @@ class SideEffectTest extends CoreTestRunner {
             .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
             .usingAllThreadingModels()
             .expectingOutput(
-                Protocol.SideEffectEntryMessage.newBuilder()
+                Java.SideEffectEntryMessage.newBuilder()
                     .setValue(ByteString.copyFromUtf8("Francesco")),
                 outputMessage(GreetingResponse.newBuilder().setMessage("Hello Francesco"))),
         testInvocation(new ConsecutiveSideEffect("Francesco"), GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
             .usingAllThreadingModels()
             .expectingOutput(
-                Protocol.SideEffectEntryMessage.newBuilder()
+                Java.SideEffectEntryMessage.newBuilder()
                     .setValue(ByteString.copyFromUtf8("Francesco")))
             .named("Without ack"),
         testInvocation(new ConsecutiveSideEffect("Francesco"), GreeterGrpc.getGreetMethod())
@@ -121,9 +122,9 @@ class SideEffectTest extends CoreTestRunner {
                 Protocol.CompletionMessage.newBuilder().setEntryIndex(1))
             .usingThreadingModels(ThreadingModel.UNBUFFERED_MULTI_THREAD)
             .expectingOutput(
-                Protocol.SideEffectEntryMessage.newBuilder()
+                Java.SideEffectEntryMessage.newBuilder()
                     .setValue(ByteString.copyFromUtf8("Francesco")),
-                Protocol.SideEffectEntryMessage.newBuilder()
+                Java.SideEffectEntryMessage.newBuilder()
                     .setValue(ByteString.copyFromUtf8("FRANCESCO")),
                 outputMessage(GreetingResponse.newBuilder().setMessage("Hello FRANCESCO")))
             .named("With ack"),
@@ -135,8 +136,8 @@ class SideEffectTest extends CoreTestRunner {
                   assertThat(actualOutputMessages).hasSize(2);
                   assertThat(actualOutputMessages)
                       .element(0)
-                      .asInstanceOf(type(Protocol.SideEffectEntryMessage.class))
-                      .returns(true, Protocol.SideEffectEntryMessage::hasValue);
+                      .asInstanceOf(type(Java.SideEffectEntryMessage.class))
+                      .returns(true, Java.SideEffectEntryMessage::hasValue);
                   assertThat(actualOutputMessages)
                       .element(1)
                       .isEqualTo(

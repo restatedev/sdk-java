@@ -5,6 +5,7 @@ import static dev.restate.sdk.core.impl.Util.toProtocolFailure;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
 import dev.restate.generated.core.AwakeableIdentifier;
+import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.generated.service.protocol.Protocol.PollInputStreamEntryMessage;
 import dev.restate.sdk.core.TypeTag;
@@ -166,13 +167,13 @@ public final class SyscallsImpl implements SyscallsInternal {
       TypeTag<T> typeTag, T toWrite, ExitSideEffectSyscallCallback<T> callback) {
     LOG.trace("exitSideEffectBlock with success");
     this.stateMachine.exitSideEffectBlock(
-        Protocol.SideEffectEntryMessage.newBuilder().setValue(serialize(typeTag, toWrite)).build(),
+        Java.SideEffectEntryMessage.newBuilder().setValue(serialize(typeTag, toWrite)).build(),
         span -> span.addEvent("Exit SideEffect"),
         sideEffectEntryHandler(typeTag, callback),
         callback::onCancel);
   }
 
-  private <T> Consumer<Protocol.SideEffectEntryMessage> sideEffectEntryHandler(
+  private <T> Consumer<Java.SideEffectEntryMessage> sideEffectEntryHandler(
       TypeTag<T> typeTag, ExitSideEffectSyscallCallback<T> callback) {
     return sideEffectEntry -> {
       if (sideEffectEntry.hasFailure()) {
@@ -196,7 +197,7 @@ public final class SyscallsImpl implements SyscallsInternal {
     }
 
     this.stateMachine.exitSideEffectBlock(
-        Protocol.SideEffectEntryMessage.newBuilder().setFailure(toProtocolFailure(toWrite)).build(),
+        Java.SideEffectEntryMessage.newBuilder().setFailure(toProtocolFailure(toWrite)).build(),
         span -> span.addEvent("Exit SideEffect"),
         sideEffectEntry ->
             callback.onFailure(

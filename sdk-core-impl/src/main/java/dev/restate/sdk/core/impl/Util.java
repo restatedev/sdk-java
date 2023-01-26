@@ -110,9 +110,9 @@ public final class Util {
         || msg instanceof Protocol.SleepEntryMessage
         || msg instanceof Protocol.InvokeEntryMessage
         || msg instanceof Protocol.BackgroundInvokeEntryMessage
-        || msg instanceof Protocol.SideEffectEntryMessage
         || msg instanceof Protocol.AwakeableEntryMessage
         || msg instanceof Protocol.CompleteAwakeableEntryMessage
-        || msg instanceof Java.CombinatorAwaitableEntryMessage;
+        || msg instanceof Java.CombinatorAwaitableEntryMessage
+        || msg instanceof Java.SideEffectEntryMessage;
   }
 }
