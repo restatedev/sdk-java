@@ -8,5 +8,5 @@ option java_package = "dev.restate.generated.sdk.java";
 
 // Type: 0xFC00 + 0
 message CombinatorAwaitableEntryMessage {
-  repeated uint32 entry_index = 2;
+  repeated uint32 entry_index = 1;
 }

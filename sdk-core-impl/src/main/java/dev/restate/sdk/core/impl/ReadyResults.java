@@ -21,7 +21,7 @@ abstract class ReadyResults {
     return new Failure<>(t);
   }
 
-  interface ReadyResultInternal<T> extends ReadyResult<T> { }
+  interface ReadyResultInternal<T> extends ReadyResult<T> {}
 
   static class Empty<T> implements ReadyResultInternal<T> {
 

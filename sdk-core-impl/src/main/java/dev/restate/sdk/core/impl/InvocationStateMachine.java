@@ -422,8 +422,8 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       List<Integer> resolvedOrder = new ArrayList<>();
 
       // Walk the tree and populate the resolvable singles, and keep the already known ready results
-      for (Iterator<SingleDeferredResultInternal<?>> it = rootDeferred.leafs().iterator();
-          it.hasNext(); ) {
+      Iterator<SingleDeferredResultInternal<?>> it = rootDeferred.leafs().iterator();
+      while (it.hasNext()) {
         SingleDeferredResultInternal<?> singleDeferred = it.next();
 
         if (singleDeferred.isCompleted()) {

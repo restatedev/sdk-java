@@ -43,8 +43,7 @@ abstract class DeferredResults {
 
   private abstract static class BaseDeferredResult<T> implements DeferredResultInternal<T> {
 
-    @Nullable
-    private ReadyResults.ReadyResultInternal<T> readyResult;
+    @Nullable private ReadyResults.ReadyResultInternal<T> readyResult;
 
     BaseDeferredResult(@Nullable ReadyResults.ReadyResultInternal<T> readyResult) {
       this.readyResult = readyResult;
@@ -73,7 +72,7 @@ abstract class DeferredResults {
     private final int entryIndex;
 
     private ResolvableSingleDeferredResult(
-            @Nullable ReadyResults.ReadyResultInternal<T> readyResultInternal, int entryIndex) {
+        @Nullable ReadyResults.ReadyResultInternal<T> readyResultInternal, int entryIndex) {
       super(readyResultInternal);
       this.entryIndex = entryIndex;
     }
