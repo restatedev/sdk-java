@@ -19,18 +19,7 @@ import javax.annotation.Nullable;
  *
  * @param <T> result type
  */
-public interface ReadyResult<T> extends DeferredResult<T> {
-
-  @Override
-  default boolean isCompleted() {
-    return true;
-  }
-
-  @Nullable
-  @Override
-  default ReadyResult<T> toReadyResult() {
-    return this;
-  }
+public interface ReadyResult<T> {
 
   /**
    * @return true if there is no failure.

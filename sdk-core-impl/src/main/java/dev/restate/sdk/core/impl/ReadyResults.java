@@ -21,13 +21,7 @@ abstract class ReadyResults {
     return new Failure<>(t);
   }
 
-  interface ReadyResultInternal<T> extends ReadyResult<T> {
-    @Nullable
-    @Override
-    default ReadyResultInternal<T> toReadyResult() {
-      return this;
-    }
-  }
+  interface ReadyResultInternal<T> extends ReadyResult<T> { }
 
   static class Empty<T> implements ReadyResultInternal<T> {
 
