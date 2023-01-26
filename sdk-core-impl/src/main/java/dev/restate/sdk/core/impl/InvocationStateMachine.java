@@ -405,8 +405,8 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     checkInsideSideEffectGuard();
     if (Objects.equals(this.state, State.REPLAYING)) {
       // Retrieve the CombinatorAwaitableEntryMessage
-      this.entriesQueue.read(
-          actualMsg -> {
+      this.readEntry(
+            (entryIndex, actualMsg) -> {
             Util.assertEntryClass(Java.CombinatorAwaitableEntryMessage.class, actualMsg);
 
             if (!rootDeferred.tryResolve(

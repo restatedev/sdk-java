@@ -325,6 +325,7 @@ public class DeferredTest extends CoreTestRunner {
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
                 combinatorsMessage(1),
                 outputMessage(greetingResponse("FRANCESCO")))
-            .named("Complete any asynchronously"));
+            .named("Complete any asynchronously")
+    );
   }
 }
