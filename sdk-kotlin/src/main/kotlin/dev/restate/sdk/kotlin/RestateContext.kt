@@ -9,6 +9,8 @@ import kotlin.time.Duration
 
 sealed interface RestateContext {
 
+  fun invocationId(): String
+
   suspend fun <T : Any> get(key: StateKey<T>): T?
 
   suspend fun <T : Any> set(key: StateKey<T>, value: T)

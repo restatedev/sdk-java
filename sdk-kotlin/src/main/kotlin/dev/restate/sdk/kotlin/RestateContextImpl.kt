@@ -16,6 +16,10 @@ import kotlinx.coroutines.*
 
 internal class RestateContextImpl internal constructor(private val syscalls: Syscalls) :
     RestateContext {
+  override fun invocationId(): String {
+    return syscalls.invocationId()
+  }
+
   override suspend fun <T : Any> get(key: StateKey<T>): T? {
     val deferredResult: DeferredResult<T> =
         suspendCancellableCoroutine { cont: CancellableContinuation<DeferredResult<T>> ->

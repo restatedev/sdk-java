@@ -24,6 +24,11 @@ class RestateContextImpl implements RestateContext {
   }
 
   @Override
+  public String invocationId() {
+    return syscalls.invocationId();
+  }
+
+  @Override
   public <T> Optional<T> get(StateKey<T> key) {
     DeferredResult<T> deferredResult =
         Util.blockOnSyscall(cb -> syscalls.get(key.name(), key.typeTag(), cb));

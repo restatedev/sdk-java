@@ -17,10 +17,7 @@ import dev.restate.sdk.core.serde.Serde;
 import dev.restate.sdk.core.syscalls.*;
 import io.grpc.MethodDescriptor;
 import java.time.Duration;
-import java.util.AbstractMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
@@ -37,6 +34,15 @@ public final class SyscallsImpl implements SyscallsInternal {
   public SyscallsImpl(InvocationStateMachine stateMachine, Serde serde) {
     this.stateMachine = stateMachine;
     this.serde = serde;
+  }
+
+  @Override
+  public String invocationId() {
+    return stateMachine.getServiceName()
+        + "-"
+        + Base64.getEncoder().encodeToString(stateMachine.getInstanceKey().toByteArray())
+        + "-"
+        + Base64.getEncoder().encodeToString(stateMachine.getInvocationId().toByteArray());
   }
 
   @Override

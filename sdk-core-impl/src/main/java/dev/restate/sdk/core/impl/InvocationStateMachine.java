@@ -43,8 +43,11 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   private boolean insideSideEffect = false;
 
   // Obtained after WAITING_START
-  private ByteString instanceKey;
-  private ByteString invocationId;
+  // We need volatile because the getters can be used directly from the user code thread.
+  // We don't need to sync them because they will be written once before the Syscalls object can be
+  // accessed from the user thread (see RestateGrpcServer#resolve).
+  private volatile ByteString instanceKey;
+  private volatile ByteString invocationId;
   private int entriesToReplay;
 
   // Index tracking progress in the journal
