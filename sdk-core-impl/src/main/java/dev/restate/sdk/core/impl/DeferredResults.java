@@ -56,9 +56,8 @@ abstract class DeferredResults {
       return readyResult != null;
     }
 
-    @SuppressWarnings("unchecked")
-    public void resolve(ReadyResults.ReadyResultInternal<?> readyResultInternal) {
-      this.readyResult = (ReadyResults.ReadyResultInternal<T>) readyResultInternal;
+    public void resolve(ReadyResults.ReadyResultInternal<T> readyResultInternal) {
+      this.readyResult = readyResultInternal;
     }
 
     @Override
@@ -138,6 +137,7 @@ abstract class DeferredResults {
               .collect(Collectors.toList()));
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     boolean tryResolve(int newResolvedSingle) {
       if (this.isCompleted()) {
@@ -148,14 +148,14 @@ abstract class DeferredResults {
           this.unresolvedSingles.get(newResolvedSingle);
       if (resolvedSingle != null) {
         // Resolved
-        this.resolve(resolvedSingle.toReadyResult());
+        this.resolve((ReadyResults.ReadyResultInternal<Object>) resolvedSingle.toReadyResult());
         return true;
       }
 
       for (CombinatorDeferredResult<?> combinator : this.unresolvedCombinators) {
         if (combinator.tryResolve(newResolvedSingle)) {
           // Resolved
-          this.resolve(combinator.toReadyResult());
+          this.resolve((ReadyResults.ReadyResultInternal<Object>) combinator.toReadyResult());
           return true;
         }
       }
@@ -183,6 +183,7 @@ abstract class DeferredResults {
               .collect(Collectors.toCollection(ArrayList::new)));
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     boolean tryResolve(int newResolvedSingle) {
       if (this.isCompleted()) {
@@ -193,7 +194,7 @@ abstract class DeferredResults {
           this.unresolvedSingles.remove(newResolvedSingle);
       if (resolvedSingle != null) {
         if (!resolvedSingle.toReadyResult().isSuccess()) {
-          this.resolve(resolvedSingle.toReadyResult());
+          this.resolve((ReadyResults.ReadyResultInternal<Void>) resolvedSingle.toReadyResult());
           return true;
         }
       }
@@ -206,7 +207,7 @@ abstract class DeferredResults {
           it.remove();
 
           if (!combinator.toReadyResult().isSuccess()) {
-            this.resolve(combinator.toReadyResult());
+            this.resolve((ReadyResults.ReadyResultInternal<Void>) combinator.toReadyResult());
             return true;
           }
         }

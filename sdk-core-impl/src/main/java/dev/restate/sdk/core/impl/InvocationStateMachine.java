@@ -377,15 +377,16 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     throw new IllegalArgumentException("Unexpected deferred class " + deferredToResolve.getClass());
   }
 
-  <T> void resolveSingleDeferred(
-      ResolvableSingleDeferredResult<T> deferred, SyscallCallback<Void> callback) {
+  void resolveSingleDeferred(
+      ResolvableSingleDeferredResult<?> deferred, SyscallCallback<Void> callback) {
     this.readyResultPublisher.onNewReadyResult(
         new ReadyResultPublisher.OnNewReadyResultCallback() {
+          @SuppressWarnings({"unchecked", "rawtypes"})
           @Override
           public boolean onNewReadyResult(Map<Integer, ReadyResultInternal<?>> resultMap) {
             ReadyResultInternal<?> resolved = resultMap.remove(deferred.entryIndex());
             if (resolved != null) {
-              deferred.resolve(resolved);
+              deferred.resolve((ReadyResultInternal) resolved);
               callback.onSuccess(null);
               return true;
             }
@@ -443,6 +444,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       // Not completed yet, we need to wait on the ReadyResultPublisher
       this.readyResultPublisher.onNewReadyResult(
           new ReadyResultPublisher.OnNewReadyResultCallback() {
+            @SuppressWarnings({"unchecked", "rawtypes"})
             @Override
             public boolean onNewReadyResult(Map<Integer, ReadyResultInternal<?>> resultMap) {
               Iterator<Map.Entry<Integer, ResolvableSingleDeferredResult<?>>> it =
@@ -453,7 +455,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
                 ReadyResultInternal<?> result = resultMap.remove(entry.getKey());
                 if (result != null) {
                   resolvedOrder.add(entry.getKey());
-                  entry.getValue().resolve(result);
+                  entry.getValue().resolve((ReadyResultInternal) result);
                   it.remove();
 
                   if (tryResolveCombinatorUsingResolvedOrder(
