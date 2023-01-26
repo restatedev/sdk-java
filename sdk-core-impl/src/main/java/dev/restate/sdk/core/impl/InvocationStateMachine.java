@@ -400,6 +400,9 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   private void resolveCombinatorDeferred(
       CombinatorDeferredResult<?> rootDeferred, SyscallCallback<Void> callback) {
+    // Calling .await() on a combinator deferred within a side effect is not allowed
+    //  as resolving it creates or read a journal entry.
+    checkInsideSideEffectGuard();
     if (Objects.equals(this.state, State.REPLAYING)) {
       // Retrieve the CombinatorAwaitableEntryMessage
       this.entriesQueue.read(

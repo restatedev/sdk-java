@@ -18,7 +18,7 @@ import java.util.concurrent.*;
  *
  * @param <T> type of the awaitable result
  */
-public final class Awaitable<T> {
+public class Awaitable<T> {
 
   private final Syscalls syscalls;
   private final DeferredResult<T> deferredResult;
