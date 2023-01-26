@@ -19,6 +19,7 @@ import java.util.*;
 import java.util.concurrent.Flow;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -406,7 +407,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     if (Objects.equals(this.state, State.REPLAYING)) {
       // Retrieve the CombinatorAwaitableEntryMessage
       this.readEntry(
-            (entryIndex, actualMsg) -> {
+          (entryIndex, actualMsg) -> {
             Util.assertEntryClass(Java.CombinatorAwaitableEntryMessage.class, actualMsg);
 
             if (!rootDeferred.tryResolve(
@@ -422,10 +423,9 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       List<Integer> resolvedOrder = new ArrayList<>();
 
       // Walk the tree and populate the resolvable singles, and keep the already known ready results
-      Iterator<SingleDeferredResultInternal<?>> it = rootDeferred.leafs().iterator();
-      while (it.hasNext()) {
-        SingleDeferredResultInternal<?> singleDeferred = it.next();
-
+      List<SingleDeferredResultInternal<?>> unprocessedLeafs =
+          rootDeferred.unprocessedLeafs().collect(Collectors.toList());
+      for (SingleDeferredResultInternal<?> singleDeferred : unprocessedLeafs) {
         if (singleDeferred.isCompleted()) {
           resolvedOrder.add(singleDeferred.entryIndex());
 
@@ -433,11 +433,11 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
           if (tryResolveCombinatorUsingResolvedOrder(rootDeferred, resolvedOrder, callback)) {
             return;
           }
+        } else {
+          // If not completed, then it's a ResolvableSingleDeferredResult
+          resolvableSingles.put(
+              singleDeferred.entryIndex(), (ResolvableSingleDeferredResult<?>) singleDeferred);
         }
-
-        // If not completed, then it's a ResolvableSingleDeferredResult
-        resolvableSingles.put(
-            singleDeferred.entryIndex(), (ResolvableSingleDeferredResult<?>) singleDeferred);
       }
 
       // Not completed yet, we need to wait on the ReadyResultPublisher
@@ -445,11 +445,9 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
           new ReadyResultPublisher.OnNewReadyResultCallback() {
             @Override
             public boolean onNewReadyResult(Map<Integer, ReadyResultInternal<?>> resultMap) {
-              boolean foundNewResolved = false;
-
-              for (Iterator<Map.Entry<Integer, ResolvableSingleDeferredResult<?>>> it =
-                      resolvableSingles.entrySet().iterator();
-                  it.hasNext(); ) {
+              Iterator<Map.Entry<Integer, ResolvableSingleDeferredResult<?>>> it =
+                  resolvableSingles.entrySet().iterator();
+              while (it.hasNext()) {
                 Map.Entry<Integer, ResolvableSingleDeferredResult<?>> entry = it.next();
 
                 ReadyResultInternal<?> result = resultMap.remove(entry.getKey());
@@ -457,15 +455,15 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
                   resolvedOrder.add(entry.getKey());
                   entry.getValue().resolve(result);
                   it.remove();
-                  foundNewResolved = true;
+
+                  if (tryResolveCombinatorUsingResolvedOrder(
+                      rootDeferred, resolvedOrder, callback)) {
+                    return true;
+                  }
                 }
               }
 
-              if (!foundNewResolved) {
-                return false;
-              }
-
-              return tryResolveCombinatorUsingResolvedOrder(rootDeferred, resolvedOrder, callback);
+              return false;
             }
 
             @Override
@@ -483,7 +481,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       CombinatorDeferredResult<?> rootDeferred,
       List<Integer> resolvedList,
       SyscallCallback<Void> callback) {
-    if (!rootDeferred.tryResolve(resolvedList)) {
+    if (!rootDeferred.tryResolve(resolvedList.get(resolvedList.size() - 1))) {
       // We need to reiterate
       return false;
     }

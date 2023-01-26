@@ -89,6 +89,27 @@ public class DeferredTest extends CoreTestRunner {
     }
   }
 
+  private static class CombineAnyWithAll extends GreeterGrpc.GreeterImplBase
+      implements RestateBlockingService {
+    @Override
+    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
+      RestateContext ctx = restateContext();
+
+      Awaitable<String> a1 = ctx.awakeable(TypeTag.STRING_UTF8);
+      Awaitable<String> a2 = ctx.awakeable(TypeTag.STRING_UTF8);
+      Awaitable<String> a3 = ctx.awakeable(TypeTag.STRING_UTF8);
+      Awaitable<String> a4 = ctx.awakeable(TypeTag.STRING_UTF8);
+
+      Awaitable<Object> a12 = Awaitable.any(a1, a2);
+      Awaitable<Object> a23 = Awaitable.any(a2, a3);
+      Awaitable<Object> a34 = Awaitable.any(a3, a4);
+      Awaitable.all(a12, a23, a34).await();
+
+      responseObserver.onNext(greetingResponse(a12.await() + (String) a23.await() + a34.await()));
+      responseObserver.onCompleted();
+    }
+  }
+
   @Override
   Stream<CoreTestRunner.TestDefinition> definitions() {
     return Stream.of(
@@ -325,7 +346,31 @@ public class DeferredTest extends CoreTestRunner {
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
                 combinatorsMessage(1),
                 outputMessage(greetingResponse("FRANCESCO")))
-            .named("Complete any asynchronously")
-    );
+            .named("Complete any asynchronously"),
+
+        // --- Compose any with all
+        testInvocation(new CombineAnyWithAll(), GreeterGrpc.getGreetMethod())
+            .withInput(
+                startMessage(6),
+                inputMessage(GreetingRequest.newBuilder()),
+                awakeable("1"),
+                awakeable("2"),
+                awakeable("3"),
+                awakeable("4"),
+                combinatorsMessage(2, 3))
+            .usingAllThreadingModels()
+            .expectingOutput(outputMessage(greetingResponse("223"))),
+        testInvocation(new CombineAnyWithAll(), GreeterGrpc.getGreetMethod())
+            .withInput(
+                startMessage(6),
+                inputMessage(GreetingRequest.newBuilder()),
+                awakeable("1"),
+                awakeable("2"),
+                awakeable("3"),
+                awakeable("4"),
+                combinatorsMessage(3, 2))
+            .usingAllThreadingModels()
+            .expectingOutput(outputMessage(greetingResponse("233")))
+            .named("Inverted order"));
   }
 }

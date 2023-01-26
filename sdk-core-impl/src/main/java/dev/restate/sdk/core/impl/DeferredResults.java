@@ -1,7 +1,9 @@
 package dev.restate.sdk.core.impl;
 
 import dev.restate.sdk.core.syscalls.DeferredResult;
-import java.util.List;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
@@ -32,8 +34,8 @@ abstract class DeferredResults {
     @Override
     ReadyResults.ReadyResultInternal<T> toReadyResult();
 
-    // Return only single leafs, and not combinators
-    Stream<DeferredResults.SingleDeferredResultInternal<?>> leafs();
+    /** Returns leafs that are either unprocessed, or unresolved. */
+    Stream<DeferredResults.SingleDeferredResultInternal<?>> unprocessedLeafs();
   }
 
   interface SingleDeferredResultInternal<T> extends DeferredResultInternal<T> {
@@ -83,51 +85,77 @@ abstract class DeferredResults {
     }
 
     @Override
-    public Stream<DeferredResults.SingleDeferredResultInternal<?>> leafs() {
+    public Stream<DeferredResults.SingleDeferredResultInternal<?>> unprocessedLeafs() {
       return Stream.of(this);
     }
   }
 
   abstract static class CombinatorDeferredResult<T> extends BaseDeferredResult<T> {
-    final List<DeferredResultInternal<?>> children;
+    protected final Map<Integer, SingleDeferredResultInternal<?>> unresolvedSingles;
+    protected final List<CombinatorDeferredResult<?>> unresolvedCombinators;
 
-    private CombinatorDeferredResult(List<DeferredResultInternal<?>> children) {
+    CombinatorDeferredResult(
+        Map<Integer, SingleDeferredResultInternal<?>> unresolvedSingles,
+        List<CombinatorDeferredResult<?>> unresolvedCombinators) {
       super(null);
-      this.children = children;
+
+      this.unresolvedSingles = unresolvedSingles;
+      this.unresolvedCombinators = unresolvedCombinators;
     }
 
     /** Returns true if it's resolved, that is {@link #isCompleted()} returns true. */
-    abstract boolean tryResolve(List<Integer> resolvedSingles);
+    abstract boolean tryResolve(int newResolvedSingle);
+
+    /** Returns true if it's resolved, that is {@link #isCompleted()} returns true. */
+    boolean tryResolve(List<Integer> resolvedSingle) {
+      boolean resolved = false;
+      for (int newResolvedSingle : resolvedSingle) {
+        resolved = tryResolve(newResolvedSingle);
+      }
+      return resolved;
+    }
 
     @Override
-    public Stream<DeferredResults.SingleDeferredResultInternal<?>> leafs() {
-      return this.children.stream().flatMap(DeferredResultInternal::leafs);
+    public Stream<DeferredResults.SingleDeferredResultInternal<?>> unprocessedLeafs() {
+      return Stream.concat(
+          this.unresolvedSingles.values().stream(),
+          this.unresolvedCombinators.stream().flatMap(CombinatorDeferredResult::unprocessedLeafs));
     }
   }
 
   static class AnyDeferredResult extends CombinatorDeferredResult<Object> {
 
-    private AnyDeferredResult(List<DeferredResultInternal<?>> children) {
-      super(children);
+    private AnyDeferredResult(List<DeferredResultInternal<?>> childs) {
+      super(
+          childs.stream()
+              .filter(d -> d instanceof SingleDeferredResultInternal)
+              .map(d -> (SingleDeferredResultInternal<?>) d)
+              .collect(
+                  Collectors.toMap(SingleDeferredResultInternal::entryIndex, Function.identity())),
+          childs.stream()
+              .filter(d -> d instanceof CombinatorDeferredResult)
+              .map(d -> (CombinatorDeferredResult<?>) d)
+              .collect(Collectors.toList()));
     }
 
     @Override
-    boolean tryResolve(List<Integer> resolvedSingles) {
+    boolean tryResolve(int newResolvedSingle) {
       if (this.isCompleted()) {
         return true;
       }
 
-      for (DeferredResultInternal<?> child : this.children) {
-        boolean resolved;
-        if (child instanceof CombinatorDeferredResult) {
-          resolved = ((CombinatorDeferredResult<?>) child).tryResolve(resolvedSingles);
-        } else {
-          resolved =
-              resolvedSingles.contains(((SingleDeferredResultInternal<?>) child).entryIndex());
-        }
+      SingleDeferredResultInternal<?> resolvedSingle =
+          this.unresolvedSingles.get(newResolvedSingle);
+      if (resolvedSingle != null) {
+        // Resolved
+        this.resolve(resolvedSingle.toReadyResult());
+        return true;
+      }
 
-        if (resolved) {
-          this.resolve(child.toReadyResult());
+      for (CombinatorDeferredResult<?> combinator : this.unresolvedCombinators) {
+        if (combinator.tryResolve(newResolvedSingle)) {
+          // Resolved
+          this.resolve(combinator.toReadyResult());
           return true;
         }
       }
@@ -139,35 +167,57 @@ abstract class DeferredResults {
   static class AllDeferredResult extends CombinatorDeferredResult<Void> {
 
     private AllDeferredResult(List<DeferredResultInternal<?>> childs) {
-      super(childs);
+      super(
+          childs.stream()
+              .filter(d -> d instanceof SingleDeferredResultInternal)
+              .map(d -> (SingleDeferredResultInternal<?>) d)
+              .collect(
+                  Collectors.toMap(
+                      SingleDeferredResultInternal::entryIndex,
+                      Function.identity(),
+                      (v1, v2) -> v1,
+                      HashMap::new)),
+          childs.stream()
+              .filter(d -> d instanceof CombinatorDeferredResult)
+              .map(d -> (CombinatorDeferredResult<?>) d)
+              .collect(Collectors.toCollection(ArrayList::new)));
     }
 
     @Override
-    boolean tryResolve(List<Integer> resolvedSingles) {
+    boolean tryResolve(int newResolvedSingle) {
       if (this.isCompleted()) {
         return true;
       }
 
-      for (DeferredResultInternal<?> child : this.children) {
-        boolean resolved;
-        if (child instanceof CombinatorDeferredResult) {
-          resolved = ((CombinatorDeferredResult<?>) child).tryResolve(resolvedSingles);
-        } else {
-          resolved =
-              resolvedSingles.contains(((SingleDeferredResultInternal<?>) child).entryIndex());
-        }
-
-        if (!resolved) {
-          return false;
-        }
-        if (!child.toReadyResult().isSuccess()) {
-          this.resolve(child.toReadyResult());
+      SingleDeferredResultInternal<?> resolvedSingle =
+          this.unresolvedSingles.remove(newResolvedSingle);
+      if (resolvedSingle != null) {
+        if (!resolvedSingle.toReadyResult().isSuccess()) {
+          this.resolve(resolvedSingle.toReadyResult());
           return true;
         }
       }
 
-      this.resolve(ReadyResults.empty());
-      return true;
+      Iterator<CombinatorDeferredResult<?>> it = this.unresolvedCombinators.iterator();
+      while (it.hasNext()) {
+        CombinatorDeferredResult<?> combinator = it.next();
+        if (combinator.tryResolve(newResolvedSingle)) {
+          // Resolved
+          it.remove();
+
+          if (!combinator.toReadyResult().isSuccess()) {
+            this.resolve(combinator.toReadyResult());
+            return true;
+          }
+        }
+      }
+
+      if (this.unresolvedSingles.isEmpty() && this.unresolvedCombinators.isEmpty()) {
+        this.resolve(ReadyResults.empty());
+        return true;
+      }
+
+      return false;
     }
   }
 }

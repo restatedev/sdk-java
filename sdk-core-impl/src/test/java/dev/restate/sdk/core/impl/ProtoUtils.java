@@ -94,6 +94,14 @@ public class ProtoUtils {
     return invokeMessage(methodDescriptor, parameter).setFailure(Util.toProtocolFailure(e)).build();
   }
 
+  static Protocol.AwakeableEntryMessage.Builder awakeable() {
+    return Protocol.AwakeableEntryMessage.newBuilder();
+  }
+
+  static Protocol.AwakeableEntryMessage awakeable(String value) {
+    return awakeable().setValue(ByteString.copyFromUtf8(value)).build();
+  }
+
   static GreetingRequest greetingRequest(String name) {
     return GreetingRequest.newBuilder().setName(name).build();
   }
