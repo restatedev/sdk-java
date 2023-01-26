@@ -10,20 +10,20 @@ abstract class DeferredResults {
   private DeferredResults() {}
 
   static <T> DeferredResultInternal<T> single(int entryIndex) {
-    return new ResolvableSingleDeferredResult<>(entryIndex, null);
+    return new ResolvableSingleDeferredResult<>(null, entryIndex);
   }
 
   static <T> DeferredResultInternal<T> completedSingle(
       int entryIndex, ReadyResults.ReadyResultInternal<T> readyResultInternal) {
-    return new ResolvableSingleDeferredResult<>(entryIndex, readyResultInternal);
+    return new ResolvableSingleDeferredResult<>(readyResultInternal, entryIndex);
   }
 
   static DeferredResultInternal<Object> any(List<DeferredResultInternal<?>> any) {
     return new AnyDeferredResult(any);
   }
 
-  static DeferredResultInternal<Void> all(List<DeferredResultInternal<?>> any) {
-    return new AllDeferredResult(any);
+  static DeferredResultInternal<Void> all(List<DeferredResultInternal<?>> all) {
+    return new AllDeferredResult(all);
   }
 
   interface DeferredResultInternal<T> extends DeferredResult<T> {
@@ -43,7 +43,12 @@ abstract class DeferredResults {
 
   private abstract static class BaseDeferredResult<T> implements DeferredResultInternal<T> {
 
-    @Nullable private ReadyResults.ReadyResultInternal<T> readyResult;
+    @Nullable
+    private ReadyResults.ReadyResultInternal<T> readyResult;
+
+    BaseDeferredResult(@Nullable ReadyResults.ReadyResultInternal<T> readyResult) {
+      this.readyResult = readyResult;
+    }
 
     @Override
     public boolean isCompleted() {
@@ -68,9 +73,9 @@ abstract class DeferredResults {
     private final int entryIndex;
 
     private ResolvableSingleDeferredResult(
-        int entryIndex, @Nullable ReadyResults.ReadyResultInternal<T> readyResultInternal) {
+            @Nullable ReadyResults.ReadyResultInternal<T> readyResultInternal, int entryIndex) {
+      super(readyResultInternal);
       this.entryIndex = entryIndex;
-      this.resolve(readyResultInternal);
     }
 
     @Override
@@ -88,6 +93,7 @@ abstract class DeferredResults {
     final List<DeferredResultInternal<?>> children;
 
     private CombinatorDeferredResult(List<DeferredResultInternal<?>> children) {
+      super(null);
       this.children = children;
     }
 
