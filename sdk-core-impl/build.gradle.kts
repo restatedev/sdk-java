@@ -55,3 +55,15 @@ protobuf {
 
   generateProtoTasks { ofSourceSet("test").forEach { it.plugins { id("grpc") } } }
 }
+
+// Generate test jar
+
+configurations { register("testArchive") }
+
+tasks.register<Jar>("testJar") {
+  archiveClassifier.set("tests")
+
+  from(project.the<SourceSetContainer>()["test"].output)
+}
+
+artifacts { add("testArchive", tasks["testJar"]) }

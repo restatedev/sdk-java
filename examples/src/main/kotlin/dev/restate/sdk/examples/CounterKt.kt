@@ -2,7 +2,7 @@ import com.google.protobuf.Empty
 import dev.restate.sdk.core.StateKey
 import dev.restate.sdk.examples.BlockingCounter
 import dev.restate.sdk.examples.generated.*
-import dev.restate.sdk.vertx.RestateHttpServerBuilder
+import dev.restate.sdk.vertx.RestateHttpEndpointBuilder
 import io.vertx.core.Vertx
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlin.coroutines.CoroutineContext
@@ -55,7 +55,7 @@ class CounterKt(coroutineContext: CoroutineContext) :
 fun main() {
   val vertx = Vertx.vertx()
 
-  RestateHttpServerBuilder.builder(vertx)
+  RestateHttpEndpointBuilder.builder(vertx)
       .withService(CounterKt(coroutineContext = vertx.dispatcher()))
       .buildAndListen()
 }

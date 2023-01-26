@@ -22,9 +22,9 @@ import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-class RequestServerHandler implements Handler<HttpServerRequest> {
+class RequestHttpServerHandler implements Handler<HttpServerRequest> {
 
-  private static final Logger LOG = LogManager.getLogger(RequestServerHandler.class);
+  private static final Logger LOG = LogManager.getLogger(RequestHttpServerHandler.class);
 
   private static final AsciiString APPLICATION_RESTATE = AsciiString.cached("application/restate");
 
@@ -52,7 +52,7 @@ class RequestServerHandler implements Handler<HttpServerRequest> {
   private final HashSet<String> blockingServices;
   private final OpenTelemetry openTelemetry;
 
-  RequestServerHandler(
+  RequestHttpServerHandler(
       Vertx vertx,
       RestateGrpcServer restateGrpcServer,
       HashSet<String> blockingServices,
@@ -104,6 +104,8 @@ class RequestServerHandler implements Handler<HttpServerRequest> {
       request.response().setStatusCode(e.getGrpcCode() == Status.Code.NOT_FOUND ? 404 : 500).end();
       return;
     }
+
+    LOG.debug("Handling request to " + service + "/" + method);
 
     // Prepare the header frame to send in the response.
     // Vert.x will send them as soon as we send the first write

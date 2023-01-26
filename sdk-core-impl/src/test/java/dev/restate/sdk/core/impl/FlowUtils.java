@@ -183,7 +183,15 @@ public class FlowUtils {
 
       @Override
       public void request(long l) {
-        this.request = (l == Long.MAX_VALUE) ? Long.MAX_VALUE : l + this.request;
+        if (l == Long.MAX_VALUE) {
+          this.request = l;
+        } else {
+          this.request += l;
+          // Overflow check
+          if (this.request < 0) {
+            this.request = Long.MAX_VALUE;
+          }
+        }
         this.doProgress();
       }
 
@@ -207,8 +215,8 @@ public class FlowUtils {
           return;
         }
         while (this.request != 0 && !this.queue.isEmpty()) {
+          this.request--;
           subscriber.onNext(queue.remove());
-          this.request = this.request == Long.MAX_VALUE ? Long.MAX_VALUE : this.request - 1;
         }
         if (this.publisherClosed) {
           subscriber.onComplete();

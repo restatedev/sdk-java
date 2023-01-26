@@ -5,13 +5,18 @@ import dev.restate.sdk.core.impl.InvocationFlow;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
 import java.util.concurrent.Flow;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 class HttpRequestFlowAdapter implements InvocationFlow.InvocationInputPublisher {
+
+  private static final Logger LOG = LogManager.getLogger(HttpRequestFlowAdapter.class);
 
   private final HttpServerRequest httpServerRequest;
   private final MessageDecoder decoder;
 
   private Flow.Subscriber<? super MessageLite> inputMessagesSubscriber;
+  private long subscriberRequest = 0;
 
   HttpRequestFlowAdapter(HttpServerRequest httpServerRequest) {
     this.httpServerRequest = httpServerRequest;
@@ -25,7 +30,9 @@ class HttpRequestFlowAdapter implements InvocationFlow.InvocationInputPublisher 
     this.inputMessagesSubscriber.onSubscribe(
         new Flow.Subscription() {
           @Override
-          public void request(long l) {}
+          public void request(long l) {
+            handleSubscriptionRequest(l);
+          }
 
           @Override
           public void cancel() {
@@ -45,10 +52,38 @@ class HttpRequestFlowAdapter implements InvocationFlow.InvocationInputPublisher 
     }
   }
 
+  private void handleSubscriptionRequest(long l) {
+    if (l == Long.MAX_VALUE) {
+      this.subscriberRequest = l;
+    } else {
+      this.subscriberRequest += l;
+      // Overflow check
+      if (this.subscriberRequest < 0) {
+        this.subscriberRequest = Long.MAX_VALUE;
+      }
+    }
+
+    tryProgress();
+  }
+
   private void handleIncomingBuffer(Buffer buffer) {
     this.decoder.offer(buffer);
 
-    while (true) {
+    tryProgress();
+  }
+
+  private void handleRequestFailure(Throwable e) {
+    this.inputMessagesSubscriber.onError(e);
+  }
+
+  private void handleRequestEnd(Void v) {
+    LOG.trace("Request end");
+    this.inputMessagesSubscriber.onComplete();
+    this.inputMessagesSubscriber = null;
+  }
+
+  private void tryProgress() {
+    while (this.subscriberRequest > 0) {
       MessageLite entry;
       try {
         entry = this.decoder.poll();
@@ -59,16 +94,9 @@ class HttpRequestFlowAdapter implements InvocationFlow.InvocationInputPublisher 
       if (entry == null) {
         return;
       }
+      LOG.trace("Received entry " + entry);
+      this.subscriberRequest--;
       inputMessagesSubscriber.onNext(entry);
     }
-  }
-
-  private void handleRequestFailure(Throwable e) {
-    this.inputMessagesSubscriber.onError(e);
-  }
-
-  private void handleRequestEnd(Void v) {
-    this.inputMessagesSubscriber.onComplete();
-    this.inputMessagesSubscriber = null;
   }
 }

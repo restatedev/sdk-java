@@ -53,6 +53,8 @@ class HttpResponseFlowAdapter implements InvocationFlow.InvocationOutputSubscrib
       return;
     }
 
+    LOG.trace("Writing response message " + message);
+
     // Could be pooled
     Buffer buffer = Buffer.buffer(MessageEncoder.encodeLength(message));
     MessageEncoder.encode(buffer, message);

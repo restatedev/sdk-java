@@ -1,6 +1,7 @@
 package dev.restate.sdk.core.impl;
 
 import dev.restate.generated.service.protocol.Protocol;
+import dev.restate.sdk.core.SuspendedException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -86,7 +87,11 @@ class ReadyResultPublisher {
     if (this.inputChannelClosed != null) {
       return;
     }
-    LOG.trace("Ready result publisher closed", cause);
+    if (cause == SuspendedException.INSTANCE) {
+      LOG.trace("Ready result publisher closed");
+    } else {
+      LOG.trace("Ready result publisher closed with failure", cause);
+    }
 
     inputChannelClosed = cause;
     tryProgress();
