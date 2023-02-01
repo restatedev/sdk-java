@@ -90,12 +90,17 @@ abstract class DeferredResults {
   }
 
   abstract static class CombinatorDeferredResult<T> extends BaseDeferredResult<T> {
+
+    // The reason to have these two data structures is to optimize the best case where we have a
+    // combinator with a large number of single deferred (which can be addressed by entry index),
+    // but little number of nested combinators (which cannot be addressed by an index, but needs to
+    // be iterated through).
     protected final Map<Integer, SingleDeferredResultInternal<?>> unresolvedSingles;
-    protected final List<CombinatorDeferredResult<?>> unresolvedCombinators;
+    protected final Set<CombinatorDeferredResult<?>> unresolvedCombinators;
 
     CombinatorDeferredResult(
         Map<Integer, SingleDeferredResultInternal<?>> unresolvedSingles,
-        List<CombinatorDeferredResult<?>> unresolvedCombinators) {
+        Set<CombinatorDeferredResult<?>> unresolvedCombinators) {
       super(null);
 
       this.unresolvedSingles = unresolvedSingles;
@@ -124,17 +129,17 @@ abstract class DeferredResults {
 
   static class AnyDeferredResult extends CombinatorDeferredResult<Object> {
 
-    private AnyDeferredResult(List<DeferredResultInternal<?>> childs) {
+    private AnyDeferredResult(List<DeferredResultInternal<?>> children) {
       super(
-          childs.stream()
+          children.stream()
               .filter(d -> d instanceof SingleDeferredResultInternal)
               .map(d -> (SingleDeferredResultInternal<?>) d)
               .collect(
                   Collectors.toMap(SingleDeferredResultInternal::entryIndex, Function.identity())),
-          childs.stream()
+          children.stream()
               .filter(d -> d instanceof CombinatorDeferredResult)
               .map(d -> (CombinatorDeferredResult<?>) d)
-              .collect(Collectors.toList()));
+              .collect(Collectors.toSet()));
     }
 
     @SuppressWarnings("unchecked")
@@ -166,9 +171,9 @@ abstract class DeferredResults {
 
   static class AllDeferredResult extends CombinatorDeferredResult<Void> {
 
-    private AllDeferredResult(List<DeferredResultInternal<?>> childs) {
+    private AllDeferredResult(List<DeferredResultInternal<?>> children) {
       super(
-          childs.stream()
+          children.stream()
               .filter(d -> d instanceof SingleDeferredResultInternal)
               .map(d -> (SingleDeferredResultInternal<?>) d)
               .collect(
@@ -177,10 +182,10 @@ abstract class DeferredResults {
                       Function.identity(),
                       (v1, v2) -> v1,
                       HashMap::new)),
-          childs.stream()
+          children.stream()
               .filter(d -> d instanceof CombinatorDeferredResult)
               .map(d -> (CombinatorDeferredResult<?>) d)
-              .collect(Collectors.toCollection(ArrayList::new)));
+              .collect(Collectors.toCollection(HashSet::new)));
     }
 
     @SuppressWarnings("unchecked")

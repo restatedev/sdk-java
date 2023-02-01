@@ -2,7 +2,11 @@ package dev.restate.sdk.core.impl;
 
 import static dev.restate.sdk.core.impl.CoreTestRunner.TestCaseBuilder.testInvocation;
 import static dev.restate.sdk.core.impl.ProtoUtils.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.list;
+import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
+import dev.restate.generated.sdk.java.Java;
 import dev.restate.sdk.blocking.Awaitable;
 import dev.restate.sdk.blocking.RestateBlockingService;
 import dev.restate.sdk.blocking.RestateContext;
@@ -110,6 +114,27 @@ public class DeferredTest extends CoreTestRunner {
     }
   }
 
+  private static class AwaitOnAlreadyResolvedAwaitables extends GreeterGrpc.GreeterImplBase
+      implements RestateBlockingService {
+    @Override
+    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
+      RestateContext ctx = restateContext();
+
+      Awaitable<String> a1 = ctx.awakeable(TypeTag.STRING_UTF8);
+      Awaitable<String> a2 = ctx.awakeable(TypeTag.STRING_UTF8);
+
+      Awaitable<Void> a12 = Awaitable.all(a1, a2);
+      Awaitable<Void> a12and1 = Awaitable.all(a12, a1);
+      Awaitable<Void> a121and12 = Awaitable.all(a12and1, a12);
+
+      a12and1.await();
+      a121and12.await();
+
+      responseObserver.onNext(greetingResponse(a1.await() + a2.await()));
+      responseObserver.onCompleted();
+    }
+  }
+
   @Override
   Stream<CoreTestRunner.TestDefinition> definitions() {
     return Stream.of(
@@ -213,8 +238,21 @@ public class DeferredTest extends CoreTestRunner {
                     greetingRequest("Till"),
                     greetingResponse("TILL")))
             .usingAllThreadingModels()
-            .expectingOutput(
-                combinatorsMessage(1, 2), outputMessage(greetingResponse("FRANCESCO-TILL")))
+            .assertingOutput(
+                msgs -> {
+                  assertThat(msgs).hasSize(2);
+
+                  assertThat(msgs)
+                      .element(0, type(Java.CombinatorAwaitableEntryMessage.class))
+                      .extracting(
+                          Java.CombinatorAwaitableEntryMessage::getEntryIndexList,
+                          list(Integer.class))
+                      .containsExactlyInAnyOrder(1, 2);
+
+                  assertThat(msgs)
+                      .element(1)
+                      .isEqualTo(outputMessage(greetingResponse("FRANCESCO-TILL")));
+                })
             .named("Everything completed will generate the combinators message"),
         testInvocation(new AwaitAll(), GreeterGrpc.getGreetMethod())
             .withInput(
@@ -317,7 +355,25 @@ public class DeferredTest extends CoreTestRunner {
                     greetingRequest("Till"),
                     greetingResponse("TILL")))
             .usingAllThreadingModels()
-            .expectingOutput(combinatorsMessage(1), outputMessage(greetingResponse("FRANCESCO")))
+            .assertingOutput(
+                msgs -> {
+                  assertThat(msgs).hasSize(2);
+
+                  assertThat(msgs)
+                      .element(0, type(Java.CombinatorAwaitableEntryMessage.class))
+                      .extracting(
+                          Java.CombinatorAwaitableEntryMessage::getEntryIndexList,
+                          list(Integer.class))
+                      .hasSize(1)
+                      .element(0)
+                      .isIn(1, 2);
+
+                  assertThat(msgs)
+                      .element(1)
+                      .isIn(
+                          outputMessage(greetingResponse("FRANCESCO")),
+                          outputMessage(greetingResponse("TILL")));
+                })
             .named("Everything completed will generate the combinators message"),
         testInvocation(new AwaitAny(), GreeterGrpc.getGreetMethod())
             .withInput(
@@ -371,6 +427,29 @@ public class DeferredTest extends CoreTestRunner {
                 combinatorsMessage(3, 2))
             .usingAllThreadingModels()
             .expectingOutput(outputMessage(greetingResponse("233")))
-            .named("Inverted order"));
+            .named("Inverted order"),
+
+        // --- Compose nested and resolved all should work
+        testInvocation(new AwaitOnAlreadyResolvedAwaitables(), GreeterGrpc.getGreetMethod())
+            .withInput(
+                startMessage(3),
+                inputMessage(GreetingRequest.newBuilder()),
+                awakeable("1"),
+                awakeable("2"))
+            .usingAllThreadingModels()
+            .assertingOutput(
+                msgs -> {
+                  assertThat(msgs).hasSize(3);
+
+                  assertThat(msgs)
+                      .element(0, type(Java.CombinatorAwaitableEntryMessage.class))
+                      .extracting(
+                          Java.CombinatorAwaitableEntryMessage::getEntryIndexList,
+                          list(Integer.class))
+                      .containsExactlyInAnyOrder(1, 2);
+
+                  assertThat(msgs).element(1).isEqualTo(combinatorsMessage());
+                  assertThat(msgs).element(2).isEqualTo(outputMessage(greetingResponse("12")));
+                }));
   }
 }

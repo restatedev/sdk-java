@@ -400,6 +400,40 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
         });
   }
 
+  /**
+   * This method implements the algorithm to resolve deferred combinator trees, where inner nodes of
+   * the tree are ANY or ALL combinators, and leafs are {@link ResolvableSingleDeferredResult},
+   * created as result of completable syscalls.
+   *
+   * <p>The idea of the algorithm is the following: {@code rootDeferred} is the root of this tree,
+   * and has internal state that can be mutated through {@link
+   * CombinatorDeferredResult#tryResolve(int)} to flag the tree as resolved. Every time a new leaf
+   * is resolved through {@link ResolvableSingleDeferredResult#resolve(ReadyResultInternal)}, we try
+   * to resolve the tree again. We start by checking if we have enough resolved leafs in the
+   * combinator tree to resolve it. If not, we register a callback to the {@link
+   * ReadyResultPublisher} to wait on future completions. As soon as the tree is resolved, we record
+   * in the journal the order of the leafs we've seen so far, and we finish by calling the {@code
+   * callback}, giving back control to user code.
+   *
+   * <p>An important property of this algorithm is that we don't write a {@link
+   * dev.restate.generated.sdk.java.Java.CombinatorAwaitableEntryMessage} per combinator node, but
+   * we write it once after we resolve the whole tree the user is awaiting on. The reason is that it
+   * vastly simplifies the implementation, as we don't need to deal with the order of the nested
+   * combinators during replay, and we don't need to deal with partially resolved combinator trees,
+   * e.g. if a suspension happens while we have recorded only a part of the nested combinators.
+   *
+   * <p>There are some special cases:
+   *
+   * <ul>
+   *   <li>In case of replay, we don't need to wait for any leaf to be resolved. Because we write
+   *       the combinator journal entry when we flag the tree as resolved, then it means that every
+   *       leaf has been created before this combinator entry, and it also means that a subset of
+   *       these leafs is resolved, in order to resolve the combinator tree.
+   *   <li>In case there are no {@link SingleDeferredResultInternal}, it means we have either an
+   *       any/all without leafs, or any child has been resolved beforehand. In this case, we must
+   *       be able to flag this combinator tree as resolved as well.
+   * </ul>
+   */
   private void resolveCombinatorDeferred(
       CombinatorDeferredResult<?> rootDeferred, SyscallCallback<Void> callback) {
     // Calling .await() on a combinator deferred within a side effect is not allowed
@@ -423,9 +457,19 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       Map<Integer, ResolvableSingleDeferredResult<?>> resolvableSingles = new HashMap<>();
       List<Integer> resolvedOrder = new ArrayList<>();
 
+      Set<SingleDeferredResultInternal<?>> unprocessedLeafs =
+          rootDeferred.unprocessedLeafs().collect(Collectors.toSet());
+
+      // If there are no leafs, it means the combinator must be resolvable
+      if (unprocessedLeafs.isEmpty()) {
+        if (!tryResolveCombinatorUsingResolvedOrder(rootDeferred, resolvedOrder, callback)) {
+          throw new IllegalStateException(
+              "Combinator cannot be resolved, but every children have been resolved already. "
+                  + "This is a symptom of an SDK bug, please contact the developers.");
+        }
+      }
+
       // Walk the tree and populate the resolvable singles, and keep the already known ready results
-      List<SingleDeferredResultInternal<?>> unprocessedLeafs =
-          rootDeferred.unprocessedLeafs().collect(Collectors.toList());
       for (SingleDeferredResultInternal<?> singleDeferred : unprocessedLeafs) {
         if (singleDeferred.isCompleted()) {
           resolvedOrder.add(singleDeferred.entryIndex());
@@ -479,11 +523,23 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     }
   }
 
+  /**
+   * We call this method every time we resolve a new leaf that might resolve the combinator tree, or
+   * alternatively if there are no leafs.
+   *
+   * @see #resolveCombinatorDeferred(CombinatorDeferredResult, SyscallCallback)
+   */
   private boolean tryResolveCombinatorUsingResolvedOrder(
       CombinatorDeferredResult<?> rootDeferred,
       List<Integer> resolvedList,
       SyscallCallback<Void> callback) {
-    if (!rootDeferred.tryResolve(resolvedList.get(resolvedList.size() - 1))) {
+    if (resolvedList.isEmpty()) {
+      // We don't need to provide a valid entry index,
+      // we just need to walk through the tree and mark all the combinators as completed.
+      if (!rootDeferred.tryResolve(-1)) {
+        return false;
+      }
+    } else if (!rootDeferred.tryResolve(resolvedList.get(resolvedList.size() - 1))) {
       // We need to reiterate
       return false;
     }
