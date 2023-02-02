@@ -5,6 +5,7 @@ import dev.restate.sdk.core.syscalls.DeferredResult;
 import dev.restate.sdk.core.syscalls.Syscalls;
 import io.grpc.StatusRuntimeException;
 import java.util.concurrent.*;
+import javax.annotation.concurrent.NotThreadSafe;
 
 /**
  * An {@code Awaitable} allows to await an asynchronous result. Once {@code await()} is called, the
@@ -15,6 +16,7 @@ import java.util.concurrent.*;
  *
  * @param <T> type of the awaitable result
  */
+@NotThreadSafe
 public class Awaitable<T> {
 
   private final Syscalls syscalls;

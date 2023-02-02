@@ -4,6 +4,7 @@ import dev.restate.generated.core.AwakeableIdentifier;
 import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.core.syscalls.DeferredResult;
 import dev.restate.sdk.core.syscalls.Syscalls;
+import javax.annotation.concurrent.NotThreadSafe;
 
 /**
  * An {@link Awakeable} is a special type of {@link Awaitable} which can be arbitrarily completed by
@@ -17,6 +18,7 @@ import dev.restate.sdk.core.syscalls.Syscalls;
  * These responses can then be used to complete this {@link Awakeable} instance by using {@link
  * RestateContext#completeAwakeable(AwakeableIdentifier, TypeTag, Object)}.
  */
+@NotThreadSafe
 public final class Awakeable<T> extends Awaitable<T> {
 
   private final AwakeableIdentifier identifier;
