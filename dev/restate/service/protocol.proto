@@ -31,17 +31,6 @@ message CompletionMessage {
   };
 }
 
-// Type: 0x0000 + 2
-message SupportedVersionRangeMessage {
-  uint32 lower = 1;
-  uint32 higher = 2;
-}
-
-// Type: 0x0000 + 3
-message SuspensionMessage {
-  repeated uint32 entry_indices = 1;
-}
-
 // --- Journal Entries ---
 
 // Every Completable JournalEntry has a result field, filled only and only if the entry is in DONE state.
@@ -148,15 +137,6 @@ message CompleteAwakeableEntryMessage {
   uint32 entry_index = 4;
 
   bytes payload = 5;
-}
-
-// Kind: Ack-able JournalEntry
-// Type: 0x0C00 + 5
-message SideEffectEntryMessage {
-  oneof result {
-    bytes value = 14;
-    Failure failure = 15;
-  };
 }
 
 // --- Nested messages
