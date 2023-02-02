@@ -10,7 +10,20 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
+import javax.annotation.concurrent.NotThreadSafe;
 
+/**
+ * This interface exposes the Restate functionalities to Restate services. It can be used to access
+ * the service instance key-value state storage, interact with other Restate services, record side
+ * effects, execute timers and synchronize with external systems.
+ *
+ * <p>To use it within your Restate service, implement {@link RestateBlockingService} and get an
+ * instance with {@link RestateBlockingService#restateContext()}.
+ *
+ * <p>NOTE: This interface should never be accessed concurrently since it can lead to different
+ * orderings of user actions, corrupting the execution of the invocation.
+ */
+@NotThreadSafe
 public interface RestateContext {
 
   /**

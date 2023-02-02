@@ -15,7 +15,7 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public class RestateContextImpl implements RestateContext {
+class RestateContextImpl implements RestateContext {
 
   private final Syscalls syscalls;
 

@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.*;
+import javax.annotation.concurrent.NotThreadSafe;
 
 /**
  * An {@code Awaitable} allows to await an asynchronous result. Once {@code await()} is called, the
@@ -18,6 +19,7 @@ import java.util.concurrent.*;
  *
  * @param <T> type of the awaitable result
  */
+@NotThreadSafe
 public class Awaitable<T> {
 
   private final Syscalls syscalls;
