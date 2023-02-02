@@ -8,7 +8,9 @@ import dev.restate.generated.core.AwakeableIdentifier;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.generated.service.protocol.Protocol.PollInputStreamEntryMessage;
 import dev.restate.sdk.core.TypeTag;
+import dev.restate.sdk.core.impl.DeferredResults.SingleDeferredResultInternal;
 import dev.restate.sdk.core.impl.Entries.*;
+import dev.restate.sdk.core.impl.ReadyResults.ReadyResultInternal;
 import dev.restate.sdk.core.serde.CustomSerdeFunctionsTypeTag;
 import dev.restate.sdk.core.serde.Serde;
 import dev.restate.sdk.core.syscalls.*;
@@ -217,7 +219,8 @@ public final class SyscallsImpl implements SyscallsInternal {
                         .setServiceName(stateMachine.getServiceName())
                         .setInstanceKey(stateMachine.getInstanceKey())
                         .setInvocationId(stateMachine.getInvocationId())
-                        .setEntryIndex(((DeferredResultInternal<T>) deferredResult).entryIndex())
+                        .setEntryIndex(
+                            ((SingleDeferredResultInternal<T>) deferredResult).entryIndex())
                         .build(),
                     deferredResult),
             callback));
@@ -269,11 +272,11 @@ public final class SyscallsImpl implements SyscallsInternal {
     return value -> ReadyResults.success(deserialize(ty, value));
   }
 
-  @SuppressWarnings({"unchecked", "rawtypes"})
-  private ByteString serialize(TypeTag ty, Object obj) {
+  @SuppressWarnings("unchecked")
+  private ByteString serialize(TypeTag<?> ty, Object obj) {
     if (ty instanceof CustomSerdeFunctionsTypeTag) {
       return ByteString.copyFrom(
-          ((CustomSerdeFunctionsTypeTag<Object>) ty).getSerializer().apply(obj));
+          ((CustomSerdeFunctionsTypeTag<? super Object>) ty).getSerializer().apply(obj));
     }
 
     if (obj == null) {

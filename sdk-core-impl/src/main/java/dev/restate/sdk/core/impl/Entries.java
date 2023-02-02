@@ -4,6 +4,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.generated.service.protocol.Protocol.*;
+import dev.restate.sdk.core.impl.ReadyResults.ReadyResultInternal;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
 import java.util.function.Function;

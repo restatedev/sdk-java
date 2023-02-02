@@ -1,5 +1,6 @@
 package dev.restate.sdk.core.impl;
 
+import dev.restate.sdk.core.syscalls.ReadyResult;
 import io.grpc.StatusRuntimeException;
 import javax.annotation.Nullable;
 
@@ -19,6 +20,8 @@ abstract class ReadyResults {
   static <T> ReadyResultInternal<T> failure(StatusRuntimeException t) {
     return new Failure<>(t);
   }
+
+  interface ReadyResultInternal<T> extends ReadyResult<T> {}
 
   static class Empty<T> implements ReadyResultInternal<T> {
 

@@ -34,7 +34,7 @@ public class RestateGrpcServer {
     this.tracer = tracer;
   }
 
-  @SuppressWarnings({"unchecked", "rawtypes"})
+  @SuppressWarnings("unchecked")
   public InvocationHandler resolve(
       String serviceName,
       String methodName,
@@ -48,7 +48,8 @@ public class RestateGrpcServer {
       throw ProtocolException.methodNotFound(serviceName, methodName);
     }
     ServerMethodDefinition<MessageLite, MessageLite> method =
-        (ServerMethodDefinition) svc.getMethod(serviceName + "/" + methodName);
+        (ServerMethodDefinition<MessageLite, MessageLite>)
+            svc.getMethod(serviceName + "/" + methodName);
     if (method == null) {
       throw ProtocolException.methodNotFound(serviceName, methodName);
     }

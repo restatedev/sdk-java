@@ -142,29 +142,20 @@ abstract class CoreTestRunner {
   /** Builder for the test cases */
   static class TestCaseBuilder {
 
-    static TestInvocationBuilder testInvocation(ServerServiceDefinition svc, String method) {
-      return new TestInvocationBuilder(svc, method);
-    }
-
     static TestInvocationBuilder testInvocation(BindableService svc, String method) {
-      return testInvocation(svc.bindService(), method);
-    }
-
-    static TestInvocationBuilder testInvocation(
-        ServerServiceDefinition svc, MethodDescriptor<?, ?> method) {
-      return testInvocation(svc, method.getBareMethodName());
+      return new TestInvocationBuilder(svc, method);
     }
 
     static TestInvocationBuilder testInvocation(
         BindableService svc, MethodDescriptor<?, ?> method) {
-      return testInvocation(svc.bindService(), method);
+      return testInvocation(svc, method.getBareMethodName());
     }
 
     static class TestInvocationBuilder {
-      private final ServerServiceDefinition svc;
+      private final BindableService svc;
       private final String method;
 
-      TestInvocationBuilder(ServerServiceDefinition svc, String method) {
+      TestInvocationBuilder(BindableService svc, String method) {
         this.svc = svc;
         this.method = method;
       }
@@ -175,12 +166,11 @@ abstract class CoreTestRunner {
     }
 
     static class WithInputBuilder {
-      private final ServerServiceDefinition svc;
+      private final BindableService svc;
       private final String method;
       private final List<MessageLiteOrBuilder> input;
 
-      WithInputBuilder(
-          ServerServiceDefinition svc, String method, List<MessageLiteOrBuilder> input) {
+      WithInputBuilder(BindableService svc, String method, List<MessageLiteOrBuilder> input) {
         this.svc = svc;
         this.method = method;
         this.input = input;
@@ -197,13 +187,13 @@ abstract class CoreTestRunner {
     }
 
     static class UsingThreadingModelsBuilder {
-      private final ServerServiceDefinition svc;
+      private final BindableService svc;
       private final String method;
       private final List<MessageLiteOrBuilder> input;
       private final HashSet<ThreadingModel> threadingModels;
 
       UsingThreadingModelsBuilder(
-          ServerServiceDefinition svc,
+          BindableService svc,
           String method,
           List<MessageLiteOrBuilder> input,
           HashSet<ThreadingModel> threadingModels) {
@@ -237,14 +227,22 @@ abstract class CoreTestRunner {
     }
 
     public abstract static class BaseTestDefinition implements TestDefinition {
-      protected final ServerServiceDefinition svc;
+      protected final BindableService svc;
       protected final String method;
       protected final List<MessageLiteOrBuilder> input;
       protected final HashSet<ThreadingModel> threadingModels;
       protected final String named;
 
       public BaseTestDefinition(
-          ServerServiceDefinition svc,
+          BindableService svc,
+          String method,
+          List<MessageLiteOrBuilder> input,
+          HashSet<ThreadingModel> threadingModels) {
+        this(svc, method, input, threadingModels, svc.getClass().getSimpleName());
+      }
+
+      public BaseTestDefinition(
+          BindableService svc,
           String method,
           List<MessageLiteOrBuilder> input,
           HashSet<ThreadingModel> threadingModels,
@@ -258,7 +256,7 @@ abstract class CoreTestRunner {
 
       @Override
       public ServerServiceDefinition getService() {
-        return svc;
+        return svc.bindService();
       }
 
       @Override
@@ -286,22 +284,17 @@ abstract class CoreTestRunner {
       private final Consumer<List<MessageLite>> messagesAssert;
 
       ExpectingOutputMessages(
-          ServerServiceDefinition svc,
+          BindableService svc,
           String method,
           List<MessageLiteOrBuilder> input,
           HashSet<ThreadingModel> threadingModels,
           Consumer<List<MessageLite>> messagesAssert) {
-        this(
-            svc,
-            method,
-            input,
-            threadingModels,
-            messagesAssert,
-            "Test " + svc.getServiceDescriptor().getName() + "/" + method);
+        super(svc, method, input, threadingModels);
+        this.messagesAssert = messagesAssert;
       }
 
       ExpectingOutputMessages(
-          ServerServiceDefinition svc,
+          BindableService svc,
           String method,
           List<MessageLiteOrBuilder> input,
           HashSet<ThreadingModel> threadingModels,
@@ -313,7 +306,12 @@ abstract class CoreTestRunner {
 
       ExpectingOutputMessages named(String name) {
         return new TestCaseBuilder.ExpectingOutputMessages(
-            svc, method, input, threadingModels, messagesAssert, name);
+            svc,
+            method,
+            input,
+            threadingModels,
+            messagesAssert,
+            svc.getClass().getSimpleName() + ": " + name);
       }
 
       @Override
@@ -329,22 +327,17 @@ abstract class CoreTestRunner {
       private final Consumer<Throwable> throwableAssert;
 
       ExpectingFailure(
-          ServerServiceDefinition svc,
+          BindableService svc,
           String method,
           List<MessageLiteOrBuilder> input,
           HashSet<ThreadingModel> threadingModels,
           Consumer<Throwable> throwableAssert) {
-        this(
-            svc,
-            method,
-            input,
-            threadingModels,
-            throwableAssert,
-            "Test " + svc.getServiceDescriptor().getName() + "/" + method);
+        super(svc, method, input, threadingModels);
+        this.throwableAssert = throwableAssert;
       }
 
       ExpectingFailure(
-          ServerServiceDefinition svc,
+          BindableService svc,
           String method,
           List<MessageLiteOrBuilder> input,
           HashSet<ThreadingModel> threadingModels,
@@ -355,7 +348,13 @@ abstract class CoreTestRunner {
       }
 
       ExpectingFailure named(String name) {
-        return new ExpectingFailure(svc, method, input, threadingModels, throwableAssert, name);
+        return new ExpectingFailure(
+            svc,
+            method,
+            input,
+            threadingModels,
+            throwableAssert,
+            svc.getClass().getSimpleName() + ": " + name);
       }
 
       @Override

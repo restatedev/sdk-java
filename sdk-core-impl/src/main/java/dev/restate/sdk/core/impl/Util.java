@@ -1,14 +1,13 @@
 package dev.restate.sdk.core.impl;
 
 import com.google.protobuf.MessageLite;
+import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.SuspendedException;
 import io.grpc.*;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.function.Predicate;
-import javax.annotation.Nullable;
 
 public final class Util {
   private Util() {}
@@ -96,6 +95,12 @@ public final class Util {
     }
   }
 
+  static void assertEntryClass(Class<? extends MessageLite> clazz, MessageLite actual) {
+    if (!clazz.equals(actual.getClass())) {
+      throw ProtocolException.unexpectedMessage(clazz, actual);
+    }
+  }
+
   static boolean isEntry(MessageLite msg) {
     return msg instanceof Protocol.PollInputStreamEntryMessage
         || msg instanceof Protocol.OutputStreamEntryMessage
@@ -107,18 +112,7 @@ public final class Util {
         || msg instanceof Protocol.BackgroundInvokeEntryMessage
         || msg instanceof Protocol.SideEffectEntryMessage
         || msg instanceof Protocol.AwakeableEntryMessage
-        || msg instanceof Protocol.CompleteAwakeableEntryMessage;
-  }
-
-  @SuppressWarnings("unchecked")
-  static <T extends MessageLite> @Nullable ProtocolException checkEntryClassAndHeader(
-      MessageLite actualMsg,
-      Class<? extends MessageLite> clazz,
-      Function<T, ProtocolException> checkEntryHeader) {
-    if (!clazz.equals(actualMsg.getClass())) {
-      return ProtocolException.unexpectedMessage(clazz, actualMsg);
-    }
-    T actualEntry = (T) actualMsg;
-    return checkEntryHeader.apply(actualEntry);
+        || msg instanceof Protocol.CompleteAwakeableEntryMessage
+        || msg instanceof Java.CombinatorAwaitableEntryMessage;
   }
 }

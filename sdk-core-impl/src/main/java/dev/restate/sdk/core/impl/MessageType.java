@@ -2,6 +2,7 @@ package dev.restate.sdk.core.impl;
 
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.Parser;
+import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 
 public enum MessageType {
@@ -25,7 +26,27 @@ public enum MessageType {
   BackgroundInvokeEntryMessage,
   AwakeableEntryMessage,
   CompleteAwakeableEntryMessage,
-  SideEffectEntryMessage;
+  SideEffectEntryMessage,
+
+  // SDK specific
+  CombinatorAwaitableEntryMessage;
+
+  public static final short START_MESSAGE_TYPE = 0x0000;
+  public static final short COMPLETION_MESSAGE_TYPE = 0x0001;
+  public static final short SUPPORTED_VERSION_RANGE_MESSAGE_TYPE = 0x0002;
+  public static final short SUSPENSION_MESSAGE_TYPE = 0x0003;
+  public static final short POLL_INPUT_STREAM_ENTRY_MESSAGE_TYPE = 0x0400;
+  public static final short OUTPUT_STREAM_ENTRY_MESSAGE_TYPE = 0x0401;
+  public static final short GET_STATE_ENTRY_MESSAGE_TYPE = 0x0800;
+  public static final short SET_STATE_ENTRY_MESSAGE_TYPE = 0x0801;
+  public static final short CLEAR_STATE_ENTRY_MESSAGE_TYPE = 0x0802;
+  public static final short SLEEP_ENTRY_MESSAGE_TYPE = 0x0C00;
+  public static final short INVOKE_ENTRY_MESSAGE_TYPE = 0x0C01;
+  public static final short BACKGROUND_INVOKE_ENTRY_MESSAGE_TYPE = 0x0C02;
+  public static final short AWAKEABLE_ENTRY_MESSAGE_TYPE = 0x0C03;
+  public static final short COMPLETE_AWAKEABLE_ENTRY_MESSAGE_TYPE = 0x0C04;
+  public static final short SIDE_EFFECT_ENTRY_MESSAGE_TYPE = 0x0C05;
+  public static final short COMBINATOR_AWAITABLE_ENTRY_MESSAGE_TYPE = (short) 0xFC00;
 
   public Parser<? extends MessageLite> messageParser() {
     switch (this) {
@@ -59,6 +80,8 @@ public enum MessageType {
         return Protocol.CompleteAwakeableEntryMessage.parser();
       case SideEffectEntryMessage:
         return Protocol.SideEffectEntryMessage.parser();
+      case CombinatorAwaitableEntryMessage:
+        return Java.CombinatorAwaitableEntryMessage.parser();
     }
     throw new IllegalStateException();
   }
@@ -66,71 +89,75 @@ public enum MessageType {
   public short encode() {
     switch (this) {
       case StartMessage:
-        return 0x0000;
+        return START_MESSAGE_TYPE;
       case CompletionMessage:
-        return 0x0001;
+        return COMPLETION_MESSAGE_TYPE;
       case SupportedVersionRangeMessage:
-        return 0x0002;
+        return SUPPORTED_VERSION_RANGE_MESSAGE_TYPE;
       case SuspensionMessage:
-        return 0x0003;
+        return SUSPENSION_MESSAGE_TYPE;
       case PollInputStreamEntryMessage:
-        return 0x0400;
+        return POLL_INPUT_STREAM_ENTRY_MESSAGE_TYPE;
       case OutputStreamEntryMessage:
-        return 0x0401;
+        return OUTPUT_STREAM_ENTRY_MESSAGE_TYPE;
       case GetStateEntryMessage:
-        return 0x0800;
+        return GET_STATE_ENTRY_MESSAGE_TYPE;
       case SetStateEntryMessage:
-        return 0x0801;
+        return SET_STATE_ENTRY_MESSAGE_TYPE;
       case ClearStateEntryMessage:
-        return 0x0802;
+        return CLEAR_STATE_ENTRY_MESSAGE_TYPE;
       case SleepEntryMessage:
-        return 0x0C00;
+        return SLEEP_ENTRY_MESSAGE_TYPE;
       case InvokeEntryMessage:
-        return 0x0C01;
+        return INVOKE_ENTRY_MESSAGE_TYPE;
       case BackgroundInvokeEntryMessage:
-        return 0x0C02;
+        return BACKGROUND_INVOKE_ENTRY_MESSAGE_TYPE;
       case AwakeableEntryMessage:
-        return 0x0C03;
+        return AWAKEABLE_ENTRY_MESSAGE_TYPE;
       case CompleteAwakeableEntryMessage:
-        return 0x0C04;
+        return COMPLETE_AWAKEABLE_ENTRY_MESSAGE_TYPE;
       case SideEffectEntryMessage:
-        return 0x0C05;
+        return SIDE_EFFECT_ENTRY_MESSAGE_TYPE;
+      case CombinatorAwaitableEntryMessage:
+        return COMBINATOR_AWAITABLE_ENTRY_MESSAGE_TYPE;
     }
     throw new IllegalStateException();
   }
 
   public static MessageType decode(short value) throws ProtocolException {
     switch (value) {
-      case 0x0000:
+      case START_MESSAGE_TYPE:
         return StartMessage;
-      case 0x0001:
+      case COMPLETION_MESSAGE_TYPE:
         return CompletionMessage;
-      case 0x0002:
+      case SUPPORTED_VERSION_RANGE_MESSAGE_TYPE:
         return SupportedVersionRangeMessage;
-      case 0x0003:
+      case SUSPENSION_MESSAGE_TYPE:
         return SuspensionMessage;
-      case 0x0400:
+      case POLL_INPUT_STREAM_ENTRY_MESSAGE_TYPE:
         return PollInputStreamEntryMessage;
-      case 0x0401:
+      case OUTPUT_STREAM_ENTRY_MESSAGE_TYPE:
         return OutputStreamEntryMessage;
-      case 0x0800:
+      case GET_STATE_ENTRY_MESSAGE_TYPE:
         return GetStateEntryMessage;
-      case 0x0801:
+      case SET_STATE_ENTRY_MESSAGE_TYPE:
         return SetStateEntryMessage;
-      case 0x0802:
+      case CLEAR_STATE_ENTRY_MESSAGE_TYPE:
         return ClearStateEntryMessage;
-      case 0x0C00:
+      case SLEEP_ENTRY_MESSAGE_TYPE:
         return SleepEntryMessage;
-      case 0x0C01:
+      case INVOKE_ENTRY_MESSAGE_TYPE:
         return InvokeEntryMessage;
-      case 0x0C02:
+      case BACKGROUND_INVOKE_ENTRY_MESSAGE_TYPE:
         return BackgroundInvokeEntryMessage;
-      case 0x0C03:
+      case AWAKEABLE_ENTRY_MESSAGE_TYPE:
         return AwakeableEntryMessage;
-      case 0x0C04:
+      case COMPLETE_AWAKEABLE_ENTRY_MESSAGE_TYPE:
         return CompleteAwakeableEntryMessage;
-      case 0x0C05:
+      case SIDE_EFFECT_ENTRY_MESSAGE_TYPE:
         return SideEffectEntryMessage;
+      case COMBINATOR_AWAITABLE_ENTRY_MESSAGE_TYPE:
+        return CombinatorAwaitableEntryMessage;
     }
     throw ProtocolException.unknownMessageType(value);
   }
