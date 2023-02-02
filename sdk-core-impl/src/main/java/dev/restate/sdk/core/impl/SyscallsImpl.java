@@ -272,11 +272,11 @@ public final class SyscallsImpl implements SyscallsInternal {
     return value -> ReadyResults.success(deserialize(ty, value));
   }
 
-  @SuppressWarnings({"unchecked", "rawtypes"})
-  private ByteString serialize(TypeTag ty, Object obj) {
+  @SuppressWarnings("unchecked")
+  private ByteString serialize(TypeTag<?> ty, Object obj) {
     if (ty instanceof CustomSerdeFunctionsTypeTag) {
       return ByteString.copyFrom(
-          ((CustomSerdeFunctionsTypeTag<Object>) ty).getSerializer().apply(obj));
+          ((CustomSerdeFunctionsTypeTag<? super Object>) ty).getSerializer().apply(obj));
     }
 
     if (obj == null) {

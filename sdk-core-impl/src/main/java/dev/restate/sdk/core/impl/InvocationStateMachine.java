@@ -377,16 +377,17 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     throw new IllegalArgumentException("Unexpected deferred class " + deferredToResolve.getClass());
   }
 
-  void resolveSingleDeferred(
-      ResolvableSingleDeferredResult<?> deferred, SyscallCallback<Void> callback) {
+  <T> void resolveSingleDeferred(
+      ResolvableSingleDeferredResult<T> deferred, SyscallCallback<Void> callback) {
     this.readyResultPublisher.onNewReadyResult(
         new ReadyResultPublisher.OnNewReadyResultCallback() {
-          @SuppressWarnings({"unchecked", "rawtypes"})
+          @SuppressWarnings("unchecked")
           @Override
           public boolean onNewReadyResult(Map<Integer, ReadyResultInternal<?>> resultMap) {
-            ReadyResultInternal<?> resolved = resultMap.remove(deferred.entryIndex());
+            ReadyResultInternal<T> resolved =
+                (ReadyResultInternal<T>) resultMap.remove(deferred.entryIndex());
             if (resolved != null) {
-              deferred.resolve((ReadyResultInternal) resolved);
+              deferred.resolve(resolved);
               callback.onSuccess(null);
               return true;
             }
@@ -415,23 +416,27 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
    * in the journal the order of the leafs we've seen so far, and we finish by calling the {@code
    * callback}, giving back control to user code.
    *
-   * <p>An important property of this algorithm is that we don't write a {@link
-   * dev.restate.generated.sdk.java.Java.CombinatorAwaitableEntryMessage} per combinator node, but
-   * we write it once after we resolve the whole tree the user is awaiting on. The reason is that it
-   * vastly simplifies the implementation, as we don't need to deal with the order of the nested
-   * combinators during replay, and we don't need to deal with partially resolved combinator trees,
-   * e.g. if a suspension happens while we have recorded only a part of the nested combinators.
+   * <p>An important property of this algorithm is that we don't write multiple {@link
+   * Java.CombinatorAwaitableEntryMessage} per combinator nodes composing the tree, but we write one
+   * of them for the whole tree. Moreover, we write only when we resolve the combinator tree, and
+   * not beforehand when the user creates the combinator tree. The main reason for this property is
+   * that the Restate protocol doesn't allow the SDK to mutate Journal Entries after they're sent to
+   * the runtime, and the index of entries is enforced by their send order, meaning you cannot send
+   * entry 2 and then entry 1. The consequence of this property is that any algorithm recording
+   * combinator nodes one-by-one would require non-trivial replay logic, in order to handle the
+   * resolution order of the combinator nodes, and partially resolved trees (e.g. in case a
+   * suspension happens while we have recorded only a part of the combinator nodes).
    *
    * <p>There are some special cases:
    *
    * <ul>
-   *   <li>In case of replay, we don't need to wait for any leaf to be resolved. Because we write
-   *       the combinator journal entry when we flag the tree as resolved, then it means that every
-   *       leaf has been created before this combinator entry, and it also means that a subset of
-   *       these leafs is resolved, in order to resolve the combinator tree.
-   *   <li>In case there are no {@link SingleDeferredResultInternal}, it means we have either an
-   *       any/all without leafs, or any child has been resolved beforehand. In this case, we must
-   *       be able to flag this combinator tree as resolved as well.
+   *   <li>In case of replay, we don't need to wait for any leaf to be resolved, because we write
+   *       the combinator journal entry only when there is a subset of resolved leafs which
+   *       completes the combinator tree. Moreover, the leaf journal entries precede the combinator
+   *       entry because they are created first.
+   *   <li>In case there are no {@link SingleDeferredResultInternal SingleDeferredResultInternals},
+   *       it means every leaf has been resolved beforehand. In this case, we must be able to flag
+   *       this combinator tree as resolved as well.
    * </ul>
    */
   private void resolveCombinatorDeferred(
@@ -455,33 +460,42 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     } else if (this.state == State.PROCESSING) {
       // Create map of singles to resolve
       Map<Integer, ResolvableSingleDeferredResult<?>> resolvableSingles = new HashMap<>();
-      List<Integer> resolvedOrder = new ArrayList<>();
 
       Set<SingleDeferredResultInternal<?>> unprocessedLeafs =
           rootDeferred.unprocessedLeafs().collect(Collectors.toSet());
 
       // If there are no leafs, it means the combinator must be resolvable
       if (unprocessedLeafs.isEmpty()) {
-        if (!tryResolveCombinatorUsingResolvedOrder(rootDeferred, resolvedOrder, callback)) {
+        // We don't need to provide a valid entry index,
+        // we just need to walk through the tree and mark all the combinators as completed.
+        if (!rootDeferred.tryResolve(-1)) {
           throw new IllegalStateException(
               "Combinator cannot be resolved, but every children have been resolved already. "
                   + "This is a symptom of an SDK bug, please contact the developers.");
         }
+
+        writeCombinatorEntry(Collections.emptyList());
+        callback.onSuccess(null);
+        return;
       }
+
+      List<Integer> resolvedOrder = new ArrayList<>();
 
       // Walk the tree and populate the resolvable singles, and keep the already known ready results
       for (SingleDeferredResultInternal<?> singleDeferred : unprocessedLeafs) {
+        int entryIndex = singleDeferred.entryIndex();
         if (singleDeferred.isCompleted()) {
-          resolvedOrder.add(singleDeferred.entryIndex());
+          resolvedOrder.add(entryIndex);
 
           // Try to resolve the combinator now
-          if (tryResolveCombinatorUsingResolvedOrder(rootDeferred, resolvedOrder, callback)) {
+          if (rootDeferred.tryResolve(entryIndex)) {
+            writeCombinatorEntry(resolvedOrder);
+            callback.onSuccess(null);
             return;
           }
         } else {
           // If not completed, then it's a ResolvableSingleDeferredResult
-          resolvableSingles.put(
-              singleDeferred.entryIndex(), (ResolvableSingleDeferredResult<?>) singleDeferred);
+          resolvableSingles.put(entryIndex, (ResolvableSingleDeferredResult<?>) singleDeferred);
         }
       }
 
@@ -495,15 +509,18 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
                   resolvableSingles.entrySet().iterator();
               while (it.hasNext()) {
                 Map.Entry<Integer, ResolvableSingleDeferredResult<?>> entry = it.next();
+                int entryIndex = entry.getKey();
 
-                ReadyResultInternal<?> result = resultMap.remove(entry.getKey());
+                ReadyResultInternal<?> result = resultMap.remove(entryIndex);
                 if (result != null) {
-                  resolvedOrder.add(entry.getKey());
+                  resolvedOrder.add(entryIndex);
                   entry.getValue().resolve((ReadyResultInternal) result);
                   it.remove();
 
-                  if (tryResolveCombinatorUsingResolvedOrder(
-                      rootDeferred, resolvedOrder, callback)) {
+                  // Try to resolve the combinator now
+                  if (rootDeferred.tryResolve(entryIndex)) {
+                    writeCombinatorEntry(resolvedOrder);
+                    callback.onSuccess(null);
                     return true;
                   }
                 }
@@ -523,37 +540,12 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     }
   }
 
-  /**
-   * We call this method every time we resolve a new leaf that might resolve the combinator tree, or
-   * alternatively if there are no leafs.
-   *
-   * @see #resolveCombinatorDeferred(CombinatorDeferredResult, SyscallCallback)
-   */
-  private boolean tryResolveCombinatorUsingResolvedOrder(
-      CombinatorDeferredResult<?> rootDeferred,
-      List<Integer> resolvedList,
-      SyscallCallback<Void> callback) {
-    if (resolvedList.isEmpty()) {
-      // We don't need to provide a valid entry index,
-      // we just need to walk through the tree and mark all the combinators as completed.
-      if (!rootDeferred.tryResolve(-1)) {
-        return false;
-      }
-    } else if (!rootDeferred.tryResolve(resolvedList.get(resolvedList.size() - 1))) {
-      // We need to reiterate
-      return false;
-    }
-
+  private void writeCombinatorEntry(List<Integer> resolvedList) {
     // Create and write the entry
     Java.CombinatorAwaitableEntryMessage entry =
         Java.CombinatorAwaitableEntryMessage.newBuilder().addAllEntryIndex(resolvedList).build();
     span.addEvent("Combinator");
     writeEntry(entry);
-
-    // Invoke the ok callback
-    callback.onSuccess(null);
-
-    return true;
   }
 
   // --- Internal callback

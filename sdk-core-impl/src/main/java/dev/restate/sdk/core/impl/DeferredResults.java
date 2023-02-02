@@ -34,7 +34,12 @@ abstract class DeferredResults {
     @Override
     ReadyResults.ReadyResultInternal<T> toReadyResult();
 
-    /** Returns leafs that are either unprocessed, or unresolved. */
+    /**
+     * Look at the implementation of all and any for more details.
+     *
+     * @see AllDeferredResult#tryResolve(int)
+     * @see AnyDeferredResult#tryResolve(int)
+     */
     Stream<DeferredResults.SingleDeferredResultInternal<?>> unprocessedLeafs();
   }
 
@@ -107,10 +112,19 @@ abstract class DeferredResults {
       this.unresolvedCombinators = unresolvedCombinators;
     }
 
-    /** Returns true if it's resolved, that is {@link #isCompleted()} returns true. */
+    /**
+     * This method implements the resolution logic, by trying to solve its leafs and inner
+     * combinator nodes.
+     *
+     * <p>In case the {@code newResolvedSingle} is unknown/invalid, this method will still try to
+     * walk through the inner combinator nodes in order to try resolve them.
+     *
+     * @return true if it's resolved, that is subsequent calls to {@link #isCompleted()} return
+     *     true.
+     */
     abstract boolean tryResolve(int newResolvedSingle);
 
-    /** Returns true if it's resolved, that is {@link #isCompleted()} returns true. */
+    /** Like {@link #tryResolve(int)}, but iteratively on the provided list. */
     boolean tryResolve(List<Integer> resolvedSingle) {
       boolean resolved = false;
       for (int newResolvedSingle : resolvedSingle) {
