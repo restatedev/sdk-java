@@ -102,4 +102,10 @@ subprojects {
 
 licenseReport {
   renderers = arrayOf(com.github.jk1.license.render.CsvReportRenderer())
+
+  excludeBoms = true
+
+  excludes = arrayOf(
+    "io.vertx:vertx-stack-depchain" // Vertx bom file
+  )
 }
