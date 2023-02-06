@@ -100,6 +100,8 @@ subprojects {
   }
 }
 
+tasks { check { dependsOn(checkLicense) } }
+
 licenseReport {
   renderers = arrayOf(com.github.jk1.license.render.CsvReportRenderer())
 
@@ -110,4 +112,10 @@ licenseReport {
           "io.vertx:vertx-stack-depchain", // Vertx bom file
           "org.jetbrains.kotlinx:kotlinx-coroutines-core", // Kotlinx coroutines bom file
       )
+
+  allowedLicensesFile = file("$projectDir/config/allowed-licenses.json")
+  filters =
+      arrayOf(
+          com.github.jk1.license.filter.LicenseBundleNormalizer(
+              "$projectDir/config/license-normalizer-bundle.json", true))
 }
