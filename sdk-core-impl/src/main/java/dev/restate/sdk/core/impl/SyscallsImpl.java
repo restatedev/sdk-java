@@ -37,15 +37,6 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public String invocationId() {
-    return stateMachine.getServiceName()
-        + "-"
-        + Base64.getEncoder().encodeToString(stateMachine.getInstanceKey().toByteArray())
-        + "-"
-        + Base64.getEncoder().encodeToString(stateMachine.getInvocationId().toByteArray());
-  }
-
-  @Override
   public <T extends MessageLite> void pollInput(
       Function<ByteString, T> mapper, SyscallCallback<DeferredResult<T>> callback) {
     LOG.trace("pollInput");

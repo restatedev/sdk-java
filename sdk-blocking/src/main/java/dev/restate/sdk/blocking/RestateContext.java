@@ -27,12 +27,6 @@ import javax.annotation.concurrent.NotThreadSafe;
 public interface RestateContext {
 
   /**
-   * @return a stable identifier for this invocation. This can be used as idempotency key when
-   *     accessing external systems.
-   */
-  String invocationId();
-
-  /**
    * Gets the state stored under key, deserializing the raw value using the registered {@link Serde}
    * in the interceptor.
    *

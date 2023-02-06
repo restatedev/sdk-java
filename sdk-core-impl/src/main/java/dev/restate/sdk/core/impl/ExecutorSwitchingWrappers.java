@@ -85,11 +85,6 @@ class ExecutorSwitchingWrappers {
     }
 
     @Override
-    public String invocationId() {
-      return syscalls.invocationId();
-    }
-
-    @Override
     public <T extends MessageLite> void pollInput(
         Function<ByteString, T> mapper, SyscallCallback<DeferredResult<T>> callback) {
       syscallsExecutor.execute(() -> syscalls.pollInput(mapper, callback));

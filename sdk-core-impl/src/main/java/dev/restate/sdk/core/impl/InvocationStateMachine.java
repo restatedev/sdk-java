@@ -4,6 +4,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
+import dev.restate.sdk.core.InvocationId;
 import dev.restate.sdk.core.SuspendedException;
 import dev.restate.sdk.core.impl.DeferredResults.CombinatorDeferredResult;
 import dev.restate.sdk.core.impl.DeferredResults.ResolvableSingleDeferredResult;
@@ -43,11 +44,8 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   private boolean insideSideEffect = false;
 
   // Obtained after WAITING_START
-  // We need volatile because the getters can be used directly from the user code thread.
-  // We don't need to sync them because they will be written once before the Syscalls object can be
-  // accessed from the user thread (see RestateGrpcServer#resolve).
-  private volatile ByteString instanceKey;
-  private volatile ByteString invocationId;
+  private ByteString instanceKey;
+  private ByteString invocationId;
   private int entriesToReplay;
 
   // Index tracking progress in the journal
@@ -61,7 +59,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   // Flow sub/pub
   private Flow.Subscriber<? super MessageLite> outputSubscriber;
   private Flow.Subscription inputSubscription;
-  private Runnable afterStartCallback;
+  private Consumer<InvocationId> afterStartCallback;
 
   public InvocationStateMachine(String serviceName, Span span) {
     this.serviceName = serviceName;
@@ -148,7 +146,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   // --- Init routine to wait for the start message
 
-  void start(Runnable afterStartCallback) {
+  void start(Consumer<InvocationId> afterStartCallback) {
     this.afterStartCallback = afterStartCallback;
     this.inputSubscription.request(1);
   }
@@ -179,9 +177,9 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     this.inputSubscription.request(Long.MAX_VALUE);
 
     // Now execute the callback after start
-    Runnable afterStartCallback = this.afterStartCallback;
+    Consumer<InvocationId> afterStartCallback = this.afterStartCallback;
     this.afterStartCallback = null;
-    afterStartCallback.run();
+    afterStartCallback.accept(new InvocationIdImpl(serviceName, instanceKey, invocationId));
   }
 
   void close() {

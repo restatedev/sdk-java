@@ -28,10 +28,6 @@ public interface Syscalls {
     return SYSCALLS_KEY.get();
   }
 
-  // ----- Metadata
-
-  String invocationId();
-
   // ----- IO
   // Note: These are not supposed to be exposed to RestateContext, but they should be used through
   // gRPC APIs.

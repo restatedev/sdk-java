@@ -1,6 +1,7 @@
 package dev.restate.sdk.core.impl;
 
 import com.google.protobuf.MessageLite;
+import dev.restate.sdk.core.InvocationId;
 import dev.restate.sdk.core.serde.Serde;
 import dev.restate.sdk.core.syscalls.Syscalls;
 import io.grpc.*;
@@ -92,11 +93,13 @@ public class RestateGrpcServer {
       public void start() {
         LOG.debug("Start processing call to {}/{}", serviceName, methodName);
         stateMachine.start(
-            () -> {
+            invocationId -> {
               // Create the listener and create the decorators chain
               ServerCall.Listener<MessageLite> listener =
                   Contexts.interceptCall(
-                      Context.current().withValue(Syscalls.SYSCALLS_KEY, syscalls),
+                      Context.current()
+                          .withValue(InvocationId.INVOCATION_ID_KEY, invocationId)
+                          .withValue(Syscalls.SYSCALLS_KEY, syscalls),
                       bridge,
                       new Metadata(),
                       method.getServerCallHandler());
