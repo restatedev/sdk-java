@@ -154,13 +154,7 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
     return AwakeableImpl(syscalls, deferredResult, aid)
   }
 
-  override suspend fun <T : Any> completeAwakeable(
-      id: AwakeableIdentifier,
-      typeTag: TypeTag<T>,
-      payload: T
-  ) {
-    return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-      syscalls.completeAwakeable(id, typeTag, payload, completingUnitContinuation(cont))
-    }
+  override fun awakeableHandle(id: AwakeableIdentifier): AwakeableHandle {
+    return AwakeableHandleImpl(syscalls, id)
   }
 }

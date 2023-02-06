@@ -1,6 +1,7 @@
 package dev.restate.sdk.kotlin
 
 import dev.restate.generated.core.AwakeableIdentifier
+import dev.restate.sdk.core.TypeTag
 import dev.restate.sdk.core.syscalls.DeferredResult
 import dev.restate.sdk.core.syscalls.Syscalls
 import kotlinx.coroutines.CancellableContinuation
@@ -62,3 +63,12 @@ internal constructor(
     deferredResult: DeferredResult<T>,
     override val id: AwakeableIdentifier
 ) : NonNullAwaitableImpl<T>(syscalls, deferredResult), Awakeable<T>
+
+internal class AwakeableHandleImpl(val syscalls: Syscalls, val id: AwakeableIdentifier) :
+    AwakeableHandle {
+  override suspend fun <T : Any> complete(typeTag: TypeTag<T>, payload: T) {
+    return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
+      syscalls.completeAwakeable(id, typeTag, payload, completingUnitContinuation(cont))
+    }
+  }
+}
