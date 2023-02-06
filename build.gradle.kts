@@ -6,6 +6,7 @@ plugins {
   java
 
   id("net.ltgt.errorprone") version "3.0.1"
+  id("com.github.jk1.dependency-license-report") version "2.0"
   alias(pluginLibs.plugins.spotless)
   alias(pluginLibs.plugins.protobuf)
 }
@@ -97,4 +98,8 @@ subprojects {
       }
     }
   }
+}
+
+licenseReport {
+  renderers = arrayOf(com.github.jk1.license.render.CsvReportRenderer())
 }
