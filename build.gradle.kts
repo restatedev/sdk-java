@@ -105,7 +105,8 @@ licenseReport {
 
   excludeBoms = true
 
-  excludes = arrayOf(
-    "io.vertx:vertx-stack-depchain" // Vertx bom file
-  )
+  excludes =
+      arrayOf(
+          "io.vertx:vertx-stack-depchain", // Vertx bom file
+      )
 }
