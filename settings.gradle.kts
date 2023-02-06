@@ -69,7 +69,8 @@ dependencyResolutionManagement {
           .withoutVersion()
     }
     create("kotlinLibs") {
-      library("kotlinx-coroutines", "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
+      library("kotlinx-coroutines", "org.jetbrains.kotlinx", "kotlinx-coroutines-core")
+          .version("1.6.4")
     }
     create("testingLibs") {
       version("junit-jupiter", "5.9.1")

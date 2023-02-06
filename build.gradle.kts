@@ -108,5 +108,6 @@ licenseReport {
   excludes =
       arrayOf(
           "io.vertx:vertx-stack-depchain", // Vertx bom file
+          "org.jetbrains.kotlinx:kotlinx-coroutines-core", // Kotlinx coroutines bom file
       )
 }
