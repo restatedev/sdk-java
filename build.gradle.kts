@@ -22,6 +22,7 @@ val testReport =
 
 allprojects {
   apply(plugin = "com.diffplug.spotless")
+  apply(plugin = "com.github.jk1.dependency-license-report")
 
   configure<com.diffplug.gradle.spotless.SpotlessExtension> {
     java {
@@ -30,6 +31,26 @@ allprojects {
       targetExclude("build/generated/**/*.java")
     }
     kotlinGradle { ktfmt() }
+  }
+
+  tasks { check { dependsOn(checkLicense) } }
+
+  licenseReport {
+    renderers = arrayOf(com.github.jk1.license.render.CsvReportRenderer())
+
+    excludeBoms = true
+
+    excludes =
+        arrayOf(
+            "io.vertx:vertx-stack-depchain", // Vertx bom file
+            "org.jetbrains.kotlinx:kotlinx-coroutines-core", // Kotlinx coroutines bom file
+        )
+
+    allowedLicensesFile = file("$rootDir/config/allowed-licenses.json")
+    filters =
+        arrayOf(
+            com.github.jk1.license.filter.LicenseBundleNormalizer(
+                "$rootDir/config/license-normalizer-bundle.json", true))
   }
 }
 
@@ -98,24 +119,4 @@ subprojects {
       }
     }
   }
-}
-
-tasks { check { dependsOn(checkLicense) } }
-
-licenseReport {
-  renderers = arrayOf(com.github.jk1.license.render.CsvReportRenderer())
-
-  excludeBoms = true
-
-  excludes =
-      arrayOf(
-          "io.vertx:vertx-stack-depchain", // Vertx bom file
-          "org.jetbrains.kotlinx:kotlinx-coroutines-core", // Kotlinx coroutines bom file
-      )
-
-  allowedLicensesFile = file("$projectDir/config/allowed-licenses.json")
-  filters =
-      arrayOf(
-          com.github.jk1.license.filter.LicenseBundleNormalizer(
-              "$projectDir/config/license-normalizer-bundle.json", true))
 }
