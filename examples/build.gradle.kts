@@ -25,7 +25,10 @@ dependencies {
   implementation(coreLibs.protobuf.kotlin)
   implementation(coreLibs.grpc.stub)
   implementation(coreLibs.grpc.protobuf)
-  implementation(coreLibs.grpc.kotlin.stub)
+  implementation(coreLibs.grpc.kotlin.stub) { exclude("javax.annotation", "javax.annotation-api") }
+
+  // Replace javax.annotations-api with tomcat annotations
+  compileOnly(coreLibs.javax.annotation.api)
 
   implementation(platform(vertxLibs.vertx.bom))
   implementation(vertxLibs.vertx.core)

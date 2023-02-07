@@ -8,12 +8,6 @@
     },
     {
       "moduleLicense": "The 3-Clause BSD License"
-    },
-    # Ok, because of the classpath exception which allows to bundle this dependency
-    {
-      "moduleLicense": "CDDL + GPLv2 with classpath exception",
-      "moduleName": "javax.annotation:javax.annotation-api",
-      "moduleVersion": "1.3.2"
     }
   ]
 }
