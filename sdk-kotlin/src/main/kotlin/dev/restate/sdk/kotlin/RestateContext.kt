@@ -49,5 +49,9 @@ sealed interface RestateContext {
 
   suspend fun <T> awakeable(typeTag: TypeTag<T>): Awakeable<T>
 
-  suspend fun <T : Any> completeAwakeable(id: AwakeableIdentifier, typeTag: TypeTag<T>, payload: T)
+  fun awakeableHandle(id: AwakeableIdentifier): AwakeableHandle
+}
+
+sealed interface AwakeableHandle {
+  suspend fun <T : Any> complete(typeTag: TypeTag<T>, payload: T)
 }

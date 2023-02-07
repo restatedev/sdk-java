@@ -10,7 +10,20 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
+import javax.annotation.concurrent.NotThreadSafe;
 
+/**
+ * This interface exposes the Restate functionalities to Restate services. It can be used to access
+ * the service instance key-value state storage, interact with other Restate services, record side
+ * effects, execute timers and synchronize with external systems.
+ *
+ * <p>To use it within your Restate service, implement {@link RestateBlockingService} and get an
+ * instance with {@link RestateBlockingService#restateContext()}.
+ *
+ * <p>NOTE: This interface should never be accessed concurrently since it can lead to different
+ * orderings of user actions, corrupting the execution of the invocation.
+ */
+@NotThreadSafe
 public interface RestateContext {
 
   /**
@@ -108,7 +121,7 @@ public interface RestateContext {
    * <p>You can use this feature to implement external asynchronous systems interactions, for
    * example you can send a Kafka record including the {@link Awakeable#id()}, and then let another
    * service consume from Kafka the responses of given external system interaction by using {@link
-   * #completeAwakeable(AwakeableIdentifier, TypeTag, Object)}.
+   * #awakeableHandle(AwakeableIdentifier)}.
    *
    * @param typeTag the response type tag to use for deserializing
    * @return the result value of the external system interaction
@@ -117,14 +130,10 @@ public interface RestateContext {
   <T> Awakeable<T> awakeable(TypeTag<T> typeTag);
 
   /**
-   * Complete the suspended service instance waiting on the {@link Awakeable} identified by the
-   * provided {@link AwakeableIdentifier}.
+   * Create a new {@link AwakeableHandle} for the provided {@link AwakeableIdentifier}. You can use
+   * it to {@link AwakeableHandle#complete(TypeTag, Object)} the linked {@link Awakeable}.
    *
-   * @param id the identifier to identify the {@link Awakeable} to complete
-   * @param payload the payload of the response. This can be either {@code byte[]}, {@link
-   *     com.google.protobuf.ByteString}, or any object, which will be serialized by using the
-   *     configured {@link Serde}. MUST NOT be null.
    * @see Awakeable
    */
-  <T> void completeAwakeable(AwakeableIdentifier id, TypeTag<T> typeTag, @Nonnull T payload);
+  AwakeableHandle awakeableHandle(AwakeableIdentifier id);
 }

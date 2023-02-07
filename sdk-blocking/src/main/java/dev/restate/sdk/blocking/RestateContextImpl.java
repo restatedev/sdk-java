@@ -15,7 +15,7 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public class RestateContextImpl implements RestateContext {
+class RestateContextImpl implements RestateContext {
 
   private final Syscalls syscalls;
 
@@ -144,8 +144,12 @@ public class RestateContextImpl implements RestateContext {
   }
 
   @Override
-  public <T> void completeAwakeable(
-      AwakeableIdentifier id, TypeTag<T> typeTag, @Nonnull T payload) {
-    Util.<Void>blockOnSyscall(cb -> syscalls.completeAwakeable(id, typeTag, payload, cb));
+  public AwakeableHandle awakeableHandle(AwakeableIdentifier id) {
+    return new AwakeableHandle() {
+      @Override
+      public <T> void complete(TypeTag<T> typeTag, @Nonnull T payload) {
+        Util.<Void>blockOnSyscall(cb -> syscalls.completeAwakeable(id, typeTag, payload, cb));
+      }
+    };
   }
 }
