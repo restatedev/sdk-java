@@ -17,6 +17,7 @@ include(
     "sdk-blocking",
     "sdk-lambda",
     "sdk-kotlin",
+    "sdk-testing",
     "examples")
 
 dependencyResolutionManagement {
