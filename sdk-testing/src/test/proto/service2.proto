@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "dev.restate.sdk.testing.testservices";
+option java_outer_classname = "ServiceTwoProto";
+
+import "dev/restate/ext.proto";
+
+package servicetwo;
+
+service ServiceTwo {
+  option (dev.restate.ext.service_type) = KEYED;
+
+  rpc DoSomething (SomeRequest) returns (SomeResponse);
+}
+
+message SomeRequest {
+  string name = 1 [(dev.restate.ext.field) = KEY];
+}
+
+message SomeResponse {
+  string message = 1;
+}

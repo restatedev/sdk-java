@@ -62,7 +62,7 @@ abstract class TestDriver {
       String method,
       List<MessageLite> input,
       ThreadingModel threadingModel,
-      BiConsumer<TestRestateRuntimeStateMachine<MessageLite>, Duration> outputAssert) {
+      BiConsumer<TestRestateRuntime<MessageLite>, Duration> outputAssert) {
     // Executor to execute sys calls
     Executor syscallsExecutor =
         threadingModel == ThreadingModel.UNBUFFERED_MULTI_THREAD
@@ -84,8 +84,8 @@ abstract class TestDriver {
             userExecutor);
 
     // Create publisher
-    TestRestateRuntimeStateMachine<MessageLite> testRestateRuntimeStateMachine =
-        new TestRestateRuntimeStateMachine<>(input);
+    TestRestateRuntime<MessageLite> testRestateRuntimeStateMachine =
+        new TestRestateRuntime<>(input);
 
     // Wire invocation
     serviceInvocationStateMachineHandler.output().subscribe(testRestateRuntimeStateMachine);
@@ -113,7 +113,7 @@ abstract class TestDriver {
 
     HashSet<ThreadingModel> getThreadingModels();
 
-    BiConsumer<TestRestateRuntimeStateMachine<MessageLite>, Duration> getOutputAssert();
+    BiConsumer<TestRestateRuntime<MessageLite>, Duration> getOutputAssert();
 
     String testCaseName();
   }
@@ -294,7 +294,7 @@ abstract class TestDriver {
       }
 
       @Override
-      public BiConsumer<TestRestateRuntimeStateMachine<MessageLite>, Duration> getOutputAssert() {
+      public BiConsumer<TestRestateRuntime<MessageLite>, Duration> getOutputAssert() {
         return (outputSubscriber, duration) ->
             assertThat(outputSubscriber.getFuture())
                 .succeedsWithin(duration)
@@ -337,7 +337,7 @@ abstract class TestDriver {
       }
 
       @Override
-      public BiConsumer<TestRestateRuntimeStateMachine<MessageLite>, Duration> getOutputAssert() {
+      public BiConsumer<TestRestateRuntime<MessageLite>, Duration> getOutputAssert() {
         return (outputSubscriber, duration) -> {
           assertThat(outputSubscriber.getFuture())
               .failsWithin(duration)

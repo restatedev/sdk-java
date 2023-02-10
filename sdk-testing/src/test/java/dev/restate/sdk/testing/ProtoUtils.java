@@ -12,7 +12,6 @@ import java.util.Arrays;
 
 public class ProtoUtils {
 
-  // Messages to be handled by test driver
   public static Protocol.StartMessage.Builder startMessage(int entries) {
     return Protocol.StartMessage.newBuilder()
         .setInstanceKey(ByteString.copyFromUtf8("abc"))

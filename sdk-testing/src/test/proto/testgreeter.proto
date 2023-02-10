@@ -14,6 +14,10 @@ service TestGreeter {
   rpc Greet (TestGreetingRequest) returns (TestGreetingResponse);
 
   rpc GreetCount (TestGreetingRequest) returns (TestGreetingResponse);
+
+  rpc GetSetClearState (TestGreetingRequest) returns (TestGreetingResponse);
+
+  rpc CallOtherService (TestGreetingRequest) returns (TestGreetingResponse);
 }
 
 message TestGreetingRequest {
