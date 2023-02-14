@@ -1,35 +1,35 @@
 package dev.restate.sdk.testing;
 
 import com.google.protobuf.ByteString;
+import dev.restate.generated.service.protocol.Protocol;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.HashMap;
 
-// Singleton state store
-final class StateStore {
+public class StateStore {
 
-    // Restate state of all the services
-    private HashMap<ByteString, ByteString> state = new HashMap<>();
+    private static final Logger LOG = LogManager.getLogger(StateStore.class);
 
-    private static StateStore INSTANCE;
+    private HashMap<String, ByteString> state;
 
-    private StateStore(){}
-
-    public static StateStore getInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new StateStore();
-        }
-        return INSTANCE;
+    public StateStore(){
+        this.state = new HashMap<>();
     }
 
-    public void set(ByteString key, ByteString value){
-        state.put(key, value);
+    public ByteString get(String serviceName, ByteString key){
+        return state.get(serviceName + key.toStringUtf8());
     }
 
-    public ByteString get(ByteString key) {
-        return state.get(key);
+    public void set(String serviceName, Protocol.SetStateEntryMessage msg) {
+        LOG.trace("Received setStateEntryMessage: " + msg.toString());
+        state.put(serviceName + msg.getKey().toStringUtf8(), msg.getValue());
     }
 
-    public void clear(ByteString key){
-        state.remove(key);
+    // Clears state for a single key
+    public void clear(String serviceName, Protocol.ClearStateEntryMessage msg) {
+        LOG.trace("Received clearStateEntryMessage: " + msg.toString());
+        state.remove(serviceName + msg.getKey().toStringUtf8());
     }
+
 }

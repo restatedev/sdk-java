@@ -30,12 +30,12 @@ public class TestGreeterService extends TestGreeterGrpc.TestGreeterImplBase
       TestGreetingRequest request, StreamObserver<TestGreetingResponse> responseObserver) {
     LOG.debug("Starting the greeter.greet method");
 
-    restateContext().set(STATE, "Till");
+    restateContext().set(STATE, request.getName());
     String state = restateContext().get(STATE).get();
 
     LOG.debug("The state contained: " + state);
 
-    responseObserver.onNext(TestGreetingResponse.newBuilder().setMessage("Hello " + state).build());
+    responseObserver.onNext(TestGreetingResponse.newBuilder().setMessage("Hello Goofy").build());
     responseObserver.onCompleted();
   }
 
@@ -107,14 +107,12 @@ public class TestGreeterService extends TestGreeterGrpc.TestGreeterImplBase
     RestateContext ctx = restateContext();
 
     Awaitable<SomeResponse> a1 =
-            ctx.call(ServiceTwoGrpc.getDoSomethingMethod(), SomeRequest.newBuilder().setName("Goofy").build());
+            ctx.call(ServiceTwoGrpc.getDoSomethingMethod(), SomeRequest.newBuilder().setName(request.getName()).build());
 
     responseObserver.onNext(
             TestGreetingResponse.newBuilder()
-                    .setMessage("The new count for " + request.getName() + " is " + a1.await().getMessage())
+                    .setMessage("We have a new count: " + a1.await().getMessage())
                     .build());
     responseObserver.onCompleted();
-
-
   }
 }
