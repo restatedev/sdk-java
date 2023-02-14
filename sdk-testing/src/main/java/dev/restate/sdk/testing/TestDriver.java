@@ -18,6 +18,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -41,7 +43,7 @@ abstract class TestDriver {
                 c.getThreadingModels().stream()
                     .map(
                         threadingModel ->
-                            arguments(
+                            Arguments.arguments(
                                 "[" + threadingModel + "] " + c.testCaseName(),
                                 c.getServices(),
                                 c.getInput(),
@@ -68,7 +70,7 @@ abstract class TestDriver {
 
     // Check completed
     outputAssert.accept(testRestateRuntimeStateMachine, Duration.ZERO);
-    assertThat(testRestateRuntimeStateMachine.getPublisherSubscriptionCancelled()).isTrue();
+    Assertions.assertThat(testRestateRuntimeStateMachine.getPublisherSubscriptionCancelled()).isTrue();
 
   }
 
@@ -156,11 +158,11 @@ abstract class TestDriver {
       ExpectingOutputMessages expectingOutput(MessageLiteOrBuilder... messages) {
         List<MessageLite> builtMessages =
             Arrays.stream(messages).map(ProtoUtils::build).collect(Collectors.toList());
-        return assertingOutput(actual -> assertThat(actual).asList().isEqualTo(builtMessages));
+        return assertingOutput(actual -> Assertions.assertThat(actual).asList().isEqualTo(builtMessages));
       }
 
       ExpectingOutputMessages expectingNoOutput() {
-        return assertingOutput(messages -> assertThat(messages).asList().isEmpty());
+        return assertingOutput(messages -> Assertions.assertThat(messages).asList().isEmpty());
       }
 
       ExpectingOutputMessages assertingOutput(Consumer<List<Protocol.OutputStreamEntryMessage>> messages) {
@@ -168,7 +170,7 @@ abstract class TestDriver {
       }
 
       ExpectingFailure assertingFailure(Class<? extends Throwable> tClass) {
-        return assertingFailure(t -> assertThat(t).isInstanceOf(tClass));
+        return assertingFailure(t -> Assertions.assertThat(t).isInstanceOf(tClass));
       }
 
       ExpectingFailure assertingFailure(Consumer<Throwable> assertFailure) {
@@ -256,7 +258,7 @@ abstract class TestDriver {
       @Override
       public BiConsumer<TestRestateRuntime, Duration> getOutputAssert() {
         return (outputSubscriber, duration) ->
-            assertThat(outputSubscriber.getFuture())
+            Assertions.assertThat(outputSubscriber.getFuture())
                 .succeedsWithin(duration)
                 .satisfies(messagesAssert::accept);
       }
@@ -296,12 +298,12 @@ abstract class TestDriver {
       @Override
       public BiConsumer<TestRestateRuntime, Duration> getOutputAssert() {
         return (outputSubscriber, duration) -> {
-          assertThat(outputSubscriber.getFuture())
+          Assertions.assertThat(outputSubscriber.getFuture())
               .failsWithin(duration)
               .withThrowableOfType(ExecutionException.class)
               .satisfies(t -> throwableAssert.accept(t.getCause()));
           // If there was a state machine related failure, no output message should be written
-          assertThat(outputSubscriber.getTestResults())
+          Assertions.assertThat(outputSubscriber.getTestResults())
               .doesNotHaveAnyElementsOfTypes(Protocol.OutputStreamEntryMessage.class);
         };
       }

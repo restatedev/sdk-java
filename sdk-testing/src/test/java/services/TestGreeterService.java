@@ -109,10 +109,18 @@ public class TestGreeterService extends TestGreeterGrpc.TestGreeterImplBase
     Awaitable<SomeResponse> a1 =
             ctx.call(ServiceTwoGrpc.getDoSomethingMethod(), SomeRequest.newBuilder().setName(request.getName()).build());
 
+    ctx.backgroundCall(ServiceTwoGrpc.getDoSomethingMethod(), SomeRequest.newBuilder().setName(request.getName()).build());
+
     responseObserver.onNext(
             TestGreetingResponse.newBuilder()
                     .setMessage("We have a new count: " + a1.await().getMessage())
                     .build());
     responseObserver.onCompleted();
+  }
+
+
+  @Override
+  public void failingGreet(TestGreetingRequest request, StreamObserver<TestGreetingResponse> responseObserver) {
+    throw new IllegalStateException("Whatever");
   }
 }

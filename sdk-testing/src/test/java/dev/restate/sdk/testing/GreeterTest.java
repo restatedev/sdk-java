@@ -70,6 +70,14 @@ public class GreeterTest extends TestDriver {
                         .usingThreadingModels(ThreadingModel.BUFFERED_SINGLE_THREAD)
                         .expectingOutput(
                                 outputMessage(TestGreetingResponse.newBuilder().setMessage("We have a new count: The new count for Goofy is 1")))
-                        .named("End-to-end test increment state, clear state, increment state"));
+                        .named("End-to-end test inter-service call and background call."),
+                testInvocation()
+                        .withServices(new TestGreeterService())
+                        .withInput(TestInput.of(TestGreeterGrpc.getFailingGreetMethod(),
+                                inputMessage(TestGreetingRequest.newBuilder().setName("Goofy"))))
+                        .usingThreadingModels(ThreadingModel.BUFFERED_SINGLE_THREAD)
+                        .expectingOutput(
+                                outputMessage(new IllegalStateException("Whatever")))
+                        .named("End-to-end test failing call."));
     }
 }

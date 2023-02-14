@@ -18,6 +18,8 @@ service TestGreeter {
   rpc GetSetClearState (TestGreetingRequest) returns (TestGreetingResponse);
 
   rpc CallOtherService (TestGreetingRequest) returns (TestGreetingResponse);
+
+  rpc FailingGreet (TestGreetingRequest) returns (TestGreetingResponse);
 }
 
 message TestGreetingRequest {

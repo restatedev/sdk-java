@@ -2,22 +2,16 @@ package dev.restate.sdk.testing;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
-import com.google.protobuf.Message;
-import com.google.protobuf.MessageLite;
 import dev.restate.generated.service.protocol.Protocol;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayDeque;
 import java.util.Collection;
-import java.util.List;
 import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static dev.restate.sdk.testing.ProtoUtils.completionMessage;
-import static dev.restate.sdk.testing.ProtoUtils.startMessage;
 
 class InvocationProcessor<T> implements Flow.Processor<T, T>, Flow.Publisher<T>, Flow.Subscriber<T> {
 
@@ -66,7 +60,7 @@ class InvocationProcessor<T> implements Flow.Processor<T, T>, Flow.Publisher<T>,
         this.currentJournalIndex = 0;
         this.outputSubscription =
                 // TODO elements
-                new MockPublishSubscription<T>(
+                new PublishSubscription<T>(
                         publisher, new ArrayDeque<>(elements), publisherSubscriptionCancelled);
 
         publisher.onSubscribe(this.outputSubscription);
@@ -144,6 +138,7 @@ class InvocationProcessor<T> implements Flow.Processor<T, T>, Flow.Publisher<T>,
             LOG.trace("Sending poll input stream message");
             publisher.onNext(t);
         } else if (t instanceof Protocol.OutputStreamEntryMessage) {
+            LOG.trace("Handling call result");
             testRestateRuntime.handleCallResult(functionInvocationId, (Protocol.OutputStreamEntryMessage) t);
             onComplete();
         } else if (t instanceof Protocol.GetStateEntryMessage) {
@@ -157,24 +152,33 @@ class InvocationProcessor<T> implements Flow.Processor<T, T>, Flow.Publisher<T>,
                     "This type is not yet implemented in the test runtime: "
                             + t.getClass().toGenericString());
         } else if (t instanceof Protocol.InvokeEntryMessage) {
+            LOG.trace("Handling invoke entry message");
             Protocol.InvokeEntryMessage invokeMsg = (Protocol.InvokeEntryMessage) t;
+            // Let the runtime create an invocation processor to handle the call
             testRestateRuntime.handle(invokeMsg.getServiceName(),
                     invokeMsg.getMethodName(),
                     Protocol.PollInputStreamEntryMessage.newBuilder().setValue(invokeMsg.getParameter()).build(),
                     functionInvocationId);
         } else if (t instanceof Protocol.BackgroundInvokeEntryMessage) {
-            LOG.error(
-                    "This type is not yet implemented in the test runtime: "
-                            + t.getClass().toGenericString());
+            LOG.trace("Handling background invoke entry message");
+            Protocol.BackgroundInvokeEntryMessage invokeMsg = (Protocol.BackgroundInvokeEntryMessage) t;
+            // Let the runtime create an invocation processor to handle the call
+            // We set the caller id to "ignore" because we do not want a response.
+            // The response will then be ignored out by runtime.
+            testRestateRuntime.handle(invokeMsg.getServiceName(),
+                    invokeMsg.getMethodName(),
+                    Protocol.PollInputStreamEntryMessage.newBuilder().setValue(invokeMsg.getParameter()).build(),
+                    "ignore");
+            // Immediately send back acknowledgment of background call
+            Protocol.CompletionMessage completionMessage = Protocol.CompletionMessage.newBuilder()
+                    .setEntryIndex(currentJournalIndex)
+                    .build();
+            publisher.onNext((T) completionMessage);
         } else if (t instanceof Protocol.AwakeableEntryMessage) {
             LOG.error(
                     "This type is not yet implemented in the test runtime: "
                             + t.getClass().toGenericString());
         } else if (t instanceof Protocol.CompleteAwakeableEntryMessage) {
-            LOG.error(
-                    "This type is not yet implemented in the test runtime: "
-                            + t.getClass().toGenericString());
-        } else if (t instanceof Protocol.Failure) {
             LOG.error(
                     "This type is not yet implemented in the test runtime: "
                             + t.getClass().toGenericString());
