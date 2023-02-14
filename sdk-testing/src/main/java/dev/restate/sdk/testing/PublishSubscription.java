@@ -4,12 +4,12 @@ import java.util.Queue;
 import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-class MockPublishSubscription<T> implements Flow.Subscription {
+class PublishSubscription<T> implements Flow.Subscription {
   private final Flow.Subscriber<? super T> subscriber;
   private final Queue<T> queue;
   private final AtomicBoolean cancelled;
 
-  MockPublishSubscription(
+  PublishSubscription(
       Flow.Subscriber<? super T> subscriber,
       Queue<T> queue,
       AtomicBoolean subscriptionCancelled) {

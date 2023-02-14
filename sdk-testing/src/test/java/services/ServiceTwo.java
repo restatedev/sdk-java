@@ -6,7 +6,6 @@ import dev.restate.sdk.core.StateKey;
 import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.testing.testservices.ServiceTwoGrpc;
 import dev.restate.sdk.testing.testservices.SomeResponse;
-import dev.restate.sdk.testing.testservices.TestGreetingResponse;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

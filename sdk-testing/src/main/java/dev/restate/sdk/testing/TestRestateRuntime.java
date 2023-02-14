@@ -59,7 +59,10 @@ final class TestRestateRuntime {
         handle(testInput.getService(), testInput.getMethod(), testInput.getInputMessage(), null);
     }
 
-    public void handle(String serviceName, String methodName, MessageLite inputMessage, String callerFunctionInvocationId){
+    public void handle(String serviceName,
+                       String methodName,
+                       MessageLite inputMessage,
+                       String callerFunctionInvocationId){
         String functionInvocationId = UUID.randomUUID().toString();
 
         //TODO executors
@@ -129,8 +132,12 @@ final class TestRestateRuntime {
             // This was an inter-service call, redirect the answer
             LOG.debug("Forwarding inter-service call result");
             String callerInvocationId = calleeToCallerInvocationIds.get(functionInvocationId);
-            InvocationProcessor<MessageLite> caller = invocationProcessorHashMap.get(callerInvocationId);
-            caller.handleInterServiceCallResult(msg);
+            // If this was a background call, the caller invocation Id was set to "ignore".
+            // Only send a response to the caller, if it was not a background call.
+            if(!callerInvocationId.equals("ignore")) {
+                InvocationProcessor<MessageLite> caller = invocationProcessorHashMap.get(callerInvocationId);
+                caller.handleInterServiceCallResult(msg);
+            }
         } else {
             // This is a test result; add it to the list
             LOG.debug("Adding new element to result set");

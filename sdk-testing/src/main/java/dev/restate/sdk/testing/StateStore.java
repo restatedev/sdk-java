@@ -22,7 +22,6 @@ public class StateStore {
     }
 
     public void set(String serviceName, Protocol.SetStateEntryMessage msg) {
-        LOG.trace("Received setStateEntryMessage: " + msg.toString());
         state.put(serviceName + msg.getKey().toStringUtf8(), msg.getValue());
     }
 
