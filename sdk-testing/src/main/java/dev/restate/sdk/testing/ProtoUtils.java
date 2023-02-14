@@ -5,7 +5,7 @@ import com.google.protobuf.Empty;
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.MessageLiteOrBuilder;
 import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.core.impl.Util;
+import io.grpc.Status;
 
 public class ProtoUtils {
 
@@ -31,8 +31,9 @@ public class ProtoUtils {
   }
 
   static Protocol.OutputStreamEntryMessage outputMessage(Throwable e) {
+    int code = Status.UNKNOWN.withDescription(e.getMessage()).getCode().value();
     return Protocol.OutputStreamEntryMessage.newBuilder()
-        .setFailure(Util.toProtocolFailure(e))
+        .setFailure(Protocol.Failure.newBuilder().setCode(code).setMessage(e.getMessage()).build())
         .build();
   }
 
