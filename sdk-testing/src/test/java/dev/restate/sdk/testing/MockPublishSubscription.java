@@ -5,8 +5,6 @@ import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 class MockPublishSubscription<T> implements Flow.Subscription {
-
-  private final TestRestateRuntime<T> testRestateRuntimeStateMachine;
   private final Flow.Subscriber<? super T> subscriber;
   private final Queue<T> queue;
   private final AtomicBoolean cancelled;
@@ -14,12 +12,10 @@ class MockPublishSubscription<T> implements Flow.Subscription {
   MockPublishSubscription(
       Flow.Subscriber<? super T> subscriber,
       Queue<T> queue,
-      AtomicBoolean subscriptionCancelled,
-      TestRestateRuntime<T> testRestateRuntimeStateMachine) {
+      AtomicBoolean subscriptionCancelled) {
     this.subscriber = subscriber;
     this.queue = queue;
     this.cancelled = subscriptionCancelled;
-    this.testRestateRuntimeStateMachine = testRestateRuntimeStateMachine;
   }
 
   @Override

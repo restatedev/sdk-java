@@ -20,11 +20,20 @@ public class ProtoUtils {
         .setKnownServiceVersion(1);
   }
 
+  public static Protocol.StartMessage.Builder startMessage(String serviceName, String invocationId, int entries) {
+    return Protocol.StartMessage.newBuilder()
+            .setInstanceKey(ByteString.copyFromUtf8(serviceName))
+            .setInvocationId(ByteString.copyFromUtf8(invocationId))
+            .setKnownEntries(entries)
+            .setKnownServiceVersion(1);
+  }
+
   public static Protocol.PollInputStreamEntryMessage inputMessage(MessageLiteOrBuilder value) {
     return Protocol.PollInputStreamEntryMessage.newBuilder()
         .setValue(build(value).toByteString())
         .build();
   }
+
 
   static Protocol.OutputStreamEntryMessage outputMessage(MessageLiteOrBuilder value) {
     return Protocol.OutputStreamEntryMessage.newBuilder()

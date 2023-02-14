@@ -6,18 +6,14 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.MessageLiteOrBuilder;
 import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.core.impl.InvocationHandler;
-import dev.restate.sdk.core.impl.RestateGrpcServer;
 import io.grpc.BindableService;
-import io.grpc.MethodDescriptor;
 import io.grpc.ServerServiceDefinition;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -47,8 +43,7 @@ abstract class TestDriver {
                         threadingModel ->
                             arguments(
                                 "[" + threadingModel + "] " + c.testCaseName(),
-                                c.getService(),
-                                c.getMethod(),
+                                c.getServices(),
                                 c.getInput(),
                                 threadingModel,
                                 c.getOutputAssert())));
@@ -58,45 +53,23 @@ abstract class TestDriver {
   @MethodSource("source")
   void executeTest(
       String testName,
-      ServerServiceDefinition svc,
-      String method,
-      List<MessageLite> input,
+      List<ServerServiceDefinition> services,
+      List<TestInput> input,
       ThreadingModel threadingModel,
-      BiConsumer<TestRestateRuntime<MessageLite>, Duration> outputAssert) {
-    // Executor to execute sys calls
-    Executor syscallsExecutor =
-        threadingModel == ThreadingModel.UNBUFFERED_MULTI_THREAD
-            ? Executors.newSingleThreadExecutor()
-            : null;
-    Executor userExecutor =
-        threadingModel == ThreadingModel.UNBUFFERED_MULTI_THREAD
-            ? Executors.newSingleThreadExecutor()
-            : null;
+      BiConsumer<TestRestateRuntime, Duration> outputAssert) {
 
-    // Start invocation
-    RestateGrpcServer server = RestateGrpcServer.newBuilder().withService(svc).build();
-    InvocationHandler serviceInvocationStateMachineHandler =
-        server.resolve(
-            svc.getServiceDescriptor().getName(),
-            method,
-            io.opentelemetry.context.Context.current(),
-            syscallsExecutor,
-            userExecutor);
+    // Create runtime instance
+    TestRestateRuntime testRestateRuntimeStateMachine =
+        new TestRestateRuntime(services, threadingModel);
 
-    // Create publisher
-    TestRestateRuntime<MessageLite> testRestateRuntimeStateMachine =
-        new TestRestateRuntime<>(input);
-
-    // Wire invocation
-    serviceInvocationStateMachineHandler.output().subscribe(testRestateRuntimeStateMachine);
-    testRestateRuntimeStateMachine.subscribe(serviceInvocationStateMachineHandler.input());
-
-    // Start invocation
-    serviceInvocationStateMachineHandler.start();
+    for (TestInput testInput : input){
+        testRestateRuntimeStateMachine.handle(testInput);
+    }
 
     // Check completed
     outputAssert.accept(testRestateRuntimeStateMachine, Duration.ZERO);
     assertThat(testRestateRuntimeStateMachine.getPublisherSubscriptionCancelled()).isTrue();
+
   }
 
   enum ThreadingModel {
@@ -105,59 +78,60 @@ abstract class TestDriver {
   }
 
   interface TestDefinition {
-    ServerServiceDefinition getService();
 
-    String getMethod();
+    List<ServerServiceDefinition> getServices();
 
-    List<MessageLite> getInput();
+    List<TestInput> getInput();
 
     HashSet<ThreadingModel> getThreadingModels();
 
-    BiConsumer<TestRestateRuntime<MessageLite>, Duration> getOutputAssert();
+    BiConsumer<TestRestateRuntime, Duration> getOutputAssert();
 
     String testCaseName();
   }
 
+
   /** Builder for the test cases */
   static class TestCaseBuilder {
 
-    static TestInvocationBuilder testInvocation(BindableService svc, String method) {
-      return new TestInvocationBuilder(svc, method);
-    }
-
-    static TestInvocationBuilder testInvocation(
-        BindableService svc, MethodDescriptor<?, ?> method) {
-      return testInvocation(svc, method.getBareMethodName());
-    }
-
     static class TestInvocationBuilder {
-      private final BindableService svc;
-      private final String method;
 
-      TestInvocationBuilder(BindableService svc, String method) {
-        this.svc = svc;
-        this.method = method;
-      }
+        public static TestInvocationBuilder testInvocation() {
+            return new TestInvocationBuilder();
+        }
 
-      WithInputBuilder withInput(MessageLiteOrBuilder... messages) {
-        return new WithInputBuilder(svc, method, Arrays.asList(messages));
+      WithServicesBuilder withServices(BindableService... services) {
+        return new WithServicesBuilder(Arrays.asList(services));
       }
     }
+
+    static class WithServicesBuilder {
+
+      private final List<BindableService> services;
+
+      public <T> WithServicesBuilder(List<BindableService> services) {
+        this.services = services;
+      }
+
+      WithInputBuilder withInput(TestInput... messages) {
+        return new WithInputBuilder(services, Arrays.asList(messages));
+      }
+    }
+    
 
     static class WithInputBuilder {
-      private final BindableService svc;
-      private final String method;
-      private final List<MessageLiteOrBuilder> input;
 
-      WithInputBuilder(BindableService svc, String method, List<MessageLiteOrBuilder> input) {
-        this.svc = svc;
-        this.method = method;
+      private final List<BindableService> services;
+      private final List<TestInput> input;
+
+      WithInputBuilder(List<BindableService> services, List<TestInput> input) {
+        this.services = services;
         this.input = input;
       }
 
       UsingThreadingModelsBuilder usingThreadingModels(ThreadingModel... threadingModels) {
         return new UsingThreadingModelsBuilder(
-            svc, method, input, new HashSet<>(Arrays.asList(threadingModels)));
+            services, input, new HashSet<>(Arrays.asList(threadingModels)));
       }
 
       UsingThreadingModelsBuilder usingAllThreadingModels() {
@@ -166,18 +140,15 @@ abstract class TestDriver {
     }
 
     static class UsingThreadingModelsBuilder {
-      private final BindableService svc;
-      private final String method;
-      private final List<MessageLiteOrBuilder> input;
+      private final List<BindableService> services;
+      private final List<TestInput> input;
       private final HashSet<ThreadingModel> threadingModels;
 
       UsingThreadingModelsBuilder(
-          BindableService svc,
-          String method,
-          List<MessageLiteOrBuilder> input,
-          HashSet<ThreadingModel> threadingModels) {
-        this.svc = svc;
-        this.method = method;
+              List<BindableService> services,
+              List<TestInput> input,
+              HashSet<ThreadingModel> threadingModels) {
+        this.services = services;
         this.input = input;
         this.threadingModels = threadingModels;
       }
@@ -192,8 +163,8 @@ abstract class TestDriver {
         return assertingOutput(messages -> assertThat(messages).asList().isEmpty());
       }
 
-      ExpectingOutputMessages assertingOutput(Consumer<List<MessageLite>> messages) {
-        return new ExpectingOutputMessages(svc, method, input, threadingModels, messages);
+      ExpectingOutputMessages assertingOutput(Consumer<List<Protocol.OutputStreamEntryMessage>> messages) {
+        return new ExpectingOutputMessages(services, input, threadingModels, messages);
       }
 
       ExpectingFailure assertingFailure(Class<? extends Throwable> tClass) {
@@ -201,51 +172,43 @@ abstract class TestDriver {
       }
 
       ExpectingFailure assertingFailure(Consumer<Throwable> assertFailure) {
-        return new ExpectingFailure(svc, method, input, threadingModels, assertFailure);
+        return new ExpectingFailure(services, input, threadingModels, assertFailure);
       }
     }
 
     public abstract static class BaseTestDefinition implements TestDefinition {
-      protected final BindableService svc;
-      protected final String method;
-      protected final List<MessageLiteOrBuilder> input;
+      protected final List<BindableService> services;
+      protected final List<TestInput> input;
       protected final HashSet<ThreadingModel> threadingModels;
       protected final String named;
 
       public BaseTestDefinition(
-          BindableService svc,
-          String method,
-          List<MessageLiteOrBuilder> input,
+              List<BindableService> services,
+          List<TestInput> input,
           HashSet<ThreadingModel> threadingModels) {
-        this(svc, method, input, threadingModels, svc.getClass().getSimpleName());
+        // TODO pick a better default name
+        this(services, input, threadingModels, services.get(0).getClass().getSimpleName());
       }
 
       public BaseTestDefinition(
-          BindableService svc,
-          String method,
-          List<MessageLiteOrBuilder> input,
+              List<BindableService> services,
+          List<TestInput> input,
           HashSet<ThreadingModel> threadingModels,
           String named) {
-        this.svc = svc;
-        this.method = method;
+        this.services = services;
         this.input = input;
         this.threadingModels = threadingModels;
         this.named = named;
       }
 
       @Override
-      public ServerServiceDefinition getService() {
-        return svc.bindService();
+      public List<ServerServiceDefinition> getServices() {
+        return services.stream().map(BindableService::bindService).collect(Collectors.toList());
       }
 
       @Override
-      public String getMethod() {
-        return method;
-      }
-
-      @Override
-      public List<MessageLite> getInput() {
-        return input.stream().map(ProtoUtils::build).collect(Collectors.toList());
+      public List<TestInput> getInput() {
+        return new ArrayList<>(input);
       }
 
       @Override
@@ -260,41 +223,38 @@ abstract class TestDriver {
     }
 
     static class ExpectingOutputMessages extends BaseTestDefinition {
-      private final Consumer<List<MessageLite>> messagesAssert;
+      private final Consumer<List<Protocol.OutputStreamEntryMessage>> messagesAssert;
 
       ExpectingOutputMessages(
-          BindableService svc,
-          String method,
-          List<MessageLiteOrBuilder> input,
+              List<BindableService> services,
+          List<TestInput> input,
           HashSet<ThreadingModel> threadingModels,
-          Consumer<List<MessageLite>> messagesAssert) {
-        super(svc, method, input, threadingModels);
+          Consumer<List<Protocol.OutputStreamEntryMessage>> messagesAssert) {
+        super(services, input, threadingModels);
         this.messagesAssert = messagesAssert;
       }
 
       ExpectingOutputMessages(
-          BindableService svc,
-          String method,
-          List<MessageLiteOrBuilder> input,
+              List<BindableService> services,
+          List<TestInput> input,
           HashSet<ThreadingModel> threadingModels,
-          Consumer<List<MessageLite>> messagesAssert,
+          Consumer<List<Protocol.OutputStreamEntryMessage>> messagesAssert,
           String named) {
-        super(svc, method, input, threadingModels, named);
+        super(services, input, threadingModels, named);
         this.messagesAssert = messagesAssert;
       }
 
       ExpectingOutputMessages named(String name) {
         return new TestCaseBuilder.ExpectingOutputMessages(
-            svc,
-            method,
+                services,
             input,
             threadingModels,
             messagesAssert,
-            svc.getClass().getSimpleName() + ": " + name);
+            name);
       }
 
       @Override
-      public BiConsumer<TestRestateRuntime<MessageLite>, Duration> getOutputAssert() {
+      public BiConsumer<TestRestateRuntime, Duration> getOutputAssert() {
         return (outputSubscriber, duration) ->
             assertThat(outputSubscriber.getFuture())
                 .succeedsWithin(duration)
@@ -306,45 +266,42 @@ abstract class TestDriver {
       private final Consumer<Throwable> throwableAssert;
 
       ExpectingFailure(
-          BindableService svc,
-          String method,
-          List<MessageLiteOrBuilder> input,
+              List<BindableService> services,
+          List<TestInput> input,
           HashSet<ThreadingModel> threadingModels,
           Consumer<Throwable> throwableAssert) {
-        super(svc, method, input, threadingModels);
+        super(services, input, threadingModels);
         this.throwableAssert = throwableAssert;
       }
 
       ExpectingFailure(
-          BindableService svc,
-          String method,
-          List<MessageLiteOrBuilder> input,
+              List<BindableService> services,
+          List<TestInput> input,
           HashSet<ThreadingModel> threadingModels,
           Consumer<Throwable> throwableAssert,
           String named) {
-        super(svc, method, input, threadingModels, named);
+        super(services, input, threadingModels, named);
         this.throwableAssert = throwableAssert;
       }
 
       ExpectingFailure named(String name) {
         return new ExpectingFailure(
-            svc,
-            method,
+                services,
             input,
             threadingModels,
             throwableAssert,
-            svc.getClass().getSimpleName() + ": " + name);
+            name);
       }
 
       @Override
-      public BiConsumer<TestRestateRuntime<MessageLite>, Duration> getOutputAssert() {
+      public BiConsumer<TestRestateRuntime, Duration> getOutputAssert() {
         return (outputSubscriber, duration) -> {
           assertThat(outputSubscriber.getFuture())
               .failsWithin(duration)
               .withThrowableOfType(ExecutionException.class)
               .satisfies(t -> throwableAssert.accept(t.getCause()));
           // If there was a state machine related failure, no output message should be written
-          assertThat(outputSubscriber.getMessages())
+          assertThat(outputSubscriber.getTestResults())
               .doesNotHaveAnyElementsOfTypes(Protocol.OutputStreamEntryMessage.class);
         };
       }

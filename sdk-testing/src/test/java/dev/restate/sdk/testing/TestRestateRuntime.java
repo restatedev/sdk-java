@@ -1,198 +1,142 @@
 package dev.restate.sdk.testing;
 
-import static dev.restate.sdk.testing.ProtoUtils.completionMessage;
-
-import com.google.protobuf.ByteString;
-import com.google.protobuf.Empty;
-import dev.restate.generated.service.protocol.Protocol;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Flow;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.*;
+
+import com.google.protobuf.MessageLite;
+import dev.restate.generated.service.protocol.Protocol;
+import dev.restate.sdk.core.impl.InvocationHandler;
+import dev.restate.sdk.core.impl.RestateGrpcServer;
+import io.grpc.ServerServiceDefinition;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-class TestRestateRuntime<T>
-    implements Flow.Processor<T, T>, Flow.Publisher<T>, Flow.Subscriber<T> {
+import static dev.restate.sdk.testing.ProtoUtils.*;
 
-  private static final Logger LOG = LogManager.getLogger(TestRestateRuntime.class);
+// Singleton Runtime
+final class TestRestateRuntime {
 
-  // ID of the ongoing invocation (TEMPORARY: this doesn't allow for multiple services, multiple
-  // calls, and inter-service calls)
-  private String currentInvocationId = null;
+    private static final Logger LOG = LogManager.getLogger(TestRestateRuntime.class);
 
-  // Output of test
-  private final List<T> messages = new ArrayList<>();
-  private final CompletableFuture<List<T>> future = new CompletableFuture<>();
+    private final CompletableFuture<List<Protocol.OutputStreamEntryMessage>> future = new CompletableFuture<>();
 
-  // Index tracking progress in the journal
-  private int currentJournalIndex;
+    private final RestateGrpcServer server;
 
-  // Flow subscriber
-  // Subscription to get input from the services
-  private Flow.Subscription inputSubscription; // = subscription on InvocationStateMachine
-  private Flow.Subscription outputSubscription; // = delivery path to publish to
-  // ExceptionCatchingInvocationInputSubscriber
+    private final StateStore stateStore;
 
-  // Flow publisher
-  // Elements to send to the service at startup
-  private final Collection<T> elements;
-  private final AtomicBoolean publisherSubscriptionCancelled;
-  private Flow.Subscriber<? super T>
-      publisher; // publisher = ExceptionCatchingInvocationInputSubscriber
+    private final TestDriver.ThreadingModel threadingModel;
 
-  public TestRestateRuntime(Collection<T> elements) {
-    this.currentJournalIndex = 0;
-    this.elements = elements;
-    this.publisherSubscriptionCancelled = new AtomicBoolean(false);
 
-    
-  }
+    // Output of test
+    private final List<Protocol.OutputStreamEntryMessage> testResults = new ArrayList<>();
 
-  // PUBLISHER LOGIC: to send messages to the service
 
-  @Override
-  public void subscribe(Flow.Subscriber<? super T> publisher) {
-    this.publisher = publisher;
-    this.outputSubscription =
-        new MockPublishSubscription<T>(
-            publisher, new ArrayDeque<>(elements), publisherSubscriptionCancelled, this);
+    HashMap<String, InvocationProcessor<MessageLite>> invocationProcessorHashMap;
 
-    publisher.onSubscribe(this.outputSubscription);
-  }
+    // For inter-service calls, we need to keep track of where the response needs to go
+    HashMap<String, String> calleeToCallerInvocationIds;
 
-  public boolean getPublisherSubscriptionCancelled() {
-    return publisherSubscriptionCancelled.get();
-  }
 
-  // SUBSCRIBER LOGIC: to receive input from the service
+//  private final AtomicBoolean publisherSubscriptionCancelled;
 
-  @Override
-  public void onSubscribe(Flow.Subscription subscription) {
-    this.inputSubscription = subscription;
-    this.inputSubscription.request(Long.MAX_VALUE);
-  }
+    public TestRestateRuntime(List<ServerServiceDefinition> services,
+                              TestDriver.ThreadingModel threadingModel) {
+        this.invocationProcessorHashMap = new HashMap<>();
+        this.calleeToCallerInvocationIds = new HashMap<>();
+        this.stateStore = new StateStore();
+        this.threadingModel = threadingModel;
+//    this.publisherSubscriptionCancelled = new AtomicBoolean(false);
 
-  // Called for each message that comes in. Sent by the service to the runtime.
-  @Override
-  public void onNext(T t) {
-    // increase the journal index because we received a new message
-    currentJournalIndex++;
-
-    routeMessage(t);
-  }
-
-  @Override
-  public void onError(Throwable throwable) {
-    this.future.completeExceptionally(throwable);
-  }
-
-  @Override
-  public void onComplete() {
-    LOG.trace("End of test: Gathering output messages");
-    List<T> results = getMessages();
-    if (inputSubscription != null) {
-      LOG.trace("End of test: Canceling input subscription");
-      this.inputSubscription.cancel();
+        // Start Grpc server and add all the services
+        RestateGrpcServer.Builder serverBuilder = RestateGrpcServer.newBuilder();
+        for (ServerServiceDefinition svc : services) {
+            serverBuilder.withService(svc);
+        }
+        server = serverBuilder.build();
     }
-    if (this.publisher != null) {
-      LOG.trace("End of test: Closing publisher");
-      this.publisher.onComplete();
+
+    public void handle(TestInput testInput) {
+        handle(testInput.getService(), testInput.getMethod(), testInput.getInputMessage(), null);
     }
-    LOG.trace("End of test: Closing the runtime state machine");
-    this.future.complete(results);
-  }
 
-  public CompletableFuture<List<T>> getFuture() {
-    return future;
-  }
+    public void handle(String serviceName, String methodName, MessageLite inputMessage, String callerFunctionInvocationId){
+        String functionInvocationId = UUID.randomUUID().toString();
 
-  public List<T> getMessages() {
-    List<T> l;
-    synchronized (this.messages) {
-      l = new ArrayList<>(this.messages);
+        //TODO executors
+        // Create invocation handler on the side of the service
+        InvocationHandler serviceInvocationStateMachineHandler =
+                server.resolve(
+                        serviceName,
+                        methodName,
+                        io.opentelemetry.context.Context.current(),
+                        null,
+                        null);
+
+        Protocol.StartMessage startMessage = startMessage(serviceName, functionInvocationId, 1).build();
+        List<MessageLite> inputMessages = List.of(startMessage, inputMessage);
+
+        if(callerFunctionInvocationId != null){
+            // For inter-service calls, register where the response needs to go
+            calleeToCallerInvocationIds.put(functionInvocationId, callerFunctionInvocationId);
+        }
+
+        InvocationProcessor<MessageLite> invocationProcessor = new InvocationProcessor<>(serviceName, functionInvocationId, inputMessages, this, stateStore);
+        invocationProcessorHashMap.put(functionInvocationId, invocationProcessor);
+
+        // Wire invocation processor with the service-side state machine
+        serviceInvocationStateMachineHandler.output().subscribe(invocationProcessor);
+        invocationProcessor.subscribe(serviceInvocationStateMachineHandler.input());
+
+        // Start invocation
+        serviceInvocationStateMachineHandler.start();
     }
-    return l;
-  }
 
-  private void getAndSendState(Protocol.GetStateEntryMessage msg) {
-    LOG.trace("Received getStateEntryMessage: " + msg.toString());
-    ByteString key = msg.getKey();
-    ByteString value = StateStore.getInstance().get(key);
-    if (value != null) {
-      routeMessage((T) completionMessage(currentJournalIndex, value));
-    } else {
-      routeMessage((T) completionMessage(currentJournalIndex, Empty.getDefaultInstance()));
+    public boolean getPublisherSubscriptionCancelled() {
+        // TODO fix this and put this in the right place
+        return true;
+//    return publisherSubscriptionCancelled.get();
     }
-  }
 
-  private void setState(Protocol.SetStateEntryMessage msg) {
-    LOG.trace("Received setStateEntryMessage: " + msg.toString());
-    StateStore.getInstance().set(msg.getKey(), msg.getValue());
-  }
-
-  // Clears state for a single key
-  private void clearState(Protocol.ClearStateEntryMessage msg) {
-    LOG.trace("Received clearStateEntryMessage: " + msg.toString());
-    StateStore.getInstance().clear(msg.getKey());
-  }
-
-  // All messages that go through the runtime go through this handler.
-  protected void routeMessage(T t) {
-    // we assume unary for now; when we receive an OutputStreamEntryMessage we assume the test is
-    // done.
-    if (t instanceof Protocol.StartMessage) {
-      Protocol.StartMessage startMessage = (Protocol.StartMessage) t;
-      this.currentInvocationId = startMessage.getInvocationId().toStringUtf8();
-
-      LOG.trace("Sending start message for current Invocation ID {}", currentInvocationId);
-      publisher.onNext(t);
-    } else if (t instanceof Protocol.CompletionMessage) {
-      LOG.trace("Sending completion message");
-      publisher.onNext(t);
-    } else if (t instanceof Protocol.PollInputStreamEntryMessage) {
-      LOG.trace("Sending poll input stream message");
-      publisher.onNext(t);
-    } else if (t instanceof Protocol.OutputStreamEntryMessage) {
-      synchronized (this.messages) {
-        this.messages.add(t);
-      }
-      this.currentInvocationId = null;
-      onComplete();
-    } else if (t instanceof Protocol.GetStateEntryMessage) {
-      getAndSendState((Protocol.GetStateEntryMessage) t);
-    } else if (t instanceof Protocol.SetStateEntryMessage) {
-      setState((Protocol.SetStateEntryMessage) t);
-    } else if (t instanceof Protocol.ClearStateEntryMessage) {
-      clearState((Protocol.ClearStateEntryMessage) t);
-    } else if (t instanceof Protocol.SleepEntryMessage) {
-      LOG.error(
-          "This type is not yet implemented in the test runtime: "
-              + t.getClass().toGenericString());
-    } else if (t instanceof Protocol.InvokeEntryMessage) {
-      LOG.error(
-          "This type is not yet implemented in the test runtime: "
-              + t.getClass().toGenericString());
-    } else if (t instanceof Protocol.BackgroundInvokeEntryMessage) {
-      LOG.error(
-          "This type is not yet implemented in the test runtime: "
-              + t.getClass().toGenericString());
-    } else if (t instanceof Protocol.AwakeableEntryMessage) {
-      LOG.error(
-          "This type is not yet implemented in the test runtime: "
-              + t.getClass().toGenericString());
-    } else if (t instanceof Protocol.CompleteAwakeableEntryMessage) {
-      LOG.error(
-          "This type is not yet implemented in the test runtime: "
-              + t.getClass().toGenericString());
-    } else if (t instanceof Protocol.Failure) {
-      LOG.error(
-          "This type is not yet implemented in the test runtime: "
-              + t.getClass().toGenericString());
-    } else {
-      LOG.error(
-          "This type is not yet implemented in the test runtime: "
-              + t.getClass().toGenericString());
+    // Future logic to send response back to TestDriver when done
+    public CompletableFuture<List<Protocol.OutputStreamEntryMessage>> getFuture() {
+        return future;
     }
-  }
+
+    public void onError(Throwable throwable) {
+        this.future.completeExceptionally(throwable);
+    }
+
+    public void onComplete() {
+        this.future.complete(testResults);
+    }
+
+    public List<Protocol.OutputStreamEntryMessage> getTestResults() {
+        List<Protocol.OutputStreamEntryMessage> l;
+        synchronized (this.testResults) {
+            l = new ArrayList<>(this.testResults);
+        }
+        return l;
+    }
+
+    /**
+     * Handles the output messages of calls.
+     * There are two options:
+     * - They are test results and need to be added to the result list.
+     * - They are responses to inter-service calls and the response needs to be forwarded to the caller.
+     */
+    public void handleCallResult(String functionInvocationId, Protocol.OutputStreamEntryMessage msg) {
+        if(calleeToCallerInvocationIds.containsKey(functionInvocationId)) {
+            // This was an inter-service call, redirect the answer
+            LOG.debug("Forwarding inter-service call result");
+            String callerInvocationId = calleeToCallerInvocationIds.get(functionInvocationId);
+            InvocationProcessor<MessageLite> caller = invocationProcessorHashMap.get(callerInvocationId);
+            caller.handleInterServiceCallResult(msg);
+        } else {
+            // This is a test result; add it to the list
+            LOG.debug("Adding new element to result set");
+            synchronized (this.testResults) {
+                this.testResults.add(msg);
+            }
+        }
+    }
 }
