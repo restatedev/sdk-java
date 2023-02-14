@@ -1,10 +1,14 @@
 package services;
 
+import dev.restate.generated.core.AwakeableIdentifier;
+import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.blocking.RestateBlockingService;
 import dev.restate.sdk.blocking.RestateContext;
 import dev.restate.sdk.core.StateKey;
 import dev.restate.sdk.core.TypeTag;
+import dev.restate.sdk.testing.testservices.AwakeableInfo;
 import dev.restate.sdk.testing.testservices.ServiceTwoGrpc;
+import dev.restate.sdk.testing.testservices.SomeRequest;
 import dev.restate.sdk.testing.testservices.SomeResponse;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
@@ -48,5 +52,20 @@ public class ServiceTwo  extends ServiceTwoGrpc.ServiceTwoImplBase
                         .setMessage("The new count for " + request.getName() + " is " + newCount)
                         .build());
         responseObserver.onCompleted();
+    }
+
+    @Override
+    public void awakeTheOtherService(AwakeableInfo request, StreamObserver<SomeResponse> responseObserver) {
+        RestateContext ctx = restateContext();
+        AwakeableIdentifier identifier = AwakeableIdentifier.newBuilder()
+                .setServiceName(request.getServiceName())
+                .setInstanceKey(request.getInstanceKey())
+                .setInvocationId(request.getInvocationId())
+                .setEntryIndex(request.getEntryIndex())
+                .build();
+
+
+        ctx.completeAwakeable(identifier, TypeTag.STRING_UTF8, "Wake up!");
+
     }
 }

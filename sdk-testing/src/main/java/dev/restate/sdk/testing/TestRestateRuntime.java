@@ -136,7 +136,7 @@ final class TestRestateRuntime {
             // Only send a response to the caller, if it was not a background call.
             if(!callerInvocationId.equals("ignore")) {
                 InvocationProcessor<MessageLite> caller = invocationProcessorHashMap.get(callerInvocationId);
-                caller.handleInterServiceCallResult(msg);
+                caller.handleCompletionMessage(msg.getValue());
             }
         } else {
             // This is a test result; add it to the list
@@ -145,5 +145,10 @@ final class TestRestateRuntime {
                 this.testResults.add(msg);
             }
         }
+    }
+
+    public void handleAwakeableCompletion(String functionInvocationId, Protocol.CompleteAwakeableEntryMessage msg){
+        InvocationProcessor<MessageLite> caller = invocationProcessorHashMap.get(functionInvocationId);
+        caller.routeMessage(completionMessage(msg.getEntryIndex(), msg.getPayload()));
     }
 }

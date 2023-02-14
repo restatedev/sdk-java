@@ -1,6 +1,7 @@
 package services;
 
 import dev.restate.sdk.blocking.Awaitable;
+import dev.restate.sdk.blocking.Awakeable;
 import dev.restate.sdk.blocking.RestateBlockingService;
 import dev.restate.sdk.blocking.RestateContext;
 import dev.restate.sdk.core.StateKey;
@@ -9,6 +10,8 @@ import dev.restate.sdk.testing.testservices.*;
 import io.grpc.stub.StreamObserver;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
+import java.util.UUID;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -109,6 +112,9 @@ public class TestGreeterService extends TestGreeterGrpc.TestGreeterImplBase
     Awaitable<SomeResponse> a1 =
             ctx.call(ServiceTwoGrpc.getDoSomethingMethod(), SomeRequest.newBuilder().setName(request.getName()).build());
 
+    Awaitable<SomeResponse> a2 =
+            ctx.call(ServiceTwoGrpc.getDoSomethingMethod(), SomeRequest.newBuilder().setName(request.getName()).build());
+
     ctx.backgroundCall(ServiceTwoGrpc.getDoSomethingMethod(), SomeRequest.newBuilder().setName(request.getName()).build());
 
     responseObserver.onNext(
@@ -123,4 +129,49 @@ public class TestGreeterService extends TestGreeterGrpc.TestGreeterImplBase
   public void failingGreet(TestGreetingRequest request, StreamObserver<TestGreetingResponse> responseObserver) {
     throw new IllegalStateException("Whatever");
   }
+
+  @Override
+  public void useSideEffect(TestGreetingRequest request, StreamObserver<TestGreetingResponse> responseObserver) {
+    RestateContext ctx = restateContext();
+
+    ctx.sideEffect(TypeTag.STRING_UTF8, () -> "some-result");
+
+    responseObserver.onNext(
+            TestGreetingResponse.newBuilder()
+                    .setMessage("Side effect executed")
+                    .build());
+    responseObserver.onCompleted();
+  }
+
+  // TODO awaitable any/all
+
+
+  //
+
+  @Override
+  public void awakeableTest(TestGreetingRequest request, StreamObserver<TestGreetingResponse> responseObserver) {
+    RestateContext ctx = restateContext();
+
+    ctx.sideEffect(TypeTag.STRING_UTF8, () -> "some-result");
+
+    Awakeable<String> a1 = ctx.awakeable(TypeTag.STRING_UTF8);
+
+    AwakeableInfo info = AwakeableInfo.newBuilder()
+            .setServiceName(a1.id().getServiceName())
+            .setInstanceKey(a1.id().getInstanceKey())
+            .setEntryIndex(a1.id().getEntryIndex())
+            .setInvocationId(a1.id().getInvocationId())
+            .build();
+    ctx.backgroundCall(ServiceTwoGrpc.getAwakeTheOtherServiceMethod(), info);
+
+    String output = a1.await();
+
+    responseObserver.onNext(
+            TestGreetingResponse.newBuilder()
+                    .setMessage(output)
+                    .build());
+    responseObserver.onCompleted();
+  }
+
+
 }
