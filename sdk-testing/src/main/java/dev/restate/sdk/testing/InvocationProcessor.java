@@ -2,6 +2,7 @@ package dev.restate.sdk.testing;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
+import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -108,84 +109,98 @@ class InvocationProcessor<T> implements Flow.Processor<T, T>, Flow.Publisher<T>,
         testRestateRuntime.onComplete();
     }
 
-    private void getAndSendState(Protocol.GetStateEntryMessage msg) {
-        LOG.trace("Received getStateEntryMessage: " + msg.toString());
-        ByteString key = msg.getKey();
-        ByteString value = stateStore.get(serviceName, key);
-        if (value != null) {
-            routeMessage((T) completionMessage(currentJournalIndex, value));
-        } else {
-            routeMessage((T) completionMessage(currentJournalIndex, Empty.getDefaultInstance()));
-        }
-    }
-
-    public void handleInterServiceCallResult(Protocol.OutputStreamEntryMessage msg){
-        Protocol.CompletionMessage completionMessage = Protocol.CompletionMessage.newBuilder()
-                .setEntryIndex(currentJournalIndex)
-                .setValue(msg.getValue())
-                .build();
-        routeMessage((T) completionMessage);
+    public void handleCompletionMessage(ByteString value){
+        routeMessage((T) completionMessage(currentJournalIndex, value));
     }
 
     // All messages that go through the runtime go through this handler.
     protected void routeMessage(T t) {
-        if (t instanceof Protocol.StartMessage) {
-            throw new IllegalStateException("Start message should not end up in router.");
-        } else if (t instanceof Protocol.CompletionMessage) {
+        if (t instanceof Protocol.CompletionMessage) {
             LOG.trace("Sending completion message");
             publisher.onNext(t);
+
         } else if (t instanceof Protocol.PollInputStreamEntryMessage) {
             LOG.trace("Sending poll input stream message");
             publisher.onNext(t);
+
         } else if (t instanceof Protocol.OutputStreamEntryMessage) {
             LOG.trace("Handling call result");
             testRestateRuntime.handleCallResult(functionInvocationId, (Protocol.OutputStreamEntryMessage) t);
             onComplete();
+
         } else if (t instanceof Protocol.GetStateEntryMessage) {
-            getAndSendState((Protocol.GetStateEntryMessage) t);
+            Protocol.GetStateEntryMessage msg = (Protocol.GetStateEntryMessage) t;
+            LOG.trace("Received GetStateEntryMessage: " + msg);
+            ByteString value = stateStore.get(serviceName, msg.getKey());
+            if (value != null) {
+                routeMessage((T) completionMessage(currentJournalIndex, value));
+            } else {
+                routeMessage((T) completionMessage(currentJournalIndex, Empty.getDefaultInstance()));
+            }
+
         } else if (t instanceof Protocol.SetStateEntryMessage) {
-            stateStore.set(serviceName, (Protocol.SetStateEntryMessage) t);
+            Protocol.SetStateEntryMessage msg = (Protocol.SetStateEntryMessage) t;
+            LOG.trace("Received SetStateEntryMessage: " + msg);
+            stateStore.set(serviceName, msg.getKey(), msg.getValue());
+
         } else if (t instanceof Protocol.ClearStateEntryMessage) {
-            stateStore.clear(serviceName, (Protocol.ClearStateEntryMessage) t);
-        } else if (t instanceof Protocol.SleepEntryMessage) {
-            LOG.error(
-                    "This type is not yet implemented in the test runtime: "
-                            + t.getClass().toGenericString());
+            Protocol.ClearStateEntryMessage msg = (Protocol.ClearStateEntryMessage) t;
+            LOG.trace("Received ClearStateEntryMessage: " + msg);
+            stateStore.clear(serviceName, msg.getKey());
+
         } else if (t instanceof Protocol.InvokeEntryMessage) {
-            LOG.trace("Handling invoke entry message");
-            Protocol.InvokeEntryMessage invokeMsg = (Protocol.InvokeEntryMessage) t;
+            Protocol.InvokeEntryMessage msg = (Protocol.InvokeEntryMessage) t;
+            LOG.trace("Handling InvokeEntryMessage: " + msg);
             // Let the runtime create an invocation processor to handle the call
-            testRestateRuntime.handle(invokeMsg.getServiceName(),
-                    invokeMsg.getMethodName(),
-                    Protocol.PollInputStreamEntryMessage.newBuilder().setValue(invokeMsg.getParameter()).build(),
+            testRestateRuntime.handle(msg.getServiceName(),
+                    msg.getMethodName(),
+                    Protocol.PollInputStreamEntryMessage.newBuilder().setValue(msg.getParameter()).build(),
                     functionInvocationId);
+
         } else if (t instanceof Protocol.BackgroundInvokeEntryMessage) {
-            LOG.trace("Handling background invoke entry message");
-            Protocol.BackgroundInvokeEntryMessage invokeMsg = (Protocol.BackgroundInvokeEntryMessage) t;
+            Protocol.BackgroundInvokeEntryMessage msg = (Protocol.BackgroundInvokeEntryMessage) t;
+            LOG.trace("Handling BackgroundInvokeEntryMessage: " + msg);
             // Let the runtime create an invocation processor to handle the call
             // We set the caller id to "ignore" because we do not want a response.
-            // The response will then be ignored out by runtime.
-            testRestateRuntime.handle(invokeMsg.getServiceName(),
-                    invokeMsg.getMethodName(),
-                    Protocol.PollInputStreamEntryMessage.newBuilder().setValue(invokeMsg.getParameter()).build(),
+            // The response will then be ignored by runtime.
+            testRestateRuntime.handle(msg.getServiceName(),
+                    msg.getMethodName(),
+                    Protocol.PollInputStreamEntryMessage.newBuilder().setValue(msg.getParameter()).build(),
                     "ignore");
-            // Immediately send back acknowledgment of background call
+
+        } else if (t instanceof Java.SideEffectEntryMessage) {
+            Java.SideEffectEntryMessage msg = (Java.SideEffectEntryMessage) t;
+            LOG.trace("Received SideEffectEntryMessage: " + msg);
+            // Immediately send back acknowledgment of side effect
             Protocol.CompletionMessage completionMessage = Protocol.CompletionMessage.newBuilder()
                     .setEntryIndex(currentJournalIndex)
                     .build();
             publisher.onNext((T) completionMessage);
+
         } else if (t instanceof Protocol.AwakeableEntryMessage) {
-            LOG.error(
-                    "This type is not yet implemented in the test runtime: "
-                            + t.getClass().toGenericString());
+            Protocol.AwakeableEntryMessage msg = (Protocol.AwakeableEntryMessage) t;
+            LOG.trace("Received AwakeableEntryMessage: " + msg);
+            // The test runtime doesn't do anything with these messages.
+
         } else if (t instanceof Protocol.CompleteAwakeableEntryMessage) {
-            LOG.error(
-                    "This type is not yet implemented in the test runtime: "
-                            + t.getClass().toGenericString());
+            Protocol.CompleteAwakeableEntryMessage msg = (Protocol.CompleteAwakeableEntryMessage) t;
+            LOG.trace("Received CompleteAwakeableEntryMessage: " + msg);
+            testRestateRuntime.handleAwakeableCompletion(msg.getInvocationId().toStringUtf8(), msg);
+
+        } else if (t instanceof Java.CombinatorAwaitableEntryMessage) {
+            Java.CombinatorAwaitableEntryMessage msg = (Java.CombinatorAwaitableEntryMessage) t;
+            LOG.trace( "Received CombinatorAwaitableEntryMessage: " + msg);
+            // The test runtime doesn't do anything with these messages.
+
+        } else if (t instanceof Protocol.SleepEntryMessage) {
+            throw new IllegalStateException( "This type is not yet implemented in the test runtime: "
+                    + t.getClass().toGenericString());
+
+        } else if (t instanceof Protocol.StartMessage) {
+            throw new IllegalStateException("Start message should not end up in router.");
         } else {
-            LOG.error(
-                    "This type is not yet implemented in the test runtime: "
-                            + t.getClass().toGenericString());
+            throw new IllegalStateException( "This type is not implemented in the test runtime: "
+                    + t.getClass().toGenericString());
         }
     }
 }

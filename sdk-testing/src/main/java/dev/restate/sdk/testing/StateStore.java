@@ -21,14 +21,13 @@ public class StateStore {
         return state.get(serviceName + key.toStringUtf8());
     }
 
-    public void set(String serviceName, Protocol.SetStateEntryMessage msg) {
-        state.put(serviceName + msg.getKey().toStringUtf8(), msg.getValue());
+    public void set(String serviceName, ByteString key, ByteString value) {
+        state.put(serviceName + key.toStringUtf8(), value);
     }
 
     // Clears state for a single key
-    public void clear(String serviceName, Protocol.ClearStateEntryMessage msg) {
-        LOG.trace("Received clearStateEntryMessage: " + msg.toString());
-        state.remove(serviceName + msg.getKey().toStringUtf8());
+    public void clear(String serviceName, ByteString key) {
+        state.remove(serviceName + key.toStringUtf8());
     }
 
 }

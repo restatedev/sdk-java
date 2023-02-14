@@ -12,6 +12,16 @@ service ServiceTwo {
   option (dev.restate.ext.service_type) = KEYED;
 
   rpc DoSomething (SomeRequest) returns (SomeResponse);
+
+
+  rpc AwakeTheOtherService (AwakeableInfo) returns (SomeResponse);
+}
+
+message AwakeableInfo {
+  string service_name = 1;
+  bytes instance_key = 2;
+  bytes invocation_id = 3;
+  uint32 entry_index = 4;
 }
 
 message SomeRequest {

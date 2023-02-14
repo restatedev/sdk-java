@@ -1,8 +1,5 @@
 package dev.restate.sdk.testing;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.MessageLiteOrBuilder;
 import dev.restate.generated.service.protocol.Protocol;
@@ -98,7 +95,7 @@ abstract class TestDriver {
 
     static class TestInvocationBuilder {
 
-        public static TestInvocationBuilder testInvocation() {
+        public static TestInvocationBuilder endToEndTestInvocation() {
             return new TestInvocationBuilder();
         }
 

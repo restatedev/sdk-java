@@ -20,6 +20,10 @@ service TestGreeter {
   rpc CallOtherService (TestGreetingRequest) returns (TestGreetingResponse);
 
   rpc FailingGreet (TestGreetingRequest) returns (TestGreetingResponse);
+
+  rpc UseSideEffect (TestGreetingRequest) returns (TestGreetingResponse);
+
+  rpc AwakeableTest (TestGreetingRequest) returns (TestGreetingResponse);
 }
 
 message TestGreetingRequest {
