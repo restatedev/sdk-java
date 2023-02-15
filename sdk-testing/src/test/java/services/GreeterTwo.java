@@ -1,15 +1,12 @@
 package services;
 
+import com.google.protobuf.Empty;
 import dev.restate.generated.core.AwakeableIdentifier;
-import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.blocking.RestateBlockingService;
 import dev.restate.sdk.blocking.RestateContext;
 import dev.restate.sdk.core.StateKey;
 import dev.restate.sdk.core.TypeTag;
-import dev.restate.sdk.testing.testservices.AwakeableInfo;
-import dev.restate.sdk.testing.testservices.ServiceTwoGrpc;
-import dev.restate.sdk.testing.testservices.SomeRequest;
-import dev.restate.sdk.testing.testservices.SomeResponse;
+import dev.restate.sdk.testing.testservices.*;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -17,10 +14,10 @@ import org.apache.logging.log4j.Logger;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
-public class ServiceTwo  extends ServiceTwoGrpc.ServiceTwoImplBase
+public class GreeterTwo extends GreeterTwoGrpc.GreeterTwoImplBase
         implements RestateBlockingService {
 
-    private static final Logger LOG = LogManager.getLogger(ServiceTwo.class);
+    private static final Logger LOG = LogManager.getLogger(GreeterTwo.class);
 
     private static final StateKey<Integer> COUNTER =
             StateKey.of(
@@ -30,7 +27,9 @@ public class ServiceTwo  extends ServiceTwoGrpc.ServiceTwoImplBase
                             b -> Integer.parseInt(new String(b, StandardCharsets.UTF_8))));
 
     @Override
-    public void doSomething(dev.restate.sdk.testing.testservices.SomeRequest request, StreamObserver<dev.restate.sdk.testing.testservices.SomeResponse> responseObserver) {
+    public void countForwardedGreetings(
+            GreeterTwoRequest request, StreamObserver<GreeterTwoResponse> responseObserver) {
+        LOG.debug("Executing the GreeterTwo.countGreetings method");
         RestateContext ctx = restateContext();
 
         Optional<Integer> optionalOldCount = ctx.get(COUNTER);
@@ -39,23 +38,18 @@ public class ServiceTwo  extends ServiceTwoGrpc.ServiceTwoImplBase
         var newCount = 1;
         if (optionalOldCount.isPresent()) {
             var oldCount = optionalOldCount.get();
-            LOG.debug("The counter was: " + oldCount);
             newCount = oldCount + newCount;
         }
 
         ctx.set(COUNTER, newCount);
 
-        LOG.debug("The new count for {} is {} ", request.getName(), newCount);
-
-        responseObserver.onNext(
-                SomeResponse.newBuilder()
-                        .setMessage("The new count for " + request.getName() + " is " + newCount)
-                        .build());
+        responseObserver.onNext(GreeterTwoResponse.newBuilder().setMessage("Hello " + request.getName() + " #" + newCount).build());
         responseObserver.onCompleted();
     }
 
     @Override
-    public void awakeTheOtherService(AwakeableInfo request, StreamObserver<SomeResponse> responseObserver) {
+    public void awake(AwakeServiceRequest request, StreamObserver<Empty> responseObserver) {
+        LOG.debug("Executing the GreeterTwo.awakeTheOtherService method");
         RestateContext ctx = restateContext();
         AwakeableIdentifier identifier = AwakeableIdentifier.newBuilder()
                 .setServiceName(request.getServiceName())
@@ -64,8 +58,9 @@ public class ServiceTwo  extends ServiceTwoGrpc.ServiceTwoImplBase
                 .setEntryIndex(request.getEntryIndex())
                 .build();
 
-
         ctx.completeAwakeable(identifier, TypeTag.STRING_UTF8, "Wake up!");
 
+        responseObserver.onNext(Empty.getDefaultInstance());
+        responseObserver.onCompleted();
     }
 }

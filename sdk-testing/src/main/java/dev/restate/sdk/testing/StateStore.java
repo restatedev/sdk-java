@@ -1,33 +1,28 @@
 package dev.restate.sdk.testing;
 
 import com.google.protobuf.ByteString;
-import dev.restate.generated.service.protocol.Protocol;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.HashMap;
 
 public class StateStore {
 
-    private static final Logger LOG = LogManager.getLogger(StateStore.class);
-
-    private HashMap<String, ByteString> state;
+    private final HashMap<String, ByteString> state;
 
     public StateStore(){
         this.state = new HashMap<>();
     }
 
-    public ByteString get(String serviceName, ByteString key){
-        return state.get(serviceName + key.toStringUtf8());
+    public ByteString get(String serviceName, String instanceKey, ByteString key){
+        return state.get(serviceName + "/" + instanceKey + "/" + key.toStringUtf8());
     }
 
-    public void set(String serviceName, ByteString key, ByteString value) {
-        state.put(serviceName + key.toStringUtf8(), value);
+    public void set(String serviceName, String instanceKey, ByteString key, ByteString value) {
+        state.put(serviceName + "/" + instanceKey + "/" + key.toStringUtf8(), value);
     }
 
     // Clears state for a single key
-    public void clear(String serviceName, ByteString key) {
-        state.remove(serviceName + key.toStringUtf8());
+    public void clear(String serviceName, String instanceKey, ByteString key) {
+        state.remove(serviceName + "/" + instanceKey + "/" + key.toStringUtf8());
     }
 
 }

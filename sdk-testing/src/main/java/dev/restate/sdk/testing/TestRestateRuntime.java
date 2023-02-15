@@ -2,50 +2,44 @@ package dev.restate.sdk.testing;
 
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.stream.Collectors;
 
+import com.google.protobuf.Message;
 import com.google.protobuf.MessageLite;
+import dev.restate.generated.ext.Ext;
+import dev.restate.generated.ext.ServiceType;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.impl.InvocationHandler;
 import dev.restate.sdk.core.impl.RestateGrpcServer;
+import io.grpc.ServerMethodDefinition;
 import io.grpc.ServerServiceDefinition;
+import io.grpc.protobuf.ProtoMethodDescriptorSupplier;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+
 import static dev.restate.sdk.testing.ProtoUtils.*;
 
-// Singleton Runtime
 final class TestRestateRuntime {
 
     private static final Logger LOG = LogManager.getLogger(TestRestateRuntime.class);
-
     private final CompletableFuture<List<Protocol.OutputStreamEntryMessage>> future = new CompletableFuture<>();
-
     private final RestateGrpcServer server;
-
+    private final List<ServerServiceDefinition> services;
     private final StateStore stateStore;
-
     private final TestDriver.ThreadingModel threadingModel;
-
-
-    // Output of test
     private final List<Protocol.OutputStreamEntryMessage> testResults = new ArrayList<>();
-
-
-    HashMap<String, InvocationProcessor<MessageLite>> invocationProcessorHashMap;
-
+    private final HashMap<String, InvocationProcessor> invocationProcessorHashMap;
     // For inter-service calls, we need to keep track of where the response needs to go
-    HashMap<String, String> calleeToCallerInvocationIds;
-
-
-//  private final AtomicBoolean publisherSubscriptionCancelled;
+    private final HashMap<String, String> calleeToCallerInvocationIds;
 
     public TestRestateRuntime(List<ServerServiceDefinition> services,
                               TestDriver.ThreadingModel threadingModel) {
         this.invocationProcessorHashMap = new HashMap<>();
         this.calleeToCallerInvocationIds = new HashMap<>();
+        this.services = services;
         this.stateStore = new StateStore();
         this.threadingModel = threadingModel;
-//    this.publisherSubscriptionCancelled = new AtomicBoolean(false);
 
         // Start Grpc server and add all the services
         RestateGrpcServer.Builder serverBuilder = RestateGrpcServer.newBuilder();
@@ -55,36 +49,45 @@ final class TestRestateRuntime {
         server = serverBuilder.build();
     }
 
-    public void handle(TestInput testInput) {
-        handle(testInput.getService(), testInput.getMethod(), testInput.getInputMessage(), null);
+    // Gets called for new test input messages
+    public void handle(TestDriver.TestInput testInput) {
+        handle(testInput.getService(),
+                testInput.getMethod(),
+                testInput.getInputMessage(),
+                null);
     }
 
+    // Gets called for new service calls: either test input messages or inter-service calls
+    // callerInvocationId is the function invocation ID of the service which did the call.
     public void handle(String serviceName,
-                       String methodName,
-                       MessageLite inputMessage,
-                       String callerFunctionInvocationId){
-        String functionInvocationId = UUID.randomUUID().toString();
+                       String method,
+                       Protocol.PollInputStreamEntryMessage inputMessage,
+                       String callerInvocationId){
+        String invocationId = UUID.randomUUID().toString();
 
         //TODO executors
         // Create invocation handler on the side of the service
         InvocationHandler serviceInvocationStateMachineHandler =
                 server.resolve(
                         serviceName,
-                        methodName,
+                        method,
                         io.opentelemetry.context.Context.current(),
                         null,
                         null);
 
-        Protocol.StartMessage startMessage = startMessage(serviceName, functionInvocationId, 1).build();
+        String instanceKey = extractKey(serviceName, method, inputMessage).toString();
+        Protocol.StartMessage startMessage = startMessage(serviceName, instanceKey, 1).build();
         List<MessageLite> inputMessages = List.of(startMessage, inputMessage);
 
-        if(callerFunctionInvocationId != null){
+        if(callerInvocationId != null){
             // For inter-service calls, register where the response needs to go
-            calleeToCallerInvocationIds.put(functionInvocationId, callerFunctionInvocationId);
+            calleeToCallerInvocationIds.put(invocationId, callerInvocationId);
         }
 
-        InvocationProcessor<MessageLite> invocationProcessor = new InvocationProcessor<>(serviceName, functionInvocationId, inputMessages, this, stateStore);
-        invocationProcessorHashMap.put(functionInvocationId, invocationProcessor);
+        // Create a new invocation processor on the runtime-side
+        InvocationProcessor invocationProcessor = new InvocationProcessor(
+                serviceName, instanceKey, invocationId, inputMessages, this, stateStore);
+        invocationProcessorHashMap.put(invocationId, invocationProcessor);
 
         // Wire invocation processor with the service-side state machine
         serviceInvocationStateMachineHandler.output().subscribe(invocationProcessor);
@@ -94,10 +97,35 @@ final class TestRestateRuntime {
         serviceInvocationStateMachineHandler.start();
     }
 
-    public boolean getPublisherSubscriptionCancelled() {
-        // TODO fix this and put this in the right place
-        return true;
-//    return publisherSubscriptionCancelled.get();
+    /**
+     * Handles the output messages of calls.
+     * There are two options:
+     * - They are test results and need to be added to the result list.
+     * - They are responses to inter-service calls and the response needs to be forwarded to the caller.
+     */
+    public void handleCallResult(String functionInvocationId, Protocol.OutputStreamEntryMessage msg) {
+        if(calleeToCallerInvocationIds.containsKey(functionInvocationId)) {
+            // This was an inter-service call, redirect the answer
+            LOG.debug("Forwarding inter-service call result");
+            String callerInvocationId = calleeToCallerInvocationIds.get(functionInvocationId);
+            // If this was a background call, the caller invocation Id was set to "ignore".
+            // Only send a response to the caller, if it was not a background call.
+            if(!callerInvocationId.equals("ignore")) {
+                InvocationProcessor caller = invocationProcessorHashMap.get(callerInvocationId);
+                caller.handleCompletionMessage(msg.getValue());
+            }
+        } else {
+            // This is a test result; add it to the list
+            LOG.debug("Adding new element to result set");
+            synchronized (this.testResults) {
+                this.testResults.add(msg);
+            }
+        }
+    }
+
+    public void handleAwakeableCompletion(String functionInvocationId, Protocol.CompleteAwakeableEntryMessage msg){
+        InvocationProcessor caller = invocationProcessorHashMap.get(functionInvocationId);
+        caller.routeMessage(completionMessage(msg.getEntryIndex(), msg.getPayload()));
     }
 
     // Future logic to send response back to TestDriver when done
@@ -121,34 +149,59 @@ final class TestRestateRuntime {
         return l;
     }
 
-    /**
-     * Handles the output messages of calls.
-     * There are two options:
-     * - They are test results and need to be added to the result list.
-     * - They are responses to inter-service calls and the response needs to be forwarded to the caller.
-     */
-    public void handleCallResult(String functionInvocationId, Protocol.OutputStreamEntryMessage msg) {
-        if(calleeToCallerInvocationIds.containsKey(functionInvocationId)) {
-            // This was an inter-service call, redirect the answer
-            LOG.debug("Forwarding inter-service call result");
-            String callerInvocationId = calleeToCallerInvocationIds.get(functionInvocationId);
-            // If this was a background call, the caller invocation Id was set to "ignore".
-            // Only send a response to the caller, if it was not a background call.
-            if(!callerInvocationId.equals("ignore")) {
-                InvocationProcessor<MessageLite> caller = invocationProcessorHashMap.get(callerInvocationId);
-                caller.handleCompletionMessage(msg.getValue());
-            }
-        } else {
-            // This is a test result; add it to the list
-            LOG.debug("Adding new element to result set");
-            synchronized (this.testResults) {
-                this.testResults.add(msg);
-            }
-        }
+    public boolean getPublisherSubscriptionsCancelled() {
+        // checks if all the invocation processor subscriptions were cancelled
+        return invocationProcessorHashMap.values().stream()
+                .allMatch(InvocationProcessor::getPublisherSubscriptionCancelled);
     }
 
-    public void handleAwakeableCompletion(String functionInvocationId, Protocol.CompleteAwakeableEntryMessage msg){
-        InvocationProcessor<MessageLite> caller = invocationProcessorHashMap.get(functionInvocationId);
-        caller.routeMessage(completionMessage(msg.getEntryIndex(), msg.getPayload()));
+    private Object extractKey(String serviceName, String methodName, Protocol.PollInputStreamEntryMessage message) {
+        LOG.debug("Extracting key for service {} and method {}", serviceName, methodName);
+
+        Optional<ServerServiceDefinition> svc = services.stream()
+                .filter(el -> el.getServiceDescriptor().getName().equals(serviceName)).findFirst();
+        if(svc.isEmpty()){
+            throw new IllegalStateException(
+                    "Cannot find service with service name: \""
+                            + serviceName
+                            + "\". The only registered services are: "
+                            + services.stream().map(el -> el.getServiceDescriptor().getName())
+                            .collect(Collectors.joining(", ")));
+        }
+
+        var methodDefinition = (ServerMethodDefinition<MessageLite, MessageLite>)
+                        svc.get().getMethod(serviceName + "/" + methodName);
+
+        var methodDescriptor =
+                ((ProtoMethodDescriptorSupplier) methodDefinition.getMethodDescriptor().getSchemaDescriptor()).getMethodDescriptor();
+        var serviceDescriptor = methodDescriptor.getService();
+        var parameterDescriptor = methodDescriptor.getInputType();
+
+        // Check if the service is keyed
+        if (!serviceDescriptor.getOptions().hasExtension(Ext.serviceType)) {
+            throw new IllegalStateException(
+                    "Cannot find "
+                            + Ext.serviceType
+                            + " extension in the service descriptor "
+                            + serviceDescriptor.getFullName());
+        }
+        if (serviceDescriptor.getOptions().getExtension(Ext.serviceType) == ServiceType.KEYED) {
+            var keyParam =
+                    parameterDescriptor.getFields().stream()
+                            .filter(f -> f.getOptions().hasExtension(Ext.field))
+                            .findFirst()
+                            .orElseThrow(
+                                    () ->
+                                            new IllegalStateException(
+                                                    "Cannot find dev.restate.key option in the message "
+                                                            + parameterDescriptor.getFullName()));
+            return ( (Message) methodDefinition.getMethodDescriptor()
+                    .parseRequest(message.getValue().newInput())).getField(keyParam);
+        } else if (serviceDescriptor.getOptions().getExtension(Ext.serviceType)
+                == ServiceType.UNKEYED) {
+            return UUID.randomUUID();
+        } else {
+            return null;
+        }
     }
 }
