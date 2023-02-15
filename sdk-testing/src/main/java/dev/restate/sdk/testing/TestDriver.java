@@ -4,6 +4,7 @@ import com.google.protobuf.MessageLite;
 import com.google.protobuf.MessageLiteOrBuilder;
 import dev.restate.generated.service.protocol.Protocol;
 import io.grpc.BindableService;
+import io.grpc.MethodDescriptor;
 import io.grpc.ServerServiceDefinition;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -67,13 +68,59 @@ abstract class TestDriver {
 
     // Check completed
     outputAssert.accept(testRestateRuntimeStateMachine, Duration.ZERO);
-    Assertions.assertThat(testRestateRuntimeStateMachine.getPublisherSubscriptionCancelled()).isTrue();
+    Assertions.assertThat(testRestateRuntimeStateMachine.getPublisherSubscriptionsCancelled()).isTrue();
 
   }
 
   enum ThreadingModel {
     BUFFERED_SINGLE_THREAD,
     UNBUFFERED_MULTI_THREAD
+  }
+
+  static class TestInput{
+    private final String method;
+    private final String service;
+    private final Protocol.PollInputStreamEntryMessage inputMessage;
+
+    private TestInput(MethodDescriptor<?, ?> method, Protocol.PollInputStreamEntryMessage msg){
+      this.service = method.getServiceName();
+      this.method = method.getBareMethodName();
+      this.inputMessage = msg;
+    }
+
+    static class Builder{
+      public static Builder testInput() {return new Builder();}
+      WithMethod withMethod(MethodDescriptor<?, ?> method){
+        return new WithMethod(method);
+      }
+    }
+
+    static class WithMethod {
+      private MethodDescriptor<?, ?> method;
+      public WithMethod(MethodDescriptor<?, ?> method){
+        this.method = method;
+      }
+
+      TestInput withMessage(MessageLiteOrBuilder msg){
+        return new TestInput(method, ProtoUtils.inputMessage(msg));
+      }
+    }
+
+    static TestInput withMethod(MethodDescriptor<?, ?> method, Protocol.PollInputStreamEntryMessage inputMsg){
+      return new TestInput(method, null);
+    }
+
+    public String getService() {
+      return service;
+    }
+
+    public String getMethod() {
+      return method;
+    }
+
+    public Protocol.PollInputStreamEntryMessage getInputMessage() {
+      return inputMessage;
+    }
   }
 
   interface TestDefinition {
@@ -95,7 +142,7 @@ abstract class TestDriver {
 
     static class TestInvocationBuilder {
 
-        public static TestInvocationBuilder endToEndTestInvocation() {
+      public static TestInvocationBuilder endToEndTestInvocation() {
             return new TestInvocationBuilder();
         }
 

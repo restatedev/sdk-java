@@ -1,17 +1,19 @@
 package dev.restate.sdk.testing;
 
+import com.google.protobuf.MessageLite;
+
 import java.util.Queue;
 import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-class PublishSubscription<T> implements Flow.Subscription {
-  private final Flow.Subscriber<? super T> subscriber;
-  private final Queue<T> queue;
+class PublishSubscription<MessageLite> implements Flow.Subscription {
+  private final Flow.Subscriber<? super MessageLite> subscriber;
+  private final Queue<MessageLite> queue;
   private final AtomicBoolean cancelled;
 
   PublishSubscription(
-      Flow.Subscriber<? super T> subscriber,
-      Queue<T> queue,
+      Flow.Subscriber<? super MessageLite> subscriber,
+      Queue<MessageLite> queue,
       AtomicBoolean subscriptionCancelled) {
     this.subscriber = subscriber;
     this.queue = queue;

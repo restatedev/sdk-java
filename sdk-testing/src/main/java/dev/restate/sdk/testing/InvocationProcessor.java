@@ -2,8 +2,11 @@ package dev.restate.sdk.testing;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
+import com.google.protobuf.MessageLite;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
+import io.grpc.MethodDescriptor;
+import io.grpc.ServiceDescriptor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -14,21 +17,22 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static dev.restate.sdk.testing.ProtoUtils.completionMessage;
 
-class InvocationProcessor<T> implements Flow.Processor<T, T>, Flow.Publisher<T>, Flow.Subscriber<T> {
+class InvocationProcessor implements Flow.Processor<MessageLite, MessageLite>,
+        Flow.Publisher<MessageLite>, Flow.Subscriber<MessageLite> {
 
     private static final Logger LOG = LogManager.getLogger(InvocationProcessor.class);
 
     private final String serviceName;
+    private final String instanceKey;
     private final String functionInvocationId;
-    private final Collection<T> elements;
+    private final Collection<MessageLite> elements;
 
     private final StateStore stateStore;
     private final TestRestateRuntime testRestateRuntime;
 
     private final AtomicBoolean publisherSubscriptionCancelled;
-    private Flow.Subscriber<? super T>
+    private Flow.Subscriber<? super MessageLite>
             publisher; // publisher = ExceptionCatchingInvocationInputSubscriber
-
 
     // Flow subscriber
     // Subscription to get input from the services
@@ -40,11 +44,13 @@ class InvocationProcessor<T> implements Flow.Processor<T, T>, Flow.Publisher<T>,
     private int currentJournalIndex;
 
     public InvocationProcessor(String serviceName,
+                               String instanceKey,
                                String functionInvocationId,
-                               Collection<T> elements,
+                               Collection<MessageLite> elements,
                                TestRestateRuntime testRestateRuntime,
                                StateStore stateStore) {
         this.serviceName = serviceName;
+        this.instanceKey = instanceKey;
         this.functionInvocationId = functionInvocationId;
         this.elements = elements;
         // TODO is there a cleaner way then to pass these along everywhere?
@@ -56,12 +62,12 @@ class InvocationProcessor<T> implements Flow.Processor<T, T>, Flow.Publisher<T>,
     // PUBLISHER LOGIC: to send messages to the service
 
     @Override
-    public void subscribe(Flow.Subscriber<? super T> publisher) {
+    public void subscribe(Flow.Subscriber<? super MessageLite> publisher) {
         this.publisher = publisher;
         this.currentJournalIndex = 0;
         this.outputSubscription =
                 // TODO elements
-                new PublishSubscription<T>(
+                new PublishSubscription<MessageLite>(
                         publisher, new ArrayDeque<>(elements), publisherSubscriptionCancelled);
 
         publisher.onSubscribe(this.outputSubscription);
@@ -81,7 +87,7 @@ class InvocationProcessor<T> implements Flow.Processor<T, T>, Flow.Publisher<T>,
 
     // Called for each message that comes in. Sent by the service to the runtime.
     @Override
-    public void onNext(T t) {
+    public void onNext(MessageLite t) {
         // increase the journal index because we received a new message
         currentJournalIndex++;
 
@@ -110,11 +116,11 @@ class InvocationProcessor<T> implements Flow.Processor<T, T>, Flow.Publisher<T>,
     }
 
     public void handleCompletionMessage(ByteString value){
-        routeMessage((T) completionMessage(currentJournalIndex, value));
+        routeMessage(completionMessage(currentJournalIndex, value));
     }
 
     // All messages that go through the runtime go through this handler.
-    protected void routeMessage(T t) {
+    protected void routeMessage(MessageLite t) {
         if (t instanceof Protocol.CompletionMessage) {
             LOG.trace("Sending completion message");
             publisher.onNext(t);
@@ -131,27 +137,28 @@ class InvocationProcessor<T> implements Flow.Processor<T, T>, Flow.Publisher<T>,
         } else if (t instanceof Protocol.GetStateEntryMessage) {
             Protocol.GetStateEntryMessage msg = (Protocol.GetStateEntryMessage) t;
             LOG.trace("Received GetStateEntryMessage: " + msg);
-            ByteString value = stateStore.get(serviceName, msg.getKey());
+            ByteString value = stateStore.get(serviceName, instanceKey, msg.getKey());
             if (value != null) {
-                routeMessage((T) completionMessage(currentJournalIndex, value));
+                routeMessage(completionMessage(currentJournalIndex, value));
             } else {
-                routeMessage((T) completionMessage(currentJournalIndex, Empty.getDefaultInstance()));
+                routeMessage(completionMessage(currentJournalIndex, Empty.getDefaultInstance()));
             }
 
         } else if (t instanceof Protocol.SetStateEntryMessage) {
             Protocol.SetStateEntryMessage msg = (Protocol.SetStateEntryMessage) t;
             LOG.trace("Received SetStateEntryMessage: " + msg);
-            stateStore.set(serviceName, msg.getKey(), msg.getValue());
+            stateStore.set(serviceName, instanceKey, msg.getKey(), msg.getValue());
 
         } else if (t instanceof Protocol.ClearStateEntryMessage) {
             Protocol.ClearStateEntryMessage msg = (Protocol.ClearStateEntryMessage) t;
             LOG.trace("Received ClearStateEntryMessage: " + msg);
-            stateStore.clear(serviceName, msg.getKey());
+            stateStore.clear(serviceName, instanceKey, msg.getKey());
 
         } else if (t instanceof Protocol.InvokeEntryMessage) {
             Protocol.InvokeEntryMessage msg = (Protocol.InvokeEntryMessage) t;
             LOG.trace("Handling InvokeEntryMessage: " + msg);
             // Let the runtime create an invocation processor to handle the call
+
             testRestateRuntime.handle(msg.getServiceName(),
                     msg.getMethodName(),
                     Protocol.PollInputStreamEntryMessage.newBuilder().setValue(msg.getParameter()).build(),
@@ -163,6 +170,7 @@ class InvocationProcessor<T> implements Flow.Processor<T, T>, Flow.Publisher<T>,
             // Let the runtime create an invocation processor to handle the call
             // We set the caller id to "ignore" because we do not want a response.
             // The response will then be ignored by runtime.
+
             testRestateRuntime.handle(msg.getServiceName(),
                     msg.getMethodName(),
                     Protocol.PollInputStreamEntryMessage.newBuilder().setValue(msg.getParameter()).build(),
@@ -175,7 +183,7 @@ class InvocationProcessor<T> implements Flow.Processor<T, T>, Flow.Publisher<T>,
             Protocol.CompletionMessage completionMessage = Protocol.CompletionMessage.newBuilder()
                     .setEntryIndex(currentJournalIndex)
                     .build();
-            publisher.onNext((T) completionMessage);
+            publisher.onNext(completionMessage);
 
         } else if (t instanceof Protocol.AwakeableEntryMessage) {
             Protocol.AwakeableEntryMessage msg = (Protocol.AwakeableEntryMessage) t;
