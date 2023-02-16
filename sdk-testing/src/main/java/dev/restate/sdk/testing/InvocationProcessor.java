@@ -76,11 +76,11 @@ class InvocationProcessor implements Flow.Processor<MessageLite, MessageLite>,
 
     // Called for each message that comes in. Sent by the service to the runtime.
     @Override
-    public void onNext(MessageLite t) {
+    public void onNext(MessageLite msg) {
         // increase the journal index because we received a new message
         currentJournalIndex++;
 
-        routeMessage(t);
+        routeMessage(msg);
     }
 
     @Override
@@ -146,8 +146,8 @@ class InvocationProcessor implements Flow.Processor<MessageLite, MessageLite>,
         } else if (t instanceof Protocol.InvokeEntryMessage) {
             Protocol.InvokeEntryMessage msg = (Protocol.InvokeEntryMessage) t;
             LOG.trace("Handling InvokeEntryMessage: " + msg);
-            // Let the runtime create an invocation processor to handle the call
 
+            // Let the runtime create an invocation processor to handle the call
             TestRestateRuntime.get().handle(msg.getServiceName(),
                     msg.getMethodName(),
                     Protocol.PollInputStreamEntryMessage.newBuilder().setValue(msg.getParameter()).build(),
@@ -156,10 +156,10 @@ class InvocationProcessor implements Flow.Processor<MessageLite, MessageLite>,
         } else if (t instanceof Protocol.BackgroundInvokeEntryMessage) {
             Protocol.BackgroundInvokeEntryMessage msg = (Protocol.BackgroundInvokeEntryMessage) t;
             LOG.trace("Handling BackgroundInvokeEntryMessage: " + msg);
+
             // Let the runtime create an invocation processor to handle the call
             // We set the caller id to "ignore" because we do not want a response.
             // The response will then be ignored by runtime.
-
             TestRestateRuntime.get().handle(msg.getServiceName(),
                     msg.getMethodName(),
                     Protocol.PollInputStreamEntryMessage.newBuilder().setValue(msg.getParameter()).build(),
