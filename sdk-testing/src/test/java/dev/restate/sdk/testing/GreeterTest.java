@@ -5,10 +5,10 @@ import static dev.restate.sdk.testing.TestDriver.TestCaseBuilder.TestInvocationB
 
 import static dev.restate.sdk.testing.TestDriver.TestInput.Builder.testInput;
 
-import dev.restate.sdk.testing.testservices.GreeterOneGrpc;
-import dev.restate.sdk.testing.testservices.GreeterOneRequest;
-import dev.restate.sdk.testing.testservices.GreeterOneResponse;
+import dev.restate.sdk.testing.testservices.*;
+import services.AwakeService;
 import services.GreeterOne;
+import services.GreeterThree;
 import services.GreeterTwo;
 
 import java.util.stream.Stream;
@@ -129,6 +129,24 @@ public class GreeterTest extends TestDriver {
                 endToEndTestInvocation()
                         .withServices(new GreeterOne(), new GreeterTwo())
                         .withInput(
+                                testInput().withMethod(GreeterOneGrpc.getForwardBackgroundGreetingMethod())
+                                        .withMessage(GreeterOneRequest.newBuilder().setName("Goofy")),
+                                testInput().withMethod(GreeterTwoGrpc.getCountForwardedGreetingsMethod())
+                                        .withMessage(GreeterOneRequest.newBuilder().setName("Goofy")),
+                                testInput().withMethod(GreeterOneGrpc.getForwardGreetingMethod())
+                                        .withMessage(GreeterOneRequest.newBuilder().setName("Goofy")))
+                        .usingThreadingModels(ThreadingModel.BUFFERED_SINGLE_THREAD)
+                        .expectingOutput(
+                                outputMessage(GreeterOneResponse.newBuilder()
+                                        .setMessage("Greeting has been forwarded to GreeterTwo! Not waiting for a response.")),
+                                outputMessage(GreeterOneResponse.newBuilder()
+                                        .setMessage("Hello Goofy #2")),
+                                outputMessage(GreeterOneResponse.newBuilder()
+                                        .setMessage("Greeting has been forwarded to GreeterTwo. Response was: Hello Goofy #3")))
+                        .named("GreeterOne/forwardGreeting: async and sync inter-service calls to different services"),
+                endToEndTestInvocation()
+                        .withServices(new GreeterOne(), new GreeterTwo())
+                        .withInput(
                                 testInput().withMethod(GreeterOneGrpc.getGetMultipleGreetingsMethod())
                                         .withMessage(GreeterOneRequest.newBuilder().setName("Goofy")))
                         .usingThreadingModels(ThreadingModel.BUFFERED_SINGLE_THREAD)
@@ -165,13 +183,31 @@ public class GreeterTest extends TestDriver {
                                 outputMessage(GreeterOneResponse.newBuilder().setMessage("Hello").build()))
                         .named("GreeterOne/greetWithSideEffect: side effect."),
                 endToEndTestInvocation()
-                        .withServices(new GreeterOne(), new GreeterTwo())
+                        .withServices(new GreeterOne(), new AwakeService())
                         .withInput(
                                 testInput().withMethod(GreeterOneGrpc.getSleepAndGetWokenUpMethod())
                                         .withMessage(GreeterOneRequest.newBuilder().setName("Goofy")))
                         .usingThreadingModels(ThreadingModel.BUFFERED_SINGLE_THREAD)
                         .expectingOutput(
                                 outputMessage(GreeterOneResponse.newBuilder().setMessage("Wake up!").build()))
-                        .named("GreeterOne/sleepAndGetWokenUp: awakeable"));
+                        .named("GreeterOne/sleepAndGetWokenUp: awakeable and unkeyed service"),
+                endToEndTestInvocation()
+                        .withServices(new GreeterOne(), new GreeterThree())
+                        .withInput(
+                                testInput().withMethod(GreeterThreeGrpc.getCountAllGreetingsMethod())
+                                        .withMessage(GreeterThreeRequest.newBuilder().setName("Goofy")),
+                                testInput().withMethod(GreeterThreeGrpc.getCountAllGreetingsMethod())
+                                        .withMessage(GreeterThreeRequest.newBuilder().setName("Pluto")),
+                                testInput().withMethod(GreeterThreeGrpc.getCountAllGreetingsMethod())
+                                        .withMessage(GreeterThreeRequest.newBuilder().setName("Pluto")),
+                                testInput().withMethod(GreeterThreeGrpc.getCountAllGreetingsMethod())
+                                        .withMessage(GreeterThreeRequest.newBuilder().setName("Goofy")))
+                        .usingThreadingModels(ThreadingModel.BUFFERED_SINGLE_THREAD)
+                        .expectingOutput(
+                                outputMessage(GreeterThreeResponse.newBuilder().setMessage("Hello Goofy, you are greeter #1").build()),
+                                outputMessage(GreeterThreeResponse.newBuilder().setMessage("Hello Pluto, you are greeter #2").build()),
+                                outputMessage(GreeterThreeResponse.newBuilder().setMessage("Hello Pluto, you are greeter #3").build()),
+                                outputMessage(GreeterThreeResponse.newBuilder().setMessage("Hello Goofy, you are greeter #4").build()))
+                        .named("GreeterThree/countAllGreetings: singleton service"));
     }
 }

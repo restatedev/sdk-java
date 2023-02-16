@@ -5,8 +5,6 @@ import com.google.protobuf.Empty;
 import com.google.protobuf.MessageLite;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
-import io.grpc.MethodDescriptor;
-import io.grpc.ServiceDescriptor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -66,7 +64,6 @@ class InvocationProcessor implements Flow.Processor<MessageLite, MessageLite>,
         this.publisher = publisher;
         this.currentJournalIndex = 0;
         this.outputSubscription =
-                // TODO elements
                 new PublishSubscription<MessageLite>(
                         publisher, new ArrayDeque<>(elements), publisherSubscriptionCancelled);
 

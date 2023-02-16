@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "dev.restate.sdk.testing.testservices";
+option java_outer_classname = "GreeterThreeProto";
+
+import "dev/restate/ext.proto";
+
+package test;
+
+service GreeterThree {
+  option (dev.restate.ext.service_type) = SINGLETON;
+
+  rpc CountAllGreetings (GreeterThreeRequest) returns (GreeterThreeResponse);
+}
+
+message GreeterThreeRequest {
+  string name = 1;
+}
+
+message GreeterThreeResponse {
+  string message = 1;
+}
