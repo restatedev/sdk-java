@@ -14,6 +14,9 @@ import java.util.Optional;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+/**
+ * Keyed service. key = name
+ */
 public class GreeterOne extends GreeterOneGrpc.GreeterOneImplBase
     implements RestateBlockingService {
 
@@ -204,7 +207,7 @@ public class GreeterOne extends GreeterOneGrpc.GreeterOneImplBase
             .setEntryIndex(a1.id().getEntryIndex())
             .setInvocationId(a1.id().getInvocationId())
             .build();
-    ctx.backgroundCall(GreeterTwoGrpc.getAwakeMethod(), info);
+    ctx.backgroundCall(AwakeServiceGrpc.getAwakeMethod(), info);
 
     // Suspend until GreeterTwo wakes us up.
     String output = a1.await();

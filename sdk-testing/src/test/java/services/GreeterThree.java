@@ -13,9 +13,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
 /**
- * Keyed service. key = name
+ * Singleton service
  */
-public class GreeterTwo extends GreeterTwoGrpc.GreeterTwoImplBase
+public class GreeterThree extends GreeterThreeGrpc.GreeterThreeImplBase
         implements RestateBlockingService {
 
     private static final Logger LOG = LogManager.getLogger(GreeterTwo.class);
@@ -28,8 +28,8 @@ public class GreeterTwo extends GreeterTwoGrpc.GreeterTwoImplBase
                             b -> Integer.parseInt(new String(b, StandardCharsets.UTF_8))));
 
     @Override
-    public void countForwardedGreetings(
-            GreeterTwoRequest request, StreamObserver<GreeterTwoResponse> responseObserver) {
+    public void countAllGreetings(
+            GreeterThreeRequest request, StreamObserver<GreeterThreeResponse> responseObserver) {
         LOG.debug("Executing the GreeterTwo.countGreetings method");
         RestateContext ctx = restateContext();
 
@@ -44,7 +44,7 @@ public class GreeterTwo extends GreeterTwoGrpc.GreeterTwoImplBase
 
         ctx.set(COUNTER, newCount);
 
-        responseObserver.onNext(GreeterTwoResponse.newBuilder().setMessage("Hello " + request.getName() + " #" + newCount).build());
+        responseObserver.onNext(GreeterThreeResponse.newBuilder().setMessage("Hello " + request.getName() + ", you are greeter #" + newCount).build());
         responseObserver.onCompleted();
     }
 }

@@ -3,6 +3,7 @@ package dev.restate.sdk.testing;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.google.protobuf.Message;
 import com.google.protobuf.MessageLite;
@@ -75,8 +76,9 @@ final class TestRestateRuntime {
                         null,
                         null);
 
+        // Get the key of the instance. Either value of key, random value (unkeyed service) or empty value (singleton).
         String instanceKey = extractKey(serviceName, method, inputMessage).toString();
-        Protocol.StartMessage startMessage = startMessage(serviceName, instanceKey, 1).build();
+        Protocol.StartMessage startMessage = startMessage(instanceKey, invocationId, 1).build();
         List<MessageLite> inputMessages = List.of(startMessage, inputMessage);
 
         if(callerInvocationId != null){
@@ -158,9 +160,14 @@ final class TestRestateRuntime {
     private Object extractKey(String serviceName, String methodName, Protocol.PollInputStreamEntryMessage message) {
         LOG.debug("Extracting key for service {} and method {}", serviceName, methodName);
 
-        Optional<ServerServiceDefinition> svc = services.stream()
-                .filter(el -> el.getServiceDescriptor().getName().equals(serviceName)).findFirst();
-        if(svc.isEmpty()){
+        List<ServerServiceDefinition> servicesWithThisName = services.stream()
+                .filter(el -> el.getServiceDescriptor().getName().equals(serviceName)).collect(Collectors.toList());
+        if(servicesWithThisName.size() > 1) {
+            throw new IllegalStateException(
+                    "Multiple services registered with the same name: \""
+                            + serviceName
+                            + "\"");
+        } else if (servicesWithThisName.isEmpty()) {
             throw new IllegalStateException(
                     "Cannot find service with service name: \""
                             + serviceName
@@ -170,7 +177,7 @@ final class TestRestateRuntime {
         }
 
         var methodDefinition = (ServerMethodDefinition<MessageLite, MessageLite>)
-                        svc.get().getMethod(serviceName + "/" + methodName);
+                servicesWithThisName.get(0).getMethod(serviceName + "/" + methodName);
 
         var methodDescriptor =
                 ((ProtoMethodDescriptorSupplier) methodDefinition.getMethodDescriptor().getSchemaDescriptor()).getMethodDescriptor();
@@ -201,7 +208,7 @@ final class TestRestateRuntime {
                 == ServiceType.UNKEYED) {
             return UUID.randomUUID();
         } else {
-            return null;
+            return "";
         }
     }
 }
