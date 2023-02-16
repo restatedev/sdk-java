@@ -24,7 +24,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-abstract class TestDriver {
+abstract class RestateTestDriver {
 
   /** This is implemented in the tests which extend from this mock runner */
   abstract Stream<TestDefinition> definitions();
