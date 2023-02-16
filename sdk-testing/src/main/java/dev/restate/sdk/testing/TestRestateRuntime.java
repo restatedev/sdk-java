@@ -28,14 +28,14 @@ final class TestRestateRuntime {
     private final CompletableFuture<List<Protocol.OutputStreamEntryMessage>> future = new CompletableFuture<>();
     private final RestateGrpcServer server;
     private final List<ServerServiceDefinition> services;
-    private final TestDriver.ThreadingModel threadingModel;
+    private final RestateTestDriver.ThreadingModel threadingModel;
     private final List<Protocol.OutputStreamEntryMessage> testResults = new ArrayList<>();
     private final HashMap<String, InvocationProcessor> invocationProcessorHashMap;
     // For inter-service calls, we need to keep track of where the response needs to go
     private final HashMap<String, String> calleeToCallerInvocationIds;
 
     private TestRestateRuntime(List<ServerServiceDefinition> services,
-                              TestDriver.ThreadingModel threadingModel) {
+                              RestateTestDriver.ThreadingModel threadingModel) {
         this.invocationProcessorHashMap = new HashMap<>();
         this.calleeToCallerInvocationIds = new HashMap<>();
         this.services = services;
@@ -60,7 +60,7 @@ final class TestRestateRuntime {
     }
 
     public synchronized static TestRestateRuntime init(List<ServerServiceDefinition> services,
-                                                       TestDriver.ThreadingModel threadingModel){
+                                                       RestateTestDriver.ThreadingModel threadingModel){
         if(INSTANCE != null){
             throw new AssertionError("TestRestateRuntime was already initialized. You cannot call init twice.");
         }
@@ -76,7 +76,7 @@ final class TestRestateRuntime {
     }
 
     // Gets called for new test input messages
-    public void handle(TestDriver.TestInput testInput) {
+    public void handle(RestateTestDriver.TestInput testInput) {
         handle(testInput.getService(),
                 testInput.getMethod(),
                 testInput.getInputMessage(),

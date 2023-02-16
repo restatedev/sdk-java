@@ -1,9 +1,9 @@
 package dev.restate.sdk.testing;
 
 import static dev.restate.sdk.testing.ProtoUtils.*;
-import static dev.restate.sdk.testing.TestDriver.TestCaseBuilder.TestInvocationBuilder.endToEndTestInvocation;
+import static dev.restate.sdk.testing.RestateTestDriver.TestCaseBuilder.TestInvocationBuilder.endToEndTestInvocation;
 
-import static dev.restate.sdk.testing.TestDriver.TestInput.Builder.testInput;
+import static dev.restate.sdk.testing.RestateTestDriver.TestInput.Builder.testInput;
 
 import dev.restate.sdk.testing.testservices.*;
 import services.AwakeService;
@@ -13,7 +13,7 @@ import services.GreeterTwo;
 
 import java.util.stream.Stream;
 
-public class GreeterTest extends TestDriver {
+public class GreeterTest extends RestateTestDriver {
 
     @Override
     Stream<TestDefinition> definitions() {
