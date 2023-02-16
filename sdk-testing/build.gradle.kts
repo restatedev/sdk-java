@@ -29,7 +29,6 @@ dependencies {
   implementation(coreLibs.opentelemetry.api)
   implementation(coreLibs.opentelemetry.semconv)
 
-
   implementation(testingLibs.junit.jupiter)
   implementation(testingLibs.assertj)
 
