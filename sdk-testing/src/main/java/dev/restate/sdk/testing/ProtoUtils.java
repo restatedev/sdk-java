@@ -24,13 +24,13 @@ public class ProtoUtils {
   }
 
 
-  static Protocol.OutputStreamEntryMessage outputMessage(MessageLiteOrBuilder value) {
+  public static Protocol.OutputStreamEntryMessage outputMessage(MessageLiteOrBuilder value) {
     return Protocol.OutputStreamEntryMessage.newBuilder()
         .setValue(build(value).toByteString())
         .build();
   }
 
-  static Protocol.OutputStreamEntryMessage outputMessage(Throwable e) {
+  public static Protocol.OutputStreamEntryMessage outputMessage(Throwable e) {
     int code = Status.UNKNOWN.withDescription(e.getMessage()).getCode().value();
     return Protocol.OutputStreamEntryMessage.newBuilder()
         .setFailure(Protocol.Failure.newBuilder().setCode(code).setMessage(e.getMessage()).build())
@@ -45,7 +45,7 @@ public class ProtoUtils {
     return Protocol.CompletionMessage.newBuilder().setEntryIndex(index).setEmpty(value).build();
   }
 
-  static MessageLite build(MessageLiteOrBuilder value) {
+  public static MessageLite build(MessageLiteOrBuilder value) {
     if (value instanceof MessageLite) {
       return (MessageLite) value;
     } else {

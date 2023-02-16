@@ -25,9 +25,6 @@ class InvocationProcessor implements Flow.Processor<MessageLite, MessageLite>,
     private final String functionInvocationId;
     private final Collection<MessageLite> elements;
 
-    private final StateStore stateStore;
-    private final TestRestateRuntime testRestateRuntime;
-
     private final AtomicBoolean publisherSubscriptionCancelled;
     private Flow.Subscriber<? super MessageLite>
             publisher; // publisher = ExceptionCatchingInvocationInputSubscriber
@@ -44,16 +41,11 @@ class InvocationProcessor implements Flow.Processor<MessageLite, MessageLite>,
     public InvocationProcessor(String serviceName,
                                String instanceKey,
                                String functionInvocationId,
-                               Collection<MessageLite> elements,
-                               TestRestateRuntime testRestateRuntime,
-                               StateStore stateStore) {
+                               Collection<MessageLite> elements) {
         this.serviceName = serviceName;
         this.instanceKey = instanceKey;
         this.functionInvocationId = functionInvocationId;
         this.elements = elements;
-        // TODO is there a cleaner way then to pass these along everywhere?
-        this.testRestateRuntime = testRestateRuntime;
-        this.stateStore = stateStore;
         this.publisherSubscriptionCancelled = new AtomicBoolean(false);
     }
 
@@ -93,7 +85,7 @@ class InvocationProcessor implements Flow.Processor<MessageLite, MessageLite>,
 
     @Override
     public void onError(Throwable throwable) {
-        testRestateRuntime.onError(throwable);
+        TestRestateRuntime.get().onError(throwable);
     }
 
     @Override
@@ -109,7 +101,7 @@ class InvocationProcessor implements Flow.Processor<MessageLite, MessageLite>,
         }
         LOG.trace("End of test: Closing the runtime state machine");
 
-        testRestateRuntime.onComplete();
+        TestRestateRuntime.get().onComplete();
     }
 
     public void handleCompletionMessage(ByteString value){
@@ -128,13 +120,13 @@ class InvocationProcessor implements Flow.Processor<MessageLite, MessageLite>,
 
         } else if (t instanceof Protocol.OutputStreamEntryMessage) {
             LOG.trace("Handling call result");
-            testRestateRuntime.handleCallResult(functionInvocationId, (Protocol.OutputStreamEntryMessage) t);
+            TestRestateRuntime.get().handleCallResult(functionInvocationId, (Protocol.OutputStreamEntryMessage) t);
             onComplete();
 
         } else if (t instanceof Protocol.GetStateEntryMessage) {
             Protocol.GetStateEntryMessage msg = (Protocol.GetStateEntryMessage) t;
             LOG.trace("Received GetStateEntryMessage: " + msg);
-            ByteString value = stateStore.get(serviceName, instanceKey, msg.getKey());
+            ByteString value = StateStore.get().get(serviceName, instanceKey, msg.getKey());
             if (value != null) {
                 routeMessage(completionMessage(currentJournalIndex, value));
             } else {
@@ -144,19 +136,19 @@ class InvocationProcessor implements Flow.Processor<MessageLite, MessageLite>,
         } else if (t instanceof Protocol.SetStateEntryMessage) {
             Protocol.SetStateEntryMessage msg = (Protocol.SetStateEntryMessage) t;
             LOG.trace("Received SetStateEntryMessage: " + msg);
-            stateStore.set(serviceName, instanceKey, msg.getKey(), msg.getValue());
+            StateStore.get().set(serviceName, instanceKey, msg.getKey(), msg.getValue());
 
         } else if (t instanceof Protocol.ClearStateEntryMessage) {
             Protocol.ClearStateEntryMessage msg = (Protocol.ClearStateEntryMessage) t;
             LOG.trace("Received ClearStateEntryMessage: " + msg);
-            stateStore.clear(serviceName, instanceKey, msg.getKey());
+            StateStore.get().clear(serviceName, instanceKey, msg.getKey());
 
         } else if (t instanceof Protocol.InvokeEntryMessage) {
             Protocol.InvokeEntryMessage msg = (Protocol.InvokeEntryMessage) t;
             LOG.trace("Handling InvokeEntryMessage: " + msg);
             // Let the runtime create an invocation processor to handle the call
 
-            testRestateRuntime.handle(msg.getServiceName(),
+            TestRestateRuntime.get().handle(msg.getServiceName(),
                     msg.getMethodName(),
                     Protocol.PollInputStreamEntryMessage.newBuilder().setValue(msg.getParameter()).build(),
                     functionInvocationId);
@@ -168,7 +160,7 @@ class InvocationProcessor implements Flow.Processor<MessageLite, MessageLite>,
             // We set the caller id to "ignore" because we do not want a response.
             // The response will then be ignored by runtime.
 
-            testRestateRuntime.handle(msg.getServiceName(),
+            TestRestateRuntime.get().handle(msg.getServiceName(),
                     msg.getMethodName(),
                     Protocol.PollInputStreamEntryMessage.newBuilder().setValue(msg.getParameter()).build(),
                     "ignore");
@@ -190,7 +182,7 @@ class InvocationProcessor implements Flow.Processor<MessageLite, MessageLite>,
         } else if (t instanceof Protocol.CompleteAwakeableEntryMessage) {
             Protocol.CompleteAwakeableEntryMessage msg = (Protocol.CompleteAwakeableEntryMessage) t;
             LOG.trace("Received CompleteAwakeableEntryMessage: " + msg);
-            testRestateRuntime.handleAwakeableCompletion(msg.getInvocationId().toStringUtf8(), msg);
+            TestRestateRuntime.get().handleAwakeableCompletion(msg.getInvocationId().toStringUtf8(), msg);
 
         } else if (t instanceof Java.CombinatorAwaitableEntryMessage) {
             Java.CombinatorAwaitableEntryMessage msg = (Java.CombinatorAwaitableEntryMessage) t;
