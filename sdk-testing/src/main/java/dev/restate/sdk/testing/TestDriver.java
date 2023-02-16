@@ -49,6 +49,7 @@ abstract class TestDriver {
                                 c.getOutputAssert())));
   }
 
+
   @ParameterizedTest(name = "{index}: {0}")
   @MethodSource("source")
   void executeTest(
@@ -60,7 +61,7 @@ abstract class TestDriver {
 
     // Create runtime instance
     TestRestateRuntime testRestateRuntimeStateMachine =
-        new TestRestateRuntime(services, threadingModel);
+        TestRestateRuntime.init(services, threadingModel);
 
     for (TestInput testInput : input){
         testRestateRuntimeStateMachine.handle(testInput);
@@ -70,11 +71,12 @@ abstract class TestDriver {
     outputAssert.accept(testRestateRuntimeStateMachine, Duration.ZERO);
     Assertions.assertThat(testRestateRuntimeStateMachine.getPublisherSubscriptionsCancelled()).isTrue();
 
+    TestRestateRuntime.close();
   }
 
   enum ThreadingModel {
-    BUFFERED_SINGLE_THREAD,
-    UNBUFFERED_MULTI_THREAD
+    BUFFERED_SINGLE_THREAD
+//    UNBUFFERED_MULTI_THREAD //TODO implement this
   }
 
   static class TestInput{
@@ -104,10 +106,6 @@ abstract class TestDriver {
       TestInput withMessage(MessageLiteOrBuilder msg){
         return new TestInput(method, ProtoUtils.inputMessage(msg));
       }
-    }
-
-    static TestInput withMethod(MethodDescriptor<?, ?> method, Protocol.PollInputStreamEntryMessage inputMsg){
-      return new TestInput(method, null);
     }
 
     public String getService() {

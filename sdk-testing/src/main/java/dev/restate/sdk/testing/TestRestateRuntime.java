@@ -3,7 +3,6 @@ package dev.restate.sdk.testing;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import com.google.protobuf.Message;
 import com.google.protobuf.MessageLite;
@@ -23,24 +22,27 @@ import static dev.restate.sdk.testing.ProtoUtils.*;
 
 final class TestRestateRuntime {
 
+    private static TestRestateRuntime INSTANCE;
+
     private static final Logger LOG = LogManager.getLogger(TestRestateRuntime.class);
     private final CompletableFuture<List<Protocol.OutputStreamEntryMessage>> future = new CompletableFuture<>();
     private final RestateGrpcServer server;
     private final List<ServerServiceDefinition> services;
-    private final StateStore stateStore;
     private final TestDriver.ThreadingModel threadingModel;
     private final List<Protocol.OutputStreamEntryMessage> testResults = new ArrayList<>();
     private final HashMap<String, InvocationProcessor> invocationProcessorHashMap;
     // For inter-service calls, we need to keep track of where the response needs to go
     private final HashMap<String, String> calleeToCallerInvocationIds;
 
-    public TestRestateRuntime(List<ServerServiceDefinition> services,
+    private TestRestateRuntime(List<ServerServiceDefinition> services,
                               TestDriver.ThreadingModel threadingModel) {
         this.invocationProcessorHashMap = new HashMap<>();
         this.calleeToCallerInvocationIds = new HashMap<>();
         this.services = services;
-        this.stateStore = new StateStore();
         this.threadingModel = threadingModel;
+
+        // Initialize the state store
+        StateStore.init();
 
         // Start Grpc server and add all the services
         RestateGrpcServer.Builder serverBuilder = RestateGrpcServer.newBuilder();
@@ -48,6 +50,29 @@ final class TestRestateRuntime {
             serverBuilder.withService(svc);
         }
         server = serverBuilder.build();
+    }
+
+    public static TestRestateRuntime get(){
+        if(INSTANCE == null){
+            throw new AssertionError("You have to call init first");
+        }
+        return INSTANCE;
+    }
+
+    public synchronized static TestRestateRuntime init(List<ServerServiceDefinition> services,
+                                                       TestDriver.ThreadingModel threadingModel){
+        if(INSTANCE != null){
+            throw new AssertionError("TestRestateRuntime was already initialized. You cannot call init twice.");
+        }
+        LOG.debug("Initializing TestRestateRuntime");
+        INSTANCE = new TestRestateRuntime(services, threadingModel);
+        return INSTANCE;
+    }
+
+    public static void close(){
+        StateStore.close();
+        LOG.debug("Closing TestRestateRuntime");
+        INSTANCE = null;
     }
 
     // Gets called for new test input messages
@@ -88,7 +113,7 @@ final class TestRestateRuntime {
 
         // Create a new invocation processor on the runtime-side
         InvocationProcessor invocationProcessor = new InvocationProcessor(
-                serviceName, instanceKey, invocationId, inputMessages, this, stateStore);
+                serviceName, instanceKey, invocationId, inputMessages);
         invocationProcessorHashMap.put(invocationId, invocationProcessor);
 
         // Wire invocation processor with the service-side state machine
@@ -208,7 +233,7 @@ final class TestRestateRuntime {
                 == ServiceType.UNKEYED) {
             return UUID.randomUUID();
         } else {
-            return "";
+            return "SINGLETON";
         }
     }
 }
