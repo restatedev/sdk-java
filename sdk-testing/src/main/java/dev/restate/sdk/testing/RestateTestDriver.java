@@ -23,10 +23,10 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-abstract class RestateTestDriver {
+public abstract class RestateTestDriver {
 
   /** This is implemented in the tests which extend from this mock runner */
-  abstract Stream<TestDefinition> definitions();
+  protected abstract Stream<TestDefinition> definitions();
 
   /**
    * Takes the definitions and explodes them to have one entry per threading model If you test with
@@ -50,7 +50,7 @@ abstract class RestateTestDriver {
 
   @ParameterizedTest(name = "{index}: {0}")
   @MethodSource("source")
-  void executeTest(
+  protected void executeTest(
       String testName,
       List<ServerServiceDefinition> services,
       List<TestInput> input,
@@ -73,12 +73,12 @@ abstract class RestateTestDriver {
     TestRestateRuntime.close();
   }
 
-  enum ThreadingModel {
+  public enum ThreadingModel {
     BUFFERED_SINGLE_THREAD
     //    UNBUFFERED_MULTI_THREAD //TODO implement this
   }
 
-  static class TestInput {
+  public static class TestInput {
     private final String method;
     private final String service;
     private final Protocol.PollInputStreamEntryMessage inputMessage;
@@ -89,24 +89,24 @@ abstract class RestateTestDriver {
       this.inputMessage = msg;
     }
 
-    static class Builder {
+    public static class Builder {
       public static Builder testInput() {
         return new Builder();
       }
 
-      WithMethod withMethod(MethodDescriptor<?, ?> method) {
+      public WithMethod withMethod(MethodDescriptor<?, ?> method) {
         return new WithMethod(method);
       }
     }
 
-    static class WithMethod {
+    public static class WithMethod {
       private MethodDescriptor<?, ?> method;
 
       public WithMethod(MethodDescriptor<?, ?> method) {
         this.method = method;
       }
 
-      TestInput withMessage(MessageLiteOrBuilder msg) {
+      public TestInput withMessage(MessageLiteOrBuilder msg) {
         return new TestInput(method, ProtoUtils.inputMessage(msg));
       }
     }
@@ -124,7 +124,7 @@ abstract class RestateTestDriver {
     }
   }
 
-  interface TestDefinition {
+  protected interface TestDefinition {
 
     List<ServerServiceDefinition> getServices();
 
@@ -138,20 +138,20 @@ abstract class RestateTestDriver {
   }
 
   /** Builder for the test cases */
-  static class TestCaseBuilder {
+  public static class TestCaseBuilder {
 
-    static class TestInvocationBuilder {
+    public static class TestInvocationBuilder {
 
       public static TestInvocationBuilder endToEndTestInvocation() {
         return new TestInvocationBuilder();
       }
 
-      WithServicesBuilder withServices(BindableService... services) {
+      public WithServicesBuilder withServices(BindableService... services) {
         return new WithServicesBuilder(Arrays.asList(services));
       }
     }
 
-    static class WithServicesBuilder {
+    public static class WithServicesBuilder {
 
       private final List<BindableService> services;
 
@@ -159,12 +159,12 @@ abstract class RestateTestDriver {
         this.services = services;
       }
 
-      WithInputBuilder withInput(TestInput... messages) {
+      public WithInputBuilder withInput(TestInput... messages) {
         return new WithInputBuilder(services, Arrays.asList(messages));
       }
     }
 
-    static class WithInputBuilder {
+    public static class WithInputBuilder {
 
       private final List<BindableService> services;
       private final List<TestInput> input;
@@ -174,17 +174,17 @@ abstract class RestateTestDriver {
         this.input = input;
       }
 
-      UsingThreadingModelsBuilder usingThreadingModels(ThreadingModel... threadingModels) {
+      public UsingThreadingModelsBuilder usingThreadingModels(ThreadingModel... threadingModels) {
         return new UsingThreadingModelsBuilder(
             services, input, new HashSet<>(Arrays.asList(threadingModels)));
       }
 
-      UsingThreadingModelsBuilder usingAllThreadingModels() {
+      public UsingThreadingModelsBuilder usingAllThreadingModels() {
         return usingThreadingModels(ThreadingModel.values());
       }
     }
 
-    static class UsingThreadingModelsBuilder {
+    public static class UsingThreadingModelsBuilder {
       private final List<BindableService> services;
       private final List<TestInput> input;
       private final HashSet<ThreadingModel> threadingModels;
@@ -198,27 +198,27 @@ abstract class RestateTestDriver {
         this.threadingModels = threadingModels;
       }
 
-      ExpectingOutputMessages expectingOutput(MessageLiteOrBuilder... messages) {
+      public ExpectingOutputMessages expectingOutput(MessageLiteOrBuilder... messages) {
         List<MessageLite> builtMessages =
             Arrays.stream(messages).map(ProtoUtils::build).collect(Collectors.toList());
         return assertingOutput(
             actual -> Assertions.assertThat(actual).asList().isEqualTo(builtMessages));
       }
 
-      ExpectingOutputMessages expectingNoOutput() {
+      public ExpectingOutputMessages expectingNoOutput() {
         return assertingOutput(messages -> Assertions.assertThat(messages).asList().isEmpty());
       }
 
-      ExpectingOutputMessages assertingOutput(
+      public ExpectingOutputMessages assertingOutput(
           Consumer<List<Protocol.OutputStreamEntryMessage>> messages) {
         return new ExpectingOutputMessages(services, input, threadingModels, messages);
       }
 
-      ExpectingFailure assertingFailure(Class<? extends Throwable> tClass) {
+      public ExpectingFailure assertingFailure(Class<? extends Throwable> tClass) {
         return assertingFailure(t -> Assertions.assertThat(t).isInstanceOf(tClass));
       }
 
-      ExpectingFailure assertingFailure(Consumer<Throwable> assertFailure) {
+      public ExpectingFailure assertingFailure(Consumer<Throwable> assertFailure) {
         return new ExpectingFailure(services, input, threadingModels, assertFailure);
       }
     }
@@ -269,7 +269,7 @@ abstract class RestateTestDriver {
       }
     }
 
-    static class ExpectingOutputMessages extends BaseTestDefinition {
+    public static class ExpectingOutputMessages extends BaseTestDefinition {
       private final Consumer<List<Protocol.OutputStreamEntryMessage>> messagesAssert;
 
       ExpectingOutputMessages(
@@ -291,7 +291,7 @@ abstract class RestateTestDriver {
         this.messagesAssert = messagesAssert;
       }
 
-      ExpectingOutputMessages named(String name) {
+      public ExpectingOutputMessages named(String name) {
         return new TestCaseBuilder.ExpectingOutputMessages(
             services, input, threadingModels, messagesAssert, name);
       }
@@ -305,7 +305,7 @@ abstract class RestateTestDriver {
       }
     }
 
-    static class ExpectingFailure extends BaseTestDefinition {
+    public static class ExpectingFailure extends BaseTestDefinition {
       private final Consumer<Throwable> throwableAssert;
 
       ExpectingFailure(
@@ -327,7 +327,7 @@ abstract class RestateTestDriver {
         this.throwableAssert = throwableAssert;
       }
 
-      ExpectingFailure named(String name) {
+      public ExpectingFailure named(String name) {
         return new ExpectingFailure(services, input, threadingModels, throwableAssert, name);
       }
 

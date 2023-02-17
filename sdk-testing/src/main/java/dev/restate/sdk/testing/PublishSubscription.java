@@ -1,6 +1,5 @@
 package dev.restate.sdk.testing;
 
-import com.google.protobuf.MessageLite;
 import java.util.Queue;
 import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicBoolean;

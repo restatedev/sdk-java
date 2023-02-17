@@ -15,7 +15,7 @@ import services.GreeterTwo;
 public class GreeterTest extends RestateTestDriver {
 
   @Override
-  Stream<TestDefinition> definitions() {
+  protected Stream<TestDefinition> definitions() {
     return Stream.of(
         endToEndTestInvocation()
             .withServices(new GreeterOne())
