@@ -2,6 +2,7 @@ package services;
 
 import com.google.protobuf.Empty;
 import dev.restate.generated.core.AwakeableIdentifier;
+import dev.restate.sdk.blocking.AwakeableHandle;
 import dev.restate.sdk.blocking.RestateBlockingService;
 import dev.restate.sdk.blocking.RestateContext;
 import dev.restate.sdk.core.TypeTag;
@@ -28,7 +29,8 @@ public class AwakeService extends AwakeServiceGrpc.AwakeServiceImplBase
             .setEntryIndex(request.getEntryIndex())
             .build();
 
-    ctx.completeAwakeable(identifier, TypeTag.STRING_UTF8, "Wake up!");
+    AwakeableHandle awakeableHandle = ctx.awakeableHandle(identifier);
+    awakeableHandle.complete(TypeTag.STRING_UTF8, "Wake up!");
 
     responseObserver.onNext(Empty.getDefaultInstance());
     responseObserver.onCompleted();
