@@ -1,4 +1,4 @@
-package services;
+package dev.restate.sdk.testing.services;
 
 import com.google.protobuf.Empty;
 import dev.restate.generated.core.AwakeableIdentifier;

@@ -1,4 +1,4 @@
-package services;
+package dev.restate.sdk.testing.services;
 
 import dev.restate.sdk.blocking.Awaitable;
 import dev.restate.sdk.blocking.Awakeable;
@@ -180,13 +180,6 @@ public class GreeterOne extends GreeterOneGrpc.GreeterOneImplBase
                     + response.getMessage())
             .build());
     responseObserver.onCompleted();
-  }
-
-  @Override
-  public void failingGreet(
-      GreeterOneRequest request, StreamObserver<GreeterOneResponse> responseObserver) {
-    LOG.debug("Executing the GreeterOne.failingGreet method");
-    throw new IllegalStateException("Whatever");
   }
 
   @Override

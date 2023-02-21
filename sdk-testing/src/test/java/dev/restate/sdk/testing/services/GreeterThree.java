@@ -1,4 +1,4 @@
-package services;
+package dev.restate.sdk.testing.services;
 
 import dev.restate.sdk.blocking.RestateBlockingService;
 import dev.restate.sdk.blocking.RestateContext;
@@ -11,8 +11,8 @@ import java.util.Optional;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-/** Keyed service. key = name */
-public class GreeterTwo extends GreeterTwoGrpc.GreeterTwoImplBase
+/** Singleton service */
+public class GreeterThree extends GreeterThreeGrpc.GreeterThreeImplBase
     implements RestateBlockingService {
 
   private static final Logger LOG = LogManager.getLogger(GreeterTwo.class);
@@ -25,8 +25,8 @@ public class GreeterTwo extends GreeterTwoGrpc.GreeterTwoImplBase
               b -> Integer.parseInt(new String(b, StandardCharsets.UTF_8))));
 
   @Override
-  public void countForwardedGreetings(
-      GreeterTwoRequest request, StreamObserver<GreeterTwoResponse> responseObserver) {
+  public void countAllGreetings(
+      GreeterThreeRequest request, StreamObserver<GreeterThreeResponse> responseObserver) {
     LOG.debug("Executing the GreeterTwo.countGreetings method");
     RestateContext ctx = restateContext();
 
@@ -42,8 +42,8 @@ public class GreeterTwo extends GreeterTwoGrpc.GreeterTwoImplBase
     ctx.set(COUNTER, newCount);
 
     responseObserver.onNext(
-        GreeterTwoResponse.newBuilder()
-            .setMessage("Hello " + request.getName() + " #" + newCount)
+        GreeterThreeResponse.newBuilder()
+            .setMessage("Hello " + request.getName() + ", you are greeter #" + newCount)
             .build());
     responseObserver.onCompleted();
   }

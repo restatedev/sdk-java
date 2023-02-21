@@ -9,27 +9,6 @@ import io.grpc.Status;
 
 public class ProtoUtils {
 
-  public static Protocol.StartMessage.Builder startMessage(
-      String instanceKey, String invocationId, int entries) {
-    return Protocol.StartMessage.newBuilder()
-        .setInstanceKey(ByteString.copyFromUtf8(instanceKey))
-        .setInvocationId(ByteString.copyFromUtf8(invocationId))
-        .setKnownEntries(entries)
-        .setKnownServiceVersion(1);
-  }
-
-  public static Protocol.PollInputStreamEntryMessage inputMessage(MessageLiteOrBuilder value) {
-    return Protocol.PollInputStreamEntryMessage.newBuilder()
-        .setValue(build(value).toByteString())
-        .build();
-  }
-
-  public static Protocol.OutputStreamEntryMessage outputMessage(MessageLiteOrBuilder value) {
-    return Protocol.OutputStreamEntryMessage.newBuilder()
-        .setValue(build(value).toByteString())
-        .build();
-  }
-
   public static Protocol.OutputStreamEntryMessage outputMessage(Throwable e) {
     int code = Status.UNKNOWN.withDescription(e.getMessage()).getCode().value();
     return Protocol.OutputStreamEntryMessage.newBuilder()

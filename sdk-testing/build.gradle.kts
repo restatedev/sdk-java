@@ -24,12 +24,12 @@ dependencies {
   implementation(coreLibs.grpc.api)
   implementation(coreLibs.grpc.protobuf)
   implementation(coreLibs.log4j.api)
+  implementation(coreLibs.log4j.core)
 
   implementation(platform(coreLibs.opentelemetry.bom))
   implementation(coreLibs.opentelemetry.api)
   implementation(coreLibs.opentelemetry.semconv)
 
-  implementation(testingLibs.junit.jupiter)
   implementation(testingLibs.assertj)
 
   testCompileOnly(coreLibs.javax.annotation.api)
@@ -40,7 +40,6 @@ dependencies {
   testImplementation(testingLibs.assertj)
   testImplementation(coreLibs.grpc.stub)
   testImplementation(coreLibs.grpc.protobuf)
-  testImplementation(coreLibs.log4j.core)
 }
 
 publishing {

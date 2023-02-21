@@ -2,13 +2,14 @@ package dev.restate.sdk.testing;
 
 import static dev.restate.sdk.testing.ProtoUtils.*;
 
-import com.google.protobuf.Message;
-import com.google.protobuf.MessageLite;
+import com.google.protobuf.*;
 import dev.restate.generated.ext.Ext;
 import dev.restate.generated.ext.ServiceType;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.impl.InvocationHandler;
 import dev.restate.sdk.core.impl.RestateGrpcServer;
+import io.grpc.BindableService;
+import io.grpc.MethodDescriptor;
 import io.grpc.ServerMethodDefinition;
 import io.grpc.ServerServiceDefinition;
 import io.grpc.protobuf.ProtoMethodDescriptorSupplier;
@@ -18,34 +19,31 @@ import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-final class TestRestateRuntime {
+public final class TestRestateRuntime {
 
   private static TestRestateRuntime INSTANCE;
 
   private static final Logger LOG = LogManager.getLogger(TestRestateRuntime.class);
-  private final CompletableFuture<List<Protocol.OutputStreamEntryMessage>> future =
-      new CompletableFuture<>();
+  private CompletableFuture<Protocol.OutputStreamEntryMessage> future;
+  private String rootCallerId;
   private final RestateGrpcServer server;
   private final List<ServerServiceDefinition> services;
-  private final RestateTestDriver.ThreadingModel threadingModel;
-  private final List<Protocol.OutputStreamEntryMessage> testResults = new ArrayList<>();
+  private Protocol.OutputStreamEntryMessage testResult;
   private final HashMap<String, InvocationProcessor> invocationProcessorHashMap;
   // For inter-service calls, we need to keep track of where the response needs to go
   private final HashMap<String, String> calleeToCallerInvocationIds;
 
-  private TestRestateRuntime(
-      List<ServerServiceDefinition> services, RestateTestDriver.ThreadingModel threadingModel) {
+  public TestRestateRuntime(BindableService... bindableServices) {
     this.invocationProcessorHashMap = new HashMap<>();
     this.calleeToCallerInvocationIds = new HashMap<>();
-    this.services = services;
-    this.threadingModel = threadingModel;
-
-    // Initialize the state store
-    StateStore.init();
+    this.services =
+        Arrays.asList(bindableServices).stream()
+            .map(BindableService::bindService)
+            .collect(Collectors.toList());
 
     // Start Grpc server and add all the services
     RestateGrpcServer.Builder serverBuilder = RestateGrpcServer.newBuilder();
-    for (ServerServiceDefinition svc : services) {
+    for (ServerServiceDefinition svc : this.services) {
       serverBuilder.withService(svc);
     }
     server = serverBuilder.build();
@@ -58,14 +56,13 @@ final class TestRestateRuntime {
     return INSTANCE;
   }
 
-  public static synchronized TestRestateRuntime init(
-      List<ServerServiceDefinition> services, RestateTestDriver.ThreadingModel threadingModel) {
+  public static synchronized TestRestateRuntime init(BindableService... services) {
     if (INSTANCE != null) {
       throw new AssertionError(
           "TestRestateRuntime was already initialized. You cannot call init twice.");
     }
     LOG.debug("Initializing TestRestateRuntime");
-    INSTANCE = new TestRestateRuntime(services, threadingModel);
+    INSTANCE = new TestRestateRuntime(services);
     return INSTANCE;
   }
 
@@ -75,9 +72,21 @@ final class TestRestateRuntime {
     INSTANCE = null;
   }
 
-  // Gets called for new test input messages
-  public void handle(RestateTestDriver.TestInput testInput) {
-    handle(testInput.getService(), testInput.getMethod(), testInput.getInputMessage(), null);
+  public <T extends MessageLiteOrBuilder, R extends MessageLiteOrBuilder> R invoke(
+      MethodDescriptor<T, R> methodDescriptor, T parameter) throws Exception {
+    // Beginning of new request so reset future.
+    future = new CompletableFuture<>();
+
+    // Handle the call
+    handle(
+        methodDescriptor.getServiceName(),
+        methodDescriptor.getBareMethodName(),
+        Protocol.PollInputStreamEntryMessage.newBuilder()
+            .setValue(ProtoUtils.build(parameter).toByteString())
+            .build(),
+        null);
+
+    return methodDescriptor.parseResponse(future.get().getValue().newInput());
   }
 
   // Gets called for new service calls: either test input messages or inter-service calls
@@ -88,6 +97,12 @@ final class TestRestateRuntime {
       Protocol.PollInputStreamEntryMessage inputMessage,
       String callerInvocationId) {
     String invocationId = UUID.randomUUID().toString();
+    if (callerInvocationId == null) {
+      // Register the ID of the call of the external test client (callerInvocationId == null)
+      // When we receive the oncomplete call of the invocation processor with this id,
+      // we will know the test is over.
+      rootCallerId = invocationId;
+    }
 
     // TODO executors
     // Create invocation handler on the side of the service
@@ -97,7 +112,13 @@ final class TestRestateRuntime {
     // Get the key of the instance. Either value of key, random value (unkeyed service) or empty
     // value (singleton).
     String instanceKey = extractKey(serviceName, method, inputMessage).toString();
-    Protocol.StartMessage startMessage = startMessage(instanceKey, invocationId, 1).build();
+    Protocol.StartMessage startMessage =
+        Protocol.StartMessage.newBuilder()
+            .setInstanceKey(ByteString.copyFromUtf8(instanceKey))
+            .setInvocationId(ByteString.copyFromUtf8(invocationId))
+            .setKnownEntries(1)
+            .setKnownServiceVersion(1)
+            .build();
     List<MessageLite> inputMessages = List.of(startMessage, inputMessage);
 
     if (callerInvocationId != null) {
@@ -136,10 +157,8 @@ final class TestRestateRuntime {
       }
     } else {
       // This is a test result; add it to the list
-      LOG.debug("Adding new element to result set");
-      synchronized (this.testResults) {
-        this.testResults.add(msg);
-      }
+      LOG.debug("Add msg to result set");
+      testResult = msg;
     }
   }
 
@@ -149,31 +168,15 @@ final class TestRestateRuntime {
     caller.routeMessage(completionMessage(msg.getEntryIndex(), msg.getPayload()));
   }
 
-  // Future logic to send response back to TestDriver when done
-  public CompletableFuture<List<Protocol.OutputStreamEntryMessage>> getFuture() {
-    return future;
-  }
-
   public void onError(Throwable throwable) {
     this.future.completeExceptionally(throwable);
   }
 
-  public void onComplete() {
-    this.future.complete(testResults);
-  }
-
-  public List<Protocol.OutputStreamEntryMessage> getTestResults() {
-    List<Protocol.OutputStreamEntryMessage> l;
-    synchronized (this.testResults) {
-      l = new ArrayList<>(this.testResults);
+  public void onComplete(String invocationId) {
+    if (invocationId.equals(rootCallerId)) {
+      // root call has been completed so end the test
+      this.future.complete(testResult);
     }
-    return l;
-  }
-
-  public boolean getPublisherSubscriptionsCancelled() {
-    // checks if all the invocation processor subscriptions were cancelled
-    return invocationProcessorHashMap.values().stream()
-        .allMatch(InvocationProcessor::getPublisherSubscriptionCancelled);
   }
 
   private Object extractKey(

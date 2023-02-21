@@ -103,7 +103,7 @@ class InvocationProcessor
     }
     LOG.trace("End of test: Closing the runtime state machine");
 
-    TestRestateRuntime.get().onComplete();
+    TestRestateRuntime.get().onComplete(functionInvocationId);
   }
 
   public void handleCompletionMessage(ByteString value) {

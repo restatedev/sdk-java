@@ -27,8 +27,6 @@ service GreeterOne {
 
   rpc GetOneOfMultipleGreetings (GreeterOneRequest) returns (GreeterOneResponse);
 
-  rpc FailingGreet (GreeterOneRequest) returns (GreeterOneResponse);
-
   rpc GreetWithSideEffect (GreeterOneRequest) returns (GreeterOneResponse);
 
   rpc SleepAndGetWokenUp (GreeterOneRequest) returns (GreeterOneResponse);

@@ -8,8 +8,6 @@ import org.apache.logging.log4j.Logger;
 
 class StateStore {
 
-  private static StateStore INSTANCE;
-
   private static final Logger LOG = LogManager.getLogger(StateStore.class);
 
   private final HashMap<String, ByteString> state;
@@ -18,43 +16,39 @@ class StateStore {
     this.state = new HashMap<>();
   }
 
-  public static synchronized void init() {
-    LOG.debug("Initializing");
-    if (INSTANCE != null) {
-      throw new AssertionError("StateStore was already initialized. You cannot call init twice.");
-    }
-    INSTANCE = new StateStore();
+  private static class StateStoreHelper {
+    private static final StateStore INSTANCE = new StateStore();
   }
 
   public static StateStore get() {
-    LOG.debug("Retrieving state store instance");
-    if (INSTANCE == null) {
-      throw new AssertionError(
-          "StateStore was not initialized. Did you initialize the TestRestateRuntime?");
-    }
-    return INSTANCE;
+    return StateStoreHelper.INSTANCE;
   }
 
   public static void close() {
     LOG.debug("Closing state store instance");
-    INSTANCE = null;
+    StateStoreHelper.INSTANCE.state.clear();
   }
 
   public ByteString get(String serviceName, String instanceKey, ByteString key) {
-    return state.get(serviceName + "/" + instanceKey + "/" + key.toStringUtf8());
+    return state.get(asKey(serviceName, instanceKey, key));
   }
 
   public void set(String serviceName, String instanceKey, ByteString key, ByteString value) {
-    state.put(serviceName + "/" + instanceKey + "/" + key.toStringUtf8(), value);
-    LOG.debug("State store contents: " + getContentsAsString());
+    state.put(asKey(serviceName, instanceKey, key), value);
+    LOG.debug("State store contents: " + toString());
   }
 
   // Clears state for a single key
   public void clear(String serviceName, String instanceKey, ByteString key) {
-    state.remove(serviceName + "/" + instanceKey + "/" + key.toStringUtf8());
+    state.remove(asKey(serviceName, instanceKey, key));
   }
 
-  public String getContentsAsString() {
+  private String asKey(String serviceName, String instanceKey, ByteString key) {
+    return serviceName + "/" + instanceKey + "/" + key.toStringUtf8();
+  }
+
+  @Override
+  public String toString() {
     return state.entrySet().stream()
         .map(
             entry ->
