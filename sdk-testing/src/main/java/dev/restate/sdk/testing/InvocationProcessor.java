@@ -1,7 +1,5 @@
 package dev.restate.sdk.testing;
 
-import static dev.restate.sdk.testing.ProtoUtils.completionMessage;
-
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
 import com.google.protobuf.MessageLite;
@@ -107,7 +105,11 @@ class InvocationProcessor
   }
 
   public void handleCompletionMessage(ByteString value) {
-    routeMessage(completionMessage(currentJournalIndex, value));
+    routeMessage(
+        Protocol.CompletionMessage.newBuilder()
+            .setEntryIndex(currentJournalIndex)
+            .setValue(value)
+            .build());
   }
 
   // All messages that go through the runtime go through this handler.
@@ -131,9 +133,17 @@ class InvocationProcessor
       LOG.trace("Received GetStateEntryMessage: " + msg);
       ByteString value = StateStore.get().get(serviceName, instanceKey, msg.getKey());
       if (value != null) {
-        routeMessage(completionMessage(currentJournalIndex, value));
+        routeMessage(
+            Protocol.CompletionMessage.newBuilder()
+                .setEntryIndex(currentJournalIndex)
+                .setValue(value)
+                .build());
       } else {
-        routeMessage(completionMessage(currentJournalIndex, Empty.getDefaultInstance()));
+        routeMessage(
+            Protocol.CompletionMessage.newBuilder()
+                .setEntryIndex(currentJournalIndex)
+                .setEmpty(Empty.getDefaultInstance())
+                .build());
       }
 
     } else if (t instanceof Protocol.SetStateEntryMessage) {

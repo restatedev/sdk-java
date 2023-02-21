@@ -1,7 +1,5 @@
 package dev.restate.sdk.testing;
 
-import static dev.restate.sdk.testing.ProtoUtils.*;
-
 import com.google.protobuf.*;
 import dev.restate.generated.ext.Ext;
 import dev.restate.generated.ext.ServiceType;
@@ -77,13 +75,16 @@ public final class TestRestateRuntime {
     // Beginning of new request so reset future.
     future = new CompletableFuture<>();
 
+    MessageLite msg =
+        (parameter instanceof MessageLite)
+            ? (MessageLite) parameter
+            : ((MessageLite.Builder) parameter).build();
+
     // Handle the call
     handle(
         methodDescriptor.getServiceName(),
         methodDescriptor.getBareMethodName(),
-        Protocol.PollInputStreamEntryMessage.newBuilder()
-            .setValue(ProtoUtils.build(parameter).toByteString())
-            .build(),
+        Protocol.PollInputStreamEntryMessage.newBuilder().setValue(msg.toByteString()).build(),
         null);
 
     return methodDescriptor.parseResponse(future.get().getValue().newInput());
@@ -104,7 +105,6 @@ public final class TestRestateRuntime {
       rootCallerId = invocationId;
     }
 
-    // TODO executors
     // Create invocation handler on the side of the service
     InvocationHandler serviceInvocationStateMachineHandler =
         server.resolve(serviceName, method, io.opentelemetry.context.Context.current(), null, null);
@@ -157,7 +157,7 @@ public final class TestRestateRuntime {
       }
     } else {
       // This is a test result; add it to the list
-      LOG.debug("Add msg to result set");
+      LOG.debug("Set message as result");
       testResult = msg;
     }
   }
@@ -165,7 +165,11 @@ public final class TestRestateRuntime {
   public void handleAwakeableCompletion(
       String functionInvocationId, Protocol.CompleteAwakeableEntryMessage msg) {
     InvocationProcessor caller = invocationProcessorHashMap.get(functionInvocationId);
-    caller.routeMessage(completionMessage(msg.getEntryIndex(), msg.getPayload()));
+    caller.routeMessage(
+        Protocol.CompletionMessage.newBuilder()
+            .setEntryIndex(msg.getEntryIndex())
+            .setValue(msg.getPayload())
+            .build());
   }
 
   public void onError(Throwable throwable) {
