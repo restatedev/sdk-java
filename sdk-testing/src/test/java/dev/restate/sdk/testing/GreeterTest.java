@@ -1,6 +1,6 @@
 package dev.restate.sdk.testing;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.*;
 
 import dev.restate.sdk.testing.services.AwakeService;
 import dev.restate.sdk.testing.services.GreeterOne;
@@ -13,7 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-public class GreeterTest {
+class GreeterTest {
 
   TestRestateRuntime runtime;
 
@@ -35,7 +35,7 @@ public class GreeterTest {
     GreeterOneResponse response =
         runtime.invoke(GreeterOneGrpc.getGreetMethod(), greeterOneRequest("User1"));
 
-    assertEquals(greeterOneResponse("Hello User1"), response);
+    assertThat(greeterOneResponse("Hello User1")).isEqualTo(response);
   }
 
   @Test
@@ -44,25 +44,24 @@ public class GreeterTest {
     GreeterOneResponse response =
         runtime.invoke(GreeterOneGrpc.getStoreAndGreetMethod(), greeterOneRequest("User1"));
 
-    assertEquals(greeterOneResponse("Hello User1"), response);
+    assertThat(greeterOneResponse("Hello User1")).isEqualTo(response);
   }
 
   @Test
   @DisplayName("GreeterOne/countGreetings: get and set state for multiple keys")
-  void countGreetingsTest() throws Exception {
+  void countGreetingsTest() {
     List<GreeterOneResponse> responses =
         List.of(
             runtime.invoke(GreeterOneGrpc.getCountGreetingsMethod(), greeterOneRequest("User1")),
             runtime.invoke(GreeterOneGrpc.getCountGreetingsMethod(), greeterOneRequest("User2")));
 
-    assertEquals(
-        List.of(greeterOneResponse("Hello User1 #1"), greeterOneResponse("Hello User2 #1")),
-        responses);
+    assertThat(List.of(greeterOneResponse("Hello User1 #1"), greeterOneResponse("Hello User2 #1")))
+        .isEqualTo(responses);
   }
 
   @Test
   @DisplayName("GreeterOne/countGreetings: get and set state for multiple keys multiple times")
-  void countMultipleGreetingsTest() throws Exception {
+  void countMultipleGreetingsTest() {
     List<GreeterOneResponse> responses =
         List.of(
             runtime.invoke(GreeterOneGrpc.getCountGreetingsMethod(), greeterOneRequest("User1")),
@@ -72,20 +71,20 @@ public class GreeterTest {
             runtime.invoke(GreeterOneGrpc.getCountGreetingsMethod(), greeterOneRequest("User2")),
             runtime.invoke(GreeterOneGrpc.getCountGreetingsMethod(), greeterOneRequest("User2")));
 
-    assertEquals(
-        List.of(
-            greeterOneResponse("Hello User1 #1"),
-            greeterOneResponse("Hello User2 #1"),
-            greeterOneResponse("Hello User1 #2"),
-            greeterOneResponse("Hello User1 #3"),
-            greeterOneResponse("Hello User2 #2"),
-            greeterOneResponse("Hello User2 #3")),
-        responses);
+    assertThat(
+            List.of(
+                greeterOneResponse("Hello User1 #1"),
+                greeterOneResponse("Hello User2 #1"),
+                greeterOneResponse("Hello User1 #2"),
+                greeterOneResponse("Hello User1 #3"),
+                greeterOneResponse("Hello User2 #2"),
+                greeterOneResponse("Hello User2 #3")))
+        .isEqualTo(responses);
   }
 
   @Test
   @DisplayName("GreeterOne/resetGreetingCounter: set and clear state")
-  void resetGreetingCounter() throws Exception {
+  void resetGreetingCounter() {
     List<GreeterOneResponse> responses =
         List.of(
             runtime.invoke(GreeterOneGrpc.getCountGreetingsMethod(), greeterOneRequest("User1")),
@@ -93,17 +92,17 @@ public class GreeterTest {
             runtime.invoke(
                 GreeterOneGrpc.getResetGreetingCounterMethod(), greeterOneRequest("User1")));
 
-    assertEquals(
-        List.of(
-            greeterOneResponse("Hello User1 #1"),
-            greeterOneResponse("Hello User1 #2"),
-            greeterOneResponse("State got cleared")),
-        responses);
+    assertThat(
+            List.of(
+                greeterOneResponse("Hello User1 #1"),
+                greeterOneResponse("Hello User1 #2"),
+                greeterOneResponse("State got cleared")))
+        .isEqualTo(responses);
   }
 
   @Test
   @DisplayName("GreeterOne/resetGreetingCounter: set state, clear state, set state")
-  void resetAndSetGreetingTest() throws Exception {
+  void resetAndSetGreetingTest() {
     List<GreeterOneResponse> responses =
         List.of(
             runtime.invoke(GreeterOneGrpc.getCountGreetingsMethod(), greeterOneRequest("User1")),
@@ -111,49 +110,50 @@ public class GreeterTest {
                 GreeterOneGrpc.getResetGreetingCounterMethod(), greeterOneRequest("User1")),
             runtime.invoke(GreeterOneGrpc.getCountGreetingsMethod(), greeterOneRequest("User1")));
 
-    assertEquals(
-        List.of(
-            greeterOneResponse("Hello User1 #1"),
-            greeterOneResponse("State got cleared"),
-            greeterOneResponse("Hello User1 #1")),
-        responses);
+    assertThat(
+            List.of(
+                greeterOneResponse("Hello User1 #1"),
+                greeterOneResponse("State got cleared"),
+                greeterOneResponse("Hello User1 #1")))
+        .isEqualTo(responses);
   }
 
   @Test
   @DisplayName("GreeterOne/forwardGreeting: synchronous inter-service call")
-  void forwardGreetingTest() throws Exception {
+  void forwardGreetingTest() {
     GreeterOneResponse response =
         runtime.invoke(GreeterOneGrpc.getForwardGreetingMethod(), greeterOneRequest("User1"));
 
-    assertEquals(
-        GreeterOneResponse.newBuilder()
-            .setMessage("Greeting has been forwarded to GreeterTwo. Response was: Hello User1 #1")
-            .build(),
-        response);
+    assertThat(
+            GreeterOneResponse.newBuilder()
+                .setMessage(
+                    "Greeting has been forwarded to GreeterTwo. Response was: Hello User1 #1")
+                .build())
+        .isEqualTo(response);
   }
 
   @Test
   @DisplayName("GreeterOne/forwardBackgroundGreeting: async and sync inter-service calls")
-  void forwardBackgroundGreetingTest() throws Exception {
+  void forwardBackgroundGreetingTest() {
     List<GreeterOneResponse> responses =
         List.of(
             runtime.invoke(
                 GreeterOneGrpc.getForwardBackgroundGreetingMethod(), greeterOneRequest("User1")),
             runtime.invoke(GreeterOneGrpc.getForwardGreetingMethod(), greeterOneRequest("User1")));
 
-    assertEquals(
-        List.of(
-            greeterOneResponse(
-                "Greeting has been forwarded to GreeterTwo! Not waiting for a response."),
-            greeterOneResponse(
-                "Greeting has been forwarded to GreeterTwo. Response was: Hello User1 #2")),
-        responses);
+    assertThat(
+            List.of(
+                greeterOneResponse(
+                    "Greeting has been forwarded to GreeterTwo! Not waiting for a response."),
+                greeterOneResponse(
+                    "Greeting has been forwarded to GreeterTwo. Response was: Hello User1 #2")))
+        .isEqualTo(responses);
   }
 
   @Test
   @DisplayName(
       "GreeterOne/forwardGreeting: async and sync inter-service calls to different services")
-  void asyncAndSyncCallsTest() throws Exception {
+  void asyncAndSyncCallsTest() {
     GreeterOneResponse response1 =
         runtime.invoke(
             GreeterOneGrpc.getForwardBackgroundGreetingMethod(), greeterOneRequest("User1"));
@@ -163,63 +163,63 @@ public class GreeterTest {
     GreeterOneResponse response2 =
         runtime.invoke(GreeterOneGrpc.getForwardGreetingMethod(), greeterOneRequest("User1"));
 
-    assertEquals(
-        greeterOneResponse(
-            "Greeting has been forwarded to GreeterTwo! Not waiting for a response."),
-        response1);
-    assertEquals(
-        greeterOneResponse(
-            "Greeting has been forwarded to GreeterTwo. Response was: Hello User1 #3"),
-        response2);
+    assertThat(
+            greeterOneResponse(
+                "Greeting has been forwarded to GreeterTwo! Not waiting for a response."))
+        .isEqualTo(response1);
+    assertThat(
+            greeterOneResponse(
+                "Greeting has been forwarded to GreeterTwo. Response was: Hello User1 #3"))
+        .isEqualTo(response2);
   }
 
   @Test
   @DisplayName("GreeterOne/getMultipleGreetings: await multiple synchronous inter-service calls")
-  void getMultipleGreetingsTest() throws Exception {
+  void getMultipleGreetingsTest() {
     GreeterOneResponse response1 =
         runtime.invoke(GreeterOneGrpc.getGetMultipleGreetingsMethod(), greeterOneRequest("User1"));
 
-    assertEquals(
-        greeterOneResponse(
-            "Two greetings have been forwarded to GreeterTwo! Response: Hello User1 #1, Hello User1 #2"),
-        response1);
+    assertThat(
+            greeterOneResponse(
+                "Two greetings have been forwarded to GreeterTwo! Response: Hello User1 #1, Hello User1 #2"))
+        .isEqualTo(response1);
   }
 
   @Test
   @DisplayName(
       "GreeterOne/getOneOfMultipleGreetings: await multiple synchronous inter-service calls")
-  void getOneOfMultipleGreetings() throws Exception {
+  void getOneOfMultipleGreetings() {
     GreeterOneResponse response1 =
         runtime.invoke(
             GreeterOneGrpc.getGetOneOfMultipleGreetingsMethod(), greeterOneRequest("User1"));
 
-    assertEquals(
-        greeterOneResponse(
-            "Two greetings have been forwarded to GreeterTwo! Response: Hello User1 #1"),
-        response1);
+    assertThat(
+            greeterOneResponse(
+                "Two greetings have been forwarded to GreeterTwo! Response: Hello User1 #1"))
+        .isEqualTo(response1);
   }
 
   @Test
   @DisplayName("GreeterOne/greetWithSideEffect: side effect.")
-  void greetWithSideEffectTest() throws Exception {
+  void greetWithSideEffectTest() {
     GreeterOneResponse response =
         runtime.invoke(GreeterOneGrpc.getGreetWithSideEffectMethod(), greeterOneRequest("User1"));
 
-    assertEquals(greeterOneResponse("Hello"), response);
+    assertThat(greeterOneResponse("Hello")).isEqualTo(response);
   }
 
   @Test
   @DisplayName("GreeterOne/sleepAndGetWokenUp: awakeable and unkeyed service")
-  void sleepAndGetWokenUpTest() throws Exception {
+  void sleepAndGetWokenUpTest() {
     GreeterOneResponse response =
         runtime.invoke(GreeterOneGrpc.getSleepAndGetWokenUpMethod(), greeterOneRequest("User1"));
 
-    assertEquals(greeterOneResponse("Wake up!"), response);
+    assertThat(greeterOneResponse("Wake up!")).isEqualTo(response);
   }
 
   @Test
   @DisplayName("GreeterThree/countAllGreetings: singleton service")
-  void countAllGreetingsTest() throws Exception {
+  void countAllGreetingsTest() {
     List<GreeterThreeResponse> responses =
         List.of(
             runtime.invoke(
@@ -231,13 +231,13 @@ public class GreeterTest {
             runtime.invoke(
                 GreeterThreeGrpc.getCountAllGreetingsMethod(), greeterThreeRequest("User1")));
 
-    assertEquals(
-        List.of(
-            greeterThreeResponse("Hello User1, you are greeter #1"),
-            greeterThreeResponse("Hello User2, you are greeter #2"),
-            greeterThreeResponse("Hello User2, you are greeter #3"),
-            greeterThreeResponse("Hello User1, you are greeter #4")),
-        responses);
+    assertThat(
+            List.of(
+                greeterThreeResponse("Hello User1, you are greeter #1"),
+                greeterThreeResponse("Hello User2, you are greeter #2"),
+                greeterThreeResponse("Hello User2, you are greeter #3"),
+                greeterThreeResponse("Hello User1, you are greeter #4")))
+        .isEqualTo(responses);
   }
 
   private GreeterOneRequest greeterOneRequest(String name) {
