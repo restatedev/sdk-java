@@ -16,17 +16,13 @@ class StateStore {
     this.state = new HashMap<>();
   }
 
-  private static class StateStoreHelper {
-    private static final StateStore INSTANCE = new StateStore();
+  public static StateStore init() {
+    return new StateStore();
   }
 
-  public static StateStore get() {
-    return StateStoreHelper.INSTANCE;
-  }
-
-  public static void close() {
+  public void close() {
     LOG.debug("Closing state store instance");
-    StateStoreHelper.INSTANCE.state.clear();
+    state.clear();
   }
 
   public ByteString get(String serviceName, String instanceKey, ByteString key) {

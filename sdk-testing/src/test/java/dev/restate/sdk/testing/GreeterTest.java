@@ -26,12 +26,12 @@ class GreeterTest {
 
   @AfterEach
   public void teardown() {
-    TestRestateRuntime.close();
+    runtime.close();
   }
 
   @Test
   @DisplayName("GreeterOne/greet: send response")
-  void greetTest() throws Exception {
+  void greetTest() {
     GreeterOneResponse response =
         runtime.invoke(GreeterOneGrpc.getGreetMethod(), greeterOneRequest("User1"));
 
@@ -40,7 +40,7 @@ class GreeterTest {
 
   @Test
   @DisplayName("GreeterOne/storeAndGreet: get and set state")
-  void storeAndGreetTest() throws Exception {
+  void storeAndGreetTest() {
     GreeterOneResponse response =
         runtime.invoke(GreeterOneGrpc.getStoreAndGreetMethod(), greeterOneRequest("User1"));
 

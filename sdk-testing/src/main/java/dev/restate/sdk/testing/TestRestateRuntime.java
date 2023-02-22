@@ -21,6 +21,7 @@ public final class TestRestateRuntime {
   private static final Logger LOG = LogManager.getLogger(TestRestateRuntime.class);
   private CompletableFuture<Protocol.OutputStreamEntryMessage> future;
   private String rootCallerId;
+  private final StateStore stateStore;
   private final RestateGrpcServer server;
   private final List<ServerServiceDefinition> services;
   private Protocol.OutputStreamEntryMessage testResult;
@@ -31,6 +32,7 @@ public final class TestRestateRuntime {
   private TestRestateRuntime(BindableService... bindableServices) {
     this.invocationProcessorHashMap = new HashMap<>();
     this.calleeToCallerInvocationIds = new HashMap<>();
+    this.stateStore = StateStore.init();
     this.services =
         Arrays.asList(bindableServices).stream()
             .map(BindableService::bindService)
@@ -48,8 +50,8 @@ public final class TestRestateRuntime {
     return new TestRestateRuntime(services);
   }
 
-  public static void close() {
-    StateStore.close();
+  public void close() {
+    stateStore.close();
     LOG.debug("Closing TestRestateRuntime");
   }
 
@@ -76,6 +78,13 @@ public final class TestRestateRuntime {
     } catch (InterruptedException | ExecutionException e) {
       throw new StatusRuntimeException(Status.UNKNOWN.withDescription(e.getMessage()));
     }
+
+    if (outputMsg.hasFailure()) {
+      throw new StatusRuntimeException(
+          Status.fromCodeValue(outputMsg.getFailure().getCode())
+              .withDescription(outputMsg.getFailure().getMessage()));
+    }
+
     return methodDescriptor.parseResponse(outputMsg.getValue().newInput());
   }
 
@@ -351,7 +360,7 @@ public final class TestRestateRuntime {
       } else if (t instanceof Protocol.GetStateEntryMessage) {
         Protocol.GetStateEntryMessage msg = (Protocol.GetStateEntryMessage) t;
         LOG.trace("Received GetStateEntryMessage: " + msg);
-        ByteString value = StateStore.get().get(serviceName, instanceKey, msg.getKey());
+        ByteString value = stateStore.get(serviceName, instanceKey, msg.getKey());
         if (value != null) {
           routeMessage(
               Protocol.CompletionMessage.newBuilder()
@@ -369,12 +378,12 @@ public final class TestRestateRuntime {
       } else if (t instanceof Protocol.SetStateEntryMessage) {
         Protocol.SetStateEntryMessage msg = (Protocol.SetStateEntryMessage) t;
         LOG.trace("Received SetStateEntryMessage: " + msg);
-        StateStore.get().set(serviceName, instanceKey, msg.getKey(), msg.getValue());
+        stateStore.set(serviceName, instanceKey, msg.getKey(), msg.getValue());
 
       } else if (t instanceof Protocol.ClearStateEntryMessage) {
         Protocol.ClearStateEntryMessage msg = (Protocol.ClearStateEntryMessage) t;
         LOG.trace("Received ClearStateEntryMessage: " + msg);
-        StateStore.get().clear(serviceName, instanceKey, msg.getKey());
+        stateStore.clear(serviceName, instanceKey, msg.getKey());
 
       } else if (t instanceof Protocol.InvokeEntryMessage) {
         Protocol.InvokeEntryMessage msg = (Protocol.InvokeEntryMessage) t;
