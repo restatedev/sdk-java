@@ -70,11 +70,13 @@ public final class TestRestateRuntime {
         Protocol.PollInputStreamEntryMessage.newBuilder().setValue(msg.toByteString()).build(),
         null);
 
+    Protocol.OutputStreamEntryMessage outputMsg;
     try {
-      return methodDescriptor.parseResponse(future.get().getValue().newInput());
+      outputMsg = future.get();
     } catch (InterruptedException | ExecutionException e) {
       throw new StatusRuntimeException(Status.UNKNOWN.withDescription(e.getMessage()));
     }
+    return methodDescriptor.parseResponse(outputMsg.getValue().newInput());
   }
 
   // Gets called for new service calls: either test input messages or inter-service calls
