@@ -14,9 +14,7 @@ message StartMessage {
   bytes invocation_id = 1;
   bytes instance_key = 2;
 
-  uint32 known_service_version = 3;
-
-  uint32 known_entries = 4;
+  uint32 known_entries = 3;
 }
 
 // Type: 0x0000 + 1
