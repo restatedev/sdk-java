@@ -36,8 +36,7 @@ class InvocationIdTest extends CoreTestRunner {
                 Protocol.StartMessage.newBuilder()
                     .setInstanceKey(instanceKey)
                     .setInvocationId(invocationId)
-                    .setKnownEntries(1)
-                    .setKnownServiceVersion(1),
+                    .setKnownEntries(1),
                 inputMessage(GreetingRequest.getDefaultInstance()))
             .usingThreadingModels(ThreadingModel.UNBUFFERED_MULTI_THREAD)
             .expectingOutput(

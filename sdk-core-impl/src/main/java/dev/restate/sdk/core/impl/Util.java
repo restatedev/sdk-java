@@ -14,10 +14,6 @@ public final class Util {
 
   static Status SUSPENDED_STATUS = Status.INTERNAL.withCause(SuspendedException.INSTANCE);
 
-  static boolean isGoogleProtobufEmpty(Object o) {
-    return o.getClass().getName().equals("com.google.protobuf.Empty");
-  }
-
   /**
    * Finds a throwable fulfilling the condition in the cause chain of the given throwable. If there
    * is none, then the method returns an empty optional.

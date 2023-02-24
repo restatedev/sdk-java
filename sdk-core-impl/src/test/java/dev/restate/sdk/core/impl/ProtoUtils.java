@@ -16,8 +16,7 @@ public class ProtoUtils {
     return Protocol.StartMessage.newBuilder()
         .setInstanceKey(ByteString.copyFromUtf8("abc"))
         .setInvocationId(ByteString.copyFromUtf8("123"))
-        .setKnownEntries(entries)
-        .setKnownServiceVersion(1);
+        .setKnownEntries(entries);
   }
 
   public static Protocol.CompletionMessage completionMessage(int index, String value) {

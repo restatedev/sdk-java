@@ -2,6 +2,8 @@ package dev.restate.sdk.vertx
 
 import com.google.protobuf.ByteString
 import com.google.protobuf.MessageLite
+import dev.restate.generated.service.discovery.Discovery.ServiceDiscoveryRequest
+import dev.restate.generated.service.discovery.Discovery.ServiceDiscoveryResponse
 import dev.restate.generated.service.protocol.Protocol.*
 import dev.restate.sdk.core.impl.ProtoUtils.*
 import dev.restate.sdk.core.impl.testservices.*
@@ -153,5 +155,44 @@ internal class RestateHttpEndpointTest {
 
         response.end().await()
         request.end().await()
+      }
+
+  @Test
+  fun serviceDiscovery(vertx: Vertx): Unit =
+      runBlocking(vertx.dispatcher()) {
+        val endpointPort: Int =
+            RestateHttpEndpointBuilder.builder(vertx)
+                .withService(BlockingGreeterService())
+                .withOptions(HttpServerOptions().setPort(0))
+                .build()
+                .listen()
+                .await()
+                .actualPort()
+
+        val client = vertx.createHttpClient(HTTP_CLIENT_OPTIONS)
+
+        // Send request
+        val request =
+            client.request(HttpMethod.POST, endpointPort, "localhost", "/discover").await()
+        request
+            .putHeader(HttpHeaders.CONTENT_TYPE, "application/proto")
+            .end(Buffer.buffer(ServiceDiscoveryRequest.getDefaultInstance().toByteArray()))
+            .await()
+
+        // Assert response
+        val response = request.response().await()
+
+        // Response status and content type header
+        assertThat(response.statusCode()).isEqualTo(HttpResponseStatus.OK.code())
+        assertThat(response.getHeader(HttpHeaders.CONTENT_TYPE)).isEqualTo("application/proto")
+
+        // Parse response
+        val responseBody = response.body().await()
+        val serviceDiscoveryResponse = ServiceDiscoveryResponse.parseFrom(responseBody.bytes)
+        assertThat(serviceDiscoveryResponse.servicesList).containsOnly(GreeterGrpc.SERVICE_NAME)
+        assertThat(serviceDiscoveryResponse.filesList)
+            .map<String> { it.name }
+            .containsExactlyInAnyOrder(
+                "dev/restate/ext.proto", "google/protobuf/descriptor.proto", "greeter.proto")
       }
 }

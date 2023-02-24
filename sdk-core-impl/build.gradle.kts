@@ -21,6 +21,7 @@ dependencies {
 
   implementation(coreLibs.protobuf.java)
   implementation(coreLibs.grpc.api)
+  implementation(coreLibs.grpc.protobuf)
   implementation(coreLibs.log4j.api)
 
   implementation(platform(coreLibs.opentelemetry.bom))

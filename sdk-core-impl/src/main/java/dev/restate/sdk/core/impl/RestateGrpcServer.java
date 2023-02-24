@@ -1,6 +1,7 @@
 package dev.restate.sdk.core.impl;
 
 import com.google.protobuf.MessageLite;
+import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.sdk.core.InvocationId;
 import dev.restate.sdk.core.serde.Serde;
 import dev.restate.sdk.core.syscalls.Syscalls;
@@ -27,12 +28,14 @@ public class RestateGrpcServer {
   private final Map<String, ServerServiceDefinition> services;
   private final Serde serde;
   private final Tracer tracer;
+  private final ServiceDiscoveryHandler serviceDiscoveryHandler;
 
   private RestateGrpcServer(
       Map<String, ServerServiceDefinition> services, Serde serde, Tracer tracer) {
     this.services = services;
     this.serde = serde;
     this.tracer = tracer;
+    this.serviceDiscoveryHandler = new ServiceDiscoveryHandler(services);
   }
 
   @SuppressWarnings("unchecked")
@@ -114,6 +117,11 @@ public class RestateGrpcServer {
             });
       }
     };
+  }
+
+  public Discovery.ServiceDiscoveryResponse handleDiscoveryRequest(
+      Discovery.ServiceDiscoveryRequest request) {
+    return this.serviceDiscoveryHandler.handle(request);
   }
 
   // -- Builder
