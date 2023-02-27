@@ -11,7 +11,6 @@ import io.grpc.*;
 import io.grpc.protobuf.ProtoMethodDescriptorSupplier;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -19,15 +18,17 @@ import org.apache.logging.log4j.Logger;
 public final class TestRestateRuntime {
 
   private static final Logger LOG = LogManager.getLogger(TestRestateRuntime.class);
-  private CompletableFuture<Protocol.OutputStreamEntryMessage> future;
-  private String rootCallerId;
+
   private final StateStore stateStore;
   private final RestateGrpcServer server;
   private final List<ServerServiceDefinition> services;
-  private Protocol.OutputStreamEntryMessage testResult;
   private final HashMap<String, InvocationProcessor> invocationProcessorHashMap;
   // For inter-service calls, we need to keep track of where the response needs to go
   private final HashMap<String, String> calleeToCallerInvocationIds;
+
+  private Protocol.OutputStreamEntryMessage testResult;
+  private CompletableFuture<Protocol.OutputStreamEntryMessage> future;
+  private String rootCallerId;
 
   private TestRestateRuntime(BindableService... bindableServices) {
     this.invocationProcessorHashMap = new HashMap<>();
@@ -76,7 +77,7 @@ public final class TestRestateRuntime {
     try {
       outputMsg = future.get();
     } catch (InterruptedException | ExecutionException e) {
-      throw new StatusRuntimeException(Status.UNKNOWN.withDescription(e.getMessage()));
+      throw Status.fromThrowable(e).asRuntimeException();
     }
 
     if (outputMsg.hasFailure()) {
@@ -253,7 +254,6 @@ public final class TestRestateRuntime {
     private final String functionInvocationId;
     private final Collection<MessageLite> elements;
 
-    private final AtomicBoolean publisherSubscriptionCancelled;
     private Flow.Subscriber<? super MessageLite>
         publisher; // publisher = ExceptionCatchingInvocationInputSubscriber
 
@@ -275,7 +275,6 @@ public final class TestRestateRuntime {
       this.instanceKey = instanceKey;
       this.functionInvocationId = functionInvocationId;
       this.elements = elements;
-      this.publisherSubscriptionCancelled = new AtomicBoolean(false);
     }
 
     // PUBLISHER LOGIC: to send messages to the service
@@ -285,14 +284,9 @@ public final class TestRestateRuntime {
       this.publisher = publisher;
       this.currentJournalIndex = 0;
       this.outputSubscription =
-          new PublishSubscription<MessageLite>(
-              publisher, new ArrayDeque<>(elements), publisherSubscriptionCancelled);
+          new PublishSubscription<MessageLite>(publisher, new ArrayDeque<>(elements));
 
       publisher.onSubscribe(this.outputSubscription);
-    }
-
-    public boolean getPublisherSubscriptionCancelled() {
-      return publisherSubscriptionCancelled.get();
     }
 
     // SUBSCRIBER LOGIC: to receive input from the service

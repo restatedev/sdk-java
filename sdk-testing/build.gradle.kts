@@ -14,8 +14,6 @@ plugins {
   `maven-publish`
 }
 
-sourceSets { main { proto { srcDirs("src/main/sdk-proto", "src/main/service-protocol") } } }
-
 dependencies {
   api(project(":sdk-core"))
   implementation(project(":sdk-core-impl"))
@@ -28,14 +26,10 @@ dependencies {
 
   implementation(platform(coreLibs.opentelemetry.bom))
   implementation(coreLibs.opentelemetry.api)
-  implementation(coreLibs.opentelemetry.semconv)
-
-  implementation(testingLibs.assertj)
-
   testCompileOnly(coreLibs.javax.annotation.api)
 
-  testImplementation(project(":sdk-core-impl"))
   testImplementation(project(":sdk-blocking"))
+  testImplementation(testingLibs.assertj)
   testImplementation(testingLibs.junit.jupiter)
   testImplementation(testingLibs.assertj)
   testImplementation(coreLibs.grpc.stub)
