@@ -30,6 +30,8 @@ service GreeterOne {
   rpc GreetWithSideEffect (GreeterOneRequest) returns (GreeterOneResponse);
 
   rpc SleepAndGetWokenUp (GreeterOneRequest) returns (GreeterOneResponse);
+
+  rpc UseTimer (GreeterOneRequest) returns (GreeterOneResponse);
 }
 
 message GreeterOneRequest {

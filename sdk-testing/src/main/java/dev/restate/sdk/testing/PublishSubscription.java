@@ -7,9 +7,7 @@ class PublishSubscription<MessageLite> implements Flow.Subscription {
   private final Flow.Subscriber<? super MessageLite> subscriber;
   private final Queue<MessageLite> queue;
 
-  PublishSubscription(
-      Flow.Subscriber<? super MessageLite> subscriber,
-      Queue<MessageLite> queue) {
+  PublishSubscription(Flow.Subscriber<? super MessageLite> subscriber, Queue<MessageLite> queue) {
     this.subscriber = subscriber;
     this.queue = queue;
   }
@@ -22,7 +20,5 @@ class PublishSubscription<MessageLite> implements Flow.Subscription {
   }
 
   @Override
-  public void cancel() {
-
-  }
+  public void cancel() {}
 }

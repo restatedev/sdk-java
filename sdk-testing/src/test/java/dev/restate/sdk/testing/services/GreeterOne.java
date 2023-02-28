@@ -9,6 +9,7 @@ import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.testing.testservices.*;
 import io.grpc.stub.StreamObserver;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Optional;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -217,6 +218,17 @@ public class GreeterOne extends GreeterOneGrpc.GreeterOneImplBase
     String output = a1.await();
 
     responseObserver.onNext(GreeterOneResponse.newBuilder().setMessage(output).build());
+    responseObserver.onCompleted();
+  }
+
+  @Override
+  public void useTimer(
+      GreeterOneRequest request, StreamObserver<GreeterOneResponse> responseObserver) {
+    RestateContext ctx = restateContext();
+
+    ctx.timer(Duration.ofMillis(1000));
+
+    responseObserver.onNext(GreeterOneResponse.newBuilder().setMessage("Done sleeping").build());
     responseObserver.onCompleted();
   }
 }

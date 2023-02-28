@@ -22,17 +22,10 @@ public final class TestRestateRuntime {
   private final StateStore stateStore;
   private final RestateGrpcServer server;
   private final List<ServerServiceDefinition> services;
-  private final HashMap<String, InvocationProcessor> invocationProcessorHashMap;
-  // For inter-service calls, we need to keep track of where the response needs to go
-  private final HashMap<String, String> calleeToCallerInvocationIds;
-
-  private Protocol.OutputStreamEntryMessage testResult;
-  private CompletableFuture<Protocol.OutputStreamEntryMessage> future;
-  private String rootCallerId;
+  private final HashMap<String, CompletableFuture<? super MessageLite>> invocationFuturesHashMap;
 
   private TestRestateRuntime(BindableService... bindableServices) {
-    this.invocationProcessorHashMap = new HashMap<>();
-    this.calleeToCallerInvocationIds = new HashMap<>();
+    this.invocationFuturesHashMap = new HashMap<>();
     this.stateStore = StateStore.init();
     this.services =
         Arrays.asList(bindableServices).stream()
@@ -57,9 +50,10 @@ public final class TestRestateRuntime {
   }
 
   public <T extends MessageLiteOrBuilder, R extends MessageLiteOrBuilder> R invoke(
-      MethodDescriptor<T, R> methodDescriptor, T parameter) {
-    // Beginning of new request so reset future.
-    future = new CompletableFuture<>();
+      MethodDescriptor<T, R> methodDescriptor, T parameter) throws Exception {
+    var future = new CompletableFuture<>();
+    String invocationId = UUID.randomUUID().toString();
+    invocationFuturesHashMap.put(invocationId, future);
 
     MessageLite msg =
         (parameter instanceof MessageLite)
@@ -68,41 +62,35 @@ public final class TestRestateRuntime {
 
     // Handle the call
     handle(
+        invocationId,
         methodDescriptor.getServiceName(),
         methodDescriptor.getBareMethodName(),
-        Protocol.PollInputStreamEntryMessage.newBuilder().setValue(msg.toByteString()).build(),
-        null);
+        Protocol.PollInputStreamEntryMessage.newBuilder().setValue(msg.toByteString()).build());
 
     Protocol.OutputStreamEntryMessage outputMsg;
     try {
-      outputMsg = future.get();
-    } catch (InterruptedException | ExecutionException e) {
-      throw Status.fromThrowable(e).asRuntimeException();
+      outputMsg = (Protocol.OutputStreamEntryMessage) future.get();
+    } catch (ExecutionException e) {
+      throw (Exception) e.getCause();
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e.getMessage(), e.getCause());
     }
 
     if (outputMsg.hasFailure()) {
-      throw new StatusRuntimeException(
-          Status.fromCodeValue(outputMsg.getFailure().getCode())
-              .withDescription(outputMsg.getFailure().getMessage()));
+      throw Status.fromCodeValue(outputMsg.getFailure().getCode())
+          .withDescription(outputMsg.getFailure().getMessage())
+          .asRuntimeException();
     }
 
     return methodDescriptor.parseResponse(outputMsg.getValue().newInput());
   }
 
   // Gets called for new service calls: either test input messages or inter-service calls
-  // callerInvocationId is the function invocation ID of the service which did the call.
   private void handle(
+      String invocationId,
       String serviceName,
       String method,
-      Protocol.PollInputStreamEntryMessage inputMessage,
-      String callerInvocationId) {
-    String invocationId = UUID.randomUUID().toString();
-    if (callerInvocationId == null) {
-      // Register the ID of the call of the external test client (callerInvocationId == null)
-      // When we receive the oncomplete call of the invocation processor with this id,
-      // we will know the test is over.
-      rootCallerId = invocationId;
-    }
+      Protocol.PollInputStreamEntryMessage inputMessage) {
 
     // Create invocation handler on the side of the service
     InvocationHandler serviceInvocationStateMachineHandler =
@@ -120,15 +108,9 @@ public final class TestRestateRuntime {
             .build();
     List<MessageLite> inputMessages = List.of(startMessage, inputMessage);
 
-    if (callerInvocationId != null) {
-      // For inter-service calls, register where the response needs to go
-      calleeToCallerInvocationIds.put(invocationId, callerInvocationId);
-    }
-
     // Create a new invocation processor on the runtime-side
     InvocationProcessor invocationProcessor =
-        new InvocationProcessor(serviceName, instanceKey, invocationId, inputMessages);
-    invocationProcessorHashMap.put(invocationId, invocationProcessor);
+        new InvocationProcessor(invocationId, serviceName, instanceKey, inputMessages);
 
     // Wire invocation processor with the service-side state machine
     serviceInvocationStateMachineHandler.output().subscribe(invocationProcessor);
@@ -136,51 +118,6 @@ public final class TestRestateRuntime {
 
     // Start invocation
     serviceInvocationStateMachineHandler.start();
-  }
-
-  /**
-   * Handles the output messages of calls. There are two options: - They are test results and need
-   * to be added to the result list. - They are responses to inter-service calls and the response
-   * needs to be forwarded to the caller.
-   */
-  private void handleCallResult(
-      String functionInvocationId, Protocol.OutputStreamEntryMessage msg) {
-    if (calleeToCallerInvocationIds.containsKey(functionInvocationId)) {
-      // This was an inter-service call, redirect the answer
-      LOG.debug("Forwarding inter-service call result");
-      String callerInvocationId = calleeToCallerInvocationIds.get(functionInvocationId);
-      // If this was a background call, the caller invocation Id was set to "ignore".
-      // Only send a response to the caller, if it was not a background call.
-      if (!callerInvocationId.equals("ignore")) {
-        InvocationProcessor caller = invocationProcessorHashMap.get(callerInvocationId);
-        caller.handleCompletionMessage(msg.getValue());
-      }
-    } else {
-      // This is a test result; add it to the list
-      LOG.debug("Set message as result");
-      testResult = msg;
-    }
-  }
-
-  private void handleAwakeableCompletion(
-      String functionInvocationId, Protocol.CompleteAwakeableEntryMessage msg) {
-    InvocationProcessor caller = invocationProcessorHashMap.get(functionInvocationId);
-    caller.routeMessage(
-        Protocol.CompletionMessage.newBuilder()
-            .setEntryIndex(msg.getEntryIndex())
-            .setValue(msg.getPayload())
-            .build());
-  }
-
-  private void onError(Throwable throwable) {
-    this.future.completeExceptionally(throwable);
-  }
-
-  private void onComplete(String invocationId) {
-    if (invocationId.equals(rootCallerId)) {
-      // root call has been completed so end the test
-      this.future.complete(testResult);
-    }
   }
 
   private Object extractKey(
@@ -267,9 +204,9 @@ public final class TestRestateRuntime {
     private int currentJournalIndex;
 
     public InvocationProcessor(
+        String functionInvocationId,
         String serviceName,
         String instanceKey,
-        String functionInvocationId,
         Collection<MessageLite> elements) {
       this.serviceName = serviceName;
       this.instanceKey = instanceKey;
@@ -283,8 +220,7 @@ public final class TestRestateRuntime {
     public void subscribe(Flow.Subscriber<? super MessageLite> publisher) {
       this.publisher = publisher;
       this.currentJournalIndex = 0;
-      this.outputSubscription =
-          new PublishSubscription<MessageLite>(publisher, new ArrayDeque<>(elements));
+      this.outputSubscription = new PublishSubscription<>(publisher, new ArrayDeque<>(elements));
 
       publisher.onSubscribe(this.outputSubscription);
     }
@@ -308,31 +244,20 @@ public final class TestRestateRuntime {
 
     @Override
     public void onError(Throwable throwable) {
-      TestRestateRuntime.this.onError(throwable);
+      var future = TestRestateRuntime.this.invocationFuturesHashMap.get(functionInvocationId);
+      future.completeExceptionally(throwable);
     }
 
     @Override
     public void onComplete() {
       LOG.trace("End of test: Gathering output messages");
       if (inputSubscription != null) {
-        LOG.trace("End of test: Canceling input subscription");
         this.inputSubscription.cancel();
       }
       if (this.publisher != null) {
-        LOG.trace("End of test: Closing publisher");
         this.publisher.onComplete();
       }
       LOG.trace("End of test: Closing the runtime state machine");
-
-      TestRestateRuntime.this.onComplete(functionInvocationId);
-    }
-
-    private void handleCompletionMessage(ByteString value) {
-      routeMessage(
-          Protocol.CompletionMessage.newBuilder()
-              .setEntryIndex(currentJournalIndex)
-              .setValue(value)
-              .build());
     }
 
     // All messages that go through the runtime go through this handler.
@@ -347,14 +272,27 @@ public final class TestRestateRuntime {
 
       } else if (t instanceof Protocol.OutputStreamEntryMessage) {
         LOG.trace("Handling call result");
-        TestRestateRuntime.this.handleCallResult(
-            functionInvocationId, (Protocol.OutputStreamEntryMessage) t);
-        onComplete();
+        Protocol.OutputStreamEntryMessage msg = (Protocol.OutputStreamEntryMessage) t;
+        var future = TestRestateRuntime.this.invocationFuturesHashMap.get(functionInvocationId);
+
+        // if the invocation id is not present in the map, then it was a background call
+        if (future != null) {
+          if (msg.hasValue()) {
+            future.complete(t);
+            onComplete();
+          } else {
+            onError(
+                Status.fromCodeValue(msg.getFailure().getCode())
+                    .withDescription(msg.getFailure().getMessage())
+                    .asRuntimeException());
+          }
+        }
 
       } else if (t instanceof Protocol.GetStateEntryMessage) {
         Protocol.GetStateEntryMessage msg = (Protocol.GetStateEntryMessage) t;
         LOG.trace("Received GetStateEntryMessage: " + msg);
-        ByteString value = stateStore.get(serviceName, instanceKey, msg.getKey());
+        ByteString value =
+            TestRestateRuntime.this.stateStore.get(serviceName, instanceKey, msg.getKey());
         if (value != null) {
           routeMessage(
               Protocol.CompletionMessage.newBuilder()
@@ -372,23 +310,18 @@ public final class TestRestateRuntime {
       } else if (t instanceof Protocol.SetStateEntryMessage) {
         Protocol.SetStateEntryMessage msg = (Protocol.SetStateEntryMessage) t;
         LOG.trace("Received SetStateEntryMessage: " + msg);
-        stateStore.set(serviceName, instanceKey, msg.getKey(), msg.getValue());
+        TestRestateRuntime.this.stateStore.set(
+            serviceName, instanceKey, msg.getKey(), msg.getValue());
 
       } else if (t instanceof Protocol.ClearStateEntryMessage) {
         Protocol.ClearStateEntryMessage msg = (Protocol.ClearStateEntryMessage) t;
         LOG.trace("Received ClearStateEntryMessage: " + msg);
-        stateStore.clear(serviceName, instanceKey, msg.getKey());
+        TestRestateRuntime.this.stateStore.clear(serviceName, instanceKey, msg.getKey());
 
       } else if (t instanceof Protocol.InvokeEntryMessage) {
         Protocol.InvokeEntryMessage msg = (Protocol.InvokeEntryMessage) t;
         LOG.trace("Handling InvokeEntryMessage: " + msg);
-
-        // Let the runtime create an invocation processor to handle the call
-        TestRestateRuntime.this.handle(
-            msg.getServiceName(),
-            msg.getMethodName(),
-            Protocol.PollInputStreamEntryMessage.newBuilder().setValue(msg.getParameter()).build(),
-            functionInvocationId);
+        handleInvokeEntryMessage(msg);
 
       } else if (t instanceof Protocol.BackgroundInvokeEntryMessage) {
         Protocol.BackgroundInvokeEntryMessage msg = (Protocol.BackgroundInvokeEntryMessage) t;
@@ -398,10 +331,10 @@ public final class TestRestateRuntime {
         // We set the caller id to "ignore" because we do not want a response.
         // The response will then be ignored by runtime.
         TestRestateRuntime.this.handle(
+            UUID.randomUUID().toString(),
             msg.getServiceName(),
             msg.getMethodName(),
-            Protocol.PollInputStreamEntryMessage.newBuilder().setValue(msg.getParameter()).build(),
-            "ignore");
+            Protocol.PollInputStreamEntryMessage.newBuilder().setValue(msg.getParameter()).build());
 
       } else if (t instanceof Java.SideEffectEntryMessage) {
         Java.SideEffectEntryMessage msg = (Java.SideEffectEntryMessage) t;
@@ -409,18 +342,23 @@ public final class TestRestateRuntime {
         // Immediately send back acknowledgment of side effect
         Protocol.CompletionMessage completionMessage =
             Protocol.CompletionMessage.newBuilder().setEntryIndex(currentJournalIndex).build();
-        publisher.onNext(completionMessage);
+        routeMessage(completionMessage);
 
       } else if (t instanceof Protocol.AwakeableEntryMessage) {
         Protocol.AwakeableEntryMessage msg = (Protocol.AwakeableEntryMessage) t;
         LOG.trace("Received AwakeableEntryMessage: " + msg);
-        // The test runtime doesn't do anything with these messages.
+        handleAwakeableEntryMessage();
 
       } else if (t instanceof Protocol.CompleteAwakeableEntryMessage) {
         Protocol.CompleteAwakeableEntryMessage msg = (Protocol.CompleteAwakeableEntryMessage) t;
         LOG.trace("Received CompleteAwakeableEntryMessage: " + msg);
-        TestRestateRuntime.this.handleAwakeableCompletion(
-            msg.getInvocationId().toStringUtf8(), msg);
+
+        var future =
+            TestRestateRuntime.this.invocationFuturesHashMap.get(
+                msg.getInvocationId().toStringUtf8() + "-awake");
+        if (future != null) {
+          future.complete(msg);
+        }
 
       } else if (t instanceof Java.CombinatorAwaitableEntryMessage) {
         Java.CombinatorAwaitableEntryMessage msg = (Java.CombinatorAwaitableEntryMessage) t;
@@ -428,9 +366,10 @@ public final class TestRestateRuntime {
         // The test runtime doesn't do anything with these messages.
 
       } else if (t instanceof Protocol.SleepEntryMessage) {
-        throw new IllegalStateException(
-            "This type is not yet implemented in the test runtime: "
-                + t.getClass().toGenericString());
+        LOG.info(
+            "We do not have full timer support in the test runtime: Timer gets completed immediately without sleeping.");
+        routeMessage(
+            Protocol.CompletionMessage.newBuilder().setEntryIndex(currentJournalIndex).build());
 
       } else if (t instanceof Protocol.StartMessage) {
         throw new IllegalStateException("Start message should not end up in router.");
@@ -438,6 +377,56 @@ public final class TestRestateRuntime {
         throw new IllegalStateException(
             "This type is not implemented in the test runtime: " + t.getClass().toGenericString());
       }
+    }
+
+    public void handleInvokeEntryMessage(Protocol.InvokeEntryMessage msg){
+      String invocationId = UUID.randomUUID().toString();
+      CompletableFuture<? super MessageLite> future = new CompletableFuture<>();
+      future.handle(
+              (resp, throwable) -> {
+                if (throwable == null) {
+                  routeMessage(
+                          Protocol.CompletionMessage.newBuilder()
+                                  .setEntryIndex(currentJournalIndex)
+                                  .setValue(
+                                          ((Protocol.OutputStreamEntryMessage) resp)
+                                                  .getValue())
+                                  .build());
+                  return null;
+                } else {
+                  onError(throwable);
+                  return null;
+                }
+              });
+      TestRestateRuntime.this.invocationFuturesHashMap.put(invocationId, future);
+      TestRestateRuntime.this.handle(
+              invocationId,
+              msg.getServiceName(),
+              msg.getMethodName(),
+              Protocol.PollInputStreamEntryMessage.newBuilder().setValue(msg.getParameter()).build());
+    }
+
+    public void handleAwakeableEntryMessage(){
+      CompletableFuture<? super MessageLite> future = new CompletableFuture<>();
+      future.handle(
+              (resp, throwable) -> {
+                if (throwable == null) {
+                  Protocol.CompleteAwakeableEntryMessage completeAwakeMsg =
+                          (Protocol.CompleteAwakeableEntryMessage) resp;
+                  routeMessage(
+                          Protocol.CompletionMessage.newBuilder()
+                                  .setEntryIndex(completeAwakeMsg.getEntryIndex())
+                                  .setValue(completeAwakeMsg.getPayload())
+                                  .build());
+                  return null;
+                } else {
+                  onError(throwable);
+                  return null;
+                }
+              });
+
+      TestRestateRuntime.this.invocationFuturesHashMap.put(
+              functionInvocationId + "-awake", future);
     }
   }
 }
