@@ -379,54 +379,51 @@ public final class TestRestateRuntime {
       }
     }
 
-    public void handleInvokeEntryMessage(Protocol.InvokeEntryMessage msg){
+    public void handleInvokeEntryMessage(Protocol.InvokeEntryMessage msg) {
       String invocationId = UUID.randomUUID().toString();
       CompletableFuture<? super MessageLite> future = new CompletableFuture<>();
       future.handle(
-              (resp, throwable) -> {
-                if (throwable == null) {
-                  routeMessage(
-                          Protocol.CompletionMessage.newBuilder()
-                                  .setEntryIndex(currentJournalIndex)
-                                  .setValue(
-                                          ((Protocol.OutputStreamEntryMessage) resp)
-                                                  .getValue())
-                                  .build());
-                  return null;
-                } else {
-                  onError(throwable);
-                  return null;
-                }
-              });
+          (resp, throwable) -> {
+            if (throwable == null) {
+              routeMessage(
+                  Protocol.CompletionMessage.newBuilder()
+                      .setEntryIndex(currentJournalIndex)
+                      .setValue(((Protocol.OutputStreamEntryMessage) resp).getValue())
+                      .build());
+              return null;
+            } else {
+              onError(throwable);
+              return null;
+            }
+          });
       TestRestateRuntime.this.invocationFuturesHashMap.put(invocationId, future);
       TestRestateRuntime.this.handle(
-              invocationId,
-              msg.getServiceName(),
-              msg.getMethodName(),
-              Protocol.PollInputStreamEntryMessage.newBuilder().setValue(msg.getParameter()).build());
+          invocationId,
+          msg.getServiceName(),
+          msg.getMethodName(),
+          Protocol.PollInputStreamEntryMessage.newBuilder().setValue(msg.getParameter()).build());
     }
 
-    public void handleAwakeableEntryMessage(){
+    public void handleAwakeableEntryMessage() {
       CompletableFuture<? super MessageLite> future = new CompletableFuture<>();
       future.handle(
-              (resp, throwable) -> {
-                if (throwable == null) {
-                  Protocol.CompleteAwakeableEntryMessage completeAwakeMsg =
-                          (Protocol.CompleteAwakeableEntryMessage) resp;
-                  routeMessage(
-                          Protocol.CompletionMessage.newBuilder()
-                                  .setEntryIndex(completeAwakeMsg.getEntryIndex())
-                                  .setValue(completeAwakeMsg.getPayload())
-                                  .build());
-                  return null;
-                } else {
-                  onError(throwable);
-                  return null;
-                }
-              });
+          (resp, throwable) -> {
+            if (throwable == null) {
+              Protocol.CompleteAwakeableEntryMessage completeAwakeMsg =
+                  (Protocol.CompleteAwakeableEntryMessage) resp;
+              routeMessage(
+                  Protocol.CompletionMessage.newBuilder()
+                      .setEntryIndex(completeAwakeMsg.getEntryIndex())
+                      .setValue(completeAwakeMsg.getPayload())
+                      .build());
+              return null;
+            } else {
+              onError(throwable);
+              return null;
+            }
+          });
 
-      TestRestateRuntime.this.invocationFuturesHashMap.put(
-              functionInvocationId + "-awake", future);
+      TestRestateRuntime.this.invocationFuturesHashMap.put(functionInvocationId + "-awake", future);
     }
   }
 }
