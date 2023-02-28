@@ -144,7 +144,8 @@ public class DeferredTest extends CoreTestRunner {
             .usingAllThreadingModels()
             .expectingOutput(
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
-                invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")))
+                invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
+                suspensionMessage(2))
             .named("None completed"),
         testInvocation(new ReverseAwaitOrder(), GreeterGrpc.getGreetMethod())
             .withInput(
@@ -181,7 +182,8 @@ public class DeferredTest extends CoreTestRunner {
             .expectingOutput(
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
-                setStateMessage("A2", "TILL"))
+                setStateMessage("A2", "TILL"),
+                suspensionMessage(1))
             .named("Only A2 completed"),
         testInvocation(new ReverseAwaitOrder(), GreeterGrpc.getGreetMethod())
             .withInput(
@@ -191,7 +193,8 @@ public class DeferredTest extends CoreTestRunner {
             .usingThreadingModels(ThreadingModel.UNBUFFERED_MULTI_THREAD)
             .expectingOutput(
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
-                invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")))
+                invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
+                suspensionMessage(2))
             .named("Only A1 completed"),
 
         // --- Await twice the same executable
@@ -211,7 +214,8 @@ public class DeferredTest extends CoreTestRunner {
             .usingAllThreadingModels()
             .expectingOutput(
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
-                invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")))
+                invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
+                suspensionMessage(1, 2))
             .named("No completions will suspend"),
         testInvocation(new AwaitAll(), GreeterGrpc.getGreetMethod())
             .withInput(
@@ -223,7 +227,7 @@ public class DeferredTest extends CoreTestRunner {
                     greetingRequest("Till"),
                     greetingResponse("TILL")))
             .usingAllThreadingModels()
-            .expectingNoOutput()
+            .expectingOutput(suspensionMessage(1))
             .named("Only one completion will suspend"),
         testInvocation(new AwaitAll(), GreeterGrpc.getGreetMethod())
             .withInput(
@@ -315,7 +319,8 @@ public class DeferredTest extends CoreTestRunner {
             .usingAllThreadingModels()
             .expectingOutput(
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
-                invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")))
+                invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
+                suspensionMessage(1, 2))
             .named("No completions will suspend"),
         testInvocation(new AwaitAny(), GreeterGrpc.getGreetMethod())
             .withInput(

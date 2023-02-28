@@ -40,7 +40,7 @@ class GetStateTest extends CoreTestRunner {
         testInvocation(new GetStateGreeter(), GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
             .usingAllThreadingModels()
-            .expectingOutput(getStateMessage("STATE"))
+            .expectingOutput(getStateMessage("STATE"), suspensionMessage(1))
             .named("Without GetStateEntry"),
         testInvocation(new GetStateGreeter(), GreeterGrpc.getGreetMethod())
             .withInput(
@@ -48,7 +48,7 @@ class GetStateTest extends CoreTestRunner {
                 inputMessage(GreetingRequest.newBuilder().setName("Till").build()),
                 getStateMessage("STATE"))
             .usingAllThreadingModels()
-            .expectingNoOutput()
+            .expectingOutput(suspensionMessage(1))
             .named("With GetStateEntry not completed"),
         testInvocation(new GetStateGreeter(), GreeterGrpc.getGreetMethod())
             .withInput(

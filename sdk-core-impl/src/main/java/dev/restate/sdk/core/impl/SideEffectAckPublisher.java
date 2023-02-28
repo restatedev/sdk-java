@@ -1,27 +1,25 @@
 package dev.restate.sdk.core.impl;
 
-import dev.restate.sdk.core.SuspendedException;
-import dev.restate.sdk.core.syscalls.SyscallCallback;
 import javax.annotation.Nullable;
 
 class SideEffectAckPublisher {
+
+  interface OnEnterSideEffectCallback extends InputChannelState.SuspendableCallback {
+    void onEnter();
+  }
 
   private int lastAcknowledgedEntry = -1;
   /** -1 means no side effect waiting to be acked. */
   private int lastExecutedSideEffect = -1;
 
-  @Nullable private SyscallCallback<Void> sideEffectAckCallback;
-  private boolean inputClosed = false;
+  private @Nullable OnEnterSideEffectCallback onEnterSideEffectCallback;
+  private final InputChannelState state = new InputChannelState();
 
-  void executeEnterSideEffect(SyscallCallback<Void> syscallCallback) {
+  void executeEnterSideEffect(OnEnterSideEffectCallback callback) {
     if (canExecuteSideEffect()) {
-      syscallCallback.onSuccess(null);
+      callback.onEnter();
     } else {
-      if (this.inputClosed) {
-        syscallCallback.onCancel(SuspendedException.INSTANCE);
-      } else {
-        this.sideEffectAckCallback = syscallCallback;
-      }
+      this.onEnterSideEffectCallback = state.handleOrReturn(callback);
     }
   }
 
@@ -37,30 +35,32 @@ class SideEffectAckPublisher {
   }
 
   void abort(Throwable e) {
-    if (this.inputClosed) {
-      return;
+    if (this.state.close(e)) {
+      tryFailCallback();
     }
-    this.inputClosed = true;
-    tryFailCallback(e);
   }
 
   private void tryInvokeCallback() {
-    if (this.sideEffectAckCallback != null) {
-      SyscallCallback<Void> cb = this.sideEffectAckCallback;
-      this.sideEffectAckCallback = null;
-      cb.onSuccess(null);
+    if (this.onEnterSideEffectCallback != null) {
+      OnEnterSideEffectCallback cb = this.onEnterSideEffectCallback;
+      this.onEnterSideEffectCallback = null;
+      cb.onEnter();
     }
   }
 
-  private void tryFailCallback(Throwable e) {
-    if (this.sideEffectAckCallback != null) {
-      SyscallCallback<Void> cb = this.sideEffectAckCallback;
-      this.sideEffectAckCallback = null;
-      cb.onCancel(e);
+  private void tryFailCallback() {
+    if (this.onEnterSideEffectCallback != null) {
+      OnEnterSideEffectCallback cb = this.onEnterSideEffectCallback;
+      this.onEnterSideEffectCallback = null;
+      state.handleOrReturn(cb);
     }
   }
 
   private boolean canExecuteSideEffect() {
     return this.lastExecutedSideEffect <= this.lastAcknowledgedEntry;
+  }
+
+  public int getLastExecutedSideEffect() {
+    return lastExecutedSideEffect;
   }
 }

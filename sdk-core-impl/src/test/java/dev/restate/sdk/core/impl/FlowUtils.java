@@ -70,11 +70,7 @@ public class FlowUtils {
 
     @Override
     public void onComplete() {
-      List<T> l;
-      synchronized (this.messages) {
-        l = new ArrayList<>(this.messages);
-      }
-      this.future.complete(l);
+      this.future.complete(getMessages());
     }
 
     public CompletableFuture<List<T>> getFuture() {
