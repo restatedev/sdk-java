@@ -358,10 +358,11 @@ public final class TestRestateRuntime {
                 msg.getInvocationId().toStringUtf8() + "-awake");
         if (future != null) {
           future.complete(msg);
-        } else{
-          onError(new IllegalStateException(
-                  "Test runtime received a CompleteAwakeableEntryMessage " +
-                          "but there is no registered awakeable for this message."));
+        } else {
+          onError(
+              new IllegalStateException(
+                  "Test runtime received a CompleteAwakeableEntryMessage "
+                      + "but there is no registered awakeable for this message."));
         }
 
       } else if (t instanceof Java.CombinatorAwaitableEntryMessage) {
