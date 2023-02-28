@@ -6,6 +6,8 @@ import io.grpc.Status;
 
 public class ProtocolException extends RuntimeException {
 
+  static final ProtocolException CLOSED = new ProtocolException("Invocation closed");
+
   private final Status.Code grpcCode;
 
   private ProtocolException(String message) {

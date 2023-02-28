@@ -9,6 +9,7 @@ import dev.restate.sdk.core.impl.testservices.GreetingRequest;
 import dev.restate.sdk.core.impl.testservices.GreetingResponse;
 import io.grpc.MethodDescriptor;
 import java.util.Arrays;
+import java.util.List;
 
 public class ProtoUtils {
 
@@ -39,6 +40,10 @@ public class ProtoUtils {
         .setEntryIndex(index)
         .setFailure(Util.toProtocolFailure(e))
         .build();
+  }
+
+  static Protocol.SuspensionMessage suspensionMessage(Integer... indexes) {
+    return Protocol.SuspensionMessage.newBuilder().addAllEntryIndexes(List.of(indexes)).build();
   }
 
   public static Protocol.PollInputStreamEntryMessage inputMessage(MessageLiteOrBuilder value) {

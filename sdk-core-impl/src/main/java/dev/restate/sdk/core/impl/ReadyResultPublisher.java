@@ -1,13 +1,10 @@
 package dev.restate.sdk.core.impl;
 
 import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.core.SuspendedException;
 import dev.restate.sdk.core.impl.ReadyResults.ReadyResultInternal;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -17,27 +14,8 @@ class ReadyResultPublisher {
 
   private static final Logger LOG = LogManager.getLogger(ReadyResultPublisher.class);
 
-  interface OnNewReadyResultCallback {
-
+  interface OnNewReadyResultCallback extends InputChannelState.SuspendableCallback {
     boolean onNewReadyResult(Map<Integer, ReadyResultInternal<?>> resultMap);
-
-    void onCancel(Throwable e);
-
-    static OnNewReadyResultCallback of(
-        Predicate<Map<Integer, ReadyResultInternal<?>>> onNewReadyResult,
-        Consumer<Throwable> onCancel) {
-      return new OnNewReadyResultCallback() {
-        @Override
-        public boolean onNewReadyResult(Map<Integer, ReadyResultInternal<?>> resultMap) {
-          return onNewReadyResult.test(resultMap);
-        }
-
-        @Override
-        public void onCancel(Throwable e) {
-          onCancel.accept(e);
-        }
-      };
-    }
   }
 
   private final Map<Integer, Protocol.CompletionMessage> completions;
@@ -47,16 +25,17 @@ class ReadyResultPublisher {
 
   private @Nullable OnNewReadyResultCallback onNewReadyResultCallback;
 
-  private @Nullable Throwable inputChannelClosed;
+  private final InputChannelState state;
 
   ReadyResultPublisher() {
     this.completions = new HashMap<>();
     this.completionParsers = new HashMap<>();
     this.results = new HashMap<>();
+    this.state = new InputChannelState();
   }
 
   void offerCompletion(Protocol.CompletionMessage completionMessage) {
-    if (this.inputChannelClosed != null) {
+    if (this.state.isClosed()) {
       LOG.warn("Offering a completion when the publisher is closed");
       return;
     }
@@ -84,18 +63,9 @@ class ReadyResultPublisher {
   }
 
   void abort(Throwable cause) {
-    // Guard against multiple requests of transitions to suspended
-    if (this.inputChannelClosed != null) {
-      return;
+    if (this.state.close(cause)) {
+      tryProgress();
     }
-    if (cause == SuspendedException.INSTANCE) {
-      LOG.trace("Ready result publisher closed");
-    } else {
-      LOG.trace("Ready result publisher closed with failure", cause);
-    }
-
-    inputChannelClosed = cause;
-    tryProgress();
   }
 
   private void tryParse(int entryIndex) {
@@ -131,13 +101,7 @@ class ReadyResultPublisher {
       // Try to consume results
       boolean resolved = cb.onNewReadyResult(this.results);
       if (!resolved) {
-        // Check if the input channel is closed
-        if (this.inputChannelClosed != null) {
-          cb.onCancel(this.inputChannelClosed);
-        } else {
-          // Register again the callback, for the next event
-          this.onNewReadyResultCallback = cb;
-        }
+        this.onNewReadyResultCallback = this.state.handleOrReturn(cb);
       }
     }
   }

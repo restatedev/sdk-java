@@ -316,10 +316,20 @@ abstract class CoreTestRunner {
 
       @Override
       public BiConsumer<FutureSubscriber<MessageLite>, Duration> getOutputAssert() {
-        return (outputSubscriber, duration) ->
-            assertThat(outputSubscriber.getFuture())
-                .succeedsWithin(duration)
-                .satisfies(messagesAssert::accept);
+        return (outputSubscriber, duration) -> {
+          assertThat(outputSubscriber.getFuture())
+              .succeedsWithin(duration)
+              .satisfies(messagesAssert::accept);
+
+          List<MessageLite> outputMessages = outputSubscriber.getMessages();
+
+          // Assert the last message is either an OutputStreamEntry or a SuspensionMessage
+          assertThat(outputMessages)
+              .last()
+              .isNotNull()
+              .isInstanceOfAny(
+                  Protocol.OutputStreamEntryMessage.class, Protocol.SuspensionMessage.class);
+        };
       }
     }
 
@@ -364,9 +374,11 @@ abstract class CoreTestRunner {
               .failsWithin(duration)
               .withThrowableOfType(ExecutionException.class)
               .satisfies(t -> throwableAssert.accept(t.getCause()));
-          // If there was a state machine related failure, no output message should be written
+          // If there was a state machine related failure, no output message or suspension should be
+          // written
           assertThat(outputSubscriber.getMessages())
-              .doesNotHaveAnyElementsOfTypes(Protocol.OutputStreamEntryMessage.class);
+              .doesNotHaveAnyElementsOfTypes(
+                  Protocol.OutputStreamEntryMessage.class, Protocol.SuspensionMessage.class);
         };
       }
     }

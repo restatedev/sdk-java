@@ -191,10 +191,11 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       }
       if (this.outputSubscriber != null) {
         this.outputSubscriber.onComplete();
+        this.outputSubscriber = null;
       }
-      this.readyResultPublisher.abort(SuspendedException.INSTANCE);
-      this.sideEffectAckPublisher.abort(SuspendedException.INSTANCE);
-      this.entriesQueue.abort(SuspendedException.INSTANCE);
+      this.readyResultPublisher.abort(ProtocolException.CLOSED);
+      this.sideEffectAckPublisher.abort(ProtocolException.CLOSED);
+      this.entriesQueue.abort(ProtocolException.CLOSED);
     }
   }
 
@@ -207,6 +208,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       }
       if (this.outputSubscriber != null) {
         this.outputSubscriber.onError(cause);
+        this.outputSubscriber = null;
       }
       this.insideSideEffect = false;
       this.readyResultPublisher.abort(cause);
@@ -315,14 +317,26 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
           failureCallback);
     } else if (this.state == State.PROCESSING) {
       this.sideEffectAckPublisher.executeEnterSideEffect(
-          SyscallCallback.of(
-              ignored -> {
-                if (span.isRecording()) {
-                  traceFn.accept(span);
-                }
-                noEntryCallback.run();
-              },
-              failureCallback));
+          new SideEffectAckPublisher.OnEnterSideEffectCallback() {
+            @Override
+            public void onEnter() {
+              if (span.isRecording()) {
+                traceFn.accept(span);
+              }
+              noEntryCallback.run();
+            }
+
+            @Override
+            public void onSuspend() {
+              writeSuspension(sideEffectAckPublisher.getLastExecutedSideEffect());
+              failureCallback.accept(SuspendedException.INSTANCE);
+            }
+
+            @Override
+            public void onError(Throwable e) {
+              failureCallback.accept(e);
+            }
+          });
     } else {
       throw new IllegalStateException(
           "This method was invoked when the state machine is not ready to process user code. This is probably an SDK bug");
@@ -396,7 +410,13 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
           }
 
           @Override
-          public void onCancel(Throwable e) {
+          public void onSuspend() {
+            writeSuspension(deferred.entryIndex());
+            callback.onCancel(SuspendedException.INSTANCE);
+          }
+
+          @Override
+          public void onError(Throwable e) {
             callback.onCancel(e);
           }
         });
@@ -531,7 +551,13 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
             }
 
             @Override
-            public void onCancel(Throwable e) {
+            public void onSuspend() {
+              writeSuspension(resolvableSingles.keySet());
+              callback.onCancel(SuspendedException.INSTANCE);
+            }
+
+            @Override
+            public void onError(Throwable e) {
               callback.onCancel(e);
             }
           });
@@ -587,14 +613,26 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
         errorCallback);
   }
 
-  private void write(MessageLite message) {
+  private void writeEntry(MessageLite message) {
     LOG.trace("Writing to output message {} {}", message.getClass(), message);
     Objects.requireNonNull(this.outputSubscriber).onNext(message);
+    this.incrementCurrentIndex();
   }
 
-  private void writeEntry(MessageLite message) {
-    this.write(message);
-    this.incrementCurrentIndex();
+  private void writeSuspension(int index) {
+    writeSuspension(Protocol.SuspensionMessage.newBuilder().addEntryIndexes(index).build());
+  }
+
+  private void writeSuspension(Iterable<Integer> indexes) {
+    writeSuspension(Protocol.SuspensionMessage.newBuilder().addAllEntryIndexes(indexes).build());
+  }
+
+  private void writeSuspension(Protocol.SuspensionMessage message) {
+    if (this.outputSubscriber != null) {
+      LOG.trace("Writing suspension {}", message.getEntryIndexesList());
+      this.outputSubscriber.onNext(message);
+      this.close();
+    }
   }
 
   @Override

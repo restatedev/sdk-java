@@ -113,7 +113,8 @@ class SideEffectTest extends CoreTestRunner {
             .usingAllThreadingModels()
             .expectingOutput(
                 Java.SideEffectEntryMessage.newBuilder()
-                    .setValue(ByteString.copyFromUtf8("Francesco")))
+                    .setValue(ByteString.copyFromUtf8("Francesco")),
+                suspensionMessage(1))
             .named("Without ack"),
         testInvocation(new ConsecutiveSideEffect("Francesco"), GreeterGrpc.getGreetMethod())
             .withInput(
