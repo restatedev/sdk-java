@@ -31,7 +31,7 @@ class GreeterTest {
 
   @Test
   @DisplayName("GreeterOne/greet: send response")
-  void greetTest() throws Exception {
+  void greetTest() {
     GreeterOneResponse response =
         runtime.invoke(GreeterOneGrpc.getGreetMethod(), greeterOneRequest("User1"));
 
@@ -40,7 +40,7 @@ class GreeterTest {
 
   @Test
   @DisplayName("GreeterOne/storeAndGreet: get and set state")
-  void storeAndGreetTest() throws Exception {
+  void storeAndGreetTest() {
     GreeterOneResponse response =
         runtime.invoke(GreeterOneGrpc.getStoreAndGreetMethod(), greeterOneRequest("User1"));
 
@@ -49,7 +49,7 @@ class GreeterTest {
 
   @Test
   @DisplayName("GreeterOne/countGreetings: get and set state for multiple keys")
-  void countGreetingsTest() throws Exception {
+  void countGreetingsTest() {
     List<GreeterOneResponse> responses =
         List.of(
             runtime.invoke(GreeterOneGrpc.getCountGreetingsMethod(), greeterOneRequest("User1")),
@@ -61,7 +61,7 @@ class GreeterTest {
 
   @Test
   @DisplayName("GreeterOne/countGreetings: get and set state for multiple keys multiple times")
-  void countMultipleGreetingsTest() throws Exception {
+  void countMultipleGreetingsTest() {
     List<GreeterOneResponse> responses =
         List.of(
             runtime.invoke(GreeterOneGrpc.getCountGreetingsMethod(), greeterOneRequest("User1")),
@@ -84,7 +84,7 @@ class GreeterTest {
 
   @Test
   @DisplayName("GreeterOne/resetGreetingCounter: set and clear state")
-  void resetGreetingCounter() throws Exception {
+  void resetGreetingCounter() {
     List<GreeterOneResponse> responses =
         List.of(
             runtime.invoke(GreeterOneGrpc.getCountGreetingsMethod(), greeterOneRequest("User1")),
@@ -102,7 +102,7 @@ class GreeterTest {
 
   @Test
   @DisplayName("GreeterOne/resetGreetingCounter: set state, clear state, set state")
-  void resetAndSetGreetingTest() throws Exception {
+  void resetAndSetGreetingTest() {
     List<GreeterOneResponse> responses =
         List.of(
             runtime.invoke(GreeterOneGrpc.getCountGreetingsMethod(), greeterOneRequest("User1")),
@@ -120,7 +120,7 @@ class GreeterTest {
 
   @Test
   @DisplayName("GreeterOne/forwardGreeting: synchronous inter-service call")
-  void forwardGreetingTest() throws Exception {
+  void forwardGreetingTest() {
     GreeterOneResponse response =
         runtime.invoke(GreeterOneGrpc.getForwardGreetingMethod(), greeterOneRequest("User1"));
 
@@ -134,7 +134,7 @@ class GreeterTest {
 
   @Test
   @DisplayName("GreeterOne/forwardBackgroundGreeting: async and sync inter-service calls")
-  void forwardBackgroundGreetingTest() throws Exception {
+  void forwardBackgroundGreetingTest() {
     List<GreeterOneResponse> responses =
         List.of(
             runtime.invoke(
@@ -153,7 +153,7 @@ class GreeterTest {
   @Test
   @DisplayName(
       "GreeterOne/forwardGreeting: async and sync inter-service calls to different services")
-  void asyncAndSyncCallsTest() throws Exception {
+  void asyncAndSyncCallsTest() {
     GreeterOneResponse response1 =
         runtime.invoke(
             GreeterOneGrpc.getForwardBackgroundGreetingMethod(), greeterOneRequest("User1"));
@@ -175,7 +175,7 @@ class GreeterTest {
 
   @Test
   @DisplayName("GreeterOne/getMultipleGreetings: await multiple synchronous inter-service calls")
-  void getMultipleGreetingsTest() throws Exception {
+  void getMultipleGreetingsTest() {
     GreeterOneResponse response1 =
         runtime.invoke(GreeterOneGrpc.getGetMultipleGreetingsMethod(), greeterOneRequest("User1"));
 
@@ -188,7 +188,7 @@ class GreeterTest {
   @Test
   @DisplayName(
       "GreeterOne/getOneOfMultipleGreetings: await multiple synchronous inter-service calls")
-  void getOneOfMultipleGreetings() throws Exception {
+  void getOneOfMultipleGreetings() {
     GreeterOneResponse response1 =
         runtime.invoke(
             GreeterOneGrpc.getGetOneOfMultipleGreetingsMethod(), greeterOneRequest("User1"));
@@ -201,7 +201,7 @@ class GreeterTest {
 
   @Test
   @DisplayName("GreeterOne/greetWithSideEffect: side effect.")
-  void greetWithSideEffectTest() throws Exception {
+  void greetWithSideEffectTest() {
     GreeterOneResponse response =
         runtime.invoke(GreeterOneGrpc.getGreetWithSideEffectMethod(), greeterOneRequest("User1"));
 
@@ -210,7 +210,7 @@ class GreeterTest {
 
   @Test
   @DisplayName("GreeterOne/sleepAndGetWokenUp: awakeable and unkeyed service")
-  void sleepAndGetWokenUpTest() throws Exception {
+  void sleepAndGetWokenUpTest() {
     GreeterOneResponse response =
         runtime.invoke(GreeterOneGrpc.getSleepAndGetWokenUpMethod(), greeterOneRequest("User1"));
 
@@ -219,7 +219,7 @@ class GreeterTest {
 
   @Test
   @DisplayName("GreeterThree/countAllGreetings: singleton service")
-  void countAllGreetingsTest() throws Exception {
+  void countAllGreetingsTest() {
     List<GreeterThreeResponse> responses =
         List.of(
             runtime.invoke(
@@ -242,7 +242,7 @@ class GreeterTest {
 
   @Test
   @DisplayName("GreeterOne/sleep")
-  void sleepTest() throws Exception {
+  void sleepTest() {
     List<GreeterOneResponse> responses =
         List.of(runtime.invoke(GreeterOneGrpc.getUseTimerMethod(), greeterOneRequest("User1")));
 

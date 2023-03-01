@@ -50,7 +50,7 @@ public final class TestRestateRuntime {
   }
 
   public <T extends MessageLiteOrBuilder, R extends MessageLiteOrBuilder> R invoke(
-      MethodDescriptor<T, R> methodDescriptor, T parameter) throws Exception {
+      MethodDescriptor<T, R> methodDescriptor, T parameter) {
     var future = new CompletableFuture<>();
     String invocationId = UUID.randomUUID().toString();
     invocationFuturesHashMap.put(invocationId, future);
@@ -71,7 +71,7 @@ public final class TestRestateRuntime {
     try {
       outputMsg = (Protocol.OutputStreamEntryMessage) future.get();
     } catch (ExecutionException e) {
-      throw (Exception) e.getCause();
+      throw (RuntimeException) e.getCause();
     } catch (InterruptedException e) {
       throw new RuntimeException(e.getMessage(), e.getCause());
     }
