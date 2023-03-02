@@ -52,6 +52,8 @@ public class MessageHeader {
       return new MessageHeader(MessageType.StartMessage, (short) 0, msg.getSerializedSize());
     } else if (msg instanceof Protocol.CompletionMessage) {
       return new MessageHeader(MessageType.CompletionMessage, (short) 0, msg.getSerializedSize());
+    } else if (msg instanceof Protocol.SuspensionMessage) {
+      return new MessageHeader(MessageType.SuspensionMessage, (short) 0, msg.getSerializedSize());
     } else if (msg instanceof Protocol.PollInputStreamEntryMessage) {
       return new MessageHeader(
           MessageType.PollInputStreamEntryMessage, (short) 0, msg.getSerializedSize());
