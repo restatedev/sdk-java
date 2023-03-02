@@ -1,4 +1,5 @@
 import com.google.protobuf.gradle.id
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 // Without these suppressions version catalog usage here and in other build
 // files is marked red by IntelliJ:
@@ -13,6 +14,7 @@ plugins {
   kotlin("jvm") version "1.6.20"
   idea
   `maven-publish`
+  application
 }
 
 dependencies {
@@ -64,3 +66,11 @@ protobuf {
     }
   }
 }
+
+application {
+  val mainClassValue: String =
+      project.findProperty("mainClass")?.toString() ?: "dev.restate.sdk.examples.BlockingCounter"
+  mainClass.set(mainClassValue)
+}
+
+tasks.withType<KotlinCompile> { kotlinOptions.jvmTarget = "11" }
