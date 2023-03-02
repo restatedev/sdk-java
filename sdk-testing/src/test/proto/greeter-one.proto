@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "dev.restate.sdk.testing.testservices";
+option java_outer_classname = "GreeterOneProto";
+
+import "dev/restate/ext.proto";
+
+package test;
+
+service GreeterOne {
+  option (dev.restate.ext.service_type) = KEYED;
+
+  rpc Greet (GreeterOneRequest) returns (GreeterOneResponse);
+
+  rpc StoreAndGreet (GreeterOneRequest) returns (GreeterOneResponse);
+
+  rpc CountGreetings (GreeterOneRequest) returns (GreeterOneResponse);
+
+  rpc ResetGreetingCounter (GreeterOneRequest) returns (GreeterOneResponse);
+
+  rpc ForwardGreeting (GreeterOneRequest) returns (GreeterOneResponse);
+
+  rpc ForwardBackgroundGreeting (GreeterOneRequest) returns (GreeterOneResponse);
+
+  rpc GetMultipleGreetings (GreeterOneRequest) returns (GreeterOneResponse);
+
+  rpc GetOneOfMultipleGreetings (GreeterOneRequest) returns (GreeterOneResponse);
+
+  rpc GreetWithSideEffect (GreeterOneRequest) returns (GreeterOneResponse);
+
+  rpc SleepAndGetWokenUp (GreeterOneRequest) returns (GreeterOneResponse);
+
+  rpc UseTimer (GreeterOneRequest) returns (GreeterOneResponse);
+}
+
+message GreeterOneRequest {
+  string name = 1 [(dev.restate.ext.field) = KEY];
+}
+
+message GreeterOneResponse {
+  string message = 1;
+}
