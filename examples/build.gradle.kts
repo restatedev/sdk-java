@@ -63,6 +63,11 @@ protobuf {
         id("grpckt")
       }
       it.builtins { id("kotlin") }
+
+      // Generate descriptor set including the imports in order to make it easier to
+      // invoke the services via grpcurl (using -protoset).
+      it.generateDescriptorSet = true
+      it.descriptorSetOptions.includeImports = true
     }
   }
 }
