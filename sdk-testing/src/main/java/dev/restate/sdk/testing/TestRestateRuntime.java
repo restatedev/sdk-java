@@ -73,7 +73,7 @@ public final class TestRestateRuntime {
     } catch (ExecutionException e) {
       throw (RuntimeException) e.getCause();
     } catch (InterruptedException e) {
-      throw new RuntimeException(e.getMessage(), e.getCause());
+      throw new RuntimeException(e);
     }
 
     if (outputMsg.hasFailure()) {
