@@ -104,7 +104,6 @@ public final class TestRestateRuntime {
             .setInstanceKey(ByteString.copyFromUtf8(instanceKey))
             .setInvocationId(ByteString.copyFromUtf8(invocationId))
             .setKnownEntries(1)
-            .setKnownServiceVersion(1)
             .build();
     List<MessageLite> inputMessages = List.of(startMessage, inputMessage);
 
