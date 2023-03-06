@@ -24,7 +24,7 @@ class ServiceDiscoveryHandlerTest {
 
     assertThat(response.getServicesList())
         .containsExactlyInAnyOrder(GreeterGrpc.SERVICE_NAME, CounterGrpc.SERVICE_NAME);
-    assertThat(response.getFilesList())
+    assertThat(response.getFiles().getFileList())
         .map(DescriptorProtos.FileDescriptorProto::getName)
         .containsExactlyInAnyOrder(
             "dev/restate/ext.proto",

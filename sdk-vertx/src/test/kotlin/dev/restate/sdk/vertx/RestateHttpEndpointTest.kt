@@ -188,7 +188,7 @@ internal class RestateHttpEndpointTest {
         val responseBody = response.body().await()
         val serviceDiscoveryResponse = ServiceDiscoveryResponse.parseFrom(responseBody.bytes)
         assertThat(serviceDiscoveryResponse.servicesList).containsOnly(GreeterGrpc.SERVICE_NAME)
-        assertThat(serviceDiscoveryResponse.filesList)
+        assertThat(serviceDiscoveryResponse.files.fileList)
             .map<String> { it.name }
             .containsExactlyInAnyOrder(
                 "dev/restate/ext.proto", "google/protobuf/descriptor.proto", "greeter.proto")
