@@ -35,7 +35,7 @@ final class ServiceDiscoveryHandler {
 
     this.response =
         Discovery.ServiceDiscoveryResponse.newBuilder()
-            .addAllFiles(fileDescriptors)
+            .setFiles(DescriptorProtos.FileDescriptorSet.newBuilder().addAllFile(fileDescriptors))
             .addAllServices(services.keySet())
             .build();
   }
