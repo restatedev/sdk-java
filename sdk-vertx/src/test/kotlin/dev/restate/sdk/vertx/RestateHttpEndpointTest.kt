@@ -118,7 +118,6 @@ internal class RestateHttpEndpointTest {
 
         // Wait for closing request and response
         request.end().await()
-        response.end().await()
       }
 
   @Test
@@ -154,7 +153,6 @@ internal class RestateHttpEndpointTest {
         assertThat(response.statusCode()).isEqualTo(HttpResponseStatus.NOT_FOUND.code())
 
         response.end().await()
-        request.end().await()
       }
 
   @Test
