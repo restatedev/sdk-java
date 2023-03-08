@@ -14,9 +14,15 @@ plugins {
 
 dependencies {
   api(project(":sdk-core"))
-  api(project(":sdk-blocking"))
-
   implementation(project(":sdk-core-impl"))
+
+  implementation(lambdaLibs.core)
+  implementation(lambdaLibs.events)
+
+  implementation(platform(coreLibs.opentelemetry.bom))
+  implementation(coreLibs.opentelemetry.api)
+
+  implementation(coreLibs.log4j.api)
 }
 
 publishing {
