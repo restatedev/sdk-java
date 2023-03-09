@@ -15,7 +15,7 @@ import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.context.propagation.TextMapGetter;
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CompletionException;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -121,17 +121,23 @@ public final class LambdaRestateServer {
     publisher.subscribe(handler.input());
     handler.output().subscribe(subscriber);
 
-    // Start and wait for response
+    // Start
     handler.start();
 
     byte[] responseBody;
     try {
-      responseBody = subscriber.getFuture().get();
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
-    } catch (ExecutionException e) {
-      // Propagate cause as it's a Restate ProtocolException
+      // Because everything runs in the same thread, handler.start() should execute the whole
+      // computation.
+      // Hence, this future should be already completed at this point.
+      responseBody = subscriber.getFuture().getNow(null);
+    } catch (CompletionException e) {
+      // Propagate because as it's a Restate ProtocolException
       throw new RuntimeException(e.getCause());
+    }
+
+    if (responseBody == null) {
+      throw new IllegalStateException(
+          "SDK Bug: Expected the computation to complete. Please contact the developers");
     }
 
     final APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent();
