@@ -21,6 +21,7 @@ dependencies {
 
   implementation(platform(vertxLibs.vertx.bom))
   implementation(vertxLibs.vertx.core)
+  implementation(vertxLibs.vertx.grpc.context.storage)
 
   implementation(platform(coreLibs.opentelemetry.bom))
   implementation(coreLibs.opentelemetry.api)

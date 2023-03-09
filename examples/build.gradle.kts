@@ -35,6 +35,7 @@ dependencies {
   implementation(platform(vertxLibs.vertx.bom))
   implementation(vertxLibs.vertx.core)
   implementation(vertxLibs.vertx.kotlin.coroutines)
+  implementation(vertxLibs.vertx.grpc.context.storage)
 
   implementation(kotlinLibs.kotlinx.coroutines)
 
