@@ -7,7 +7,6 @@ import dev.restate.sdk.core.impl.MessageHeader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -19,11 +18,13 @@ class LambdaFlowAdapters {
     private static final ByteBuffer LONG_CONVERSION_BUFFER = ByteBuffer.allocate(Long.BYTES);
 
     private final ByteArrayOutputStream outputStream;
-    private final CompletableFuture<byte[]> future;
+    private boolean isCompleted;
+    private Throwable completionError;
 
     FutureSubscriber() {
       this.outputStream = new ByteArrayOutputStream();
-      this.future = new CompletableFuture<>();
+      this.isCompleted = false;
+      this.completionError = null;
     }
 
     @Override
@@ -44,16 +45,24 @@ class LambdaFlowAdapters {
 
     @Override
     public void onError(Throwable throwable) {
-      this.future.completeExceptionally(throwable);
+      this.isCompleted = true;
+      this.completionError = throwable;
     }
 
     @Override
     public void onComplete() {
-      this.future.complete(outputStream.toByteArray());
+      this.isCompleted = true;
     }
 
-    public CompletableFuture<byte[]> getFuture() {
-      return future;
+    public byte[] getResult() {
+      if (isCompleted && completionError == null) {
+        return outputStream.toByteArray();
+      } else if (isCompleted) {
+        throw (RuntimeException) completionError;
+      } else {
+        throw new IllegalStateException(
+            "SDK Bug: Expected the computation to complete. Please contact the developers");
+      }
     }
   }
 
