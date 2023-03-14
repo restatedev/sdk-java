@@ -99,7 +99,7 @@ class LambdaHandlerTest {
             Base64.getDecoder().decode(response.getBody()));
     assertThat(decodedResponse.getServicesList())
         .containsExactlyInAnyOrder(JavaCounterGrpc.SERVICE_NAME, KotlinCounterGrpc.SERVICE_NAME);
-    assertThat(decodedResponse.getFilesList())
+    assertThat(decodedResponse.getFiles().getFileList())
         .map(DescriptorProtos.FileDescriptorProto::getName)
         .containsExactlyInAnyOrder(
             "dev/restate/ext.proto", "google/protobuf/descriptor.proto", "counter.proto");
