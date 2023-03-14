@@ -17,6 +17,7 @@ import dev.restate.sdk.core.serde.Serde;
 import dev.restate.sdk.core.syscalls.*;
 import io.grpc.MethodDescriptor;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -107,7 +108,9 @@ public final class SyscallsImpl implements SyscallsInternal {
   public void sleep(Duration duration, SyscallCallback<DeferredResult<Void>> callback) {
     LOG.trace("sleep {}", duration);
     this.stateMachine.processCompletableJournalEntry(
-        Protocol.SleepEntryMessage.getDefaultInstance(), SleepEntry.INSTANCE, callback);
+        Protocol.SleepEntryMessage.newBuilder()
+                .setWakeUpTime(Instant.now().toEpochMilli() + duration.toMillis()).build(),
+            SleepEntry.INSTANCE, callback);
   }
 
   @Override
