@@ -18,8 +18,8 @@ include(
     "sdk-lambda",
     "sdk-kotlin",
     "sdk-testing",
-    "examples:http"
-  )
+    "examples:http",
+    "examples:lambda")
 
 dependencyResolutionManagement {
   repositories { mavenCentral() }
