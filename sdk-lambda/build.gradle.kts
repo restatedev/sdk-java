@@ -38,6 +38,8 @@ dependencies {
   testImplementation(coreLibs.grpc.protobuf)
   testImplementation(coreLibs.grpc.kotlin.stub)
   testImplementation(coreLibs.log4j.core)
+
+  testImplementation(kotlinLibs.kotlinx.coroutines)
 }
 
 configure<com.diffplug.gradle.spotless.SpotlessExtension> {

@@ -32,6 +32,8 @@ dependencies {
   // Replace javax.annotations-api with tomcat annotations
   compileOnly(coreLibs.javax.annotation.api)
 
+  implementation(kotlinLibs.kotlinx.coroutines)
+
   implementation(coreLibs.log4j.core)
 }
 

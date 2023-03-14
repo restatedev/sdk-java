@@ -4,9 +4,14 @@ import RestateCoroutineService
 import com.google.protobuf.Empty
 import dev.restate.sdk.core.StateKey
 import dev.restate.sdk.examples.generated.*
+import kotlinx.coroutines.Dispatchers
 import org.apache.logging.log4j.LogManager
 
-class Counter : CounterGrpcKt.CounterCoroutineImplBase(), RestateCoroutineService {
+// coroutineContext MUST be set to Dispatchers.Unconfined
+// to make sure the coroutines run in the same thread of the Restate Lambda handler.
+class Counter :
+    CounterGrpcKt.CounterCoroutineImplBase(coroutineContext = Dispatchers.Unconfined),
+    RestateCoroutineService {
 
   private val LOG = LogManager.getLogger(BlockingCounter::class.java)
 

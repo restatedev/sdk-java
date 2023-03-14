@@ -1,9 +1,11 @@
 package dev.restate.sdk.lambda.testservices
 
 import RestateCoroutineService
+import kotlinx.coroutines.Dispatchers
 
 class KotlinCounterService :
-    KotlinCounterGrpcKt.KotlinCounterCoroutineImplBase(), RestateCoroutineService {
+    KotlinCounterGrpcKt.KotlinCounterCoroutineImplBase(coroutineContext = Dispatchers.Unconfined),
+    RestateCoroutineService {
 
   override suspend fun get(request: CounterRequest): GetResponse {
     val count = (restateContext().get(JavaCounterService.COUNTER) ?: 0) + 1
