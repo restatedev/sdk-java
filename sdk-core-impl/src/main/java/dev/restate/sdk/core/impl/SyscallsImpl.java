@@ -109,8 +109,10 @@ public final class SyscallsImpl implements SyscallsInternal {
     LOG.trace("sleep {}", duration);
     this.stateMachine.processCompletableJournalEntry(
         Protocol.SleepEntryMessage.newBuilder()
-                .setWakeUpTime(Instant.now().toEpochMilli() + duration.toMillis()).build(),
-            SleepEntry.INSTANCE, callback);
+            .setWakeUpTime(Instant.now().toEpochMilli() + duration.toMillis())
+            .build(),
+        SleepEntry.INSTANCE,
+        callback);
   }
 
   @Override
