@@ -6,6 +6,7 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.MessageLiteOrBuilder;
+import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.impl.FlowUtils.BufferedMockPublisher;
 import dev.restate.sdk.core.impl.FlowUtils.FutureSubscriber;
@@ -72,7 +73,8 @@ abstract class CoreTestRunner {
     FutureSubscriber<MessageLite> outputSubscriber = new FutureSubscriber<>();
 
     // Start invocation
-    RestateGrpcServer server = RestateGrpcServer.newBuilder().withService(svc).build();
+    RestateGrpcServer server =
+        RestateGrpcServer.newBuilder(Discovery.ProtocolMode.BIDI_STREAM).withService(svc).build();
     InvocationHandler handler =
         server.resolve(
             svc.getServiceDescriptor().getName(),

@@ -4,6 +4,7 @@ import com.google.protobuf.*;
 import dev.restate.generated.ext.Ext;
 import dev.restate.generated.ext.ServiceType;
 import dev.restate.generated.sdk.java.Java;
+import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.impl.InvocationHandler;
 import dev.restate.sdk.core.impl.RestateGrpcServer;
@@ -33,7 +34,8 @@ public final class TestRestateRuntime {
             .collect(Collectors.toList());
 
     // Start Grpc server and add all the services
-    RestateGrpcServer.Builder serverBuilder = RestateGrpcServer.newBuilder();
+    RestateGrpcServer.Builder serverBuilder =
+        RestateGrpcServer.newBuilder(Discovery.ProtocolMode.BIDI_STREAM);
     for (ServerServiceDefinition svc : this.services) {
       serverBuilder.withService(svc);
     }
