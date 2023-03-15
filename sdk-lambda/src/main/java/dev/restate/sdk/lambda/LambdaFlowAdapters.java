@@ -13,7 +13,7 @@ import org.apache.logging.log4j.Logger;
 
 class LambdaFlowAdapters {
 
-  static class FutureSubscriber implements InvocationFlow.InvocationOutputSubscriber {
+  static class Resultubscriber implements InvocationFlow.InvocationOutputSubscriber {
 
     private static final ByteBuffer LONG_CONVERSION_BUFFER = ByteBuffer.allocate(Long.BYTES);
 
@@ -21,7 +21,7 @@ class LambdaFlowAdapters {
     private boolean isCompleted;
     private Throwable completionError;
 
-    FutureSubscriber() {
+    Resultubscriber() {
       this.outputStream = new ByteArrayOutputStream();
       this.isCompleted = false;
       this.completionError = null;

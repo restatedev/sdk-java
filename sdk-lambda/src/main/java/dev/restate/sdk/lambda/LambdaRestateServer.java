@@ -114,7 +114,7 @@ public final class LambdaRestateServer {
     }
 
     BufferedPublisher publisher = new BufferedPublisher(requestBody);
-    FutureSubscriber subscriber = new FutureSubscriber();
+    Resultubscriber subscriber = new Resultubscriber();
 
     // Wire handler
     publisher.subscribe(handler.input());
