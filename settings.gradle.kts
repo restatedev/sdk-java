@@ -18,7 +18,8 @@ include(
     "sdk-lambda",
     "sdk-kotlin",
     "sdk-testing",
-    "examples")
+    "examples:http",
+    "examples:lambda")
 
 dependencyResolutionManagement {
   repositories { mavenCentral() }
@@ -60,6 +61,10 @@ dependencyResolutionManagement {
       library("vertx-kotlin-coroutines", "io.vertx", "vertx-lang-kotlin-coroutines")
           .withoutVersion()
       library("vertx-junit5", "io.vertx", "vertx-junit5").withoutVersion()
+    }
+    create("lambdaLibs") {
+      library("core", "com.amazonaws:aws-lambda-java-core:1.2.2")
+      library("events", "com.amazonaws:aws-lambda-java-events:3.11.0")
     }
     create("jacksonLibs") {
       version("jackson", "2.14.0")

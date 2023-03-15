@@ -11,15 +11,15 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
     "FUNCTION_CALL_EXPECTED")
 plugins {
   java
-  kotlin("jvm") version "1.6.20"
+  kotlin("jvm")
   idea
   `maven-publish`
-  application
+  id("com.github.johnrengelman.shadow").version("7.1.2")
 }
 
 dependencies {
   implementation(project(":sdk-blocking"))
-  implementation(project(":sdk-vertx"))
+  implementation(project(":sdk-lambda"))
   implementation(project(":sdk-kotlin"))
   implementation(project(":sdk-serde-jackson"))
 
@@ -31,11 +31,6 @@ dependencies {
 
   // Replace javax.annotations-api with tomcat annotations
   compileOnly(coreLibs.javax.annotation.api)
-
-  implementation(platform(vertxLibs.vertx.bom))
-  implementation(vertxLibs.vertx.core)
-  implementation(vertxLibs.vertx.kotlin.coroutines)
-  implementation(vertxLibs.vertx.grpc.context.storage)
 
   implementation(kotlinLibs.kotlinx.coroutines)
 
@@ -71,12 +66,6 @@ protobuf {
       it.descriptorSetOptions.includeImports = true
     }
   }
-}
-
-application {
-  val mainClassValue: String =
-      project.findProperty("mainClass")?.toString() ?: "dev.restate.sdk.examples.BlockingCounter"
-  mainClass.set(mainClassValue)
 }
 
 tasks.withType<KotlinCompile> { kotlinOptions.jvmTarget = "11" }

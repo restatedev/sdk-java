@@ -1,6 +1,6 @@
-# Examples
+# HTTP Examples
 
-This directory contains a Java and Kotlin implementation of the [counter service](src/main/proto/counter.proto).
+This directory contains a Java and Kotlin implementation of the [counter service](src/main/proto/counter.proto), running as HTTP service endpoint.
 
 ## Running the examples
 

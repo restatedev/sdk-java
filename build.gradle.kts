@@ -4,6 +4,7 @@ import org.gradle.api.tasks.testing.logging.TestLogEvent
 
 plugins {
   java
+  kotlin("jvm") version "1.6.20" apply false
 
   id("net.ltgt.errorprone") version "3.0.1"
   id("com.github.jk1.dependency-license-report") version "2.0"
@@ -23,6 +24,9 @@ val testReport =
 allprojects {
   apply(plugin = "com.diffplug.spotless")
   apply(plugin = "com.github.jk1.dependency-license-report")
+
+  group = "dev.restate"
+  version = restateVersion
 
   configure<com.diffplug.gradle.spotless.SpotlessExtension> {
     java {
@@ -59,8 +63,6 @@ subprojects {
   apply(plugin = "maven-publish")
   apply(plugin = "net.ltgt.errorprone")
   apply(plugin = "com.google.protobuf")
-
-  version = restateVersion
 
   tasks.withType<Test> {
     useJUnitPlatform()
