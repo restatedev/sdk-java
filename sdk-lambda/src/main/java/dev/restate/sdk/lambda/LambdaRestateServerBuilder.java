@@ -1,5 +1,6 @@
 package dev.restate.sdk.lambda;
 
+import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.sdk.core.BindableBlockingService;
 import dev.restate.sdk.core.BindableNonBlockingService;
 import dev.restate.sdk.core.impl.RestateGrpcServer;
@@ -13,7 +14,8 @@ import java.util.Arrays;
 /** Endpoint builder for a Restate AWS Lambda Endpoint, to serve Restate service. */
 public final class LambdaRestateServerBuilder {
 
-  private final RestateGrpcServer.Builder restateGrpcServerBuilder = RestateGrpcServer.newBuilder();
+  private final RestateGrpcServer.Builder restateGrpcServerBuilder =
+      RestateGrpcServer.newBuilder(Discovery.ProtocolMode.REQUEST_RESPONSE);
   private OpenTelemetry openTelemetry = OpenTelemetry.noop();
 
   /** Add a {@link BindableBlockingService} to the endpoint. */

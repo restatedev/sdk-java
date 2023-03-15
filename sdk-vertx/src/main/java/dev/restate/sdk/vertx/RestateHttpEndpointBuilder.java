@@ -1,5 +1,6 @@
 package dev.restate.sdk.vertx;
 
+import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.sdk.core.BindableBlockingService;
 import dev.restate.sdk.core.BindableNonBlockingService;
 import dev.restate.sdk.core.impl.RestateGrpcServer;
@@ -36,7 +37,8 @@ import java.util.Optional;
 public class RestateHttpEndpointBuilder {
 
   private final Vertx vertx;
-  private final RestateGrpcServer.Builder restateGrpcServerBuilder = RestateGrpcServer.newBuilder();
+  private final RestateGrpcServer.Builder restateGrpcServerBuilder =
+      RestateGrpcServer.newBuilder(Discovery.ProtocolMode.BIDI_STREAM);
   private final HashSet<String> blockingServices = new HashSet<>();
   private OpenTelemetry openTelemetry = OpenTelemetry.noop();
   private HttpServerOptions options;

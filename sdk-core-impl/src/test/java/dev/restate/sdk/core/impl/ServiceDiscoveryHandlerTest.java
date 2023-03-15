@@ -15,6 +15,7 @@ class ServiceDiscoveryHandlerTest {
   void handleWithMultipleServices() {
     ServiceDiscoveryHandler handler =
         new ServiceDiscoveryHandler(
+            Discovery.ProtocolMode.REQUEST_RESPONSE,
             Map.of(
                 GreeterGrpc.SERVICE_NAME, new GreeterGrpc.GreeterImplBase() {}.bindService(),
                 CounterGrpc.SERVICE_NAME, new CounterGrpc.CounterImplBase() {}.bindService()));
@@ -33,5 +34,6 @@ class ServiceDiscoveryHandlerTest {
             "counter.proto",
             "common.proto",
             "greeter.proto");
+    assertThat(response.getProtocolMode()).isEqualTo(Discovery.ProtocolMode.REQUEST_RESPONSE);
   }
 }

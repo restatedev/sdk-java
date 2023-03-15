@@ -12,7 +12,8 @@ final class ServiceDiscoveryHandler {
 
   private final Discovery.ServiceDiscoveryResponse response;
 
-  public ServiceDiscoveryHandler(Map<String, ServerServiceDefinition> services) {
+  public ServiceDiscoveryHandler(
+      Discovery.ProtocolMode protocolMode, Map<String, ServerServiceDefinition> services) {
     // Collect set of files
     Set<DescriptorProtos.FileDescriptorProto> fileDescriptors =
         resolveDescriptors(
@@ -37,6 +38,7 @@ final class ServiceDiscoveryHandler {
         Discovery.ServiceDiscoveryResponse.newBuilder()
             .setFiles(DescriptorProtos.FileDescriptorSet.newBuilder().addAllFile(fileDescriptors))
             .addAllServices(services.keySet())
+            .setProtocolMode(protocolMode)
             .build();
   }
 

@@ -31,11 +31,14 @@ public class RestateGrpcServer {
   private final ServiceDiscoveryHandler serviceDiscoveryHandler;
 
   private RestateGrpcServer(
-      Map<String, ServerServiceDefinition> services, Serde serde, Tracer tracer) {
+      Discovery.ProtocolMode protocolMode,
+      Map<String, ServerServiceDefinition> services,
+      Serde serde,
+      Tracer tracer) {
     this.services = services;
     this.serde = serde;
     this.tracer = tracer;
-    this.serviceDiscoveryHandler = new ServiceDiscoveryHandler(services);
+    this.serviceDiscoveryHandler = new ServiceDiscoveryHandler(protocolMode, services);
   }
 
   @SuppressWarnings("unchecked")
@@ -126,15 +129,20 @@ public class RestateGrpcServer {
 
   // -- Builder
 
-  public static Builder newBuilder() {
-    return new Builder();
+  public static Builder newBuilder(Discovery.ProtocolMode protocolMode) {
+    return new Builder(protocolMode);
   }
 
   public static class Builder {
 
     private final List<ServerServiceDefinition> services = new ArrayList<>();
+    private final Discovery.ProtocolMode protocolMode;
     private Serde serde;
     private Tracer tracer = OpenTelemetry.noop().getTracer("NOOP");
+
+    public Builder(Discovery.ProtocolMode protocolMode) {
+      this.protocolMode = protocolMode;
+    }
 
     public Builder withService(BindableService service) {
       this.services.add(service.bindService());
@@ -162,6 +170,7 @@ public class RestateGrpcServer {
       }
 
       return new RestateGrpcServer(
+          this.protocolMode,
           this.services.stream()
               .collect(
                   Collectors.toMap(
