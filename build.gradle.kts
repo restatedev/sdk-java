@@ -43,7 +43,6 @@ allprojects {
     renderers = arrayOf(com.github.jk1.license.render.CsvReportRenderer())
 
     excludeBoms = true
-    excludeOwnGroup = true
 
     excludes =
         arrayOf(
