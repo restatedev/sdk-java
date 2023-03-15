@@ -15,6 +15,12 @@ option go_package = "restate.dev/sdk-go/pb/service/discovery";
 message ServiceDiscoveryRequest {
 }
 
+enum ProtocolMode {
+  // protolint:disable:next ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
+  BIDI_STREAM = 0;
+  REQUEST_RESPONSE = 1;
+}
+
 message ServiceDiscoveryResponse {
   // List of all proto files used to define the services, including the dependencies.
   google.protobuf.FileDescriptorSet files = 1;
@@ -25,4 +31,7 @@ message ServiceDiscoveryResponse {
   // Service-protocol version negotiation
   uint32 min_protocol_version = 3;
   uint32 max_protocol_version = 4;
+
+  // Protocol mode negotiation
+  ProtocolMode protocol_mode = 5;
 }
