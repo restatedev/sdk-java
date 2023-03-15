@@ -24,6 +24,9 @@ allprojects {
   apply(plugin = "com.diffplug.spotless")
   apply(plugin = "com.github.jk1.dependency-license-report")
 
+  group = "dev.restate"
+  version = restateVersion
+
   configure<com.diffplug.gradle.spotless.SpotlessExtension> {
     java {
       googleJavaFormat()
@@ -39,6 +42,7 @@ allprojects {
     renderers = arrayOf(com.github.jk1.license.render.CsvReportRenderer())
 
     excludeBoms = true
+    excludeOwnGroup = true
 
     excludes =
         arrayOf(
@@ -59,8 +63,6 @@ subprojects {
   apply(plugin = "maven-publish")
   apply(plugin = "net.ltgt.errorprone")
   apply(plugin = "com.google.protobuf")
-
-  version = restateVersion
 
   tasks.withType<Test> {
     useJUnitPlatform()
