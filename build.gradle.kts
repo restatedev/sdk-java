@@ -24,6 +24,9 @@ allprojects {
   apply(plugin = "com.diffplug.spotless")
   apply(plugin = "com.github.jk1.dependency-license-report")
 
+  group = "dev.restate"
+  version = "0.1.0-SNAPSHOT"
+
   configure<com.diffplug.gradle.spotless.SpotlessExtension> {
     java {
       googleJavaFormat()
