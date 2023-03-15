@@ -160,7 +160,8 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
                 return;
               }
               promise.complete();
-            });
+            },
+            false);
   }
 
   private void handleDiscoveryRequest(HttpServerRequest request) {
