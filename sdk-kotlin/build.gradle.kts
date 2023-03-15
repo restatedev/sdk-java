@@ -7,7 +7,7 @@
     "UNRESOLVED_REFERENCE_WRONG_RECEIVER",
     "FUNCTION_CALL_EXPECTED")
 plugins {
-  kotlin("jvm") version "1.6.20"
+  kotlin("jvm")
   idea
   `maven-publish`
 }

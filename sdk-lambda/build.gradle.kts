@@ -8,6 +8,7 @@
     "FUNCTION_CALL_EXPECTED")
 plugins {
   `java-library`
+  kotlin("jvm")
   idea
   `maven-publish`
 }

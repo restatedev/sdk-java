@@ -11,7 +11,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
     "FUNCTION_CALL_EXPECTED")
 plugins {
   java
-  kotlin("jvm") version "1.6.20"
+  kotlin("jvm")
   idea
   `maven-publish`
   application
