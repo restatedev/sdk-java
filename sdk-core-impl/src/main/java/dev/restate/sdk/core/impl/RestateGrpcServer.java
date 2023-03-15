@@ -101,7 +101,7 @@ public class RestateGrpcServer {
         stateMachine.start(
             invocationId -> {
               // Create the listener and create the decorators chain
-              ServerCall.Listener<MessageLite> listener =
+              ServerCall.Listener<MessageLite> grpcListener =
                   Contexts.interceptCall(
                       Context.current()
                           .withValue(InvocationId.INVOCATION_ID_KEY, invocationId)
@@ -109,14 +109,15 @@ public class RestateGrpcServer {
                       bridge,
                       new Metadata(),
                       method.getServerCallHandler());
-              listener = new ExceptionCatchingServerCallListener<>(listener, bridge);
+              RestateServerCallListener<MessageLite> restateListener =
+                  new GrpcServerCallListenerAdaptor<>(grpcListener, bridge);
               if (serverCallListenerExecutor != null) {
-                listener =
+                restateListener =
                     ExecutorSwitchingWrappers.serverCallListener(
-                        listener, serverCallListenerExecutor);
+                        restateListener, serverCallListenerExecutor);
               }
 
-              bridge.setListener(listener);
+              bridge.setListener(restateListener);
             });
       }
     };

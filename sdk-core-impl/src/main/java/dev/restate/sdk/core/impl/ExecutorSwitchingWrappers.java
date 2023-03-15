@@ -6,7 +6,6 @@ import dev.restate.generated.core.AwakeableIdentifier;
 import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.core.syscalls.*;
 import io.grpc.MethodDescriptor;
-import io.grpc.ServerCall;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.Executor;
@@ -17,8 +16,8 @@ class ExecutorSwitchingWrappers {
 
   private ExecutorSwitchingWrappers() {}
 
-  static ServerCall.Listener<MessageLite> serverCallListener(
-      ServerCall.Listener<MessageLite> sc, Executor userExecutor) {
+  static RestateServerCallListener<MessageLite> serverCallListener(
+      RestateServerCallListener<MessageLite> sc, Executor userExecutor) {
     return new ExecutorSwitchingServerCallListener(sc, userExecutor);
   }
 
@@ -27,25 +26,20 @@ class ExecutorSwitchingWrappers {
   }
 
   private static class ExecutorSwitchingServerCallListener
-      extends ServerCall.Listener<MessageLite> {
+      implements RestateServerCallListener<MessageLite> {
 
-    private final ServerCall.Listener<MessageLite> listener;
+    private final RestateServerCallListener<MessageLite> listener;
     private final Executor userExecutor;
 
     private ExecutorSwitchingServerCallListener(
-        ServerCall.Listener<MessageLite> listener, Executor userExecutor) {
+        RestateServerCallListener<MessageLite> listener, Executor userExecutor) {
       this.listener = listener;
       this.userExecutor = userExecutor;
     }
 
     @Override
-    public void onMessage(MessageLite message) {
-      userExecutor.execute(() -> listener.onMessage(message));
-    }
-
-    @Override
-    public void onHalfClose() {
-      userExecutor.execute(listener::onHalfClose);
+    public void onMessageAndHalfClose(MessageLite message) {
+      userExecutor.execute(() -> listener.onMessageAndHalfClose(message));
     }
 
     @Override

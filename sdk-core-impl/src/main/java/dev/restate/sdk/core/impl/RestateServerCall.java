@@ -30,7 +30,7 @@ class RestateServerCall extends ServerCall<MessageLite, MessageLite> {
   //
   // The listener reference is volatile in order to guarantee its visibility when the ownership of
   // this object is transferred through threads.
-  private volatile ServerCall.Listener<MessageLite> listener;
+  private volatile RestateServerCallListener<MessageLite> listener;
 
   // These variables don't need to be volatile as they're accessed and mutated only by
   // #setListener() and #request()
@@ -45,7 +45,7 @@ class RestateServerCall extends ServerCall<MessageLite, MessageLite> {
 
   // --- Invoked in the State machine thread
 
-  void setListener(Listener<MessageLite> listener) {
+  void setListener(RestateServerCallListener<MessageLite> listener) {
     this.listener = listener;
     this.listener.onReady();
 
@@ -158,8 +158,7 @@ class RestateServerCall extends ServerCall<MessageLite, MessageLite> {
                           MessageLite message = deferredValue.toReadyResult().getResult();
 
                           LOG.trace("Read input message:\n{}", message);
-                          listener.onMessage(message);
-                          listener.onHalfClose();
+                          listener.onMessageAndHalfClose(message);
                         },
                         this::onError)),
             this::onError));

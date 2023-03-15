@@ -1,37 +1,35 @@
 package dev.restate.sdk.core.impl;
 
-import io.grpc.ForwardingServerCallListener;
 import io.grpc.Metadata;
 import io.grpc.ServerCall;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-class ExceptionCatchingServerCallListener<ReqT, RespT>
-    extends ForwardingServerCallListener.SimpleForwardingServerCallListener<ReqT> {
+/**
+ * Adapts a {@link ServerCall.Listener} to a {@link RestateServerCallListener}.
+ *
+ * @param <ReqT> type of the request
+ * @param <RespT> type of the response
+ */
+class GrpcServerCallListenerAdaptor<ReqT, RespT> implements RestateServerCallListener<ReqT> {
 
-  private static final Logger LOG = LogManager.getLogger(ExceptionCatchingServerCallListener.class);
+  private static final Logger LOG = LogManager.getLogger(GrpcServerCallListenerAdaptor.class);
 
   private final ServerCall<ReqT, RespT> serverCall;
 
-  ExceptionCatchingServerCallListener(
+  private final ServerCall.Listener<ReqT> delegate;
+
+  GrpcServerCallListenerAdaptor(
       ServerCall.Listener<ReqT> delegate, ServerCall<ReqT, RespT> serverCall) {
-    super(delegate);
+    this.delegate = delegate;
     this.serverCall = serverCall;
   }
 
   @Override
-  public void onMessage(ReqT message) {
+  public void onMessageAndHalfClose(ReqT message) {
     try {
-      super.onMessage(message);
-    } catch (Throwable e) {
-      closeWithException(e);
-    }
-  }
-
-  @Override
-  public void onHalfClose() {
-    try {
-      super.onHalfClose();
+      delegate.onMessage(message);
+      delegate.onHalfClose();
     } catch (Throwable e) {
       closeWithException(e);
     }
@@ -40,7 +38,7 @@ class ExceptionCatchingServerCallListener<ReqT, RespT>
   @Override
   public void onCancel() {
     try {
-      super.onCancel();
+      delegate.onCancel();
     } catch (Throwable e) {
       closeWithException(e);
     }
@@ -49,7 +47,7 @@ class ExceptionCatchingServerCallListener<ReqT, RespT>
   @Override
   public void onComplete() {
     try {
-      super.onComplete();
+      delegate.onComplete();
     } catch (Throwable e) {
       closeWithException(e);
     }
@@ -58,7 +56,7 @@ class ExceptionCatchingServerCallListener<ReqT, RespT>
   @Override
   public void onReady() {
     try {
-      super.onReady();
+      delegate.onReady();
     } catch (Throwable e) {
       closeWithException(e);
     }
