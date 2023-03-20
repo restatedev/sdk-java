@@ -196,6 +196,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       this.readyResultPublisher.abort(ProtocolException.CLOSED);
       this.sideEffectAckPublisher.abort(ProtocolException.CLOSED);
       this.entriesQueue.abort(ProtocolException.CLOSED);
+      this.span.end();
     }
   }
 
@@ -214,6 +215,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       this.readyResultPublisher.abort(cause);
       this.sideEffectAckPublisher.abort(cause);
       this.entriesQueue.abort(cause);
+      this.span.end();
     }
   }
 
