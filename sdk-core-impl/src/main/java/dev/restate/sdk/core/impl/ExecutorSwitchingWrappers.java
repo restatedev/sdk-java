@@ -127,9 +127,10 @@ class ExecutorSwitchingWrappers {
     public <T extends MessageLite> void backgroundCall(
         MethodDescriptor<T, ? extends MessageLite> methodDescriptor,
         T parameter,
+        Duration delay,
         SyscallCallback<Void> requestCallback) {
       syscallsExecutor.execute(
-          () -> syscalls.backgroundCall(methodDescriptor, parameter, requestCallback));
+          () -> syscalls.backgroundCall(methodDescriptor, parameter, delay, requestCallback));
     }
 
     @Override

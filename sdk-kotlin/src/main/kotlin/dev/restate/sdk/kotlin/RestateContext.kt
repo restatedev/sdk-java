@@ -38,6 +38,12 @@ sealed interface RestateContext {
       parameter: T
   )
 
+  suspend fun <T : MessageLite> delayedCall(
+      methodDescriptor: MethodDescriptor<T, MessageLite>,
+      parameter: T,
+      delay: Duration
+  )
+
   suspend fun <T> sideEffect(typeTag: TypeTag<T>, sideEffectAction: suspend () -> T?): T?
 
   suspend fun sideEffect(sideEffectAction: suspend () -> Unit) {

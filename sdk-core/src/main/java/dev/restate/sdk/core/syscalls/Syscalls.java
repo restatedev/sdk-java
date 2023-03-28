@@ -11,6 +11,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Internal interface to access Restate functionalities. Users can use the ad-hoc RestateContext
@@ -59,6 +60,7 @@ public interface Syscalls {
   <T extends MessageLite> void backgroundCall(
       MethodDescriptor<T, ? extends MessageLite> methodDescriptor,
       T parameter,
+      @Nullable Duration delay,
       SyscallCallback<Void> requestCallback);
 
   <T> void enterSideEffectBlock(TypeTag<T> typeTag, EnterSideEffectSyscallCallback<T> callback);

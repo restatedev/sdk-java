@@ -62,7 +62,14 @@ class RestateContextImpl implements RestateContext {
   @Override
   public <T extends MessageLite> void backgroundCall(
       MethodDescriptor<T, ? extends MessageLite> methodDescriptor, T parameter) {
-    Util.<Void>blockOnSyscall(cb -> syscalls.backgroundCall(methodDescriptor, parameter, cb));
+    Util.<Void>blockOnSyscall(cb -> syscalls.backgroundCall(methodDescriptor, parameter, null, cb));
+  }
+
+  @Override
+  public <T extends MessageLite> void delayedCall(
+      MethodDescriptor<T, ? extends MessageLite> methodDescriptor, T parameter, Duration delay) {
+    Util.<Void>blockOnSyscall(
+        cb -> syscalls.backgroundCall(methodDescriptor, parameter, delay, cb));
   }
 
   @Override

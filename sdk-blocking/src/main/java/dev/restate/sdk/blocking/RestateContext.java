@@ -82,6 +82,13 @@ public interface RestateContext {
   <T extends MessageLite> void backgroundCall(
       MethodDescriptor<T, ? extends MessageLite> methodDescriptor, T parameter);
 
+  /**
+   * Similar to {@link #backgroundCall(MethodDescriptor, MessageLite)}, but executes the invocation
+   * after the provided delay.
+   */
+  <T extends MessageLite> void delayedCall(
+      MethodDescriptor<T, ? extends MessageLite> methodDescriptor, T parameter, Duration delay);
+
   /** Shorthand for {@link #sideEffect(TypeTag, Supplier)}. */
   default <T> T sideEffect(Class<T> clazz, Supplier<T> action) {
     return sideEffect(TypeTag.ofClass(clazz), action);
