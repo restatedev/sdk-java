@@ -80,6 +80,17 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
     }
   }
 
+  override suspend fun <T : MessageLite> delayedCall(
+      methodDescriptor: MethodDescriptor<T, MessageLite>,
+      parameter: T,
+      delay: Duration
+  ) {
+    return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
+      syscalls.backgroundCall(
+          methodDescriptor, parameter, delay.toJavaDuration(), completingUnitContinuation(cont))
+    }
+  }
+
   override suspend fun <T> sideEffect(typeTag: TypeTag<T>, sideEffectAction: suspend () -> T?): T? {
     val exitResult =
         suspendCancellableCoroutine { cont: CancellableContinuation<CompletableDeferred<T?>> ->

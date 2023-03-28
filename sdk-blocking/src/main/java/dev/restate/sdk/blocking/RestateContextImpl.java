@@ -66,6 +66,13 @@ class RestateContextImpl implements RestateContext {
   }
 
   @Override
+  public <T extends MessageLite> void delayedCall(
+      MethodDescriptor<T, ? extends MessageLite> methodDescriptor, T parameter, Duration delay) {
+    Util.<Void>blockOnSyscall(
+        cb -> syscalls.backgroundCall(methodDescriptor, parameter, delay, cb));
+  }
+
+  @Override
   public <T> T sideEffect(TypeTag<T> typeTag, Supplier<T> action) {
     CompletableFuture<CompletableFuture<T>> enterFut = new CompletableFuture<>();
     syscalls.enterSideEffectBlock(
