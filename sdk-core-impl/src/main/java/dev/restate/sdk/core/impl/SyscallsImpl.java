@@ -22,6 +22,7 @@ import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -138,19 +139,24 @@ public final class SyscallsImpl implements SyscallsInternal {
   public <T extends MessageLite> void backgroundCall(
       MethodDescriptor<T, ? extends MessageLite> methodDescriptor,
       T parameter,
+      @Nullable Duration delay,
       SyscallCallback<Void> callback) {
     String serviceName = methodDescriptor.getServiceName();
     String methodName = methodDescriptor.getBareMethodName();
     LOG.trace("backgroundCall {}/{}", serviceName, methodName);
 
-    this.stateMachine.processJournalEntryWithoutWaitingAck(
+    var builder =
         Protocol.BackgroundInvokeEntryMessage.newBuilder()
             .setServiceName(serviceName)
             .setMethodName(methodName)
-            .setParameter(parameter.toByteString())
-            .build(),
-        BackgroundInvokeEntry.INSTANCE,
-        callback);
+            .setParameter(parameter.toByteString());
+
+    if (delay != null) {
+      builder.setInvokeTime(Instant.now().toEpochMilli() + delay.toMillis());
+    }
+
+    this.stateMachine.processJournalEntryWithoutWaitingAck(
+        builder.build(), BackgroundInvokeEntry.INSTANCE, callback);
   }
 
   @Override

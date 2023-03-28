@@ -76,7 +76,7 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
       parameter: T
   ) {
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-      syscalls.backgroundCall(methodDescriptor, parameter, completingUnitContinuation(cont))
+      syscalls.backgroundCall(methodDescriptor, parameter, null, completingUnitContinuation(cont))
     }
   }
 
