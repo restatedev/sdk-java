@@ -1,3 +1,3 @@
-# sdk-java
+# Restate Service Protocol specification
 
-Restate SDK for Java
+<!-- TODO write here protocol specification -->
