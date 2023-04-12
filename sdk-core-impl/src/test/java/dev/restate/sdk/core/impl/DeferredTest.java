@@ -114,6 +114,24 @@ public class DeferredTest extends CoreTestRunner {
     }
   }
 
+  private static class AnyAwaitIndex extends GreeterGrpc.GreeterImplBase
+          implements RestateBlockingService {
+    @Override
+    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
+      RestateContext ctx = restateContext();
+
+      Awaitable<String> a1 = ctx.awakeable(TypeTag.STRING_UTF8);
+      Awaitable<String> a2 = ctx.awakeable(TypeTag.STRING_UTF8);
+      Awaitable<String> a3 = ctx.awakeable(TypeTag.STRING_UTF8);
+      Awaitable<String> a4 = ctx.awakeable(TypeTag.STRING_UTF8);
+
+      responseObserver.onNext(greetingResponse(
+              String.valueOf(Awaitable.any(a1, Awaitable.all(a2, a3), a4).awaitIndex())
+      ));
+      responseObserver.onCompleted();
+    }
+  }
+
   private static class AwaitOnAlreadyResolvedAwaitables extends GreeterGrpc.GreeterImplBase
       implements RestateBlockingService {
     @Override
@@ -433,6 +451,31 @@ public class DeferredTest extends CoreTestRunner {
             .usingAllThreadingModels()
             .expectingOutput(outputMessage(greetingResponse("233")))
             .named("Inverted order"),
+
+        // --- Await Any with index
+        testInvocation(new AnyAwaitIndex(), GreeterGrpc.getGreetMethod())
+                .withInput(
+                        startMessage(6),
+                        inputMessage(GreetingRequest.newBuilder()),
+                        awakeable("1"),
+                        awakeable("2"),
+                        awakeable("3"),
+                        awakeable("4"),
+                        combinatorsMessage(1))
+                .usingAllThreadingModels()
+                .expectingOutput(outputMessage(greetingResponse("0"))),
+        testInvocation(new AnyAwaitIndex(), GreeterGrpc.getGreetMethod())
+                .withInput(
+                        startMessage(6),
+                        inputMessage(GreetingRequest.newBuilder()),
+                        awakeable("1"),
+                        awakeable("2"),
+                        awakeable("3"),
+                        awakeable("4"),
+                        combinatorsMessage(3, 2))
+                .usingAllThreadingModels()
+                .expectingOutput(outputMessage(greetingResponse("1")))
+                .named("Complete all"),
 
         // --- Compose nested and resolved all should work
         testInvocation(new AwaitOnAlreadyResolvedAwaitables(), GreeterGrpc.getGreetMethod())

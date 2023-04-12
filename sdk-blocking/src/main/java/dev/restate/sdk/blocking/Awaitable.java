@@ -22,8 +22,8 @@ import javax.annotation.concurrent.NotThreadSafe;
 @NotThreadSafe
 public class Awaitable<T> {
 
-  private final Syscalls syscalls;
-  private final DeferredResult<T> deferredResult;
+  final Syscalls syscalls;
+  final DeferredResult<T> deferredResult;
 
   Awaitable(Syscalls syscalls, DeferredResult<T> deferredResult) {
     this.syscalls = syscalls;
@@ -47,14 +47,13 @@ public class Awaitable<T> {
     return Util.unwrapReadyResult(this.deferredResult.toReadyResult());
   }
 
-  public static Awaitable<Object> any(
-      Awaitable<?> first, Awaitable<?> second, Awaitable<?>... others) {
+  public static AnyAwaitable any(Awaitable<?> first, Awaitable<?> second, Awaitable<?>... others) {
     List<DeferredResult<?>> deferred = new ArrayList<>(2 + others.length);
     deferred.add(first.deferredResult);
     deferred.add(second.deferredResult);
     Arrays.stream(others).map(a -> a.deferredResult).forEach(deferred::add);
 
-    return new Awaitable<>(first.syscalls, first.syscalls.createAnyDeferred(deferred));
+    return new AnyAwaitable(first.syscalls, first.syscalls.createAnyDeferred(deferred));
   }
 
   public static Awaitable<Void> all(
