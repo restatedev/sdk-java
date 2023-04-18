@@ -85,7 +85,7 @@ public interface Syscalls {
 
   <T> void resolveDeferred(DeferredResult<T> deferredToResolve, SyscallCallback<Void> callback);
 
-  DeferredResult<Object> createAnyDeferred(Collection<DeferredResult<?>> children);
+  AnyDeferredResult createAnyDeferred(Collection<DeferredResult<?>> children);
 
   DeferredResult<Void> createAllDeferred(Collection<DeferredResult<?>> children);
 }

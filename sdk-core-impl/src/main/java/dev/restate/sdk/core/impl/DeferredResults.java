@@ -20,7 +20,7 @@ abstract class DeferredResults {
     return new ResolvableSingleDeferredResult<>(readyResultInternal, entryIndex);
   }
 
-  static DeferredResultInternal<Object> any(List<DeferredResultInternal<?>> any) {
+  static dev.restate.sdk.core.syscalls.AnyDeferredResult any(List<DeferredResultInternal<?>> any) {
     return new AnyDeferredResult(any);
   }
 
@@ -141,7 +141,11 @@ abstract class DeferredResults {
     }
   }
 
-  static class AnyDeferredResult extends CombinatorDeferredResult<Object> {
+  static class AnyDeferredResult extends CombinatorDeferredResult<Object>
+      implements dev.restate.sdk.core.syscalls.AnyDeferredResult {
+
+    private final IdentityHashMap<DeferredResultInternal<?>, Integer> indexMapping;
+    private int completedIndex = -1;
 
     private AnyDeferredResult(List<DeferredResultInternal<?>> children) {
       super(
@@ -154,6 +158,12 @@ abstract class DeferredResults {
               .filter(d -> d instanceof CombinatorDeferredResult)
               .map(d -> (CombinatorDeferredResult<?>) d)
               .collect(Collectors.toSet()));
+
+      // The index mapping relies on instance hashing
+      this.indexMapping = new IdentityHashMap<>();
+      for (int i = 0; i < children.size(); i++) {
+        this.indexMapping.put(children.get(i), i);
+      }
     }
 
     @SuppressWarnings("unchecked")
@@ -168,6 +178,7 @@ abstract class DeferredResults {
       if (resolvedSingle != null) {
         // Resolved
         this.resolve((ReadyResults.ReadyResultInternal<Object>) resolvedSingle.toReadyResult());
+        this.completedIndex = this.indexMapping.get(resolvedSingle);
         return true;
       }
 
@@ -175,11 +186,20 @@ abstract class DeferredResults {
         if (combinator.tryResolve(newResolvedSingle)) {
           // Resolved
           this.resolve((ReadyResults.ReadyResultInternal<Object>) combinator.toReadyResult());
+          this.completedIndex = this.indexMapping.get(combinator);
           return true;
         }
       }
 
       return false;
+    }
+
+    @Override
+    public OptionalInt completedIndex() {
+      if (completedIndex == -1) {
+        return OptionalInt.empty();
+      }
+      return OptionalInt.of(completedIndex);
     }
   }
 

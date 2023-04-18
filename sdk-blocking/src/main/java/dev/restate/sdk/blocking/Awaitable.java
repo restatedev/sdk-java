@@ -4,6 +4,7 @@ import dev.restate.sdk.core.SuspendedException;
 import dev.restate.sdk.core.syscalls.DeferredResult;
 import dev.restate.sdk.core.syscalls.Syscalls;
 import io.grpc.StatusRuntimeException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -22,8 +23,8 @@ import javax.annotation.concurrent.NotThreadSafe;
 @NotThreadSafe
 public class Awaitable<T> {
 
-  private final Syscalls syscalls;
-  private final DeferredResult<T> deferredResult;
+  final Syscalls syscalls;
+  final DeferredResult<T> deferredResult;
 
   Awaitable(Syscalls syscalls, DeferredResult<T> deferredResult) {
     this.syscalls = syscalls;
@@ -47,14 +48,32 @@ public class Awaitable<T> {
     return Util.unwrapReadyResult(this.deferredResult.toReadyResult());
   }
 
-  public static Awaitable<Object> any(
-      Awaitable<?> first, Awaitable<?> second, Awaitable<?>... others) {
+  /**
+   * Same as {@link #await()}, but throws a {@link TimeoutException} if this {@link Awaitable}
+   * doesn't complete before the provided {@code timeout}.
+   */
+  @SuppressWarnings("unchecked")
+  public T await(Duration timeout) throws StatusRuntimeException, TimeoutException {
+    DeferredResult<Void> sleep = Util.blockOnSyscall(cb -> syscalls.sleep(timeout, cb));
+
+    AnyAwaitable any =
+        new AnyAwaitable(
+            this.syscalls, this.syscalls.createAnyDeferred(List.of(this.deferredResult, sleep)));
+
+    if (any.awaitIndex() == 1) {
+      throw new TimeoutException();
+    }
+
+    return (T) any.await();
+  }
+
+  public static AnyAwaitable any(Awaitable<?> first, Awaitable<?> second, Awaitable<?>... others) {
     List<DeferredResult<?>> deferred = new ArrayList<>(2 + others.length);
     deferred.add(first.deferredResult);
     deferred.add(second.deferredResult);
     Arrays.stream(others).map(a -> a.deferredResult).forEach(deferred::add);
 
-    return new Awaitable<>(first.syscalls, first.syscalls.createAnyDeferred(deferred));
+    return new AnyAwaitable(first.syscalls, first.syscalls.createAnyDeferred(deferred));
   }
 
   public static Awaitable<Void> all(

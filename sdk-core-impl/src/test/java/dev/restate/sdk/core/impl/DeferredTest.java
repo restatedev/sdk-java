@@ -6,7 +6,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.list;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
+import com.google.protobuf.Empty;
 import dev.restate.generated.sdk.java.Java;
+import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.blocking.Awaitable;
 import dev.restate.sdk.blocking.RestateBlockingService;
 import dev.restate.sdk.blocking.RestateContext;
@@ -16,6 +18,8 @@ import dev.restate.sdk.core.impl.testservices.GreeterGrpc;
 import dev.restate.sdk.core.impl.testservices.GreetingRequest;
 import dev.restate.sdk.core.impl.testservices.GreetingResponse;
 import io.grpc.stub.StreamObserver;
+import java.time.Duration;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 
 public class DeferredTest extends CoreTestRunner {
@@ -114,6 +118,24 @@ public class DeferredTest extends CoreTestRunner {
     }
   }
 
+  private static class AnyAwaitIndex extends GreeterGrpc.GreeterImplBase
+      implements RestateBlockingService {
+    @Override
+    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
+      RestateContext ctx = restateContext();
+
+      Awaitable<String> a1 = ctx.awakeable(TypeTag.STRING_UTF8);
+      Awaitable<String> a2 = ctx.awakeable(TypeTag.STRING_UTF8);
+      Awaitable<String> a3 = ctx.awakeable(TypeTag.STRING_UTF8);
+      Awaitable<String> a4 = ctx.awakeable(TypeTag.STRING_UTF8);
+
+      responseObserver.onNext(
+          greetingResponse(
+              String.valueOf(Awaitable.any(a1, Awaitable.all(a2, a3), a4).awaitIndex())));
+      responseObserver.onCompleted();
+    }
+  }
+
   private static class AwaitOnAlreadyResolvedAwaitables extends GreeterGrpc.GreeterImplBase
       implements RestateBlockingService {
     @Override
@@ -131,6 +153,27 @@ public class DeferredTest extends CoreTestRunner {
       a121and12.await();
 
       responseObserver.onNext(greetingResponse(a1.await() + a2.await()));
+      responseObserver.onCompleted();
+    }
+  }
+
+  private static class AwaitWithTimeout extends GreeterGrpc.GreeterImplBase
+      implements RestateBlockingService {
+    @Override
+    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
+      RestateContext ctx = restateContext();
+
+      Awaitable<GreetingResponse> call =
+          ctx.call(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco"));
+
+      String result;
+      try {
+        result = call.await(Duration.ofDays(1)).getMessage();
+      } catch (TimeoutException e) {
+        result = "timeout";
+      }
+
+      responseObserver.onNext(greetingResponse(result));
       responseObserver.onCompleted();
     }
   }
@@ -434,6 +477,31 @@ public class DeferredTest extends CoreTestRunner {
             .expectingOutput(outputMessage(greetingResponse("233")))
             .named("Inverted order"),
 
+        // --- Await Any with index
+        testInvocation(new AnyAwaitIndex(), GreeterGrpc.getGreetMethod())
+            .withInput(
+                startMessage(6),
+                inputMessage(GreetingRequest.newBuilder()),
+                awakeable("1"),
+                awakeable("2"),
+                awakeable("3"),
+                awakeable("4"),
+                combinatorsMessage(1))
+            .usingAllThreadingModels()
+            .expectingOutput(outputMessage(greetingResponse("0"))),
+        testInvocation(new AnyAwaitIndex(), GreeterGrpc.getGreetMethod())
+            .withInput(
+                startMessage(6),
+                inputMessage(GreetingRequest.newBuilder()),
+                awakeable("1"),
+                awakeable("2"),
+                awakeable("3"),
+                awakeable("4"),
+                combinatorsMessage(3, 2))
+            .usingAllThreadingModels()
+            .expectingOutput(outputMessage(greetingResponse("1")))
+            .named("Complete all"),
+
         // --- Compose nested and resolved all should work
         testInvocation(new AwaitOnAlreadyResolvedAwaitables(), GreeterGrpc.getGreetMethod())
             .withInput(
@@ -455,6 +523,51 @@ public class DeferredTest extends CoreTestRunner {
 
                   assertThat(msgs).element(1).isEqualTo(combinatorsMessage());
                   assertThat(msgs).element(2).isEqualTo(outputMessage(greetingResponse("12")));
-                }));
+                }),
+
+        // --- Await with timeout
+        testInvocation(new AwaitWithTimeout(), GreeterGrpc.getGreetMethod())
+            .withInput(
+                startMessage(1),
+                inputMessage(GreetingRequest.newBuilder()),
+                completionMessage(1, greetingResponse("FRANCESCO")))
+            .usingThreadingModels(ThreadingModel.UNBUFFERED_MULTI_THREAD)
+            .assertingOutput(
+                messages -> {
+                  assertThat(messages).hasSize(4);
+                  assertThat(messages)
+                      .element(0)
+                      .isEqualTo(
+                          invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco"))
+                              .build());
+                  assertThat(messages).element(1).isInstanceOf(Protocol.SleepEntryMessage.class);
+                  assertThat(messages).element(2).isEqualTo(combinatorsMessage(1));
+                  assertThat(messages)
+                      .element(3)
+                      .isEqualTo(outputMessage(greetingResponse("FRANCESCO")));
+                }),
+        testInvocation(new AwaitWithTimeout(), GreeterGrpc.getGreetMethod())
+            .withInput(
+                startMessage(1),
+                inputMessage(GreetingRequest.newBuilder()),
+                Protocol.CompletionMessage.newBuilder()
+                    .setEntryIndex(2)
+                    .setEmpty(Empty.getDefaultInstance()))
+            .usingThreadingModels(ThreadingModel.UNBUFFERED_MULTI_THREAD)
+            .assertingOutput(
+                messages -> {
+                  assertThat(messages).hasSize(4);
+                  assertThat(messages)
+                      .element(0)
+                      .isEqualTo(
+                          invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco"))
+                              .build());
+                  assertThat(messages).element(1).isInstanceOf(Protocol.SleepEntryMessage.class);
+                  assertThat(messages).element(2).isEqualTo(combinatorsMessage(2));
+                  assertThat(messages)
+                      .element(3)
+                      .isEqualTo(outputMessage(greetingResponse("timeout")));
+                })
+            .named("Fires timeout"));
   }
 }
