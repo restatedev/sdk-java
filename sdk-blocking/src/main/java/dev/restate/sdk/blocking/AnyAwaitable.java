@@ -15,6 +15,11 @@ public final class AnyAwaitable extends Awaitable<Object> {
       Util.<Void>blockOnSyscall(cb -> this.syscalls.resolveDeferred(this.deferredResult, cb));
     }
 
-    return ((AnyDeferredResult) this.deferredResult).completedIndex();
+    return ((AnyDeferredResult) this.deferredResult)
+        .completedIndex()
+        .orElseThrow(
+            () ->
+                new IllegalStateException(
+                    "completedIndex is empty when expecting a value. This looks like an SDK bug."));
   }
 }

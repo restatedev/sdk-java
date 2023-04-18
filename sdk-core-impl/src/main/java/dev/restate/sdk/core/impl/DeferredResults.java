@@ -144,7 +144,7 @@ abstract class DeferredResults {
   static class AnyDeferredResult extends CombinatorDeferredResult<Object>
       implements dev.restate.sdk.core.syscalls.AnyDeferredResult {
 
-    private final HashMap<Object, Integer> indexMapping;
+    private final IdentityHashMap<DeferredResultInternal<?>, Integer> indexMapping;
     private int completedIndex = -1;
 
     private AnyDeferredResult(List<DeferredResultInternal<?>> children) {
@@ -160,7 +160,7 @@ abstract class DeferredResults {
               .collect(Collectors.toSet()));
 
       // The index mapping relies on instance hashing
-      this.indexMapping = new HashMap<>();
+      this.indexMapping = new IdentityHashMap<>();
       for (int i = 0; i < children.size(); i++) {
         this.indexMapping.put(children.get(i), i);
       }
@@ -195,8 +195,11 @@ abstract class DeferredResults {
     }
 
     @Override
-    public int completedIndex() {
-      return completedIndex;
+    public OptionalInt completedIndex() {
+      if (completedIndex == -1) {
+        return OptionalInt.empty();
+      }
+      return OptionalInt.of(completedIndex);
     }
   }
 
