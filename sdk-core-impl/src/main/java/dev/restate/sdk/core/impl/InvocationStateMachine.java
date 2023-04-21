@@ -305,7 +305,6 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       Runnable noEntryCallback,
       Consumer<Throwable> failureCallback) {
     checkInsideSideEffectGuard();
-    this.insideSideEffect = true;
     if (this.state == State.CLOSED) {
       failureCallback.accept(SuspendedException.INSTANCE);
     } else if (this.state == State.REPLAYING) {
@@ -322,6 +321,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
           new SideEffectAckPublisher.OnEnterSideEffectCallback() {
             @Override
             public void onEnter() {
+              insideSideEffect = true;
               if (span.isRecording()) {
                 traceFn.accept(span);
               }

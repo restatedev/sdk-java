@@ -98,6 +98,24 @@ class SideEffectTest extends CoreTestRunner {
     }
   }
 
+  private static class SideEffectThenAwakeable extends GreeterGrpc.GreeterImplBase
+      implements RestateBlockingService {
+
+    @Override
+    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
+      RestateContext ctx = restateContext();
+
+      ctx.sideEffect(
+          () -> {
+            throw new IllegalStateException("This should be replayed");
+          });
+      ctx.awakeable(TypeTag.BYTES).await();
+
+      responseObserver.onNext(GreetingResponse.newBuilder().setMessage("Hello").build());
+      responseObserver.onCompleted();
+    }
+  }
+
   @Override
   Stream<TestDefinition> definitions() {
     return Stream.of(
@@ -153,6 +171,13 @@ class SideEffectTest extends CoreTestRunner {
         testInvocation(new SideEffectGuard(), GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
             .usingAllThreadingModels()
-            .assertingFailure(ProtocolException.class));
+            .assertingFailure(ProtocolException.class),
+        testInvocation(new SideEffectThenAwakeable(), GreeterGrpc.getGreetMethod())
+            .withInput(
+                startMessage(2),
+                inputMessage(GreetingRequest.newBuilder().setName("Till")),
+                Java.SideEffectEntryMessage.newBuilder().setValue(ByteString.copyFromUtf8("")))
+            .usingAllThreadingModels()
+            .expectingOutput(awakeable(), suspensionMessage(2)));
   }
 }
