@@ -91,7 +91,7 @@ final class Entries {
 
     @Override
     public boolean hasResult(GetStateEntryMessage actual) {
-      return actual.getResultCase() == GetStateEntryMessage.ResultCase.VALUE;
+      return actual.getResultCase() != GetStateEntryMessage.ResultCase.RESULT_NOT_SET;
     }
 
     @Override

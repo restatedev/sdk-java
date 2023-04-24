@@ -3,6 +3,7 @@ package dev.restate.sdk.core.impl;
 import static dev.restate.sdk.core.impl.CoreTestRunner.TestCaseBuilder.testInvocation;
 import static dev.restate.sdk.core.impl.ProtoUtils.*;
 
+import com.google.protobuf.Empty;
 import dev.restate.sdk.blocking.RestateBlockingService;
 import dev.restate.sdk.core.StateKey;
 import dev.restate.sdk.core.TypeTag;
@@ -18,7 +19,8 @@ class GetStateTest extends CoreTestRunner {
       implements RestateBlockingService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      String state = restateContext().get(StateKey.of("STATE", TypeTag.STRING_UTF8)).get();
+      String state =
+          restateContext().get(StateKey.of("STATE", TypeTag.STRING_UTF8)).orElse("Unknown");
 
       responseObserver.onNext(GreetingResponse.newBuilder().setMessage("Hello " + state).build());
       responseObserver.onCompleted();
@@ -37,6 +39,15 @@ class GetStateTest extends CoreTestRunner {
             .expectingOutput(
                 outputMessage(GreetingResponse.newBuilder().setMessage("Hello Francesco")))
             .named("With GetStateEntry already completed"),
+        testInvocation(new GetStateGreeter(), GreeterGrpc.getGreetMethod())
+            .withInput(
+                startMessage(2),
+                inputMessage(GreetingRequest.newBuilder().setName("Till")),
+                getStateMessage("STATE").setEmpty(Empty.getDefaultInstance()))
+            .usingAllThreadingModels()
+            .expectingOutput(
+                outputMessage(GreetingResponse.newBuilder().setMessage("Hello Unknown")))
+            .named("With GetStateEntry already completed empty"),
         testInvocation(new GetStateGreeter(), GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
             .usingAllThreadingModels()
