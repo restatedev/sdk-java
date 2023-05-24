@@ -79,10 +79,8 @@ internal class RestateHttpEndpointTest {
         request.setChunked(true).putHeader(HttpHeaders.CONTENT_TYPE, "application/restate")
 
         // Send start message and PollInputStreamEntry
-        request.write(MessageEncoder.encode(Buffer.buffer(), startMessage(1).build()))
-        request.write(
-            MessageEncoder.encode(
-                Buffer.buffer(), inputMessage(greetingRequest { name = "Francesco" })))
+        request.write(encode(startMessage(1).build()))
+        request.write(encode(inputMessage(greetingRequest { name = "Francesco" })))
 
         val response = request.response().await()
 
@@ -91,7 +89,7 @@ internal class RestateHttpEndpointTest {
         val decoder = MessageDecoder()
         response.handler {
           decoder.offer(it)
-          decoder.poll()?.let(inputChannel::handle)
+          decoder.poll()?.let { inputChannel.handle(it.message()) }
         }
         response.resume()
 
@@ -103,7 +101,7 @@ internal class RestateHttpEndpointTest {
             .returns(ByteString.copyFromUtf8("counter"), GetStateEntryMessage::getKey)
 
         // Send completion
-        request.write(MessageEncoder.encode(Buffer.buffer(), completionMessage(1, "2")))
+        request.write(encode(completionMessage(1, "2")))
 
         // Wait for Set State Entry
         val setStateEntry = inputChannel.receive()
@@ -121,8 +119,7 @@ internal class RestateHttpEndpointTest {
         // Wait a bit, then send the completion
         delay(1.seconds)
         request.write(
-            MessageEncoder.encode(
-                Buffer.buffer(),
+            encode(
                 CompletionMessage.newBuilder()
                     .setEntryIndex(3)
                     .setEmpty(Empty.getDefaultInstance())
@@ -166,7 +163,7 @@ internal class RestateHttpEndpointTest {
 
         // Prepare request header
         request.setChunked(true).putHeader(HttpHeaders.CONTENT_TYPE, "application/restate")
-        request.write(MessageEncoder.encode(Buffer.buffer(), startMessage(0).build()))
+        request.write(encode(startMessage(0).build()))
 
         val response = request.response().await()
 
@@ -214,4 +211,12 @@ internal class RestateHttpEndpointTest {
             .containsExactlyInAnyOrder(
                 "dev/restate/ext.proto", "google/protobuf/descriptor.proto", "greeter.proto")
       }
+
+  fun encode(msg: MessageLite): Buffer {
+    val buffer = Buffer.buffer(MessageEncoder.encodeLength(msg))
+    val header = headerFromMessage(msg)
+    buffer.appendLong(header.encode())
+    buffer.appendBytes(msg.toByteArray())
+    return buffer
+  }
 }

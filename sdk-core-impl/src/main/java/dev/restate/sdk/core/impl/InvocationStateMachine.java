@@ -47,6 +47,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   private ByteString instanceKey;
   private ByteString invocationId;
   private int entriesToReplay;
+  private LocalStateStorage localStateStorage;
 
   // Index tracking progress in the journal
   private int currentJournalIndex;
@@ -109,10 +110,12 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   }
 
   @Override
-  public void onNext(MessageLite msg) {
+  public void onNext(InvocationFlow.InvocationInput invocationInput) {
+    MessageHeader header = invocationInput.header();
+    MessageLite msg = invocationInput.message();
     LOG.trace("Received input message {} {}", msg.getClass(), msg);
     if (this.state == State.WAITING_START) {
-      this.onStart(msg);
+      this.onStart(header, msg);
     } else if (msg instanceof Protocol.CompletionMessage) {
       // We check the instance rather than the state, because the user code might still be
       // replaying, but the network layer is already past it and is receiving completions from the
@@ -151,7 +154,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     this.inputSubscription.request(1);
   }
 
-  void onStart(MessageLite msg) {
+  void onStart(MessageHeader header, MessageLite msg) {
     if (!(msg instanceof Protocol.StartMessage)) {
       this.fail(ProtocolException.unexpectedMessage(Protocol.StartMessage.class, msg));
       return;
@@ -162,6 +165,16 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     this.instanceKey = startMessage.getInstanceKey();
     this.invocationId = startMessage.getInvocationId();
     this.entriesToReplay = startMessage.getKnownEntries();
+
+    // Set up the state cache
+    this.localStateStorage =
+        new LocalStateStorage(
+            header.hasFlag(MessageHeader.PARTIAL_STATE_FLAG),
+            startMessage.getStateMapList().stream()
+                .collect(
+                    Collectors.toMap(
+                        Protocol.StartMessage.StateEntry::getKey,
+                        Protocol.StartMessage.StateEntry::getValue)));
 
     if (this.span.isRecording()) {
       span.addEvent(
@@ -236,41 +249,64 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
             journalEntry.checkEntryHeader(expectedEntryMessage, actualEntryMessage);
 
             if (journalEntry.hasResult((E) actualEntryMessage)) {
+              journalEntry.updateLocalStateStorage((E) actualEntryMessage, this.localStateStorage);
               ReadyResultInternal<T> readyResultInternal =
                   journalEntry.parseEntryResult((E) actualEntryMessage);
               callback.onSuccess(DeferredResults.completedSingle(entryIndex, readyResultInternal));
             } else {
               this.readyResultPublisher.offerCompletionParser(
-                  entryIndex, journalEntry::parseCompletionResult);
+                  entryIndex,
+                  completionMessage -> {
+                    journalEntry.updateLocalStateStorageWithCompletion(
+                        (E) actualEntryMessage, completionMessage, this.localStateStorage);
+                    return journalEntry.parseCompletionResult(completionMessage);
+                  });
               callback.onSuccess(DeferredResults.single(entryIndex));
             }
           },
           callback::onCancel);
     } else if (this.state == State.PROCESSING) {
+      // Try complete with local storage
+      E entryToWrite =
+          journalEntry.tryCompleteWithLocalStateStorage(expectedEntryMessage, localStateStorage);
+
       if (span.isRecording()) {
-        journalEntry.trace(expectedEntryMessage, span);
+        journalEntry.trace(entryToWrite, span);
       }
 
       // Retrieve the index
       int entryIndex = this.currentJournalIndex;
 
       // Write out the input entry
-      this.writeEntry(expectedEntryMessage);
+      this.writeEntry(entryToWrite);
 
-      // Register the completion parser
-      this.readyResultPublisher.offerCompletionParser(
-          entryIndex, journalEntry::parseCompletionResult);
+      if (journalEntry.hasResult(entryToWrite)) {
+        // Complete it with the result, as we already have it
+        callback.onSuccess(
+            DeferredResults.completedSingle(
+                entryIndex, journalEntry.parseEntryResult(entryToWrite)));
+      } else {
+        // Register the completion parser
+        this.readyResultPublisher.offerCompletionParser(
+            entryIndex,
+            completionMessage -> {
+              journalEntry.updateLocalStateStorageWithCompletion(
+                  entryToWrite, completionMessage, this.localStateStorage);
+              return journalEntry.parseCompletionResult(completionMessage);
+            });
 
-      // Call the onSuccess
-      callback.onSuccess(DeferredResults.single(entryIndex));
+        // Call the onSuccess
+        callback.onSuccess(DeferredResults.single(entryIndex));
+      }
     } else {
       throw new IllegalStateException(
           "This method was invoked when the state machine is not ready to process user code. This is probably an SDK bug");
     }
   }
 
-  <T extends MessageLite> void processJournalEntryWithoutWaitingAck(
-      T expectedEntryMessage, JournalEntry<T> journalEntry, SyscallCallback<Void> callback) {
+  @SuppressWarnings("unchecked")
+  <E extends MessageLite> void processJournalEntry(
+      E expectedEntryMessage, JournalEntry<E> journalEntry, SyscallCallback<Void> callback) {
     checkInsideSideEffectGuard();
     if (this.state == State.CLOSED) {
       callback.onCancel(SuspendedException.INSTANCE);
@@ -279,7 +315,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       this.readEntry(
           (entryIndex, actualEntryMessage) -> {
             journalEntry.checkEntryHeader(expectedEntryMessage, actualEntryMessage);
-
+            journalEntry.updateLocalStateStorage((E) actualEntryMessage, this.localStateStorage);
             callback.onSuccess(null);
           },
           callback::onCancel);
@@ -291,6 +327,9 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       // Write new entry
       this.writeEntry(expectedEntryMessage);
 
+      // Update local storage
+      journalEntry.updateLocalStateStorage(expectedEntryMessage, this.localStateStorage);
+
       // Invoke the ok callback
       callback.onSuccess(null);
     } else {
@@ -299,7 +338,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     }
   }
 
-  void enterSideEffectJournalEntry(
+  void enterSideEffectBlock(
       Consumer<Span> traceFn,
       Consumer<Java.SideEffectEntryMessage> entryCallback,
       Runnable noEntryCallback,

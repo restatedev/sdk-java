@@ -68,8 +68,7 @@ public final class SyscallsImpl implements SyscallsInternal {
 
   private void writeOutput(
       Protocol.OutputStreamEntryMessage entry, SyscallCallback<Void> callback) {
-    this.stateMachine.processJournalEntryWithoutWaitingAck(
-        entry, OutputStreamEntry.INSTANCE, callback);
+    this.stateMachine.processJournalEntry(entry, OutputStreamEntry.INSTANCE, callback);
   }
 
   @Override
@@ -84,7 +83,7 @@ public final class SyscallsImpl implements SyscallsInternal {
   @Override
   public void clear(String name, SyscallCallback<Void> callback) {
     LOG.trace("clear {}", name);
-    this.stateMachine.processJournalEntryWithoutWaitingAck(
+    this.stateMachine.processJournalEntry(
         Protocol.ClearStateEntryMessage.newBuilder().setKey(ByteString.copyFromUtf8(name)).build(),
         ClearStateEntry.INSTANCE,
         callback);
@@ -96,7 +95,7 @@ public final class SyscallsImpl implements SyscallsInternal {
     LOG.trace("set {}", name);
     Objects.requireNonNull(value);
     ByteString serialized = serialize(ty, value);
-    this.stateMachine.processJournalEntryWithoutWaitingAck(
+    this.stateMachine.processJournalEntry(
         Protocol.SetStateEntryMessage.newBuilder()
             .setKey(ByteString.copyFromUtf8(name))
             .setValue(serialized)
@@ -155,7 +154,7 @@ public final class SyscallsImpl implements SyscallsInternal {
       builder.setInvokeTime(Instant.now().toEpochMilli() + delay.toMillis());
     }
 
-    this.stateMachine.processJournalEntryWithoutWaitingAck(
+    this.stateMachine.processJournalEntry(
         builder.build(), BackgroundInvokeEntry.INSTANCE, callback);
   }
 
@@ -163,7 +162,7 @@ public final class SyscallsImpl implements SyscallsInternal {
   public <T> void enterSideEffectBlock(
       TypeTag<T> typeTag, EnterSideEffectSyscallCallback<T> callback) {
     LOG.trace("enterSideEffectBlock");
-    this.stateMachine.enterSideEffectJournalEntry(
+    this.stateMachine.enterSideEffectBlock(
         span -> span.addEvent("Enter SideEffect"),
         sideEffectEntryHandler(typeTag, callback),
         callback::onNotExecuted,
@@ -250,8 +249,7 @@ public final class SyscallsImpl implements SyscallsInternal {
             .setEntryIndex(id.getEntryIndex())
             .setPayload(serialized)
             .build();
-    this.stateMachine.processJournalEntryWithoutWaitingAck(
-        expectedEntry, CompleteAwakeableEntry.INSTANCE, callback);
+    this.stateMachine.processJournalEntry(expectedEntry, CompleteAwakeableEntry.INSTANCE, callback);
   }
 
   @Override

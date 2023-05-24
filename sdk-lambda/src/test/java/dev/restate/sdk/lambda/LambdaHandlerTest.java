@@ -15,6 +15,7 @@ import com.google.protobuf.MessageLite;
 import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.impl.MessageHeader;
+import dev.restate.sdk.core.impl.ProtoUtils;
 import dev.restate.sdk.lambda.testservices.CounterRequest;
 import dev.restate.sdk.lambda.testservices.JavaCounterGrpc;
 import dev.restate.sdk.lambda.testservices.KotlinCounterGrpc;
@@ -109,7 +110,7 @@ class LambdaHandlerTest {
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
     for (MessageLite msg : msgs) {
       ByteBuffer headerBuf = ByteBuffer.allocate(8);
-      headerBuf.putLong(MessageHeader.fromMessage(msg).encode());
+      headerBuf.putLong(ProtoUtils.headerFromMessage(msg).encode());
       outputStream.write(headerBuf.array());
       msg.writeTo(outputStream);
     }

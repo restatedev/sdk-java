@@ -76,11 +76,11 @@ class LambdaFlowAdapters {
       this.buffer = buffer.asReadOnlyBuffer();
     }
 
-    private Flow.Subscriber<? super MessageLite> inputMessagesSubscriber;
+    private Flow.Subscriber<? super InvocationFlow.InvocationInput> inputMessagesSubscriber;
     private long subscriberRequest = 0;
 
     @Override
-    public void subscribe(Flow.Subscriber<? super MessageLite> subscriber) {
+    public void subscribe(Flow.Subscriber<? super InvocationFlow.InvocationInput> subscriber) {
       if (this.inputMessagesSubscriber != null) {
         throw new IllegalStateException(
             "Cannot register more than one subscriber to this publisher");
@@ -123,9 +123,10 @@ class LambdaFlowAdapters {
           return;
         }
 
+        MessageHeader header;
         MessageLite entry;
         try {
-          MessageHeader header = MessageHeader.parse(buffer.getLong());
+          header = MessageHeader.parse(buffer.getLong());
 
           // Prepare the ByteBuffer and pass it to the Protobuf message parser
           ByteBuffer messageBuffer = buffer.slice();
@@ -141,7 +142,7 @@ class LambdaFlowAdapters {
 
         LOG.trace("Received entry " + entry);
         this.subscriberRequest--;
-        inputMessagesSubscriber.onNext(entry);
+        inputMessagesSubscriber.onNext(InvocationFlow.InvocationInput.of(header, entry));
       }
     }
 

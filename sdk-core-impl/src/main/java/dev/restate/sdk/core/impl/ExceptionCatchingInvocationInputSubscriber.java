@@ -1,6 +1,5 @@
 package dev.restate.sdk.core.impl;
 
-import com.google.protobuf.MessageLite;
 import java.util.concurrent.Flow;
 
 class ExceptionCatchingInvocationInputSubscriber
@@ -24,9 +23,9 @@ class ExceptionCatchingInvocationInputSubscriber
   }
 
   @Override
-  public void onNext(MessageLite messageLite) {
+  public void onNext(InvocationFlow.InvocationInput invocationInput) {
     try {
-      invocationInputSubscriber.onNext(messageLite);
+      invocationInputSubscriber.onNext(invocationInput);
     } catch (Throwable throwable) {
       invocationInputSubscriber.onError(throwable);
       throw throwable;

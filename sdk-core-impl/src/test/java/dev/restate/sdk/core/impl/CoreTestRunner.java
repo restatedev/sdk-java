@@ -1,6 +1,7 @@
 package dev.restate.sdk.core.impl;
 
 import static dev.restate.sdk.core.impl.CoreTestRunner.TestCaseBuilder.testInvocation;
+import static dev.restate.sdk.core.impl.ProtoUtils.headerFromMessage;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
@@ -11,10 +12,12 @@ import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.impl.FlowUtils.BufferedMockPublisher;
 import dev.restate.sdk.core.impl.FlowUtils.FutureSubscriber;
 import dev.restate.sdk.core.impl.FlowUtils.UnbufferedMockPublisher;
+import dev.restate.sdk.core.impl.InvocationFlow.InvocationInput;
 import io.grpc.BindableService;
 import io.grpc.MethodDescriptor;
 import io.grpc.ServerServiceDefinition;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -57,7 +60,7 @@ abstract class CoreTestRunner {
       String testName,
       ServerServiceDefinition svc,
       String method,
-      List<MessageLite> input,
+      List<InvocationInput> input,
       ThreadingModel threadingModel,
       BiConsumer<FutureSubscriber<MessageLite>, Duration> outputAssert) {
     Executor syscallsExecutor =
@@ -85,7 +88,7 @@ abstract class CoreTestRunner {
 
     if (threadingModel == ThreadingModel.UNBUFFERED_MULTI_THREAD) {
       // Create publisher
-      UnbufferedMockPublisher<MessageLite> inputPublisher = new UnbufferedMockPublisher<>();
+      UnbufferedMockPublisher<InvocationInput> inputPublisher = new UnbufferedMockPublisher<>();
 
       // Wire invocation and start it
       syscallsExecutor.execute(
@@ -96,7 +99,7 @@ abstract class CoreTestRunner {
           });
 
       // Pipe entries
-      for (MessageLite inputEntry : input) {
+      for (InvocationInput inputEntry : input) {
         syscallsExecutor.execute(() -> inputPublisher.push(inputEntry));
       }
       // Complete the input publisher
@@ -107,7 +110,7 @@ abstract class CoreTestRunner {
       assertThat(inputPublisher.isSubscriptionCancelled()).isTrue();
     } else {
       // Create publisher
-      BufferedMockPublisher<MessageLite> inputPublisher = new BufferedMockPublisher<>(input);
+      BufferedMockPublisher<InvocationInput> inputPublisher = new BufferedMockPublisher<>(input);
 
       // Wire invocation
       handler.output().subscribe(outputSubscriber);
@@ -132,7 +135,7 @@ abstract class CoreTestRunner {
 
     String getMethod();
 
-    List<MessageLite> getInput();
+    List<InvocationInput> getInput();
 
     HashSet<ThreadingModel> getThreadingModels();
 
@@ -154,33 +157,65 @@ abstract class CoreTestRunner {
     }
 
     static class TestInvocationBuilder {
-      private final BindableService svc;
-      private final String method;
+      protected final BindableService svc;
+      protected final String method;
 
       TestInvocationBuilder(BindableService svc, String method) {
         this.svc = svc;
         this.method = method;
       }
 
+      WithInputBuilder withInput(short flags, MessageLiteOrBuilder msgOrBuilder) {
+        MessageLite msg = ProtoUtils.build(msgOrBuilder);
+        return new WithInputBuilder(
+            svc,
+            method,
+            List.of(InvocationInput.of(headerFromMessage(msg).copyWithFlags(flags), msg)));
+      }
+
       WithInputBuilder withInput(MessageLiteOrBuilder... messages) {
-        return new WithInputBuilder(svc, method, Arrays.asList(messages));
+        return new WithInputBuilder(
+            svc,
+            method,
+            Arrays.stream(messages)
+                .map(
+                    msgOrBuilder -> {
+                      MessageLite msg = ProtoUtils.build(msgOrBuilder);
+                      return InvocationInput.of(headerFromMessage(msg), msg);
+                    })
+                .collect(Collectors.toList()));
       }
     }
 
-    static class WithInputBuilder {
-      private final BindableService svc;
-      private final String method;
-      private final List<MessageLiteOrBuilder> input;
+    static class WithInputBuilder extends TestInvocationBuilder {
+      private final List<InvocationInput> input;
 
-      WithInputBuilder(BindableService svc, String method, List<MessageLiteOrBuilder> input) {
-        this.svc = svc;
-        this.method = method;
-        this.input = input;
+      WithInputBuilder(BindableService svc, String method, List<InvocationInput> input) {
+        super(svc, method);
+        this.input = new ArrayList<>(input);
+      }
+
+      WithInputBuilder withInput(short flags, MessageLiteOrBuilder msgOrBuilder) {
+        MessageLite msg = ProtoUtils.build(msgOrBuilder);
+        this.input.add(InvocationInput.of(headerFromMessage(msg).copyWithFlags(flags), msg));
+        return this;
+      }
+
+      WithInputBuilder withInput(MessageLiteOrBuilder... messages) {
+        this.input.addAll(
+            Arrays.stream(messages)
+                .map(
+                    msgOrBuilder -> {
+                      MessageLite msg = ProtoUtils.build(msgOrBuilder);
+                      return InvocationInput.of(headerFromMessage(msg), msg);
+                    })
+                .collect(Collectors.toList()));
+        return this;
       }
 
       UsingThreadingModelsBuilder usingThreadingModels(ThreadingModel... threadingModels) {
         return new UsingThreadingModelsBuilder(
-            svc, method, input, new HashSet<>(Arrays.asList(threadingModels)));
+            this.svc, this.method, input, new HashSet<>(Arrays.asList(threadingModels)));
       }
 
       UsingThreadingModelsBuilder usingAllThreadingModels() {
@@ -191,13 +226,13 @@ abstract class CoreTestRunner {
     static class UsingThreadingModelsBuilder {
       private final BindableService svc;
       private final String method;
-      private final List<MessageLiteOrBuilder> input;
+      private final List<InvocationInput> input;
       private final HashSet<ThreadingModel> threadingModels;
 
       UsingThreadingModelsBuilder(
           BindableService svc,
           String method,
-          List<MessageLiteOrBuilder> input,
+          List<InvocationInput> input,
           HashSet<ThreadingModel> threadingModels) {
         this.svc = svc;
         this.method = method;
@@ -209,10 +244,6 @@ abstract class CoreTestRunner {
         List<MessageLite> builtMessages =
             Arrays.stream(messages).map(ProtoUtils::build).collect(Collectors.toList());
         return assertingOutput(actual -> assertThat(actual).asList().isEqualTo(builtMessages));
-      }
-
-      ExpectingOutputMessages expectingNoOutput() {
-        return assertingOutput(messages -> assertThat(messages).asList().isEmpty());
       }
 
       ExpectingOutputMessages assertingOutput(Consumer<List<MessageLite>> messages) {
@@ -231,14 +262,14 @@ abstract class CoreTestRunner {
     public abstract static class BaseTestDefinition implements TestDefinition {
       protected final BindableService svc;
       protected final String method;
-      protected final List<MessageLiteOrBuilder> input;
+      protected final List<InvocationInput> input;
       protected final HashSet<ThreadingModel> threadingModels;
       protected final String named;
 
       public BaseTestDefinition(
           BindableService svc,
           String method,
-          List<MessageLiteOrBuilder> input,
+          List<InvocationInput> input,
           HashSet<ThreadingModel> threadingModels) {
         this(svc, method, input, threadingModels, svc.getClass().getSimpleName());
       }
@@ -246,7 +277,7 @@ abstract class CoreTestRunner {
       public BaseTestDefinition(
           BindableService svc,
           String method,
-          List<MessageLiteOrBuilder> input,
+          List<InvocationInput> input,
           HashSet<ThreadingModel> threadingModels,
           String named) {
         this.svc = svc;
@@ -267,8 +298,8 @@ abstract class CoreTestRunner {
       }
 
       @Override
-      public List<MessageLite> getInput() {
-        return input.stream().map(ProtoUtils::build).collect(Collectors.toList());
+      public List<InvocationInput> getInput() {
+        return input;
       }
 
       @Override
@@ -288,7 +319,7 @@ abstract class CoreTestRunner {
       ExpectingOutputMessages(
           BindableService svc,
           String method,
-          List<MessageLiteOrBuilder> input,
+          List<InvocationInput> input,
           HashSet<ThreadingModel> threadingModels,
           Consumer<List<MessageLite>> messagesAssert) {
         super(svc, method, input, threadingModels);
@@ -298,7 +329,7 @@ abstract class CoreTestRunner {
       ExpectingOutputMessages(
           BindableService svc,
           String method,
-          List<MessageLiteOrBuilder> input,
+          List<InvocationInput> input,
           HashSet<ThreadingModel> threadingModels,
           Consumer<List<MessageLite>> messagesAssert,
           String named) {
@@ -341,7 +372,7 @@ abstract class CoreTestRunner {
       ExpectingFailure(
           BindableService svc,
           String method,
-          List<MessageLiteOrBuilder> input,
+          List<InvocationInput> input,
           HashSet<ThreadingModel> threadingModels,
           Consumer<Throwable> throwableAssert) {
         super(svc, method, input, threadingModels);
@@ -351,7 +382,7 @@ abstract class CoreTestRunner {
       ExpectingFailure(
           BindableService svc,
           String method,
-          List<MessageLiteOrBuilder> input,
+          List<InvocationInput> input,
           HashSet<ThreadingModel> threadingModels,
           Consumer<Throwable> throwableAssert,
           String named) {

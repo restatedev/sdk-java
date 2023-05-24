@@ -5,16 +5,41 @@ import java.util.concurrent.Flow;
 
 public interface InvocationFlow {
 
-  interface InvocationInputPublisher extends Flow.Publisher<MessageLite> {}
+  interface InvocationInput {
+    MessageHeader header();
+
+    MessageLite message();
+
+    static InvocationInput of(MessageHeader header, MessageLite message) {
+      return new InvocationInput() {
+        @Override
+        public MessageHeader header() {
+          return header;
+        }
+
+        @Override
+        public MessageLite message() {
+          return message;
+        }
+
+        @Override
+        public String toString() {
+          return header.toString() + " " + message.toString();
+        }
+      };
+    }
+  }
+
+  interface InvocationInputPublisher extends Flow.Publisher<InvocationInput> {}
 
   interface InvocationOutputPublisher extends Flow.Publisher<MessageLite> {}
 
-  interface InvocationInputSubscriber extends Flow.Subscriber<MessageLite> {}
+  interface InvocationInputSubscriber extends Flow.Subscriber<InvocationInput> {}
 
   interface InvocationOutputSubscriber extends Flow.Subscriber<MessageLite> {}
 
   interface InvocationProcessor
-      extends Flow.Processor<MessageLite, MessageLite>,
+      extends Flow.Processor<InvocationInput, MessageLite>,
           InvocationInputSubscriber,
           InvocationOutputPublisher {}
 }
