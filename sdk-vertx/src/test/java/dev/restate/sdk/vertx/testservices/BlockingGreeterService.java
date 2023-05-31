@@ -9,6 +9,7 @@ import dev.restate.sdk.core.impl.testservices.GreetingRequest;
 import dev.restate.sdk.core.impl.testservices.GreetingResponse;
 import io.grpc.stub.StreamObserver;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 
 public class BlockingGreeterService extends GreeterGrpc.GreeterImplBase
     implements RestateBlockingService {
@@ -26,6 +27,8 @@ public class BlockingGreeterService extends GreeterGrpc.GreeterImplBase
 
     var count = ctx.get(COUNTER).orElse(0L) + 1;
     ctx.set(COUNTER, count);
+
+    ctx.sleep(Duration.ofSeconds(1));
 
     responseObserver.onNext(
         GreetingResponse.newBuilder()

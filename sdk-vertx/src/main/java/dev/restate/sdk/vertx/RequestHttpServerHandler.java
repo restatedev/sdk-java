@@ -113,7 +113,7 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
               method,
               otelContext,
               isBlockingService ? currentContextExecutor(vertxCurrentContext) : null,
-              isBlockingService ? blockingExecutor() : null);
+              isBlockingService ? blockingExecutor(vertxCurrentContext) : null);
     } catch (ProtocolException e) {
       LOG.warn("Error when resolving the grpc handler", e);
       request
@@ -149,9 +149,9 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
     return runnable -> currentContext.runOnContext(v -> runnable.run());
   }
 
-  private Executor blockingExecutor() {
+  private Executor blockingExecutor(Context currentContext) {
     return runnable ->
-        vertx.executeBlocking(
+        currentContext.executeBlocking(
             promise -> {
               try {
                 runnable.run();

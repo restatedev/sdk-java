@@ -6,6 +6,7 @@ import dev.restate.sdk.core.impl.testservices.GreetingRequest
 import dev.restate.sdk.core.impl.testservices.GreetingResponse
 import dev.restate.sdk.core.impl.testservices.greetingResponse
 import kotlin.coroutines.CoroutineContext
+import kotlin.time.Duration.Companion.seconds
 
 class GreeterKtService(coroutineContext: CoroutineContext) :
     GreeterGrpcKt.GreeterCoroutineImplBase(coroutineContext), RestateCoroutineService {
@@ -15,6 +16,8 @@ class GreeterKtService(coroutineContext: CoroutineContext) :
 
     val count = (ctx.get(BlockingGreeterService.COUNTER) ?: 0) + 1
     ctx.set(BlockingGreeterService.COUNTER, count)
+
+    ctx.sleep(1.seconds)
 
     return greetingResponse { message = "Hello ${request.name}. Count: $count" }
   }

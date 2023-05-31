@@ -1,6 +1,7 @@
 package dev.restate.sdk.vertx
 
 import com.google.protobuf.ByteString
+import com.google.protobuf.Empty
 import com.google.protobuf.MessageLite
 import dev.restate.generated.service.discovery.Discovery.ServiceDiscoveryRequest
 import dev.restate.generated.service.discovery.Discovery.ServiceDiscoveryResponse
@@ -13,11 +14,14 @@ import io.netty.handler.codec.http.HttpResponseStatus
 import io.vertx.core.Vertx
 import io.vertx.core.buffer.Buffer
 import io.vertx.core.http.*
+import io.vertx.junit5.Timeout
 import io.vertx.junit5.VertxExtension
 import io.vertx.kotlin.coroutines.await
 import io.vertx.kotlin.coroutines.dispatcher
 import io.vertx.kotlin.coroutines.receiveChannelHandler
 import java.util.concurrent.*
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -34,10 +38,12 @@ internal class RestateHttpEndpointTest {
             .setHttp2ClearTextUpgrade(false)
   }
 
+  @Timeout(value = 1, timeUnit = TimeUnit.SECONDS)
   @Test
   fun endpointWithNonBlockingService(vertx: Vertx): Unit =
       greetTest(vertx) { it.withService(GreeterKtService(coroutineContext = vertx.dispatcher())) }
 
+  @Timeout(value = 1, timeUnit = TimeUnit.SECONDS)
   @Test
   fun endpointWithBlockingService(vertx: Vertx): Unit =
       greetTest(vertx) { it.withService(BlockingGreeterService()) }
@@ -106,6 +112,21 @@ internal class RestateHttpEndpointTest {
         assertThat(setStateEntry as SetStateEntryMessage)
             .returns(ByteString.copyFromUtf8("counter"), SetStateEntryMessage::getKey)
             .returns(ByteString.copyFromUtf8("3"), SetStateEntryMessage::getValue)
+
+        // Wait for the sleep and complete it
+        val sleepEntry = inputChannel.receive()
+
+        assertThat(sleepEntry).isInstanceOf(SleepEntryMessage::class.java)
+
+        // Wait a bit, then send the completion
+        delay(1.seconds)
+        request.write(
+            MessageEncoder.encode(
+                Buffer.buffer(),
+                CompletionMessage.newBuilder()
+                    .setEntryIndex(3)
+                    .setEmpty(Empty.getDefaultInstance())
+                    .build()))
 
         // Now wait for response
         val outputEntry = inputChannel.receive()
