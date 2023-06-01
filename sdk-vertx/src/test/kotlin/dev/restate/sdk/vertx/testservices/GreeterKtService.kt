@@ -12,12 +12,10 @@ class GreeterKtService(coroutineContext: CoroutineContext) :
     GreeterGrpcKt.GreeterCoroutineImplBase(coroutineContext), RestateCoroutineService {
 
   override suspend fun greet(request: GreetingRequest): GreetingResponse {
-    val ctx = restateContext()
+    val count = (restateContext().get(BlockingGreeterService.COUNTER) ?: 0) + 1
+    restateContext().set(BlockingGreeterService.COUNTER, count)
 
-    val count = (ctx.get(BlockingGreeterService.COUNTER) ?: 0) + 1
-    ctx.set(BlockingGreeterService.COUNTER, count)
-
-    ctx.sleep(1.seconds)
+    restateContext().sleep(1.seconds)
 
     return greetingResponse { message = "Hello ${request.name}. Count: $count" }
   }

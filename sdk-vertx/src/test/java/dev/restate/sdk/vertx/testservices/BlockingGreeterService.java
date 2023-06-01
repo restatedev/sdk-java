@@ -1,7 +1,6 @@
 package dev.restate.sdk.vertx.testservices;
 
 import dev.restate.sdk.blocking.RestateBlockingService;
-import dev.restate.sdk.blocking.RestateContext;
 import dev.restate.sdk.core.StateKey;
 import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.core.impl.testservices.GreeterGrpc;
@@ -23,12 +22,12 @@ public class BlockingGreeterService extends GreeterGrpc.GreeterImplBase
 
   @Override
   public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-    RestateContext ctx = restateContext();
+    // restateContext() is invoked everytime to make sure context propagation works!
 
-    var count = ctx.get(COUNTER).orElse(0L) + 1;
-    ctx.set(COUNTER, count);
+    var count = restateContext().get(COUNTER).orElse(0L) + 1;
+    restateContext().set(COUNTER, count);
 
-    ctx.sleep(Duration.ofSeconds(1));
+    restateContext().sleep(Duration.ofSeconds(1));
 
     responseObserver.onNext(
         GreetingResponse.newBuilder()
