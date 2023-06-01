@@ -1,7 +1,6 @@
 package dev.restate.sdk.vertx.testservices;
 
 import dev.restate.sdk.blocking.RestateBlockingService;
-import dev.restate.sdk.blocking.RestateContext;
 import dev.restate.sdk.core.StateKey;
 import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.core.impl.testservices.GreeterGrpc;
@@ -9,6 +8,7 @@ import dev.restate.sdk.core.impl.testservices.GreetingRequest;
 import dev.restate.sdk.core.impl.testservices.GreetingResponse;
 import io.grpc.stub.StreamObserver;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 
 public class BlockingGreeterService extends GreeterGrpc.GreeterImplBase
     implements RestateBlockingService {
@@ -22,10 +22,12 @@ public class BlockingGreeterService extends GreeterGrpc.GreeterImplBase
 
   @Override
   public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-    RestateContext ctx = restateContext();
+    // restateContext() is invoked everytime to make sure context propagation works!
 
-    var count = ctx.get(COUNTER).orElse(0L) + 1;
-    ctx.set(COUNTER, count);
+    var count = restateContext().get(COUNTER).orElse(0L) + 1;
+    restateContext().set(COUNTER, count);
+
+    restateContext().sleep(Duration.ofSeconds(1));
 
     responseObserver.onNext(
         GreetingResponse.newBuilder()
