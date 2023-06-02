@@ -9,6 +9,7 @@ import io.grpc.MethodDescriptor;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -26,7 +27,12 @@ public interface Syscalls {
 
   /** Retrieves the current context. */
   static Syscalls current() {
-    return SYSCALLS_KEY.get();
+    return Objects.requireNonNull(
+        SYSCALLS_KEY.get(),
+        "Syscalls MUST be non-null. "
+            + "Make sure you're creating the RestateContext within the same thread/executor where the method handler is executed. "
+            + "Current thread: "
+            + Thread.currentThread().getName());
   }
 
   // ----- IO
