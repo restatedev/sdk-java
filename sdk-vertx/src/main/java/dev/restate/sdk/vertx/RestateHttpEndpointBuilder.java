@@ -133,7 +133,7 @@ public class RestateHttpEndpointBuilder {
 
     server.requestHandler(
         new RequestHttpServerHandler(
-            vertx, this.restateGrpcServerBuilder.build(), blockingServices, openTelemetry));
+            this.restateGrpcServerBuilder.build(), blockingServices, openTelemetry));
 
     return server;
   }

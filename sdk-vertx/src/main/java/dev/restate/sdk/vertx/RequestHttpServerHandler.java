@@ -14,7 +14,6 @@ import io.opentelemetry.context.propagation.TextMapGetter;
 import io.vertx.core.Context;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
-import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
@@ -56,17 +55,14 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
         }
       };
 
-  private final Vertx vertx;
   private final RestateGrpcServer restateGrpcServer;
   private final HashSet<String> blockingServices;
   private final OpenTelemetry openTelemetry;
 
   RequestHttpServerHandler(
-      Vertx vertx,
       RestateGrpcServer restateGrpcServer,
       HashSet<String> blockingServices,
       OpenTelemetry openTelemetry) {
-    this.vertx = vertx;
     this.restateGrpcServer = restateGrpcServer;
     this.blockingServices = blockingServices;
     this.openTelemetry = openTelemetry;
