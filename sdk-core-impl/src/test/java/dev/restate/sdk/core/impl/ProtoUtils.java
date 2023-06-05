@@ -1,23 +1,59 @@
 package dev.restate.sdk.core.impl;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Empty;
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.MessageLiteOrBuilder;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
+import dev.restate.generated.service.protocol.Protocol.StartMessage.StateEntry;
 import dev.restate.sdk.core.impl.testservices.GreetingRequest;
 import dev.restate.sdk.core.impl.testservices.GreetingResponse;
 import io.grpc.MethodDescriptor;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public class ProtoUtils {
+
+  /**
+   * Variant of {@link MessageHeader#fromMessage(MessageLite)} supporting StartMessage and
+   * CompletionMessage.
+   */
+  public static MessageHeader headerFromMessage(MessageLite msg) {
+    if (msg instanceof Protocol.StartMessage) {
+      return new MessageHeader(
+          MessageType.StartMessage, MessageHeader.PARTIAL_STATE_FLAG, msg.getSerializedSize());
+    } else if (msg instanceof Protocol.CompletionMessage) {
+      return new MessageHeader(MessageType.CompletionMessage, (short) 0, msg.getSerializedSize());
+    }
+    return MessageHeader.fromMessage(msg);
+  }
 
   public static Protocol.StartMessage.Builder startMessage(int entries) {
     return Protocol.StartMessage.newBuilder()
         .setInstanceKey(ByteString.copyFromUtf8("abc"))
         .setInvocationId(ByteString.copyFromUtf8("123"))
         .setKnownEntries(entries);
+  }
+
+  @SafeVarargs
+  public static Protocol.StartMessage.Builder startMessage(
+      int entries, Map.Entry<String, String>... stateEntries) {
+    return Protocol.StartMessage.newBuilder()
+        .setInstanceKey(ByteString.copyFromUtf8("abc"))
+        .setInvocationId(ByteString.copyFromUtf8("123"))
+        .setKnownEntries(entries)
+        .addAllStateMap(
+            Arrays.stream(stateEntries)
+                .map(
+                    e ->
+                        StateEntry.newBuilder()
+                            .setKey(ByteString.copyFromUtf8(e.getKey()))
+                            .setValue(ByteString.copyFromUtf8(e.getValue()))
+                            .build())
+                .collect(Collectors.toList()));
   }
 
   public static Protocol.CompletionMessage completionMessage(int index, String value) {
@@ -68,6 +104,13 @@ public class ProtoUtils {
     return Protocol.GetStateEntryMessage.newBuilder().setKey(ByteString.copyFromUtf8(key));
   }
 
+  static Protocol.GetStateEntryMessage getStateEmptyMessage(String key) {
+    return Protocol.GetStateEntryMessage.newBuilder()
+        .setKey(ByteString.copyFromUtf8(key))
+        .setEmpty(Empty.getDefaultInstance())
+        .build();
+  }
+
   static Protocol.GetStateEntryMessage getStateMessage(String key, String value) {
     return getStateMessage(key).setValue(ByteString.copyFromUtf8(value)).build();
   }
@@ -76,6 +119,12 @@ public class ProtoUtils {
     return Protocol.SetStateEntryMessage.newBuilder()
         .setKey(ByteString.copyFromUtf8(key))
         .setValue(ByteString.copyFromUtf8(value))
+        .build();
+  }
+
+  static Protocol.ClearStateEntryMessage clearStateMessage(String key) {
+    return Protocol.ClearStateEntryMessage.newBuilder()
+        .setKey(ByteString.copyFromUtf8(key))
         .build();
   }
 

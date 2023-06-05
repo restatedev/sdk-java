@@ -6,7 +6,9 @@ import dev.restate.generated.ext.ServiceType;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.generated.service.protocol.Protocol;
+import dev.restate.sdk.core.impl.InvocationFlow;
 import dev.restate.sdk.core.impl.InvocationHandler;
+import dev.restate.sdk.core.impl.MessageHeader;
 import dev.restate.sdk.core.impl.RestateGrpcServer;
 import io.grpc.*;
 import io.grpc.protobuf.ProtoMethodDescriptorSupplier;
@@ -183,16 +185,15 @@ public final class TestRestateRuntime {
   }
 
   class InvocationProcessor
-      implements Flow.Processor<MessageLite, MessageLite>,
-          Flow.Publisher<MessageLite>,
-          Flow.Subscriber<MessageLite> {
+      implements InvocationFlow.InvocationInputPublisher,
+          InvocationFlow.InvocationOutputSubscriber {
 
     private final String serviceName;
     private final String instanceKey;
     private final String functionInvocationId;
-    private final Collection<MessageLite> elements;
+    private final Collection<MessageLite> inputMessages;
 
-    private Flow.Subscriber<? super MessageLite>
+    private Flow.Subscriber<? super InvocationFlow.InvocationInput>
         publisher; // publisher = ExceptionCatchingInvocationInputSubscriber
 
     // Flow subscriber
@@ -208,20 +209,20 @@ public final class TestRestateRuntime {
         String functionInvocationId,
         String serviceName,
         String instanceKey,
-        Collection<MessageLite> elements) {
+        Collection<MessageLite> inputMessages) {
       this.serviceName = serviceName;
       this.instanceKey = instanceKey;
       this.functionInvocationId = functionInvocationId;
-      this.elements = elements;
+      this.inputMessages = inputMessages;
     }
 
     // PUBLISHER LOGIC: to send messages to the service
 
     @Override
-    public void subscribe(Flow.Subscriber<? super MessageLite> publisher) {
+    public void subscribe(Flow.Subscriber<? super InvocationFlow.InvocationInput> publisher) {
       this.publisher = publisher;
       this.currentJournalIndex = 0;
-      this.outputSubscription = new PublishSubscription<>(publisher, new ArrayDeque<>(elements));
+      this.outputSubscription = new PublishSubscription(publisher, new ArrayDeque<>(inputMessages));
 
       publisher.onSubscribe(this.outputSubscription);
     }
@@ -265,12 +266,11 @@ public final class TestRestateRuntime {
     private void routeMessage(MessageLite t) {
       if (t instanceof Protocol.CompletionMessage) {
         LOG.trace("Sending completion message");
-        publisher.onNext(t);
-
+        publisher.onNext(
+            InvocationFlow.InvocationInput.of(PublishSubscription.headerFromMessage(t), t));
       } else if (t instanceof Protocol.PollInputStreamEntryMessage) {
         LOG.trace("Sending poll input stream message");
-        publisher.onNext(t);
-
+        publisher.onNext(InvocationFlow.InvocationInput.of(MessageHeader.fromMessage(t), t));
       } else if (t instanceof Protocol.OutputStreamEntryMessage) {
         LOG.trace("Handling call result");
         Protocol.OutputStreamEntryMessage msg = (Protocol.OutputStreamEntryMessage) t;

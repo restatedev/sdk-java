@@ -1,6 +1,7 @@
 package dev.restate.sdk.core.impl;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Empty;
 import com.google.protobuf.MessageLite;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.generated.service.protocol.Protocol.*;
@@ -17,6 +18,8 @@ final class Entries {
     void checkEntryHeader(E expected, MessageLite actual) throws ProtocolException {}
 
     abstract void trace(E expected, Span span);
+
+    void updateLocalStateStorage(E expected, LocalStateStorage localStateStorage) {}
   }
 
   abstract static class CompletableJournalEntry<E extends MessageLite, R> extends JournalEntry<E> {
@@ -28,6 +31,13 @@ final class Entries {
       throw ProtocolException.completionDoesNotMatch(
           this.getClass().getName(), actual.getResultCase());
     }
+
+    E tryCompleteWithLocalStateStorage(E expected, LocalStateStorage localStateStorage) {
+      return expected;
+    }
+
+    void updateLocalStateStorageWithCompletion(
+        E expected, CompletionMessage actual, LocalStateStorage localStateStorage) {}
   }
 
   static final class PollInputEntry<R extends MessageLite>
@@ -123,6 +133,36 @@ final class Entries {
       }
       return super.parseCompletionResult(actual);
     }
+
+    @Override
+    void updateLocalStateStorage(
+        GetStateEntryMessage expected, LocalStateStorage localStateStorage) {
+      localStateStorage.set(expected.getKey(), expected.getValue());
+    }
+
+    @Override
+    GetStateEntryMessage tryCompleteWithLocalStateStorage(
+        GetStateEntryMessage expected, LocalStateStorage localStateStorage) {
+      LocalStateStorage.State value = localStateStorage.get(expected.getKey());
+      if (value instanceof LocalStateStorage.Value) {
+        return expected.toBuilder().setValue(((LocalStateStorage.Value) value).getValue()).build();
+      } else if (value instanceof LocalStateStorage.Empty) {
+        return expected.toBuilder().setEmpty(Empty.getDefaultInstance()).build();
+      }
+      return expected;
+    }
+
+    @Override
+    void updateLocalStateStorageWithCompletion(
+        GetStateEntryMessage expected,
+        CompletionMessage actual,
+        LocalStateStorage localStateStorage) {
+      if (actual.hasEmpty()) {
+        localStateStorage.clear(expected.getKey());
+      } else {
+        localStateStorage.set(expected.getKey(), actual.getValue());
+      }
+    }
   }
 
   static final class ClearStateEntry extends JournalEntry<ClearStateEntryMessage> {
@@ -142,6 +182,12 @@ final class Entries {
         throws ProtocolException {
       Util.assertEntryEquals(expected, actual);
     }
+
+    @Override
+    void updateLocalStateStorage(
+        ClearStateEntryMessage expected, LocalStateStorage localStateStorage) {
+      localStateStorage.clear(expected.getKey());
+    }
   }
 
   static final class SetStateEntry extends JournalEntry<SetStateEntryMessage> {
@@ -160,6 +206,12 @@ final class Entries {
     void checkEntryHeader(SetStateEntryMessage expected, MessageLite actual)
         throws ProtocolException {
       Util.assertEntryEquals(expected, actual);
+    }
+
+    @Override
+    void updateLocalStateStorage(
+        SetStateEntryMessage expected, LocalStateStorage localStateStorage) {
+      localStateStorage.set(expected.getKey(), expected.getValue());
     }
   }
 

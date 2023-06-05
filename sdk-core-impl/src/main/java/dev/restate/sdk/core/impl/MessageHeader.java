@@ -6,6 +6,7 @@ import dev.restate.generated.service.protocol.Protocol;
 
 public class MessageHeader {
 
+  public static final short PARTIAL_STATE_FLAG = 0x0400;
   private static final short DONE_FLAG = 0x0001;
   private static final short REQUIRES_ACK_FLAG = 0x0001;
 
@@ -13,7 +14,7 @@ public class MessageHeader {
   private final short flags;
   private final int length;
 
-  private MessageHeader(MessageType type, short flags, int length) {
+  public MessageHeader(MessageType type, short flags, int length) {
     this.type = type;
     this.flags = flags;
     this.length = length;
@@ -39,6 +40,10 @@ public class MessageHeader {
     return (this.flags & flag) > 0;
   }
 
+  public MessageHeader copyWithFlags(short flag) {
+    return new MessageHeader(type, flag, length);
+  }
+
   public static MessageHeader parse(long encoded) throws ProtocolException {
     var ty_code = (short) (encoded >> 48);
     var flags = (short) (encoded >> 32);
@@ -48,11 +53,7 @@ public class MessageHeader {
   }
 
   public static MessageHeader fromMessage(MessageLite msg) {
-    if (msg instanceof Protocol.StartMessage) {
-      return new MessageHeader(MessageType.StartMessage, (short) 0, msg.getSerializedSize());
-    } else if (msg instanceof Protocol.CompletionMessage) {
-      return new MessageHeader(MessageType.CompletionMessage, (short) 0, msg.getSerializedSize());
-    } else if (msg instanceof Protocol.SuspensionMessage) {
+    if (msg instanceof Protocol.SuspensionMessage) {
       return new MessageHeader(MessageType.SuspensionMessage, (short) 0, msg.getSerializedSize());
     } else if (msg instanceof Protocol.PollInputStreamEntryMessage) {
       return new MessageHeader(
@@ -107,6 +108,10 @@ public class MessageHeader {
     } else if (msg instanceof Java.SideEffectEntryMessage) {
       return new MessageHeader(
           MessageType.SideEffectEntryMessage, REQUIRES_ACK_FLAG, msg.getSerializedSize());
+    } else if (msg instanceof Protocol.StartMessage) {
+      throw new IllegalArgumentException("SDK should never send a StartMessage");
+    } else if (msg instanceof Protocol.CompletionMessage) {
+      throw new IllegalArgumentException("SDK should never send a CompletionMessage");
     }
     throw new IllegalStateException();
   }

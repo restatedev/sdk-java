@@ -1,6 +1,5 @@
 package dev.restate.sdk.vertx;
 
-import com.google.protobuf.MessageLite;
 import dev.restate.sdk.core.impl.InvocationFlow;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
@@ -15,7 +14,7 @@ class HttpRequestFlowAdapter implements InvocationFlow.InvocationInputPublisher 
   private final HttpServerRequest httpServerRequest;
   private final MessageDecoder decoder;
 
-  private Flow.Subscriber<? super MessageLite> inputMessagesSubscriber;
+  private Flow.Subscriber<? super InvocationFlow.InvocationInput> inputMessagesSubscriber;
   private long subscriberRequest = 0;
 
   HttpRequestFlowAdapter(HttpServerRequest httpServerRequest) {
@@ -25,7 +24,7 @@ class HttpRequestFlowAdapter implements InvocationFlow.InvocationInputPublisher 
   }
 
   @Override
-  public void subscribe(Flow.Subscriber<? super MessageLite> subscriber) {
+  public void subscribe(Flow.Subscriber<? super InvocationFlow.InvocationInput> subscriber) {
     this.inputMessagesSubscriber = subscriber;
     this.inputMessagesSubscriber.onSubscribe(
         new Flow.Subscription() {
@@ -84,19 +83,19 @@ class HttpRequestFlowAdapter implements InvocationFlow.InvocationInputPublisher 
 
   private void tryProgress() {
     while (this.subscriberRequest > 0) {
-      MessageLite entry;
+      InvocationFlow.InvocationInput input;
       try {
-        entry = this.decoder.poll();
+        input = this.decoder.poll();
       } catch (RuntimeException e) {
         inputMessagesSubscriber.onError(e);
         return;
       }
-      if (entry == null) {
+      if (input == null) {
         return;
       }
-      LOG.trace("Received entry " + entry);
+      LOG.trace("Received input " + input);
       this.subscriberRequest--;
-      inputMessagesSubscriber.onNext(entry);
+      inputMessagesSubscriber.onNext(input);
     }
   }
 }

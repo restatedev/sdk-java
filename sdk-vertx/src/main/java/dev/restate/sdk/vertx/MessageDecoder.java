@@ -1,7 +1,7 @@
 package dev.restate.sdk.vertx;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.MessageLite;
+import dev.restate.sdk.core.impl.InvocationFlow;
 import dev.restate.sdk.core.impl.MessageHeader;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -17,7 +17,7 @@ class MessageDecoder {
     FAILED
   }
 
-  private final Queue<MessageLite> parsedMessages;
+  private final Queue<InvocationFlow.InvocationInput> parsedMessages;
   private final ByteBuf internalBuffer;
 
   private State state;
@@ -33,7 +33,7 @@ class MessageDecoder {
     this.lastParsingFailure = null;
   }
 
-  MessageLite poll() {
+  InvocationFlow.InvocationInput poll() {
     if (this.state == State.FAILED) {
       throw lastParsingFailure;
     }
@@ -62,13 +62,15 @@ class MessageDecoder {
       } else {
         try {
           this.parsedMessages.offer(
-              this.lastParsedMessageHeader
-                  .getType()
-                  .messageParser()
-                  .parseFrom(
-                      this.internalBuffer
-                          .readBytes(this.lastParsedMessageHeader.getLength())
-                          .nioBuffer()));
+              InvocationFlow.InvocationInput.of(
+                  this.lastParsedMessageHeader,
+                  this.lastParsedMessageHeader
+                      .getType()
+                      .messageParser()
+                      .parseFrom(
+                          this.internalBuffer
+                              .readBytes(this.lastParsedMessageHeader.getLength())
+                              .nioBuffer())));
           this.state = State.WAITING_HEADER;
         } catch (InvalidProtocolBufferException e) {
           this.lastParsingFailure = new RuntimeException("Cannot parse the protobuf message", e);
