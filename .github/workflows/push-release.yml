@@ -1,13 +1,15 @@
-name: Trigger publish on push main
+name: Trigger release
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
+    tags:
+      - v**
+
 
 jobs:
   publish-to-github-packages:
     uses: ./.github/workflows/release.yml
-    with:
-      deploymentTarget: GitHub
     secrets: inherit

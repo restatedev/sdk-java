@@ -2,12 +2,6 @@ name: Publish release
 
 on:
   workflow_call:
-    inputs:
-      deploymentTarget:
-        description: 'Deployment target (JFrog or GitHub)'
-        required: true
-        default: 'GitHub'
-        type: string
 
 jobs:
   publish:
@@ -27,7 +21,6 @@ jobs:
 
       # Ideally we delete old packages after releasing new ones but this does not work for snapshot releases
       - name: Delete old java-sdk packages
-        if: ${{ inputs.deploymentTarget == 'GitHub' }}
         uses: actions/delete-package-versions@v3
         with:
           package-name: 'dev.restate.sdk.java-sdk'
@@ -37,16 +30,7 @@ jobs:
           ignore-versions: '^.*(?<!SNAPSHOT)$'
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build with Gradle & publish to JFrog repository
-        if: ${{ inputs.deploymentTarget == 'JFrog' }}
-        uses: gradle/gradle-build-action@v2
-        env:
-          JFROG_USERNAME: ${{ secrets.JFROG_USERNAME }}
-          JFROG_TOKEN: ${{secrets.JFROG_TOKEN }}
-        with:
-          arguments: publishMavenPublicationToJFrogRepository
       - name: Build with Gradle & publish to GitHub packages repository
-        if: ${{ inputs.deploymentTarget == 'GitHub' }}
         uses: gradle/gradle-build-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
