@@ -55,6 +55,8 @@ public class MessageHeader {
   public static MessageHeader fromMessage(MessageLite msg) {
     if (msg instanceof Protocol.SuspensionMessage) {
       return new MessageHeader(MessageType.SuspensionMessage, (short) 0, msg.getSerializedSize());
+    } else if (msg instanceof Protocol.ErrorMessage) {
+      return new MessageHeader(MessageType.ErrorMessage, (short) 0, msg.getSerializedSize());
     } else if (msg instanceof Protocol.PollInputStreamEntryMessage) {
       return new MessageHeader(
           MessageType.PollInputStreamEntryMessage, (short) 0, msg.getSerializedSize());
@@ -108,8 +110,6 @@ public class MessageHeader {
     } else if (msg instanceof Java.SideEffectEntryMessage) {
       return new MessageHeader(
           MessageType.SideEffectEntryMessage, REQUIRES_ACK_FLAG, msg.getSerializedSize());
-    } else if (msg instanceof Protocol.StartMessage) {
-      throw new IllegalArgumentException("SDK should never send a StartMessage");
     } else if (msg instanceof Protocol.CompletionMessage) {
       throw new IllegalArgumentException("SDK should never send a CompletionMessage");
     }
