@@ -42,19 +42,30 @@ class ExecutorSwitchingWrappers {
       userExecutor.execute(() -> listener.onMessageAndHalfClose(message));
     }
 
+    // A bit of explanation why the following methods are not executed on the user executor.
+    //
+    // The listener methods onReady/onCancel/onComplete are used purely for notification reasons,
+    // they don't execute any user code.
+    //
+    // Running them in the userExecutor can also be problematic if the listener
+    // mutates some thread local and runs tasks in parallel.
+    // This is the case when using Vertx.executeBlocking with ordered = false and mutating the
+    // Vert.x Context, which is shared among every task running in the executeBlocking thread pool
+    // as thread local.
+
     @Override
     public void onCancel() {
-      userExecutor.execute(listener::onCancel);
+      listener.onCancel();
     }
 
     @Override
     public void onComplete() {
-      userExecutor.execute(listener::onComplete);
+      listener.onComplete();
     }
 
     @Override
     public void onReady() {
-      userExecutor.execute(listener::onReady);
+      listener.onReady();
     }
   }
 
