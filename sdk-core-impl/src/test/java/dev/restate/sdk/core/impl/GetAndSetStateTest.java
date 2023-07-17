@@ -1,5 +1,6 @@
 package dev.restate.sdk.core.impl;
 
+import static dev.restate.sdk.core.impl.AssertUtils.containsOnlyExactErrorMessage;
 import static dev.restate.sdk.core.impl.CoreTestRunner.TestCaseBuilder.testInvocation;
 import static dev.restate.sdk.core.impl.ProtoUtils.*;
 
@@ -89,6 +90,6 @@ class GetAndSetStateTest extends CoreTestRunner {
         testInvocation(new SetNullState(), GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
             .usingAllThreadingModels()
-            .assertingFailure(NullPointerException.class));
+            .assertingOutput(containsOnlyExactErrorMessage(new NullPointerException())));
   }
 }

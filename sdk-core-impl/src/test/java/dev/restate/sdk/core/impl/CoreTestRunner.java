@@ -361,7 +361,9 @@ abstract class CoreTestRunner {
               .last()
               .isNotNull()
               .isInstanceOfAny(
-                  Protocol.OutputStreamEntryMessage.class, Protocol.SuspensionMessage.class);
+                  Protocol.OutputStreamEntryMessage.class,
+                  Protocol.SuspensionMessage.class,
+                  Protocol.ErrorMessage.class);
         };
       }
     }

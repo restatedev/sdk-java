@@ -1,5 +1,7 @@
 package dev.restate.sdk.core.impl;
 
+import static dev.restate.sdk.core.impl.Util.toProtocolFailure;
+
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
 import com.google.protobuf.MessageLite;
@@ -10,6 +12,7 @@ import dev.restate.generated.service.protocol.Protocol.StartMessage.StateEntry;
 import dev.restate.sdk.core.impl.testservices.GreetingRequest;
 import dev.restate.sdk.core.impl.testservices.GreetingResponse;
 import io.grpc.MethodDescriptor;
+import io.grpc.Status;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -74,7 +77,7 @@ public class ProtoUtils {
   static Protocol.CompletionMessage completionMessage(int index, Throwable e) {
     return Protocol.CompletionMessage.newBuilder()
         .setEntryIndex(index)
-        .setFailure(Util.toProtocolFailure(e))
+        .setFailure(toProtocolFailure(Status.INTERNAL.withDescription(e.getMessage())))
         .build();
   }
 
@@ -94,9 +97,15 @@ public class ProtoUtils {
         .build();
   }
 
+  static Protocol.OutputStreamEntryMessage outputMessage(Status s) {
+    return Protocol.OutputStreamEntryMessage.newBuilder()
+        .setFailure(Util.toProtocolFailure(s.asRuntimeException()))
+        .build();
+  }
+
   static Protocol.OutputStreamEntryMessage outputMessage(Throwable e) {
     return Protocol.OutputStreamEntryMessage.newBuilder()
-        .setFailure(Util.toProtocolFailure(e))
+        .setFailure(toProtocolFailure(Status.INTERNAL.withDescription(e.getMessage())))
         .build();
   }
 
@@ -144,7 +153,9 @@ public class ProtoUtils {
 
   static <T extends MessageLite, R extends MessageLite> Protocol.InvokeEntryMessage invokeMessage(
       MethodDescriptor<T, R> methodDescriptor, T parameter, Throwable e) {
-    return invokeMessage(methodDescriptor, parameter).setFailure(Util.toProtocolFailure(e)).build();
+    return invokeMessage(methodDescriptor, parameter)
+        .setFailure(toProtocolFailure(Status.INTERNAL.withDescription(e.getMessage())))
+        .build();
   }
 
   static Protocol.AwakeableEntryMessage.Builder awakeable() {
