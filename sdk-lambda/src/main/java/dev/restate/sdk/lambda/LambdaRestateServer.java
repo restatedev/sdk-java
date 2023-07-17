@@ -110,7 +110,7 @@ public final class LambdaRestateServer {
     } catch (ProtocolException e) {
       LOG.warn("Error when resolving the grpc handler", e);
       return new APIGatewayProxyResponseEvent()
-          .withStatusCode(e.getGrpcCode() == Status.Code.NOT_FOUND ? 404 : 500);
+          .withStatusCode(e.getFailureCode() == Status.Code.NOT_FOUND.value() ? 404 : 500);
     }
 
     BufferedPublisher publisher = new BufferedPublisher(requestBody);

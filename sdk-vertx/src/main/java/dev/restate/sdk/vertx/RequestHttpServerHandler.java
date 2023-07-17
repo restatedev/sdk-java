@@ -115,7 +115,7 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
       request
           .response()
           .setStatusCode(
-              e.getGrpcCode() == Status.Code.NOT_FOUND
+              e.getFailureCode() == Status.Code.NOT_FOUND.value()
                   ? NOT_FOUND.code()
                   : INTERNAL_SERVER_ERROR.code())
           .end();
