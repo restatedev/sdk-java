@@ -16,6 +16,7 @@ import dev.restate.sdk.core.serde.CustomSerdeFunctionsTypeTag;
 import dev.restate.sdk.core.serde.Serde;
 import dev.restate.sdk.core.syscalls.*;
 import io.grpc.MethodDescriptor;
+import io.grpc.StatusRuntimeException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
@@ -201,6 +202,9 @@ public final class SyscallsImpl implements SyscallsInternal {
     Optional<ProtocolException> protocolException = Util.findProtocolException(toWrite);
     if (protocolException.isPresent()) {
       throw protocolException.get();
+    }
+    if (!(toWrite instanceof StatusRuntimeException)) {
+      throw (RuntimeException) toWrite;
     }
 
     this.stateMachine.exitSideEffectBlock(
