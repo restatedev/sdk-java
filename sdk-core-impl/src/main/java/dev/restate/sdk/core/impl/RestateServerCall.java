@@ -7,7 +7,6 @@ import io.grpc.MethodDescriptor;
 import io.grpc.ServerCall;
 import io.grpc.Status;
 import java.util.Objects;
-import java.util.Optional;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -88,15 +87,10 @@ class RestateServerCall extends ServerCall<MessageLite, MessageLite> {
       // Let's cancel the listener first
       listener.onCancel();
 
-      Optional<Throwable> protocolException =
-          Util.findCause(status.getCause(), t -> t instanceof ProtocolException);
-      if (protocolException.isPresent()) {
-        // If it's a protocol exception, we propagate the failure to syscalls, which will propagate
-        // it to the network layer
-        syscalls.fail(protocolException.get());
+      if (status.getCode() == Status.Code.UNKNOWN) {
+        // If no cause, just propagate a generic runtime exception
+        syscalls.fail(status.getCause() != null ? status.getCause() : status.asRuntimeException());
       } else {
-        // If not a protocol exception, then it's an exception coming from user which we write on
-        // the journal
         syscalls.writeOutput(
             status.asRuntimeException(),
             SyscallCallback.ofVoid(

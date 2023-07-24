@@ -1,5 +1,7 @@
 package dev.restate.sdk.core.impl;
 
+import static dev.restate.sdk.core.impl.AssertUtils.containsOnly;
+import static dev.restate.sdk.core.impl.AssertUtils.errorMessageStartingWith;
 import static dev.restate.sdk.core.impl.CoreTestRunner.TestCaseBuilder.testInvocation;
 import static dev.restate.sdk.core.impl.ProtoUtils.*;
 
@@ -88,24 +90,33 @@ class StateMachineFailuresTest extends CoreTestRunner {
                 inputMessage(GreetingRequest.newBuilder().setName("Till")),
                 getStateMessage("Something"))
             .usingAllThreadingModels()
-            .assertingFailure(ProtocolException.class),
+            .assertingOutput(
+                containsOnly(
+                    AssertUtils.protocolExceptionErrorMessage(
+                        ProtocolException.JOURNAL_MISMATCH_CODE))),
         testInvocation(new GetState(), GreeterGrpc.getGreetMethod())
             .withInput(
                 startMessage(2),
                 inputMessage(GreetingRequest.newBuilder().setName("Till")),
                 getStateMessage("STATE", "This is not an integer"))
             .usingAllThreadingModels()
-            .assertingFailure(NumberFormatException.class),
+            .assertingOutput(
+                containsOnly(
+                    errorMessageStartingWith(NumberFormatException.class.getCanonicalName()))),
         testInvocation(new EndSideEffectSerializationFailure(), GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
             .usingAllThreadingModels()
-            .assertingFailure(IllegalStateException.class),
+            .assertingOutput(
+                containsOnly(
+                    errorMessageStartingWith(IllegalStateException.class.getCanonicalName()))),
         testInvocation(new EndSideEffectDeserializationFailure(), GreeterGrpc.getGreetMethod())
             .withInput(
                 startMessage(2),
                 inputMessage(GreetingRequest.newBuilder().setName("Till")),
                 Java.SideEffectEntryMessage.newBuilder())
             .usingAllThreadingModels()
-            .assertingFailure(IllegalStateException.class));
+            .assertingOutput(
+                containsOnly(
+                    errorMessageStartingWith(IllegalStateException.class.getCanonicalName()))));
   }
 }

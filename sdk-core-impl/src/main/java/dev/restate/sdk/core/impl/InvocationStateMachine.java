@@ -2,6 +2,7 @@ package dev.restate.sdk.core.impl;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
+import com.google.rpc.Code;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.InvocationId;
@@ -13,7 +14,6 @@ import dev.restate.sdk.core.impl.Entries.JournalEntry;
 import dev.restate.sdk.core.impl.ReadyResults.ReadyResultInternal;
 import dev.restate.sdk.core.syscalls.DeferredResult;
 import dev.restate.sdk.core.syscalls.SyscallCallback;
-import io.grpc.Status;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
 import java.util.*;
@@ -221,7 +221,16 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
         this.inputSubscription.cancel();
       }
       if (this.outputSubscriber != null) {
-        this.outputSubscriber.onError(cause);
+        if (cause instanceof ProtocolException) {
+          this.outputSubscriber.onNext(((ProtocolException) cause).toErrorMessage());
+        } else if (cause != null) {
+          this.outputSubscriber.onNext(
+              Protocol.ErrorMessage.newBuilder()
+                  .setCode(Code.UNKNOWN_VALUE)
+                  .setMessage(cause.toString())
+                  .build());
+        }
+        this.outputSubscriber.onComplete();
         this.outputSubscriber = null;
       }
       this.insideSideEffect = false;
@@ -640,8 +649,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   private void checkInsideSideEffectGuard() {
     if (this.insideSideEffect) {
-      throw new ProtocolException(
-          "A syscall was invoked from within a side effect closure.", null, Status.Code.UNKNOWN);
+      throw ProtocolException.invalidSideEffectCall();
     }
   }
 

@@ -1,5 +1,6 @@
 package dev.restate.sdk.core.impl;
 
+import static dev.restate.sdk.core.impl.AssertUtils.containsOnlyExactErrorMessage;
 import static dev.restate.sdk.core.impl.CoreTestRunner.TestCaseBuilder.testInvocation;
 import static dev.restate.sdk.core.impl.ProtoUtils.*;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -171,7 +172,8 @@ class SideEffectTest extends CoreTestRunner {
         testInvocation(new SideEffectGuard(), GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
             .usingAllThreadingModels()
-            .assertingFailure(ProtocolException.class),
+            .assertingOutput(
+                containsOnlyExactErrorMessage(ProtocolException.invalidSideEffectCall())),
         testInvocation(new SideEffectThenAwakeable(), GreeterGrpc.getGreetMethod())
             .withInput(
                 startMessage(2),

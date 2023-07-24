@@ -76,7 +76,7 @@ class HttpResponseFlowAdapter implements InvocationFlow.InvocationOutputSubscrib
               pe ->
                   // TODO which status codes we need to map here?
                   httpServerResponse.setStatusCode(
-                      pe.getGrpcCode() == Status.Code.NOT_FOUND ? 404 : 500),
+                      pe.getFailureCode() == Status.Code.NOT_FOUND.value() ? 404 : 500),
               () -> httpServerResponse.setStatusCode(500));
     }
     LOG.warn("Error from publisher", e);
@@ -84,6 +84,7 @@ class HttpResponseFlowAdapter implements InvocationFlow.InvocationOutputSubscrib
   }
 
   private void endResponse() {
+    LOG.trace("Closing response");
     if (!this.httpServerResponse.ended()) {
       this.httpServerResponse.end();
     }
@@ -91,6 +92,7 @@ class HttpResponseFlowAdapter implements InvocationFlow.InvocationOutputSubscrib
   }
 
   private void cancelSubscription() {
+    LOG.trace("Cancelling subscription");
     if (this.outputSubscription != null) {
       Flow.Subscription outputSubscription = this.outputSubscription;
       this.outputSubscription = null;
