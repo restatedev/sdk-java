@@ -90,8 +90,6 @@ class RestateServerCall extends ServerCall<MessageLite, MessageLite> {
       if (status.getCode() == Status.Code.UNKNOWN) {
         syscalls.fail(status.getCause());
       } else {
-        // If not a protocol exception, then it's an exception coming from user which we write on
-        // the journal
         syscalls.writeOutput(
             status.asRuntimeException(),
             SyscallCallback.ofVoid(

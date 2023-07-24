@@ -1,9 +1,11 @@
 package dev.restate.sdk.core.impl;
 
+import static dev.restate.sdk.core.impl.Util.isTerminalException;
 import static dev.restate.sdk.core.impl.Util.toProtocolFailure;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
+import com.google.rpc.Code;
 import dev.restate.generated.core.AwakeableIdentifier;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
@@ -198,13 +200,17 @@ public final class SyscallsImpl implements SyscallsInternal {
       Throwable toWrite, ExitSideEffectSyscallCallback<?> callback) {
     LOG.trace("exitSideEffectBlock with failure");
 
-    // If it's a protocol exception, don't write it
-    Optional<ProtocolException> protocolException = Util.findProtocolException(toWrite);
-    if (protocolException.isPresent()) {
-      throw protocolException.get();
-    }
-    if (!(toWrite instanceof StatusRuntimeException)) {
-      throw (RuntimeException) toWrite;
+    // If it's a non-terminal exception (such as a protocol exception),
+    // we don't write it but simply throw it
+    if (!(isTerminalException(toWrite))) {
+      // For safety wrt Syscalls API we do this check and wrapping,
+      // but with the current APIs the exception should always be RuntimeException
+      // because that's what can be thrown inside a lambda
+      if (toWrite instanceof RuntimeException) {
+        throw (RuntimeException) toWrite;
+      } else {
+        throw new RuntimeException(toWrite);
+      }
     }
 
     this.stateMachine.exitSideEffectBlock(

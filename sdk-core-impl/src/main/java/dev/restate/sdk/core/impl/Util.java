@@ -1,6 +1,7 @@
 package dev.restate.sdk.core.impl;
 
 import com.google.protobuf.MessageLite;
+import com.google.rpc.Code;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.SuspendedException;
@@ -77,6 +78,10 @@ public final class Util {
     }
 
     return Status.UNKNOWN.withDescription(throwable.getMessage());
+  }
+
+  static boolean isTerminalException(Throwable throwable) {
+    return throwable instanceof StatusRuntimeException && ((StatusRuntimeException) throwable).getStatus().getCode().value() != Code.UNKNOWN_VALUE;
   }
 
   static void assertIsEntry(MessageLite msg) {
