@@ -45,6 +45,13 @@ class UserFailuresTest extends CoreTestRunner {
     }
   }
 
+  private static class ThrowUnknownStatusRuntimeException extends GreeterGrpc.GreeterImplBase {
+    @Override
+    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
+      throw new StatusRuntimeException(Status.UNKNOWN.withDescription("Whatever"));
+    }
+  }
+
   private static class ThrowStatusRuntimeException extends GreeterGrpc.GreeterImplBase {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
@@ -80,6 +87,12 @@ class UserFailuresTest extends CoreTestRunner {
             .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
             .usingAllThreadingModels()
             .assertingOutput(containsOnlyExactErrorMessage(new IllegalStateException("Whatever"))),
+        testInvocation(new ThrowUnknownStatusRuntimeException(), GreeterGrpc.getGreetMethod())
+            .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
+            .usingAllThreadingModels()
+            .assertingOutput(
+                containsOnlyExactErrorMessage(
+                    Status.UNKNOWN.withDescription("Whatever").asRuntimeException())),
         testInvocation(
                 new ResponseObserverOnErrorIllegalStateException(), GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))

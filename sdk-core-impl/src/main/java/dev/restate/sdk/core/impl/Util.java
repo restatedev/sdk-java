@@ -81,7 +81,8 @@ public final class Util {
   }
 
   static boolean isTerminalException(Throwable throwable) {
-    return throwable instanceof StatusRuntimeException && ((StatusRuntimeException) throwable).getStatus().getCode().value() != Code.UNKNOWN_VALUE;
+    return throwable instanceof StatusRuntimeException
+        && ((StatusRuntimeException) throwable).getStatus().getCode().value() != Code.UNKNOWN_VALUE;
   }
 
   static void assertIsEntry(MessageLite msg) {

@@ -5,7 +5,6 @@ import static dev.restate.sdk.core.impl.Util.toProtocolFailure;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
-import com.google.rpc.Code;
 import dev.restate.generated.core.AwakeableIdentifier;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
@@ -18,7 +17,6 @@ import dev.restate.sdk.core.serde.CustomSerdeFunctionsTypeTag;
 import dev.restate.sdk.core.serde.Serde;
 import dev.restate.sdk.core.syscalls.*;
 import io.grpc.MethodDescriptor;
-import io.grpc.StatusRuntimeException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;

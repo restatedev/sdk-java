@@ -88,7 +88,8 @@ class RestateServerCall extends ServerCall<MessageLite, MessageLite> {
       listener.onCancel();
 
       if (status.getCode() == Status.Code.UNKNOWN) {
-        syscalls.fail(status.getCause());
+        // If no cause, just propagate a generic runtime exception
+        syscalls.fail(status.getCause() != null ? status.getCause() : status.asRuntimeException());
       } else {
         syscalls.writeOutput(
             status.asRuntimeException(),

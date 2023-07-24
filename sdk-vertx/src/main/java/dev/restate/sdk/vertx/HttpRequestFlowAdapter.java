@@ -72,6 +72,7 @@ class HttpRequestFlowAdapter implements InvocationFlow.InvocationInputPublisher 
   }
 
   private void handleRequestFailure(Throwable e) {
+    LOG.trace("Request error", e);
     this.inputMessagesSubscriber.onError(e);
   }
 
