@@ -87,9 +87,9 @@ class RestateServerCall extends ServerCall<MessageLite, MessageLite> {
       // Let's cancel the listener first
       listener.onCancel();
 
-      if (status.getCode() == Status.Code.UNKNOWN) {
-        // If no cause, just propagate a generic runtime exception
-        syscalls.fail(status.getCause() != null ? status.getCause() : status.asRuntimeException());
+      if (status.getCause() instanceof UncaughtException) {
+        // This is the case where we have uncaught exceptions from GrpcServerCallListenerAdaptor
+        syscalls.fail(status.getCause().getCause());
       } else {
         syscalls.writeOutput(
             status.asRuntimeException(),

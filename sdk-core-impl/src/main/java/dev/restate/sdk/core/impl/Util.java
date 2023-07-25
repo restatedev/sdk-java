@@ -1,7 +1,6 @@
 package dev.restate.sdk.core.impl;
 
 import com.google.protobuf.MessageLite;
-import com.google.rpc.Code;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.SuspendedException;
@@ -43,6 +42,20 @@ public final class Util {
     return Optional.empty();
   }
 
+  public static Status toGrpcStatusWrappingUncaught(Throwable t) {
+    Throwable cause = Objects.requireNonNull(t);
+    while (cause != null) {
+      if (cause instanceof StatusException) {
+        return ((StatusException) cause).getStatus();
+      } else if (cause instanceof StatusRuntimeException) {
+        return ((StatusRuntimeException) cause).getStatus();
+      }
+      cause = cause.getCause();
+    }
+    // Couldn't find a cause with a Status
+    return Status.UNKNOWN.withCause(new UncaughtException(t));
+  }
+
   public static Optional<ProtocolException> findProtocolException(Throwable throwable) {
     return findCause(throwable, t -> t instanceof ProtocolException);
   }
@@ -81,8 +94,7 @@ public final class Util {
   }
 
   static boolean isTerminalException(Throwable throwable) {
-    return throwable instanceof StatusRuntimeException
-        && ((StatusRuntimeException) throwable).getStatus().getCode().value() != Code.UNKNOWN_VALUE;
+    return throwable instanceof StatusRuntimeException || throwable instanceof StatusException;
   }
 
   static void assertIsEntry(MessageLite msg) {

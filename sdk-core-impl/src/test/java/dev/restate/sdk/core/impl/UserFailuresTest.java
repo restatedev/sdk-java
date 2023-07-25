@@ -87,17 +87,6 @@ class UserFailuresTest extends CoreTestRunner {
             .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
             .usingAllThreadingModels()
             .assertingOutput(containsOnlyExactErrorMessage(new IllegalStateException("Whatever"))),
-        testInvocation(new ThrowUnknownStatusRuntimeException(), GreeterGrpc.getGreetMethod())
-            .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
-            .usingAllThreadingModels()
-            .assertingOutput(
-                containsOnlyExactErrorMessage(
-                    Status.UNKNOWN.withDescription("Whatever").asRuntimeException())),
-        testInvocation(
-                new ResponseObserverOnErrorIllegalStateException(), GreeterGrpc.getGreetMethod())
-            .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
-            .usingAllThreadingModels()
-            .assertingOutput(containsOnlyExactErrorMessage(new IllegalStateException("Whatever"))),
         testInvocation(new SideEffectThrowIllegalStateException(), GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
             .usingAllThreadingModels()
@@ -108,11 +97,20 @@ class UserFailuresTest extends CoreTestRunner {
             .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
             .usingAllThreadingModels()
             .expectingOutput(outputMessage(MY_ERROR)),
+        testInvocation(new ThrowUnknownStatusRuntimeException(), GreeterGrpc.getGreetMethod())
+            .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
+            .usingAllThreadingModels()
+            .expectingOutput(outputMessage(Status.UNKNOWN.withDescription("Whatever"))),
         testInvocation(
                 new ResponseObserverOnErrorStatusRuntimeException(), GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
             .usingAllThreadingModels()
             .expectingOutput(outputMessage(MY_ERROR)),
+        testInvocation(
+                new ResponseObserverOnErrorIllegalStateException(), GreeterGrpc.getGreetMethod())
+            .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
+            .usingAllThreadingModels()
+            .expectingOutput(outputMessage(Status.UNKNOWN)),
         testInvocation(new SideEffectThrowStatusRuntimeException(), GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
             .usingAllThreadingModels()
