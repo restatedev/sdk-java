@@ -2,7 +2,6 @@ package dev.restate.sdk.core.impl;
 
 import io.grpc.Metadata;
 import io.grpc.ServerCall;
-import io.grpc.Status;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -68,7 +67,7 @@ class GrpcServerCallListenerAdaptor<ReqT, RespT> implements RestateServerCallLis
       serverCall.close(Util.SUSPENDED_STATUS, new Metadata());
     } else {
       LOG.warn("Error when processing the invocation", e);
-      serverCall.close(Status.fromThrowable(e), new Metadata());
+      serverCall.close(Util.toGrpcStatusWrappingUncaught(e), new Metadata());
     }
   }
 }
