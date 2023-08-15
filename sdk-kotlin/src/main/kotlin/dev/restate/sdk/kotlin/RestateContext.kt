@@ -1,7 +1,6 @@
 package dev.restate.sdk.kotlin
 
 import com.google.protobuf.MessageLite
-import dev.restate.generated.core.AwakeableIdentifier
 import dev.restate.sdk.core.StateKey
 import dev.restate.sdk.core.TypeTag
 import io.grpc.MethodDescriptor
@@ -55,7 +54,7 @@ sealed interface RestateContext {
 
   suspend fun <T> awakeable(typeTag: TypeTag<T>): Awakeable<T>
 
-  fun awakeableHandle(id: AwakeableIdentifier): AwakeableHandle
+  fun awakeableHandle(id: String): AwakeableHandle
 }
 
 sealed interface AwakeableHandle {

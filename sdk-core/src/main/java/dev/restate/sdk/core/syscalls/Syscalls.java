@@ -2,7 +2,6 @@ package dev.restate.sdk.core.syscalls;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
-import dev.restate.generated.core.AwakeableIdentifier;
 import dev.restate.sdk.core.TypeTag;
 import io.grpc.Context;
 import io.grpc.MethodDescriptor;
@@ -78,14 +77,10 @@ public interface Syscalls {
       Throwable toWrite, ExitSideEffectSyscallCallback<?> callback);
 
   <T> void awakeable(
-      TypeTag<T> typeTag,
-      SyscallCallback<Map.Entry<AwakeableIdentifier, DeferredResult<T>>> callback);
+      TypeTag<T> typeTag, SyscallCallback<Map.Entry<String, DeferredResult<T>>> callback);
 
   <T> void completeAwakeable(
-      AwakeableIdentifier id,
-      TypeTag<T> ty,
-      @Nonnull T payload,
-      SyscallCallback<Void> requestCallback);
+      String id, TypeTag<T> ty, @Nonnull T payload, SyscallCallback<Void> requestCallback);
 
   // ----- Deferred
 

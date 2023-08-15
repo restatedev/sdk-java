@@ -1,6 +1,5 @@
 package dev.restate.sdk.blocking;
 
-import dev.restate.generated.core.AwakeableIdentifier;
 import dev.restate.sdk.core.syscalls.DeferredResult;
 import dev.restate.sdk.core.syscalls.Syscalls;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -14,14 +13,14 @@ import javax.annotation.concurrent.NotThreadSafe;
  *
  * <p>For example you can send a Kafka record including the {@link Awakeable#id()}, and then let
  * another service consume from Kafka the responses of given external system interaction by using
- * {@link RestateContext#awakeableHandle(AwakeableIdentifier)}.
+ * {@link RestateContext#awakeableHandle(String)}.
  */
 @NotThreadSafe
 public final class Awakeable<T> extends Awaitable<T> {
 
-  private final AwakeableIdentifier identifier;
+  private final String identifier;
 
-  Awakeable(Syscalls syscalls, DeferredResult<T> deferredResult, AwakeableIdentifier identifier) {
+  Awakeable(Syscalls syscalls, DeferredResult<T> deferredResult, String identifier) {
     super(syscalls, deferredResult);
     this.identifier = identifier;
   }
@@ -29,7 +28,7 @@ public final class Awakeable<T> extends Awaitable<T> {
   /**
    * @return the unique identifier of this {@link Awakeable} instance.
    */
-  public AwakeableIdentifier id() {
+  public String id() {
     return identifier;
   }
 }

@@ -4,6 +4,7 @@ import static dev.restate.sdk.core.impl.Util.isTerminalException;
 import static dev.restate.sdk.core.impl.Util.toProtocolFailure;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageLite;
 import dev.restate.generated.core.AwakeableIdentifier;
 import dev.restate.generated.sdk.java.Java;
@@ -222,8 +223,7 @@ public final class SyscallsImpl implements SyscallsInternal {
 
   @Override
   public <T> void awakeable(
-      TypeTag<T> typeTag,
-      SyscallCallback<Map.Entry<AwakeableIdentifier, DeferredResult<T>>> callback) {
+      TypeTag<T> typeTag, SyscallCallback<Map.Entry<String, DeferredResult<T>>> callback) {
     LOG.trace("callback");
     this.stateMachine.processCompletableJournalEntry(
         Protocol.AwakeableEntryMessage.getDefaultInstance(),
@@ -231,21 +231,32 @@ public final class SyscallsImpl implements SyscallsInternal {
         SyscallCallback.mappingTo(
             deferredResult ->
                 new AbstractMap.SimpleImmutableEntry<>(
-                    AwakeableIdentifier.newBuilder()
-                        .setServiceName(stateMachine.getServiceName())
-                        .setInstanceKey(stateMachine.getInstanceKey())
-                        .setInvocationId(stateMachine.getInvocationId())
-                        .setEntryIndex(
-                            ((SingleDeferredResultInternal<T>) deferredResult).entryIndex())
-                        .build(),
+                    Base64.getUrlEncoder()
+                        .encodeToString(
+                            AwakeableIdentifier.newBuilder()
+                                .setServiceName(stateMachine.getServiceName())
+                                .setInstanceKey(stateMachine.getInstanceKey())
+                                .setInvocationId(stateMachine.getInvocationId())
+                                .setEntryIndex(
+                                    ((SingleDeferredResultInternal<T>) deferredResult).entryIndex())
+                                .build()
+                                .toByteArray()),
                     deferredResult),
             callback));
   }
 
   @Override
   public <T> void completeAwakeable(
-      AwakeableIdentifier id, TypeTag<T> ty, @Nonnull T payload, SyscallCallback<Void> callback) {
+      String serializedId, TypeTag<T> ty, @Nonnull T payload, SyscallCallback<Void> callback) {
     LOG.trace("completeAwakeable");
+
+    Protocol.AwakeableIdentifier id;
+    try {
+      id = Protocol.AwakeableIdentifier.parseFrom(Base64.getUrlDecoder().decode(serializedId));
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException("Cannot decode AwakeableIdentifier", e);
+    }
+
     Objects.requireNonNull(payload);
     ByteString serialized = serialize(ty, payload);
 
@@ -255,7 +266,7 @@ public final class SyscallsImpl implements SyscallsInternal {
             .setInstanceKey(id.getInstanceKey())
             .setInvocationId(id.getInvocationId())
             .setEntryIndex(id.getEntryIndex())
-            .setPayload(serialized)
+            .setValue(serialized)
             .build();
     this.stateMachine.processJournalEntry(expectedEntry, CompleteAwakeableEntry.INSTANCE, callback);
   }

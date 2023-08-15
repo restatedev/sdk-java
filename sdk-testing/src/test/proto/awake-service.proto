@@ -16,8 +16,5 @@ service AwakeService {
 }
 
 message AwakeServiceRequest {
-  string service_name = 1;
-  bytes instance_key = 2;
-  bytes invocation_id = 3;
-  uint32 entry_index = 4;
+  string id = 1;
 }

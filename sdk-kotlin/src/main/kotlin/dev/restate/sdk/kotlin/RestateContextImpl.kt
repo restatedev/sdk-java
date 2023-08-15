@@ -1,7 +1,6 @@
 package dev.restate.sdk.kotlin
 
 import com.google.protobuf.MessageLite
-import dev.restate.generated.core.AwakeableIdentifier
 import dev.restate.sdk.core.*
 import dev.restate.sdk.core.syscalls.DeferredResult
 import dev.restate.sdk.core.syscalls.EnterSideEffectSyscallCallback
@@ -158,14 +157,14 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
   override suspend fun <T> awakeable(typeTag: TypeTag<T>): Awakeable<T> {
     val (aid, deferredResult) =
         suspendCancellableCoroutine {
-            cont: CancellableContinuation<Map.Entry<AwakeableIdentifier, DeferredResult<T>>> ->
+            cont: CancellableContinuation<Map.Entry<String, DeferredResult<T>>> ->
           syscalls.awakeable(typeTag, completingContinuation(cont))
         }
 
     return AwakeableImpl(syscalls, deferredResult, aid)
   }
 
-  override fun awakeableHandle(id: AwakeableIdentifier): AwakeableHandle {
+  override fun awakeableHandle(id: String): AwakeableHandle {
     return AwakeableHandleImpl(syscalls, id)
   }
 }

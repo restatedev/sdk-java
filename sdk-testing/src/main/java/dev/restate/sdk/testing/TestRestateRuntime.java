@@ -420,7 +420,7 @@ public final class TestRestateRuntime {
               routeMessage(
                   Protocol.CompletionMessage.newBuilder()
                       .setEntryIndex(completeAwakeMsg.getEntryIndex())
-                      .setValue(completeAwakeMsg.getPayload())
+                      .setValue(completeAwakeMsg.getValue())
                       .build());
               return null;
             } else {
