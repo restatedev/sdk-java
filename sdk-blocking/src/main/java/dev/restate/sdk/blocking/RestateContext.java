@@ -1,7 +1,6 @@
 package dev.restate.sdk.blocking;
 
 import com.google.protobuf.MessageLite;
-import dev.restate.generated.core.AwakeableIdentifier;
 import dev.restate.sdk.core.StateKey;
 import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.core.serde.Serde;
@@ -128,7 +127,7 @@ public interface RestateContext {
    * <p>You can use this feature to implement external asynchronous systems interactions, for
    * example you can send a Kafka record including the {@link Awakeable#id()}, and then let another
    * service consume from Kafka the responses of given external system interaction by using {@link
-   * #awakeableHandle(AwakeableIdentifier)}.
+   * #awakeableHandle(String)}.
    *
    * @param typeTag the response type tag to use for deserializing
    * @return the result value of the external system interaction
@@ -137,10 +136,10 @@ public interface RestateContext {
   <T> Awakeable<T> awakeable(TypeTag<T> typeTag);
 
   /**
-   * Create a new {@link AwakeableHandle} for the provided {@link AwakeableIdentifier}. You can use
-   * it to {@link AwakeableHandle#complete(TypeTag, Object)} the linked {@link Awakeable}.
+   * Create a new {@link AwakeableHandle} for the provided identifier. You can use it to {@link
+   * AwakeableHandle#complete(TypeTag, Object)} the linked {@link Awakeable}.
    *
    * @see Awakeable
    */
-  AwakeableHandle awakeableHandle(AwakeableIdentifier id);
+  AwakeableHandle awakeableHandle(String id);
 }

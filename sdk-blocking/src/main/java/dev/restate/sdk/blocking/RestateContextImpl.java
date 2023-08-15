@@ -1,7 +1,6 @@
 package dev.restate.sdk.blocking;
 
 import com.google.protobuf.MessageLite;
-import dev.restate.generated.core.AwakeableIdentifier;
 import dev.restate.sdk.core.StateKey;
 import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.core.syscalls.*;
@@ -144,14 +143,14 @@ class RestateContextImpl implements RestateContext {
   @Override
   public <T> Awakeable<T> awakeable(TypeTag<T> typeTag) throws StatusRuntimeException {
     // Retrieve the awakeable
-    Map.Entry<AwakeableIdentifier, DeferredResult<T>> awakeable =
+    Map.Entry<String, DeferredResult<T>> awakeable =
         Util.blockOnSyscall(cb -> syscalls.awakeable(typeTag, cb));
 
     return new Awakeable<>(syscalls, awakeable.getValue(), awakeable.getKey());
   }
 
   @Override
-  public AwakeableHandle awakeableHandle(AwakeableIdentifier id) {
+  public AwakeableHandle awakeableHandle(String id) {
     return new AwakeableHandle() {
       @Override
       public <T> void complete(TypeTag<T> typeTag, @Nonnull T payload) {

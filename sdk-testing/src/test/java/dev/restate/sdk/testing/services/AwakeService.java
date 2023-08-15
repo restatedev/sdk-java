@@ -1,7 +1,6 @@
 package dev.restate.sdk.testing.services;
 
 import com.google.protobuf.Empty;
-import dev.restate.generated.core.AwakeableIdentifier;
 import dev.restate.sdk.blocking.AwakeableHandle;
 import dev.restate.sdk.blocking.RestateBlockingService;
 import dev.restate.sdk.blocking.RestateContext;
@@ -21,15 +20,8 @@ public class AwakeService extends AwakeServiceGrpc.AwakeServiceImplBase
   public void awake(AwakeServiceRequest request, StreamObserver<Empty> responseObserver) {
     LOG.debug("Executing the GreeterTwo.awakeTheOtherService method");
     RestateContext ctx = restateContext();
-    AwakeableIdentifier identifier =
-        AwakeableIdentifier.newBuilder()
-            .setServiceName(request.getServiceName())
-            .setInstanceKey(request.getInstanceKey())
-            .setInvocationId(request.getInvocationId())
-            .setEntryIndex(request.getEntryIndex())
-            .build();
 
-    AwakeableHandle awakeableHandle = ctx.awakeableHandle(identifier);
+    AwakeableHandle awakeableHandle = ctx.awakeableHandle(request.getId());
     awakeableHandle.complete(TypeTag.STRING_UTF8, "Wake up!");
 
     responseObserver.onNext(Empty.getDefaultInstance());

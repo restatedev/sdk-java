@@ -205,13 +205,7 @@ public class GreeterOne extends GreeterOneGrpc.GreeterOneImplBase
     Awakeable<String> a1 = ctx.awakeable(TypeTag.STRING_UTF8);
 
     // Tell GreeterTwo to wake us up with the awakeable identifier.
-    AwakeServiceRequest info =
-        AwakeServiceRequest.newBuilder()
-            .setServiceName(a1.id().getServiceName())
-            .setInstanceKey(a1.id().getInstanceKey())
-            .setEntryIndex(a1.id().getEntryIndex())
-            .setInvocationId(a1.id().getInvocationId())
-            .build();
+    AwakeServiceRequest info = AwakeServiceRequest.newBuilder().setId(a1.id()).build();
     ctx.backgroundCall(AwakeServiceGrpc.getAwakeMethod(), info);
 
     // Suspend until GreeterTwo wakes us up.
