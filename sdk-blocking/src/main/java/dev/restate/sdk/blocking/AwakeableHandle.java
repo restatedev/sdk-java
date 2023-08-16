@@ -17,5 +17,14 @@ public interface AwakeableHandle {
    *     configured {@link Serde}. MUST NOT be null.
    * @see Awakeable
    */
-  <T> void complete(TypeTag<T> typeTag, @Nonnull T payload);
+  <T> void resolve(TypeTag<T> typeTag, @Nonnull T payload);
+
+  /**
+   * Complete with failure the {@link Awakeable} identified by the provided {@link
+   * AwakeableIdentifier}.
+   *
+   * @param reason the rejection reason.
+   * @see Awakeable
+   */
+  void reject(String reason);
 }

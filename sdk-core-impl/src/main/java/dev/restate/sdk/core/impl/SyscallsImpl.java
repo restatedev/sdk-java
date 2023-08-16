@@ -6,6 +6,7 @@ import static dev.restate.sdk.core.impl.Util.toProtocolFailure;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageLite;
+import com.google.rpc.Code;
 import dev.restate.generated.core.AwakeableIdentifier;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
@@ -246,10 +247,35 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public <T> void completeAwakeable(
+  public <T> void resolveAwakeable(
       String serializedId, TypeTag<T> ty, @Nonnull T payload, SyscallCallback<Void> callback) {
-    LOG.trace("completeAwakeable");
+    LOG.trace("resolveAwakeable");
 
+    Objects.requireNonNull(payload);
+    ByteString serialized = serialize(ty, payload);
+
+    completeAwakeable(
+        serializedId,
+        Protocol.CompleteAwakeableEntryMessage.newBuilder().setValue(serialized),
+        callback);
+  }
+
+  @Override
+  public void rejectAwakeable(String serializedId, String reason, SyscallCallback<Void> callback) {
+    LOG.trace("rejectAwakeable");
+
+    completeAwakeable(
+        serializedId,
+        Protocol.CompleteAwakeableEntryMessage.newBuilder()
+            .setFailure(
+                Protocol.Failure.newBuilder().setCode(Code.UNKNOWN_VALUE).setMessage(reason)),
+        callback);
+  }
+
+  private void completeAwakeable(
+      String serializedId,
+      Protocol.CompleteAwakeableEntryMessage.Builder builder,
+      SyscallCallback<Void> callback) {
     Protocol.AwakeableIdentifier id;
     try {
       id = Protocol.AwakeableIdentifier.parseFrom(Base64.getUrlDecoder().decode(serializedId));
@@ -257,16 +283,12 @@ public final class SyscallsImpl implements SyscallsInternal {
       throw new RuntimeException("Cannot decode AwakeableIdentifier", e);
     }
 
-    Objects.requireNonNull(payload);
-    ByteString serialized = serialize(ty, payload);
-
     Protocol.CompleteAwakeableEntryMessage expectedEntry =
-        Protocol.CompleteAwakeableEntryMessage.newBuilder()
+        builder
             .setServiceName(id.getServiceName())
             .setInstanceKey(id.getInstanceKey())
             .setInvocationId(id.getInvocationId())
             .setEntryIndex(id.getEntryIndex())
-            .setValue(serialized)
             .build();
     this.stateMachine.processJournalEntry(expectedEntry, CompleteAwakeableEntry.INSTANCE, callback);
   }

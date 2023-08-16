@@ -22,7 +22,7 @@ public class AwakeService extends AwakeServiceGrpc.AwakeServiceImplBase
     RestateContext ctx = restateContext();
 
     AwakeableHandle awakeableHandle = ctx.awakeableHandle(request.getId());
-    awakeableHandle.complete(TypeTag.STRING_UTF8, "Wake up!");
+    awakeableHandle.resolve(TypeTag.STRING_UTF8, "Wake up!");
 
     responseObserver.onNext(Empty.getDefaultInstance());
     responseObserver.onCompleted();

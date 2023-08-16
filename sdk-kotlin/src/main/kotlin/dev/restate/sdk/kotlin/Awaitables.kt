@@ -66,7 +66,7 @@ internal constructor(
 internal class AwakeableHandleImpl(val syscalls: Syscalls, val id: String) : AwakeableHandle {
   override suspend fun <T : Any> complete(typeTag: TypeTag<T>, payload: T) {
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-      syscalls.completeAwakeable(id, typeTag, payload, completingUnitContinuation(cont))
+      syscalls.resolveAwakeable(id, typeTag, payload, completingUnitContinuation(cont))
     }
   }
 }
