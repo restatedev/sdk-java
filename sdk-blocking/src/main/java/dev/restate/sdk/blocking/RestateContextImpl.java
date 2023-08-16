@@ -153,8 +153,13 @@ class RestateContextImpl implements RestateContext {
   public AwakeableHandle awakeableHandle(String id) {
     return new AwakeableHandle() {
       @Override
-      public <T> void complete(TypeTag<T> typeTag, @Nonnull T payload) {
-        Util.<Void>blockOnSyscall(cb -> syscalls.completeAwakeable(id, typeTag, payload, cb));
+      public <T> void resolve(TypeTag<T> typeTag, @Nonnull T payload) {
+        Util.<Void>blockOnSyscall(cb -> syscalls.resolveAwakeable(id, typeTag, payload, cb));
+      }
+
+      @Override
+      public void reject(String reason) {
+        Util.<Void>blockOnSyscall(cb -> syscalls.rejectAwakeable(id, reason, cb));
       }
     };
   }

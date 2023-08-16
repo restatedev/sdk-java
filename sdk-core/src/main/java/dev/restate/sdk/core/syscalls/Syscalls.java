@@ -79,8 +79,10 @@ public interface Syscalls {
   <T> void awakeable(
       TypeTag<T> typeTag, SyscallCallback<Map.Entry<String, DeferredResult<T>>> callback);
 
-  <T> void completeAwakeable(
+  <T> void resolveAwakeable(
       String id, TypeTag<T> ty, @Nonnull T payload, SyscallCallback<Void> requestCallback);
+
+  void rejectAwakeable(String id, String reason, SyscallCallback<Void> requestCallback);
 
   // ----- Deferred
 

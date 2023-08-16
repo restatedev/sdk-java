@@ -168,10 +168,15 @@ class ExecutorSwitchingWrappers {
     }
 
     @Override
-    public <T> void completeAwakeable(
+    public <T> void resolveAwakeable(
         String id, TypeTag<T> typeTag, @Nonnull T payload, SyscallCallback<Void> requestCallback) {
       syscallsExecutor.execute(
-          () -> syscalls.completeAwakeable(id, typeTag, payload, requestCallback));
+          () -> syscalls.resolveAwakeable(id, typeTag, payload, requestCallback));
+    }
+
+    @Override
+    public void rejectAwakeable(String id, String reason, SyscallCallback<Void> requestCallback) {
+      syscallsExecutor.execute(() -> syscalls.rejectAwakeable(id, reason, requestCallback));
     }
 
     @Override

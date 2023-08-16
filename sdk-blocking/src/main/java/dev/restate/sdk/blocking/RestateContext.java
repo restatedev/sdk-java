@@ -137,7 +137,7 @@ public interface RestateContext {
 
   /**
    * Create a new {@link AwakeableHandle} for the provided identifier. You can use it to {@link
-   * AwakeableHandle#complete(TypeTag, Object)} the linked {@link Awakeable}.
+   * AwakeableHandle#resolve(TypeTag, Object)} the linked {@link Awakeable}.
    *
    * @see Awakeable
    */
