@@ -36,18 +36,15 @@ public class ProtoUtils {
 
   public static Protocol.StartMessage.Builder startMessage(int entries) {
     return Protocol.StartMessage.newBuilder()
-        .setInstanceKey(ByteString.copyFromUtf8("abc"))
-        .setInvocationId(ByteString.copyFromUtf8("123"))
+        .setId(ByteString.copyFromUtf8("abc"))
+        .setDebugId("abc")
         .setKnownEntries(entries);
   }
 
   @SafeVarargs
   public static Protocol.StartMessage.Builder startMessage(
       int entries, Map.Entry<String, String>... stateEntries) {
-    return Protocol.StartMessage.newBuilder()
-        .setInstanceKey(ByteString.copyFromUtf8("abc"))
-        .setInvocationId(ByteString.copyFromUtf8("123"))
-        .setKnownEntries(entries)
+    return startMessage(entries)
         .addAllStateMap(
             Arrays.stream(stateEntries)
                 .map(

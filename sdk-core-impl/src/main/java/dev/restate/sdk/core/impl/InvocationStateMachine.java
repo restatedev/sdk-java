@@ -44,8 +44,8 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   private boolean insideSideEffect = false;
 
   // Obtained after WAITING_START
-  private ByteString instanceKey;
-  private ByteString invocationId;
+  private ByteString id;
+  private String debugId;
   private int entriesToReplay;
   private LocalStateStorage localStateStorage;
 
@@ -77,12 +77,12 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     return serviceName;
   }
 
-  public ByteString getInstanceKey() {
-    return instanceKey;
+  public ByteString id() {
+    return id;
   }
 
-  public ByteString getInvocationId() {
-    return invocationId;
+  public String debugId() {
+    return debugId;
   }
 
   // --- Output Publisher impl
@@ -162,8 +162,8 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
     // Unpack the StartMessage
     Protocol.StartMessage startMessage = (Protocol.StartMessage) msg;
-    this.instanceKey = startMessage.getInstanceKey();
-    this.invocationId = startMessage.getInvocationId();
+    this.id = startMessage.getId();
+    this.debugId = startMessage.getDebugId();
     this.entriesToReplay = startMessage.getKnownEntries();
 
     // Set up the state cache
@@ -177,8 +177,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
                         Protocol.StartMessage.StateEntry::getValue)));
 
     if (this.span.isRecording()) {
-      span.addEvent(
-          "Start", Attributes.of(Tracing.RESTATE_INVOCATION_ID, this.invocationId.toStringUtf8()));
+      span.addEvent("Start", Attributes.of(Tracing.RESTATE_INVOCATION_ID, this.debugId));
     }
 
     // Execute state transition
@@ -192,7 +191,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     // Now execute the callback after start
     Consumer<InvocationId> afterStartCallback = this.afterStartCallback;
     this.afterStartCallback = null;
-    afterStartCallback.accept(new InvocationIdImpl(serviceName, instanceKey, invocationId));
+    afterStartCallback.accept(new InvocationIdImpl(this.debugId));
   }
 
   void close() {
@@ -692,10 +691,8 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
         + '\''
         + ", state="
         + state
-        + ", instanceKey="
-        + instanceKey
-        + ", invocationId="
-        + invocationId
+        + ", id="
+        + debugId
         + '}';
   }
 }

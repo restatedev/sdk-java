@@ -12,6 +12,7 @@ import dev.restate.sdk.core.impl.MessageHeader;
 import dev.restate.sdk.core.impl.RestateGrpcServer;
 import io.grpc.*;
 import io.grpc.protobuf.ProtoMethodDescriptorSupplier;
+import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
@@ -105,8 +106,8 @@ public final class TestRestateRuntime {
     String instanceKey = extractKey(serviceName, method, inputMessage).toString();
     Protocol.StartMessage startMessage =
         Protocol.StartMessage.newBuilder()
-            .setInstanceKey(ByteString.copyFromUtf8(instanceKey))
-            .setInvocationId(ByteString.copyFromUtf8(invocationId))
+            .setDebugId(invocationId)
+            .setId(ByteString.copyFromUtf8(invocationId))
             .setKnownEntries(1)
             .build();
     List<MessageLite> inputMessages = List.of(startMessage, inputMessage);
@@ -354,9 +355,12 @@ public final class TestRestateRuntime {
         Protocol.CompleteAwakeableEntryMessage msg = (Protocol.CompleteAwakeableEntryMessage) t;
         LOG.trace("Received CompleteAwakeableEntryMessage: " + msg);
 
+        byte[] decodedAwakeableId = Base64.getUrlDecoder().decode(msg.getId());
         var future =
             TestRestateRuntime.this.invocationFuturesHashMap.get(
-                msg.getInvocationId().toStringUtf8() + "-awake");
+                ByteString.copyFrom(decodedAwakeableId, 0, decodedAwakeableId.length - 4)
+                        .toStringUtf8()
+                    + "-awake");
         if (future != null) {
           future.complete(msg);
         } else {
@@ -379,6 +383,8 @@ public final class TestRestateRuntime {
 
       } else if (t instanceof Protocol.StartMessage) {
         throw new IllegalStateException("Start message should not end up in router.");
+      } else if (t instanceof Protocol.ErrorMessage) {
+        LOG.info("Got an ErrorMessage: " + t);
       } else {
         throw new IllegalStateException(
             "This type is not implemented in the test runtime: " + t.getClass().toGenericString());
@@ -417,9 +423,14 @@ public final class TestRestateRuntime {
             if (throwable == null) {
               Protocol.CompleteAwakeableEntryMessage completeAwakeMsg =
                   (Protocol.CompleteAwakeableEntryMessage) resp;
+
+              byte[] decodedAwakeableId = Base64.getUrlDecoder().decode(completeAwakeMsg.getId());
+              int index =
+                  ByteBuffer.wrap(decodedAwakeableId, decodedAwakeableId.length - 4, 4).getInt();
+
               routeMessage(
                   Protocol.CompletionMessage.newBuilder()
-                      .setEntryIndex(completeAwakeMsg.getEntryIndex())
+                      .setEntryIndex(index)
                       .setValue(completeAwakeMsg.getValue())
                       .build());
               return null;

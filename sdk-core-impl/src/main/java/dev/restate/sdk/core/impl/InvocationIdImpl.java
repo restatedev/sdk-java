@@ -1,21 +1,14 @@
 package dev.restate.sdk.core.impl;
 
-import com.google.protobuf.ByteString;
 import dev.restate.sdk.core.InvocationId;
-import java.util.Base64;
 import java.util.Objects;
 
 final class InvocationIdImpl implements InvocationId {
 
   private final String id;
 
-  InvocationIdImpl(String serviceName, ByteString instanceKey, ByteString invocationId) {
-    this.id =
-        serviceName
-            + "-"
-            + Base64.getEncoder().encodeToString(instanceKey.toByteArray())
-            + "-"
-            + Base64.getEncoder().encodeToString(invocationId.toByteArray());
+  InvocationIdImpl(String debugId) {
+    this.id = debugId;
   }
 
   @Override

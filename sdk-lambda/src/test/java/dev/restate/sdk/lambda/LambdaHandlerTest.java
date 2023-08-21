@@ -45,8 +45,8 @@ class LambdaHandlerTest {
             .encodeToString(
                 serializeEntries(
                     Protocol.StartMessage.newBuilder()
-                        .setInstanceKey(ByteString.copyFromUtf8("123"))
-                        .setInvocationId(ByteString.copyFromUtf8("abc"))
+                        .setDebugId("123")
+                        .setId(ByteString.copyFromUtf8("123"))
                         .setKnownEntries(1)
                         .build(),
                     Protocol.PollInputStreamEntryMessage.newBuilder()

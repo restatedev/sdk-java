@@ -27,22 +27,15 @@ class InvocationIdTest extends CoreTestRunner {
 
   @Override
   Stream<TestDefinition> definitions() {
-    ByteString instanceKey = ByteString.copyFromUtf8("abc");
-    ByteString invocationId = ByteString.copyFromUtf8("123");
+    String debugId = "my-debug-id";
+    ByteString id = ByteString.copyFromUtf8(debugId);
 
     return Stream.of(
         testInvocation(new ReturnInvocationId(), GreeterGrpc.getGreetMethod())
             .withInput(
-                Protocol.StartMessage.newBuilder()
-                    .setInstanceKey(instanceKey)
-                    .setInvocationId(invocationId)
-                    .setKnownEntries(1),
+                Protocol.StartMessage.newBuilder().setDebugId(debugId).setId(id).setKnownEntries(1),
                 inputMessage(GreetingRequest.getDefaultInstance()))
             .usingThreadingModels(ThreadingModel.UNBUFFERED_MULTI_THREAD)
-            .expectingOutput(
-                outputMessage(
-                    greetingResponse(
-                        new InvocationIdImpl(GreeterGrpc.SERVICE_NAME, instanceKey, invocationId)
-                            .toString()))));
+            .expectingOutput(outputMessage(greetingResponse(debugId))));
   }
 }
