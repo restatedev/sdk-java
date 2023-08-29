@@ -26,8 +26,7 @@ public class ProtoUtils {
    */
   public static MessageHeader headerFromMessage(MessageLite msg) {
     if (msg instanceof Protocol.StartMessage) {
-      return new MessageHeader(
-          MessageType.StartMessage, MessageHeader.PARTIAL_STATE_FLAG, msg.getSerializedSize());
+      return new MessageHeader(MessageType.StartMessage, (short) 0, msg.getSerializedSize());
     } else if (msg instanceof Protocol.CompletionMessage) {
       return new MessageHeader(MessageType.CompletionMessage, (short) 0, msg.getSerializedSize());
     }
@@ -38,7 +37,8 @@ public class ProtoUtils {
     return Protocol.StartMessage.newBuilder()
         .setId(ByteString.copyFromUtf8("abc"))
         .setDebugId("abc")
-        .setKnownEntries(entries);
+        .setKnownEntries(entries)
+        .setPartialState(true);
   }
 
   @SafeVarargs

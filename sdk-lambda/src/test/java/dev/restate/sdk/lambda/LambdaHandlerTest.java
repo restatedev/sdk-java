@@ -48,6 +48,7 @@ class LambdaHandlerTest {
                         .setDebugId("123")
                         .setId(ByteString.copyFromUtf8("123"))
                         .setKnownEntries(1)
+                        .setPartialState(true)
                         .build(),
                     Protocol.PollInputStreamEntryMessage.newBuilder()
                         .setValue(

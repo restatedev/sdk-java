@@ -109,6 +109,7 @@ public final class TestRestateRuntime {
             .setDebugId(invocationId)
             .setId(ByteString.copyFromUtf8(invocationId))
             .setKnownEntries(1)
+            .setPartialState(true)
             .build();
     List<MessageLite> inputMessages = List.of(startMessage, inputMessage);
 
