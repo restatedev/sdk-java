@@ -111,11 +111,10 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   @Override
   public void onNext(InvocationFlow.InvocationInput invocationInput) {
-    MessageHeader header = invocationInput.header();
     MessageLite msg = invocationInput.message();
     LOG.trace("Received input message {} {}", msg.getClass(), msg);
     if (this.state == State.WAITING_START) {
-      this.onStart(header, msg);
+      this.onStart(msg);
     } else if (msg instanceof Protocol.CompletionMessage) {
       // We check the instance rather than the state, because the user code might still be
       // replaying, but the network layer is already past it and is receiving completions from the
@@ -154,7 +153,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     this.inputSubscription.request(1);
   }
 
-  void onStart(MessageHeader header, MessageLite msg) {
+  void onStart(MessageLite msg) {
     if (!(msg instanceof Protocol.StartMessage)) {
       this.fail(ProtocolException.unexpectedMessage(Protocol.StartMessage.class, msg));
       return;
@@ -169,7 +168,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     // Set up the state cache
     this.localStateStorage =
         new LocalStateStorage(
-            header.hasFlag(MessageHeader.PARTIAL_STATE_FLAG),
+            startMessage.getPartialState(),
             startMessage.getStateMapList().stream()
                 .collect(
                     Collectors.toMap(

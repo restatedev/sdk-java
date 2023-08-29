@@ -77,8 +77,6 @@ class EagerStateTest extends CoreTestRunner {
     }
   }
 
-  private static final short PARTIAL_STATE = PARTIAL_STATE_FLAG;
-  private static final short COMPLETE_STATE = 0;
   private static final Map.Entry<String, String> STATE_FRANCESCO = entry("STATE", "Francesco");
   private static final MessageLite INPUT_TILL = inputMessage(greetingRequest("Till"));
   private static final MessageLite GET_STATE_FRANCESCO = getStateMessage("STATE", "Francesco");
@@ -94,38 +92,33 @@ class EagerStateTest extends CoreTestRunner {
   Stream<TestDefinition> definitions() {
     return Stream.of(
         testInvocation(new GetEmpty(), GreeterGrpc.getGreetMethod())
-            .withInput(COMPLETE_STATE, startMessage(1))
-            .withInput(INPUT_TILL)
+            .withInput(startMessage(1).setPartialState(false), INPUT_TILL)
             .usingAllThreadingModels()
             .expectingOutput(getStateEmptyMessage("STATE"), outputMessage(greetingResponse("true")))
             .named("With complete state"),
         testInvocation(new GetEmpty(), GreeterGrpc.getGreetMethod())
-            .withInput(PARTIAL_STATE, startMessage(1))
-            .withInput(INPUT_TILL)
+            .withInput(startMessage(1).setPartialState(true), INPUT_TILL)
             .usingAllThreadingModels()
             .expectingOutput(getStateMessage("STATE"), suspensionMessage(1))
             .named("With partial state"),
         testInvocation(new GetEmpty(), GreeterGrpc.getGreetMethod())
-            .withInput(PARTIAL_STATE, startMessage(2))
-            .withInput(INPUT_TILL, getStateEmptyMessage("STATE"))
+            .withInput(
+                startMessage(2).setPartialState(true), INPUT_TILL, getStateEmptyMessage("STATE"))
             .usingAllThreadingModels()
             .expectingOutput(outputMessage(greetingResponse("true")))
             .named("Resume with partial state"),
         testInvocation(new Get(), GreeterGrpc.getGreetMethod())
-            .withInput(COMPLETE_STATE, startMessage(1, STATE_FRANCESCO))
-            .withInput(INPUT_TILL)
+            .withInput(startMessage(1, STATE_FRANCESCO).setPartialState(false), INPUT_TILL)
             .usingAllThreadingModels()
             .expectingOutput(GET_STATE_FRANCESCO, OUTPUT_FRANCESCO)
             .named("With complete state"),
         testInvocation(new Get(), GreeterGrpc.getGreetMethod())
-            .withInput(PARTIAL_STATE, startMessage(1, STATE_FRANCESCO))
-            .withInput(INPUT_TILL)
+            .withInput(startMessage(1, STATE_FRANCESCO).setPartialState(true), INPUT_TILL)
             .usingAllThreadingModels()
             .expectingOutput(GET_STATE_FRANCESCO, OUTPUT_FRANCESCO)
             .named("With partial state"),
         testInvocation(new Get(), GreeterGrpc.getGreetMethod())
-            .withInput(PARTIAL_STATE, startMessage(1))
-            .withInput(INPUT_TILL)
+            .withInput(startMessage(1).setPartialState(true), INPUT_TILL)
             .usingAllThreadingModels()
             .expectingOutput(getStateMessage("STATE"), suspensionMessage(1))
             .named("With partial state without the state entry"),
@@ -139,8 +132,10 @@ class EagerStateTest extends CoreTestRunner {
                 OUTPUT_FRANCESCO_TILL)
             .named("With state in the state_map"),
         testInvocation(new GetAppendAndGet(), GreeterGrpc.getGreetMethod())
-            .withInput(PARTIAL_STATE, startMessage(1))
-            .withInput(INPUT_TILL, completionMessage(1, "Francesco"))
+            .withInput(
+                startMessage(1).setPartialState(true),
+                INPUT_TILL,
+                completionMessage(1, "Francesco"))
             .usingAllThreadingModels()
             .expectingOutput(
                 getStateMessage("STATE"),
@@ -158,8 +153,10 @@ class EagerStateTest extends CoreTestRunner {
                 OUTPUT_FRANCESCO)
             .named("With state in the state_map"),
         testInvocation(new GetClearAndGet(), GreeterGrpc.getGreetMethod())
-            .withInput(PARTIAL_STATE, startMessage(1))
-            .withInput(INPUT_TILL, completionMessage(1, "Francesco"))
+            .withInput(
+                startMessage(1).setPartialState(true),
+                INPUT_TILL,
+                completionMessage(1, "Francesco"))
             .usingAllThreadingModels()
             .expectingOutput(
                 getStateMessage("STATE"),

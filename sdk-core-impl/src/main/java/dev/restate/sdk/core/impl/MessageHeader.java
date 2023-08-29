@@ -6,7 +6,6 @@ import dev.restate.generated.service.protocol.Protocol;
 
 public class MessageHeader {
 
-  public static final short PARTIAL_STATE_FLAG = 0x0400;
   private static final short DONE_FLAG = 0x0001;
   private static final short REQUIRES_ACK_FLAG = 0x0001;
 
@@ -34,10 +33,6 @@ public class MessageHeader {
     res |= ((long) (flags) << 32);
     res |= length;
     return res;
-  }
-
-  public boolean hasFlag(short flag) {
-    return (this.flags & flag) > 0;
   }
 
   public MessageHeader copyWithFlags(short flag) {
