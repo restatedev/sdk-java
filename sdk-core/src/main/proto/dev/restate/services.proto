@@ -30,14 +30,17 @@ service Ingress {
 message InvokeRequest {
   // Fully qualified name of the service, e.g. `counter.Counter`
   string service = 1;
+
   // Method name of the service to invoke, e.g. `Add`
   string method = 2;
+
   // Argument of the invocation.
-  // When executing requests to the ingress using Protobuf,
-  // this field must contain the serialized Protobuf matching the argument type of the target method.
-  // When executing requests to the ingress using JSON,
-  // this field must contain the JSON object representing the argument type of the target method.
-  bytes argument = 3;
+  // You can pass the invocation argument either as protobuf or as JSON.
+  // In case of JSON, the argument will be automatically transcoded to protobuf before sending it to the target service.
+  oneof argument {
+    bytes pb = 3;
+    google.protobuf.Struct json = 4 [json_name = "argument"];
+  }
 }
 
 message InvokeResponse {
