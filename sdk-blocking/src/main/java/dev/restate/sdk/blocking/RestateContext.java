@@ -81,18 +81,18 @@ public interface RestateContext {
       MethodDescriptor<T, R> methodDescriptor, T parameter);
 
   /**
-   * Invoke another Restate service in a fire and forget fashion.
+   * Invoke another Restate service without waiting for the response.
    *
    * @param methodDescriptor The method descriptor of the method to invoke. This is found in the
    *     generated `*Grpc` class.
    * @param parameter the invocation request parameter.
    */
-  <T extends MessageLite> void backgroundCall(
+  <T extends MessageLite> void oneWayCall(
       MethodDescriptor<T, ? extends MessageLite> methodDescriptor, T parameter);
 
   /**
-   * Invoke another Restate service in a fire and forget fashion after the provided {@code delay}
-   * has elapsed.
+   * Invoke another Restate service without waiting for the response after the provided {@code
+   * delay} has elapsed.
    *
    * <p>This method returns immediately, as the timer is executed and awaited on Restate.
    *

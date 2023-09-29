@@ -95,19 +95,19 @@ sealed interface RestateContext {
   ): Awaitable<R>
 
   /**
-   * Invoke another Restate service in a fire and forget fashion.
+   * Invoke another Restate service without waiting for the response.
    *
    * @param methodDescriptor The method descriptor of the method to invoke. This is found in the
    * generated `*Grpc` class.
    * @param parameter the invocation request parameter.
    */
-  suspend fun <T : MessageLite> backgroundCall(
+  suspend fun <T : MessageLite> oneWayCall(
       methodDescriptor: MethodDescriptor<T, MessageLite>,
       parameter: T
   )
 
   /**
-   * Invoke another Restate service in a fire and forget fashion after the provided `delay` has
+   * Invoke another Restate service without waiting for the response after the provided `delay` has
    * elapsed.
    *
    * This method returns immediately, as the timer is executed and awaited on Restate.

@@ -93,7 +93,7 @@ class SideEffectTest extends CoreTestRunner {
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
       ctx.sideEffect(
-          () -> ctx.backgroundCall(GreeterGrpc.getGreetMethod(), greetingRequest("something")));
+          () -> ctx.oneWayCall(GreeterGrpc.getGreetMethod(), greetingRequest("something")));
 
       throw new IllegalStateException("This point should not be reached");
     }

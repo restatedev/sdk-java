@@ -70,7 +70,7 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
     return NonNullAwaitableImpl(syscalls, deferredResult)
   }
 
-  override suspend fun <T : MessageLite> backgroundCall(
+  override suspend fun <T : MessageLite> oneWayCall(
       methodDescriptor: MethodDescriptor<T, MessageLite>,
       parameter: T
   ) {
