@@ -1,6 +1,6 @@
 package dev.restate.sdk.lambda.testservices
 
-import RestateCoroutineService
+import dev.restate.sdk.kotlin.RestateCoroutineService
 import kotlinx.coroutines.Dispatchers
 
 class KotlinCounterService :

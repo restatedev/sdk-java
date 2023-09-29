@@ -48,6 +48,11 @@ public class RestateHttpEndpointBuilder {
   }
 
   /** Create a new builder. */
+  public static RestateHttpEndpointBuilder builder() {
+    return new RestateHttpEndpointBuilder(Vertx.vertx());
+  }
+
+  /** Create a new builder. */
   public static RestateHttpEndpointBuilder builder(Vertx vertx) {
     return new RestateHttpEndpointBuilder(vertx);
   }

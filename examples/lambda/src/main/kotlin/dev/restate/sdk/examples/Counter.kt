@@ -1,9 +1,9 @@
 package dev.restate.sdk.examples
 
-import RestateCoroutineService
 import com.google.protobuf.Empty
 import dev.restate.sdk.core.StateKey
 import dev.restate.sdk.examples.generated.*
+import dev.restate.sdk.kotlin.RestateCoroutineService
 import kotlinx.coroutines.Dispatchers
 import org.apache.logging.log4j.LogManager
 

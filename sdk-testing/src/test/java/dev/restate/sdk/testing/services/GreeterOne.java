@@ -116,7 +116,7 @@ public class GreeterOne extends GreeterOneGrpc.GreeterOneImplBase
     LOG.debug("Executing the GreeterOne.forwardBackgroundGreeting method");
     RestateContext ctx = restateContext();
 
-    ctx.backgroundCall(
+    ctx.oneWayCall(
         GreeterTwoGrpc.getCountForwardedGreetingsMethod(),
         GreeterTwoRequest.newBuilder().setName(request.getName()).build());
 
@@ -206,7 +206,7 @@ public class GreeterOne extends GreeterOneGrpc.GreeterOneImplBase
 
     // Tell GreeterTwo to wake us up with the awakeable identifier.
     AwakeServiceRequest info = AwakeServiceRequest.newBuilder().setId(a1.id()).build();
-    ctx.backgroundCall(AwakeServiceGrpc.getAwakeMethod(), info);
+    ctx.oneWayCall(AwakeServiceGrpc.getAwakeMethod(), info);
 
     // Suspend until GreeterTwo wakes us up.
     String output = a1.await();

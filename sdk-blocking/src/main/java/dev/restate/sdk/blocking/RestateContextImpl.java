@@ -59,7 +59,7 @@ class RestateContextImpl implements RestateContext {
   }
 
   @Override
-  public <T extends MessageLite> void backgroundCall(
+  public <T extends MessageLite> void oneWayCall(
       MethodDescriptor<T, ? extends MessageLite> methodDescriptor, T parameter) {
     Util.<Void>blockOnSyscall(cb -> syscalls.backgroundCall(methodDescriptor, parameter, null, cb));
   }
