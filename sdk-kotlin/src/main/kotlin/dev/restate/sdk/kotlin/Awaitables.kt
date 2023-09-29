@@ -1,23 +1,17 @@
 package dev.restate.sdk.kotlin
 
 import dev.restate.sdk.core.TypeTag
+import dev.restate.sdk.core.syscalls.AnyDeferredResult
 import dev.restate.sdk.core.syscalls.DeferredResult
 import dev.restate.sdk.core.syscalls.Syscalls
+import java.util.*
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.suspendCancellableCoroutine
 
-sealed interface Awaitable<T> {
-  suspend fun await(): T
-}
-
-sealed interface Awakeable<T> : Awaitable<T> {
-  val id: String
-}
-
 internal abstract class BaseAwaitableImpl<JAVA_T, KT_T>
 internal constructor(
-    private val syscalls: Syscalls,
-    protected val deferredResult: DeferredResult<JAVA_T>
+    internal val syscalls: Syscalls,
+    internal val deferredResult: DeferredResult<JAVA_T>
 ) : Awaitable<KT_T> {
 
   abstract fun unpack(): KT_T
@@ -56,6 +50,45 @@ internal constructor(syscalls: Syscalls, deferredResult: DeferredResult<Void>) :
   }
 }
 
+internal class AnyAwaitableImpl
+internal constructor(syscalls: Syscalls, deferredResult: DeferredResult<Any>) :
+    BaseAwaitableImpl<Any, Any>(syscalls, deferredResult), AnyAwaitable {
+  override fun unpack(): Any {
+    val readyResult = deferredResult.toReadyResult()!!
+    if (!readyResult.isSuccess) {
+      throw readyResult.failure!!
+    }
+    return readyResult.result!!
+  }
+
+  override suspend fun awaitIndex(): Int {
+    if (!deferredResult.isCompleted) {
+      suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
+        syscalls.resolveDeferred(deferredResult, completingUnitContinuation(cont))
+      }
+    }
+
+    return (deferredResult as AnyDeferredResult).completedIndex().orElseThrow {
+      IllegalStateException(
+          "completedIndex is empty when expecting a value. This looks like an SDK bug.")
+    }
+  }
+}
+
+internal fun wrapAllAwaitable(awaitables: List<Awaitable<*>>): Awaitable<Unit> {
+  val syscalls = (awaitables.get(0) as BaseAwaitableImpl<*, *>).syscalls
+  return UnitAwaitableImpl(
+      syscalls,
+      syscalls.createAllDeferred(awaitables.map { (it as BaseAwaitableImpl<*, *>).deferredResult }))
+}
+
+internal fun wrapAnyAwaitable(awaitables: List<Awaitable<*>>): AnyAwaitable {
+  val syscalls = (awaitables.get(0) as BaseAwaitableImpl<*, *>).syscalls
+  return AnyAwaitableImpl(
+      syscalls,
+      syscalls.createAnyDeferred(awaitables.map { (it as BaseAwaitableImpl<*, *>).deferredResult }))
+}
+
 internal class AwakeableImpl<T>
 internal constructor(
     syscalls: Syscalls,
@@ -64,9 +97,15 @@ internal constructor(
 ) : NonNullAwaitableImpl<T>(syscalls, deferredResult), Awakeable<T>
 
 internal class AwakeableHandleImpl(val syscalls: Syscalls, val id: String) : AwakeableHandle {
-  override suspend fun <T : Any> complete(typeTag: TypeTag<T>, payload: T) {
+  override suspend fun <T : Any> resolve(typeTag: TypeTag<T>, payload: T) {
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
       syscalls.resolveAwakeable(id, typeTag, payload, completingUnitContinuation(cont))
+    }
+  }
+
+  override suspend fun reject(reason: String) {
+    return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
+      syscalls.rejectAwakeable(id, reason, completingUnitContinuation(cont))
     }
   }
 }
