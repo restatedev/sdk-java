@@ -6,7 +6,7 @@ import dev.restate.sdk.core.TypeTag;
 import io.grpc.Context;
 import io.grpc.MethodDescriptor;
 import java.time.Duration;
-import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
@@ -88,7 +88,7 @@ public interface Syscalls {
 
   <T> void resolveDeferred(DeferredResult<T> deferredToResolve, SyscallCallback<Void> callback);
 
-  AnyDeferredResult createAnyDeferred(Collection<DeferredResult<?>> children);
+  AnyDeferredResult createAnyDeferred(List<DeferredResult<?>> children);
 
-  DeferredResult<Void> createAllDeferred(Collection<DeferredResult<?>> children);
+  DeferredResult<Void> createAllDeferred(List<DeferredResult<?>> children);
 }
