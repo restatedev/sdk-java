@@ -26,11 +26,11 @@ dependencyResolutionManagement {
 
   versionCatalogs {
     create("coreLibs") {
-      version("protobuf", "3.21.9")
-      version("grpc", "1.50.2")
-      version("grpckt", "1.3.0")
-      version("log4j", "2.19.0")
-      version("opentelemetry", "1.19.0")
+      version("protobuf", "3.24.3")
+      version("grpc", "1.58.0")
+      version("grpckt", "1.4.0")
+      version("log4j", "2.20.0")
+      version("opentelemetry", "1.30.1")
 
       library("protoc", "com.google.protobuf", "protoc").versionRef("protobuf")
       library("protobuf-java", "com.google.protobuf", "protobuf-java").versionRef("protobuf")
@@ -54,10 +54,10 @@ dependencyResolutionManagement {
       library("javax-annotation-api", "org.apache.tomcat", "annotations-api").version("6.0.53")
     }
     create("vertxLibs") {
-      library("vertx-bom", "io.vertx:vertx-stack-depchain:4.4.4")
+      library("vertx-bom", "io.vertx:vertx-stack-depchain:4.4.5")
       library("vertx-core", "io.vertx", "vertx-core").withoutVersion()
       library("vertx-grpc-context-storage", "io.vertx", "vertx-grpc-context-storage")
-          .version("4.4.4")
+          .version("4.4.5")
       library("vertx-kotlin-coroutines", "io.vertx", "vertx-lang-kotlin-coroutines")
           .withoutVersion()
       library("vertx-junit5", "io.vertx", "vertx-junit5").withoutVersion()
@@ -67,7 +67,7 @@ dependencyResolutionManagement {
       library("events", "com.amazonaws:aws-lambda-java-events:3.11.0")
     }
     create("jacksonLibs") {
-      version("jackson", "2.14.0")
+      version("jackson", "2.15.2")
 
       library("jackson-bom", "com.fasterxml.jackson", "jackson-bom").versionRef("jackson")
       library("jackson-core", "com.fasterxml.jackson.core", "jackson-core").withoutVersion()
@@ -78,7 +78,7 @@ dependencyResolutionManagement {
     }
     create("kotlinLibs") {
       library("kotlinx-coroutines", "org.jetbrains.kotlinx", "kotlinx-coroutines-core")
-          .version("1.6.4")
+          .version("1.7.3")
     }
     create("testingLibs") {
       version("junit-jupiter", "5.9.1")
