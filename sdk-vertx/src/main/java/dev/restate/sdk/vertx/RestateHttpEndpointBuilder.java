@@ -121,11 +121,11 @@ public class RestateHttpEndpointBuilder {
 
   /**
    * Build and listen on the port specified by the environment variable {@code PORT}, or
-   * alternatively on the default {@code 8080} port.
+   * alternatively on the default {@code 9080} port.
    */
   public Future<HttpServer> buildAndListen() {
     return buildAndListen(
-        Optional.ofNullable(System.getenv("PORT")).map(Integer::parseInt).orElse(8080));
+        Optional.ofNullable(System.getenv("PORT")).map(Integer::parseInt).orElse(9080));
   }
 
   /** Build the {@link HttpServer} serving the Restate service endpoint. */
