@@ -5,16 +5,16 @@ import dev.restate.sdk.core.impl.ReadyResults.ReadyResultInternal;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
-import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-/** Implements determinism of publishers */
-class ReadyResultPublisher {
+/** State machine tracking ready results */
+class ReadyResultStateMachine
+    extends BaseSuspendableCallbackStateMachine<ReadyResultStateMachine.OnNewReadyResultCallback> {
 
-  private static final Logger LOG = LogManager.getLogger(ReadyResultPublisher.class);
+  private static final Logger LOG = LogManager.getLogger(ReadyResultStateMachine.class);
 
-  interface OnNewReadyResultCallback extends InputChannelState.SuspendableCallback {
+  interface OnNewReadyResultCallback extends SuspendableCallback {
     boolean onNewReadyResult(Map<Integer, ReadyResultInternal<?>> resultMap);
   }
 
@@ -23,22 +23,13 @@ class ReadyResultPublisher {
       completionParsers;
   private final Map<Integer, ReadyResultInternal<?>> results;
 
-  private @Nullable OnNewReadyResultCallback onNewReadyResultCallback;
-
-  private final InputChannelState state;
-
-  ReadyResultPublisher() {
+  ReadyResultStateMachine() {
     this.completions = new HashMap<>();
     this.completionParsers = new HashMap<>();
     this.results = new HashMap<>();
-    this.state = new InputChannelState();
   }
 
   void offerCompletion(Protocol.CompletionMessage completionMessage) {
-    if (this.state.isClosed()) {
-      LOG.warn("Offering a completion when the publisher is closed");
-      return;
-    }
     LOG.trace("Offered new completion {}", completionMessage);
 
     this.completions.put(completionMessage.getEntryIndex(), completionMessage);
@@ -54,18 +45,14 @@ class ReadyResultPublisher {
   }
 
   void onNewReadyResult(OnNewReadyResultCallback callback) {
-    if (this.onNewReadyResultCallback != null) {
-      throw new IllegalStateException("Two concurrent reads were requested.");
-    }
-    this.onNewReadyResultCallback = callback;
+    this.assertCallbackNotSet("Two concurrent reads were requested.");
 
-    this.tryProgress();
+    this.tryProgress(callback);
   }
 
   void abort(Throwable cause) {
-    if (this.state.close(cause)) {
-      tryProgress();
-    }
+    super.abort(cause);
+    this.consumeCallback(this::tryProgress);
   }
 
   private void tryParse(int entryIndex) {
@@ -89,20 +76,13 @@ class ReadyResultPublisher {
     this.results.put(completionMessage.getEntryIndex(), readyResult);
 
     // We have a new result, let's try to progress
-    this.tryProgress();
+    this.consumeCallback(this::tryProgress);
   }
 
-  private void tryProgress() {
-    if (this.onNewReadyResultCallback != null) {
-      // Pop callback
-      OnNewReadyResultCallback cb = this.onNewReadyResultCallback;
-      this.onNewReadyResultCallback = null;
-
-      // Try to consume results
-      boolean resolved = cb.onNewReadyResult(this.results);
-      if (!resolved) {
-        this.onNewReadyResultCallback = this.state.handleOrReturn(cb);
-      }
+  private void tryProgress(OnNewReadyResultCallback cb) {
+    boolean resolved = cb.onNewReadyResult(this.results);
+    if (!resolved) {
+      this.setCallback(cb);
     }
   }
 }

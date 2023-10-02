@@ -15,12 +15,18 @@ import dev.restate.sdk.core.impl.Entries.*;
 import dev.restate.sdk.core.impl.ReadyResults.ReadyResultInternal;
 import dev.restate.sdk.core.serde.CustomSerdeFunctionsTypeTag;
 import dev.restate.sdk.core.serde.Serde;
-import dev.restate.sdk.core.syscalls.*;
+import dev.restate.sdk.core.syscalls.DeferredResult;
+import dev.restate.sdk.core.syscalls.EnterSideEffectSyscallCallback;
+import dev.restate.sdk.core.syscalls.ExitSideEffectSyscallCallback;
+import dev.restate.sdk.core.syscalls.SyscallCallback;
 import io.grpc.MethodDescriptor;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.*;
+import java.util.AbstractMap;
+import java.util.Base64;
+import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
@@ -165,10 +171,7 @@ public final class SyscallsImpl implements SyscallsInternal {
       TypeTag<T> typeTag, EnterSideEffectSyscallCallback<T> callback) {
     LOG.trace("enterSideEffectBlock");
     this.stateMachine.enterSideEffectBlock(
-        span -> span.addEvent("Enter SideEffect"),
-        sideEffectEntryHandler(typeTag, callback),
-        callback::onNotExecuted,
-        callback::onCancel);
+        sideEffectEntryHandler(typeTag, callback), callback::onNotExecuted, callback::onCancel);
   }
 
   @Override
@@ -177,7 +180,6 @@ public final class SyscallsImpl implements SyscallsInternal {
     LOG.trace("exitSideEffectBlock with success");
     this.stateMachine.exitSideEffectBlock(
         Java.SideEffectEntryMessage.newBuilder().setValue(serialize(typeTag, toWrite)).build(),
-        span -> span.addEvent("Exit SideEffect"),
         sideEffectEntryHandler(typeTag, callback),
         callback::onCancel);
   }
@@ -214,7 +216,6 @@ public final class SyscallsImpl implements SyscallsInternal {
 
     this.stateMachine.exitSideEffectBlock(
         Java.SideEffectEntryMessage.newBuilder().setFailure(toProtocolFailure(toWrite)).build(),
-        span -> span.addEvent("Exit SideEffect"),
         sideEffectEntry ->
             callback.onFailure(
                 Util.toGrpcStatus(sideEffectEntry.getFailure()).asRuntimeException()),

@@ -19,7 +19,7 @@ final class Entries {
 
     abstract void trace(E expected, Span span);
 
-    void updateLocalStateStorage(E expected, LocalStateStorage localStateStorage) {}
+    void updateUserStateStoreWithEntry(E expected, UserStateStore userStateStore) {}
   }
 
   abstract static class CompletableJournalEntry<E extends MessageLite, R> extends JournalEntry<E> {
@@ -32,12 +32,12 @@ final class Entries {
           this.getClass().getName(), actual.getResultCase());
     }
 
-    E tryCompleteWithLocalStateStorage(E expected, LocalStateStorage localStateStorage) {
+    E tryCompleteWithUserStateStorage(E expected, UserStateStore userStateStore) {
       return expected;
     }
 
-    void updateLocalStateStorageWithCompletion(
-        E expected, CompletionMessage actual, LocalStateStorage localStateStorage) {}
+    void updateUserStateStorageWithCompletion(
+        E expected, CompletionMessage actual, UserStateStore userStateStore) {}
   }
 
   static final class PollInputEntry<R extends MessageLite>
@@ -135,32 +135,30 @@ final class Entries {
     }
 
     @Override
-    void updateLocalStateStorage(
-        GetStateEntryMessage expected, LocalStateStorage localStateStorage) {
-      localStateStorage.set(expected.getKey(), expected.getValue());
+    void updateUserStateStoreWithEntry(
+        GetStateEntryMessage expected, UserStateStore userStateStore) {
+      userStateStore.set(expected.getKey(), expected.getValue());
     }
 
     @Override
-    GetStateEntryMessage tryCompleteWithLocalStateStorage(
-        GetStateEntryMessage expected, LocalStateStorage localStateStorage) {
-      LocalStateStorage.State value = localStateStorage.get(expected.getKey());
-      if (value instanceof LocalStateStorage.Value) {
-        return expected.toBuilder().setValue(((LocalStateStorage.Value) value).getValue()).build();
-      } else if (value instanceof LocalStateStorage.Empty) {
+    GetStateEntryMessage tryCompleteWithUserStateStorage(
+        GetStateEntryMessage expected, UserStateStore userStateStore) {
+      UserStateStore.State value = userStateStore.get(expected.getKey());
+      if (value instanceof UserStateStore.Value) {
+        return expected.toBuilder().setValue(((UserStateStore.Value) value).getValue()).build();
+      } else if (value instanceof UserStateStore.Empty) {
         return expected.toBuilder().setEmpty(Empty.getDefaultInstance()).build();
       }
       return expected;
     }
 
     @Override
-    void updateLocalStateStorageWithCompletion(
-        GetStateEntryMessage expected,
-        CompletionMessage actual,
-        LocalStateStorage localStateStorage) {
+    void updateUserStateStorageWithCompletion(
+        GetStateEntryMessage expected, CompletionMessage actual, UserStateStore userStateStore) {
       if (actual.hasEmpty()) {
-        localStateStorage.clear(expected.getKey());
+        userStateStore.clear(expected.getKey());
       } else {
-        localStateStorage.set(expected.getKey(), actual.getValue());
+        userStateStore.set(expected.getKey(), actual.getValue());
       }
     }
   }
@@ -184,9 +182,9 @@ final class Entries {
     }
 
     @Override
-    void updateLocalStateStorage(
-        ClearStateEntryMessage expected, LocalStateStorage localStateStorage) {
-      localStateStorage.clear(expected.getKey());
+    void updateUserStateStoreWithEntry(
+        ClearStateEntryMessage expected, UserStateStore userStateStore) {
+      userStateStore.clear(expected.getKey());
     }
   }
 
@@ -209,9 +207,9 @@ final class Entries {
     }
 
     @Override
-    void updateLocalStateStorage(
-        SetStateEntryMessage expected, LocalStateStorage localStateStorage) {
-      localStateStorage.set(expected.getKey(), expected.getValue());
+    void updateUserStateStoreWithEntry(
+        SetStateEntryMessage expected, UserStateStore userStateStore) {
+      userStateStore.set(expected.getKey(), expected.getValue());
     }
   }
 

@@ -5,7 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-final class LocalStateStorage {
+final class UserStateStore {
 
   interface State {}
 
@@ -36,7 +36,7 @@ final class LocalStateStorage {
   private final boolean isPartial;
   private final HashMap<ByteString, State> map;
 
-  LocalStateStorage(boolean isPartial, Map<ByteString, ByteString> map) {
+  UserStateStore(boolean isPartial, Map<ByteString, ByteString> map) {
     this.isPartial = isPartial;
     this.map =
         new HashMap<>(
