@@ -9,13 +9,16 @@ import io.grpc.ServerInterceptor;
 import io.grpc.ServerInterceptors;
 import io.grpc.ServerServiceDefinition;
 import io.opentelemetry.api.OpenTelemetry;
-import io.vertx.core.Future;
+import io.vertx.core.AsyncResult;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Optional;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * Endpoint builder for a Restate HTTP Endpoint using Vert.x, to serve Restate service.
@@ -36,12 +39,16 @@ import java.util.Optional;
  */
 public class RestateHttpEndpointBuilder {
 
+  private static final Logger LOG = LogManager.getLogger(RestateHttpEndpointBuilder.class);
+
   private final Vertx vertx;
   private final RestateGrpcServer.Builder restateGrpcServerBuilder =
       RestateGrpcServer.newBuilder(Discovery.ProtocolMode.BIDI_STREAM);
   private final HashSet<String> blockingServices = new HashSet<>();
   private OpenTelemetry openTelemetry = OpenTelemetry.noop();
-  private HttpServerOptions options;
+  private HttpServerOptions options =
+      new HttpServerOptions()
+          .setPort(Optional.ofNullable(System.getenv("PORT")).map(Integer::parseInt).orElse(9080));
 
   private RestateHttpEndpointBuilder(Vertx vertx) {
     this.vertx = vertx;
@@ -59,7 +66,7 @@ public class RestateHttpEndpointBuilder {
 
   /** Add custom {@link HttpServerOptions} to the server used by the endpoint. */
   public RestateHttpEndpointBuilder withOptions(HttpServerOptions options) {
-    this.options = options;
+    this.options = Objects.requireNonNull(options);
     return this;
   }
 
@@ -115,23 +122,21 @@ public class RestateHttpEndpointBuilder {
   }
 
   /** Build and listen on the specified port. */
-  public Future<HttpServer> buildAndListen(int port) {
-    return build().listen(port);
+  public void buildAndListen(int port) {
+    build().listen(port).onComplete(RestateHttpEndpointBuilder::handleStart);
   }
 
   /**
    * Build and listen on the port specified by the environment variable {@code PORT}, or
    * alternatively on the default {@code 9080} port.
    */
-  public Future<HttpServer> buildAndListen() {
-    return buildAndListen(
-        Optional.ofNullable(System.getenv("PORT")).map(Integer::parseInt).orElse(9080));
+  public void buildAndListen() {
+    build().listen().onComplete(RestateHttpEndpointBuilder::handleStart);
   }
 
   /** Build the {@link HttpServer} serving the Restate service endpoint. */
   public HttpServer build() {
-    HttpServer server =
-        (options != null) ? vertx.createHttpServer(options) : vertx.createHttpServer();
+    HttpServer server = vertx.createHttpServer(options);
 
     this.restateGrpcServerBuilder.withTracer(
         this.openTelemetry.getTracer("restate-java-sdk-vertx"));
@@ -141,5 +146,13 @@ public class RestateHttpEndpointBuilder {
             this.restateGrpcServerBuilder.build(), blockingServices, openTelemetry));
 
     return server;
+  }
+
+  private static void handleStart(AsyncResult<HttpServer> ar) {
+    if (ar.succeeded()) {
+      LOG.info("Restate HTTP Endpoint server started on port " + ar.result().actualPort());
+    } else {
+      LOG.error("Restate HTTP Endpoint server start failed", ar.cause());
+    }
   }
 }

@@ -56,7 +56,6 @@ class Counter(coroutineContext: CoroutineContext) :
 
 fun main() {
   val vertx = Vertx.vertx()
-
   RestateHttpEndpointBuilder.builder(vertx)
       .withService(Counter(coroutineContext = vertx.dispatcher()))
       .buildAndListen()
