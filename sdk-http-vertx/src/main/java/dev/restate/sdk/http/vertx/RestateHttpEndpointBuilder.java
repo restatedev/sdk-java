@@ -13,10 +13,8 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
+import java.util.concurrent.Executor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -43,6 +41,7 @@ public class RestateHttpEndpointBuilder {
   private final RestateGrpcServer.Builder restateGrpcServerBuilder =
       RestateGrpcServer.newBuilder(Discovery.ProtocolMode.BIDI_STREAM);
   private final HashSet<String> blockingServices = new HashSet<>();
+  private final HashMap<String, Executor> executors = new HashMap<>();
   private OpenTelemetry openTelemetry = OpenTelemetry.noop();
   private HttpServerOptions options =
       new HttpServerOptions()
@@ -81,6 +80,23 @@ public class RestateHttpEndpointBuilder {
         ServerInterceptors.intercept(service, Arrays.asList(interceptors));
     this.restateGrpcServerBuilder.withService(definition);
     this.blockingServices.add(definition.getServiceDescriptor().getName());
+    return this;
+  }
+
+  /**
+   * Add a {@link BindableBlockingService} to the endpoint, specifying the {@code executor} where to
+   * run the service code.
+   *
+   * <p>You can run on virtual threads by using the executor {@code
+   * Executors.newVirtualThreadPerTaskExecutor()}.
+   */
+  public RestateHttpEndpointBuilder withService(
+      BindableBlockingService service, Executor executor, ServerInterceptor... interceptors) {
+    ServerServiceDefinition definition =
+        ServerInterceptors.intercept(service, Arrays.asList(interceptors));
+    this.restateGrpcServerBuilder.withService(definition);
+    this.blockingServices.add(definition.getServiceDescriptor().getName());
+    this.executors.put(definition.getServiceDescriptor().getName(), executor);
     return this;
   }
 
@@ -141,7 +157,7 @@ public class RestateHttpEndpointBuilder {
 
     server.requestHandler(
         new RequestHttpServerHandler(
-            this.restateGrpcServerBuilder.build(), blockingServices, openTelemetry));
+            this.restateGrpcServerBuilder.build(), blockingServices, executors, openTelemetry));
 
     return server;
   }
