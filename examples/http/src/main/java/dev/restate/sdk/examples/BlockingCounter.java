@@ -7,7 +7,6 @@ import dev.restate.sdk.core.StateKey;
 import dev.restate.sdk.examples.generated.*;
 import dev.restate.sdk.vertx.RestateHttpEndpointBuilder;
 import io.grpc.stub.StreamObserver;
-import io.vertx.core.Vertx;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -62,8 +61,6 @@ public class BlockingCounter extends CounterGrpc.CounterImplBase implements Rest
   }
 
   public static void main(String[] args) {
-    Vertx vertx = Vertx.vertx();
-
-    RestateHttpEndpointBuilder.builder(vertx).withService(new BlockingCounter()).buildAndListen();
+    RestateHttpEndpointBuilder.builder().withService(new BlockingCounter()).buildAndListen();
   }
 }
