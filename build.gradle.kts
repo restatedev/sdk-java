@@ -99,7 +99,7 @@ subprojects {
     repositories {
       maven {
         name = "GitHubPackages"
-        url = uri("https://maven.pkg.github.com/restatedev/sdk-java")
+        url = uri("https://maven.pkg.github.com/restatedev/sdk-jvm")
         credentials {
           username = System.getenv("GITHUB_ACTOR")
           password = System.getenv("GITHUB_TOKEN")
