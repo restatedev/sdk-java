@@ -3,8 +3,8 @@ package dev.restate.sdk.examples
 import com.google.protobuf.Empty
 import dev.restate.sdk.core.StateKey
 import dev.restate.sdk.examples.generated.*
+import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder
 import dev.restate.sdk.kotlin.RestateCoroutineService
-import dev.restate.sdk.vertx.RestateHttpEndpointBuilder
 import io.vertx.core.Vertx
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlin.coroutines.CoroutineContext

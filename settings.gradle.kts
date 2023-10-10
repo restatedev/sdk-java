@@ -7,14 +7,14 @@
  * in the user manual at https://docs.gradle.org/7.4.2/userguide/multi_project_builds.html
  */
 
-rootProject.name = "sdk-java"
+rootProject.name = "sdk-jvm"
 
 include(
     "sdk-core",
     "sdk-core-impl",
     "sdk-serde-jackson",
-    "sdk-vertx",
-    "sdk-blocking",
+    "sdk-http-vertx",
+    "sdk-java-blocking",
     "sdk-lambda",
     "sdk-kotlin",
     "sdk-testing",

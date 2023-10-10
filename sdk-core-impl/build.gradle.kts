@@ -30,7 +30,7 @@ dependencies {
 
   testCompileOnly(coreLibs.javax.annotation.api)
 
-  testImplementation(project(":sdk-blocking"))
+  testImplementation(project(":sdk-java-blocking"))
   testImplementation(testingLibs.junit.jupiter)
   testImplementation(testingLibs.assertj)
   testImplementation(coreLibs.grpc.stub)

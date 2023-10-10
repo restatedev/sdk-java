@@ -18,8 +18,8 @@ plugins {
 }
 
 dependencies {
-  implementation(project(":sdk-blocking"))
-  implementation(project(":sdk-vertx"))
+  implementation(project(":sdk-java-blocking"))
+  implementation(project(":sdk-http-vertx"))
   implementation(project(":sdk-kotlin"))
   implementation(project(":sdk-serde-jackson"))
 
