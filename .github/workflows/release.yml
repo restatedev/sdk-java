@@ -5,7 +5,7 @@ on:
 
 jobs:
   publish:
-    if: github.repository == 'restatedev/sdk-jvm'
+    if: github.repository == 'restatedev/sdk-java'
     name: Publish
     runs-on: ubuntu-latest
     timeout-minutes: 10

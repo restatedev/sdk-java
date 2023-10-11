@@ -7,7 +7,7 @@
  * in the user manual at https://docs.gradle.org/7.4.2/userguide/multi_project_builds.html
  */
 
-rootProject.name = "sdk-jvm"
+rootProject.name = "sdk-java"
 
 include(
     "sdk-core",
