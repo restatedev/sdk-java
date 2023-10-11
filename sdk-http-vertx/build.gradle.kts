@@ -19,19 +19,21 @@ dependencies {
   api(project(":sdk-core"))
   implementation(project(":sdk-core-impl"))
 
-  implementation(lambdaLibs.core)
-  implementation(lambdaLibs.events)
+  implementation(platform(vertxLibs.vertx.bom))
+  implementation(vertxLibs.vertx.core)
+  implementation(vertxLibs.vertx.grpc.context.storage)
 
   implementation(platform(coreLibs.opentelemetry.bom))
   implementation(coreLibs.opentelemetry.api)
-
   implementation(coreLibs.log4j.api)
 
   testImplementation(project(":sdk-java-blocking"))
   testImplementation(project(":sdk-kotlin"))
   testImplementation(project(":sdk-core-impl", "testArchive"))
+  testProtobuf(project(":sdk-core-impl", "testArchive"))
   testImplementation(testingLibs.junit.jupiter)
   testImplementation(testingLibs.assertj)
+  testImplementation(vertxLibs.vertx.junit5)
 
   testImplementation(coreLibs.protobuf.java)
   testImplementation(coreLibs.protobuf.kotlin)
@@ -41,6 +43,7 @@ dependencies {
   testImplementation(coreLibs.log4j.core)
 
   testImplementation(kotlinLibs.kotlinx.coroutines)
+  testImplementation(vertxLibs.vertx.kotlin.coroutines)
 }
 
 configure<com.diffplug.gradle.spotless.SpotlessExtension> {
@@ -73,7 +76,7 @@ publishing {
   publications {
     register<MavenPublication>("maven") {
       groupId = "dev.restate.sdk"
-      artifactId = "sdk-lambda"
+      artifactId = "sdk-http-vertx"
 
       from(components["java"])
     }

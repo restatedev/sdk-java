@@ -19,17 +19,6 @@ jobs:
       - name: Validate Gradle wrapper
         uses: gradle/wrapper-validation-action@v1
 
-      # Ideally we delete old packages after releasing new ones but this does not work for snapshot releases
-      - name: Delete old java-sdk packages
-        uses: actions/delete-package-versions@v3
-        with:
-          package-name: 'dev.restate.sdk.java-sdk'
-          min-versions-to-keep: 0
-          # We want to remove all the versions containing SNAPSHOT in the name
-          # See https://github.com/actions/delete-package-versions/issues/61
-          ignore-versions: '^.*(?<!SNAPSHOT)$'
-          token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Build with Gradle & publish to GitHub packages repository
         uses: gradle/gradle-build-action@v2
         env:

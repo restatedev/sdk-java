@@ -28,7 +28,7 @@ dependencies {
   implementation(coreLibs.opentelemetry.api)
   testCompileOnly(coreLibs.javax.annotation.api)
 
-  testImplementation(project(":sdk-blocking"))
+  testImplementation(project(":sdk-java-blocking"))
   testImplementation(testingLibs.assertj)
   testImplementation(testingLibs.junit.jupiter)
   testImplementation(testingLibs.assertj)

@@ -18,7 +18,7 @@ plugins {
 }
 
 dependencies {
-  implementation(project(":sdk-blocking"))
+  implementation(project(":sdk-java-blocking"))
   implementation(project(":sdk-lambda"))
   implementation(project(":sdk-kotlin"))
   implementation(project(":sdk-serde-jackson"))

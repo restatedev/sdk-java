@@ -18,10 +18,10 @@ In order to run the Kotlin implementation, you have to specify the main class vi
 
 ## Invoking the counter service
 
-If you want to invoke the counter service via [grpcurl](https://github.com/fullstorydev/grpcurl) you can leverage the automatically generated descriptor set:
+If you want to invoke the counter service via [grpcurl](https://github.com/fullstorydev/grpcurl):
 
 ```shell
-grpcurl -protoset examples/build/generated/source/proto/main/descriptor_set.desc -plaintext -d '{"counter_name": "my_counter"}' localhost:9090 counter.Counter/Get
+grpcurl -plaintext -d '{"counter_name": "my_counter"}' localhost:9090 counter.Counter/Get
 ```
 
 The command assumes that the Restate runtime is reachable under `localhost:9090`.
