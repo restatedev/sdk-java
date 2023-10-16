@@ -12,41 +12,16 @@ syntax = "proto3";
 package dev.restate;
 
 import "dev/restate/ext.proto";
-import "google/protobuf/empty.proto";
-import "google/protobuf/struct.proto";
 
 option java_multiple_files = true;
 option java_package = "dev.restate.generated";
 option go_package = "restate.dev/sdk-go/pb";
 
 message Event {
-  // Payload
-  bytes payload = 2;
-
-  // Metadata
-  string source = 3;
-
-  // This is filled by the source to retain ordering guarantees, depending on the source type
   bytes ordering_key = 1 [(dev.restate.ext.field) = KEY];
-  map<string, string> attributes = 15;
-}
 
-message KeyedEvent {
-  // Payload
-  bytes key = 1 [(dev.restate.ext.field) = KEY];
-  bytes payload = 2;
+  bytes key = 2;
+  bytes payload = 3;
 
-  // Metadata
-  string source = 3;
-  map<string, string> attributes = 15;
-}
-
-message StringKeyedEvent {
-  // Payload
-  string key = 1 [(dev.restate.ext.field) = KEY];
-  bytes payload = 2;
-
-  // Metadata
-  string source = 3;
   map<string, string> attributes = 15;
 }
