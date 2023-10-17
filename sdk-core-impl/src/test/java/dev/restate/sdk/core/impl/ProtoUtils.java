@@ -72,9 +72,13 @@ public class ProtoUtils {
   }
 
   public static Protocol.CompletionMessage completionMessage(int index, Throwable e) {
+    return completionMessage(index, Status.INTERNAL.withDescription(e.getMessage()));
+  }
+
+  public static Protocol.CompletionMessage completionMessage(int index, Status status) {
     return Protocol.CompletionMessage.newBuilder()
         .setEntryIndex(index)
-        .setFailure(toProtocolFailure(Status.INTERNAL.withDescription(e.getMessage())))
+        .setFailure(toProtocolFailure(status))
         .build();
   }
 
