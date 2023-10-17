@@ -1,6 +1,5 @@
 package dev.restate.sdk.core.impl;
 
-import static dev.restate.sdk.core.impl.CoreTestRunner.TestCaseBuilder.testInvocation;
 import static dev.restate.sdk.core.impl.ProtoUtils.headerFromMessage;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
@@ -17,29 +16,29 @@ import io.grpc.BindableService;
 import io.grpc.MethodDescriptor;
 import io.grpc.ServerServiceDefinition;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.annotation.Nullable;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-abstract class CoreTestRunner {
+public abstract class CoreTestRunner {
 
-  abstract Stream<TestDefinition> definitions();
+  protected abstract Stream<TestDefinition> definitions();
 
   Stream<Arguments> source() {
     return definitions()
+        .filter(TestDefinition::isValid)
         .flatMap(
             c ->
                 c.getThreadingModels().stream()
@@ -125,12 +124,12 @@ abstract class CoreTestRunner {
     }
   }
 
-  enum ThreadingModel {
+  public enum ThreadingModel {
     BUFFERED_SINGLE_THREAD,
     UNBUFFERED_MULTI_THREAD
   }
 
-  interface TestDefinition {
+  public interface TestDefinition {
     ServerServiceDefinition getService();
 
     String getMethod();
@@ -142,30 +141,41 @@ abstract class CoreTestRunner {
     BiConsumer<FutureSubscriber<MessageLite>, Duration> getOutputAssert();
 
     String testCaseName();
+
+    boolean isValid();
   }
 
   /** Builder for the test cases */
-  static class TestCaseBuilder {
+  public static class TestCaseBuilder {
 
-    static TestInvocationBuilder testInvocation(BindableService svc, String method) {
+    public static TestInvocationBuilder testInvocation(BindableService svc, String method) {
       return new TestInvocationBuilder(svc, method);
     }
 
-    static TestInvocationBuilder testInvocation(
+    public static TestInvocationBuilder testInvocation(
         BindableService svc, MethodDescriptor<?, ?> method) {
       return testInvocation(svc, method.getBareMethodName());
     }
 
-    static class TestInvocationBuilder {
-      protected final BindableService svc;
+    public static TestInvocationBuilder testInvocation(
+        Supplier<BindableService> svc, MethodDescriptor<?, ?> method) {
+      try {
+        return testInvocation(svc.get(), method.getBareMethodName());
+      } catch (UnsupportedOperationException e) {
+        return testInvocation(null, method.getBareMethodName());
+      }
+    }
+
+    public static class TestInvocationBuilder {
+      protected final @Nullable BindableService svc;
       protected final String method;
 
-      TestInvocationBuilder(BindableService svc, String method) {
+      TestInvocationBuilder(@Nullable BindableService svc, String method) {
         this.svc = svc;
         this.method = method;
       }
 
-      WithInputBuilder withInput(short flags, MessageLiteOrBuilder msgOrBuilder) {
+      public WithInputBuilder withInput(short flags, MessageLiteOrBuilder msgOrBuilder) {
         MessageLite msg = ProtoUtils.build(msgOrBuilder);
         return new WithInputBuilder(
             svc,
@@ -173,7 +183,7 @@ abstract class CoreTestRunner {
             List.of(InvocationInput.of(headerFromMessage(msg).copyWithFlags(flags), msg)));
       }
 
-      WithInputBuilder withInput(MessageLiteOrBuilder... messages) {
+      public WithInputBuilder withInput(MessageLiteOrBuilder... messages) {
         return new WithInputBuilder(
             svc,
             method,
@@ -187,7 +197,7 @@ abstract class CoreTestRunner {
       }
     }
 
-    static class WithInputBuilder extends TestInvocationBuilder {
+    public static class WithInputBuilder extends TestInvocationBuilder {
       private final List<InvocationInput> input;
 
       WithInputBuilder(BindableService svc, String method, List<InvocationInput> input) {
@@ -195,13 +205,13 @@ abstract class CoreTestRunner {
         this.input = new ArrayList<>(input);
       }
 
-      WithInputBuilder withInput(short flags, MessageLiteOrBuilder msgOrBuilder) {
+      public WithInputBuilder withInput(short flags, MessageLiteOrBuilder msgOrBuilder) {
         MessageLite msg = ProtoUtils.build(msgOrBuilder);
         this.input.add(InvocationInput.of(headerFromMessage(msg).copyWithFlags(flags), msg));
         return this;
       }
 
-      WithInputBuilder withInput(MessageLiteOrBuilder... messages) {
+      public WithInputBuilder withInput(MessageLiteOrBuilder... messages) {
         this.input.addAll(
             Arrays.stream(messages)
                 .map(
@@ -213,18 +223,18 @@ abstract class CoreTestRunner {
         return this;
       }
 
-      UsingThreadingModelsBuilder usingThreadingModels(ThreadingModel... threadingModels) {
+      public UsingThreadingModelsBuilder usingThreadingModels(ThreadingModel... threadingModels) {
         return new UsingThreadingModelsBuilder(
             this.svc, this.method, input, new HashSet<>(Arrays.asList(threadingModels)));
       }
 
-      UsingThreadingModelsBuilder usingAllThreadingModels() {
+      public UsingThreadingModelsBuilder usingAllThreadingModels() {
         return usingThreadingModels(ThreadingModel.values());
       }
     }
 
-    static class UsingThreadingModelsBuilder {
-      private final BindableService svc;
+    public static class UsingThreadingModelsBuilder {
+      private final @Nullable BindableService svc;
       private final String method;
       private final List<InvocationInput> input;
       private final HashSet<ThreadingModel> threadingModels;
@@ -240,42 +250,47 @@ abstract class CoreTestRunner {
         this.threadingModels = threadingModels;
       }
 
-      ExpectingOutputMessages expectingOutput(MessageLiteOrBuilder... messages) {
+      public ExpectingOutputMessages expectingOutput(MessageLiteOrBuilder... messages) {
         List<MessageLite> builtMessages =
             Arrays.stream(messages).map(ProtoUtils::build).collect(Collectors.toList());
         return assertingOutput(actual -> assertThat(actual).asList().isEqualTo(builtMessages));
       }
 
-      ExpectingOutputMessages assertingOutput(Consumer<List<MessageLite>> messages) {
+      public ExpectingOutputMessages assertingOutput(Consumer<List<MessageLite>> messages) {
         return new ExpectingOutputMessages(svc, method, input, threadingModels, messages);
       }
 
-      ExpectingFailure assertingFailure(Class<? extends Throwable> tClass) {
+      public ExpectingFailure assertingFailure(Class<? extends Throwable> tClass) {
         return assertingFailure(t -> assertThat(t).isInstanceOf(tClass));
       }
 
-      ExpectingFailure assertingFailure(Consumer<Throwable> assertFailure) {
+      public ExpectingFailure assertingFailure(Consumer<Throwable> assertFailure) {
         return new ExpectingFailure(svc, method, input, threadingModels, assertFailure);
       }
     }
 
     public abstract static class BaseTestDefinition implements TestDefinition {
-      protected final BindableService svc;
+      protected final @Nullable BindableService svc;
       protected final String method;
       protected final List<InvocationInput> input;
       protected final HashSet<ThreadingModel> threadingModels;
       protected final String named;
 
       public BaseTestDefinition(
-          BindableService svc,
+          @Nullable BindableService svc,
           String method,
           List<InvocationInput> input,
           HashSet<ThreadingModel> threadingModels) {
-        this(svc, method, input, threadingModels, svc.getClass().getSimpleName());
+        this(
+            svc,
+            method,
+            input,
+            threadingModels,
+            svc != null ? svc.getClass().getSimpleName() : "invalid");
       }
 
       public BaseTestDefinition(
-          BindableService svc,
+          @Nullable BindableService svc,
           String method,
           List<InvocationInput> input,
           HashSet<ThreadingModel> threadingModels,
@@ -289,7 +304,7 @@ abstract class CoreTestRunner {
 
       @Override
       public ServerServiceDefinition getService() {
-        return svc.bindService();
+        return Objects.requireNonNull(svc).bindService();
       }
 
       @Override
@@ -313,11 +328,11 @@ abstract class CoreTestRunner {
       }
     }
 
-    static class ExpectingOutputMessages extends BaseTestDefinition {
+    public static class ExpectingOutputMessages extends BaseTestDefinition {
       private final Consumer<List<MessageLite>> messagesAssert;
 
       ExpectingOutputMessages(
-          BindableService svc,
+          @Nullable BindableService svc,
           String method,
           List<InvocationInput> input,
           HashSet<ThreadingModel> threadingModels,
@@ -327,7 +342,7 @@ abstract class CoreTestRunner {
       }
 
       ExpectingOutputMessages(
-          BindableService svc,
+          @Nullable BindableService svc,
           String method,
           List<InvocationInput> input,
           HashSet<ThreadingModel> threadingModels,
@@ -337,14 +352,14 @@ abstract class CoreTestRunner {
         this.messagesAssert = messagesAssert;
       }
 
-      ExpectingOutputMessages named(String name) {
+      public ExpectingOutputMessages named(String name) {
         return new TestCaseBuilder.ExpectingOutputMessages(
             svc,
             method,
             input,
             threadingModels,
             messagesAssert,
-            svc.getClass().getSimpleName() + ": " + name);
+            svc != null ? (svc.getClass().getSimpleName() + ": " + name) : "invalid");
       }
 
       @Override
@@ -366,13 +381,18 @@ abstract class CoreTestRunner {
                   Protocol.ErrorMessage.class);
         };
       }
+
+      @Override
+      public boolean isValid() {
+        return this.svc != null;
+      }
     }
 
-    static class ExpectingFailure extends BaseTestDefinition {
+    public static class ExpectingFailure extends BaseTestDefinition {
       private final Consumer<Throwable> throwableAssert;
 
       ExpectingFailure(
-          BindableService svc,
+          @Nullable BindableService svc,
           String method,
           List<InvocationInput> input,
           HashSet<ThreadingModel> threadingModels,
@@ -392,14 +412,14 @@ abstract class CoreTestRunner {
         this.throwableAssert = throwableAssert;
       }
 
-      ExpectingFailure named(String name) {
+      public ExpectingFailure named(String name) {
         return new ExpectingFailure(
             svc,
             method,
             input,
             threadingModels,
             throwableAssert,
-            svc.getClass().getSimpleName() + ": " + name);
+            svc != null ? (svc.getClass().getSimpleName() + ": " + name) : "invalid");
       }
 
       @Override
@@ -415,6 +435,11 @@ abstract class CoreTestRunner {
               .doesNotHaveAnyElementsOfTypes(
                   Protocol.OutputStreamEntryMessage.class, Protocol.SuspensionMessage.class);
         };
+      }
+
+      @Override
+      public boolean isValid() {
+        return this.svc != null;
       }
     }
   }

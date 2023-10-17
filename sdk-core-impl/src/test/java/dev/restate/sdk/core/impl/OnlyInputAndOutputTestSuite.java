@@ -6,24 +6,17 @@ import static dev.restate.sdk.core.impl.ProtoUtils.*;
 import dev.restate.sdk.core.impl.testservices.GreeterGrpc;
 import dev.restate.sdk.core.impl.testservices.GreetingRequest;
 import dev.restate.sdk.core.impl.testservices.GreetingResponse;
-import io.grpc.stub.StreamObserver;
+import io.grpc.BindableService;
 import java.util.stream.Stream;
 
-class OnlyInputAndOutputTest extends CoreTestRunner {
+public abstract class OnlyInputAndOutputTestSuite extends CoreTestRunner {
 
-  private static class NoSyscallsGreeter extends GreeterGrpc.GreeterImplBase {
-    @Override
-    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      responseObserver.onNext(
-          GreetingResponse.newBuilder().setMessage("Hello " + request.getName()).build());
-      responseObserver.onCompleted();
-    }
-  }
+  protected abstract BindableService noSyscallsGreeter();
 
   @Override
-  Stream<TestDefinition> definitions() {
+  protected Stream<TestDefinition> definitions() {
     return Stream.of(
-        testInvocation(new NoSyscallsGreeter(), GreeterGrpc.getGreetMethod())
+        testInvocation(this::noSyscallsGreeter, GreeterGrpc.getGreetMethod())
             .withInput(
                 startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Francesco")))
             .usingAllThreadingModels()

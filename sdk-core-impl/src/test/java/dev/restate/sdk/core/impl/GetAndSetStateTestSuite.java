@@ -4,59 +4,22 @@ import static dev.restate.sdk.core.impl.AssertUtils.containsOnlyExactErrorMessag
 import static dev.restate.sdk.core.impl.CoreTestRunner.TestCaseBuilder.testInvocation;
 import static dev.restate.sdk.core.impl.ProtoUtils.*;
 
-import dev.restate.sdk.blocking.RestateBlockingService;
-import dev.restate.sdk.blocking.RestateContext;
-import dev.restate.sdk.core.StateKey;
-import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.core.impl.testservices.GreeterGrpc;
 import dev.restate.sdk.core.impl.testservices.GreetingRequest;
 import dev.restate.sdk.core.impl.testservices.GreetingResponse;
-import io.grpc.stub.StreamObserver;
+import io.grpc.BindableService;
 import java.util.stream.Stream;
 
-class GetAndSetStateTest extends CoreTestRunner {
+public abstract class GetAndSetStateTestSuite extends CoreTestRunner {
 
-  private static class GetAndSetGreeter extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
-    @Override
-    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      RestateContext ctx = restateContext();
+  protected abstract BindableService getAndSetGreeter();
 
-      String state = ctx.get(StateKey.of("STATE", TypeTag.STRING_UTF8)).get();
-
-      ctx.set(StateKey.of("STATE", TypeTag.STRING_UTF8), request.getName());
-
-      responseObserver.onNext(GreetingResponse.newBuilder().setMessage("Hello " + state).build());
-      responseObserver.onCompleted();
-    }
-  }
-
-  private static class SetNullState extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
-    @Override
-    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      restateContext()
-          .set(
-              StateKey.of(
-                  "STATE",
-                  TypeTag.<String>using(
-                      l -> {
-                        throw new IllegalStateException("Unexpected call to serde fn");
-                      },
-                      l -> {
-                        throw new IllegalStateException("Unexpected call to serde fn");
-                      })),
-              null);
-
-      responseObserver.onNext(greetingResponse(""));
-      responseObserver.onCompleted();
-    }
-  }
+  protected abstract BindableService setNullState();
 
   @Override
-  Stream<TestDefinition> definitions() {
+  protected Stream<TestDefinition> definitions() {
     return Stream.of(
-        testInvocation(new GetAndSetGreeter(), GreeterGrpc.getGreetMethod())
+        testInvocation(this::getAndSetGreeter, GreeterGrpc.getGreetMethod())
             .withInput(
                 startMessage(3),
                 inputMessage(GreetingRequest.newBuilder().setName("Till")),
@@ -66,7 +29,7 @@ class GetAndSetStateTest extends CoreTestRunner {
             .expectingOutput(
                 outputMessage(GreetingResponse.newBuilder().setMessage("Hello Francesco")))
             .named("With GetState and SetState"),
-        testInvocation(new GetAndSetGreeter(), GreeterGrpc.getGreetMethod())
+        testInvocation(this::getAndSetGreeter, GreeterGrpc.getGreetMethod())
             .withInput(
                 startMessage(2),
                 inputMessage(GreetingRequest.newBuilder().setName("Till")),
@@ -76,7 +39,7 @@ class GetAndSetStateTest extends CoreTestRunner {
                 setStateMessage("STATE", "Till"),
                 outputMessage(GreetingResponse.newBuilder().setMessage("Hello Francesco")))
             .named("With GetState already completed"),
-        testInvocation(new GetAndSetGreeter(), GreeterGrpc.getGreetMethod())
+        testInvocation(this::getAndSetGreeter, GreeterGrpc.getGreetMethod())
             .withInput(
                 startMessage(1),
                 inputMessage(GreetingRequest.newBuilder().setName("Till")),
@@ -87,7 +50,7 @@ class GetAndSetStateTest extends CoreTestRunner {
                 setStateMessage("STATE", "Till"),
                 outputMessage(GreetingResponse.newBuilder().setMessage("Hello Francesco")))
             .named("With GetState completed later"),
-        testInvocation(new SetNullState(), GreeterGrpc.getGreetMethod())
+        testInvocation(this::setNullState, GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
             .usingAllThreadingModels()
             .assertingOutput(containsOnlyExactErrorMessage(new NullPointerException())));
