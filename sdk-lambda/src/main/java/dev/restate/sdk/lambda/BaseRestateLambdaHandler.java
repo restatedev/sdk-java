@@ -17,8 +17,12 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent
  * Base implementation of a Lambda handler to execute restate services
  *
  * <p>Implementation of <a href="https://aws.amazon.com/lambda/">AWS Lambda</a> {@link
- * RequestHandler} for serving Restate functions through <a
- * href="https://aws.amazon.com/api-gateway/">AWS API Gateway</a>.
+ * RequestHandler} for serving Restate functions.
+ *
+ * <p>Restate can invoke Lambda functions directly or through AWS API gateway. For both cases, it
+ * will invoke the Lambda using the same envelope of an API Gateway request/response. See <a
+ * href="https://docs.restate.dev/services/deployment/lambda">Restate Lambda documentation</a> for
+ * more details.
  */
 public abstract class BaseRestateLambdaHandler
     implements RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
