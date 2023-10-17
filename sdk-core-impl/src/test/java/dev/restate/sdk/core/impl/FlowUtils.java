@@ -7,45 +7,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class FlowUtils {
 
-  public static class CollectorSubscriber<T> implements Flow.Subscriber<T> {
-
-    private final List<T> msgs = new ArrayList<>();
-    private Throwable error = null;
-    private boolean completed = false;
-
-    @Override
-    public void onSubscribe(Flow.Subscription subscription) {
-      subscription.request(Long.MAX_VALUE);
-    }
-
-    @Override
-    public void onNext(T t) {
-      this.msgs.add(t);
-    }
-
-    @Override
-    public void onError(Throwable throwable) {
-      this.error = throwable;
-    }
-
-    @Override
-    public void onComplete() {
-      this.completed = true;
-    }
-
-    public List<T> getMessages() {
-      return msgs;
-    }
-
-    public Throwable getError() {
-      return error;
-    }
-
-    public boolean isCompleted() {
-      return completed;
-    }
-  }
-
   public static class FutureSubscriber<T> implements Flow.Subscriber<T> {
 
     private final List<T> messages = new ArrayList<>();

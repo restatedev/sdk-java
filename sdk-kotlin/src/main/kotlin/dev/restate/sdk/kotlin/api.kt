@@ -101,8 +101,8 @@ sealed interface RestateContext {
    * generated `*Grpc` class.
    * @param parameter the invocation request parameter.
    */
-  suspend fun <T : MessageLite> oneWayCall(
-      methodDescriptor: MethodDescriptor<T, MessageLite>,
+  suspend fun <T : MessageLite, R : MessageLite> oneWayCall(
+      methodDescriptor: MethodDescriptor<T, R>,
       parameter: T
   )
 
@@ -117,8 +117,8 @@ sealed interface RestateContext {
    * @param parameter the invocation request parameter.
    * @param delay time to wait before executing the call
    */
-  suspend fun <T : MessageLite> delayedCall(
-      methodDescriptor: MethodDescriptor<T, MessageLite>,
+  suspend fun <T : MessageLite, R : MessageLite> delayedCall(
+      methodDescriptor: MethodDescriptor<T, R>,
       parameter: T,
       delay: Duration
   )
@@ -134,7 +134,7 @@ sealed interface RestateContext {
    * @param T type of the return value.
    * @return value of the side effect operation.
    */
-  suspend fun <T> sideEffect(typeTag: TypeTag<T>, sideEffectAction: suspend () -> T?): T?
+  suspend fun <T : Any?> sideEffect(typeTag: TypeTag<T>, sideEffectAction: suspend () -> T): T
 
   /** Like [sideEffect] without a return value. */
   suspend fun sideEffect(sideEffectAction: suspend () -> Unit) {

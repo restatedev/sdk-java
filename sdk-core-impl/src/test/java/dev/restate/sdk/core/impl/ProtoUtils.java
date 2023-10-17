@@ -71,14 +71,14 @@ public class ProtoUtils {
         .build();
   }
 
-  static Protocol.CompletionMessage completionMessage(int index, Throwable e) {
+  public static Protocol.CompletionMessage completionMessage(int index, Throwable e) {
     return Protocol.CompletionMessage.newBuilder()
         .setEntryIndex(index)
         .setFailure(toProtocolFailure(Status.INTERNAL.withDescription(e.getMessage())))
         .build();
   }
 
-  static Protocol.SuspensionMessage suspensionMessage(Integer... indexes) {
+  public static Protocol.SuspensionMessage suspensionMessage(Integer... indexes) {
     return Protocol.SuspensionMessage.newBuilder().addAllEntryIndexes(List.of(indexes)).build();
   }
 
@@ -88,53 +88,53 @@ public class ProtoUtils {
         .build();
   }
 
-  static Protocol.OutputStreamEntryMessage outputMessage(MessageLiteOrBuilder value) {
+  public static Protocol.OutputStreamEntryMessage outputMessage(MessageLiteOrBuilder value) {
     return Protocol.OutputStreamEntryMessage.newBuilder()
         .setValue(build(value).toByteString())
         .build();
   }
 
-  static Protocol.OutputStreamEntryMessage outputMessage(Status s) {
+  public static Protocol.OutputStreamEntryMessage outputMessage(Status s) {
     return Protocol.OutputStreamEntryMessage.newBuilder()
         .setFailure(Util.toProtocolFailure(s.asRuntimeException()))
         .build();
   }
 
-  static Protocol.OutputStreamEntryMessage outputMessage(Throwable e) {
+  public static Protocol.OutputStreamEntryMessage outputMessage(Throwable e) {
     return Protocol.OutputStreamEntryMessage.newBuilder()
         .setFailure(toProtocolFailure(Status.INTERNAL.withDescription(e.getMessage())))
         .build();
   }
 
-  static Protocol.GetStateEntryMessage.Builder getStateMessage(String key) {
+  public static Protocol.GetStateEntryMessage.Builder getStateMessage(String key) {
     return Protocol.GetStateEntryMessage.newBuilder().setKey(ByteString.copyFromUtf8(key));
   }
 
-  static Protocol.GetStateEntryMessage getStateEmptyMessage(String key) {
+  public static Protocol.GetStateEntryMessage getStateEmptyMessage(String key) {
     return Protocol.GetStateEntryMessage.newBuilder()
         .setKey(ByteString.copyFromUtf8(key))
         .setEmpty(Empty.getDefaultInstance())
         .build();
   }
 
-  static Protocol.GetStateEntryMessage getStateMessage(String key, String value) {
+  public static Protocol.GetStateEntryMessage getStateMessage(String key, String value) {
     return getStateMessage(key).setValue(ByteString.copyFromUtf8(value)).build();
   }
 
-  static Protocol.SetStateEntryMessage setStateMessage(String key, String value) {
+  public static Protocol.SetStateEntryMessage setStateMessage(String key, String value) {
     return Protocol.SetStateEntryMessage.newBuilder()
         .setKey(ByteString.copyFromUtf8(key))
         .setValue(ByteString.copyFromUtf8(value))
         .build();
   }
 
-  static Protocol.ClearStateEntryMessage clearStateMessage(String key) {
+  public static Protocol.ClearStateEntryMessage clearStateMessage(String key) {
     return Protocol.ClearStateEntryMessage.newBuilder()
         .setKey(ByteString.copyFromUtf8(key))
         .build();
   }
 
-  static <T extends MessageLite, R extends MessageLite>
+  public static <T extends MessageLite, R extends MessageLite>
       Protocol.InvokeEntryMessage.Builder invokeMessage(
           MethodDescriptor<T, R> methodDescriptor, T parameter) {
     return Protocol.InvokeEntryMessage.newBuilder()
@@ -143,35 +143,37 @@ public class ProtoUtils {
         .setParameter(parameter.toByteString());
   }
 
-  static <T extends MessageLite, R extends MessageLite> Protocol.InvokeEntryMessage invokeMessage(
-      MethodDescriptor<T, R> methodDescriptor, T parameter, R result) {
+  public static <T extends MessageLite, R extends MessageLite>
+      Protocol.InvokeEntryMessage invokeMessage(
+          MethodDescriptor<T, R> methodDescriptor, T parameter, R result) {
     return invokeMessage(methodDescriptor, parameter).setValue(result.toByteString()).build();
   }
 
-  static <T extends MessageLite, R extends MessageLite> Protocol.InvokeEntryMessage invokeMessage(
-      MethodDescriptor<T, R> methodDescriptor, T parameter, Throwable e) {
+  public static <T extends MessageLite, R extends MessageLite>
+      Protocol.InvokeEntryMessage invokeMessage(
+          MethodDescriptor<T, R> methodDescriptor, T parameter, Throwable e) {
     return invokeMessage(methodDescriptor, parameter)
         .setFailure(toProtocolFailure(Status.INTERNAL.withDescription(e.getMessage())))
         .build();
   }
 
-  static Protocol.AwakeableEntryMessage.Builder awakeable() {
+  public static Protocol.AwakeableEntryMessage.Builder awakeable() {
     return Protocol.AwakeableEntryMessage.newBuilder();
   }
 
-  static Protocol.AwakeableEntryMessage awakeable(String value) {
+  public static Protocol.AwakeableEntryMessage awakeable(String value) {
     return awakeable().setValue(ByteString.copyFromUtf8(value)).build();
   }
 
-  static GreetingRequest greetingRequest(String name) {
+  public static GreetingRequest greetingRequest(String name) {
     return GreetingRequest.newBuilder().setName(name).build();
   }
 
-  static GreetingResponse greetingResponse(String message) {
+  public static GreetingResponse greetingResponse(String message) {
     return GreetingResponse.newBuilder().setMessage(message).build();
   }
 
-  static Java.CombinatorAwaitableEntryMessage combinatorsMessage(Integer... order) {
+  public static Java.CombinatorAwaitableEntryMessage combinatorsMessage(Integer... order) {
     return Java.CombinatorAwaitableEntryMessage.newBuilder()
         .addAllEntryIndex(Arrays.asList(order))
         .build();

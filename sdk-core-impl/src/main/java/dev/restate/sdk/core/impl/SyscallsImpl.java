@@ -339,7 +339,9 @@ public final class SyscallsImpl implements SyscallsInternal {
       return (T) bytes.toByteArray();
     } else if (ByteString.class.equals(typeTag)) {
       return (T) bytes;
-    } else if (Void.class.equals(typeTag)) {
+    } else if (Void.class.equals(typeTag) || Void.TYPE.equals(typeTag)) {
+      // Amazing JVM foot-gun here: Void.TYPE is the primitive type, Void.class is the boxed type.
+      // For us, they're the same but for the equality they aren't, so we check both
       return null;
     }
     return serde.deserialize(typeTag, bytes.toByteArray());
