@@ -7,6 +7,7 @@ import dev.restate.sdk.core.impl.testservices.GreetingResponse
 import io.grpc.BindableService
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
+import java.lang.UnsupportedOperationException
 import kotlinx.coroutines.Dispatchers
 
 internal class UserFailuresTest : UserFailuresTestSuite() {
@@ -18,7 +19,7 @@ internal class UserFailuresTest : UserFailuresTestSuite() {
   }
 
   override fun throwIllegalStateException(): BindableService {
-    return ThrowIllegalStateException()
+    throw UnsupportedOperationException("https://github.com/restatedev/sdk-java/issues/116")
   }
 
   private class SideEffectThrowIllegalStateException :

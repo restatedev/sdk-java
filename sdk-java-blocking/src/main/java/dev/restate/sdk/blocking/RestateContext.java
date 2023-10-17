@@ -125,7 +125,7 @@ public interface RestateContext {
   /** Like {@link #sideEffect(TypeTag, Supplier)}, but without returning a value. */
   default void sideEffect(Runnable runnable) {
     sideEffect(
-        Void.class,
+        TypeTag.VOID,
         () -> {
           runnable.run();
           return null;

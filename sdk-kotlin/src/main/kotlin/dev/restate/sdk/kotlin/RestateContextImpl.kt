@@ -70,8 +70,8 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
     return NonNullAwaitableImpl(syscalls, deferredResult)
   }
 
-  override suspend fun <T : MessageLite> oneWayCall(
-      methodDescriptor: MethodDescriptor<T, MessageLite>,
+  override suspend fun <T : MessageLite, R : MessageLite> oneWayCall(
+      methodDescriptor: MethodDescriptor<T, R>,
       parameter: T
   ) {
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
@@ -79,8 +79,8 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
     }
   }
 
-  override suspend fun <T : MessageLite> delayedCall(
-      methodDescriptor: MethodDescriptor<T, MessageLite>,
+  override suspend fun <T : MessageLite, R : MessageLite> delayedCall(
+      methodDescriptor: MethodDescriptor<T, R>,
       parameter: T,
       delay: Duration
   ) {
@@ -90,20 +90,25 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
     }
   }
 
-  override suspend fun <T> sideEffect(typeTag: TypeTag<T>, sideEffectAction: suspend () -> T?): T? {
+  override suspend fun <T : Any?> sideEffect(
+      typeTag: TypeTag<T>,
+      sideEffectAction: suspend () -> T
+  ): T {
     val exitResult =
-        suspendCancellableCoroutine { cont: CancellableContinuation<CompletableDeferred<T?>> ->
+        suspendCancellableCoroutine { cont: CancellableContinuation<CompletableDeferred<T>> ->
           syscalls.enterSideEffectBlock(
               typeTag,
-              object : EnterSideEffectSyscallCallback<T?> {
+              object : EnterSideEffectSyscallCallback<T> {
+                @Suppress("UNCHECKED_CAST")
                 override fun onResult(t: T?) {
-                  val deferred: CompletableDeferred<T?> = CompletableDeferred()
-                  deferred.complete(t)
+                  val deferred: CompletableDeferred<T> = CompletableDeferred()
+                  // This unchecked cast is fine because T is declared as Any?
+                  deferred.complete(t as T)
                   cont.resume(deferred)
                 }
 
                 override fun onFailure(t: StatusRuntimeException) {
-                  val deferred: CompletableDeferred<T?> = CompletableDeferred()
+                  val deferred: CompletableDeferred<T> = CompletableDeferred()
                   deferred.completeExceptionally(t)
                   cont.resume(deferred)
                 }
@@ -131,9 +136,11 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
     }
 
     val exitCallback =
-        object : ExitSideEffectSyscallCallback<T?> {
+        object : ExitSideEffectSyscallCallback<T> {
+          @Suppress("UNCHECKED_CAST")
           override fun onResult(t: T?) {
-            exitResult.complete(t)
+            // This unchecked cast is fine because T is declared as Any?
+            exitResult.complete(t as T)
           }
 
           override fun onFailure(t: StatusRuntimeException) {
