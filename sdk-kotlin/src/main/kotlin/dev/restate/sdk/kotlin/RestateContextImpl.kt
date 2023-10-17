@@ -174,4 +174,20 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
   override fun awakeableHandle(id: String): AwakeableHandle {
     return AwakeableHandleImpl(syscalls, id)
   }
+
+  override suspend fun compensate(compensation: suspend () -> Unit) {
+    val scope = CoroutineScope(currentCoroutineContext())
+    val compensationJob = scope.async(start = CoroutineStart.LAZY) { compensation() }
+
+    syscalls.registerCompensation { syscallCallback ->
+      compensationJob.start()
+      compensationJob.invokeOnCompletion {
+        if (it == null) {
+          syscallCallback.onSuccess(null)
+        } else {
+          syscallCallback.onCancel(it)
+        }
+      }
+    }
+  }
 }

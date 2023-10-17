@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -83,6 +84,8 @@ public interface Syscalls {
       String id, TypeTag<T> ty, @Nonnull T payload, SyscallCallback<Void> requestCallback);
 
   void rejectAwakeable(String id, String reason, SyscallCallback<Void> requestCallback);
+
+  void registerCompensation(Consumer<SyscallCallback<Void>> compensation);
 
   // ----- Deferred
 

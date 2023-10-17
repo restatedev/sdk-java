@@ -159,4 +159,15 @@ public interface RestateContext {
    * @see Awakeable
    */
   AwakeableHandle awakeableHandle(String id);
+
+  /**
+   * Register a function to be executed in case of an unhandled terminal failure. See {@link
+   * RestateBlockingService} for more details.
+   *
+   * <p>In case multiple compensations are registered, they will be executed in the inverse order of
+   * registration, that is from last to first.
+   *
+   * @param runnable the compensation to execute.
+   */
+  void compensate(Runnable runnable);
 }

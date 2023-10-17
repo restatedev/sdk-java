@@ -164,6 +164,16 @@ sealed interface RestateContext {
    * @see Awakeable
    */
   fun awakeableHandle(id: String): AwakeableHandle
+
+  /**
+   * Register a function to be executed in case of an unhandled terminal failure.
+   *
+   * In case multiple compensations are registered, they will be executed in the inverse order of
+   * registration, that is from last to first.
+   *
+   * @param compensation the compensation to execute.
+   */
+  suspend fun compensate(compensation: suspend () -> Unit)
 }
 
 /**
