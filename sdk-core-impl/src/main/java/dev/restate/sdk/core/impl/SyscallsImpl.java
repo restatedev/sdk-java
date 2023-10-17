@@ -34,7 +34,7 @@ import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public final class SyscallsImpl implements SyscallsInternal {
+public final class SyscallsImpl extends SyscallsInternal {
 
   private static final Logger LOG = LogManager.getLogger(SyscallsImpl.class);
 
@@ -203,7 +203,7 @@ public final class SyscallsImpl implements SyscallsInternal {
 
     // If it's a non-terminal exception (such as a protocol exception),
     // we don't write it but simply throw it
-    if (!(isTerminalException(toWrite))) {
+    if (!isTerminalException(toWrite)) {
       // For safety wrt Syscalls API we do this check and wrapping,
       // but with the current APIs the exception should always be RuntimeException
       // because that's what can be thrown inside a lambda
@@ -287,6 +287,11 @@ public final class SyscallsImpl implements SyscallsInternal {
   public <T> void resolveDeferred(
       DeferredResult<T> deferredToResolve, SyscallCallback<Void> callback) {
     this.stateMachine.resolveDeferred(deferredToResolve, callback);
+  }
+
+  @Override
+  void startCompensating() {
+    this.stateMachine.startCompensating();
   }
 
   @Override

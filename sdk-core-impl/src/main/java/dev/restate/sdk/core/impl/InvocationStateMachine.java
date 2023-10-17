@@ -32,6 +32,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     WAITING_START,
     REPLAYING,
     PROCESSING,
+    COMPENSATING,
     CLOSED;
   }
 
@@ -316,6 +317,8 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
         // Call the onSuccess
         callback.onSuccess(DeferredResults.single(entryIndex));
       }
+    } else if (this.state == State.COMPENSATING) {
+      throw ProtocolException.invalidCallWithinCompensation();
     } else {
       throw new IllegalStateException(
           "This method was invoked when the state machine is not ready to process user code. This is probably an SDK bug");
@@ -337,7 +340,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
             callback.onSuccess(null);
           },
           callback::onCancel);
-    } else if (this.state == State.PROCESSING) {
+    } else if (this.state == State.PROCESSING || this.state == State.COMPENSATING) {
       if (span.isRecording()) {
         journalEntry.trace(expectedEntryMessage, span);
       }
@@ -372,7 +375,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
             entryCallback.accept((Java.SideEffectEntryMessage) msg);
           },
           failureCallback);
-    } else if (this.state == State.PROCESSING) {
+    } else if (this.state == State.PROCESSING || this.state == State.COMPENSATING) {
       this.sideEffectAckStateMachine.executeEnterSideEffect(
           new SideEffectAckStateMachine.OnEnterSideEffectCallback() {
             @Override
@@ -412,7 +415,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       throw new IllegalStateException(
           "exitSideEffect has been invoked when the state machine is in replaying mode. "
               + "This is probably an SDK bug and might be caused by a missing enterSideEffectBlock invocation before exitSideEffectBlock.");
-    } else if (this.state == State.PROCESSING) {
+    } else if (this.state == State.PROCESSING || this.state == State.COMPENSATING) {
       if (span.isRecording()) {
         span.addEvent("Exit SideEffect");
       }
@@ -426,6 +429,10 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       throw new IllegalStateException(
           "This method was invoked when the state machine is not ready to process user code. This is probably an SDK bug");
     }
+  }
+
+  public void startCompensating() {
+    this.transitionState(State.COMPENSATING);
   }
 
   // --- Deferred
@@ -535,7 +542,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
             callback.onSuccess(null);
           },
           callback::onCancel);
-    } else if (this.state == State.PROCESSING) {
+    } else if (this.state == State.PROCESSING || this.state == State.COMPENSATING) {
       // Create map of singles to resolve
       Map<Integer, ResolvableSingleDeferredResult<?>> resolvableSingles = new HashMap<>();
 

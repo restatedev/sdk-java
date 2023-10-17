@@ -6,7 +6,9 @@ import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.grpc.ServerCall;
 import io.grpc.Status;
+import java.util.Iterator;
 import java.util.Objects;
+import java.util.function.Consumer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -84,21 +86,14 @@ class RestateServerCall extends ServerCall<MessageLite, MessageLite> {
       listener.onComplete();
       syscalls.close();
     } else {
-      // Let's cancel the listener first
-      listener.onCancel();
-
       if (status.getCause() instanceof UncaughtException) {
+        // Let's cancel the listener first
+        listener.onCancel();
         // This is the case where we have uncaught exceptions from GrpcServerCallListenerAdaptor
         syscalls.fail(status.getCause().getCause());
       } else {
-        syscalls.writeOutput(
-            status.asRuntimeException(),
-            SyscallCallback.ofVoid(
-                () -> {
-                  LOG.trace("Closed correctly with non ok status {}", status);
-                  syscalls.close();
-                },
-                this::onError));
+        // We run compensations and then write the status output
+        runCompensations(status, syscalls.drainCompensations());
       }
     }
   }
@@ -160,5 +155,30 @@ class RestateServerCall extends ServerCall<MessageLite, MessageLite> {
 
   private void onError(Throwable cause) {
     LOG.warn("Error in RestateServerCall", cause);
+  }
+
+  private void runCompensations(
+      Status status, Iterator<Consumer<SyscallCallback<Void>>> compensationsIterator) {
+    if (compensationsIterator.hasNext()) {
+      compensationsIterator
+          .next()
+          .accept(
+              SyscallCallback.of(
+                  v -> runCompensations(status, compensationsIterator),
+                  t -> close(Util.toGrpcStatusWrappingUncaught(t), new Metadata())));
+    } else {
+      writeStatusOutput(status);
+    }
+  }
+
+  private void writeStatusOutput(Status status) {
+    syscalls.writeOutput(
+        status.asRuntimeException(),
+        SyscallCallback.ofVoid(
+            () -> {
+              LOG.trace("Closed correctly with non ok status {}", status);
+              syscalls.close();
+            },
+            this::onError));
   }
 }

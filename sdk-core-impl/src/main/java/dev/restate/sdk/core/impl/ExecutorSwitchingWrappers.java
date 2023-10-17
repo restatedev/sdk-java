@@ -68,7 +68,7 @@ class ExecutorSwitchingWrappers {
     }
   }
 
-  private static class ExecutorSwitchingSyscalls implements SyscallsInternal {
+  private static class ExecutorSwitchingSyscalls extends SyscallsInternal {
 
     private final SyscallsInternal syscalls;
     private final Executor syscallsExecutor;
@@ -183,6 +183,11 @@ class ExecutorSwitchingWrappers {
     public <T> void resolveDeferred(
         DeferredResult<T> deferredToResolve, SyscallCallback<Void> callback) {
       syscallsExecutor.execute(() -> syscalls.resolveDeferred(deferredToResolve, callback));
+    }
+
+    @Override
+    void startCompensating() {
+      syscallsExecutor.execute(syscalls::startCompensating);
     }
 
     @Override

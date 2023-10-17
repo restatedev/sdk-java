@@ -86,4 +86,11 @@ public class ProtocolException extends RuntimeException {
         null,
         Status.Code.UNKNOWN.value());
   }
+
+  static ProtocolException invalidCallWithinCompensation() {
+    return new ProtocolException(
+        "An unsupported syscall was invoked within a compensation. Only setState, clearState, oneWayCall, resolve/reject awakeable and sideEffect are supported within a compensation.",
+        null,
+        Status.Code.UNKNOWN.value());
+  }
 }
