@@ -89,7 +89,10 @@ internal class RestateHttpEndpointTest {
         val decoder = MessageDecoder()
         response.handler {
           decoder.offer(it)
-          decoder.poll()?.let { inputChannel.handle(it.message()) }
+          while (true) {
+            val m = decoder.poll() ?: break
+            inputChannel.handle(m.message())
+          }
         }
         response.resume()
 
