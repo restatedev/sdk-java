@@ -47,6 +47,7 @@ allprojects {
     excludes =
         arrayOf(
             "io.vertx:vertx-stack-depchain", // Vertx bom file
+            "com.google.guava:guava-parent", // Guava bom
             "org.jetbrains.kotlinx:kotlinx-coroutines-core", // Kotlinx coroutines bom file
         )
 

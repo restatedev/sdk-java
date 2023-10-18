@@ -54,10 +54,10 @@ dependencyResolutionManagement {
       library("javax-annotation-api", "org.apache.tomcat", "annotations-api").version("6.0.53")
     }
     create("vertxLibs") {
-      library("vertx-bom", "io.vertx:vertx-stack-depchain:4.4.5")
+      library("vertx-bom", "io.vertx:vertx-stack-depchain:4.4.6")
       library("vertx-core", "io.vertx", "vertx-core").withoutVersion()
       library("vertx-grpc-context-storage", "io.vertx", "vertx-grpc-context-storage")
-          .version("4.4.5")
+          .withoutVersion()
       library("vertx-kotlin-coroutines", "io.vertx", "vertx-lang-kotlin-coroutines")
           .withoutVersion()
       library("vertx-junit5", "io.vertx", "vertx-junit5").withoutVersion()
