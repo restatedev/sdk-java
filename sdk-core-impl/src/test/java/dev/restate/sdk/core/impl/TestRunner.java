@@ -38,7 +38,7 @@ public abstract class TestRunner {
                         executor ->
                             arguments(
                                 "["
-                                    + executor
+                                    + executor.getClass().getSimpleName()
                                     + "]["
                                     + entry.getKey()
                                     + "] "
