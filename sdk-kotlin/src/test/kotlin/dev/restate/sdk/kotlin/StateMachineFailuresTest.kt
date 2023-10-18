@@ -11,7 +11,7 @@ import io.grpc.BindableService
 import java.nio.charset.StandardCharsets
 import kotlinx.coroutines.Dispatchers
 
-internal class StateMachineFailuresTest : StateMachineFailuresTestSuite() {
+class StateMachineFailuresTest : StateMachineFailuresTestSuite() {
   private class GetState :
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {

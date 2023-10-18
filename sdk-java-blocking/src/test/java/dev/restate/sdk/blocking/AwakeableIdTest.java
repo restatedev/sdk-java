@@ -10,7 +10,7 @@ import dev.restate.sdk.core.impl.testservices.GreetingResponse;
 import io.grpc.BindableService;
 import io.grpc.stub.StreamObserver;
 
-class AwakeableIdTest extends AwakeableIdTestSuite {
+public class AwakeableIdTest extends AwakeableIdTestSuite {
 
   private static class ReturnAwakeableId extends GreeterGrpc.GreeterImplBase
       implements RestateBlockingService {

@@ -7,7 +7,7 @@ import dev.restate.sdk.core.impl.testservices.*
 import io.grpc.BindableService
 import kotlinx.coroutines.Dispatchers
 
-internal class DeferredTest : DeferredTestSuite() {
+class DeferredTest : DeferredTestSuite() {
   private class ReverseAwaitOrder :
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {

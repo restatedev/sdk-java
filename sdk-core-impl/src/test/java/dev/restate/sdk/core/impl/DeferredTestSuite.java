@@ -1,7 +1,7 @@
 package dev.restate.sdk.core.impl;
 
-import static dev.restate.sdk.core.impl.CoreTestRunner.TestCaseBuilder.testInvocation;
 import static dev.restate.sdk.core.impl.ProtoUtils.*;
+import static dev.restate.sdk.core.impl.TestDefinitions.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.list;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
@@ -14,7 +14,7 @@ import dev.restate.sdk.core.impl.testservices.GreetingRequest;
 import io.grpc.BindableService;
 import java.util.stream.Stream;
 
-public abstract class DeferredTestSuite extends CoreTestRunner {
+public abstract class DeferredTestSuite implements TestSuite {
 
   protected abstract BindableService reverseAwaitOrder();
 
@@ -33,12 +33,11 @@ public abstract class DeferredTestSuite extends CoreTestRunner {
   protected abstract BindableService awaitWithTimeout();
 
   @Override
-  protected Stream<CoreTestRunner.TestDefinition> definitions() {
+  public Stream<TestDefinition> definitions() {
     return Stream.of(
         // --- Reverse await order
         testInvocation(this::reverseAwaitOrder, GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder()))
-            .usingAllThreadingModels()
             .expectingOutput(
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
@@ -50,7 +49,7 @@ public abstract class DeferredTestSuite extends CoreTestRunner {
                 inputMessage(GreetingRequest.newBuilder()),
                 completionMessage(1, greetingResponse("FRANCESCO")),
                 completionMessage(2, greetingResponse("TILL")))
-            .usingThreadingModels(ThreadingModel.UNBUFFERED_MULTI_THREAD)
+            .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
@@ -63,7 +62,7 @@ public abstract class DeferredTestSuite extends CoreTestRunner {
                 inputMessage(GreetingRequest.newBuilder()),
                 completionMessage(2, greetingResponse("TILL")),
                 completionMessage(1, greetingResponse("FRANCESCO")))
-            .usingThreadingModels(ThreadingModel.UNBUFFERED_MULTI_THREAD)
+            .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
@@ -75,7 +74,7 @@ public abstract class DeferredTestSuite extends CoreTestRunner {
                 startMessage(1),
                 inputMessage(GreetingRequest.newBuilder()),
                 completionMessage(2, greetingResponse("TILL")))
-            .usingThreadingModels(ThreadingModel.UNBUFFERED_MULTI_THREAD)
+            .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
@@ -87,7 +86,7 @@ public abstract class DeferredTestSuite extends CoreTestRunner {
                 startMessage(1),
                 inputMessage(GreetingRequest.newBuilder()),
                 completionMessage(1, greetingResponse("FRANCESCO")))
-            .usingThreadingModels(ThreadingModel.UNBUFFERED_MULTI_THREAD)
+            .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
@@ -100,7 +99,7 @@ public abstract class DeferredTestSuite extends CoreTestRunner {
                 startMessage(1),
                 inputMessage(GreetingRequest.newBuilder()),
                 completionMessage(1, greetingResponse("FRANCESCO")))
-            .usingThreadingModels(ThreadingModel.UNBUFFERED_MULTI_THREAD)
+            .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
                 outputMessage(greetingResponse("FRANCESCO-FRANCESCO"))),
@@ -108,7 +107,6 @@ public abstract class DeferredTestSuite extends CoreTestRunner {
         // --- All combinator
         testInvocation(this::awaitAll, GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder()))
-            .usingAllThreadingModels()
             .expectingOutput(
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
@@ -123,7 +121,6 @@ public abstract class DeferredTestSuite extends CoreTestRunner {
                     GreeterGrpc.getGreetMethod(),
                     greetingRequest("Till"),
                     greetingResponse("TILL")))
-            .usingAllThreadingModels()
             .expectingOutput(suspensionMessage(1))
             .named("Only one completion will suspend"),
         testInvocation(this::awaitAll, GreeterGrpc.getGreetMethod())
@@ -138,7 +135,6 @@ public abstract class DeferredTestSuite extends CoreTestRunner {
                     GreeterGrpc.getGreetMethod(),
                     greetingRequest("Till"),
                     greetingResponse("TILL")))
-            .usingAllThreadingModels()
             .assertingOutput(
                 msgs -> {
                   assertThat(msgs).hasSize(2);
@@ -168,7 +164,6 @@ public abstract class DeferredTestSuite extends CoreTestRunner {
                     greetingRequest("Till"),
                     greetingResponse("TILL")),
                 combinatorsMessage(1, 2))
-            .usingAllThreadingModels()
             .expectingOutput(outputMessage(greetingResponse("FRANCESCO-TILL")))
             .named("Replay the combinator"),
         testInvocation(this::awaitAll, GreeterGrpc.getGreetMethod())
@@ -177,7 +172,7 @@ public abstract class DeferredTestSuite extends CoreTestRunner {
                 inputMessage(GreetingRequest.newBuilder()),
                 completionMessage(1, greetingResponse("FRANCESCO")),
                 completionMessage(2, greetingResponse("TILL")))
-            .usingThreadingModels(ThreadingModel.UNBUFFERED_MULTI_THREAD)
+            .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
@@ -189,7 +184,7 @@ public abstract class DeferredTestSuite extends CoreTestRunner {
                 startMessage(1),
                 inputMessage(GreetingRequest.newBuilder()),
                 completionMessage(1, new IllegalStateException("My error")))
-            .usingThreadingModels(ThreadingModel.UNBUFFERED_MULTI_THREAD)
+            .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
@@ -202,7 +197,7 @@ public abstract class DeferredTestSuite extends CoreTestRunner {
                 inputMessage(GreetingRequest.newBuilder()),
                 completionMessage(1, greetingResponse("FRANCESCO")),
                 completionMessage(2, new IllegalStateException("My error")))
-            .usingThreadingModels(ThreadingModel.UNBUFFERED_MULTI_THREAD)
+            .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
@@ -213,7 +208,6 @@ public abstract class DeferredTestSuite extends CoreTestRunner {
         // --- Any combinator
         testInvocation(this::awaitAny, GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder()))
-            .usingAllThreadingModels()
             .expectingOutput(
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
@@ -228,7 +222,6 @@ public abstract class DeferredTestSuite extends CoreTestRunner {
                     GreeterGrpc.getGreetMethod(),
                     greetingRequest("Till"),
                     greetingResponse("TILL")))
-            .usingAllThreadingModels()
             .expectingOutput(combinatorsMessage(2), outputMessage(greetingResponse("TILL")))
             .named("Only one completion will generate the combinators message"),
         testInvocation(this::awaitAny, GreeterGrpc.getGreetMethod())
@@ -240,7 +233,6 @@ public abstract class DeferredTestSuite extends CoreTestRunner {
                     GreeterGrpc.getGreetMethod(),
                     greetingRequest("Till"),
                     new IllegalStateException("My error")))
-            .usingAllThreadingModels()
             .expectingOutput(
                 combinatorsMessage(2), outputMessage(new IllegalStateException("My error")))
             .named("Only one failure will generate the combinators message"),
@@ -256,7 +248,6 @@ public abstract class DeferredTestSuite extends CoreTestRunner {
                     GreeterGrpc.getGreetMethod(),
                     greetingRequest("Till"),
                     greetingResponse("TILL")))
-            .usingAllThreadingModels()
             .assertingOutput(
                 msgs -> {
                   assertThat(msgs).hasSize(2);
@@ -290,7 +281,6 @@ public abstract class DeferredTestSuite extends CoreTestRunner {
                     greetingRequest("Till"),
                     greetingResponse("TILL")),
                 combinatorsMessage(2))
-            .usingAllThreadingModels()
             .expectingOutput(outputMessage(greetingResponse("TILL")))
             .named("Replay the combinator"),
         testInvocation(this::awaitAny, GreeterGrpc.getGreetMethod())
@@ -298,7 +288,7 @@ public abstract class DeferredTestSuite extends CoreTestRunner {
                 startMessage(1),
                 inputMessage(GreetingRequest.newBuilder()),
                 completionMessage(1, greetingResponse("FRANCESCO")))
-            .usingThreadingModels(ThreadingModel.UNBUFFERED_MULTI_THREAD)
+            .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
@@ -316,7 +306,6 @@ public abstract class DeferredTestSuite extends CoreTestRunner {
                 awakeable("3"),
                 awakeable("4"),
                 combinatorsMessage(2, 3))
-            .usingAllThreadingModels()
             .expectingOutput(outputMessage(greetingResponse("223"))),
         testInvocation(this::combineAnyWithAll, GreeterGrpc.getGreetMethod())
             .withInput(
@@ -327,7 +316,6 @@ public abstract class DeferredTestSuite extends CoreTestRunner {
                 awakeable("3"),
                 awakeable("4"),
                 combinatorsMessage(3, 2))
-            .usingAllThreadingModels()
             .expectingOutput(outputMessage(greetingResponse("233")))
             .named("Inverted order"),
 
@@ -341,7 +329,6 @@ public abstract class DeferredTestSuite extends CoreTestRunner {
                 awakeable("3"),
                 awakeable("4"),
                 combinatorsMessage(1))
-            .usingAllThreadingModels()
             .expectingOutput(outputMessage(greetingResponse("0"))),
         testInvocation(this::awaitAnyIndex, GreeterGrpc.getGreetMethod())
             .withInput(
@@ -352,7 +339,6 @@ public abstract class DeferredTestSuite extends CoreTestRunner {
                 awakeable("3"),
                 awakeable("4"),
                 combinatorsMessage(3, 2))
-            .usingAllThreadingModels()
             .expectingOutput(outputMessage(greetingResponse("1")))
             .named("Complete all"),
 
@@ -363,7 +349,6 @@ public abstract class DeferredTestSuite extends CoreTestRunner {
                 inputMessage(GreetingRequest.newBuilder()),
                 awakeable("1"),
                 awakeable("2"))
-            .usingAllThreadingModels()
             .assertingOutput(
                 msgs -> {
                   assertThat(msgs).hasSize(3);
@@ -385,7 +370,7 @@ public abstract class DeferredTestSuite extends CoreTestRunner {
                 startMessage(1),
                 inputMessage(GreetingRequest.newBuilder()),
                 completionMessage(1, greetingResponse("FRANCESCO")))
-            .usingThreadingModels(ThreadingModel.UNBUFFERED_MULTI_THREAD)
+            .onlyUnbuffered()
             .assertingOutput(
                 messages -> {
                   assertThat(messages).hasSize(4);
@@ -407,7 +392,7 @@ public abstract class DeferredTestSuite extends CoreTestRunner {
                 Protocol.CompletionMessage.newBuilder()
                     .setEntryIndex(2)
                     .setEmpty(Empty.getDefaultInstance()))
-            .usingThreadingModels(ThreadingModel.UNBUFFERED_MULTI_THREAD)
+            .onlyUnbuffered()
             .assertingOutput(
                 messages -> {
                   assertThat(messages).hasSize(4);

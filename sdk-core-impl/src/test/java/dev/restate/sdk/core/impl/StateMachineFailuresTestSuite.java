@@ -2,8 +2,8 @@ package dev.restate.sdk.core.impl;
 
 import static dev.restate.sdk.core.impl.AssertUtils.containsOnly;
 import static dev.restate.sdk.core.impl.AssertUtils.errorMessageStartingWith;
-import static dev.restate.sdk.core.impl.CoreTestRunner.TestCaseBuilder.testInvocation;
 import static dev.restate.sdk.core.impl.ProtoUtils.*;
+import static dev.restate.sdk.core.impl.TestDefinitions.*;
 
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.sdk.core.TypeTag;
@@ -13,7 +13,7 @@ import io.grpc.BindableService;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Stream;
 
-public abstract class StateMachineFailuresTestSuite extends CoreTestRunner {
+public abstract class StateMachineFailuresTestSuite implements TestSuite {
 
   protected abstract BindableService getState();
 
@@ -34,14 +34,13 @@ public abstract class StateMachineFailuresTestSuite extends CoreTestRunner {
           });
 
   @Override
-  protected Stream<TestDefinition> definitions() {
+  public Stream<TestDefinition> definitions() {
     return Stream.of(
         testInvocation(this::getState, GreeterGrpc.getGreetMethod())
             .withInput(
                 startMessage(2),
                 inputMessage(GreetingRequest.newBuilder().setName("Till")),
                 getStateMessage("Something"))
-            .usingAllThreadingModels()
             .assertingOutput(
                 containsOnly(
                     AssertUtils.protocolExceptionErrorMessage(
@@ -51,7 +50,6 @@ public abstract class StateMachineFailuresTestSuite extends CoreTestRunner {
                 startMessage(2),
                 inputMessage(GreetingRequest.newBuilder().setName("Till")),
                 getStateMessage("STATE", "This is not an integer"))
-            .usingAllThreadingModels()
             .assertingOutput(
                 containsOnly(
                     errorMessageStartingWith(NumberFormatException.class.getCanonicalName()))),
@@ -59,7 +57,6 @@ public abstract class StateMachineFailuresTestSuite extends CoreTestRunner {
                 () -> this.sideEffectFailure(FAILING_SERIALIZATION_INTEGER_TYPE_TAG),
                 GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
-            .usingAllThreadingModels()
             .assertingOutput(
                 containsOnly(
                     errorMessageStartingWith(IllegalStateException.class.getCanonicalName()))),
@@ -70,7 +67,6 @@ public abstract class StateMachineFailuresTestSuite extends CoreTestRunner {
                 startMessage(2),
                 inputMessage(GreetingRequest.newBuilder().setName("Till")),
                 Java.SideEffectEntryMessage.newBuilder())
-            .usingAllThreadingModels()
             .assertingOutput(
                 containsOnly(
                     errorMessageStartingWith(IllegalStateException.class.getCanonicalName()))));

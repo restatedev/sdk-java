@@ -9,7 +9,7 @@ import dev.restate.sdk.core.impl.testservices.greetingResponse
 import io.grpc.BindableService
 import kotlinx.coroutines.Dispatchers
 
-internal class AwakeableIdTest : AwakeableIdTestSuite() {
+class AwakeableIdTest : AwakeableIdTestSuite() {
   private class ReturnAwakeableId :
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
 

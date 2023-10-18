@@ -9,7 +9,7 @@ import dev.restate.sdk.core.impl.testservices.greetingResponse
 import io.grpc.BindableService
 import kotlinx.coroutines.Dispatchers
 
-internal class InvocationIdTest : InvocationIdTestSuite() {
+class InvocationIdTest : InvocationIdTestSuite() {
   private class ReturnInvocationId :
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {

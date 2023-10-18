@@ -8,7 +8,7 @@ import java.util.*
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 
-internal class SideEffectTest : SideEffectTestSuite() {
+class SideEffectTest : SideEffectTestSuite() {
   private class SideEffect(private val sideEffectOutput: String) :
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {

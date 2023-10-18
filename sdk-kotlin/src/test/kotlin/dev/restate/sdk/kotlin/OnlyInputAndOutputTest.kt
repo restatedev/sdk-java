@@ -8,7 +8,7 @@ import dev.restate.sdk.core.impl.testservices.greetingResponse
 import io.grpc.BindableService
 import kotlinx.coroutines.Dispatchers
 
-internal class OnlyInputAndOutputTest : OnlyInputAndOutputTestSuite() {
+class OnlyInputAndOutputTest : OnlyInputAndOutputTestSuite() {
   private class NoSyscallsGreeter :
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
