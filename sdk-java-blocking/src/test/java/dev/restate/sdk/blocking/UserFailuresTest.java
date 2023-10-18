@@ -1,8 +1,9 @@
 package dev.restate.sdk.blocking;
 
-import static dev.restate.sdk.core.impl.CoreTestRunner.TestCaseBuilder.testInvocation;
 import static dev.restate.sdk.core.impl.ProtoUtils.*;
+import static dev.restate.sdk.core.impl.TestDefinitions.testInvocation;
 
+import dev.restate.sdk.core.impl.TestDefinitions.TestDefinition;
 import dev.restate.sdk.core.impl.UserFailuresTestSuite;
 import dev.restate.sdk.core.impl.testservices.GreeterGrpc;
 import dev.restate.sdk.core.impl.testservices.GreetingRequest;
@@ -13,9 +14,10 @@ import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import java.util.stream.Stream;
 
-class UserFailuresTest extends UserFailuresTestSuite {
+public class UserFailuresTest extends UserFailuresTestSuite {
 
-  private static class ThrowIllegalStateException extends GreeterGrpc.GreeterImplBase {
+  private static class ThrowIllegalStateException extends GreeterGrpc.GreeterImplBase
+      implements RestateBlockingService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       throw new IllegalStateException("Whatever");
@@ -44,7 +46,8 @@ class UserFailuresTest extends UserFailuresTestSuite {
     return new SideEffectThrowIllegalStateException();
   }
 
-  private static class ThrowStatusRuntimeException extends GreeterGrpc.GreeterImplBase {
+  private static class ThrowStatusRuntimeException extends GreeterGrpc.GreeterImplBase
+      implements RestateBlockingService {
 
     private final Status status;
 
@@ -90,7 +93,7 @@ class UserFailuresTest extends UserFailuresTestSuite {
   // -- Response observer is something specific to the sdk-java-blocking interface
 
   private static class ResponseObserverOnErrorStatusRuntimeException
-      extends GreeterGrpc.GreeterImplBase {
+      extends GreeterGrpc.GreeterImplBase implements RestateBlockingService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       responseObserver.onError(new StatusRuntimeException(INTERNAL_MY_ERROR));
@@ -98,7 +101,7 @@ class UserFailuresTest extends UserFailuresTestSuite {
   }
 
   private static class ResponseObserverOnErrorIllegalStateException
-      extends GreeterGrpc.GreeterImplBase {
+      extends GreeterGrpc.GreeterImplBase implements RestateBlockingService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       responseObserver.onError(new IllegalStateException("Whatever"));
@@ -106,7 +109,7 @@ class UserFailuresTest extends UserFailuresTestSuite {
   }
 
   @Override
-  protected Stream<TestDefinition> definitions() {
+  public Stream<TestDefinition> definitions() {
     return Stream.concat(
         super.definitions(),
         Stream.of(
@@ -114,13 +117,11 @@ class UserFailuresTest extends UserFailuresTestSuite {
                     new ResponseObserverOnErrorStatusRuntimeException(),
                     GreeterGrpc.getGreetMethod())
                 .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
-                .usingAllThreadingModels()
                 .expectingOutput(outputMessage(INTERNAL_MY_ERROR)),
             testInvocation(
                     new ResponseObserverOnErrorIllegalStateException(),
                     GreeterGrpc.getGreetMethod())
                 .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
-                .usingAllThreadingModels()
                 .expectingOutput(outputMessage(Status.UNKNOWN))));
   }
 }

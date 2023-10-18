@@ -4,16 +4,33 @@ import static dev.restate.sdk.core.impl.ProtoUtils.greetingResponse;
 
 import dev.restate.sdk.core.StateKey;
 import dev.restate.sdk.core.TypeTag;
-import dev.restate.sdk.core.impl.GetAndSetStateTestSuite;
+import dev.restate.sdk.core.impl.StateTestSuite;
 import dev.restate.sdk.core.impl.testservices.GreeterGrpc;
 import dev.restate.sdk.core.impl.testservices.GreetingRequest;
 import dev.restate.sdk.core.impl.testservices.GreetingResponse;
 import io.grpc.BindableService;
 import io.grpc.stub.StreamObserver;
 
-class GetAndSetStateTest extends GetAndSetStateTestSuite {
+public class StateTest extends StateTestSuite {
 
-  private static class GetAndSetGreeter extends GreeterGrpc.GreeterImplBase
+  private static class GetState extends GreeterGrpc.GreeterImplBase
+      implements RestateBlockingService {
+    @Override
+    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
+      String state =
+          restateContext().get(StateKey.of("STATE", TypeTag.STRING_UTF8)).orElse("Unknown");
+
+      responseObserver.onNext(GreetingResponse.newBuilder().setMessage("Hello " + state).build());
+      responseObserver.onCompleted();
+    }
+  }
+
+  @Override
+  protected BindableService getState() {
+    return new GetState();
+  }
+
+  private static class GetAndSetState extends GreeterGrpc.GreeterImplBase
       implements RestateBlockingService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
@@ -29,8 +46,8 @@ class GetAndSetStateTest extends GetAndSetStateTestSuite {
   }
 
   @Override
-  protected BindableService getAndSetGreeter() {
-    return new GetAndSetGreeter();
+  protected BindableService getAndSetState() {
+    return new GetAndSetState();
   }
 
   private static class SetNullState extends GreeterGrpc.GreeterImplBase

@@ -11,7 +11,7 @@ import dev.restate.sdk.core.impl.testservices.GreetingResponse;
 import io.grpc.BindableService;
 import io.grpc.stub.StreamObserver;
 
-class EagerStateTest extends EagerStateTestSuite {
+public class EagerStateTest extends EagerStateTestSuite {
 
   private static class GetEmpty extends GreeterGrpc.GreeterImplBase
       implements RestateBlockingService {

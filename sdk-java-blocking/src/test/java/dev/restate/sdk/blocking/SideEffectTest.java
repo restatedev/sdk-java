@@ -11,7 +11,7 @@ import io.grpc.BindableService;
 import io.grpc.stub.StreamObserver;
 import java.util.Objects;
 
-class SideEffectTest extends SideEffectTestSuite {
+public class SideEffectTest extends SideEffectTestSuite {
 
   private static class SideEffect extends GreeterGrpc.GreeterImplBase
       implements RestateBlockingService {

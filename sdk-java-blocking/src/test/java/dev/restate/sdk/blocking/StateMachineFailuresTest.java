@@ -12,7 +12,7 @@ import io.grpc.BindableService;
 import io.grpc.stub.StreamObserver;
 import java.nio.charset.StandardCharsets;
 
-class StateMachineFailuresTest extends StateMachineFailuresTestSuite {
+public class StateMachineFailuresTest extends StateMachineFailuresTestSuite {
 
   private static class GetState extends GreeterGrpc.GreeterImplBase
       implements RestateBlockingService {

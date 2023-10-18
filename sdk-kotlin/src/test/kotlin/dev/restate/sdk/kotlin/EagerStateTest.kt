@@ -11,7 +11,7 @@ import io.grpc.BindableService
 import kotlinx.coroutines.Dispatchers
 import org.assertj.core.api.AssertionsForClassTypes.assertThat
 
-internal class EagerStateTest : EagerStateTestSuite() {
+class EagerStateTest : EagerStateTestSuite() {
   private class GetEmpty :
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {

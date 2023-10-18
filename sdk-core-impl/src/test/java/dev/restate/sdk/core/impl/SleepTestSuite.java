@@ -1,7 +1,7 @@
 package dev.restate.sdk.core.impl;
 
-import static dev.restate.sdk.core.impl.CoreTestRunner.TestCaseBuilder.testInvocation;
 import static dev.restate.sdk.core.impl.ProtoUtils.*;
+import static dev.restate.sdk.core.impl.TestDefinitions.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.protobuf.Empty;
@@ -15,7 +15,7 @@ import java.time.Instant;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-public abstract class SleepTestSuite extends CoreTestRunner {
+public abstract class SleepTestSuite implements TestSuite {
 
   Long startTime = System.currentTimeMillis();
 
@@ -24,11 +24,10 @@ public abstract class SleepTestSuite extends CoreTestRunner {
   protected abstract BindableService manySleeps();
 
   @Override
-  protected Stream<TestDefinition> definitions() {
+  public Stream<TestDefinition> definitions() {
     return Stream.of(
         testInvocation(this::sleepGreeter, GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
-            .usingAllThreadingModels()
             .assertingOutput(
                 messageLites -> {
                   assertThat(messageLites.get(0)).isInstanceOf(Protocol.SleepEntryMessage.class);
@@ -36,7 +35,6 @@ public abstract class SleepTestSuite extends CoreTestRunner {
                   assertThat(msg.getWakeUpTime()).isGreaterThanOrEqualTo(startTime + 1000);
                   assertThat(msg.getWakeUpTime())
                       .isLessThanOrEqualTo(Instant.now().toEpochMilli() + 1000);
-
                   assertThat(messageLites.get(1)).isInstanceOf(Protocol.SuspensionMessage.class);
                 })
             .named("Sleep 1000 ms not completed"),
@@ -48,7 +46,6 @@ public abstract class SleepTestSuite extends CoreTestRunner {
                     .setWakeUpTime(Instant.now().toEpochMilli())
                     .setResult(Empty.getDefaultInstance())
                     .build())
-            .usingAllThreadingModels()
             .expectingOutput(
                 outputMessage(GreetingResponse.newBuilder().setMessage("Hello").build()))
             .named("Sleep 1000 ms sleep completed"),
@@ -59,7 +56,6 @@ public abstract class SleepTestSuite extends CoreTestRunner {
                 Protocol.SleepEntryMessage.newBuilder()
                     .setWakeUpTime(Instant.now().toEpochMilli())
                     .build())
-            .usingAllThreadingModels()
             .expectingOutput(suspensionMessage(1))
             .named("Sleep 1000 ms still sleeping"),
         testInvocation(this::manySleeps, GreeterGrpc.getGreetMethod())
@@ -80,7 +76,6 @@ public abstract class SleepTestSuite extends CoreTestRunner {
                                             .setWakeUpTime(Instant.now().toEpochMilli())
                                             .build()))
                     .toArray(MessageLiteOrBuilder[]::new))
-            .usingAllThreadingModels()
             .expectingOutput(suspensionMessage(1, 2, 4, 5, 7, 8, 10))
             .named("Sleep 1000 ms sleep completed"));
   }

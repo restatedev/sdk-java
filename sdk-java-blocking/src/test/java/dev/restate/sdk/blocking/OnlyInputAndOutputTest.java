@@ -7,9 +7,10 @@ import dev.restate.sdk.core.impl.testservices.GreetingResponse;
 import io.grpc.BindableService;
 import io.grpc.stub.StreamObserver;
 
-class OnlyInputAndOutputTest extends OnlyInputAndOutputTestSuite {
+public class OnlyInputAndOutputTest extends OnlyInputAndOutputTestSuite {
 
-  private static class NoSyscallsGreeter extends GreeterGrpc.GreeterImplBase {
+  private static class NoSyscallsGreeter extends GreeterGrpc.GreeterImplBase
+      implements RestateBlockingService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       responseObserver.onNext(

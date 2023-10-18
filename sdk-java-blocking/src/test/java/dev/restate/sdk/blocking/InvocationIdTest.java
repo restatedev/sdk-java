@@ -10,7 +10,7 @@ import dev.restate.sdk.core.impl.testservices.GreetingResponse;
 import io.grpc.BindableService;
 import io.grpc.stub.StreamObserver;
 
-class InvocationIdTest extends InvocationIdTestSuite {
+public class InvocationIdTest extends InvocationIdTestSuite {
 
   private static class ReturnInvocationId extends GreeterGrpc.GreeterImplBase
       implements RestateBlockingService {

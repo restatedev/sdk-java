@@ -30,6 +30,8 @@ dependencies {
   testImplementation(project(":sdk-java-blocking"))
   testImplementation(project(":sdk-kotlin"))
   testImplementation(project(":sdk-core-impl", "testArchive"))
+  testImplementation(project(":sdk-java-blocking", "testArchive"))
+  testImplementation(project(":sdk-kotlin", "testArchive"))
   testProtobuf(project(":sdk-core-impl", "testArchive"))
   testImplementation(testingLibs.junit.jupiter)
   testImplementation(testingLibs.assertj)
