@@ -1,20 +1,24 @@
 package dev.restate.sdk.core.impl;
 
+import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.entry;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import dev.restate.sdk.core.impl.TestDefinitions.TestDefinition;
 import dev.restate.sdk.core.impl.TestDefinitions.TestExecutor;
 import dev.restate.sdk.core.impl.TestDefinitions.TestSuite;
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.*;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.opentest4j.TestAbortedException;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class TestRunner {
@@ -28,7 +32,6 @@ public abstract class TestRunner {
 
     return definitions()
         .flatMap(ts -> ts.definitions().map(def -> entry(ts.getClass().getName(), def)))
-        .filter(e -> e.getValue().isValid())
         .flatMap(
             entry ->
                 executors.stream()
@@ -47,6 +50,41 @@ public abstract class TestRunner {
                                 entry.getValue())));
   }
 
+  private static class DisableInvalidTestDefinition implements InvocationInterceptor {
+
+    @Override
+    public void interceptTestTemplateMethod(
+        Invocation<Void> invocation,
+        ReflectiveInvocationContext<Method> invocationContext,
+        ExtensionContext extensionContext)
+        throws Throwable {
+      Method testMethod = extensionContext.getRequiredTestMethod();
+      List<Object> arguments = invocationContext.getArguments();
+      if (arguments.isEmpty()) {
+        throw new ExtensionConfigurationException(
+            format(
+                "Can't disable based on arguments, because method %s had no parameters.",
+                testMethod.getName()));
+      }
+
+      Object maybeTestDefinition = arguments.get(2);
+      if (!(maybeTestDefinition instanceof TestDefinition)) {
+        throw new ExtensionConfigurationException(
+            format(
+                "Expected second argument to be a TestDefinition, but is %s.",
+                maybeTestDefinition));
+      }
+
+      if (!((TestDefinition) maybeTestDefinition).isValid()) {
+        throw new TestAbortedException(
+            "Disabled test definition: "
+                + ((TestDefinition) maybeTestDefinition).getInvalidReason());
+      }
+      invocation.proceed();
+    }
+  }
+
+  @ExtendWith(DisableInvalidTestDefinition.class)
   @ParameterizedTest(name = "{index}: {0}")
   @MethodSource("source")
   @Execution(ExecutionMode.CONCURRENT)

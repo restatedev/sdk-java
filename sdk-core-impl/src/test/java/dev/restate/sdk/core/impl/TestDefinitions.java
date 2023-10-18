@@ -8,10 +8,7 @@ import com.google.protobuf.MessageLiteOrBuilder;
 import dev.restate.generated.service.protocol.Protocol;
 import io.grpc.BindableService;
 import io.grpc.MethodDescriptor;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -35,7 +32,12 @@ public final class TestDefinitions {
 
     String getTestCaseName();
 
-    boolean isValid();
+    default boolean isValid() {
+      return this.getInvalidReason() == null;
+    }
+
+    @Nullable
+    String getInvalidReason();
   }
 
   public interface TestSuite {
@@ -62,29 +64,34 @@ public final class TestDefinitions {
     try {
       return testInvocation(svc.get(), method.getBareMethodName());
     } catch (UnsupportedOperationException e) {
-      return testInvocation(null, method.getBareMethodName());
+      return new TestInvocationBuilder(Objects.requireNonNull(e.getMessage()));
     }
   }
 
   public static class TestInvocationBuilder {
     protected final @Nullable BindableService svc;
-    protected final String method;
+    protected final @Nullable String method;
+    protected final @Nullable String invalidReason;
 
-    TestInvocationBuilder(@Nullable BindableService svc, String method) {
+    TestInvocationBuilder(BindableService svc, String method) {
       this.svc = svc;
       this.method = method;
+
+      this.invalidReason = null;
     }
 
-    public WithInputBuilder withInput(short flags, MessageLiteOrBuilder msgOrBuilder) {
-      MessageLite msg = ProtoUtils.build(msgOrBuilder);
-      return new WithInputBuilder(
-          svc,
-          method,
-          List.of(
-              InvocationFlow.InvocationInput.of(headerFromMessage(msg).copyWithFlags(flags), msg)));
+    TestInvocationBuilder(String invalidReason) {
+      this.svc = null;
+      this.method = null;
+
+      this.invalidReason = invalidReason;
     }
 
     public WithInputBuilder withInput(MessageLiteOrBuilder... messages) {
+      if (invalidReason != null) {
+        return new WithInputBuilder(invalidReason);
+      }
+
       return new WithInputBuilder(
           svc,
           method,
@@ -102,28 +109,28 @@ public final class TestDefinitions {
     private final List<InvocationFlow.InvocationInput> input;
     private boolean onlyUnbuffered = false;
 
+    WithInputBuilder(@Nullable String invalidReason) {
+      super(invalidReason);
+      this.input = Collections.emptyList();
+    }
+
     WithInputBuilder(
         BindableService svc, String method, List<InvocationFlow.InvocationInput> input) {
       super(svc, method);
       this.input = new ArrayList<>(input);
     }
 
-    public WithInputBuilder withInput(short flags, MessageLiteOrBuilder msgOrBuilder) {
-      MessageLite msg = ProtoUtils.build(msgOrBuilder);
-      this.input.add(
-          InvocationFlow.InvocationInput.of(headerFromMessage(msg).copyWithFlags(flags), msg));
-      return this;
-    }
-
     public WithInputBuilder withInput(MessageLiteOrBuilder... messages) {
-      this.input.addAll(
-          Arrays.stream(messages)
-              .map(
-                  msgOrBuilder -> {
-                    MessageLite msg = ProtoUtils.build(msgOrBuilder);
-                    return InvocationFlow.InvocationInput.of(headerFromMessage(msg), msg);
-                  })
-              .collect(Collectors.toList()));
+      if (this.invalidReason == null) {
+        this.input.addAll(
+            Arrays.stream(messages)
+                .map(
+                    msgOrBuilder -> {
+                      MessageLite msg = ProtoUtils.build(msgOrBuilder);
+                      return InvocationFlow.InvocationInput.of(headerFromMessage(msg), msg);
+                    })
+                .collect(Collectors.toList()));
+      }
       return this;
     }
 
@@ -139,37 +146,28 @@ public final class TestDefinitions {
     }
 
     public ExpectingOutputMessages assertingOutput(Consumer<List<MessageLite>> messages) {
-      return new ExpectingOutputMessages(svc, method, input, onlyUnbuffered, messages);
+      return new ExpectingOutputMessages(
+          svc, invalidReason, method, input, onlyUnbuffered, messages);
     }
   }
 
   public abstract static class BaseTestDefinition implements TestDefinition {
     protected final @Nullable BindableService svc;
+    protected final @Nullable String invalidReason;
     protected final String method;
     protected final List<InvocationFlow.InvocationInput> input;
     protected final boolean onlyUnbuffered;
     protected final String named;
 
-    public BaseTestDefinition(
+    private BaseTestDefinition(
         @Nullable BindableService svc,
-        String method,
-        List<InvocationFlow.InvocationInput> input,
-        boolean onlyUnbuffered) {
-      this(
-          svc,
-          method,
-          input,
-          onlyUnbuffered,
-          svc != null ? svc.getClass().getSimpleName() : "invalid");
-    }
-
-    public BaseTestDefinition(
-        @Nullable BindableService svc,
+        @Nullable String invalidReason,
         String method,
         List<InvocationFlow.InvocationInput> input,
         boolean onlyUnbuffered,
         String named) {
       this.svc = svc;
+      this.invalidReason = invalidReason;
       this.method = method;
       this.input = input;
       this.onlyUnbuffered = onlyUnbuffered;
@@ -202,43 +200,53 @@ public final class TestDefinitions {
     }
 
     @Override
-    public boolean isValid() {
-      return this.svc != null;
+    @Nullable
+    public String getInvalidReason() {
+      return invalidReason;
     }
   }
 
   public static class ExpectingOutputMessages extends BaseTestDefinition {
     private final Consumer<List<MessageLite>> messagesAssert;
 
-    ExpectingOutputMessages(
+    private ExpectingOutputMessages(
         @Nullable BindableService svc,
+        @Nullable String invalidReason,
         String method,
         List<InvocationFlow.InvocationInput> input,
         boolean onlyUnbuffered,
         Consumer<List<MessageLite>> messagesAssert) {
-      super(svc, method, input, onlyUnbuffered);
+      super(
+          svc,
+          invalidReason,
+          method,
+          input,
+          onlyUnbuffered,
+          svc != null ? svc.getClass().getSimpleName() : "Unknown");
       this.messagesAssert = messagesAssert;
     }
 
     ExpectingOutputMessages(
         @Nullable BindableService svc,
+        @Nullable String invalidReason,
         String method,
         List<InvocationFlow.InvocationInput> input,
         boolean onlyUnbuffered,
         Consumer<List<MessageLite>> messagesAssert,
         String named) {
-      super(svc, method, input, onlyUnbuffered, named);
+      super(svc, invalidReason, method, input, onlyUnbuffered, named);
       this.messagesAssert = messagesAssert;
     }
 
     public ExpectingOutputMessages named(String name) {
       return new ExpectingOutputMessages(
           svc,
+          invalidReason,
           method,
           input,
           onlyUnbuffered,
           messagesAssert,
-          svc != null ? (svc.getClass().getSimpleName() + ": " + name) : "invalid");
+          this.named + ": " + name);
     }
 
     @Override
