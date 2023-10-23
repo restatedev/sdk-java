@@ -190,6 +190,13 @@ public class Greeter extends GreeterGrpc.GreeterImplBase implements RestateBlock
 }
 ```
 
+To serialize the state, you need a state serializer/deserializer.
+To use [Jackson Databind](https://github.com/FasterXML/jackson), add the dependency [`sdk-serde-jackson`](sdk-serde-jackson). For example, in Gradle:
+
+```
+implementation("dev.restate.sdk:sdk-serde-jackson:1.0-SNAPSHOT")
+```
+
 ### Implement the service (Kotlin)
 
 Implement the service in a new class, for example:
@@ -210,6 +217,13 @@ class Greeter :
     return greetResponse { message = "Hello ${request.name} for the $count time!" }
   }
 }
+```
+
+To serialize the state, you need a state serializer/deserializer. 
+To use [Jackson Databind](https://github.com/FasterXML/jackson), add the dependency [`sdk-serde-jackson`](sdk-serde-jackson). For example, in Gradle:
+
+```
+implementation("dev.restate.sdk:sdk-serde-jackson:1.0-SNAPSHOT")
 ```
 
 ### Deploy the service (HTTP Server)
