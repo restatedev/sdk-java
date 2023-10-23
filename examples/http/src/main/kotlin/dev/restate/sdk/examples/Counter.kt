@@ -5,13 +5,11 @@ import dev.restate.sdk.core.StateKey
 import dev.restate.sdk.examples.generated.*
 import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder
 import dev.restate.sdk.kotlin.RestateCoroutineService
-import io.vertx.core.Vertx
-import io.vertx.kotlin.coroutines.dispatcher
-import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.Dispatchers
 import org.apache.logging.log4j.LogManager
 
-class Counter(coroutineContext: CoroutineContext) :
-    CounterGrpcKt.CounterCoroutineImplBase(coroutineContext), RestateCoroutineService {
+class Counter :
+    CounterGrpcKt.CounterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
 
   private val LOG = LogManager.getLogger(BlockingCounter::class.java)
 
@@ -55,8 +53,5 @@ class Counter(coroutineContext: CoroutineContext) :
 }
 
 fun main() {
-  val vertx = Vertx.vertx()
-  RestateHttpEndpointBuilder.builder(vertx)
-      .withService(Counter(coroutineContext = vertx.dispatcher()))
-      .buildAndListen()
+  RestateHttpEndpointBuilder.builder().withService(Counter()).buildAndListen()
 }
