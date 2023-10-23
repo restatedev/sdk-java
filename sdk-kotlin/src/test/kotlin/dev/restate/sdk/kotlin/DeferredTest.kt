@@ -3,8 +3,10 @@ package dev.restate.sdk.kotlin
 import dev.restate.sdk.core.StateKey
 import dev.restate.sdk.core.TypeTag
 import dev.restate.sdk.core.impl.DeferredTestSuite
+import dev.restate.sdk.core.impl.TestDefinitions.TestDefinition
 import dev.restate.sdk.core.impl.testservices.*
 import io.grpc.BindableService
+import java.util.stream.Stream
 import kotlinx.coroutines.Dispatchers
 
 class DeferredTest : DeferredTestSuite() {
@@ -44,9 +46,13 @@ class DeferredTest : DeferredTestSuite() {
       val ctx = restateContext()
       val a1 = ctx.callAsync(GreeterGrpcKt.greetMethod, greetingRequest { name = "Francesco" })
       val a2 = ctx.callAsync(GreeterGrpcKt.greetMethod, greetingRequest { name = "Till" })
-      listOf(a1, a2).awaitAll()
 
-      return greetingResponse { message = a1.await().getMessage() + "-" + a2.await().getMessage() }
+      return greetingResponse {
+        message =
+            listOf(a1, a2)
+                .awaitAll()
+                .joinToString(separator = "-", transform = GreetingResponse::getMessage)
+      }
     }
   }
 
@@ -61,6 +67,19 @@ class DeferredTest : DeferredTestSuite() {
       val a1 = ctx.callAsync(GreeterGrpcKt.greetMethod, greetingRequest { name = "Francesco" })
       val a2 = ctx.callAsync(GreeterGrpcKt.greetMethod, greetingRequest { name = "Till" })
       return Awaitable.any(a1, a2).await() as GreetingResponse
+    }
+  }
+
+  private class AwaitSelect :
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
+    override suspend fun greet(request: GreetingRequest): GreetingResponse {
+      val ctx = restateContext()
+      val a1 = ctx.callAsync(GreeterGrpcKt.greetMethod, greetingRequest { name = "Francesco" })
+      val a2 = ctx.callAsync(GreeterGrpcKt.greetMethod, greetingRequest { name = "Till" })
+      return select {
+        a1.onAwait { it }
+        a2.onAwait { it }
+      }
     }
   }
 
@@ -132,5 +151,9 @@ class DeferredTest : DeferredTestSuite() {
 
   override fun awaitWithTimeout(): BindableService {
     throw UnsupportedOperationException("Not supported yet")
+  }
+
+  override fun definitions(): Stream<TestDefinition> {
+    return Stream.concat(super.definitions(), super.anyTestDefinitions { AwaitSelect() })
   }
 }

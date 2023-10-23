@@ -4,7 +4,6 @@ import dev.restate.sdk.core.TypeTag
 import dev.restate.sdk.core.syscalls.AnyDeferredResult
 import dev.restate.sdk.core.syscalls.DeferredResult
 import dev.restate.sdk.core.syscalls.Syscalls
-import java.util.*
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.suspendCancellableCoroutine
 
@@ -15,6 +14,9 @@ internal constructor(
 ) : Awaitable<KT_T> {
 
   abstract fun unpack(): KT_T
+
+  override val onAwait: SelectClause<KT_T>
+    get() = SelectClauseImpl(this)
 
   override suspend fun await(): KT_T {
     if (!deferredResult.isCompleted) {
@@ -107,5 +109,24 @@ internal class AwakeableHandleImpl(val syscalls: Syscalls, val id: String) : Awa
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
       syscalls.rejectAwakeable(id, reason, completingUnitContinuation(cont))
     }
+  }
+}
+
+internal class SelectClauseImpl<T>(override val awaitable: Awaitable<T>) : SelectClause<T>
+
+@PublishedApi
+internal class SelectImplementation<R> : SelectBuilder<R> {
+
+  private val clauses: MutableList<Pair<Awaitable<*>, suspend (Any?) -> R>> = mutableListOf()
+
+  @Suppress("UNCHECKED_CAST")
+  override fun <T> SelectClause<T>.invoke(block: suspend (T) -> R) {
+    clauses.add(this.awaitable as Awaitable<*> to block as suspend (Any?) -> R)
+  }
+
+  suspend fun doSelect(): R {
+    val index = wrapAnyAwaitable(clauses.map { it.first }).awaitIndex()
+    val resolved = clauses[index]
+    return resolved.first.await().let { resolved.second(it) }
   }
 }
