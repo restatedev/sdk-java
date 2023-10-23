@@ -203,7 +203,7 @@ Implement the service in a new class, for example:
 
 ```kotlin
 class Greeter :
-        // Use Dispatchers.Unconfined as the Executor/thread pool is managed by the SDK itself. 
+        // Use Dispatchers.Unconfined as the Executor/thread pool is managed by the SDK itself.
         GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined),
         RestateCoroutineService {
   companion object {
@@ -219,7 +219,7 @@ class Greeter :
 }
 ```
 
-To serialize the state, you need a state serializer/deserializer. 
+To serialize the state, you need a state serializer/deserializer.
 To use [Jackson Databind](https://github.com/FasterXML/jackson), add the dependency [`sdk-serde-jackson`](sdk-serde-jackson). For example, in Gradle:
 
 ```
@@ -313,6 +313,68 @@ gradle shadowJar
 ```
 
 You can now upload the generated Jar in AWS Lambda, and configure `dev.restate.sdk.lambda.LambdaHandler` as the Lambda class in the AWS UI.
+
+### Additional setup
+
+#### Logging
+
+The SDK uses log4j2 as logging facade. To enable logging, add the `log4j2` implementation to the dependencies:
+
+```
+implementation("org.apache.logging.log4j:log4j-core:2.20.0")
+```
+
+And configure the logging adding the file `resources/log4j2.properties`:
+
+```
+# Set to debug or trace if log4j initialization is failing
+status = warn
+
+# Console appender configuration
+appender.console.type = Console
+appender.console.name = consoleLogger
+appender.console.layout.type = PatternLayout
+appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss} [%tn] %-5p %c{1}:%L - %m%n
+
+# Restate logs to debug level
+logger.app.name = dev.restate
+logger.app.level = debug
+logger.app.additivity = false
+logger.app.appenderRef.console.ref = consoleLogger
+
+# Root logger
+rootLogger.level = info
+rootLogger.appenderRef.stdout.ref = consoleLogger
+```
+
+#### Tracing with OpenTelemetry
+
+The SDK can generate additional tracing information on top of what Restate already publishes. See https://docs.restate.dev/restate/tracing to configure Restate tracing.
+
+You can the additional SDK tracing information by configuring the `OpenTelemetry` in the `RestateHttpEndpointBuilder`/`LambdaRestateServer`.
+
+For example, to set up tracing using environment variables, add the following modules to your dependencies:
+
+```
+implementation("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure:1.31.0")
+implementation("io.opentelemetry:opentelemetry-exporter-otlp:1.31.0")
+```
+
+And then configure it in the Restate builder:
+
+```java
+.withOpenTelemetry(AutoConfiguredOpenTelemetrySdk.initialize().getOpenTelemetrySdk())
+```
+
+By exporting the following environment variables the OpenTelemetry SDK will be automatically configured to push traces:
+
+```shell
+export OTEL_SERVICE_NAME=my-service
+export OTEL_TRACES_SAMPLER=always_on
+export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://localhost:14250
+```
+
+Please refer to the [Opentelemetry manual instrumentation documentation](https://opentelemetry.io/docs/instrumentation/java/manual/#manual-instrumentation-setup) and the [autoconfigure documentation](https://github.com/open-telemetry/opentelemetry-java/blob/main/sdk-extensions/autoconfigure/README.md) for more info.
 
 ## Contributing to the SDK
 
