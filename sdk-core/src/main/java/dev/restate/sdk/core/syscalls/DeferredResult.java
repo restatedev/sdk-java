@@ -6,7 +6,9 @@ public interface DeferredResult<T> {
 
   boolean isCompleted();
 
-  /** Null if {@link #isCompleted()} is false. */
+  /**
+   * @return {@code null} if {@link #isCompleted()} is false.
+   */
   @Nullable
   ReadyResult<T> toReadyResult();
 }

@@ -50,6 +50,7 @@ class ReadyResultStateMachine
     this.tryProgress(callback);
   }
 
+  @Override
   void abort(Throwable cause) {
     super.abort(cause);
     this.consumeCallback(this::tryProgress);

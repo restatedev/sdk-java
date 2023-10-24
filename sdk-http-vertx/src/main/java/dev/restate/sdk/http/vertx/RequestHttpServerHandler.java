@@ -169,7 +169,7 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
 
   private void handleDiscoveryRequest(HttpServerRequest request) {
     // Request validation
-    if (request.method() != HttpMethod.POST) {
+    if (!request.method().equals(HttpMethod.POST)) {
       request.response().setStatusCode(METHOD_NOT_ALLOWED.code()).end();
       return;
     }

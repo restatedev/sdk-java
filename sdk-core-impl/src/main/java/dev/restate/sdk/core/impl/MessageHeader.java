@@ -29,8 +29,8 @@ public class MessageHeader {
 
   public long encode() {
     long res = 0L;
-    res |= ((long) (type.encode()) << 48);
-    res |= ((long) (flags) << 32);
+    res |= ((long) type.encode() << 48);
+    res |= ((long) flags << 32);
     res |= length;
     return res;
   }

@@ -19,7 +19,7 @@ public class SleepTest extends SleepTestSuite {
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
 
-      ctx.sleep(Duration.ofMillis(1000));
+      ctx.sleep(Duration.ofSeconds(1));
 
       responseObserver.onNext(GreetingResponse.newBuilder().setMessage("Hello").build());
       responseObserver.onCompleted();
@@ -40,7 +40,7 @@ public class SleepTest extends SleepTestSuite {
       List<Awaitable<?>> collectedAwaitables = new ArrayList<>();
 
       for (int i = 0; i < 10; i++) {
-        collectedAwaitables.add(ctx.timer(Duration.ofMillis(1000)));
+        collectedAwaitables.add(ctx.timer(Duration.ofSeconds(1)));
       }
 
       Awaitable.all(
