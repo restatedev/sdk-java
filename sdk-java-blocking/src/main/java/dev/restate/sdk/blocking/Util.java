@@ -17,7 +17,8 @@ class Util {
     try {
       return future.get();
     } catch (InterruptedException | CancellationException e) {
-      throw SuspendedException.INSTANCE;
+      SuspendedException.sneakyThrow();
+      return null; // Previous statement throws an exception
     } catch (ExecutionException e) {
       throw (RuntimeException) e.getCause();
     }
