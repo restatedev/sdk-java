@@ -3,6 +3,7 @@ package dev.restate.sdk.blocking;
 import dev.restate.sdk.core.StateKey;
 import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.core.serde.Serde;
+import io.grpc.Channel;
 import io.grpc.MethodDescriptor;
 import java.time.Duration;
 import java.util.Optional;
@@ -76,6 +77,18 @@ public interface RestateContext {
    * @return an {@link Awaitable} that wraps the Restate service method result.
    */
   <T, R> Awaitable<R> call(MethodDescriptor<T, R> methodDescriptor, T parameter);
+
+  /**
+   * Create a {@link Channel} to use with generated blocking stubs to invoke other Restate services.
+   *
+   * <p>The returned {@link Channel} will execute the requests using the {@link
+   * #call(MethodDescriptor, Object)} method.
+   *
+   * @return a {@link Channel} to send requests through Restate.
+   */
+  default Channel grpcChannel() {
+    return new GrpcChannelAdapter(this);
+  }
 
   /**
    * Invoke another Restate service without waiting for the response.

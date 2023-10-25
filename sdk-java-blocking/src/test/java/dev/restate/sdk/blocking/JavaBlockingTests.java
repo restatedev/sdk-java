@@ -26,6 +26,7 @@ public class JavaBlockingTests extends TestRunner {
         new SideEffectTest(),
         new SleepTest(),
         new StateMachineFailuresTest(),
-        new UserFailuresTest());
+        new UserFailuresTest(),
+        new GrpcChannelAdapterTest());
   }
 }
