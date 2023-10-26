@@ -122,6 +122,9 @@ public class UserFailuresTest extends UserFailuresTestSuite {
                     new ResponseObserverOnErrorIllegalStateException(),
                     GreeterGrpc.getGreetMethod())
                 .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
-                .expectingOutput(outputMessage(Status.UNKNOWN))));
+                .expectingOutput(
+                    outputMessage(
+                        Status.UNKNOWN.withDescription(
+                            new IllegalStateException("Whatever").toString())))));
   }
 }

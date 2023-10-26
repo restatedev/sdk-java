@@ -84,15 +84,23 @@ public final class Util {
   }
 
   static Status toGrpcStatusErasingCause(Throwable throwable) {
-    // Here we need to erase the cause, as it's not stored in the call result structure and can
-    // cause non-determinism.
+    Status status;
     if (throwable instanceof StatusException) {
-      return ((StatusException) throwable).getStatus().withCause(null);
+      status = ((StatusException) throwable).getStatus();
     } else if (throwable instanceof StatusRuntimeException) {
-      return ((StatusRuntimeException) throwable).getStatus().withCause(null);
+      status = ((StatusRuntimeException) throwable).getStatus();
+    } else {
+      return Status.UNKNOWN.withDescription(throwable.getMessage());
     }
 
-    return Status.UNKNOWN.withDescription(throwable.getMessage());
+    // We erase the cause as it's not stored in the call result structure
+    // and can cause non-determinism.
+    //
+    // We can still set the error message though.
+    if (status.getDescription() == null && status.getCause() != null) {
+      status = status.withDescription(status.getCause().toString());
+    }
+    return status.withCause(null);
   }
 
   static boolean isTerminalException(Throwable throwable) {
