@@ -11,9 +11,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.util.AsciiString;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.context.propagation.TextMapGetter;
-import io.vertx.core.Context;
-import io.vertx.core.Handler;
-import io.vertx.core.MultiMap;
+import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
@@ -21,7 +19,6 @@ import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.http.impl.HttpServerRequestInternal;
 import java.net.URI;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.concurrent.Executor;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
@@ -57,18 +54,15 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
       };
 
   private final RestateGrpcServer restateGrpcServer;
-  private final HashSet<String> blockingServices;
-  private final HashMap<String, Executor> executors;
+  private final HashMap<String, Executor> blockingServices;
   private final OpenTelemetry openTelemetry;
 
   RequestHttpServerHandler(
       RestateGrpcServer restateGrpcServer,
-      HashSet<String> blockingServices,
-      HashMap<String, Executor> executors,
+      HashMap<String, Executor> blockingServices,
       OpenTelemetry openTelemetry) {
     this.restateGrpcServer = restateGrpcServer;
     this.blockingServices = blockingServices;
-    this.executors = executors;
     this.openTelemetry = openTelemetry;
   }
 
@@ -91,7 +85,7 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
     }
     String serviceName = pathSegments[pathSegments.length - 2];
     String methodName = pathSegments[pathSegments.length - 1];
-    boolean isBlockingService = blockingServices.contains(serviceName);
+    boolean isBlockingService = blockingServices.containsKey(serviceName);
 
     // Parse OTEL context and generate span
     final io.opentelemetry.context.Context otelContext =
@@ -113,7 +107,7 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
               methodName,
               otelContext,
               isBlockingService ? currentContextExecutor(vertxCurrentContext) : null,
-              isBlockingService ? blockingExecutor(serviceName, vertxCurrentContext) : null);
+              isBlockingService ? blockingExecutor(serviceName) : null);
     } catch (ProtocolException e) {
       LOG.warn("Error when resolving the grpc handler", e);
       request
@@ -149,22 +143,13 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
     return runnable -> currentContext.runOnContext(v -> runnable.run());
   }
 
-  private Executor blockingExecutor(String serviceName, Context currentContext) {
-    if (this.executors.containsKey(serviceName)) {
-      Executor userExecutor = this.executors.get(serviceName);
-      return runnable -> {
-        // We need to propagate the gRPC context!
-        io.grpc.Context ctx = io.grpc.Context.current();
-        userExecutor.execute(() -> ctx.run(runnable));
-      };
-    }
-    return runnable ->
-        currentContext.executeBlocking(
-            () -> {
-              runnable.run();
-              return null;
-            },
-            false);
+  private Executor blockingExecutor(String serviceName) {
+    Executor userExecutor = this.blockingServices.get(serviceName);
+    return runnable -> {
+      // We need to propagate the gRPC context!
+      io.grpc.Context ctx = io.grpc.Context.current();
+      userExecutor.execute(ctx.wrap(runnable));
+    };
   }
 
   private void handleDiscoveryRequest(HttpServerRequest request) {
