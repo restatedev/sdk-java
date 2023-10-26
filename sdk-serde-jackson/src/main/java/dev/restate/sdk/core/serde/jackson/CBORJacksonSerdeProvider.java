@@ -8,6 +8,9 @@ import dev.restate.sdk.core.serde.SerdeProvider;
 public class CBORJacksonSerdeProvider implements SerdeProvider {
   @Override
   public Serde create() {
-    return JacksonSerde.usingMapper(new ObjectMapper(new CBORFactory()));
+    ObjectMapper mapper = new ObjectMapper(new CBORFactory());
+    // Find modules through SPI (e.g. jackson-datatype-jsr310)
+    mapper.findAndRegisterModules();
+    return JacksonSerde.usingMapper(mapper);
   }
 }
