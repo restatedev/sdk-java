@@ -35,7 +35,7 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
 
   private static final Pattern SLASH = Pattern.compile(Pattern.quote("/"));
 
-  private static final String SERVICES_PATH = "/discover";
+  private static final String DISCOVER_PATH = "/discover";
 
   static TextMapGetter<MultiMap> OTEL_TEXT_MAP_GETTER =
       new TextMapGetter<>() {
@@ -72,7 +72,7 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
     URI uri = URI.create(request.uri());
 
     // Let's first check if it's a discovery request
-    if (SERVICES_PATH.equalsIgnoreCase(uri.getPath())) {
+    if (DISCOVER_PATH.equalsIgnoreCase(uri.getPath())) {
       this.handleDiscoveryRequest(request);
       return;
     }
@@ -80,7 +80,9 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
     // Parse request
     String[] pathSegments = SLASH.split(uri.getPath());
     if (pathSegments.length < 3) {
-      LOG.warn("Path doesn't match the pattern /invoke/SvcName/MethodName: '{}'", request.path());
+      LOG.warn(
+          "Path doesn't match the pattern /invoke/SvcName/MethodName nor /discover: '{}'",
+          request.path());
       request.response().setStatusCode(NOT_FOUND.code()).end();
       return;
     }

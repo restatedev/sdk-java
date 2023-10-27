@@ -136,7 +136,11 @@ public class RestateGrpcServer {
 
   public Discovery.ServiceDiscoveryResponse handleDiscoveryRequest(
       Discovery.ServiceDiscoveryRequest request) {
-    return this.serviceDiscoveryHandler.handle(request);
+    Discovery.ServiceDiscoveryResponse response = this.serviceDiscoveryHandler.handle(request);
+    LOG.info(
+        "Replying to service discovery request with services [{}]",
+        String.join(",", response.getServicesList()));
+    return response;
   }
 
   // -- Builder
