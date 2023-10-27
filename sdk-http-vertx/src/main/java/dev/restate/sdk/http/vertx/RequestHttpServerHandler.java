@@ -11,6 +11,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.util.AsciiString;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.context.propagation.TextMapGetter;
+import io.reactiverse.contextual.logging.ContextualData;
 import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
@@ -106,6 +107,18 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
               serviceName,
               methodName,
               otelContext,
+              new RestateGrpcServer.LoggingContextSetter() {
+                @Override
+                public void setServiceMethod(String serviceMethod) {
+                  ContextualData.put(
+                      RestateGrpcServer.LoggingContextSetter.SERVICE_METHOD_KEY, serviceMethod);
+                }
+
+                @Override
+                public void setInvocationId(String id) {
+                  ContextualData.put(RestateGrpcServer.LoggingContextSetter.INVOCATION_ID_KEY, id);
+                }
+              },
               isBlockingService ? currentContextExecutor(vertxCurrentContext) : null,
               isBlockingService ? blockingExecutor(serviceName) : null);
     } catch (ProtocolException e) {

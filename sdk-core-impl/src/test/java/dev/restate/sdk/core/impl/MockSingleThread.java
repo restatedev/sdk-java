@@ -8,6 +8,7 @@ import dev.restate.sdk.core.impl.TestDefinitions.TestDefinition;
 import dev.restate.sdk.core.impl.TestDefinitions.TestExecutor;
 import io.grpc.ServerServiceDefinition;
 import java.time.Duration;
+import org.apache.logging.log4j.ThreadContext;
 
 public final class MockSingleThread implements TestExecutor {
 
@@ -35,6 +36,7 @@ public final class MockSingleThread implements TestExecutor {
             svc.getServiceDescriptor().getName(),
             definition.getMethod(),
             io.opentelemetry.context.Context.current(),
+            RestateGrpcServer.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
             null,
             null);
 
@@ -54,5 +56,8 @@ public final class MockSingleThread implements TestExecutor {
         .succeedsWithin(Duration.ZERO)
         .satisfies(definition.getOutputAssert());
     assertThat(inputPublisher.isSubscriptionCancelled()).isTrue();
+
+    // Clean logging
+    ThreadContext.clearAll();
   }
 }

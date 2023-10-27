@@ -6,10 +6,7 @@ import dev.restate.generated.ext.ServiceType;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.core.impl.InvocationFlow;
-import dev.restate.sdk.core.impl.InvocationHandler;
-import dev.restate.sdk.core.impl.MessageHeader;
-import dev.restate.sdk.core.impl.RestateGrpcServer;
+import dev.restate.sdk.core.impl.*;
 import io.grpc.*;
 import io.grpc.protobuf.ProtoMethodDescriptorSupplier;
 import java.nio.ByteBuffer;
@@ -99,7 +96,13 @@ public final class TestRestateRuntime {
 
     // Create invocation handler on the side of the service
     InvocationHandler serviceInvocationStateMachineHandler =
-        server.resolve(serviceName, method, io.opentelemetry.context.Context.current(), null, null);
+        server.resolve(
+            serviceName,
+            method,
+            io.opentelemetry.context.Context.current(),
+            RestateGrpcServer.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
+            null,
+            null);
 
     // Get the key of the instance. Either value of key, random value (unkeyed service) or empty
     // value (singleton).

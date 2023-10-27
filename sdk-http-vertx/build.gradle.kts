@@ -26,6 +26,7 @@ dependencies {
   implementation(platform(coreLibs.opentelemetry.bom))
   implementation(coreLibs.opentelemetry.api)
   implementation(coreLibs.log4j.api)
+  implementation("io.reactiverse:reactiverse-contextual-logging:1.1.2")
 
   testImplementation(project(":sdk-java-blocking"))
   testImplementation(project(":sdk-kotlin"))

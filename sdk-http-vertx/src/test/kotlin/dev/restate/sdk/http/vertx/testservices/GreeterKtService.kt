@@ -7,11 +7,16 @@ import dev.restate.sdk.core.impl.testservices.greetingResponse
 import dev.restate.sdk.kotlin.RestateCoroutineService
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration.Companion.seconds
+import org.apache.logging.log4j.LogManager
 
 class GreeterKtService(coroutineContext: CoroutineContext) :
     GreeterGrpcKt.GreeterCoroutineImplBase(coroutineContext), RestateCoroutineService {
 
+  private val LOG = LogManager.getLogger(GreeterKtService::class.java)
+
   override suspend fun greet(request: GreetingRequest): GreetingResponse {
+    LOG.info("Greet invoked!")
+
     val count = (restateContext().get(BlockingGreeterService.COUNTER) ?: 0) + 1
     restateContext().set(BlockingGreeterService.COUNTER, count)
 

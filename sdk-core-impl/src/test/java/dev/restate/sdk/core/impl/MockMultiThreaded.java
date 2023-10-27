@@ -8,6 +8,7 @@ import io.grpc.ServerServiceDefinition;
 import java.time.Duration;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import org.apache.logging.log4j.ThreadContext;
 
 public final class MockMultiThreaded implements TestDefinitions.TestExecutor {
 
@@ -38,6 +39,7 @@ public final class MockMultiThreaded implements TestDefinitions.TestExecutor {
             svc.getServiceDescriptor().getName(),
             definition.getMethod(),
             io.opentelemetry.context.Context.current(),
+            RestateGrpcServer.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
             syscallsExecutor,
             userExecutor);
 
@@ -65,5 +67,8 @@ public final class MockMultiThreaded implements TestDefinitions.TestExecutor {
         .succeedsWithin(Duration.ofSeconds(1))
         .satisfies(definition.getOutputAssert());
     assertThat(inputPublisher.isSubscriptionCancelled()).isTrue();
+
+    // Clean logging
+    ThreadContext.clearAll();
   }
 }
