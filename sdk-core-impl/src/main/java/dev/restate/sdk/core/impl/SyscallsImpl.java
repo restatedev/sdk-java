@@ -203,7 +203,7 @@ public final class SyscallsImpl implements SyscallsInternal {
 
     // If it's a non-terminal exception (such as a protocol exception),
     // we don't write it but simply throw it
-    if (!(isTerminalException(toWrite))) {
+    if (!isTerminalException(toWrite)) {
       // For safety wrt Syscalls API we do this check and wrapping,
       // but with the current APIs the exception should always be RuntimeException
       // because that's what can be thrown inside a lambda

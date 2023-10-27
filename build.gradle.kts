@@ -93,6 +93,13 @@ subprojects {
     sourceCompatibility = "11"
 
     options.errorprone.disableWarningsInGeneratedCode.set(true)
+    options.errorprone.disable(
+        // We use toString() in proto messages for debugging reasons.
+        "LiteProtoToString",
+        // This check is proposing to use a guava API instead...
+        "StringSplitter",
+        // This is conflicting with a javadoc warn lint
+        "MissingSummary")
     options.errorprone.excludedPaths.set(".*/build/generated/.*")
   }
 

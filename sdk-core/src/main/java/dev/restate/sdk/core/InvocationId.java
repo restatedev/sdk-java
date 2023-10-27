@@ -10,9 +10,12 @@ import io.grpc.Context;
  */
 public interface InvocationId {
 
+  /** gRPC {@link Context} key for invocation id. */
   Context.Key<InvocationId> INVOCATION_ID_KEY = Context.key("restate.dev/service_invocation_id");
 
-  /** Retrieves the current invocation id from the current gRPC {@link Context}. */
+  /**
+   * @return the current invocation id from the current gRPC {@link Context}.
+   */
   static InvocationId current() {
     return INVOCATION_ID_KEY.get();
   }

@@ -125,6 +125,7 @@ public final class TestRestateRuntime {
     serviceInvocationStateMachineHandler.start();
   }
 
+  @SuppressWarnings("unchecked")
   private Object extractKey(
       String serviceName, String methodName, Protocol.PollInputStreamEntryMessage message) {
     LOG.debug("Extracting key for service {} and method {}", serviceName, methodName);
@@ -392,6 +393,7 @@ public final class TestRestateRuntime {
       }
     }
 
+    @SuppressWarnings("FutureReturnValueIgnored")
     public void handleInvokeEntryMessage(Protocol.InvokeEntryMessage msg) {
       String invocationId = UUID.randomUUID().toString();
       CompletableFuture<? super MessageLite> future = new CompletableFuture<>();
@@ -417,6 +419,7 @@ public final class TestRestateRuntime {
           Protocol.PollInputStreamEntryMessage.newBuilder().setValue(msg.getParameter()).build());
     }
 
+    @SuppressWarnings("FutureReturnValueIgnored")
     public void handleAwakeableEntryMessage() {
       CompletableFuture<? super MessageLite> future = new CompletableFuture<>();
       future.handle(

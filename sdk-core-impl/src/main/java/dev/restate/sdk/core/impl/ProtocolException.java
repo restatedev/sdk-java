@@ -11,6 +11,7 @@ public class ProtocolException extends RuntimeException {
   static final int JOURNAL_MISMATCH_CODE = 32;
   static final int PROTOCOL_VIOLATION = 33;
 
+  @SuppressWarnings("StaticAssignmentOfThrowable")
   static final ProtocolException CLOSED = new ProtocolException("Invocation closed");
 
   private final int failureCode;

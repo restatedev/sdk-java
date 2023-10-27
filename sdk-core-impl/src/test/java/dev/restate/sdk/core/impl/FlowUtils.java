@@ -60,20 +60,21 @@ public class FlowUtils {
     @Override
     public void subscribe(Flow.Subscriber<? super T> subscriber) {
       subscriber.onSubscribe(
-          new MockSubscription<>(subscriber, new ArrayDeque<>(elements), subscriptionCancelled));
+          new BufferedMockSubscription<>(
+              subscriber, new ArrayDeque<>(elements), subscriptionCancelled));
     }
 
     public boolean isSubscriptionCancelled() {
       return subscriptionCancelled.get();
     }
 
-    private static class MockSubscription<T> implements Flow.Subscription {
+    private static class BufferedMockSubscription<T> implements Flow.Subscription {
 
       private final Flow.Subscriber<? super T> subscriber;
       private final Queue<T> queue;
       private final AtomicBoolean cancelled;
 
-      private MockSubscription(
+      private BufferedMockSubscription(
           Flow.Subscriber<? super T> subscriber,
           Queue<T> queue,
           AtomicBoolean subscriptionCancelled) {
@@ -105,11 +106,11 @@ public class FlowUtils {
 
   public static class UnbufferedMockPublisher<T> implements Flow.Publisher<T> {
 
-    private MockSubscription<T> subscription;
+    private UnbufferedMockSubscription<T> subscription;
 
     @Override
     public void subscribe(Flow.Subscriber<? super T> subscriber) {
-      this.subscription = new MockSubscription<>(subscriber);
+      this.subscription = new UnbufferedMockSubscription<>(subscriber);
       subscriber.onSubscribe(this.subscription);
     }
 
@@ -125,7 +126,7 @@ public class FlowUtils {
       Objects.requireNonNull(this.subscription).onClose();
     }
 
-    private static class MockSubscription<T> implements Flow.Subscription {
+    private static class UnbufferedMockSubscription<T> implements Flow.Subscription {
 
       private final Flow.Subscriber<? super T> subscriber;
       private final Queue<T> queue;
@@ -133,7 +134,7 @@ public class FlowUtils {
       private long request = 0;
       private boolean cancelled = false;
 
-      private MockSubscription(Flow.Subscriber<? super T> subscriber) {
+      private UnbufferedMockSubscription(Flow.Subscriber<? super T> subscriber) {
         this.subscriber = subscriber;
         this.queue = new ArrayDeque<>();
       }

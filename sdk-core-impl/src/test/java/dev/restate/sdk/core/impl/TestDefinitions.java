@@ -120,6 +120,7 @@ public final class TestDefinitions {
       this.input = new ArrayList<>(input);
     }
 
+    @Override
     public WithInputBuilder withInput(MessageLiteOrBuilder... messages) {
       if (this.invalidReason == null) {
         this.input.addAll(

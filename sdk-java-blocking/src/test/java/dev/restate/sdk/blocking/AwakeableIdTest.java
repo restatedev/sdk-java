@@ -23,6 +23,7 @@ public class AwakeableIdTest extends AwakeableIdTestSuite {
     }
   }
 
+  @Override
   protected BindableService returnAwakeableId() {
     return new ReturnAwakeableId();
   }
