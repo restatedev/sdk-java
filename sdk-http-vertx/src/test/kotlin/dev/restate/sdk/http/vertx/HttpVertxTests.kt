@@ -2,7 +2,7 @@ package dev.restate.sdk.http.vertx
 
 import com.google.protobuf.ByteString
 import dev.restate.generated.sdk.java.Java.SideEffectEntryMessage
-import dev.restate.sdk.blocking.StateTest
+import dev.restate.sdk.blocking.RestateBlockingService
 import dev.restate.sdk.core.impl.ProtoUtils.*
 import dev.restate.sdk.core.impl.TestDefinitions.*
 import dev.restate.sdk.core.impl.TestRunner
@@ -11,6 +11,7 @@ import dev.restate.sdk.core.impl.testservices.GreeterGrpcKt
 import dev.restate.sdk.core.impl.testservices.GreetingRequest
 import dev.restate.sdk.core.impl.testservices.GreetingResponse
 import dev.restate.sdk.kotlin.RestateCoroutineService
+import io.grpc.stub.StreamObserver
 import io.vertx.core.Vertx
 import java.util.stream.Stream
 import kotlinx.coroutines.Dispatchers
@@ -35,8 +36,8 @@ class HttpVertxTests : TestRunner() {
     return Stream.of(HttpVertxTestExecutor(vertx))
   }
 
-  class VertxKotlinTest : TestSuite {
-    private class CheckCorrectThread :
+  class VertxExecutorsTest : TestSuite {
+    private class CheckNonBlockingServiceTrampolineEventLoopContext :
         GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
       override suspend fun greet(request: GreetingRequest): GreetingResponse {
         check(Vertx.currentContext().isEventLoopContext)
@@ -46,9 +47,35 @@ class HttpVertxTests : TestRunner() {
       }
     }
 
+    private class CheckBlockingServiceTrampolineExecutor :
+        GreeterGrpc.GreeterImplBase(), RestateBlockingService {
+      override fun greet(
+          request: GreetingRequest,
+          responseObserver: StreamObserver<GreetingResponse>
+      ) {
+        val id = Thread.currentThread().id
+        check(Vertx.currentContext() == null)
+        restateContext().sideEffect {
+          check(Thread.currentThread().id == id)
+          check(Vertx.currentContext() == null)
+        }
+        check(Thread.currentThread().id == id)
+        check(Vertx.currentContext() == null)
+        responseObserver.onNext(GreetingResponse.getDefaultInstance())
+        responseObserver.onCompleted()
+      }
+    }
+
     override fun definitions(): Stream<TestDefinition> {
       return Stream.of(
-          testInvocation(CheckCorrectThread(), GreeterGrpc.getGreetMethod())
+          testInvocation(
+                  CheckNonBlockingServiceTrampolineEventLoopContext(), GreeterGrpc.getGreetMethod())
+              .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
+              .onlyUnbuffered()
+              .expectingOutput(
+                  SideEffectEntryMessage.newBuilder().setValue(ByteString.EMPTY),
+                  outputMessage(GreetingResponse.getDefaultInstance())),
+          testInvocation(CheckBlockingServiceTrampolineExecutor(), GreeterGrpc.getGreetMethod())
               .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
               .onlyUnbuffered()
               .expectingOutput(
@@ -57,23 +84,12 @@ class HttpVertxTests : TestRunner() {
     }
   }
 
-  // Assert unconfined dispatcher
-  private class CheckCorrectThread :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
-    override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      check(Vertx.currentContext().isEventLoopContext)
-      restateContext().sideEffect { check(Vertx.currentContext().isEventLoopContext) }
-      check(Vertx.currentContext().isEventLoopContext)
-      return GreetingResponse.getDefaultInstance()
-    }
-  }
-
   override fun definitions(): Stream<TestSuite> {
     return Stream.of(
         dev.restate.sdk.blocking.AwakeableIdTest(),
         dev.restate.sdk.blocking.DeferredTest(),
         dev.restate.sdk.blocking.EagerStateTest(),
-        StateTest(),
+        dev.restate.sdk.blocking.StateTest(),
         dev.restate.sdk.blocking.InvocationIdTest(),
         dev.restate.sdk.blocking.OnlyInputAndOutputTest(),
         dev.restate.sdk.blocking.SideEffectTest(),
@@ -90,6 +106,6 @@ class HttpVertxTests : TestRunner() {
         dev.restate.sdk.kotlin.SleepTest(),
         dev.restate.sdk.kotlin.StateMachineFailuresTest(),
         dev.restate.sdk.kotlin.UserFailuresTest(),
-        VertxKotlinTest())
+        VertxExecutorsTest())
   }
 }

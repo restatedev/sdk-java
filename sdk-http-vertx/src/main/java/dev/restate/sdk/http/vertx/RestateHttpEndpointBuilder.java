@@ -15,6 +15,7 @@ import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import java.util.*;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -40,8 +41,8 @@ public class RestateHttpEndpointBuilder {
   private final Vertx vertx;
   private final RestateGrpcServer.Builder restateGrpcServerBuilder =
       RestateGrpcServer.newBuilder(Discovery.ProtocolMode.BIDI_STREAM);
-  private final HashSet<String> blockingServices = new HashSet<>();
-  private final HashMap<String, Executor> executors = new HashMap<>();
+  private final Executor defaultExecutor = Executors.newCachedThreadPool();
+  private final HashMap<String, Executor> blockingServices = new HashMap<>();
   private OpenTelemetry openTelemetry = OpenTelemetry.noop();
   private HttpServerOptions options =
       new HttpServerOptions()
@@ -76,11 +77,7 @@ public class RestateHttpEndpointBuilder {
    */
   public RestateHttpEndpointBuilder withService(
       BindableBlockingService service, ServerInterceptor... interceptors) {
-    ServerServiceDefinition definition =
-        ServerInterceptors.intercept(service, Arrays.asList(interceptors));
-    this.restateGrpcServerBuilder.withService(definition);
-    this.blockingServices.add(definition.getServiceDescriptor().getName());
-    return this;
+    return this.withService(service, defaultExecutor, interceptors);
   }
 
   /**
@@ -95,8 +92,7 @@ public class RestateHttpEndpointBuilder {
     ServerServiceDefinition definition =
         ServerInterceptors.intercept(service, Arrays.asList(interceptors));
     this.restateGrpcServerBuilder.withService(definition);
-    this.blockingServices.add(definition.getServiceDescriptor().getName());
-    this.executors.put(definition.getServiceDescriptor().getName(), executor);
+    this.blockingServices.put(definition.getServiceDescriptor().getName(), executor);
     return this;
   }
 
@@ -157,7 +153,7 @@ public class RestateHttpEndpointBuilder {
 
     server.requestHandler(
         new RequestHttpServerHandler(
-            this.restateGrpcServerBuilder.build(), blockingServices, executors, openTelemetry));
+            this.restateGrpcServerBuilder.build(), blockingServices, openTelemetry));
 
     return server;
   }
