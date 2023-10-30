@@ -178,6 +178,9 @@ sealed interface RestateContext {
 sealed interface Awaitable<T> {
   suspend fun await(): T
 
+  /** Clause for [select] operator. */
+  val onAwait: SelectClause<T>
+
   companion object {
     fun all(
         first: Awaitable<*>,
@@ -198,7 +201,19 @@ suspend fun <T> Collection<Awaitable<T>>.awaitAll(): List<T> {
   return awaitAll(*toTypedArray())
 }
 
-/** Like [kotlinx.coroutines.awaitAll], but for [Awaitable]. */
+/**
+ * Like [kotlinx.coroutines.awaitAll], but for [Awaitable].
+ *
+ * ```
+ *  val ctx = restateContext()
+ *  val a1 = ctx.callAsync(GreeterGrpcKt.greetMethod, greetingRequest { name = "Francesco" })
+ *  val a2 = ctx.callAsync(GreeterGrpcKt.greetMethod, greetingRequest { name = "Till" })
+ *
+ *  val result = listOf(a1, a2)
+ *    .awaitAll()
+ *    .joinToString(separator = "-", transform = GreetingResponse::getMessage)
+ * ```
+ */
 suspend fun <T> awaitAll(vararg awaitables: Awaitable<T>): List<T> {
   if (awaitables.isEmpty()) {
     return emptyList()
@@ -213,6 +228,34 @@ suspend fun <T> awaitAll(vararg awaitables: Awaitable<T>): List<T> {
 sealed interface AnyAwaitable : Awaitable<Any> {
   /** Same as [Awaitable.await], but returns the index of the first completed element. */
   suspend fun awaitIndex(): Int
+}
+
+/**
+ * Like [kotlinx.coroutines.selects.select], but for [Awaitable]
+ *
+ * ```
+ * val ctx = restateContext()
+ * val callAwaitable = ctx.callAsync(GreeterGrpcKt.greetMethod, greetingRequest { name = "Francesco" })
+ * val timeout = ctx.timer(10.seconds)
+ * val result = select {
+ *   callAwaitable.onAwait { it.message }
+ *   timeout.onAwait { throw TimeoutException() }
+ * }
+ * ```
+ */
+suspend inline fun <R> select(crossinline builder: SelectBuilder<R>.() -> Unit): R {
+  val selectImpl = SelectImplementation<R>()
+  builder.invoke(selectImpl)
+  return selectImpl.doSelect()
+}
+
+sealed interface SelectBuilder<in R> {
+  /** Registers a clause in this [select] expression. */
+  operator fun <T> SelectClause<T>.invoke(block: suspend (T) -> R)
+}
+
+sealed interface SelectClause<T> {
+  val awaitable: Awaitable<T>
 }
 
 /**
