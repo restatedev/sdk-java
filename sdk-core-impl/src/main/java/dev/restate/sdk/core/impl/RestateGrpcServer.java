@@ -20,10 +20,13 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.ThreadContext;
 
 public class RestateGrpcServer {
 
   private static final Logger LOG = LogManager.getLogger(RestateGrpcServer.class);
+  static final Context.Key<String> SERVICE_METHOD =
+      Context.key("restate.dev/logging_service_method");
 
   private final Map<String, ServerServiceDefinition> services;
   private final Serde serde;
@@ -46,6 +49,7 @@ public class RestateGrpcServer {
       String serviceName,
       String methodName,
       io.opentelemetry.context.Context otelContext,
+      LoggingContextSetter loggingContextSetter,
       @Nullable Executor syscallExecutor,
       @Nullable Executor serverCallListenerExecutor)
       throws ProtocolException {
@@ -54,9 +58,9 @@ public class RestateGrpcServer {
     if (svc == null) {
       throw ProtocolException.methodNotFound(serviceName, methodName);
     }
+    String serviceMethodName = serviceName + "/" + methodName;
     ServerMethodDefinition<MessageLite, MessageLite> method =
-        (ServerMethodDefinition<MessageLite, MessageLite>)
-            svc.getMethod(serviceName + "/" + methodName);
+        (ServerMethodDefinition<MessageLite, MessageLite>) svc.getMethod(serviceMethodName);
     if (method == null) {
       throw ProtocolException.methodNotFound(serviceName, methodName);
     }
@@ -71,6 +75,9 @@ public class RestateGrpcServer {
             .setAttribute(SemanticAttributes.RPC_SERVICE, serviceName)
             .setAttribute(SemanticAttributes.RPC_METHOD, methodName)
             .startSpan();
+
+    // Setup logging context
+    loggingContextSetter.setServiceMethod(serviceMethodName);
 
     // Instantiate state machine, syscall and grpc bridge
     InvocationStateMachine stateMachine = new InvocationStateMachine(serviceName, span);
@@ -100,10 +107,14 @@ public class RestateGrpcServer {
         LOG.debug("Start processing call to {}/{}", serviceName, methodName);
         stateMachine.start(
             invocationId -> {
+              // Set invocation id in logging context
+              loggingContextSetter.setInvocationId(invocationId.toString());
+
               // Create the listener and create the decorators chain
               ServerCall.Listener<MessageLite> grpcListener =
                   Contexts.interceptCall(
                       Context.current()
+                          .withValue(SERVICE_METHOD, serviceMethodName)
                           .withValue(InvocationId.INVOCATION_ID_KEY, invocationId)
                           .withValue(Syscalls.SYSCALLS_KEY, syscalls),
                       bridge,
@@ -125,7 +136,11 @@ public class RestateGrpcServer {
 
   public Discovery.ServiceDiscoveryResponse handleDiscoveryRequest(
       Discovery.ServiceDiscoveryRequest request) {
-    return this.serviceDiscoveryHandler.handle(request);
+    Discovery.ServiceDiscoveryResponse response = this.serviceDiscoveryHandler.handle(request);
+    LOG.info(
+        "Replying to service discovery request with services [{}]",
+        String.join(",", response.getServicesList()));
+    return response;
   }
 
   // -- Builder
@@ -179,5 +194,35 @@ public class RestateGrpcServer {
           serde,
           tracer);
     }
+  }
+
+  /**
+   * Interface to abstract setting the logging context variables.
+   *
+   * <p>In classic multithreaded environments, you can just use {@link
+   * LoggingContextSetter#THREAD_LOCAL_INSTANCE}, though the caller of {@link RestateGrpcServer}
+   * must take care of the cleanup of the thread local map.
+   */
+  public interface LoggingContextSetter {
+
+    String INVOCATION_ID_KEY = "restateInvocationId";
+    String SERVICE_METHOD_KEY = "restateServiceMethod";
+
+    LoggingContextSetter THREAD_LOCAL_INSTANCE =
+        new LoggingContextSetter() {
+          @Override
+          public void setServiceMethod(String serviceMethod) {
+            ThreadContext.put(INVOCATION_ID_KEY, serviceMethod);
+          }
+
+          @Override
+          public void setInvocationId(String id) {
+            ThreadContext.put(SERVICE_METHOD_KEY, id);
+          }
+        };
+
+    void setServiceMethod(String serviceMethod);
+
+    void setInvocationId(String id);
   }
 }

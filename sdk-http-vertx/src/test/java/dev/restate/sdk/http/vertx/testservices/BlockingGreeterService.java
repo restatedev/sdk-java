@@ -9,10 +9,13 @@ import dev.restate.sdk.core.impl.testservices.GreetingResponse;
 import io.grpc.stub.StreamObserver;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class BlockingGreeterService extends GreeterGrpc.GreeterImplBase
     implements RestateBlockingService {
 
+  private static final Logger LOG = LogManager.getLogger(BlockingGreeterService.class);
   public static final StateKey<Long> COUNTER =
       StateKey.of(
           "counter",
@@ -23,6 +26,8 @@ public class BlockingGreeterService extends GreeterGrpc.GreeterImplBase
   @Override
   public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
     // restateContext() is invoked everytime to make sure context propagation works!
+
+    LOG.info("Greet invoked!");
 
     var count = restateContext().get(COUNTER).orElse(0L) + 1;
     restateContext().set(COUNTER, count);

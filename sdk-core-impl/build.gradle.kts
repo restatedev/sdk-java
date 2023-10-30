@@ -24,6 +24,9 @@ dependencies {
   implementation(coreLibs.grpc.protobuf)
   implementation(coreLibs.log4j.api)
 
+  // We don't want a hard-dependency on it
+  compileOnly(coreLibs.log4j.core)
+
   implementation(platform(coreLibs.opentelemetry.bom))
   implementation(coreLibs.opentelemetry.api)
   implementation(coreLibs.opentelemetry.semconv)

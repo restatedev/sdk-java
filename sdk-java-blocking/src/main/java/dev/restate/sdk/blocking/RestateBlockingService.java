@@ -6,7 +6,7 @@ import dev.restate.sdk.core.syscalls.Syscalls;
 /**
  * Marker interface for Restate blocking services.
  *
- * <h3>Error handling</h3>
+ * <h2>Error handling</h2>
  *
  * The error handling of Restate services works as follows:
  *

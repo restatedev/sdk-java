@@ -11,7 +11,7 @@ import io.grpc.Context;
 public interface InvocationId {
 
   /** gRPC {@link Context} key for invocation id. */
-  Context.Key<InvocationId> INVOCATION_ID_KEY = Context.key("restate.dev/service_invocation_id");
+  Context.Key<InvocationId> INVOCATION_ID_KEY = Context.key("restate.dev/invocation_id");
 
   /**
    * @return the current invocation id from the current gRPC {@link Context}.

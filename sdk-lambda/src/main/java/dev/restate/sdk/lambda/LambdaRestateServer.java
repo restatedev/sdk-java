@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.ThreadContext;
 
 public final class LambdaRestateServer {
 
@@ -106,7 +107,14 @@ public final class LambdaRestateServer {
     // Resolve handler
     InvocationHandler handler;
     try {
-      handler = this.restateGrpcServer.resolve(service, method, otelContext, null, null);
+      handler =
+          this.restateGrpcServer.resolve(
+              service,
+              method,
+              otelContext,
+              RestateGrpcServer.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
+              null,
+              null);
     } catch (ProtocolException e) {
       LOG.warn("Error when resolving the grpc handler", e);
       return new APIGatewayProxyResponseEvent()
@@ -126,6 +134,9 @@ public final class LambdaRestateServer {
     // Because everything runs in the same thread, handler.start() should execute the whole
     // computation. Hence, we should have a result available at this point.
     byte[] responseBody = subscriber.getResult();
+
+    // Clear logging
+    ThreadContext.clearAll();
 
     final APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent();
     response.setHeaders(INVOKE_RESPONSE_HEADERS);
