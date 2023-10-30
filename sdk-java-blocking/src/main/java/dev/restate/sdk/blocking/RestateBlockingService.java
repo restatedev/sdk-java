@@ -24,6 +24,6 @@ public interface RestateBlockingService extends BindableBlockingService {
    * @return an instance of the {@link RestateContext}.
    */
   default RestateContext restateContext() {
-    return new RestateContextImpl(Syscalls.current());
+    return RestateContext.fromSyscalls(Syscalls.current());
   }
 }

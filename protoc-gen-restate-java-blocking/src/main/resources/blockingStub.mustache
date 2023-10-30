@@ -1,0 +1,89 @@
+{{#packageName}}
+package {{packageName}};
+{{/packageName}}
+
+import dev.restate.sdk.blocking.RestateContext;
+import dev.restate.sdk.blocking.Awaitable;
+import dev.restate.sdk.core.syscalls.Syscalls;
+import static {{packageName}}.{{serviceName}}Grpc.getServiceDescriptor;
+
+{{#deprecated}}
+@java.lang.Deprecated
+{{/deprecated}}
+public class {{className}} {
+    private {{className}}() {}
+
+    /**
+    * Create a new client.
+    */
+    public static {{serviceName}}RestateClient newClient() {
+        return newClient(RestateContext.fromSyscalls(Syscalls.current()));
+    }
+
+    /**
+     * Create a new client from the given {@link RestateContext}.
+     */
+    public static {{serviceName}}RestateClient newClient(RestateContext ctx) {
+        return new {{serviceName}}RestateClient(ctx);
+    }
+
+{{{javadoc}}}
+    public static final class {{serviceName}}RestateClient {
+        private final RestateContext ctx;
+
+        {{serviceName}}RestateClient(RestateContext ctx) {
+            this.ctx = ctx;
+        }
+
+        {{#methods}}
+        {{#deprecated}}@java.lang.Deprecated{{/deprecated}}
+{{{javadoc}}}
+        public Awaitable<{{outputType}}> {{methodName}}({{inputType}} request) {
+            return ctx.call({{packageName}}.{{serviceName}}Grpc.{{methodDescriptorGetter}}(), request);
+        }
+
+        {{/methods}}
+    }
+
+{{{javadoc}}}
+    public static abstract class {{serviceName}}RestateImplBase implements dev.restate.sdk.blocking.RestateBlockingService {
+
+        {{#methods}}
+        {{#deprecated}}
+        @java.lang.Deprecated
+        {{/deprecated}}
+{{{javadoc}}}
+        public {{outputType}} {{methodName}}(RestateContext context, {{inputType}} request) {
+            throw new io.grpc.StatusRuntimeException(io.grpc.Status.UNIMPLEMENTED);
+        }
+
+        {{/methods}}
+        @java.lang.Override public final io.grpc.ServerServiceDefinition bindService() {
+            return io.grpc.ServerServiceDefinition.builder(getServiceDescriptor())
+                    {{#methods}}
+                    .addMethod(
+                            {{packageName}}.{{serviceName}}Grpc.{{methodDescriptorGetter}}(),
+                            io.grpc.stub.ServerCalls.asyncUnaryCall(
+                                    new HandlerAdapter<{{inputType}}, {{outputType}}>(this::{{methodName}})))
+                    {{/methods}}
+                    .build();
+        }
+    }
+
+    private static final class HandlerAdapter<Req, Resp> implements
+        io.grpc.stub.ServerCalls.UnaryMethod<Req, Resp> {
+
+        private final java.util.function.BiFunction<RestateContext, Req, Resp> handler;
+
+        private HandlerAdapter(java.util.function.BiFunction<RestateContext, Req, Resp> handler) {
+            this.handler = handler;
+        }
+
+        @Override
+        public void invoke(Req request, io.grpc.stub.StreamObserver<Resp> responseObserver) {
+            responseObserver.onNext(handler.apply(RestateContext.fromSyscalls(Syscalls.current()), request));
+            responseObserver.onCompleted();
+        }
+    }
+
+}
