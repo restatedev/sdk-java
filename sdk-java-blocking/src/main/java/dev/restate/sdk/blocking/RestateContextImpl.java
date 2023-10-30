@@ -10,7 +10,6 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -72,7 +71,7 @@ class RestateContextImpl implements RestateContext {
   }
 
   @Override
-  public <T> T sideEffect(TypeTag<T> typeTag, Supplier<T> action) {
+  public <T> T sideEffect(TypeTag<T> typeTag, ThrowingSupplier<T> action) {
     CompletableFuture<CompletableFuture<T>> enterFut = new CompletableFuture<>();
     syscalls.enterSideEffectBlock(
         typeTag,

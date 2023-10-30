@@ -7,7 +7,6 @@ import dev.restate.sdk.core.serde.Serde;
 import io.grpc.MethodDescriptor;
 import java.time.Duration;
 import java.util.Optional;
-import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.NotThreadSafe;
 
@@ -104,8 +103,8 @@ public interface RestateContext {
   <T extends MessageLite> void delayedCall(
       MethodDescriptor<T, ? extends MessageLite> methodDescriptor, T parameter, Duration delay);
 
-  /** Shorthand for {@link #sideEffect(TypeTag, Supplier)}. */
-  default <T> T sideEffect(Class<T> clazz, Supplier<T> action) {
+  /** Shorthand for {@link #sideEffect(TypeTag, ThrowingSupplier)}. */
+  default <T> T sideEffect(Class<T> clazz, ThrowingSupplier<T> action) {
     return sideEffect(TypeTag.ofClass(clazz), action);
   }
 
@@ -120,10 +119,10 @@ public interface RestateContext {
    * @param <T> type of the return value.
    * @return value of the side effect operation.
    */
-  <T> T sideEffect(TypeTag<T> typeTag, Supplier<T> action);
+  <T> T sideEffect(TypeTag<T> typeTag, ThrowingSupplier<T> action);
 
-  /** Like {@link #sideEffect(TypeTag, Supplier)}, but without returning a value. */
-  default void sideEffect(Runnable runnable) {
+  /** Like {@link #sideEffect(TypeTag, ThrowingSupplier)}, but without returning a value. */
+  default void sideEffect(ThrowingRunnable runnable) {
     sideEffect(
         TypeTag.VOID,
         () -> {
