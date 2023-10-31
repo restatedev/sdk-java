@@ -8,7 +8,10 @@ plugins {
 }
 
 dependencies {
-  implementation("com.salesforce.servicelibs:jprotoc:1.2.2")
+  compileOnly(coreLibs.javax.annotation.api)
+  implementation("com.salesforce.servicelibs:jprotoc:1.2.2") {
+    exclude("javax.annotation", "javax.annotation-api")
+  }
   implementation(project(":sdk-core"))
 }
 
