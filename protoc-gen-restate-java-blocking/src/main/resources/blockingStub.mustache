@@ -5,6 +5,7 @@ package {{packageName}};
 import dev.restate.sdk.blocking.RestateContext;
 import dev.restate.sdk.blocking.Awaitable;
 import dev.restate.sdk.core.syscalls.Syscalls;
+import java.time.Duration;
 import static {{packageName}}.{{serviceName}}Grpc.getServiceDescriptor;
 
 {{#deprecated}}
@@ -40,6 +41,18 @@ public class {{className}} {
 {{{javadoc}}}
         public Awaitable<{{outputType}}> {{methodName}}({{inputType}} request) {
             return ctx.call({{packageName}}.{{serviceName}}Grpc.{{methodDescriptorGetter}}(), request);
+        }
+
+        {{#deprecated}}@java.lang.Deprecated{{/deprecated}}
+{{{javadoc}}}
+        public void {{methodName}}Delayed({{inputType}} request, Duration delay) {
+            ctx.delayedCall({{packageName}}.{{serviceName}}Grpc.{{methodDescriptorGetter}}(), request, delay);
+        }
+
+        {{#deprecated}}@java.lang.Deprecated{{/deprecated}}
+{{{javadoc}}}
+        public void {{methodName}}OneWay({{inputType}} request) {
+            ctx.oneWayCall({{packageName}}.{{serviceName}}Grpc.{{methodDescriptorGetter}}(), request);
         }
 
         {{/methods}}
