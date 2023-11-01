@@ -34,7 +34,7 @@ import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public final class SyscallsImpl implements SyscallsInternal {
+public final class SyscallsImpl extends SyscallsInternal {
 
   private static final Logger LOG = LogManager.getLogger(SyscallsImpl.class);
 
@@ -287,6 +287,11 @@ public final class SyscallsImpl implements SyscallsInternal {
   public <T> void resolveDeferred(
       DeferredResult<T> deferredToResolve, SyscallCallback<Void> callback) {
     this.stateMachine.resolveDeferred(deferredToResolve, callback);
+  }
+
+  @Override
+  void startCompensating() {
+    this.stateMachine.startCompensating();
   }
 
   @Override

@@ -162,4 +162,18 @@ class RestateContextImpl implements RestateContext {
       }
     };
   }
+
+  @Override
+  public void compensate(Runnable runnable) {
+    syscalls.registerCompensation(
+        cb -> {
+          try {
+            runnable.run();
+          } catch (Throwable e) {
+            cb.onCancel(e);
+            return;
+          }
+          cb.onSuccess(null);
+        });
+  }
 }
