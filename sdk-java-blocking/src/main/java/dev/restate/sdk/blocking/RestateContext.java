@@ -1,6 +1,5 @@
 package dev.restate.sdk.blocking;
 
-import com.google.protobuf.MessageLite;
 import dev.restate.sdk.core.StateKey;
 import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.core.serde.Serde;
@@ -76,8 +75,7 @@ public interface RestateContext {
    * @param parameter the invocation request parameter.
    * @return an {@link Awaitable} that wraps the Restate service method result.
    */
-  <T extends MessageLite, R extends MessageLite> Awaitable<R> call(
-      MethodDescriptor<T, R> methodDescriptor, T parameter);
+  <T, R> Awaitable<R> call(MethodDescriptor<T, R> methodDescriptor, T parameter);
 
   /**
    * Invoke another Restate service without waiting for the response.
@@ -86,8 +84,7 @@ public interface RestateContext {
    *     generated `*Grpc` class.
    * @param parameter the invocation request parameter.
    */
-  <T extends MessageLite> void oneWayCall(
-      MethodDescriptor<T, ? extends MessageLite> methodDescriptor, T parameter);
+  <T> void oneWayCall(MethodDescriptor<T, ?> methodDescriptor, T parameter);
 
   /**
    * Invoke another Restate service without waiting for the response after the provided {@code
@@ -100,8 +97,7 @@ public interface RestateContext {
    * @param parameter the invocation request parameter.
    * @param delay time to wait before executing the call.
    */
-  <T extends MessageLite> void delayedCall(
-      MethodDescriptor<T, ? extends MessageLite> methodDescriptor, T parameter, Duration delay);
+  <T> void delayedCall(MethodDescriptor<T, ?> methodDescriptor, T parameter, Duration delay);
 
   /** Shorthand for {@link #sideEffect(TypeTag, ThrowingSupplier)}. */
   default <T> T sideEffect(Class<T> clazz, ThrowingSupplier<T> action) {

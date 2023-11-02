@@ -20,6 +20,7 @@ import dev.restate.sdk.core.syscalls.EnterSideEffectSyscallCallback;
 import dev.restate.sdk.core.syscalls.ExitSideEffectSyscallCallback;
 import dev.restate.sdk.core.syscalls.SyscallCallback;
 import io.grpc.MethodDescriptor;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.time.Instant;
@@ -124,7 +125,7 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public <T extends MessageLite, R extends MessageLite> void call(
+  public <T, R> void call(
       MethodDescriptor<T, R> methodDescriptor,
       T parameter,
       SyscallCallback<DeferredResult<R>> callback) {
@@ -136,15 +137,15 @@ public final class SyscallsImpl implements SyscallsInternal {
         Protocol.InvokeEntryMessage.newBuilder()
             .setServiceName(serviceName)
             .setMethodName(methodName)
-            .setParameter(parameter.toByteString())
+            .setParameter(serializeUsingMethodDescriptor(methodDescriptor, parameter))
             .build(),
         new InvokeEntry<>(protoDeserializer(i -> methodDescriptor.parseResponse(i.newInput()))),
         callback);
   }
 
   @Override
-  public <T extends MessageLite> void backgroundCall(
-      MethodDescriptor<T, ? extends MessageLite> methodDescriptor,
+  public <T> void backgroundCall(
+      MethodDescriptor<T, ?> methodDescriptor,
       T parameter,
       @Nullable Duration delay,
       SyscallCallback<Void> callback) {
@@ -156,7 +157,7 @@ public final class SyscallsImpl implements SyscallsInternal {
         Protocol.BackgroundInvokeEntryMessage.newBuilder()
             .setServiceName(serviceName)
             .setMethodName(methodName)
-            .setParameter(parameter.toByteString());
+            .setParameter(serializeUsingMethodDescriptor(methodDescriptor, parameter));
 
     if (delay != null) {
       builder.setInvokeTime(Instant.now().toEpochMilli() + delay.toMillis());
@@ -301,7 +302,16 @@ public final class SyscallsImpl implements SyscallsInternal {
 
   // --- Serde utils
 
-  private <T extends MessageLite> Function<ByteString, ReadyResultInternal<T>> protoDeserializer(
+  private <T> ByteString serializeUsingMethodDescriptor(
+      MethodDescriptor<T, ?> methodDescriptor, T parameter) {
+    try {
+      return ByteString.readFrom(methodDescriptor.getRequestMarshaller().stream(parameter));
+    } catch (IOException e) {
+      throw new RuntimeException("Cannot serialize the input parameter of the call", e);
+    }
+  }
+
+  private <T> Function<ByteString, ReadyResultInternal<T>> protoDeserializer(
       Function<ByteString, T> mapper) {
     return value -> ReadyResults.success(mapper.apply(value));
   }

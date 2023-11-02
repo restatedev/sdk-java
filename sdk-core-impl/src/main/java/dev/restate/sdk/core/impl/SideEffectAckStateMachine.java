@@ -10,6 +10,7 @@ class SideEffectAckStateMachine
   }
 
   private int lastAcknowledgedEntry = -1;
+
   /** -1 means no side effect waiting to be acked. */
   private int lastExecutedSideEffect = -1;
 

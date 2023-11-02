@@ -1,6 +1,5 @@
 package dev.restate.sdk.blocking;
 
-import com.google.protobuf.MessageLite;
 import dev.restate.sdk.core.StateKey;
 import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.core.syscalls.*;
@@ -50,22 +49,20 @@ class RestateContextImpl implements RestateContext {
   }
 
   @Override
-  public <T extends MessageLite, R extends MessageLite> Awaitable<R> call(
-      MethodDescriptor<T, R> methodDescriptor, T parameter) {
+  public <T, R> Awaitable<R> call(MethodDescriptor<T, R> methodDescriptor, T parameter) {
     DeferredResult<R> result =
         Util.blockOnSyscall(cb -> syscalls.call(methodDescriptor, parameter, cb));
     return new Awaitable<>(syscalls, result);
   }
 
   @Override
-  public <T extends MessageLite> void oneWayCall(
-      MethodDescriptor<T, ? extends MessageLite> methodDescriptor, T parameter) {
+  public <T> void oneWayCall(MethodDescriptor<T, ?> methodDescriptor, T parameter) {
     Util.<Void>blockOnSyscall(cb -> syscalls.backgroundCall(methodDescriptor, parameter, null, cb));
   }
 
   @Override
-  public <T extends MessageLite> void delayedCall(
-      MethodDescriptor<T, ? extends MessageLite> methodDescriptor, T parameter, Duration delay) {
+  public <T> void delayedCall(
+      MethodDescriptor<T, ?> methodDescriptor, T parameter, Duration delay) {
     Util.<Void>blockOnSyscall(
         cb -> syscalls.backgroundCall(methodDescriptor, parameter, delay, cb));
   }
