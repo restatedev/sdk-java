@@ -203,7 +203,12 @@ final class Entries {
     @Override
     void checkEntryHeader(SetStateEntryMessage expected, MessageLite actual)
         throws ProtocolException {
-      Util.assertEntryEquals(expected, actual);
+      if (!(actual instanceof SetStateEntryMessage)) {
+        throw ProtocolException.entryDoesNotMatch(expected, actual);
+      }
+      if (!expected.getKey().equals(((SetStateEntryMessage) actual).getKey())) {
+        throw ProtocolException.entryDoesNotMatch(expected, actual);
+      }
     }
 
     @Override
