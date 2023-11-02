@@ -244,8 +244,7 @@ final class Entries {
     }
   }
 
-  static final class InvokeEntry<R extends MessageLite>
-      extends CompletableJournalEntry<InvokeEntryMessage, R> {
+  static final class InvokeEntry<R> extends CompletableJournalEntry<InvokeEntryMessage, R> {
 
     private final Function<ByteString, ReadyResultInternal<R>> valueParser;
 

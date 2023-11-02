@@ -1,6 +1,5 @@
 package dev.restate.sdk.kotlin
 
-import com.google.protobuf.MessageLite
 import dev.restate.sdk.core.BindableNonBlockingService
 import dev.restate.sdk.core.StateKey
 import dev.restate.sdk.core.TypeTag
@@ -70,14 +69,11 @@ sealed interface RestateContext {
    * `call(methodDescriptor, parameter).await()`.
    *
    * @param methodDescriptor The method descriptor of the method to invoke. This is found in the
-   * generated `*Grpc` class.
+   *   generated `*Grpc` class.
    * @param parameter the invocation request parameter.
    * @return the invocation response.
    */
-  suspend fun <T : MessageLite, R : MessageLite> call(
-      methodDescriptor: MethodDescriptor<T, R>,
-      parameter: T
-  ): R {
+  suspend fun <T, R> call(methodDescriptor: MethodDescriptor<T, R>, parameter: T): R {
     return callAsync(methodDescriptor, parameter).await()
   }
 
@@ -85,26 +81,20 @@ sealed interface RestateContext {
    * Invoke another Restate service method.
    *
    * @param methodDescriptor The method descriptor of the method to invoke. This is found in the
-   * generated `*Grpc` class.
+   *   generated `*Grpc` class.
    * @param parameter the invocation request parameter.
    * @return an [Awaitable] that wraps the Restate service method result.
    */
-  suspend fun <T : MessageLite, R : MessageLite> callAsync(
-      methodDescriptor: MethodDescriptor<T, R>,
-      parameter: T
-  ): Awaitable<R>
+  suspend fun <T, R> callAsync(methodDescriptor: MethodDescriptor<T, R>, parameter: T): Awaitable<R>
 
   /**
    * Invoke another Restate service without waiting for the response.
    *
    * @param methodDescriptor The method descriptor of the method to invoke. This is found in the
-   * generated `*Grpc` class.
+   *   generated `*Grpc` class.
    * @param parameter the invocation request parameter.
    */
-  suspend fun <T : MessageLite, R : MessageLite> oneWayCall(
-      methodDescriptor: MethodDescriptor<T, R>,
-      parameter: T
-  )
+  suspend fun <T, R> oneWayCall(methodDescriptor: MethodDescriptor<T, R>, parameter: T)
 
   /**
    * Invoke another Restate service without waiting for the response after the provided `delay` has
@@ -113,11 +103,11 @@ sealed interface RestateContext {
    * This method returns immediately, as the timer is executed and awaited on Restate.
    *
    * @param methodDescriptor The method descriptor of the method to invoke. This is found in the
-   * generated `*Grpc` class.
+   *   generated `*Grpc` class.
    * @param parameter the invocation request parameter.
    * @param delay time to wait before executing the call
    */
-  suspend fun <T : MessageLite, R : MessageLite> delayedCall(
+  suspend fun <T, R> delayedCall(
       methodDescriptor: MethodDescriptor<T, R>,
       parameter: T,
       delay: Duration

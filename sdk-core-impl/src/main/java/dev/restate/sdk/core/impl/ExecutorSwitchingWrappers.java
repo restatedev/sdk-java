@@ -126,7 +126,7 @@ class ExecutorSwitchingWrappers {
     }
 
     @Override
-    public <T extends MessageLite, R extends MessageLite> void call(
+    public <T, R> void call(
         MethodDescriptor<T, R> methodDescriptor,
         T parameter,
         SyscallCallback<DeferredResult<R>> callback) {
@@ -134,8 +134,8 @@ class ExecutorSwitchingWrappers {
     }
 
     @Override
-    public <T extends MessageLite> void backgroundCall(
-        MethodDescriptor<T, ? extends MessageLite> methodDescriptor,
+    public <T> void backgroundCall(
+        MethodDescriptor<T, ?> methodDescriptor,
         T parameter,
         Duration delay,
         SyscallCallback<Void> requestCallback) {

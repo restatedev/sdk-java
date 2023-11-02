@@ -57,13 +57,13 @@ public interface Syscalls {
 
   void sleep(Duration duration, SyscallCallback<DeferredResult<Void>> callback);
 
-  <T extends MessageLite, R extends MessageLite> void call(
+  <T, R> void call(
       MethodDescriptor<T, R> methodDescriptor,
       T parameter,
       SyscallCallback<DeferredResult<R>> callback);
 
-  <T extends MessageLite> void backgroundCall(
-      MethodDescriptor<T, ? extends MessageLite> methodDescriptor,
+  <T> void backgroundCall(
+      MethodDescriptor<T, ?> methodDescriptor,
       T parameter,
       @Nullable Duration delay,
       SyscallCallback<Void> requestCallback);

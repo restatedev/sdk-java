@@ -96,6 +96,7 @@ class HttpVertxTests : TestRunner() {
         dev.restate.sdk.blocking.SleepTest(),
         dev.restate.sdk.blocking.StateMachineFailuresTest(),
         dev.restate.sdk.blocking.UserFailuresTest(),
+        dev.restate.sdk.blocking.GrpcChannelAdapterTest(),
         dev.restate.sdk.kotlin.AwakeableIdTest(),
         dev.restate.sdk.kotlin.DeferredTest(),
         dev.restate.sdk.kotlin.EagerStateTest(),

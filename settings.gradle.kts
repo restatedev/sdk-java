@@ -90,9 +90,9 @@ dependencyResolutionManagement {
       library("assertj", "org.assertj", "assertj-core").versionRef("assertj")
     }
     create("pluginLibs") {
-      plugin("spotless", "com.diffplug.spotless").version("6.6.1")
-      plugin("protobuf", "com.google.protobuf").version("0.9.1")
-      plugin("test-logger", "com.adarshr.test-logger").version("3.2.0")
+      plugin("spotless", "com.diffplug.spotless").version("6.22.0")
+      plugin("protobuf", "com.google.protobuf").version("0.9.4")
+      plugin("test-logger", "com.adarshr.test-logger").version("4.0.0")
     }
   }
 }

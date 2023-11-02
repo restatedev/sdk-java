@@ -1,6 +1,5 @@
 package dev.restate.sdk.kotlin
 
-import com.google.protobuf.MessageLite
 import dev.restate.sdk.core.*
 import dev.restate.sdk.core.syscalls.DeferredResult
 import dev.restate.sdk.core.syscalls.EnterSideEffectSyscallCallback
@@ -58,7 +57,7 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
     return UnitAwaitableImpl(syscalls, deferredResult)
   }
 
-  override suspend fun <T : MessageLite, R : MessageLite> callAsync(
+  override suspend fun <T, R> callAsync(
       methodDescriptor: MethodDescriptor<T, R>,
       parameter: T
   ): Awaitable<R> {
@@ -70,16 +69,13 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
     return NonNullAwaitableImpl(syscalls, deferredResult)
   }
 
-  override suspend fun <T : MessageLite, R : MessageLite> oneWayCall(
-      methodDescriptor: MethodDescriptor<T, R>,
-      parameter: T
-  ) {
+  override suspend fun <T, R> oneWayCall(methodDescriptor: MethodDescriptor<T, R>, parameter: T) {
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
       syscalls.backgroundCall(methodDescriptor, parameter, null, completingUnitContinuation(cont))
     }
   }
 
-  override suspend fun <T : MessageLite, R : MessageLite> delayedCall(
+  override suspend fun <T, R> delayedCall(
       methodDescriptor: MethodDescriptor<T, R>,
       parameter: T,
       delay: Duration
