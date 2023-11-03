@@ -1,8 +1,8 @@
 package dev.restate.sdk.http.vertx.testservices;
 
 import dev.restate.sdk.blocking.RestateBlockingService;
+import dev.restate.sdk.core.Serde;
 import dev.restate.sdk.core.StateKey;
-import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.core.impl.testservices.GreeterGrpc;
 import dev.restate.sdk.core.impl.testservices.GreetingRequest;
 import dev.restate.sdk.core.impl.testservices.GreetingResponse;
@@ -19,7 +19,7 @@ public class BlockingGreeterService extends GreeterGrpc.GreeterImplBase
   public static final StateKey<Long> COUNTER =
       StateKey.of(
           "counter",
-          TypeTag.using(
+          Serde.using(
               l -> l.toString().getBytes(StandardCharsets.UTF_8),
               v -> Long.parseLong(new String(v, StandardCharsets.UTF_8))));
 

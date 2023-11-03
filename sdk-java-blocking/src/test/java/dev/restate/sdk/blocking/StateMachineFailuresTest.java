@@ -2,8 +2,8 @@ package dev.restate.sdk.blocking;
 
 import static dev.restate.sdk.core.impl.ProtoUtils.greetingResponse;
 
+import dev.restate.sdk.core.Serde;
 import dev.restate.sdk.core.StateKey;
-import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.core.impl.StateMachineFailuresTestSuite;
 import dev.restate.sdk.core.impl.testservices.GreeterGrpc;
 import dev.restate.sdk.core.impl.testservices.GreetingRequest;
@@ -20,7 +20,7 @@ public class StateMachineFailuresTest extends StateMachineFailuresTestSuite {
     private static final StateKey<Integer> STATE =
         StateKey.of(
             "STATE",
-            TypeTag.using(
+            Serde.using(
                 i -> Integer.toString(i).getBytes(StandardCharsets.UTF_8),
                 b -> Integer.parseInt(new String(b, StandardCharsets.UTF_8))));
 
@@ -39,15 +39,15 @@ public class StateMachineFailuresTest extends StateMachineFailuresTestSuite {
 
   private static class SideEffectFailure extends GreeterGrpc.GreeterImplBase
       implements RestateBlockingService {
-    private final TypeTag<Integer> typeTag;
+    private final Serde<Integer> serde;
 
-    private SideEffectFailure(TypeTag<Integer> typeTag) {
-      this.typeTag = typeTag;
+    private SideEffectFailure(Serde<Integer> serde) {
+      this.serde = serde;
     }
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      restateContext().sideEffect(typeTag, () -> 0);
+      restateContext().sideEffect(serde, () -> 0);
 
       responseObserver.onNext(greetingResponse("Francesco"));
       responseObserver.onCompleted();
@@ -55,7 +55,7 @@ public class StateMachineFailuresTest extends StateMachineFailuresTestSuite {
   }
 
   @Override
-  protected BindableService sideEffectFailure(TypeTag<Integer> typeTag) {
-    return new SideEffectFailure(typeTag);
+  protected BindableService sideEffectFailure(Serde<Integer> serde) {
+    return new SideEffectFailure(serde);
   }
 }

@@ -1,6 +1,6 @@
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.core.TypeTag
+import dev.restate.sdk.core.CoreSerdes
 import dev.restate.sdk.core.impl.SideEffectTestSuite
 import dev.restate.sdk.core.impl.testservices.*
 import io.grpc.BindableService
@@ -13,7 +13,7 @@ class SideEffectTest : SideEffectTestSuite() {
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val ctx: RestateContext = restateContext()
-      val result = ctx.sideEffect(TypeTag.STRING_UTF8) { sideEffectOutput }
+      val result = ctx.sideEffect(CoreSerdes.STRING_UTF8) { sideEffectOutput }
       return greetingResponse { message = "Hello $result" }
     }
   }
@@ -26,9 +26,9 @@ class SideEffectTest : SideEffectTestSuite() {
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val ctx: RestateContext = restateContext()
-      val firstResult = ctx.sideEffect(TypeTag.STRING_UTF8) { sideEffectOutput }
+      val firstResult = ctx.sideEffect(CoreSerdes.STRING_UTF8) { sideEffectOutput }
       val secondResult =
-          ctx.sideEffect(TypeTag.STRING_UTF8) { firstResult.uppercase(Locale.getDefault()) }
+          ctx.sideEffect(CoreSerdes.STRING_UTF8) { firstResult.uppercase(Locale.getDefault()) }
       return greetingResponse { message = "Hello $secondResult" }
     }
   }
@@ -44,7 +44,7 @@ class SideEffectTest : SideEffectTestSuite() {
 
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val sideEffectThread =
-          restateContext().sideEffect(TypeTag.STRING_UTF8) { Thread.currentThread().name }
+          restateContext().sideEffect(CoreSerdes.STRING_UTF8) { Thread.currentThread().name }
       check(sideEffectThread.contains("CheckContextSwitchingTestCoroutine")) {
         "Side effect thread is not running within the same coroutine context of the handler method: $sideEffectThread"
       }
@@ -76,7 +76,7 @@ class SideEffectTest : SideEffectTestSuite() {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val ctx = restateContext()
       ctx.sideEffect { throw IllegalStateException("This should be replayed") }
-      ctx.awakeable(TypeTag.BYTES).await()
+      ctx.awakeable(CoreSerdes.BYTES).await()
       return greetingResponse { message = "Hello" }
     }
   }

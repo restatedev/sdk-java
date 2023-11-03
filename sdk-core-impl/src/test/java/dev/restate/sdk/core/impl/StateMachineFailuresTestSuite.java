@@ -6,7 +6,7 @@ import static dev.restate.sdk.core.impl.ProtoUtils.*;
 import static dev.restate.sdk.core.impl.TestDefinitions.*;
 
 import dev.restate.generated.sdk.java.Java;
-import dev.restate.sdk.core.TypeTag;
+import dev.restate.sdk.core.Serde;
 import dev.restate.sdk.core.impl.testservices.GreeterGrpc;
 import dev.restate.sdk.core.impl.testservices.GreetingRequest;
 import io.grpc.BindableService;
@@ -17,17 +17,17 @@ public abstract class StateMachineFailuresTestSuite implements TestSuite {
 
   protected abstract BindableService getState();
 
-  protected abstract BindableService sideEffectFailure(TypeTag<Integer> typeTag);
+  protected abstract BindableService sideEffectFailure(Serde<Integer> serde);
 
-  private static final TypeTag<Integer> FAILING_SERIALIZATION_INTEGER_TYPE_TAG =
-      TypeTag.using(
+  private static final Serde<Integer> FAILING_SERIALIZATION_INTEGER_TYPE_TAG =
+      Serde.using(
           i -> {
             throw new IllegalStateException("Cannot serialize integer");
           },
           b -> Integer.parseInt(new String(b, StandardCharsets.UTF_8)));
 
-  private static final TypeTag<Integer> FAILING_DESERIALIZATION_INTEGER_TYPE_TAG =
-      TypeTag.using(
+  private static final Serde<Integer> FAILING_DESERIALIZATION_INTEGER_TYPE_TAG =
+      Serde.using(
           i -> Integer.toString(i).getBytes(StandardCharsets.UTF_8),
           b -> {
             throw new IllegalStateException("Cannot deserialize integer");

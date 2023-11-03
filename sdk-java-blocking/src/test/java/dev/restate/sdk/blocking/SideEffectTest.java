@@ -2,7 +2,7 @@ package dev.restate.sdk.blocking;
 
 import static dev.restate.sdk.core.impl.ProtoUtils.greetingRequest;
 
-import dev.restate.sdk.core.TypeTag;
+import dev.restate.sdk.core.CoreSerdes;
 import dev.restate.sdk.core.impl.SideEffectTestSuite;
 import dev.restate.sdk.core.impl.testservices.GreeterGrpc;
 import dev.restate.sdk.core.impl.testservices.GreetingRequest;
@@ -26,7 +26,7 @@ public class SideEffectTest extends SideEffectTestSuite {
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
 
-      String result = ctx.sideEffect(TypeTag.STRING_UTF8, () -> this.sideEffectOutput);
+      String result = ctx.sideEffect(CoreSerdes.STRING_UTF8, () -> this.sideEffectOutput);
 
       responseObserver.onNext(GreetingResponse.newBuilder().setMessage("Hello " + result).build());
       responseObserver.onCompleted();
@@ -51,8 +51,8 @@ public class SideEffectTest extends SideEffectTestSuite {
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
 
-      String firstResult = ctx.sideEffect(TypeTag.STRING_UTF8, () -> this.sideEffectOutput);
-      String secondResult = ctx.sideEffect(TypeTag.STRING_UTF8, firstResult::toUpperCase);
+      String firstResult = ctx.sideEffect(CoreSerdes.STRING_UTF8, () -> this.sideEffectOutput);
+      String secondResult = ctx.sideEffect(CoreSerdes.STRING_UTF8, firstResult::toUpperCase);
 
       responseObserver.onNext(
           GreetingResponse.newBuilder().setMessage("Hello " + secondResult).build());
@@ -73,7 +73,8 @@ public class SideEffectTest extends SideEffectTestSuite {
       String currentThread = Thread.currentThread().getName();
 
       String sideEffectThread =
-          restateContext().sideEffect(TypeTag.STRING_UTF8, () -> Thread.currentThread().getName());
+          restateContext()
+              .sideEffect(CoreSerdes.STRING_UTF8, () -> Thread.currentThread().getName());
 
       if (!Objects.equals(currentThread, sideEffectThread)) {
         throw new IllegalStateException(
@@ -122,7 +123,7 @@ public class SideEffectTest extends SideEffectTestSuite {
           () -> {
             throw new IllegalStateException("This should be replayed");
           });
-      ctx.awakeable(TypeTag.BYTES).await();
+      ctx.awakeable(CoreSerdes.BYTES).await();
 
       responseObserver.onNext(GreetingResponse.newBuilder().setMessage("Hello").build());
       responseObserver.onCompleted();

@@ -2,8 +2,8 @@ package dev.restate.sdk.blocking;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.restate.sdk.core.CoreSerdes;
 import dev.restate.sdk.core.StateKey;
-import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.core.impl.EagerStateTestSuite;
 import dev.restate.sdk.core.impl.testservices.GreeterGrpc;
 import dev.restate.sdk.core.impl.testservices.GreetingRequest;
@@ -19,7 +19,7 @@ public class EagerStateTest extends EagerStateTestSuite {
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
 
-      boolean stateIsEmpty = ctx.get(StateKey.of("STATE", TypeTag.STRING_UTF8)).isEmpty();
+      boolean stateIsEmpty = ctx.get(StateKey.of("STATE", CoreSerdes.STRING_UTF8)).isEmpty();
 
       responseObserver.onNext(
           GreetingResponse.newBuilder().setMessage(String.valueOf(stateIsEmpty)).build());
@@ -37,7 +37,7 @@ public class EagerStateTest extends EagerStateTestSuite {
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
 
-      String state = ctx.get(StateKey.of("STATE", TypeTag.STRING_UTF8)).get();
+      String state = ctx.get(StateKey.of("STATE", CoreSerdes.STRING_UTF8)).get();
 
       responseObserver.onNext(GreetingResponse.newBuilder().setMessage(state).build());
       responseObserver.onCompleted();
@@ -55,10 +55,10 @@ public class EagerStateTest extends EagerStateTestSuite {
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
 
-      String oldState = ctx.get(StateKey.of("STATE", TypeTag.STRING_UTF8)).get();
-      ctx.set(StateKey.of("STATE", TypeTag.STRING_UTF8), oldState + request.getName());
+      String oldState = ctx.get(StateKey.of("STATE", CoreSerdes.STRING_UTF8)).get();
+      ctx.set(StateKey.of("STATE", CoreSerdes.STRING_UTF8), oldState + request.getName());
 
-      String newState = ctx.get(StateKey.of("STATE", TypeTag.STRING_UTF8)).get();
+      String newState = ctx.get(StateKey.of("STATE", CoreSerdes.STRING_UTF8)).get();
 
       responseObserver.onNext(GreetingResponse.newBuilder().setMessage(newState).build());
       responseObserver.onCompleted();
@@ -76,10 +76,10 @@ public class EagerStateTest extends EagerStateTestSuite {
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
 
-      String oldState = ctx.get(StateKey.of("STATE", TypeTag.STRING_UTF8)).get();
+      String oldState = ctx.get(StateKey.of("STATE", CoreSerdes.STRING_UTF8)).get();
 
-      ctx.clear(StateKey.of("STATE", TypeTag.STRING_UTF8));
-      assertThat(ctx.get(StateKey.of("STATE", TypeTag.STRING_UTF8))).isEmpty();
+      ctx.clear(StateKey.of("STATE", CoreSerdes.STRING_UTF8));
+      assertThat(ctx.get(StateKey.of("STATE", CoreSerdes.STRING_UTF8))).isEmpty();
 
       responseObserver.onNext(GreetingResponse.newBuilder().setMessage(oldState).build());
       responseObserver.onCompleted();

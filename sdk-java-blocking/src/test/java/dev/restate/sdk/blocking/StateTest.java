@@ -2,8 +2,9 @@ package dev.restate.sdk.blocking;
 
 import static dev.restate.sdk.core.impl.ProtoUtils.greetingResponse;
 
+import dev.restate.sdk.core.CoreSerdes;
+import dev.restate.sdk.core.Serde;
 import dev.restate.sdk.core.StateKey;
-import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.core.impl.StateTestSuite;
 import dev.restate.sdk.core.impl.testservices.GreeterGrpc;
 import dev.restate.sdk.core.impl.testservices.GreetingRequest;
@@ -18,7 +19,7 @@ public class StateTest extends StateTestSuite {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       String state =
-          restateContext().get(StateKey.of("STATE", TypeTag.STRING_UTF8)).orElse("Unknown");
+          restateContext().get(StateKey.of("STATE", CoreSerdes.STRING_UTF8)).orElse("Unknown");
 
       responseObserver.onNext(GreetingResponse.newBuilder().setMessage("Hello " + state).build());
       responseObserver.onCompleted();
@@ -36,9 +37,9 @@ public class StateTest extends StateTestSuite {
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
 
-      String state = ctx.get(StateKey.of("STATE", TypeTag.STRING_UTF8)).get();
+      String state = ctx.get(StateKey.of("STATE", CoreSerdes.STRING_UTF8)).get();
 
-      ctx.set(StateKey.of("STATE", TypeTag.STRING_UTF8), request.getName());
+      ctx.set(StateKey.of("STATE", CoreSerdes.STRING_UTF8), request.getName());
 
       responseObserver.onNext(GreetingResponse.newBuilder().setMessage("Hello " + state).build());
       responseObserver.onCompleted();
@@ -58,7 +59,7 @@ public class StateTest extends StateTestSuite {
           .set(
               StateKey.of(
                   "STATE",
-                  TypeTag.<String>using(
+                  Serde.<String>using(
                       l -> {
                         throw new IllegalStateException("Unexpected call to serde fn");
                       },

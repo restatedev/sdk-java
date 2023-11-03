@@ -1,7 +1,7 @@
 package dev.restate.sdk.kotlin
 
+import dev.restate.sdk.core.CoreSerdes
 import dev.restate.sdk.core.StateKey
-import dev.restate.sdk.core.TypeTag
 import dev.restate.sdk.core.impl.StateTestSuite
 import dev.restate.sdk.core.impl.testservices.GreeterGrpcKt
 import dev.restate.sdk.core.impl.testservices.GreetingRequest
@@ -15,7 +15,7 @@ class StateTest : StateTestSuite() {
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val state: String =
-          restateContext().get(StateKey.of("STATE", TypeTag.STRING_UTF8)) ?: "Unknown"
+          restateContext().get(StateKey.of("STATE", CoreSerdes.STRING_UTF8)) ?: "Unknown"
       return greetingResponse { message = "Hello $state" }
     }
   }
@@ -29,8 +29,8 @@ class StateTest : StateTestSuite() {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val ctx = restateContext()
 
-      val state = ctx.get(StateKey.of("STATE", TypeTag.STRING_UTF8))!!
-      ctx.set(StateKey.of("STATE", TypeTag.STRING_UTF8), request.getName())
+      val state = ctx.get(StateKey.of("STATE", CoreSerdes.STRING_UTF8))!!
+      ctx.set(StateKey.of("STATE", CoreSerdes.STRING_UTF8), request.getName())
 
       return greetingResponse { message = "Hello $state" }
     }
