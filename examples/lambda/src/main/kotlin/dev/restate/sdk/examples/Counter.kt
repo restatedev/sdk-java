@@ -1,6 +1,7 @@
 package dev.restate.sdk.examples
 
 import com.google.protobuf.Empty
+import dev.restate.sdk.core.CoreSerdes
 import dev.restate.sdk.core.StateKey
 import dev.restate.sdk.examples.generated.*
 import dev.restate.sdk.kotlin.RestateCoroutineService
@@ -15,7 +16,7 @@ class Counter :
 
   private val LOG = LogManager.getLogger(BlockingCounter::class.java)
 
-  private val TOTAL = StateKey.of("total", Long::class.java)
+  private val TOTAL = StateKey.of("total", CoreSerdes.LONG)
 
   override suspend fun reset(request: CounterRequest): Empty {
     restateContext().clear(TOTAL)

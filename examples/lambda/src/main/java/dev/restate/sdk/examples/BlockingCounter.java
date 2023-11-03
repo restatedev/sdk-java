@@ -3,6 +3,7 @@ package dev.restate.sdk.examples;
 import com.google.protobuf.Empty;
 import dev.restate.sdk.blocking.RestateBlockingService;
 import dev.restate.sdk.blocking.RestateContext;
+import dev.restate.sdk.core.CoreSerdes;
 import dev.restate.sdk.core.StateKey;
 import dev.restate.sdk.examples.generated.*;
 import io.grpc.stub.StreamObserver;
@@ -13,7 +14,7 @@ public class BlockingCounter extends CounterGrpc.CounterImplBase implements Rest
 
   private static final Logger LOG = LogManager.getLogger(BlockingCounter.class);
 
-  private static final StateKey<Long> TOTAL = StateKey.of("total", Long.class);
+  private static final StateKey<Long> TOTAL = StateKey.of("total", CoreSerdes.LONG);
 
   @Override
   public void reset(CounterRequest request, StreamObserver<Empty> responseObserver) {
