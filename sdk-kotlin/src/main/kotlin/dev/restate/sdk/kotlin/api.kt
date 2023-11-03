@@ -1,8 +1,9 @@
 package dev.restate.sdk.kotlin
 
 import dev.restate.sdk.core.BindableNonBlockingService
+import dev.restate.sdk.core.CoreSerdes
+import dev.restate.sdk.core.Serde
 import dev.restate.sdk.core.StateKey
-import dev.restate.sdk.core.TypeTag
 import dev.restate.sdk.core.syscalls.Syscalls
 import io.grpc.MethodDescriptor
 import java.util.*
@@ -119,16 +120,16 @@ sealed interface RestateContext {
    *
    * <p>Use this function if you want to perform non-deterministic operations.
    *
-   * @param typeTag the type tag of the return value, used to serialize/deserialize it.
+   * @param serde the type tag of the return value, used to serialize/deserialize it.
    * @param sideEffectAction to execute for its side effects.
    * @param T type of the return value.
    * @return value of the side effect operation.
    */
-  suspend fun <T : Any?> sideEffect(typeTag: TypeTag<T>, sideEffectAction: suspend () -> T): T
+  suspend fun <T : Any?> sideEffect(serde: Serde<T>, sideEffectAction: suspend () -> T): T
 
   /** Like [sideEffect] without a return value. */
   suspend fun sideEffect(sideEffectAction: suspend () -> Unit) {
-    sideEffect(TypeTag.VOID) {
+    sideEffect(CoreSerdes.VOID) {
       sideEffectAction()
       null
     }
@@ -141,11 +142,11 @@ sealed interface RestateContext {
    * you can send a Kafka record including the [Awakeable.id], and then let another service consume
    * from Kafka the responses of given external system interaction by using [awakeableHandle].
    *
-   * @param typeTag the response type tag to use for deserializing the [Awakeable] result.
+   * @param serde the response type tag to use for deserializing the [Awakeable] result.
    * @return the [Awakeable] to await on.
    * @see Awakeable
    */
-  suspend fun <T> awakeable(typeTag: TypeTag<T>): Awakeable<T>
+  suspend fun <T> awakeable(serde: Serde<T>): Awakeable<T>
 
   /**
    * Create a new [AwakeableHandle] for the provided identifier. You can use it to
@@ -269,11 +270,11 @@ sealed interface AwakeableHandle {
   /**
    * Complete with success the [Awakeable].
    *
-   * @param typeTag used to serialize the [Awakeable] result payload.
+   * @param serde used to serialize the [Awakeable] result payload.
    * @param payload the result payload.
    * @see Awakeable
    */
-  suspend fun <T : Any> resolve(typeTag: TypeTag<T>, payload: T)
+  suspend fun <T : Any> resolve(serde: Serde<T>, payload: T)
 
   /**
    * Complete with failure the [Awakeable].
