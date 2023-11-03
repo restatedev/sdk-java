@@ -55,7 +55,7 @@ jobs:
       pull-requests: write
       actions: read
     secrets: inherit
-    uses: restatedev/e2e/.github/workflows/e2e.yaml@java-snapshot
+    uses: restatedev/e2e/.github/workflows/e2e.yaml@main
     with:
       sdkJavaCommit: ${{ github.event.pull_request.head.sha || github.sha }}
-      e2eRef: java-snapshot
+      e2eRef: main
