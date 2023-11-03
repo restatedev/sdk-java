@@ -1,8 +1,10 @@
 package dev.restate.sdk.blocking;
 
+import dev.restate.sdk.core.CoreSerdes;
+import dev.restate.sdk.core.Serde;
 import dev.restate.sdk.core.StateKey;
-import dev.restate.sdk.core.TypeTag;
-import dev.restate.sdk.core.serde.Serde;
+import dev.restate.sdk.core.function.ThrowingRunnable;
+import dev.restate.sdk.core.function.ThrowingSupplier;
 import io.grpc.Channel;
 import io.grpc.MethodDescriptor;
 import java.time.Duration;
@@ -25,8 +27,8 @@ import javax.annotation.concurrent.NotThreadSafe;
 public interface RestateContext {
 
   /**
-   * Gets the state stored under key, deserializing the raw value using the registered {@link Serde}
-   * in the interceptor.
+   * Gets the state stored under key, deserializing the raw value using the {@link Serde} in the
+   * {@link StateKey}.
    *
    * @param key identifying the state to get and its type.
    * @return an {@link Optional} containing the stored state deserialized or an empty {@link
@@ -43,8 +45,8 @@ public interface RestateContext {
   void clear(StateKey<?> key);
 
   /**
-   * Sets the given value under the given key, serializing the value using the registered {@link
-   * Serde} in the interceptor.
+   * Sets the given value under the given key, serializing the value using the {@link Serde} in the
+   * {@link StateKey}.
    *
    * @param key identifying the value to store and its type.
    * @param value to store under the given key. MUST NOT be null.
@@ -112,37 +114,27 @@ public interface RestateContext {
    */
   <T> void delayedCall(MethodDescriptor<T, ?> methodDescriptor, T parameter, Duration delay);
 
-  /** Shorthand for {@link #sideEffect(TypeTag, ThrowingSupplier)}. */
-  default <T> T sideEffect(Class<T> clazz, ThrowingSupplier<T> action) {
-    return sideEffect(TypeTag.ofClass(clazz), action);
-  }
-
   /**
    * Registers side effects that will be re-played in case of re-invocation (e.g. because of failure
    * recovery or suspension point).
    *
    * <p>Use this function if you want to perform non-deterministic operations.
    *
-   * @param typeTag the type tag of the return value, used to serialize/deserialize it.
+   * @param serde the type tag of the return value, used to serialize/deserialize it.
    * @param action to execute for its side effects.
    * @param <T> type of the return value.
    * @return value of the side effect operation.
    */
-  <T> T sideEffect(TypeTag<T> typeTag, ThrowingSupplier<T> action);
+  <T> T sideEffect(Serde<T> serde, ThrowingSupplier<T> action);
 
-  /** Like {@link #sideEffect(TypeTag, ThrowingSupplier)}, but without returning a value. */
+  /** Like {@link #sideEffect(Serde, ThrowingSupplier)}, but without returning a value. */
   default void sideEffect(ThrowingRunnable runnable) {
     sideEffect(
-        TypeTag.VOID,
+        CoreSerdes.VOID,
         () -> {
           runnable.run();
           return null;
         });
-  }
-
-  /** Shorthand for {@link #awakeable(TypeTag)} */
-  default <T> Awakeable<T> awakeable(Class<T> type) {
-    return awakeable(TypeTag.ofClass(type));
   }
 
   /**
@@ -153,15 +145,15 @@ public interface RestateContext {
    * service consume from Kafka the responses of given external system interaction by using {@link
    * #awakeableHandle(String)}.
    *
-   * @param typeTag the response type tag to use for deserializing the {@link Awakeable} result.
+   * @param serde the response type tag to use for deserializing the {@link Awakeable} result.
    * @return the {@link Awakeable} to await on.
    * @see Awakeable
    */
-  <T> Awakeable<T> awakeable(TypeTag<T> typeTag);
+  <T> Awakeable<T> awakeable(Serde<T> serde);
 
   /**
    * Create a new {@link AwakeableHandle} for the provided identifier. You can use it to {@link
-   * AwakeableHandle#resolve(TypeTag, Object)} or {@link AwakeableHandle#reject(String)} the linked
+   * AwakeableHandle#resolve(Serde, Object)} or {@link AwakeableHandle#reject(String)} the linked
    * {@link Awakeable}.
    *
    * @see Awakeable

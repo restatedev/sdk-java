@@ -1,25 +1,19 @@
 package dev.restate.sdk.blocking;
 
-import dev.restate.sdk.core.syscalls.AnyDeferredResult;
+import dev.restate.sdk.core.syscalls.DeferredResult;
 import dev.restate.sdk.core.syscalls.Syscalls;
+import java.util.List;
 
 public final class AnyAwaitable extends Awaitable<Object> {
 
-  AnyAwaitable(Syscalls syscalls, AnyDeferredResult deferredResult) {
-    super(syscalls, deferredResult);
+  AnyAwaitable(
+      Syscalls syscalls, DeferredResult<Integer> deferredResult, List<Awaitable<?>> mappers) {
+    super(syscalls, deferredResult, i -> mappers.get(i).await());
   }
 
   /** Same as {@link #await()}, but returns the index. */
   public int awaitIndex() {
-    if (!this.deferredResult.isCompleted()) {
-      Util.<Void>blockOnSyscall(cb -> this.syscalls.resolveDeferred(this.deferredResult, cb));
-    }
-
-    return ((AnyDeferredResult) this.deferredResult)
-        .completedIndex()
-        .orElseThrow(
-            () ->
-                new IllegalStateException(
-                    "completedIndex is empty when expecting a value. This looks like an SDK bug."));
+    // This cast is safe b/c of the constructor
+    return (int) Util.blockOnResolve(this.syscalls, this.resultHolder.getDeferredResult());
   }
 }

@@ -1,5 +1,7 @@
 package dev.restate.sdk.blocking;
 
+import com.google.protobuf.ByteString;
+import dev.restate.sdk.core.Serde;
 import dev.restate.sdk.core.syscalls.DeferredResult;
 import dev.restate.sdk.core.syscalls.Syscalls;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -20,8 +22,12 @@ public final class Awakeable<T> extends Awaitable<T> {
 
   private final String identifier;
 
-  Awakeable(Syscalls syscalls, DeferredResult<T> deferredResult, String identifier) {
-    super(syscalls, deferredResult);
+  Awakeable(
+      Syscalls syscalls,
+      DeferredResult<ByteString> deferredResult,
+      Serde<T> serde,
+      String identifier) {
+    super(syscalls, deferredResult, serde::deserialize);
     this.identifier = identifier;
   }
 
