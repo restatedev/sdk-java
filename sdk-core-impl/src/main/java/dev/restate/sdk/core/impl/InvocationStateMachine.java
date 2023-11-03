@@ -13,6 +13,8 @@ import dev.restate.sdk.core.impl.DeferredResults.SingleDeferredResultInternal;
 import dev.restate.sdk.core.impl.Entries.JournalEntry;
 import dev.restate.sdk.core.impl.ReadyResults.ReadyResultInternal;
 import dev.restate.sdk.core.syscalls.DeferredResult;
+import dev.restate.sdk.core.syscalls.EnterSideEffectSyscallCallback;
+import dev.restate.sdk.core.syscalls.ExitSideEffectSyscallCallback;
 import dev.restate.sdk.core.syscalls.SyscallCallback;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
@@ -356,22 +358,20 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     }
   }
 
-  void enterSideEffectBlock(
-      Consumer<Java.SideEffectEntryMessage> entryCallback,
-      Runnable noEntryCallback,
-      Consumer<Throwable> failureCallback) {
+  void enterSideEffectBlock(EnterSideEffectSyscallCallback callback) {
     checkInsideSideEffectGuard();
     if (this.state == State.CLOSED) {
-      failureCallback.accept(SuspendedException.INSTANCE);
+      callback.onCancel(SuspendedException.INSTANCE);
     } else if (this.state == State.REPLAYING) {
       // Retrieve the entry
       this.readEntry(
           (entryIndex, msg) -> {
             Util.assertEntryClass(Java.SideEffectEntryMessage.class, msg);
 
-            entryCallback.accept((Java.SideEffectEntryMessage) msg);
+            // We have a result already, complete the callback
+            completeSideEffectCallbackWithEntry((Java.SideEffectEntryMessage) msg, callback);
           },
-          failureCallback);
+          callback::onCancel);
     } else if (this.state == State.PROCESSING) {
       this.sideEffectAckStateMachine.executeEnterSideEffect(
           new SideEffectAckStateMachine.OnEnterSideEffectCallback() {
@@ -381,18 +381,18 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
               if (span.isRecording()) {
                 span.addEvent("Enter SideEffect");
               }
-              noEntryCallback.run();
+              callback.onNotExecuted();
             }
 
             @Override
             public void onSuspend() {
               writeSuspension(sideEffectAckStateMachine.getLastExecutedSideEffect());
-              failureCallback.accept(SuspendedException.INSTANCE);
+              callback.onCancel(SuspendedException.INSTANCE);
             }
 
             @Override
             public void onError(Throwable e) {
-              failureCallback.accept(e);
+              callback.onCancel(e);
             }
           });
     } else {
@@ -402,12 +402,10 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   }
 
   void exitSideEffectBlock(
-      Java.SideEffectEntryMessage sideEffectToWrite,
-      Consumer<Java.SideEffectEntryMessage> entryCallback,
-      Consumer<Throwable> failureCallback) {
+      Java.SideEffectEntryMessage sideEffectEntry, ExitSideEffectSyscallCallback callback) {
     this.insideSideEffect = false;
     if (this.state == State.CLOSED) {
-      failureCallback.accept(SuspendedException.INSTANCE);
+      callback.onCancel(SuspendedException.INSTANCE);
     } else if (this.state == State.REPLAYING) {
       throw new IllegalStateException(
           "exitSideEffect has been invoked when the state machine is in replaying mode. "
@@ -419,12 +417,22 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
       // Write new entry
       this.sideEffectAckStateMachine.registerExecutedSideEffect(this.currentJournalIndex);
-      this.writeEntry(sideEffectToWrite);
+      this.writeEntry(sideEffectEntry);
 
-      entryCallback.accept(sideEffectToWrite);
+      // Complete the callback
+      completeSideEffectCallbackWithEntry(sideEffectEntry, callback);
     } else {
       throw new IllegalStateException(
           "This method was invoked when the state machine is not ready to process user code. This is probably an SDK bug");
+    }
+  }
+
+  void completeSideEffectCallbackWithEntry(
+      Java.SideEffectEntryMessage sideEffectEntry, ExitSideEffectSyscallCallback callback) {
+    if (sideEffectEntry.hasFailure()) {
+      callback.onFailure(Util.toGrpcStatus(sideEffectEntry.getFailure()).asRuntimeException());
+    } else {
+      callback.onResult(sideEffectEntry.getValue());
     }
   }
 

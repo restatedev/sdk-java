@@ -2,6 +2,7 @@ package dev.restate.sdk.core.impl;
 
 import dev.restate.sdk.core.syscalls.ReadyResult;
 import io.grpc.StatusRuntimeException;
+import java.util.function.Function;
 import javax.annotation.Nullable;
 
 abstract class ReadyResults {
@@ -45,6 +46,12 @@ abstract class ReadyResults {
       return null;
     }
 
+    @SuppressWarnings("unchecked")
+    @Override
+    public <U> ReadyResult<U> map(Function<T, U> mapper) {
+      return (ReadyResult<U>) this;
+    }
+
     @Nullable
     @Override
     public StatusRuntimeException getFailure() {
@@ -75,6 +82,11 @@ abstract class ReadyResults {
       return value;
     }
 
+    @Override
+    public <U> ReadyResult<U> map(Function<T, U> mapper) {
+      return new Success<>(mapper.apply(value));
+    }
+
     @Nullable
     @Override
     public StatusRuntimeException getFailure() {
@@ -103,6 +115,12 @@ abstract class ReadyResults {
     @Override
     public T getResult() {
       return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public <U> ReadyResult<U> map(Function<T, U> mapper) {
+      return (ReadyResult<U>) this;
     }
 
     @Nullable

@@ -3,7 +3,6 @@ package dev.restate.sdk.core.impl;
 import com.google.protobuf.MessageLite;
 import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.sdk.core.InvocationId;
-import dev.restate.sdk.core.serde.Serde;
 import dev.restate.sdk.core.syscalls.Syscalls;
 import io.grpc.*;
 import io.opentelemetry.api.OpenTelemetry;
@@ -29,17 +28,14 @@ public class RestateGrpcServer {
       Context.key("restate.dev/logging_service_method");
 
   private final Map<String, ServerServiceDefinition> services;
-  private final Serde serde;
   private final Tracer tracer;
   private final ServiceDiscoveryHandler serviceDiscoveryHandler;
 
   private RestateGrpcServer(
       Discovery.ProtocolMode protocolMode,
       Map<String, ServerServiceDefinition> services,
-      Serde serde,
       Tracer tracer) {
     this.services = services;
-    this.serde = serde;
     this.tracer = tracer;
     this.serviceDiscoveryHandler = new ServiceDiscoveryHandler(protocolMode, services);
   }
@@ -83,11 +79,9 @@ public class RestateGrpcServer {
     InvocationStateMachine stateMachine = new InvocationStateMachine(serviceName, span);
     SyscallsInternal syscalls =
         syscallExecutor != null
-            ? ExecutorSwitchingWrappers.syscalls(
-                new SyscallsImpl(stateMachine, this.serde), syscallExecutor)
+            ? ExecutorSwitchingWrappers.syscalls(new SyscallsImpl(stateMachine), syscallExecutor)
             // We still wrap with syscalls executor switching to exploit the error handling
-            : ExecutorSwitchingWrappers.syscalls(
-                new SyscallsImpl(stateMachine, this.serde), Runnable::run);
+            : ExecutorSwitchingWrappers.syscalls(new SyscallsImpl(stateMachine), Runnable::run);
     RestateServerCall bridge = new RestateServerCall(method.getMethodDescriptor(), syscalls);
 
     return new InvocationHandler() {
@@ -153,7 +147,6 @@ public class RestateGrpcServer {
 
     private final List<ServerServiceDefinition> services = new ArrayList<>();
     private final Discovery.ProtocolMode protocolMode;
-    private Serde serde;
     private Tracer tracer = OpenTelemetry.noop().getTracer("NOOP");
 
     public Builder(Discovery.ProtocolMode protocolMode) {
@@ -170,28 +163,18 @@ public class RestateGrpcServer {
       return this;
     }
 
-    public Builder withSerde(Serde... serde) {
-      this.serde = Serdes.chain(serde);
-      return this;
-    }
-
     public Builder withTracer(Tracer tracer) {
       this.tracer = tracer;
       return this;
     }
 
     public RestateGrpcServer build() {
-      if (serde == null) {
-        serde = Serdes.getInstance().getDiscoveredSerde();
-      }
-
       return new RestateGrpcServer(
           this.protocolMode,
           this.services.stream()
               .collect(
                   Collectors.toMap(
                       svc -> svc.getServiceDescriptor().getName(), Function.identity())),
-          serde,
           tracer);
     }
   }

@@ -9,12 +9,9 @@ import com.google.rpc.Code;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.generated.service.protocol.Protocol.PollInputStreamEntryMessage;
-import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.core.impl.DeferredResults.SingleDeferredResultInternal;
 import dev.restate.sdk.core.impl.Entries.*;
 import dev.restate.sdk.core.impl.ReadyResults.ReadyResultInternal;
-import dev.restate.sdk.core.serde.CustomSerdeFunctionsTypeTag;
-import dev.restate.sdk.core.serde.Serde;
 import dev.restate.sdk.core.syscalls.DeferredResult;
 import dev.restate.sdk.core.syscalls.EnterSideEffectSyscallCallback;
 import dev.restate.sdk.core.syscalls.ExitSideEffectSyscallCallback;
@@ -27,10 +24,7 @@ import java.time.Instant;
 import java.util.AbstractMap;
 import java.util.Base64;
 import java.util.Map;
-import java.util.Objects;
-import java.util.function.Consumer;
 import java.util.function.Function;
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -40,11 +34,9 @@ public final class SyscallsImpl implements SyscallsInternal {
   private static final Logger LOG = LogManager.getLogger(SyscallsImpl.class);
 
   private final InvocationStateMachine stateMachine;
-  private final Serde serde;
 
-  public SyscallsImpl(InvocationStateMachine stateMachine, Serde serde) {
+  public SyscallsImpl(InvocationStateMachine stateMachine) {
     this.stateMachine = stateMachine;
-    this.serde = serde;
   }
 
   @Override
@@ -81,11 +73,11 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public <T> void get(String name, TypeTag<T> ty, SyscallCallback<DeferredResult<T>> callback) {
+  public void get(String name, SyscallCallback<DeferredResult<ByteString>> callback) {
     LOG.trace("get {}", name);
     this.stateMachine.processCompletableJournalEntry(
         Protocol.GetStateEntryMessage.newBuilder().setKey(ByteString.copyFromUtf8(name)).build(),
-        new GetStateEntry<>(serdeDeserializer(ty)),
+        GetStateEntry.INSTANCE,
         callback);
   }
 
@@ -99,15 +91,12 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public <T> void set(
-      String name, TypeTag<T> ty, @Nonnull T value, SyscallCallback<Void> callback) {
+  public void set(String name, ByteString value, SyscallCallback<Void> callback) {
     LOG.trace("set {}", name);
-    Objects.requireNonNull(value);
-    ByteString serialized = serialize(ty, value);
     this.stateMachine.processJournalEntry(
         Protocol.SetStateEntryMessage.newBuilder()
             .setKey(ByteString.copyFromUtf8(name))
-            .setValue(serialized)
+            .setValue(value)
             .build(),
         SetStateEntry.INSTANCE,
         callback);
@@ -168,38 +157,21 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public <T> void enterSideEffectBlock(
-      TypeTag<T> typeTag, EnterSideEffectSyscallCallback<T> callback) {
+  public void enterSideEffectBlock(EnterSideEffectSyscallCallback callback) {
     LOG.trace("enterSideEffectBlock");
-    this.stateMachine.enterSideEffectBlock(
-        sideEffectEntryHandler(typeTag, callback), callback::onNotExecuted, callback::onCancel);
+    this.stateMachine.enterSideEffectBlock(callback);
   }
 
   @Override
-  public <T> void exitSideEffectBlock(
-      TypeTag<T> typeTag, T toWrite, ExitSideEffectSyscallCallback<T> callback) {
+  public void exitSideEffectBlock(ByteString toWrite, ExitSideEffectSyscallCallback callback) {
     LOG.trace("exitSideEffectBlock with success");
     this.stateMachine.exitSideEffectBlock(
-        Java.SideEffectEntryMessage.newBuilder().setValue(serialize(typeTag, toWrite)).build(),
-        sideEffectEntryHandler(typeTag, callback),
-        callback::onCancel);
-  }
-
-  private <T> Consumer<Java.SideEffectEntryMessage> sideEffectEntryHandler(
-      TypeTag<T> typeTag, ExitSideEffectSyscallCallback<T> callback) {
-    return sideEffectEntry -> {
-      if (sideEffectEntry.hasFailure()) {
-        callback.onFailure(Util.toGrpcStatus(sideEffectEntry.getFailure()).asRuntimeException());
-        return;
-      }
-
-      callback.onResult(deserialize(typeTag, sideEffectEntry.getValue()));
-    };
+        Java.SideEffectEntryMessage.newBuilder().setValue(toWrite).build(), callback);
   }
 
   @Override
   public void exitSideEffectBlockWithException(
-      Throwable toWrite, ExitSideEffectSyscallCallback<?> callback) {
+      Throwable toWrite, ExitSideEffectSyscallCallback callback) {
     LOG.trace("exitSideEffectBlock with failure");
 
     // If it's a non-terminal exception (such as a protocol exception),
@@ -217,19 +189,15 @@ public final class SyscallsImpl implements SyscallsInternal {
 
     this.stateMachine.exitSideEffectBlock(
         Java.SideEffectEntryMessage.newBuilder().setFailure(toProtocolFailure(toWrite)).build(),
-        sideEffectEntry ->
-            callback.onFailure(
-                Util.toGrpcStatus(sideEffectEntry.getFailure()).asRuntimeException()),
-        callback::onCancel);
+        callback);
   }
 
   @Override
-  public <T> void awakeable(
-      TypeTag<T> typeTag, SyscallCallback<Map.Entry<String, DeferredResult<T>>> callback) {
+  public void awakeable(SyscallCallback<Map.Entry<String, DeferredResult<ByteString>>> callback) {
     LOG.trace("callback");
     this.stateMachine.processCompletableJournalEntry(
         Protocol.AwakeableEntryMessage.getDefaultInstance(),
-        new AwakeableEntry<>(serdeDeserializer(typeTag)),
+        AwakeableEntry.INSTANCE,
         SyscallCallback.mappingTo(
             deferredResult -> {
               // Encode awakeable id
@@ -240,7 +208,7 @@ public final class SyscallsImpl implements SyscallsInternal {
                           ByteString.copyFrom(
                               ByteBuffer.allocate(4)
                                   .putInt(
-                                      ((SingleDeferredResultInternal<T>) deferredResult)
+                                      ((SingleDeferredResultInternal<ByteString>) deferredResult)
                                           .entryIndex())
                                   .rewind()));
 
@@ -251,16 +219,13 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public <T> void resolveAwakeable(
-      String serializedId, TypeTag<T> ty, @Nonnull T payload, SyscallCallback<Void> callback) {
+  public void resolveAwakeable(
+      String serializedId, ByteString payload, SyscallCallback<Void> callback) {
     LOG.trace("resolveAwakeable");
-
-    Objects.requireNonNull(payload);
-    ByteString serialized = serialize(ty, payload);
 
     completeAwakeable(
         serializedId,
-        Protocol.CompleteAwakeableEntryMessage.newBuilder().setValue(serialized),
+        Protocol.CompleteAwakeableEntryMessage.newBuilder().setValue(payload),
         callback);
   }
 
@@ -314,46 +279,5 @@ public final class SyscallsImpl implements SyscallsInternal {
   private <T> Function<ByteString, ReadyResultInternal<T>> protoDeserializer(
       Function<ByteString, T> mapper) {
     return value -> ReadyResults.success(mapper.apply(value));
-  }
-
-  private <T> Function<ByteString, ReadyResultInternal<T>> serdeDeserializer(TypeTag<T> ty) {
-    return value -> ReadyResults.success(deserialize(ty, value));
-  }
-
-  @SuppressWarnings("unchecked")
-  private ByteString serialize(TypeTag<?> ty, Object obj) {
-    if (ty instanceof CustomSerdeFunctionsTypeTag) {
-      return ByteString.copyFrom(
-          ((CustomSerdeFunctionsTypeTag<? super Object>) ty).getSerializer().apply(obj));
-    }
-
-    if (obj == null) {
-      return ByteString.EMPTY;
-    }
-    if (obj instanceof ByteString) {
-      return (ByteString) obj;
-    } else if (obj instanceof byte[]) {
-      return ByteString.copyFrom((byte[]) obj);
-    }
-    return ByteString.copyFrom(serde.serialize(obj));
-  }
-
-  @SuppressWarnings({"unchecked", "TypeParameterUnusedInFormals"})
-  private <T> T deserialize(TypeTag<T> ty, ByteString bytes) {
-    if (ty instanceof CustomSerdeFunctionsTypeTag) {
-      return ((CustomSerdeFunctionsTypeTag<T>) ty).getDeserializer().apply(bytes.toByteArray());
-    }
-
-    Object typeTag = ty.get();
-    if (byte[].class.equals(typeTag)) {
-      return (T) bytes.toByteArray();
-    } else if (ByteString.class.equals(typeTag)) {
-      return (T) bytes;
-    } else if (Void.class.equals(typeTag) || Void.TYPE.equals(typeTag)) {
-      // Amazing JVM foot-gun here: Void.TYPE is the primitive type, Void.class is the boxed type.
-      // For us, they're the same but for the equality they aren't, so we check both
-      return null;
-    }
-    return serde.deserialize(typeTag, bytes.toByteArray());
   }
 }

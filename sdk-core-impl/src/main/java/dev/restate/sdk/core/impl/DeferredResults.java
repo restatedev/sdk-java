@@ -20,7 +20,7 @@ abstract class DeferredResults {
     return new ResolvableSingleDeferredResult<>(readyResultInternal, entryIndex);
   }
 
-  static dev.restate.sdk.core.syscalls.AnyDeferredResult any(List<DeferredResultInternal<?>> any) {
+  static DeferredResultInternal<Integer> any(List<DeferredResultInternal<?>> any) {
     return new AnyDeferredResult(any);
   }
 
@@ -141,11 +141,10 @@ abstract class DeferredResults {
     }
   }
 
-  static class AnyDeferredResult extends CombinatorDeferredResult<Object>
-      implements dev.restate.sdk.core.syscalls.AnyDeferredResult {
+  static class AnyDeferredResult extends CombinatorDeferredResult<Integer>
+      implements DeferredResult<Integer> {
 
     private final IdentityHashMap<DeferredResultInternal<?>, Integer> indexMapping;
-    private int completedIndex = -1;
 
     private AnyDeferredResult(List<DeferredResultInternal<?>> children) {
       super(
@@ -177,29 +176,19 @@ abstract class DeferredResults {
           this.unresolvedSingles.get(newResolvedSingle);
       if (resolvedSingle != null) {
         // Resolved
-        this.resolve((ReadyResults.ReadyResultInternal<Object>) resolvedSingle.toReadyResult());
-        this.completedIndex = this.indexMapping.get(resolvedSingle);
+        this.resolve(ReadyResults.success(this.indexMapping.get(resolvedSingle)));
         return true;
       }
 
       for (CombinatorDeferredResult<?> combinator : this.unresolvedCombinators) {
         if (combinator.tryResolve(newResolvedSingle)) {
           // Resolved
-          this.resolve((ReadyResults.ReadyResultInternal<Object>) combinator.toReadyResult());
-          this.completedIndex = this.indexMapping.get(combinator);
+          this.resolve(ReadyResults.success(this.indexMapping.get(combinator)));
           return true;
         }
       }
 
       return false;
-    }
-
-    @Override
-    public OptionalInt completedIndex() {
-      if (completedIndex == -1) {
-        return OptionalInt.empty();
-      }
-      return OptionalInt.of(completedIndex);
     }
   }
 
