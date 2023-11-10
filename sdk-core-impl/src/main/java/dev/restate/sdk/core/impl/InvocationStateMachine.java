@@ -30,7 +30,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   private static final Logger LOG = LogManager.getLogger(InvocationStateMachine.class);
 
-  private enum State {
+  enum State {
     WAITING_START,
     REPLAYING,
     PROCESSING,
@@ -39,6 +39,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   private final String serviceName;
   private final Span span;
+  private final Consumer<State> transitionStateObserver;
 
   private State state = State.WAITING_START;
 
@@ -64,9 +65,10 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   private Flow.Subscription inputSubscription;
   private final CallbackHandle<Consumer<InvocationId>> afterStartCallback;
 
-  public InvocationStateMachine(String serviceName, Span span) {
+  InvocationStateMachine(String serviceName, Span span, Consumer<State> transitionStateObserver) {
     this.serviceName = serviceName;
     this.span = span;
+    this.transitionStateObserver = transitionStateObserver;
 
     this.incomingEntriesStateMachine = new IncomingEntriesStateMachine();
     this.readyResultStateMachine = new ReadyResultStateMachine();
@@ -649,6 +651,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     }
     LOG.debug("Transitioning {} to {}", this, newState);
     this.state = newState;
+    this.transitionStateObserver.accept(newState);
   }
 
   private void incrementCurrentIndex() {

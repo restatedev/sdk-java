@@ -120,6 +120,13 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
                 public void setInvocationId(String id) {
                   ContextualData.put(RestateGrpcServer.LoggingContextSetter.INVOCATION_ID_KEY, id);
                 }
+
+                @Override
+                public void setInvocationStatus(String invocationStatus) {
+                  ContextualData.put(
+                      RestateGrpcServer.LoggingContextSetter.SERVICE_INVOCATION_STATUS,
+                      invocationStatus);
+                }
               },
               isBlockingService ? currentContextExecutor(vertxCurrentContext) : null,
               isBlockingService ? blockingExecutor(serviceName) : null);
