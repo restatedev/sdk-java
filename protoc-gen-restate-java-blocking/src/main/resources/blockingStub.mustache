@@ -49,8 +49,8 @@ public class {{className}} {
         {{#methods}}
         {{#deprecated}}@java.lang.Deprecated{{/deprecated}}
 {{{javadoc}}}
-        public Awaitable<{{outputType}}> {{topLevelClientMethodName}}({{inputType}} request) {
-            return this.ctx.call({{packageName}}.{{serviceName}}Grpc.{{methodDescriptorGetter}}(), request);
+        public Awaitable<{{outputType}}> {{topLevelClientMethodName}}({{^isInputEmpty}}{{inputType}} request{{/isInputEmpty}}) {
+            return this.ctx.call({{packageName}}.{{serviceName}}Grpc.{{methodDescriptorGetter}}(), {{#isInputEmpty}}com.google.protobuf.Empty.getDefaultInstance(){{/isInputEmpty}}{{^isInputEmpty}}request{{/isInputEmpty}});
         }
 
         {{/methods}}
@@ -66,8 +66,8 @@ public class {{className}} {
         {{#methods}}
         {{#deprecated}}@java.lang.Deprecated{{/deprecated}}
 {{{javadoc}}}
-        public void {{methodName}}({{inputType}} request) {
-            this.ctx.oneWayCall({{packageName}}.{{serviceName}}Grpc.{{methodDescriptorGetter}}(), request);
+        public void {{methodName}}({{^isInputEmpty}}{{inputType}} request{{/isInputEmpty}}) {
+            this.ctx.oneWayCall({{packageName}}.{{serviceName}}Grpc.{{methodDescriptorGetter}}(), {{#isInputEmpty}}com.google.protobuf.Empty.getDefaultInstance(){{/isInputEmpty}}{{^isInputEmpty}}request{{/isInputEmpty}});
         }
 
         {{/methods}}
@@ -85,8 +85,8 @@ public class {{className}} {
         {{#methods}}
         {{#deprecated}}@java.lang.Deprecated{{/deprecated}}
 {{{javadoc}}}
-        public void {{methodName}}({{inputType}} request) {
-            this.ctx.delayedCall({{packageName}}.{{serviceName}}Grpc.{{methodDescriptorGetter}}(), request, this.delay);
+        public void {{methodName}}({{^isInputEmpty}}{{inputType}} request{{/isInputEmpty}}) {
+            this.ctx.delayedCall({{packageName}}.{{serviceName}}Grpc.{{methodDescriptorGetter}}(), {{#isInputEmpty}}com.google.protobuf.Empty.getDefaultInstance(){{/isInputEmpty}}{{^isInputEmpty}}request{{/isInputEmpty}}, this.delay);
         }
 
         {{/methods}}
@@ -100,7 +100,7 @@ public class {{className}} {
         @java.lang.Deprecated
         {{/deprecated}}
 {{{javadoc}}}
-        public {{outputType}} {{methodName}}(RestateContext context, {{inputType}} request) {
+        public {{#isOutputEmpty}}void{{/isOutputEmpty}}{{^isOutputEmpty}}{{outputType}}{{/isOutputEmpty}} {{methodName}}(RestateContext context{{^isInputEmpty}}, {{inputType}} request{{/isInputEmpty}}) {
             throw new io.grpc.StatusRuntimeException(io.grpc.Status.UNIMPLEMENTED);
         }
 
@@ -111,7 +111,7 @@ public class {{className}} {
                     .addMethod(
                             {{packageName}}.{{serviceName}}Grpc.{{methodDescriptorGetter}}(),
                             io.grpc.stub.ServerCalls.asyncUnaryCall(
-                                    new HandlerAdapter<{{inputType}}, {{outputType}}>(this::{{methodName}})))
+                                    HandlerAdapter.of(this::{{methodName}})))
                     {{/methods}}
                     .build();
         }
@@ -130,6 +130,28 @@ public class {{className}} {
         public void invoke(Req request, io.grpc.stub.StreamObserver<Resp> responseObserver) {
             responseObserver.onNext(handler.apply(RestateContext.fromSyscalls(Syscalls.current()), request));
             responseObserver.onCompleted();
+        }
+
+        private static <Req, Resp> HandlerAdapter<Req, Resp> of(java.util.function.BiFunction<RestateContext, Req, Resp> handler) {
+            return new HandlerAdapter<>(handler);
+        }
+
+        private static <Resp> HandlerAdapter<com.google.protobuf.Empty, Resp> of(java.util.function.Function<RestateContext, Resp> handler) {
+            return new HandlerAdapter<>((ctx, e) -> handler.apply(ctx));
+        }
+
+        private static <Req> HandlerAdapter<Req, com.google.protobuf.Empty> of(java.util.function.BiConsumer<RestateContext, Req> handler) {
+            return new HandlerAdapter<>((ctx, req) -> {
+                handler.accept(ctx, req);
+                return com.google.protobuf.Empty.getDefaultInstance();
+            });
+        }
+
+        private static HandlerAdapter<com.google.protobuf.Empty, com.google.protobuf.Empty> of(java.util.function.Consumer<RestateContext> handler) {
+            return new HandlerAdapter<>((ctx, req) -> {
+                handler.accept(ctx);
+                return com.google.protobuf.Empty.getDefaultInstance();
+            });
         }
     }
 

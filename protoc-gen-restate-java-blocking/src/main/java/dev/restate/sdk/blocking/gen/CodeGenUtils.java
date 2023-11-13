@@ -106,11 +106,14 @@ public final class CodeGenUtils {
   }
 
   static String firstUppercase(String word) {
-      if (word.length() == 1) {
-        return String.valueOf(Character.toUpperCase(word.charAt(0)));
-      }
-      return Character.toUpperCase(word.charAt(0)) +
-            word.substring(1);
+    if (word.length() == 1) {
+      return String.valueOf(Character.toUpperCase(word.charAt(0)));
+    }
+    return Character.toUpperCase(word.charAt(0)) + word.substring(1);
+  }
+
+  static boolean isGoogleProtobufEmpty(String ty) {
+    return ty.equals(".google.protobuf.Empty");
   }
 
   static Predicate<DescriptorProtos.SourceCodeInfo.Location> locationPathMatcher(int... matcher) {

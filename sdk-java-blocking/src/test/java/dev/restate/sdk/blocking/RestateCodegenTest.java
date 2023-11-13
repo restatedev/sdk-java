@@ -5,6 +5,7 @@ import static dev.restate.sdk.core.impl.TestDefinitions.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
+import com.google.protobuf.Empty;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.impl.testservices.*;
 import java.time.Duration;
@@ -12,7 +13,7 @@ import java.util.stream.Stream;
 
 public class RestateCodegenTest implements TestSuite {
 
-  private static class UseRestateClientAndServerCodegen
+  private static class GreeterWithRestateClientAndServerCodegen
       extends GreeterRestate.GreeterRestateImplBase {
 
     @Override
@@ -24,10 +25,43 @@ public class RestateCodegenTest implements TestSuite {
     }
   }
 
+  private static class Codegen extends CodegenRestate.CodegenRestateImplBase {
+
+    @Override
+    public MyMessage emptyInput(RestateContext context) {
+      CodegenRestate.CodegenRestateClient client = CodegenRestate.newClient(context);
+      return client.emptyInput().await();
+    }
+
+    @Override
+    public void emptyOutput(RestateContext context, MyMessage request) {
+      CodegenRestate.CodegenRestateClient client = CodegenRestate.newClient(context);
+      client.emptyOutput(request).await();
+    }
+
+    @Override
+    public void emptyInputOutput(RestateContext context) {
+      CodegenRestate.CodegenRestateClient client = CodegenRestate.newClient(context);
+      client.emptyInputOutput().await();
+    }
+
+    @Override
+    public MyMessage oneWay(RestateContext context, MyMessage request) {
+      CodegenRestate.CodegenRestateClient client = CodegenRestate.newClient(context);
+      return client.callOneWay(request).await();
+    }
+
+    @Override
+    public MyMessage delayed(RestateContext context, MyMessage request) {
+      CodegenRestate.CodegenRestateClient client = CodegenRestate.newClient(context);
+      return client.callDelayed(request).await();
+    }
+  }
+
   @Override
   public Stream<TestDefinition> definitions() {
     return Stream.of(
-        testInvocation(new UseRestateClientAndServerCodegen(), GreeterGrpc.getGreetMethod())
+        testInvocation(new GreeterWithRestateClientAndServerCodegen(), GreeterGrpc.getGreetMethod())
             .withInput(
                 startMessage(1),
                 inputMessage(greetingRequest("Francesco")),
@@ -63,6 +97,54 @@ public class RestateCodegenTest implements TestSuite {
                           invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco"))
                               .build(),
                           outputMessage(greetingResponse("Till")));
-                }));
+                }),
+        testInvocation(new Codegen(), CodegenGrpc.getEmptyInputMethod())
+            .withInput(
+                startMessage(1),
+                inputMessage(Empty.getDefaultInstance()),
+                completionMessage(1, MyMessage.newBuilder().setValue("Francesco")))
+            .onlyUnbuffered()
+            .expectingOutput(
+                invokeMessage(CodegenGrpc.getEmptyInputMethod(), Empty.getDefaultInstance()),
+                outputMessage(MyMessage.newBuilder().setValue("Francesco")))
+            .named("Check Codegen::EmptyInput method is correctly generated"),
+        testInvocation(new Codegen(), CodegenGrpc.getEmptyOutputMethod())
+            .withInput(
+                startMessage(1),
+                inputMessage(MyMessage.newBuilder().setValue("Francesco")),
+                completionMessage(1, Empty.getDefaultInstance()))
+            .onlyUnbuffered()
+            .expectingOutput(
+                invokeMessage(
+                    CodegenGrpc.getEmptyOutputMethod(),
+                    MyMessage.newBuilder().setValue("Francesco").build()),
+                outputMessage(Empty.getDefaultInstance()))
+            .named("Check Codegen::EmptyOutput method is correctly generated"),
+        testInvocation(new Codegen(), CodegenGrpc.getEmptyInputOutputMethod())
+            .withInput(
+                startMessage(1),
+                inputMessage(Empty.getDefaultInstance()),
+                completionMessage(1, Empty.getDefaultInstance()))
+            .onlyUnbuffered()
+            .expectingOutput(
+                invokeMessage(CodegenGrpc.getEmptyInputOutputMethod(), Empty.getDefaultInstance()),
+                outputMessage(Empty.getDefaultInstance()))
+            .named("Check Codegen::EmptyInputOutput method is correctly generated"),
+        testInvocation(new Codegen(), CodegenGrpc.getOneWayMethod())
+            .withInput(startMessage(1), inputMessage(MyMessage.newBuilder().setValue("Francesco")))
+            .expectingOutput(
+                invokeMessage(
+                    CodegenGrpc.getOneWayMethod(),
+                    MyMessage.newBuilder().setValue("Francesco").build()),
+                suspensionMessage(1))
+            .named("Check Codegen::OneWay method is correctly generated"),
+        testInvocation(new Codegen(), CodegenGrpc.getDelayedMethod())
+            .withInput(startMessage(1), inputMessage(MyMessage.newBuilder().setValue("Francesco")))
+            .expectingOutput(
+                invokeMessage(
+                    CodegenGrpc.getDelayedMethod(),
+                    MyMessage.newBuilder().setValue("Francesco").build()),
+                suspensionMessage(1))
+            .named("Check Codegen::Delayed method is correctly generated"));
   }
 }

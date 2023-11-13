@@ -90,8 +90,8 @@ public class JavaBlockingGen extends Generator {
             .findFirst()
             .orElseGet(DescriptorProtos.SourceCodeInfo.Location::getDefaultInstance);
     serviceContext.javadoc =
-        CodeGenUtils.getJavadoc(
-            CodeGenUtils.getComments(serviceLocation),
+        getJavadoc(
+            getComments(serviceLocation),
             serviceProto.getOptions().getDeprecated(),
             SERVICE_INDENDATION);
 
@@ -110,11 +110,16 @@ public class JavaBlockingGen extends Generator {
       int serviceIndex,
       int methodIndex) {
     MethodContext methodContext = new MethodContext();
-    methodContext.methodName = CodeGenUtils.mixedLower(methodProto.getName());
+    methodContext.methodName = mixedLower(methodProto.getName());
     // This is needed to avoid clashes with generated oneWay and delayed methods.
-    methodContext.topLevelClientMethodName = (methodContext.methodName.equals("oneWay") || methodContext.methodName.equals("delayed")) ? "call" + firstUppercase(methodContext.methodName) : methodContext.methodName;
+    methodContext.topLevelClientMethodName =
+        (methodContext.methodName.equals("oneWay") || methodContext.methodName.equals("delayed"))
+            ? "call" + firstUppercase(methodContext.methodName)
+            : methodContext.methodName;
     methodContext.inputType = typeMap.toJavaTypeName(methodProto.getInputType());
+    methodContext.isInputEmpty = isGoogleProtobufEmpty(methodProto.getInputType());
     methodContext.outputType = typeMap.toJavaTypeName(methodProto.getOutputType());
+    methodContext.isOutputEmpty = isGoogleProtobufEmpty(methodProto.getOutputType());
     methodContext.deprecated = methodProto.getOptions().getDeprecated();
 
     // Resolve javadoc
@@ -129,8 +134,8 @@ public class JavaBlockingGen extends Generator {
             .findFirst()
             .orElseGet(DescriptorProtos.SourceCodeInfo.Location::getDefaultInstance);
     methodContext.javadoc =
-        CodeGenUtils.getJavadoc(
-            CodeGenUtils.getComments(serviceLocation),
+        getJavadoc(
+            getComments(serviceLocation),
             methodProto.getOptions().getDeprecated(),
             METHOD_INDENDATION);
 
@@ -175,10 +180,13 @@ public class JavaBlockingGen extends Generator {
   /** Template class for proto RPC objects. */
   private static class MethodContext {
     // CHECKSTYLE DISABLE VisibilityModifier FOR 10 LINES
-  public String topLevelClientMethodName;
+    public String topLevelClientMethodName;
     public String methodName;
     public String inputType;
+    public boolean isInputEmpty;
     public String outputType;
+
+    public boolean isOutputEmpty;
     public String javadoc;
     public boolean deprecated;
 
@@ -200,7 +208,7 @@ public class JavaBlockingGen extends Generator {
     }
 
     public String methodDescriptorGetter() {
-      return CodeGenUtils.mixedLower("get_" + methodName + "_method");
+      return mixedLower("get_" + methodName + "_method");
     }
   }
 
