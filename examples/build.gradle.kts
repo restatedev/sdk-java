@@ -15,10 +15,12 @@ plugins {
   idea
   `maven-publish`
   application
+  id("com.github.johnrengelman.shadow").version("7.1.2")
 }
 
 dependencies {
   implementation(project(":sdk-java-blocking"))
+  implementation(project(":sdk-lambda"))
   implementation(project(":sdk-http-vertx"))
   implementation(project(":sdk-kotlin"))
   implementation(project(":sdk-serde-jackson"))

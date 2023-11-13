@@ -18,8 +18,7 @@ include(
     "protoc-gen-restate-java-blocking",
     "sdk-lambda",
     "sdk-kotlin",
-    "examples:http",
-    "examples:lambda")
+    "examples")
 
 dependencyResolutionManagement {
   repositories { mavenCentral() }
