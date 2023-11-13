@@ -111,27 +111,4 @@ public class SideEffectTest extends SideEffectTestSuite {
   protected BindableService sideEffectGuard() {
     return new SideEffectGuard();
   }
-
-  private static class SideEffectThenAwakeable extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
-
-    @Override
-    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      RestateContext ctx = restateContext();
-
-      ctx.sideEffect(
-          () -> {
-            throw new IllegalStateException("This should be replayed");
-          });
-      ctx.awakeable(CoreSerdes.BYTES).await();
-
-      responseObserver.onNext(GreetingResponse.newBuilder().setMessage("Hello").build());
-      responseObserver.onCompleted();
-    }
-  }
-
-  @Override
-  protected BindableService sideEffectThenAwakeable() {
-    return new SideEffectThenAwakeable();
-  }
 }

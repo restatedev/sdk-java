@@ -52,7 +52,8 @@ public abstract class UserFailuresTestSuite implements TestSuite {
         testInvocation(
                 () -> this.sideEffectThrowStatusRuntimeException(INTERNAL_MY_ERROR),
                 GreeterGrpc.getGreetMethod())
-            .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
+            .withInput(
+                startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()), ackMessage(1))
             .expectingOutput(
                 Java.SideEffectEntryMessage.newBuilder()
                     .setFailure(Util.toProtocolFailure(INTERNAL_MY_ERROR)),
@@ -61,7 +62,8 @@ public abstract class UserFailuresTestSuite implements TestSuite {
         testInvocation(
                 () -> this.sideEffectThrowStatusRuntimeException(UNKNOWN_MY_ERROR),
                 GreeterGrpc.getGreetMethod())
-            .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
+            .withInput(
+                startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()), ackMessage(1))
             .expectingOutput(
                 Java.SideEffectEntryMessage.newBuilder()
                     .setFailure(Util.toProtocolFailure(UNKNOWN_MY_ERROR)),

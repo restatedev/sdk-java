@@ -70,18 +70,4 @@ class SideEffectTest : SideEffectTestSuite() {
   override fun sideEffectGuard(): BindableService {
     return SideEffectGuard()
   }
-
-  private class SideEffectThenAwakeable :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
-    override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx = restateContext()
-      ctx.sideEffect { throw IllegalStateException("This should be replayed") }
-      ctx.awakeable(CoreSerdes.BYTES).await()
-      return greetingResponse { message = "Hello" }
-    }
-  }
-
-  override fun sideEffectThenAwakeable(): BindableService {
-    return SideEffectThenAwakeable()
-  }
 }

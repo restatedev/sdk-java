@@ -39,6 +39,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   private final String serviceName;
   private final Span span;
+  private final boolean optimizeSideEffectAcks;
 
   private State state = State.WAITING_START;
 
@@ -64,9 +65,10 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   private Flow.Subscription inputSubscription;
   private final CallbackHandle<Consumer<InvocationId>> afterStartCallback;
 
-  public InvocationStateMachine(String serviceName, Span span) {
+  public InvocationStateMachine(String serviceName, Span span, boolean optimizeSideEffectAcks) {
     this.serviceName = serviceName;
     this.span = span;
+    this.optimizeSideEffectAcks = optimizeSideEffectAcks;
 
     this.incomingEntriesStateMachine = new IncomingEntriesStateMachine();
     this.readyResultStateMachine = new ReadyResultStateMachine();
@@ -373,10 +375,10 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
           },
           callback::onCancel);
     } else if (this.state == State.PROCESSING) {
-      this.sideEffectAckStateMachine.executeEnterSideEffect(
-          new SideEffectAckStateMachine.OnEnterSideEffectCallback() {
+      this.sideEffectAckStateMachine.waitSafePoint(
+          new SideEffectAckStateMachine.SafePointCallback() {
             @Override
-            public void onEnter() {
+            public void onSafePoint() {
               insideSideEffect = true;
               if (span.isRecording()) {
                 span.addEvent("Enter SideEffect");
@@ -419,8 +421,31 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       this.sideEffectAckStateMachine.registerExecutedSideEffect(this.currentJournalIndex);
       this.writeEntry(sideEffectEntry);
 
-      // Complete the callback
-      completeSideEffectCallbackWithEntry(sideEffectEntry, callback);
+      if (this.optimizeSideEffectAcks) {
+        // In case we optimize side effect acks, we can avoid waiting here for the ack, since it
+        // will be waited anyway on the next enterSideEffectBlock
+        completeSideEffectCallbackWithEntry(sideEffectEntry, callback);
+      } else {
+        // Wait for entry to be acked
+        this.sideEffectAckStateMachine.waitSafePoint(
+            new SideEffectAckStateMachine.SafePointCallback() {
+              @Override
+              public void onSafePoint() {
+                completeSideEffectCallbackWithEntry(sideEffectEntry, callback);
+              }
+
+              @Override
+              public void onSuspend() {
+                writeSuspension(sideEffectAckStateMachine.getLastExecutedSideEffect());
+                callback.onCancel(SuspendedException.INSTANCE);
+              }
+
+              @Override
+              public void onError(Throwable e) {
+                callback.onCancel(e);
+              }
+            });
+      }
     } else {
       throw new IllegalStateException(
           "This method was invoked when the state machine is not ready to process user code. This is probably an SDK bug");

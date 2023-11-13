@@ -70,13 +70,19 @@ class HttpVertxTests : TestRunner() {
       return Stream.of(
           testInvocation(
                   CheckNonBlockingServiceTrampolineEventLoopContext(), GreeterGrpc.getGreetMethod())
-              .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
+              .withInput(
+                  startMessage(1),
+                  inputMessage(GreetingRequest.getDefaultInstance()),
+                  ackMessage(1))
               .onlyUnbuffered()
               .expectingOutput(
                   SideEffectEntryMessage.newBuilder().setValue(ByteString.EMPTY),
                   outputMessage(GreetingResponse.getDefaultInstance())),
           testInvocation(CheckBlockingServiceTrampolineExecutor(), GreeterGrpc.getGreetMethod())
-              .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
+              .withInput(
+                  startMessage(1),
+                  inputMessage(GreetingRequest.getDefaultInstance()),
+                  ackMessage(1))
               .onlyUnbuffered()
               .expectingOutput(
                   SideEffectEntryMessage.newBuilder().setValue(ByteString.EMPTY),
