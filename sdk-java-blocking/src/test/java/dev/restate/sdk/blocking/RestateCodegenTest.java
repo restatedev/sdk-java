@@ -17,9 +17,9 @@ public class RestateCodegenTest implements TestSuite {
 
     @Override
     public GreetingResponse greet(RestateContext context, GreetingRequest request) {
-      GreeterRestate.GreeterRestateClient client = GreeterRestate.newClient();
-      client.greetDelayed(request, Duration.ofSeconds(1));
-      client.greetOneWay(request);
+      GreeterRestate.GreeterRestateClient client = GreeterRestate.newClient(context);
+      client.delayed(Duration.ofSeconds(1)).greet(request);
+      client.oneWay().greet(request);
       return client.greet(request).await();
     }
   }

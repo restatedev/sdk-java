@@ -36,23 +36,57 @@ public class {{className}} {
             this.ctx = ctx;
         }
 
+        // Create a variant of this client to execute oneWay calls.
+        public {{serviceName}}RestateOneWayClient oneWay() {
+            return new {{serviceName}}RestateOneWayClient(ctx);
+        }
+
+        // Create a variant of this client to execute delayed calls.
+        public {{serviceName}}RestateDelayedClient delayed(Duration delay) {
+            return new {{serviceName}}RestateDelayedClient(ctx, delay);
+        }
+
         {{#methods}}
         {{#deprecated}}@java.lang.Deprecated{{/deprecated}}
 {{{javadoc}}}
-        public Awaitable<{{outputType}}> {{methodName}}({{inputType}} request) {
-            return ctx.call({{packageName}}.{{serviceName}}Grpc.{{methodDescriptorGetter}}(), request);
+        public Awaitable<{{outputType}}> {{topLevelClientMethodName}}({{inputType}} request) {
+            return this.ctx.call({{packageName}}.{{serviceName}}Grpc.{{methodDescriptorGetter}}(), request);
         }
 
-        {{#deprecated}}@java.lang.Deprecated{{/deprecated}}
-{{{javadoc}}}
-        public void {{methodName}}Delayed({{inputType}} request, Duration delay) {
-            ctx.delayedCall({{packageName}}.{{serviceName}}Grpc.{{methodDescriptorGetter}}(), request, delay);
+        {{/methods}}
+    }
+
+    public static final class {{serviceName}}RestateOneWayClient {
+        private final RestateContext ctx;
+
+        {{serviceName}}RestateOneWayClient(RestateContext ctx) {
+            this.ctx = ctx;
         }
 
+        {{#methods}}
         {{#deprecated}}@java.lang.Deprecated{{/deprecated}}
 {{{javadoc}}}
-        public void {{methodName}}OneWay({{inputType}} request) {
-            ctx.oneWayCall({{packageName}}.{{serviceName}}Grpc.{{methodDescriptorGetter}}(), request);
+        public void {{methodName}}({{inputType}} request) {
+            this.ctx.oneWayCall({{packageName}}.{{serviceName}}Grpc.{{methodDescriptorGetter}}(), request);
+        }
+
+        {{/methods}}
+    }
+
+    public static final class {{serviceName}}RestateDelayedClient {
+        private final RestateContext ctx;
+        private final Duration delay;
+
+        {{serviceName}}RestateDelayedClient(RestateContext ctx, Duration delay) {
+            this.ctx = ctx;
+            this.delay = delay;
+        }
+
+        {{#methods}}
+        {{#deprecated}}@java.lang.Deprecated{{/deprecated}}
+{{{javadoc}}}
+        public void {{methodName}}({{inputType}} request) {
+            this.ctx.delayedCall({{packageName}}.{{serviceName}}Grpc.{{methodDescriptorGetter}}(), request, this.delay);
         }
 
         {{/methods}}

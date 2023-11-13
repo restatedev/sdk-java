@@ -111,6 +111,8 @@ public class JavaBlockingGen extends Generator {
       int methodIndex) {
     MethodContext methodContext = new MethodContext();
     methodContext.methodName = CodeGenUtils.mixedLower(methodProto.getName());
+    // This is needed to avoid clashes with generated oneWay and delayed methods.
+    methodContext.topLevelClientMethodName = (methodContext.methodName.equals("oneWay") || methodContext.methodName.equals("delayed")) ? "call" + firstUppercase(methodContext.methodName) : methodContext.methodName;
     methodContext.inputType = typeMap.toJavaTypeName(methodProto.getInputType());
     methodContext.outputType = typeMap.toJavaTypeName(methodProto.getOutputType());
     methodContext.deprecated = methodProto.getOptions().getDeprecated();
@@ -173,6 +175,7 @@ public class JavaBlockingGen extends Generator {
   /** Template class for proto RPC objects. */
   private static class MethodContext {
     // CHECKSTYLE DISABLE VisibilityModifier FOR 10 LINES
+  public String topLevelClientMethodName;
     public String methodName;
     public String inputType;
     public String outputType;

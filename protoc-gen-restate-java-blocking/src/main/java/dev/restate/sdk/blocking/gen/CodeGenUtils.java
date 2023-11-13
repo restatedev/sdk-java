@@ -105,6 +105,14 @@ public final class CodeGenUtils {
     return w.toString();
   }
 
+  static String firstUppercase(String word) {
+      if (word.length() == 1) {
+        return String.valueOf(Character.toUpperCase(word.charAt(0)));
+      }
+      return Character.toUpperCase(word.charAt(0)) +
+            word.substring(1);
+  }
+
   static Predicate<DescriptorProtos.SourceCodeInfo.Location> locationPathMatcher(int... matcher) {
     return location -> {
       if (location.getPathCount() != matcher.length) {
