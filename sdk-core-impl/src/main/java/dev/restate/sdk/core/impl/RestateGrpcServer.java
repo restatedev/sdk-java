@@ -30,14 +30,17 @@ public class RestateGrpcServer {
   private final Map<String, ServerServiceDefinition> services;
   private final Tracer tracer;
   private final ServiceDiscoveryHandler serviceDiscoveryHandler;
+  private final boolean optimizeSideEffectAcks;
 
   private RestateGrpcServer(
       Discovery.ProtocolMode protocolMode,
       Map<String, ServerServiceDefinition> services,
-      Tracer tracer) {
+      Tracer tracer,
+      boolean optimizeSideEffectAcks) {
     this.services = services;
     this.tracer = tracer;
     this.serviceDiscoveryHandler = new ServiceDiscoveryHandler(protocolMode, services);
+    this.optimizeSideEffectAcks = optimizeSideEffectAcks;
   }
 
   @SuppressWarnings("unchecked")
@@ -76,7 +79,8 @@ public class RestateGrpcServer {
     loggingContextSetter.setServiceMethod(serviceMethodName);
 
     // Instantiate state machine, syscall and grpc bridge
-    InvocationStateMachine stateMachine = new InvocationStateMachine(serviceName, span);
+    InvocationStateMachine stateMachine =
+        new InvocationStateMachine(serviceName, span, optimizeSideEffectAcks);
     SyscallsInternal syscalls =
         syscallExecutor != null
             ? ExecutorSwitchingWrappers.syscalls(new SyscallsImpl(stateMachine), syscallExecutor)
@@ -148,6 +152,7 @@ public class RestateGrpcServer {
     private final List<ServerServiceDefinition> services = new ArrayList<>();
     private final Discovery.ProtocolMode protocolMode;
     private Tracer tracer = OpenTelemetry.noop().getTracer("NOOP");
+    private boolean optimizeSideEffectAcks = false;
 
     public Builder(Discovery.ProtocolMode protocolMode) {
       this.protocolMode = protocolMode;
@@ -168,6 +173,11 @@ public class RestateGrpcServer {
       return this;
     }
 
+    public Builder optimizeSideEffectAcks() {
+      this.optimizeSideEffectAcks = true;
+      return this;
+    }
+
     public RestateGrpcServer build() {
       return new RestateGrpcServer(
           this.protocolMode,
@@ -175,7 +185,8 @@ public class RestateGrpcServer {
               .collect(
                   Collectors.toMap(
                       svc -> svc.getServiceDescriptor().getName(), Function.identity())),
-          tracer);
+          tracer,
+          optimizeSideEffectAcks);
     }
   }
 

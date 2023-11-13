@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
+import org.junit.jupiter.api.Assumptions
 
 class HttpVertxTestExecutor(private val vertx: Vertx) : TestExecutor {
   override fun buffered(): Boolean {
@@ -25,6 +26,9 @@ class HttpVertxTestExecutor(private val vertx: Vertx) : TestExecutor {
   }
 
   override fun executeTest(definition: TestDefinition) {
+    Assumptions.assumeFalse(
+        definition.optimizeSideEffectAcks(),
+        "HttpVertxTestExecutor doesn't support side effect acks optimizations")
     runBlocking(vertx.dispatcher()) {
       // Build server
       val builder =

@@ -78,6 +78,10 @@ public class ProtoUtils {
         .build();
   }
 
+  public static Protocol.CompletionMessage ackMessage(int index) {
+    return Protocol.CompletionMessage.newBuilder().setEntryIndex(index).build();
+  }
+
   public static Protocol.SuspensionMessage suspensionMessage(Integer... indexes) {
     return Protocol.SuspensionMessage.newBuilder().addAllEntryIndexes(List.of(indexes)).build();
   }

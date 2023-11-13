@@ -31,9 +31,15 @@ public final class MockMultiThreaded implements TestDefinitions.TestExecutor {
 
     ServerServiceDefinition svc = definition.getService().bindService();
 
+    // Prepare server
+    RestateGrpcServer.Builder builder =
+        RestateGrpcServer.newBuilder(Discovery.ProtocolMode.BIDI_STREAM).withService(svc);
+    if (definition.optimizeSideEffectAcks()) {
+      builder.optimizeSideEffectAcks();
+    }
+    RestateGrpcServer server = builder.build();
+
     // Start invocation
-    RestateGrpcServer server =
-        RestateGrpcServer.newBuilder(Discovery.ProtocolMode.BIDI_STREAM).withService(svc).build();
     InvocationHandler handler =
         server.resolve(
             svc.getServiceDescriptor().getName(),

@@ -25,29 +25,53 @@ public abstract class SideEffectTestSuite implements TestSuite {
 
   protected abstract BindableService sideEffectGuard();
 
-  protected abstract BindableService sideEffectThenAwakeable();
-
   @Override
   public Stream<TestDefinition> definitions() {
     return Stream.of(
+        // --- Side effects without optimizations
         testInvocation(() -> this.sideEffect("Francesco"), GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
             .expectingOutput(
                 Java.SideEffectEntryMessage.newBuilder()
                     .setValue(ByteString.copyFromUtf8("Francesco")),
-                outputMessage(GreetingResponse.newBuilder().setMessage("Hello Francesco"))),
+                suspensionMessage(1))
+            .named("Without optimization suspends"),
+        testInvocation(() -> this.sideEffect("Francesco"), GreeterGrpc.getGreetMethod())
+            .withInput(
+                startMessage(1),
+                inputMessage(GreetingRequest.newBuilder().setName("Till")),
+                ackMessage(1))
+            .expectingOutput(
+                Java.SideEffectEntryMessage.newBuilder()
+                    .setValue(ByteString.copyFromUtf8("Francesco")),
+                outputMessage(GreetingResponse.newBuilder().setMessage("Hello Francesco")))
+            .named("Without optimization and with acks returns"),
         testInvocation(() -> this.consecutiveSideEffect("Francesco"), GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
             .expectingOutput(
                 Java.SideEffectEntryMessage.newBuilder()
                     .setValue(ByteString.copyFromUtf8("Francesco")),
                 suspensionMessage(1))
-            .named("Without ack"),
+            .named("With optimization and without ack on first side effect will suspend"),
         testInvocation(() -> this.consecutiveSideEffect("Francesco"), GreeterGrpc.getGreetMethod())
             .withInput(
                 startMessage(1),
                 inputMessage(GreetingRequest.newBuilder().setName("Till")),
-                Protocol.CompletionMessage.newBuilder().setEntryIndex(1))
+                ackMessage(1))
+            .onlyUnbuffered()
+            .expectingOutput(
+                Java.SideEffectEntryMessage.newBuilder()
+                    .setValue(ByteString.copyFromUtf8("Francesco")),
+                Java.SideEffectEntryMessage.newBuilder()
+                    .setValue(ByteString.copyFromUtf8("FRANCESCO")),
+                suspensionMessage(2))
+            .named("With optimization and ack on first side effect will suspend"),
+        testInvocation(() -> this.consecutiveSideEffect("Francesco"), GreeterGrpc.getGreetMethod())
+            .withInput(
+                startMessage(1),
+                inputMessage(GreetingRequest.newBuilder().setName("Till")),
+                ackMessage(1),
+                ackMessage(2))
             .onlyUnbuffered()
             .expectingOutput(
                 Java.SideEffectEntryMessage.newBuilder()
@@ -55,9 +79,45 @@ public abstract class SideEffectTestSuite implements TestSuite {
                 Java.SideEffectEntryMessage.newBuilder()
                     .setValue(ByteString.copyFromUtf8("FRANCESCO")),
                 outputMessage(GreetingResponse.newBuilder().setMessage("Hello FRANCESCO")))
-            .named("With ack"),
+            .named("With optimization and ack on first and second side effect will resume"),
+
+        // --- Side effects with optimizations
+        testInvocation(() -> this.sideEffect("Francesco"), GreeterGrpc.getGreetMethod())
+            .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
+            .optimizeSideEffectAcks()
+            .expectingOutput(
+                Java.SideEffectEntryMessage.newBuilder()
+                    .setValue(ByteString.copyFromUtf8("Francesco")),
+                outputMessage(GreetingResponse.newBuilder().setMessage("Hello Francesco")))
+            .named("With optimization won't suspend"),
+        testInvocation(() -> this.consecutiveSideEffect("Francesco"), GreeterGrpc.getGreetMethod())
+            .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
+            .optimizeSideEffectAcks()
+            .expectingOutput(
+                Java.SideEffectEntryMessage.newBuilder()
+                    .setValue(ByteString.copyFromUtf8("Francesco")),
+                suspensionMessage(1))
+            .named("With optimization and without ack on first side effect will suspend"),
+        testInvocation(() -> this.consecutiveSideEffect("Francesco"), GreeterGrpc.getGreetMethod())
+            .withInput(
+                startMessage(1),
+                inputMessage(GreetingRequest.newBuilder().setName("Till")),
+                ackMessage(1),
+                ackMessage(2))
+            .onlyUnbuffered()
+            .optimizeSideEffectAcks()
+            .expectingOutput(
+                Java.SideEffectEntryMessage.newBuilder()
+                    .setValue(ByteString.copyFromUtf8("Francesco")),
+                Java.SideEffectEntryMessage.newBuilder()
+                    .setValue(ByteString.copyFromUtf8("FRANCESCO")),
+                outputMessage(GreetingResponse.newBuilder().setMessage("Hello FRANCESCO")))
+            .named("With optimization and ack on first side effect will resolve"),
+
+        // --- Other tests
         testInvocation(this::checkContextSwitching, GreeterGrpc.getGreetMethod())
-            .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
+            .withInput(
+                startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()), ackMessage(1))
             .onlyUnbuffered()
             .assertingOutput(
                 actualOutputMessages -> {
@@ -80,12 +140,6 @@ public abstract class SideEffectTestSuite implements TestSuite {
         testInvocation(this::sideEffectGuard, GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
             .assertingOutput(
-                containsOnlyExactErrorMessage(ProtocolException.invalidSideEffectCall())),
-        testInvocation(this::sideEffectThenAwakeable, GreeterGrpc.getGreetMethod())
-            .withInput(
-                startMessage(2),
-                inputMessage(GreetingRequest.newBuilder().setName("Till")),
-                Java.SideEffectEntryMessage.newBuilder().setValue(ByteString.copyFromUtf8("")))
-            .expectingOutput(awakeable(), suspensionMessage(2)));
+                containsOnlyExactErrorMessage(ProtocolException.invalidSideEffectCall())));
   }
 }
