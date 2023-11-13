@@ -10,6 +10,13 @@ You can run the Java counter service via:
 ./gradlew :examples:run
 ```
 
+In order to run the Java implementation using the vanilla gRPC generated code, you have to specify the main class via `-PmainClass=dev.restate.sdk.examples.VanillaGrpcCounter`:
+
+```shell
+./gradlew :examples:run -PmainClass=dev.restate.sdk.examples.VanillaGrpcCounter
+```
+
+
 In order to run the Kotlin implementation, you have to specify the main class via `-PmainClass=dev.restate.sdk.examples.CounterKt`:
 
 ```shell

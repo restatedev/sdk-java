@@ -49,19 +49,30 @@ configure<com.diffplug.gradle.spotless.SpotlessExtension> {
   }
 }
 
+val pluginJar =
+    file(
+        "${project.rootProject.rootDir}/protoc-gen-restate-java-blocking/build/libs/protoc-gen-restate-java-blocking-${project.version}.jar")
+
 protobuf {
   plugins {
     id("grpc") { artifact = "io.grpc:protoc-gen-grpc-java:${coreLibs.versions.grpc.get()}" }
     id("grpckt") {
       artifact = "io.grpc:protoc-gen-grpc-kotlin:${coreLibs.versions.grpckt.get()}:jdk8@jar"
     }
+    id("restate") {
+      // NOTE: This is not needed in a regular project configuration, you should rather use:
+      // artifact = "dev.restate.sdk:protoc-gen-restate-java-blocking:1.0-SNAPSHOT@jar"
+      path = pluginJar.path
+    }
   }
 
   generateProtoTasks {
     ofSourceSet("main").forEach {
+      it.dependsOn(":protoc-gen-restate-java-blocking:shadowJar")
       it.plugins {
         id("grpc")
         id("grpckt")
+        id("restate")
       }
       it.builtins { id("kotlin") }
 
@@ -75,7 +86,7 @@ protobuf {
 
 application {
   val mainClassValue: String =
-      project.findProperty("mainClass")?.toString() ?: "dev.restate.sdk.examples.BlockingCounter"
+      project.findProperty("mainClass")?.toString() ?: "dev.restate.sdk.examples.Counter"
   mainClass.set(mainClassValue)
 }
 

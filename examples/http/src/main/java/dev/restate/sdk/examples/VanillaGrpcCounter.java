@@ -11,9 +11,10 @@ import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public class BlockingCounter extends CounterGrpc.CounterImplBase implements RestateBlockingService {
+public class VanillaGrpcCounter extends CounterGrpc.CounterImplBase
+    implements RestateBlockingService {
 
-  private static final Logger LOG = LogManager.getLogger(BlockingCounter.class);
+  private static final Logger LOG = LogManager.getLogger(VanillaGrpcCounter.class);
 
   private static final StateKey<Long> TOTAL = StateKey.of("total", CoreSerdes.LONG);
 
@@ -62,6 +63,6 @@ public class BlockingCounter extends CounterGrpc.CounterImplBase implements Rest
   }
 
   public static void main(String[] args) {
-    RestateHttpEndpointBuilder.builder().withService(new BlockingCounter()).buildAndListen();
+    RestateHttpEndpointBuilder.builder().withService(new VanillaGrpcCounter()).buildAndListen();
   }
 }

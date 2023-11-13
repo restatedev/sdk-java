@@ -9,10 +9,10 @@ import dev.restate.sdk.kotlin.RestateCoroutineService
 import kotlinx.coroutines.Dispatchers
 import org.apache.logging.log4j.LogManager
 
-class Counter :
+class CounterKt :
     CounterGrpcKt.CounterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
 
-  private val LOG = LogManager.getLogger(BlockingCounter::class.java)
+  private val LOG = LogManager.getLogger(CounterKt::class.java)
 
   private val TOTAL = StateKey.of("total", CoreSerdes.LONG)
 
@@ -54,5 +54,5 @@ class Counter :
 }
 
 fun main() {
-  RestateHttpEndpointBuilder.builder().withService(Counter()).buildAndListen()
+  RestateHttpEndpointBuilder.builder().withService(CounterKt()).buildAndListen()
 }
