@@ -8,6 +8,15 @@
     },
     {
       "moduleLicense": "The 3-Clause BSD License"
+    },
+    {
+      "moduleLicense": "The 2-Clause BSD License"
+    },
+    {
+      "moduleLicense": "Eclipse Public License - v 2.0"
+    },
+    {
+      "moduleLicense": "Eclipse Public License - v 1.0"
     }
   ]
 }
