@@ -1,6 +1,7 @@
 package dev.restate.sdk.examples;
 
 import dev.restate.sdk.blocking.RestateContext;
+import dev.restate.sdk.core.CoreSerdes;
 import dev.restate.sdk.core.StateKey;
 import dev.restate.sdk.examples.generated.*;
 import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder;
@@ -11,7 +12,7 @@ public class Counter extends CounterRestate.CounterRestateImplBase {
 
   private static final Logger LOG = LogManager.getLogger(Counter.class);
 
-  private static final StateKey<Long> TOTAL = StateKey.of("total", Long.class);
+  private static final StateKey<Long> TOTAL = StateKey.of("total", CoreSerdes.LONG);
 
   @Override
   public void reset(RestateContext ctx, CounterRequest request) {
