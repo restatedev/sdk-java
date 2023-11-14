@@ -4,7 +4,6 @@ import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.sdk.core.BindableBlockingService;
 import dev.restate.sdk.core.BindableNonBlockingService;
 import dev.restate.sdk.core.impl.RestateGrpcServer;
-import dev.restate.sdk.core.serde.Serde;
 import io.grpc.ServerInterceptor;
 import io.grpc.ServerInterceptors;
 import io.grpc.ServerServiceDefinition;
@@ -107,17 +106,6 @@ public class RestateHttpEndpointBuilder {
       BindableNonBlockingService service, ServerInterceptor... interceptors) {
     this.restateGrpcServerBuilder.withService(
         ServerInterceptors.intercept(service, Arrays.asList(interceptors)));
-    return this;
-  }
-
-  /**
-   * Add a custom {@link Serde} implementation. Invoking this method will override every serde
-   * discovered through SPI.
-   *
-   * @see Serde
-   */
-  public RestateHttpEndpointBuilder withSerde(Serde... serde) {
-    this.restateGrpcServerBuilder.withSerde(serde);
     return this;
   }
 

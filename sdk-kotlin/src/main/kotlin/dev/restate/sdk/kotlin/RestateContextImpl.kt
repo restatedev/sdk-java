@@ -1,5 +1,7 @@
 package dev.restate.sdk.kotlin
 
+import com.google.protobuf.ByteString
+import com.google.protobuf.UnsafeByteOperations
 import dev.restate.sdk.core.*
 import dev.restate.sdk.core.syscalls.DeferredResult
 import dev.restate.sdk.core.syscalls.EnterSideEffectSyscallCallback
@@ -15,9 +17,9 @@ import kotlinx.coroutines.*
 internal class RestateContextImpl internal constructor(private val syscalls: Syscalls) :
     RestateContext {
   override suspend fun <T : Any> get(key: StateKey<T>): T? {
-    val deferredResult: DeferredResult<T> =
-        suspendCancellableCoroutine { cont: CancellableContinuation<DeferredResult<T>> ->
-          syscalls.get(key.name(), key.typeTag(), completingContinuation(cont))
+    val deferredResult: DeferredResult<ByteString> =
+        suspendCancellableCoroutine { cont: CancellableContinuation<DeferredResult<ByteString>> ->
+          syscalls.get(key.name(), completingContinuation(cont))
         }
 
     if (!deferredResult.isCompleted) {
@@ -33,12 +35,16 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
     if (readyResult.isEmpty) {
       return null
     }
-    return readyResult.result!!
+    return key.serde().deserialize(readyResult.result!!)!!
   }
 
   override suspend fun <T : Any> set(key: StateKey<T>, value: T) {
+    val serializedValue = key.serde().serialize(value)
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-      syscalls.set(key.name(), key.typeTag(), value, completingUnitContinuation(cont))
+      syscalls.set(
+          key.name(),
+          UnsafeByteOperations.unsafeWrap(serializedValue),
+          completingUnitContinuation(cont))
     }
   }
 
@@ -66,7 +72,7 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
           syscalls.call(methodDescriptor, parameter, completingContinuation(cont))
         }
 
-    return NonNullAwaitableImpl(syscalls, deferredResult)
+    return NonNullAwaitableImpl.of(syscalls, deferredResult)
   }
 
   override suspend fun <T, R> oneWayCall(methodDescriptor: MethodDescriptor<T, R>, parameter: T) {
@@ -87,24 +93,22 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
   }
 
   override suspend fun <T : Any?> sideEffect(
-      typeTag: TypeTag<T>,
+      serde: Serde<T>,
       sideEffectAction: suspend () -> T
   ): T {
     val exitResult =
-        suspendCancellableCoroutine { cont: CancellableContinuation<CompletableDeferred<T>> ->
+        suspendCancellableCoroutine { cont: CancellableContinuation<CompletableDeferred<ByteString>>
+          ->
           syscalls.enterSideEffectBlock(
-              typeTag,
-              object : EnterSideEffectSyscallCallback<T> {
-                @Suppress("UNCHECKED_CAST")
-                override fun onResult(t: T?) {
-                  val deferred: CompletableDeferred<T> = CompletableDeferred()
-                  // This unchecked cast is fine because T is declared as Any?
-                  deferred.complete(t as T)
+              object : EnterSideEffectSyscallCallback {
+                override fun onResult(t: ByteString) {
+                  val deferred: CompletableDeferred<ByteString> = CompletableDeferred()
+                  deferred.complete(t)
                   cont.resume(deferred)
                 }
 
                 override fun onFailure(t: StatusRuntimeException) {
-                  val deferred: CompletableDeferred<T> = CompletableDeferred()
+                  val deferred: CompletableDeferred<ByteString> = CompletableDeferred()
                   deferred.completeExceptionally(t)
                   cont.resume(deferred)
                 }
@@ -120,7 +124,7 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
         }
 
     if (exitResult.isCompleted) {
-      return exitResult.await()
+      return serde.deserialize(exitResult.await())
     }
 
     var actionReturnValue: T? = null
@@ -132,11 +136,9 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
     }
 
     val exitCallback =
-        object : ExitSideEffectSyscallCallback<T> {
-          @Suppress("UNCHECKED_CAST")
-          override fun onResult(t: T?) {
-            // This unchecked cast is fine because T is declared as Any?
-            exitResult.complete(t as T)
+        object : ExitSideEffectSyscallCallback {
+          override fun onResult(t: ByteString) {
+            exitResult.complete(t)
           }
 
           override fun onFailure(t: StatusRuntimeException) {
@@ -151,20 +153,20 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
     if (actionFailure != null) {
       syscalls.exitSideEffectBlockWithException(actionFailure, exitCallback)
     } else {
-      syscalls.exitSideEffectBlock(typeTag, actionReturnValue, exitCallback)
+      syscalls.exitSideEffectBlock(serde.serializeToByteString(actionReturnValue), exitCallback)
     }
 
-    return exitResult.await()
+    return serde.deserialize(exitResult.await())
   }
 
-  override suspend fun <T> awakeable(typeTag: TypeTag<T>): Awakeable<T> {
+  override suspend fun <T> awakeable(serde: Serde<T>): Awakeable<T> {
     val (aid, deferredResult) =
         suspendCancellableCoroutine {
-            cont: CancellableContinuation<Map.Entry<String, DeferredResult<T>>> ->
-          syscalls.awakeable(typeTag, completingContinuation(cont))
+            cont: CancellableContinuation<Map.Entry<String, DeferredResult<ByteString>>> ->
+          syscalls.awakeable(completingContinuation(cont))
         }
 
-    return AwakeableImpl(syscalls, deferredResult, aid)
+    return AwakeableImpl(syscalls, deferredResult, serde, aid)
   }
 
   override fun awakeableHandle(id: String): AwakeableHandle {

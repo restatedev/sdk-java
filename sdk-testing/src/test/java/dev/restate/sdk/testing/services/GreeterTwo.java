@@ -2,8 +2,8 @@ package dev.restate.sdk.testing.services;
 
 import dev.restate.sdk.blocking.RestateBlockingService;
 import dev.restate.sdk.blocking.RestateContext;
+import dev.restate.sdk.core.Serde;
 import dev.restate.sdk.core.StateKey;
-import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.testing.testservices.*;
 import io.grpc.stub.StreamObserver;
 import java.nio.charset.StandardCharsets;
@@ -20,7 +20,7 @@ public class GreeterTwo extends GreeterTwoGrpc.GreeterTwoImplBase
   private static final StateKey<Integer> COUNTER =
       StateKey.of(
           "COUNTER",
-          TypeTag.using(
+          Serde.using(
               i -> Integer.toString(i).getBytes(StandardCharsets.UTF_8),
               b -> Integer.parseInt(new String(b, StandardCharsets.UTF_8))));
 

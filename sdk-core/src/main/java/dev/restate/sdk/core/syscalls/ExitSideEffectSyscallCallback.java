@@ -1,11 +1,12 @@
 package dev.restate.sdk.core.syscalls;
 
+import com.google.protobuf.ByteString;
 import io.grpc.StatusRuntimeException;
 import javax.annotation.Nullable;
 
-public interface ExitSideEffectSyscallCallback<T> {
+public interface ExitSideEffectSyscallCallback {
 
-  void onResult(@Nullable T t);
+  void onResult(ByteString t);
 
   /** This is user failure. */
   void onFailure(StatusRuntimeException t);

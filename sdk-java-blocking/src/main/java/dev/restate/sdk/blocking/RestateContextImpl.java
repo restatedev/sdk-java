@@ -1,7 +1,9 @@
 package dev.restate.sdk.blocking;
 
+import com.google.protobuf.ByteString;
+import dev.restate.sdk.core.Serde;
 import dev.restate.sdk.core.StateKey;
-import dev.restate.sdk.core.TypeTag;
+import dev.restate.sdk.core.function.ThrowingSupplier;
 import dev.restate.sdk.core.syscalls.*;
 import io.grpc.MethodDescriptor;
 import io.grpc.StatusRuntimeException;
@@ -22,14 +24,15 @@ class RestateContextImpl implements RestateContext {
 
   @Override
   public <T> Optional<T> get(StateKey<T> key) {
-    DeferredResult<T> deferredResult =
-        Util.blockOnSyscall(cb -> syscalls.get(key.name(), key.typeTag(), cb));
+    DeferredResult<ByteString> deferredResult =
+        Util.blockOnSyscall(cb -> syscalls.get(key.name(), cb));
 
     if (!deferredResult.isCompleted()) {
       Util.<Void>blockOnSyscall(cb -> syscalls.resolveDeferred(deferredResult, cb));
     }
 
-    return Util.unwrapOptionalReadyResult(deferredResult.toReadyResult());
+    return Util.unwrapOptionalReadyResult(deferredResult.toReadyResult())
+        .map(bs -> key.serde().deserialize(bs));
   }
 
   @Override
@@ -39,7 +42,8 @@ class RestateContextImpl implements RestateContext {
 
   @Override
   public <T> void set(StateKey<T> key, @Nonnull T value) {
-    Util.<Void>blockOnSyscall(cb -> syscalls.set(key.name(), key.typeTag(), value, cb));
+    Util.<Void>blockOnSyscall(
+        cb -> syscalls.set(key.name(), key.serde().serializeToByteString(value), cb));
   }
 
   @Override
@@ -68,18 +72,17 @@ class RestateContextImpl implements RestateContext {
   }
 
   @Override
-  public <T> T sideEffect(TypeTag<T> typeTag, ThrowingSupplier<T> action) {
-    CompletableFuture<CompletableFuture<T>> enterFut = new CompletableFuture<>();
+  public <T> T sideEffect(Serde<T> serde, ThrowingSupplier<T> action) {
+    CompletableFuture<CompletableFuture<ByteString>> enterFut = new CompletableFuture<>();
     syscalls.enterSideEffectBlock(
-        typeTag,
-        new EnterSideEffectSyscallCallback<>() {
+        new EnterSideEffectSyscallCallback() {
           @Override
           public void onNotExecuted() {
             enterFut.complete(new CompletableFuture<>());
           }
 
           @Override
-          public void onResult(T result) {
+          public void onResult(ByteString result) {
             enterFut.complete(CompletableFuture.completedFuture(result));
           }
 
@@ -95,16 +98,16 @@ class RestateContextImpl implements RestateContext {
         });
 
     // If a failure was stored, it's simply thrown here
-    CompletableFuture<T> exitFut = Util.awaitCompletableFuture(enterFut);
+    CompletableFuture<ByteString> exitFut = Util.awaitCompletableFuture(enterFut);
     if (exitFut.isDone()) {
       // We already have a result, we don't need to execute the action
-      return Util.awaitCompletableFuture(exitFut);
+      return serde.deserialize(Util.awaitCompletableFuture(exitFut));
     }
 
-    ExitSideEffectSyscallCallback<T> exitCallback =
-        new ExitSideEffectSyscallCallback<>() {
+    ExitSideEffectSyscallCallback exitCallback =
+        new ExitSideEffectSyscallCallback() {
           @Override
-          public void onResult(T result) {
+          public void onResult(ByteString result) {
             exitFut.complete(result);
           }
 
@@ -130,27 +133,28 @@ class RestateContextImpl implements RestateContext {
     if (failure != null) {
       syscalls.exitSideEffectBlockWithException(failure, exitCallback);
     } else {
-      syscalls.exitSideEffectBlock(typeTag, res, exitCallback);
+      syscalls.exitSideEffectBlock(serde.serializeToByteString(res), exitCallback);
     }
 
-    return Util.awaitCompletableFuture(exitFut);
+    return serde.deserialize(Util.awaitCompletableFuture(exitFut));
   }
 
   @Override
-  public <T> Awakeable<T> awakeable(TypeTag<T> typeTag) throws StatusRuntimeException {
+  public <T> Awakeable<T> awakeable(Serde<T> serde) throws StatusRuntimeException {
     // Retrieve the awakeable
-    Map.Entry<String, DeferredResult<T>> awakeable =
-        Util.blockOnSyscall(cb -> syscalls.awakeable(typeTag, cb));
+    Map.Entry<String, DeferredResult<ByteString>> awakeable =
+        Util.blockOnSyscall(syscalls::awakeable);
 
-    return new Awakeable<>(syscalls, awakeable.getValue(), awakeable.getKey());
+    return new Awakeable<>(syscalls, awakeable.getValue(), serde, awakeable.getKey());
   }
 
   @Override
   public AwakeableHandle awakeableHandle(String id) {
     return new AwakeableHandle() {
       @Override
-      public <T> void resolve(TypeTag<T> typeTag, @Nonnull T payload) {
-        Util.<Void>blockOnSyscall(cb -> syscalls.resolveAwakeable(id, typeTag, payload, cb));
+      public <T> void resolve(Serde<T> serde, @Nonnull T payload) {
+        Util.<Void>blockOnSyscall(
+            cb -> syscalls.resolveAwakeable(id, serde.serializeToByteString(payload), cb));
       }
 
       @Override

@@ -4,7 +4,6 @@ import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.sdk.core.BindableBlockingService;
 import dev.restate.sdk.core.BindableNonBlockingService;
 import dev.restate.sdk.core.impl.RestateGrpcServer;
-import dev.restate.sdk.core.serde.Serde;
 import io.grpc.ServerInterceptor;
 import io.grpc.ServerInterceptors;
 import io.grpc.ServerServiceDefinition;
@@ -33,17 +32,6 @@ public final class LambdaRestateServerBuilder {
     ServerServiceDefinition definition =
         ServerInterceptors.intercept(service, Arrays.asList(interceptors));
     this.restateGrpcServerBuilder.withService(definition);
-    return this;
-  }
-
-  /**
-   * Add a custom {@link Serde} implementation. Invoking this method will override every serde
-   * discovered through SPI.
-   *
-   * @see Serde
-   */
-  public LambdaRestateServerBuilder withSerde(Serde... serde) {
-    this.restateGrpcServerBuilder.withSerde(serde);
     return this;
   }
 

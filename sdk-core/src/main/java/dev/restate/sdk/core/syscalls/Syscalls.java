@@ -2,7 +2,6 @@ package dev.restate.sdk.core.syscalls;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
-import dev.restate.sdk.core.TypeTag;
 import io.grpc.Context;
 import io.grpc.MethodDescriptor;
 import java.time.Duration;
@@ -10,7 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -47,11 +45,11 @@ public interface Syscalls {
 
   // ----- State
 
-  <T> void get(String name, TypeTag<T> ty, SyscallCallback<DeferredResult<T>> callback);
+  void get(String name, SyscallCallback<DeferredResult<ByteString>> callback);
 
   void clear(String name, SyscallCallback<Void> callback);
 
-  <T> void set(String name, TypeTag<T> ty, @Nonnull T value, SyscallCallback<Void> callback);
+  void set(String name, ByteString value, SyscallCallback<Void> callback);
 
   // ----- Syscalls
 
@@ -68,19 +66,15 @@ public interface Syscalls {
       @Nullable Duration delay,
       SyscallCallback<Void> requestCallback);
 
-  <T> void enterSideEffectBlock(TypeTag<T> typeTag, EnterSideEffectSyscallCallback<T> callback);
+  void enterSideEffectBlock(EnterSideEffectSyscallCallback callback);
 
-  <T> void exitSideEffectBlock(
-      TypeTag<T> typeTag, T toWrite, ExitSideEffectSyscallCallback<T> callback);
+  void exitSideEffectBlock(ByteString toWrite, ExitSideEffectSyscallCallback callback);
 
-  void exitSideEffectBlockWithException(
-      Throwable toWrite, ExitSideEffectSyscallCallback<?> callback);
+  void exitSideEffectBlockWithException(Throwable toWrite, ExitSideEffectSyscallCallback callback);
 
-  <T> void awakeable(
-      TypeTag<T> typeTag, SyscallCallback<Map.Entry<String, DeferredResult<T>>> callback);
+  void awakeable(SyscallCallback<Map.Entry<String, DeferredResult<ByteString>>> callback);
 
-  <T> void resolveAwakeable(
-      String id, TypeTag<T> ty, @Nonnull T payload, SyscallCallback<Void> requestCallback);
+  void resolveAwakeable(String id, ByteString payload, SyscallCallback<Void> requestCallback);
 
   void rejectAwakeable(String id, String reason, SyscallCallback<Void> requestCallback);
 
@@ -88,7 +82,7 @@ public interface Syscalls {
 
   <T> void resolveDeferred(DeferredResult<T> deferredToResolve, SyscallCallback<Void> callback);
 
-  AnyDeferredResult createAnyDeferred(List<DeferredResult<?>> children);
+  DeferredResult<Integer> createAnyDeferred(List<DeferredResult<?>> children);
 
   DeferredResult<Void> createAllDeferred(List<DeferredResult<?>> children);
 }

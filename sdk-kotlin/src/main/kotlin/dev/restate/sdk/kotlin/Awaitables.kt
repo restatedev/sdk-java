@@ -1,8 +1,9 @@
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.core.TypeTag
-import dev.restate.sdk.core.syscalls.AnyDeferredResult
+import com.google.protobuf.ByteString
+import dev.restate.sdk.core.Serde
 import dev.restate.sdk.core.syscalls.DeferredResult
+import dev.restate.sdk.core.syscalls.ReadyResultHolder
 import dev.restate.sdk.core.syscalls.Syscalls
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -10,7 +11,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 internal abstract class BaseAwaitableImpl<JAVA_T, KT_T>
 internal constructor(
     internal val syscalls: Syscalls,
-    internal val deferredResult: DeferredResult<JAVA_T>
+    internal val resultHolder: ReadyResultHolder<JAVA_T>
 ) : Awaitable<KT_T> {
 
   abstract fun unpack(): KT_T
@@ -19,9 +20,9 @@ internal constructor(
     get() = SelectClauseImpl(this)
 
   override suspend fun await(): KT_T {
-    if (!deferredResult.isCompleted) {
+    if (!resultHolder.isCompleted) {
       suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-        syscalls.resolveDeferred(deferredResult, completingUnitContinuation(cont))
+        syscalls.resolveDeferred(resultHolder.deferredResult, completingUnitContinuation(cont))
       }
     }
     return unpack()
@@ -29,10 +30,17 @@ internal constructor(
 }
 
 internal open class NonNullAwaitableImpl<T>
-internal constructor(syscalls: Syscalls, deferredResult: DeferredResult<T>) :
-    BaseAwaitableImpl<T, T>(syscalls, deferredResult) {
+internal constructor(syscalls: Syscalls, resultHolder: ReadyResultHolder<T>) :
+    BaseAwaitableImpl<T, T>(syscalls, resultHolder) {
+
+  companion object {
+    fun <T> of(syscalls: Syscalls, deferredResult: DeferredResult<T>): NonNullAwaitableImpl<T> {
+      return NonNullAwaitableImpl(syscalls, ReadyResultHolder(deferredResult))
+    }
+  }
+
   override fun unpack(): T {
-    val readyResult = deferredResult.toReadyResult()!!
+    val readyResult = resultHolder.readyResult
     if (!readyResult.isSuccess) {
       throw readyResult.failure!!
     }
@@ -42,9 +50,9 @@ internal constructor(syscalls: Syscalls, deferredResult: DeferredResult<T>) :
 
 internal class UnitAwaitableImpl
 internal constructor(syscalls: Syscalls, deferredResult: DeferredResult<Void>) :
-    BaseAwaitableImpl<Void, Unit>(syscalls, deferredResult) {
+    BaseAwaitableImpl<Void, Unit>(syscalls, ReadyResultHolder(deferredResult)) {
   override fun unpack() {
-    val readyResult = deferredResult.toReadyResult()!!
+    val readyResult = resultHolder.readyResult
     if (!readyResult.isSuccess) {
       throw readyResult.failure!!
     }
@@ -53,10 +61,18 @@ internal constructor(syscalls: Syscalls, deferredResult: DeferredResult<Void>) :
 }
 
 internal class AnyAwaitableImpl
-internal constructor(syscalls: Syscalls, deferredResult: DeferredResult<Any>) :
-    BaseAwaitableImpl<Any, Any>(syscalls, deferredResult), AnyAwaitable {
+internal constructor(syscalls: Syscalls, awaitables: List<Awaitable<*>>) :
+    BaseAwaitableImpl<Any, Any>(
+        syscalls,
+        ReadyResultHolder(
+            syscalls.createAnyDeferred(
+                awaitables.map { (it as BaseAwaitableImpl<*, *>).resultHolder.deferredResult })) {
+              (awaitables[it] as BaseAwaitableImpl<*, *>).unpack()
+            },
+    ),
+    AnyAwaitable {
   override fun unpack(): Any {
-    val readyResult = deferredResult.toReadyResult()!!
+    val readyResult = resultHolder.readyResult
     if (!readyResult.isSuccess) {
       throw readyResult.failure!!
     }
@@ -64,16 +80,13 @@ internal constructor(syscalls: Syscalls, deferredResult: DeferredResult<Any>) :
   }
 
   override suspend fun awaitIndex(): Int {
-    if (!deferredResult.isCompleted) {
+    if (!resultHolder.isCompleted) {
       suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-        syscalls.resolveDeferred(deferredResult, completingUnitContinuation(cont))
+        syscalls.resolveDeferred(resultHolder.deferredResult, completingUnitContinuation(cont))
       }
     }
 
-    return (deferredResult as AnyDeferredResult).completedIndex().orElseThrow {
-      IllegalStateException(
-          "completedIndex is empty when expecting a value. This looks like an SDK bug.")
-    }
+    return resultHolder.deferredResult.toReadyResult()!!.result as Int
   }
 }
 
@@ -81,27 +94,30 @@ internal fun wrapAllAwaitable(awaitables: List<Awaitable<*>>): Awaitable<Unit> {
   val syscalls = (awaitables.get(0) as BaseAwaitableImpl<*, *>).syscalls
   return UnitAwaitableImpl(
       syscalls,
-      syscalls.createAllDeferred(awaitables.map { (it as BaseAwaitableImpl<*, *>).deferredResult }))
+      syscalls.createAllDeferred(
+          awaitables.map { (it as BaseAwaitableImpl<*, *>).resultHolder.deferredResult }))
 }
 
 internal fun wrapAnyAwaitable(awaitables: List<Awaitable<*>>): AnyAwaitable {
   val syscalls = (awaitables.get(0) as BaseAwaitableImpl<*, *>).syscalls
-  return AnyAwaitableImpl(
-      syscalls,
-      syscalls.createAnyDeferred(awaitables.map { (it as BaseAwaitableImpl<*, *>).deferredResult }))
+  return AnyAwaitableImpl(syscalls, awaitables)
 }
 
 internal class AwakeableImpl<T>
 internal constructor(
     syscalls: Syscalls,
-    deferredResult: DeferredResult<T>,
+    deferredResult: DeferredResult<ByteString>,
+    serde: Serde<T>,
     override val id: String
-) : NonNullAwaitableImpl<T>(syscalls, deferredResult), Awakeable<T>
+) :
+    NonNullAwaitableImpl<T>(syscalls, ReadyResultHolder(deferredResult, serde::deserialize)),
+    Awakeable<T>
 
 internal class AwakeableHandleImpl(val syscalls: Syscalls, val id: String) : AwakeableHandle {
-  override suspend fun <T : Any> resolve(typeTag: TypeTag<T>, payload: T) {
+  override suspend fun <T : Any> resolve(serde: Serde<T>, payload: T) {
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-      syscalls.resolveAwakeable(id, typeTag, payload, completingUnitContinuation(cont))
+      syscalls.resolveAwakeable(
+          id, serde.serializeToByteString(payload), completingUnitContinuation(cont))
     }
   }
 

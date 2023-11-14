@@ -15,6 +15,9 @@ plugins {
 dependencies {
   api(coreLibs.protobuf.java)
   api(coreLibs.grpc.api)
+
+  testImplementation(testingLibs.junit.jupiter)
+  testImplementation(testingLibs.assertj)
 }
 
 publishing {

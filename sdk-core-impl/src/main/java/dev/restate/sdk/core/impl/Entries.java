@@ -85,13 +85,12 @@ final class Entries {
     }
   }
 
-  static final class GetStateEntry<R> extends CompletableJournalEntry<GetStateEntryMessage, R> {
+  static final class GetStateEntry
+      extends CompletableJournalEntry<GetStateEntryMessage, ByteString> {
 
-    private final Function<ByteString, ReadyResultInternal<R>> valueParser;
+    static final GetStateEntry INSTANCE = new GetStateEntry();
 
-    GetStateEntry(Function<ByteString, ReadyResultInternal<R>> valueParser) {
-      this.valueParser = valueParser;
-    }
+    private GetStateEntry() {}
 
     @Override
     void trace(GetStateEntryMessage expected, Span span) {
@@ -116,17 +115,17 @@ final class Entries {
     }
 
     @Override
-    public ReadyResultInternal<R> parseEntryResult(GetStateEntryMessage actual) {
+    public ReadyResultInternal<ByteString> parseEntryResult(GetStateEntryMessage actual) {
       if (actual.getResultCase() == GetStateEntryMessage.ResultCase.VALUE) {
-        return valueParser.apply(actual.getValue());
+        return ReadyResults.success(actual.getValue());
       }
       return ReadyResults.empty();
     }
 
     @Override
-    public ReadyResultInternal<R> parseCompletionResult(CompletionMessage actual) {
+    public ReadyResultInternal<ByteString> parseCompletionResult(CompletionMessage actual) {
       if (actual.getResultCase() == CompletionMessage.ResultCase.VALUE) {
-        return valueParser.apply(actual.getValue());
+        return ReadyResults.success(actual.getValue());
       }
       if (actual.getResultCase() == CompletionMessage.ResultCase.EMPTY) {
         return ReadyResults.empty();
@@ -332,13 +331,11 @@ final class Entries {
     }
   }
 
-  static final class AwakeableEntry<R> extends CompletableJournalEntry<AwakeableEntryMessage, R> {
+  static final class AwakeableEntry
+      extends CompletableJournalEntry<AwakeableEntryMessage, ByteString> {
+    static final AwakeableEntry INSTANCE = new AwakeableEntry();
 
-    private final Function<ByteString, ReadyResultInternal<R>> valueParser;
-
-    AwakeableEntry(Function<ByteString, ReadyResultInternal<R>> valueParser) {
-      this.valueParser = valueParser;
-    }
+    private AwakeableEntry() {}
 
     @Override
     void trace(AwakeableEntryMessage expected, Span span) {
@@ -351,17 +348,17 @@ final class Entries {
     }
 
     @Override
-    public ReadyResultInternal<R> parseEntryResult(AwakeableEntryMessage actual) {
+    public ReadyResultInternal<ByteString> parseEntryResult(AwakeableEntryMessage actual) {
       if (actual.hasValue()) {
-        return valueParser.apply(actual.getValue());
+        return ReadyResults.success(actual.getValue());
       }
       return ReadyResults.failure(Util.toGrpcStatus(actual.getFailure()).asRuntimeException());
     }
 
     @Override
-    public ReadyResultInternal<R> parseCompletionResult(CompletionMessage actual) {
+    public ReadyResultInternal<ByteString> parseCompletionResult(CompletionMessage actual) {
       if (actual.hasValue()) {
-        return valueParser.apply(actual.getValue());
+        return ReadyResults.success(actual.getValue());
       }
       if (actual.hasFailure()) {
         return ReadyResults.failure(Util.toGrpcStatus(actual.getFailure()).asRuntimeException());

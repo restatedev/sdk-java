@@ -2,14 +2,12 @@ package dev.restate.sdk.core.impl;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
-import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.core.syscalls.*;
 import io.grpc.MethodDescriptor;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
-import javax.annotation.Nonnull;
 
 class ExecutorSwitchingWrappers {
 
@@ -105,8 +103,8 @@ class ExecutorSwitchingWrappers {
     }
 
     @Override
-    public <T> void get(String name, TypeTag<T> ty, SyscallCallback<DeferredResult<T>> callback) {
-      syscallsExecutor.execute(() -> syscalls.get(name, ty, callback));
+    public void get(String name, SyscallCallback<DeferredResult<ByteString>> callback) {
+      syscallsExecutor.execute(() -> syscalls.get(name, callback));
     }
 
     @Override
@@ -115,9 +113,8 @@ class ExecutorSwitchingWrappers {
     }
 
     @Override
-    public <T> void set(
-        String name, TypeTag<T> typeTag, @Nonnull T value, SyscallCallback<Void> callback) {
-      syscallsExecutor.execute(() -> syscalls.set(name, typeTag, value, callback));
+    public void set(String name, ByteString value, SyscallCallback<Void> callback) {
+      syscallsExecutor.execute(() -> syscalls.set(name, value, callback));
     }
 
     @Override
@@ -144,34 +141,30 @@ class ExecutorSwitchingWrappers {
     }
 
     @Override
-    public <T> void enterSideEffectBlock(
-        TypeTag<T> typeTag, EnterSideEffectSyscallCallback<T> callback) {
-      syscallsExecutor.execute(() -> syscalls.enterSideEffectBlock(typeTag, callback));
+    public void enterSideEffectBlock(EnterSideEffectSyscallCallback callback) {
+      syscallsExecutor.execute(() -> syscalls.enterSideEffectBlock(callback));
     }
 
     @Override
-    public <T> void exitSideEffectBlock(
-        TypeTag<T> typeTag, T toWrite, ExitSideEffectSyscallCallback<T> callback) {
-      syscallsExecutor.execute(() -> syscalls.exitSideEffectBlock(typeTag, toWrite, callback));
+    public void exitSideEffectBlock(ByteString toWrite, ExitSideEffectSyscallCallback callback) {
+      syscallsExecutor.execute(() -> syscalls.exitSideEffectBlock(toWrite, callback));
     }
 
     @Override
     public void exitSideEffectBlockWithException(
-        Throwable toWrite, ExitSideEffectSyscallCallback<?> callback) {
+        Throwable toWrite, ExitSideEffectSyscallCallback callback) {
       syscallsExecutor.execute(() -> syscalls.exitSideEffectBlockWithException(toWrite, callback));
     }
 
     @Override
-    public <T> void awakeable(
-        TypeTag<T> typeTag, SyscallCallback<Map.Entry<String, DeferredResult<T>>> callback) {
-      syscallsExecutor.execute(() -> syscalls.awakeable(typeTag, callback));
+    public void awakeable(SyscallCallback<Map.Entry<String, DeferredResult<ByteString>>> callback) {
+      syscallsExecutor.execute(() -> syscalls.awakeable(callback));
     }
 
     @Override
-    public <T> void resolveAwakeable(
-        String id, TypeTag<T> typeTag, @Nonnull T payload, SyscallCallback<Void> requestCallback) {
-      syscallsExecutor.execute(
-          () -> syscalls.resolveAwakeable(id, typeTag, payload, requestCallback));
+    public void resolveAwakeable(
+        String id, ByteString payload, SyscallCallback<Void> requestCallback) {
+      syscallsExecutor.execute(() -> syscalls.resolveAwakeable(id, payload, requestCallback));
     }
 
     @Override

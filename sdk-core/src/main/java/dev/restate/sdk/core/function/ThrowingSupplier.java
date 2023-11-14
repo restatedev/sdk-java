@@ -1,8 +1,6 @@
-package dev.restate.sdk.blocking;
+package dev.restate.sdk.core.function;
 
-import java.util.function.Supplier;
-
-/** Like {@link Supplier} but can throw checked exceptions. */
+/** Like {@link java.util.function.Supplier} but can throw checked exceptions. */
 @FunctionalInterface
 public interface ThrowingSupplier<T> {
 

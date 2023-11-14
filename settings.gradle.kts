@@ -73,8 +73,6 @@ dependencyResolutionManagement {
       library("jackson-core", "com.fasterxml.jackson.core", "jackson-core").withoutVersion()
       library("jackson-databind", "com.fasterxml.jackson.core", "jackson-databind")
           .versionRef("jackson")
-      library("jackson-cbor", "com.fasterxml.jackson.dataformat", "jackson-dataformat-cbor")
-          .withoutVersion()
     }
     create("kotlinLibs") {
       library("kotlinx-coroutines", "org.jetbrains.kotlinx", "kotlinx-coroutines-core")

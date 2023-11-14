@@ -4,8 +4,9 @@ import dev.restate.sdk.blocking.Awaitable;
 import dev.restate.sdk.blocking.Awakeable;
 import dev.restate.sdk.blocking.RestateBlockingService;
 import dev.restate.sdk.blocking.RestateContext;
+import dev.restate.sdk.core.CoreSerdes;
+import dev.restate.sdk.core.Serde;
 import dev.restate.sdk.core.StateKey;
-import dev.restate.sdk.core.TypeTag;
 import dev.restate.sdk.testing.testservices.*;
 import io.grpc.stub.StreamObserver;
 import java.nio.charset.StandardCharsets;
@@ -19,12 +20,12 @@ public class GreeterOne extends GreeterOneGrpc.GreeterOneImplBase
     implements RestateBlockingService {
 
   private static final Logger LOG = LogManager.getLogger(GreeterOne.class);
-  private static final StateKey<String> STATE = StateKey.of("STATE", TypeTag.STRING_UTF8);
+  private static final StateKey<String> STATE = StateKey.of("STATE", CoreSerdes.STRING_UTF8);
 
   private static final StateKey<Integer> COUNTER =
       StateKey.of(
           "COUNTER",
-          TypeTag.using(
+          Serde.using(
               i -> Integer.toString(i).getBytes(StandardCharsets.UTF_8),
               b -> Integer.parseInt(new String(b, StandardCharsets.UTF_8))));
 
@@ -189,7 +190,7 @@ public class GreeterOne extends GreeterOneGrpc.GreeterOneImplBase
     LOG.debug("Executing the GreeterOne.greetWithSideEffect method");
     RestateContext ctx = restateContext();
 
-    ctx.sideEffect(TypeTag.STRING_UTF8, () -> "some-result");
+    ctx.sideEffect(CoreSerdes.STRING_UTF8, () -> "some-result");
 
     responseObserver.onNext(GreeterOneResponse.newBuilder().setMessage("Hello").build());
     responseObserver.onCompleted();
@@ -202,7 +203,7 @@ public class GreeterOne extends GreeterOneGrpc.GreeterOneImplBase
     RestateContext ctx = restateContext();
 
     // Create awakeable identifier to be woken up with
-    Awakeable<String> a1 = ctx.awakeable(TypeTag.STRING_UTF8);
+    Awakeable<String> a1 = ctx.awakeable(CoreSerdes.STRING_UTF8);
 
     // Tell GreeterTwo to wake us up with the awakeable identifier.
     AwakeServiceRequest info = AwakeServiceRequest.newBuilder().setId(a1.id()).build();

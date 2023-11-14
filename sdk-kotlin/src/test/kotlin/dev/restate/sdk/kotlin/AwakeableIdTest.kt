@@ -1,6 +1,6 @@
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.core.TypeTag
+import dev.restate.sdk.core.CoreSerdes
 import dev.restate.sdk.core.impl.AwakeableIdTestSuite
 import dev.restate.sdk.core.impl.testservices.GreeterGrpcKt
 import dev.restate.sdk.core.impl.testservices.GreetingRequest
@@ -14,7 +14,7 @@ class AwakeableIdTest : AwakeableIdTestSuite() {
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
 
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val id: String = restateContext().awakeable(TypeTag.STRING_UTF8).id
+      val id: String = restateContext().awakeable(CoreSerdes.STRING_UTF8).id
       return greetingResponse { message = id }
     }
   }

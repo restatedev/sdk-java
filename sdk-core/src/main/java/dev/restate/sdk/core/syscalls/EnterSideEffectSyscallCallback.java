@@ -1,6 +1,6 @@
 package dev.restate.sdk.core.syscalls;
 
-public interface EnterSideEffectSyscallCallback<T> extends ExitSideEffectSyscallCallback<T> {
+public interface EnterSideEffectSyscallCallback extends ExitSideEffectSyscallCallback {
 
   void onNotExecuted();
 }

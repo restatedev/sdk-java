@@ -1,7 +1,7 @@
 package dev.restate.sdk.kotlin
 
+import dev.restate.sdk.core.Serde
 import dev.restate.sdk.core.StateKey
-import dev.restate.sdk.core.TypeTag
 import dev.restate.sdk.core.impl.StateMachineFailuresTestSuite
 import dev.restate.sdk.core.impl.testservices.GreeterGrpcKt
 import dev.restate.sdk.core.impl.testservices.GreetingRequest
@@ -23,7 +23,7 @@ class StateMachineFailuresTest : StateMachineFailuresTestSuite() {
       private val STATE =
           StateKey.of(
               "STATE",
-              TypeTag.using({ i: Int -> i.toString().toByteArray(StandardCharsets.UTF_8) }) {
+              Serde.using({ i: Int -> i.toString().toByteArray(StandardCharsets.UTF_8) }) {
                   b: ByteArray? ->
                 String(b!!, StandardCharsets.UTF_8).toInt()
               })
@@ -31,18 +31,18 @@ class StateMachineFailuresTest : StateMachineFailuresTestSuite() {
   }
 
   override fun getState(): BindableService {
-    return GetState()
+    throw UnsupportedOperationException("https://github.com/restatedev/sdk-java/issues/116")
   }
 
-  private class SideEffectFailure(private val typeTag: TypeTag<Int>) :
+  private class SideEffectFailure(private val serde: Serde<Int>) :
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      restateContext().sideEffect(typeTag) { 0 }
+      restateContext().sideEffect(serde) { 0 }
       return greetingResponse { message = "Francesco" }
     }
   }
 
-  override fun sideEffectFailure(typeTag: TypeTag<Int>): BindableService {
-    return SideEffectFailure(typeTag)
+  override fun sideEffectFailure(serde: Serde<Int>): BindableService {
+    throw UnsupportedOperationException("https://github.com/restatedev/sdk-java/issues/116")
   }
 }

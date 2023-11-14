@@ -9,28 +9,33 @@ package dev.restate.sdk.core;
 public final class StateKey<T> {
 
   private final String name;
-  private final TypeTag<T> typeTag;
+  private final Serde<T> serde;
 
-  private StateKey(String name, TypeTag<T> typeTag) {
+  private StateKey(String name, Serde<T> serde) {
     this.name = name;
-    this.typeTag = typeTag;
+    this.serde = serde;
   }
 
-  /** Shorthand for {@link #of(String, TypeTag)}. */
-  public static <T> StateKey<T> of(String name, Class<T> type) {
-    return of(name, TypeTag.ofClass(type));
+  /** Create a new {@link StateKey}. */
+  public static <T> StateKey<T> of(String name, Serde<T> serde) {
+    return new StateKey<>(name, serde);
   }
 
-  /** Factory method to create a new instance of this class. */
-  public static <T> StateKey<T> of(String name, TypeTag<T> typeTag) {
-    return new StateKey<>(name, typeTag);
+  /** Create a new {@link StateKey} for {@link String} state. */
+  public static StateKey<String> string(String name) {
+    return new StateKey<>(name, CoreSerdes.STRING_UTF8);
+  }
+
+  /** Create a new {@link StateKey} for bytes state. */
+  public static StateKey<byte[]> bytes(String name) {
+    return new StateKey<>(name, CoreSerdes.BYTES);
   }
 
   public String name() {
     return name;
   }
 
-  public TypeTag<T> typeTag() {
-    return typeTag;
+  public Serde<T> serde() {
+    return serde;
   }
 }

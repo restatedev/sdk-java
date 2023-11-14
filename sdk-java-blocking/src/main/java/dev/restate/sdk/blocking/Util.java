@@ -1,8 +1,10 @@
 package dev.restate.sdk.blocking;
 
 import dev.restate.sdk.core.SuspendedException;
+import dev.restate.sdk.core.syscalls.DeferredResult;
 import dev.restate.sdk.core.syscalls.ReadyResult;
 import dev.restate.sdk.core.syscalls.SyscallCallback;
+import dev.restate.sdk.core.syscalls.Syscalls;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -12,6 +14,14 @@ import java.util.function.Consumer;
 class Util {
 
   private Util() {}
+
+  static <T> T blockOnResolve(Syscalls syscalls, DeferredResult<T> deferredResult) {
+    if (!deferredResult.isCompleted()) {
+      Util.<Void>blockOnSyscall(cb -> syscalls.resolveDeferred(deferredResult, cb));
+    }
+
+    return Util.unwrapReadyResult(deferredResult.toReadyResult());
+  }
 
   static <T> T awaitCompletableFuture(CompletableFuture<T> future) {
     try {

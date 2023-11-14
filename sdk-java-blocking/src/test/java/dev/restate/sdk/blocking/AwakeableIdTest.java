@@ -2,7 +2,7 @@ package dev.restate.sdk.blocking;
 
 import static dev.restate.sdk.core.impl.ProtoUtils.greetingResponse;
 
-import dev.restate.sdk.core.TypeTag;
+import dev.restate.sdk.core.CoreSerdes;
 import dev.restate.sdk.core.impl.AwakeableIdTestSuite;
 import dev.restate.sdk.core.impl.testservices.GreeterGrpc;
 import dev.restate.sdk.core.impl.testservices.GreetingRequest;
@@ -17,7 +17,7 @@ public class AwakeableIdTest extends AwakeableIdTestSuite {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      String id = restateContext().awakeable(TypeTag.STRING_UTF8).id();
+      String id = restateContext().awakeable(CoreSerdes.STRING_UTF8).id();
       responseObserver.onNext(greetingResponse(id));
       responseObserver.onCompleted();
     }

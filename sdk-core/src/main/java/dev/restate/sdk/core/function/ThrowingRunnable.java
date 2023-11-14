@@ -1,4 +1,4 @@
-package dev.restate.sdk.blocking;
+package dev.restate.sdk.core.function;
 
 /** Like {@link Runnable} but can throw checked exceptions. */
 @FunctionalInterface
