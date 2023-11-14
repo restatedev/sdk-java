@@ -19,7 +19,7 @@ application { mainClass.set("dev.restate.sdk.blocking.gen.JavaBlockingGen") }
 
 tasks.named<ShadowJar>("shadowJar") {
   // Override the default jar
-  archiveClassifier.set("")
+  archiveClassifier.set("all")
 }
 
 publishing {

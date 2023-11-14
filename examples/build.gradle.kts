@@ -53,7 +53,7 @@ configure<com.diffplug.gradle.spotless.SpotlessExtension> {
 
 val pluginJar =
     file(
-        "${project.rootProject.rootDir}/protoc-gen-restate-java-blocking/build/libs/protoc-gen-restate-java-blocking-${project.version}.jar")
+        "${project.rootProject.rootDir}/protoc-gen-restate-java-blocking/build/libs/protoc-gen-restate-java-blocking-${project.version}-all.jar")
 
 protobuf {
   plugins {
@@ -63,7 +63,7 @@ protobuf {
     }
     id("restate") {
       // NOTE: This is not needed in a regular project configuration, you should rather use:
-      // artifact = "dev.restate.sdk:protoc-gen-restate-java-blocking:1.0-SNAPSHOT@jar"
+      // artifact = "dev.restate.sdk:protoc-gen-restate-java-blocking:1.0-SNAPSHOT:all@jar"
       path = pluginJar.path
     }
   }
