@@ -18,7 +18,8 @@ include(
     "protoc-gen-restate-java-blocking",
     "sdk-lambda",
     "sdk-kotlin",
-    "examples")
+    "examples",
+    "admin-client")
 
 dependencyResolutionManagement {
   repositories { mavenCentral() }
@@ -72,6 +73,8 @@ dependencyResolutionManagement {
       library("jackson-core", "com.fasterxml.jackson.core", "jackson-core").withoutVersion()
       library("jackson-databind", "com.fasterxml.jackson.core", "jackson-databind")
           .versionRef("jackson")
+      library("jackson-jsr310", "com.fasterxml.jackson.datatype", "jackson-datatype-jsr310")
+          .withoutVersion()
     }
     create("kotlinLibs") {
       library("kotlinx-coroutines", "org.jetbrains.kotlinx", "kotlinx-coroutines-core")
