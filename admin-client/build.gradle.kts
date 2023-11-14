@@ -20,7 +20,7 @@ dependencies {
 }
 
 // Add generated output to source sets
-sourceSets { main { java.srcDir("$buildDir/generate-resources/main/src/main/java") } }
+sourceSets { main { java.srcDir(tasks.named("openApiGenerate")) } }
 
 // Configure openapi generator
 tasks.withType<GenerateTask> {
@@ -45,8 +45,6 @@ tasks.withType<GenerateTask> {
 }
 
 tasks.withType<JavaCompile>().configureEach {
-  dependsOn("openApiGenerate")
-
   targetCompatibility = "11"
   sourceCompatibility = "11"
 
