@@ -18,6 +18,7 @@ include(
     "protoc-gen-restate-java-blocking",
     "sdk-lambda",
     "sdk-kotlin",
+    "sdk-test",
     "examples",
     "admin-client")
 
@@ -83,11 +84,17 @@ dependencyResolutionManagement {
     create("testingLibs") {
       version("junit-jupiter", "5.9.1")
       version("assertj", "3.23.1")
+      version("testcontainers", "1.19.0")
 
       library("junit-jupiter", "org.junit.jupiter", "junit-jupiter").versionRef("junit-jupiter")
       library("junit-api", "org.junit.jupiter", "junit-jupiter-api").versionRef("junit-jupiter")
 
       library("assertj", "org.assertj", "assertj-core").versionRef("assertj")
+
+      library("testcontainers-core", "org.testcontainers", "testcontainers")
+          .versionRef("testcontainers")
+      library("testcontainers-toxiproxy", "org.testcontainers", "toxiproxy")
+          .versionRef("testcontainers")
     }
     create("pluginLibs") {
       plugin("spotless", "com.diffplug.spotless").version("6.22.0")
