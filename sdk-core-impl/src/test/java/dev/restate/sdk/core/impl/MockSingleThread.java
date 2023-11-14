@@ -31,9 +31,6 @@ public final class MockSingleThread implements TestExecutor {
     // Prepare server
     RestateGrpcServer.Builder builder =
         RestateGrpcServer.newBuilder(Discovery.ProtocolMode.BIDI_STREAM).withService(svc);
-    if (definition.optimizeSideEffectAcks()) {
-      builder.optimizeSideEffectAcks();
-    }
     RestateGrpcServer server = builder.build();
 
     // Start invocation
