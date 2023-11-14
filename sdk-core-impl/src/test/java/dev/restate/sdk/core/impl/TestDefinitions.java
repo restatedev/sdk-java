@@ -26,8 +26,6 @@ public final class TestDefinitions {
 
     boolean isOnlyUnbuffered();
 
-    boolean optimizeSideEffectAcks();
-
     List<InvocationFlow.InvocationInput> getInput();
 
     Consumer<List<MessageLite>> getOutputAssert();
@@ -110,7 +108,6 @@ public final class TestDefinitions {
   public static class WithInputBuilder extends TestInvocationBuilder {
     private final List<InvocationFlow.InvocationInput> input;
     private boolean onlyUnbuffered = false;
-    private boolean optimizeSideEffectAcks = false;
 
     WithInputBuilder(@Nullable String invalidReason) {
       super(invalidReason);
@@ -143,11 +140,6 @@ public final class TestDefinitions {
       return this;
     }
 
-    public WithInputBuilder optimizeSideEffectAcks() {
-      this.optimizeSideEffectAcks = true;
-      return this;
-    }
-
     public ExpectingOutputMessages expectingOutput(MessageLiteOrBuilder... messages) {
       List<MessageLite> builtMessages =
           Arrays.stream(messages).map(ProtoUtils::build).collect(Collectors.toList());
@@ -156,7 +148,7 @@ public final class TestDefinitions {
 
     public ExpectingOutputMessages assertingOutput(Consumer<List<MessageLite>> messages) {
       return new ExpectingOutputMessages(
-          svc, invalidReason, method, input, onlyUnbuffered, optimizeSideEffectAcks, messages);
+          svc, invalidReason, method, input, onlyUnbuffered, messages);
     }
   }
 
@@ -166,7 +158,6 @@ public final class TestDefinitions {
     protected final String method;
     protected final List<InvocationFlow.InvocationInput> input;
     protected final boolean onlyUnbuffered;
-    protected final boolean optimizeSideEffectAcks;
     protected final String named;
 
     private BaseTestDefinition(
@@ -175,14 +166,12 @@ public final class TestDefinitions {
         String method,
         List<InvocationFlow.InvocationInput> input,
         boolean onlyUnbuffered,
-        boolean optimizeSideEffectAcks,
         String named) {
       this.svc = svc;
       this.invalidReason = invalidReason;
       this.method = method;
       this.input = input;
       this.onlyUnbuffered = onlyUnbuffered;
-      this.optimizeSideEffectAcks = optimizeSideEffectAcks;
       this.named = named;
     }
 
@@ -207,11 +196,6 @@ public final class TestDefinitions {
     }
 
     @Override
-    public boolean optimizeSideEffectAcks() {
-      return optimizeSideEffectAcks;
-    }
-
-    @Override
     public String getTestCaseName() {
       return this.named;
     }
@@ -232,7 +216,6 @@ public final class TestDefinitions {
         String method,
         List<InvocationFlow.InvocationInput> input,
         boolean onlyUnbuffered,
-        boolean optimizeSideEffectAcks,
         Consumer<List<MessageLite>> messagesAssert) {
       super(
           svc,
@@ -240,7 +223,6 @@ public final class TestDefinitions {
           method,
           input,
           onlyUnbuffered,
-          optimizeSideEffectAcks,
           svc != null ? svc.getClass().getSimpleName() : "Unknown");
       this.messagesAssert = messagesAssert;
     }
@@ -251,10 +233,9 @@ public final class TestDefinitions {
         String method,
         List<InvocationFlow.InvocationInput> input,
         boolean onlyUnbuffered,
-        boolean optimizeSideEffectAcks,
         Consumer<List<MessageLite>> messagesAssert,
         String named) {
-      super(svc, invalidReason, method, input, onlyUnbuffered, optimizeSideEffectAcks, named);
+      super(svc, invalidReason, method, input, onlyUnbuffered, named);
       this.messagesAssert = messagesAssert;
     }
 
@@ -265,7 +246,6 @@ public final class TestDefinitions {
           method,
           input,
           onlyUnbuffered,
-          optimizeSideEffectAcks,
           messagesAssert,
           this.named + ": " + name);
     }

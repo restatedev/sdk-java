@@ -28,7 +28,6 @@ public abstract class SideEffectTestSuite implements TestSuite {
   @Override
   public Stream<TestDefinition> definitions() {
     return Stream.of(
-        // --- Side effects without optimizations
         testInvocation(() -> this.sideEffect("Francesco"), GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
             .expectingOutput(
@@ -80,39 +79,6 @@ public abstract class SideEffectTestSuite implements TestSuite {
                     .setValue(ByteString.copyFromUtf8("FRANCESCO")),
                 outputMessage(GreetingResponse.newBuilder().setMessage("Hello FRANCESCO")))
             .named("With optimization and ack on first and second side effect will resume"),
-
-        // --- Side effects with optimizations
-        testInvocation(() -> this.sideEffect("Francesco"), GreeterGrpc.getGreetMethod())
-            .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
-            .optimizeSideEffectAcks()
-            .expectingOutput(
-                Java.SideEffectEntryMessage.newBuilder()
-                    .setValue(ByteString.copyFromUtf8("Francesco")),
-                outputMessage(GreetingResponse.newBuilder().setMessage("Hello Francesco")))
-            .named("With optimization won't suspend"),
-        testInvocation(() -> this.consecutiveSideEffect("Francesco"), GreeterGrpc.getGreetMethod())
-            .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
-            .optimizeSideEffectAcks()
-            .expectingOutput(
-                Java.SideEffectEntryMessage.newBuilder()
-                    .setValue(ByteString.copyFromUtf8("Francesco")),
-                suspensionMessage(1))
-            .named("With optimization and without ack on first side effect will suspend"),
-        testInvocation(() -> this.consecutiveSideEffect("Francesco"), GreeterGrpc.getGreetMethod())
-            .withInput(
-                startMessage(1),
-                inputMessage(GreetingRequest.newBuilder().setName("Till")),
-                ackMessage(1),
-                ackMessage(2))
-            .onlyUnbuffered()
-            .optimizeSideEffectAcks()
-            .expectingOutput(
-                Java.SideEffectEntryMessage.newBuilder()
-                    .setValue(ByteString.copyFromUtf8("Francesco")),
-                Java.SideEffectEntryMessage.newBuilder()
-                    .setValue(ByteString.copyFromUtf8("FRANCESCO")),
-                outputMessage(GreetingResponse.newBuilder().setMessage("Hello FRANCESCO")))
-            .named("With optimization and ack on first side effect will resolve"),
 
         // --- Other tests
         testInvocation(this::checkContextSwitching, GreeterGrpc.getGreetMethod())

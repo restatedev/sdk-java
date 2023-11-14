@@ -2,10 +2,10 @@ package dev.restate.sdk.core.impl;
 
 /** State machine tracking side effects acks */
 class SideEffectAckStateMachine
-    extends BaseSuspendableCallbackStateMachine<SideEffectAckStateMachine.SafePointCallback> {
+    extends BaseSuspendableCallbackStateMachine<SideEffectAckStateMachine.SideEffectAckCallback> {
 
-  interface SafePointCallback extends SuspendableCallback {
-    void onSafePoint();
+  interface SideEffectAckCallback extends SuspendableCallback {
+    void onLastSideEffectAck();
   }
 
   private int lastAcknowledgedEntry = -1;
@@ -13,10 +13,9 @@ class SideEffectAckStateMachine
   /** -1 means no side effect waiting to be acked. */
   private int lastExecutedSideEffect = -1;
 
-  // Wait for a safe point to execute the next side effect
-  void waitSafePoint(SafePointCallback callback) {
+  void waitLastSideEffectAck(SideEffectAckCallback callback) {
     if (canExecuteSideEffect()) {
-      callback.onSafePoint();
+      callback.onLastSideEffectAck();
     } else {
       this.setCallback(callback);
     }
@@ -25,7 +24,7 @@ class SideEffectAckStateMachine
   void tryHandleSideEffectAck(int entryIndex) {
     this.lastAcknowledgedEntry = Math.max(entryIndex, this.lastAcknowledgedEntry);
     if (canExecuteSideEffect()) {
-      this.consumeCallback(SafePointCallback::onSafePoint);
+      this.consumeCallback(SideEffectAckCallback::onLastSideEffectAck);
     }
   }
 
