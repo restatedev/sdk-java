@@ -38,6 +38,8 @@ public class RestateGrpcServer {
     this.services = services;
     this.tracer = tracer;
     this.serviceDiscoveryHandler = new ServiceDiscoveryHandler(protocolMode, services);
+
+    this.logCreation();
   }
 
   @SuppressWarnings("unchecked")
@@ -135,6 +137,10 @@ public class RestateGrpcServer {
         "Replying to service discovery request with services [{}]",
         String.join(",", response.getServicesList()));
     return response;
+  }
+
+  private void logCreation() {
+    LOG.info("Registered services: {}", this.services.keySet());
   }
 
   // -- Builder
