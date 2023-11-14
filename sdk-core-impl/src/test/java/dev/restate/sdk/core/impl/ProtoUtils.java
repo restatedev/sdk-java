@@ -157,6 +157,15 @@ public class ProtoUtils {
         .build();
   }
 
+  public static <T extends MessageLite>
+      Protocol.BackgroundInvokeEntryMessage.Builder backgroundInvokeMessage(
+          MethodDescriptor<T, ?> methodDescriptor, T parameter) {
+    return Protocol.BackgroundInvokeEntryMessage.newBuilder()
+        .setServiceName(methodDescriptor.getServiceName())
+        .setMethodName(methodDescriptor.getBareMethodName())
+        .setParameter(parameter.toByteString());
+  }
+
   public static Protocol.AwakeableEntryMessage.Builder awakeable() {
     return Protocol.AwakeableEntryMessage.newBuilder();
   }

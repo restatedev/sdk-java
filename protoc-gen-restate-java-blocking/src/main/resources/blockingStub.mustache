@@ -1,0 +1,158 @@
+{{#packageName}}
+package {{packageName}};
+{{/packageName}}
+
+import dev.restate.sdk.blocking.RestateContext;
+import dev.restate.sdk.blocking.Awaitable;
+import dev.restate.sdk.core.syscalls.Syscalls;
+import java.time.Duration;
+import static {{packageName}}.{{serviceName}}Grpc.getServiceDescriptor;
+
+{{#deprecated}}
+@java.lang.Deprecated
+{{/deprecated}}
+public class {{className}} {
+    private {{className}}() {}
+
+    /**
+    * Create a new client.
+    */
+    public static {{serviceName}}RestateClient newClient() {
+        return newClient(RestateContext.fromSyscalls(Syscalls.current()));
+    }
+
+    /**
+     * Create a new client from the given {@link RestateContext}.
+     */
+    public static {{serviceName}}RestateClient newClient(RestateContext ctx) {
+        return new {{serviceName}}RestateClient(ctx);
+    }
+
+{{{javadoc}}}
+    public static final class {{serviceName}}RestateClient {
+        private final RestateContext ctx;
+
+        {{serviceName}}RestateClient(RestateContext ctx) {
+            this.ctx = ctx;
+        }
+
+        // Create a variant of this client to execute oneWay calls.
+        public {{serviceName}}RestateOneWayClient oneWay() {
+            return new {{serviceName}}RestateOneWayClient(ctx);
+        }
+
+        // Create a variant of this client to execute delayed calls.
+        public {{serviceName}}RestateDelayedClient delayed(Duration delay) {
+            return new {{serviceName}}RestateDelayedClient(ctx, delay);
+        }
+
+        {{#methods}}
+        {{#deprecated}}@java.lang.Deprecated{{/deprecated}}
+{{{javadoc}}}
+        public Awaitable<{{outputType}}> {{topLevelClientMethodName}}({{^isInputEmpty}}{{inputType}} request{{/isInputEmpty}}) {
+            return this.ctx.call({{packageName}}.{{serviceName}}Grpc.{{methodDescriptorGetter}}(), {{#isInputEmpty}}com.google.protobuf.Empty.getDefaultInstance(){{/isInputEmpty}}{{^isInputEmpty}}request{{/isInputEmpty}});
+        }
+
+        {{/methods}}
+    }
+
+    public static final class {{serviceName}}RestateOneWayClient {
+        private final RestateContext ctx;
+
+        {{serviceName}}RestateOneWayClient(RestateContext ctx) {
+            this.ctx = ctx;
+        }
+
+        {{#methods}}
+        {{#deprecated}}@java.lang.Deprecated{{/deprecated}}
+{{{javadoc}}}
+        public void {{methodName}}({{^isInputEmpty}}{{inputType}} request{{/isInputEmpty}}) {
+            this.ctx.oneWayCall({{packageName}}.{{serviceName}}Grpc.{{methodDescriptorGetter}}(), {{#isInputEmpty}}com.google.protobuf.Empty.getDefaultInstance(){{/isInputEmpty}}{{^isInputEmpty}}request{{/isInputEmpty}});
+        }
+
+        {{/methods}}
+    }
+
+    public static final class {{serviceName}}RestateDelayedClient {
+        private final RestateContext ctx;
+        private final Duration delay;
+
+        {{serviceName}}RestateDelayedClient(RestateContext ctx, Duration delay) {
+            this.ctx = ctx;
+            this.delay = delay;
+        }
+
+        {{#methods}}
+        {{#deprecated}}@java.lang.Deprecated{{/deprecated}}
+{{{javadoc}}}
+        public void {{methodName}}({{^isInputEmpty}}{{inputType}} request{{/isInputEmpty}}) {
+            this.ctx.delayedCall({{packageName}}.{{serviceName}}Grpc.{{methodDescriptorGetter}}(), {{#isInputEmpty}}com.google.protobuf.Empty.getDefaultInstance(){{/isInputEmpty}}{{^isInputEmpty}}request{{/isInputEmpty}}, this.delay);
+        }
+
+        {{/methods}}
+    }
+
+{{{javadoc}}}
+    public static abstract class {{serviceName}}RestateImplBase implements dev.restate.sdk.blocking.RestateBlockingService {
+
+        {{#methods}}
+        {{#deprecated}}
+        @java.lang.Deprecated
+        {{/deprecated}}
+{{{javadoc}}}
+        public {{#isOutputEmpty}}void{{/isOutputEmpty}}{{^isOutputEmpty}}{{outputType}}{{/isOutputEmpty}} {{methodName}}(RestateContext context{{^isInputEmpty}}, {{inputType}} request{{/isInputEmpty}}) {
+            throw new io.grpc.StatusRuntimeException(io.grpc.Status.UNIMPLEMENTED);
+        }
+
+        {{/methods}}
+        @java.lang.Override public final io.grpc.ServerServiceDefinition bindService() {
+            return io.grpc.ServerServiceDefinition.builder(getServiceDescriptor())
+                    {{#methods}}
+                    .addMethod(
+                            {{packageName}}.{{serviceName}}Grpc.{{methodDescriptorGetter}}(),
+                            io.grpc.stub.ServerCalls.asyncUnaryCall(
+                                    HandlerAdapter.of(this::{{methodName}})))
+                    {{/methods}}
+                    .build();
+        }
+    }
+
+    private static final class HandlerAdapter<Req, Resp> implements
+        io.grpc.stub.ServerCalls.UnaryMethod<Req, Resp> {
+
+        private final java.util.function.BiFunction<RestateContext, Req, Resp> handler;
+
+        private HandlerAdapter(java.util.function.BiFunction<RestateContext, Req, Resp> handler) {
+            this.handler = handler;
+        }
+
+        @Override
+        public void invoke(Req request, io.grpc.stub.StreamObserver<Resp> responseObserver) {
+            responseObserver.onNext(handler.apply(RestateContext.fromSyscalls(Syscalls.current()), request));
+            responseObserver.onCompleted();
+        }
+
+        private static <Req, Resp> HandlerAdapter<Req, Resp> of(java.util.function.BiFunction<RestateContext, Req, Resp> handler) {
+            return new HandlerAdapter<>(handler);
+        }
+
+        private static <Resp> HandlerAdapter<com.google.protobuf.Empty, Resp> of(java.util.function.Function<RestateContext, Resp> handler) {
+            return new HandlerAdapter<>((ctx, e) -> handler.apply(ctx));
+        }
+
+        private static <Req> HandlerAdapter<Req, com.google.protobuf.Empty> of(java.util.function.BiConsumer<RestateContext, Req> handler) {
+            return new HandlerAdapter<>((ctx, req) -> {
+                handler.accept(ctx, req);
+                return com.google.protobuf.Empty.getDefaultInstance();
+            });
+        }
+
+        private static HandlerAdapter<com.google.protobuf.Empty, com.google.protobuf.Empty> of(java.util.function.Consumer<RestateContext> handler) {
+            return new HandlerAdapter<>((ctx, req) -> {
+                handler.accept(ctx);
+                return com.google.protobuf.Empty.getDefaultInstance();
+            });
+        }
+    }
+
+}

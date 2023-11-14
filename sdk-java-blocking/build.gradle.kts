@@ -32,12 +32,31 @@ dependencies {
   testProtobuf(project(":sdk-core-impl", "testArchive"))
 }
 
+val pluginJar =
+    file(
+        "${project.rootProject.rootDir}/protoc-gen-restate-java-blocking/build/libs/protoc-gen-restate-java-blocking-${project.version}.jar")
+
 protobuf {
   plugins {
     id("grpc") { artifact = "io.grpc:protoc-gen-grpc-java:${coreLibs.versions.grpc.get()}" }
+    id("restate") {
+      // NOTE: This is not needed in a regular project configuration, you should rather use:
+      // artifact = "dev.restate.sdk:protoc-gen-restate-java-blocking:1.0-SNAPSHOT@jar"
+      path = pluginJar.path
+    }
   }
 
-  generateProtoTasks { ofSourceSet("test").forEach { it.plugins { id("grpc") } } }
+  generateProtoTasks {
+    ofSourceSet("test").forEach {
+      // Make sure we depend on shadowJar from protoc-gen-restate-java-blocking
+      it.dependsOn(":protoc-gen-restate-java-blocking:shadowJar")
+
+      it.plugins {
+        id("grpc")
+        id("restate")
+      }
+    }
+  }
 }
 
 publishing {

@@ -5,6 +5,7 @@ import dev.restate.sdk.core.Serde;
 import dev.restate.sdk.core.StateKey;
 import dev.restate.sdk.core.function.ThrowingRunnable;
 import dev.restate.sdk.core.function.ThrowingSupplier;
+import dev.restate.sdk.core.syscalls.Syscalls;
 import io.grpc.Channel;
 import io.grpc.MethodDescriptor;
 import java.time.Duration;
@@ -159,4 +160,14 @@ public interface RestateContext {
    * @see Awakeable
    */
   AwakeableHandle awakeableHandle(String id);
+
+  /**
+   * Build a RestateContext from the underlying {@link Syscalls} object.
+   *
+   * <p>This method is used by code-generation, you should not use it directly but rather use {@link
+   * RestateBlockingService#restateContext()}.
+   */
+  static RestateContext fromSyscalls(Syscalls syscalls) {
+    return new RestateContextImpl(syscalls);
+  }
 }
