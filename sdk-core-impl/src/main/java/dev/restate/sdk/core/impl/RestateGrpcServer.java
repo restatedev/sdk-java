@@ -76,7 +76,9 @@ public class RestateGrpcServer {
     loggingContextSetter.setServiceMethod(serviceMethodName);
 
     // Instantiate state machine, syscall and grpc bridge
-    InvocationStateMachine stateMachine = new InvocationStateMachine(serviceName, span);
+    InvocationStateMachine stateMachine =
+        new InvocationStateMachine(
+            serviceName, span, s -> loggingContextSetter.setInvocationStatus(s.toString()));
     SyscallsInternal syscalls =
         syscallExecutor != null
             ? ExecutorSwitchingWrappers.syscalls(new SyscallsImpl(stateMachine), syscallExecutor)
@@ -190,6 +192,7 @@ public class RestateGrpcServer {
 
     String INVOCATION_ID_KEY = "restateInvocationId";
     String SERVICE_METHOD_KEY = "restateServiceMethod";
+    String SERVICE_INVOCATION_STATUS = "restateInvocationStatus";
 
     LoggingContextSetter THREAD_LOCAL_INSTANCE =
         new LoggingContextSetter() {
@@ -202,10 +205,17 @@ public class RestateGrpcServer {
           public void setInvocationId(String id) {
             ThreadContext.put(SERVICE_METHOD_KEY, id);
           }
+
+          @Override
+          public void setInvocationStatus(String invocationStatus) {
+            ThreadContext.put(SERVICE_INVOCATION_STATUS, invocationStatus);
+          }
         };
 
     void setServiceMethod(String serviceMethod);
 
     void setInvocationId(String id);
+
+    void setInvocationStatus(String invocationStatus);
   }
 }
