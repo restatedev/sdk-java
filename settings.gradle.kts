@@ -17,7 +17,6 @@ include(
     "sdk-java-blocking",
     "sdk-lambda",
     "sdk-kotlin",
-    "sdk-testing",
     "examples:http",
     "examples:lambda")
 
