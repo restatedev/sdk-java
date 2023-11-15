@@ -1,6 +1,7 @@
 package dev.restate.sdk.core.impl;
 
 import com.google.protobuf.MessageLite;
+import dev.restate.sdk.core.TerminalException;
 import dev.restate.sdk.core.syscalls.SyscallCallback;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
@@ -87,18 +88,22 @@ class RestateServerCall extends ServerCall<MessageLite, MessageLite> {
       // Let's cancel the listener first
       listener.onCancel();
 
-      if (status.getCause() instanceof UncaughtException) {
-        // This is the case where we have uncaught exceptions from GrpcServerCallListenerAdaptor
-        syscalls.fail(status.getCause().getCause());
-      } else {
+      if (Util.isTerminalException(status.getCause())) {
         syscalls.writeOutput(
-            status.asRuntimeException(),
+            (TerminalException) status.getCause(),
             SyscallCallback.ofVoid(
                 () -> {
-                  LOG.trace("Closed correctly with non ok status {}", status);
+                  LOG.trace("Closed correctly with non ok exception", status.getCause());
                   syscalls.close();
                 },
                 this::onError));
+      } else {
+        if (status.getCause() != null) {
+          syscalls.fail(status.getCause());
+        } else {
+          // Just propagate cause
+          syscalls.fail(status.asRuntimeException());
+        }
       }
     }
   }

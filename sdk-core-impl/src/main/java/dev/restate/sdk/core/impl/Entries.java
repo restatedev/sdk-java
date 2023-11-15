@@ -292,7 +292,7 @@ final class Entries {
       if (actual.hasValue()) {
         return valueParser.apply(actual.getValue());
       }
-      return ReadyResults.failure(Util.toGrpcStatus(actual.getFailure()).asRuntimeException());
+      return ReadyResults.failure(Util.toRestateException(actual.getFailure()));
     }
 
     @Override
@@ -301,7 +301,7 @@ final class Entries {
         return valueParser.apply(actual.getValue());
       }
       if (actual.hasFailure()) {
-        return ReadyResults.failure(Util.toGrpcStatus(actual.getFailure()).asRuntimeException());
+        return ReadyResults.failure(Util.toRestateException(actual.getFailure()));
       }
       return super.parseCompletionResult(actual);
     }
@@ -352,7 +352,7 @@ final class Entries {
       if (actual.hasValue()) {
         return ReadyResults.success(actual.getValue());
       }
-      return ReadyResults.failure(Util.toGrpcStatus(actual.getFailure()).asRuntimeException());
+      return ReadyResults.failure(Util.toRestateException(actual.getFailure()));
     }
 
     @Override
@@ -361,7 +361,7 @@ final class Entries {
         return ReadyResults.success(actual.getValue());
       }
       if (actual.hasFailure()) {
-        return ReadyResults.failure(Util.toGrpcStatus(actual.getFailure()).asRuntimeException());
+        return ReadyResults.failure(Util.toRestateException(actual.getFailure()));
       }
       return super.parseCompletionResult(actual);
     }

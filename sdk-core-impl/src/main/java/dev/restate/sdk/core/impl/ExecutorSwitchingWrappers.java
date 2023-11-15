@@ -2,6 +2,7 @@ package dev.restate.sdk.core.impl;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
+import dev.restate.sdk.core.TerminalException;
 import dev.restate.sdk.core.syscalls.*;
 import io.grpc.MethodDescriptor;
 import java.time.Duration;
@@ -98,7 +99,7 @@ class ExecutorSwitchingWrappers {
     }
 
     @Override
-    public void writeOutput(Throwable throwable, SyscallCallback<Void> callback) {
+    public void writeOutput(TerminalException throwable, SyscallCallback<Void> callback) {
       syscallsExecutor.execute(() -> syscalls.writeOutput(throwable, callback));
     }
 

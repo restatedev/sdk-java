@@ -9,10 +9,10 @@ import com.google.protobuf.MessageLiteOrBuilder;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.generated.service.protocol.Protocol.StartMessage.StateEntry;
+import dev.restate.sdk.core.TerminalException;
 import dev.restate.sdk.core.impl.testservices.GreetingRequest;
 import dev.restate.sdk.core.impl.testservices.GreetingResponse;
 import io.grpc.MethodDescriptor;
-import io.grpc.Status;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -74,7 +74,7 @@ public class ProtoUtils {
   public static Protocol.CompletionMessage completionMessage(int index, Throwable e) {
     return Protocol.CompletionMessage.newBuilder()
         .setEntryIndex(index)
-        .setFailure(toProtocolFailure(Status.INTERNAL.withDescription(e.getMessage())))
+        .setFailure(toProtocolFailure(e))
         .build();
   }
 
@@ -98,16 +98,15 @@ public class ProtoUtils {
         .build();
   }
 
-  public static Protocol.OutputStreamEntryMessage outputMessage(Status s) {
+  public static Protocol.OutputStreamEntryMessage outputMessage(
+      TerminalException.Code code, String message) {
     return Protocol.OutputStreamEntryMessage.newBuilder()
-        .setFailure(Util.toProtocolFailure(s.asRuntimeException()))
+        .setFailure(Util.toProtocolFailure(code, message))
         .build();
   }
 
   public static Protocol.OutputStreamEntryMessage outputMessage(Throwable e) {
-    return Protocol.OutputStreamEntryMessage.newBuilder()
-        .setFailure(toProtocolFailure(Status.INTERNAL.withDescription(e.getMessage())))
-        .build();
+    return Protocol.OutputStreamEntryMessage.newBuilder().setFailure(toProtocolFailure(e)).build();
   }
 
   public static Protocol.GetStateEntryMessage.Builder getStateMessage(String key) {
@@ -156,9 +155,7 @@ public class ProtoUtils {
   public static <T extends MessageLite, R extends MessageLite>
       Protocol.InvokeEntryMessage invokeMessage(
           MethodDescriptor<T, R> methodDescriptor, T parameter, Throwable e) {
-    return invokeMessage(methodDescriptor, parameter)
-        .setFailure(toProtocolFailure(Status.INTERNAL.withDescription(e.getMessage())))
-        .build();
+    return invokeMessage(methodDescriptor, parameter).setFailure(toProtocolFailure(e)).build();
   }
 
   public static <T extends MessageLite>

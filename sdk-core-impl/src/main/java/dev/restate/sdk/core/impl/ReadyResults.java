@@ -1,7 +1,7 @@
 package dev.restate.sdk.core.impl;
 
+import dev.restate.sdk.core.TerminalException;
 import dev.restate.sdk.core.syscalls.ReadyResult;
-import io.grpc.StatusRuntimeException;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 
@@ -18,7 +18,7 @@ abstract class ReadyResults {
     return new Success<>(value);
   }
 
-  static <T> ReadyResultInternal<T> failure(StatusRuntimeException t) {
+  static <T> ReadyResultInternal<T> failure(TerminalException t) {
     return new Failure<>(t);
   }
 
@@ -54,7 +54,7 @@ abstract class ReadyResults {
 
     @Nullable
     @Override
-    public StatusRuntimeException getFailure() {
+    public TerminalException getFailure() {
       return null;
     }
   }
@@ -89,15 +89,15 @@ abstract class ReadyResults {
 
     @Nullable
     @Override
-    public StatusRuntimeException getFailure() {
+    public TerminalException getFailure() {
       return null;
     }
   }
 
   static class Failure<T> implements ReadyResultInternal<T> {
-    private final StatusRuntimeException cause;
+    private final TerminalException cause;
 
-    private Failure(StatusRuntimeException cause) {
+    private Failure(TerminalException cause) {
       this.cause = cause;
     }
 
@@ -125,7 +125,7 @@ abstract class ReadyResults {
 
     @Nullable
     @Override
-    public StatusRuntimeException getFailure() {
+    public TerminalException getFailure() {
       return cause;
     }
   }

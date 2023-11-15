@@ -9,6 +9,7 @@ import com.google.rpc.Code;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.generated.service.protocol.Protocol.PollInputStreamEntryMessage;
+import dev.restate.sdk.core.TerminalException;
 import dev.restate.sdk.core.impl.DeferredResults.SingleDeferredResultInternal;
 import dev.restate.sdk.core.impl.Entries.*;
 import dev.restate.sdk.core.impl.ReadyResults.ReadyResultInternal;
@@ -35,7 +36,7 @@ public final class SyscallsImpl implements SyscallsInternal {
 
   private final InvocationStateMachine stateMachine;
 
-  public SyscallsImpl(InvocationStateMachine stateMachine) {
+  SyscallsImpl(InvocationStateMachine stateMachine) {
     this.stateMachine = stateMachine;
   }
 
@@ -58,7 +59,7 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public void writeOutput(Throwable throwable, SyscallCallback<Void> callback) {
+  public void writeOutput(TerminalException throwable, SyscallCallback<Void> callback) {
     LOG.trace("writeOutput failure");
     this.writeOutput(
         Protocol.OutputStreamEntryMessage.newBuilder()
@@ -177,14 +178,7 @@ public final class SyscallsImpl implements SyscallsInternal {
     // If it's a non-terminal exception (such as a protocol exception),
     // we don't write it but simply throw it
     if (!isTerminalException(toWrite)) {
-      // For safety wrt Syscalls API we do this check and wrapping,
-      // but with the current APIs the exception should always be RuntimeException
-      // because that's what can be thrown inside a lambda
-      if (toWrite instanceof RuntimeException) {
-        throw (RuntimeException) toWrite;
-      } else {
-        throw new RuntimeException(toWrite);
-      }
+      Util.sneakyThrow(toWrite);
     }
 
     this.stateMachine.exitSideEffectBlock(

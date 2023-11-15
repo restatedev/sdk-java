@@ -5,25 +5,27 @@ import static dev.restate.sdk.core.impl.ProtoUtils.*;
 import static dev.restate.sdk.core.impl.TestDefinitions.*;
 
 import dev.restate.generated.sdk.java.Java;
+import dev.restate.sdk.core.TerminalException;
 import dev.restate.sdk.core.impl.testservices.GreeterGrpc;
 import dev.restate.sdk.core.impl.testservices.GreetingRequest;
 import io.grpc.BindableService;
-import io.grpc.Status;
 import java.util.stream.Stream;
 
 public abstract class UserFailuresTestSuite implements TestSuite {
 
-  public static final Status INTERNAL_MY_ERROR = Status.INTERNAL.withDescription("my error");
+  public static final String MY_ERROR = "my error";
 
-  public static final Status UNKNOWN_MY_ERROR = Status.UNKNOWN.withDescription("Whatever");
+  public static final String WHATEVER = "Whatever";
 
   protected abstract BindableService throwIllegalStateException();
 
   protected abstract BindableService sideEffectThrowIllegalStateException();
 
-  protected abstract BindableService throwStatusRuntimeException(Status status);
+  protected abstract BindableService throwTerminalException(
+      TerminalException.Code code, String message);
 
-  protected abstract BindableService sideEffectThrowStatusRuntimeException(Status status);
+  protected abstract BindableService sideEffectThrowTerminalException(
+      TerminalException.Code code, String message);
 
   @Override
   public Stream<TestDefinition> definitions() {
@@ -38,36 +40,39 @@ public abstract class UserFailuresTestSuite implements TestSuite {
 
         // Cases completing the invocation with OutputStreamEntry.failure
         testInvocation(
-                () -> this.throwStatusRuntimeException(INTERNAL_MY_ERROR),
+                () -> this.throwTerminalException(TerminalException.Code.INTERNAL, MY_ERROR),
                 GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
-            .expectingOutput(outputMessage(INTERNAL_MY_ERROR))
+            .expectingOutput(outputMessage(TerminalException.Code.INTERNAL, MY_ERROR))
             .named("With internal error"),
         testInvocation(
-                () -> this.throwStatusRuntimeException(UNKNOWN_MY_ERROR),
+                () -> this.throwTerminalException(TerminalException.Code.UNKNOWN, WHATEVER),
                 GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
-            .expectingOutput(outputMessage(UNKNOWN_MY_ERROR))
+            .expectingOutput(outputMessage(TerminalException.Code.UNKNOWN, WHATEVER))
             .named("With unknown error"),
         testInvocation(
-                () -> this.sideEffectThrowStatusRuntimeException(INTERNAL_MY_ERROR),
+                () ->
+                    this.sideEffectThrowTerminalException(
+                        TerminalException.Code.INTERNAL, MY_ERROR),
                 GreeterGrpc.getGreetMethod())
             .withInput(
                 startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()), ackMessage(1))
             .expectingOutput(
                 Java.SideEffectEntryMessage.newBuilder()
-                    .setFailure(Util.toProtocolFailure(INTERNAL_MY_ERROR)),
-                outputMessage(INTERNAL_MY_ERROR))
+                    .setFailure(Util.toProtocolFailure(TerminalException.Code.INTERNAL, MY_ERROR)),
+                outputMessage(TerminalException.Code.INTERNAL, MY_ERROR))
             .named("With internal error"),
         testInvocation(
-                () -> this.sideEffectThrowStatusRuntimeException(UNKNOWN_MY_ERROR),
+                () ->
+                    this.sideEffectThrowTerminalException(TerminalException.Code.UNKNOWN, WHATEVER),
                 GreeterGrpc.getGreetMethod())
             .withInput(
                 startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()), ackMessage(1))
             .expectingOutput(
                 Java.SideEffectEntryMessage.newBuilder()
-                    .setFailure(Util.toProtocolFailure(UNKNOWN_MY_ERROR)),
-                outputMessage(UNKNOWN_MY_ERROR))
+                    .setFailure(Util.toProtocolFailure(TerminalException.Code.UNKNOWN, WHATEVER)),
+                outputMessage(TerminalException.Code.UNKNOWN, WHATEVER))
             .named("With unknown error"));
   }
 }

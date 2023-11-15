@@ -432,7 +432,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   void completeSideEffectCallbackWithEntry(
       Java.SideEffectEntryMessage sideEffectEntry, ExitSideEffectSyscallCallback callback) {
     if (sideEffectEntry.hasFailure()) {
-      callback.onFailure(Util.toGrpcStatus(sideEffectEntry.getFailure()).asRuntimeException());
+      callback.onFailure(Util.toRestateException(sideEffectEntry.getFailure()));
     } else {
       callback.onResult(sideEffectEntry.getValue());
     }
