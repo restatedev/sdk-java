@@ -31,7 +31,7 @@ class StateMachineFailuresTest : StateMachineFailuresTestSuite() {
   }
 
   override fun getState(): BindableService {
-    throw UnsupportedOperationException("https://github.com/restatedev/sdk-java/issues/116")
+    return GetState()
   }
 
   private class SideEffectFailure(private val serde: Serde<Int>) :
@@ -43,6 +43,6 @@ class StateMachineFailuresTest : StateMachineFailuresTestSuite() {
   }
 
   override fun sideEffectFailure(serde: Serde<Int>): BindableService {
-    throw UnsupportedOperationException("https://github.com/restatedev/sdk-java/issues/116")
+    return SideEffectFailure(serde)
   }
 }

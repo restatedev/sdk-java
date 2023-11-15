@@ -1,12 +1,11 @@
 package dev.restate.sdk.kotlin
 
+import dev.restate.sdk.core.TerminalException
 import dev.restate.sdk.core.impl.UserFailuresTestSuite
 import dev.restate.sdk.core.impl.testservices.GreeterGrpcKt
 import dev.restate.sdk.core.impl.testservices.GreetingRequest
 import dev.restate.sdk.core.impl.testservices.GreetingResponse
 import io.grpc.BindableService
-import io.grpc.Status
-import io.grpc.StatusRuntimeException
 import kotlinx.coroutines.Dispatchers
 
 class UserFailuresTest : UserFailuresTestSuite() {
@@ -18,7 +17,7 @@ class UserFailuresTest : UserFailuresTestSuite() {
   }
 
   override fun throwIllegalStateException(): BindableService {
-    throw UnsupportedOperationException("https://github.com/restatedev/sdk-java/issues/116")
+    return ThrowIllegalStateException()
   }
 
   private class SideEffectThrowIllegalStateException :
@@ -33,26 +32,36 @@ class UserFailuresTest : UserFailuresTestSuite() {
     return SideEffectThrowIllegalStateException()
   }
 
-  private class ThrowStatusRuntimeException(private val status: Status) :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
+  private class ThrowTerminalException(
+      private val code: TerminalException.Code,
+      private val message: String
+  ) : GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      throw StatusRuntimeException(status)
+      throw TerminalException(code, message)
     }
   }
 
-  override fun throwStatusRuntimeException(status: Status): BindableService {
-    return ThrowStatusRuntimeException(status)
+  override fun throwTerminalException(
+      code: TerminalException.Code,
+      message: String
+  ): BindableService {
+    return ThrowTerminalException(code, message)
   }
 
-  private class SideEffectThrowStatusRuntimeException(private val status: Status) :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
+  private class SideEffectThrowTerminalException(
+      private val code: TerminalException.Code,
+      private val message: String
+  ) : GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      restateContext().sideEffect { throw StatusRuntimeException(status) }
+      restateContext().sideEffect { throw TerminalException(code, message) }
       throw IllegalStateException("Not expected to reach this point")
     }
   }
 
-  override fun sideEffectThrowStatusRuntimeException(status: Status): BindableService {
-    return SideEffectThrowStatusRuntimeException(status)
+  override fun sideEffectThrowTerminalException(
+      code: TerminalException.Code,
+      message: String
+  ): BindableService {
+    return SideEffectThrowTerminalException(code, message)
   }
 }

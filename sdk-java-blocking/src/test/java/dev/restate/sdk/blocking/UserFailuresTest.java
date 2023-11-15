@@ -1,16 +1,16 @@
 package dev.restate.sdk.blocking;
 
+import static dev.restate.sdk.core.impl.AssertUtils.containsOnlyExactErrorMessage;
 import static dev.restate.sdk.core.impl.ProtoUtils.*;
 import static dev.restate.sdk.core.impl.TestDefinitions.testInvocation;
 
+import dev.restate.sdk.core.TerminalException;
 import dev.restate.sdk.core.impl.TestDefinitions.TestDefinition;
 import dev.restate.sdk.core.impl.UserFailuresTestSuite;
 import dev.restate.sdk.core.impl.testservices.GreeterGrpc;
 import dev.restate.sdk.core.impl.testservices.GreetingRequest;
 import dev.restate.sdk.core.impl.testservices.GreetingResponse;
 import io.grpc.BindableService;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import java.util.stream.Stream;
 
@@ -46,33 +46,37 @@ public class UserFailuresTest extends UserFailuresTestSuite {
     return new SideEffectThrowIllegalStateException();
   }
 
-  private static class ThrowStatusRuntimeException extends GreeterGrpc.GreeterImplBase
+  private static class ThrowTerminalException extends GreeterGrpc.GreeterImplBase
       implements RestateBlockingService {
 
-    private final Status status;
+    private final TerminalException.Code code;
+    private final String message;
 
-    private ThrowStatusRuntimeException(Status status) {
-      this.status = status;
+    public ThrowTerminalException(TerminalException.Code code, String message) {
+      this.code = code;
+      this.message = message;
     }
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      throw new StatusRuntimeException(status);
+      throw new TerminalException(code, message);
     }
   }
 
   @Override
-  protected BindableService throwStatusRuntimeException(Status status) {
-    return new ThrowStatusRuntimeException(status);
+  protected BindableService throwTerminalException(TerminalException.Code code, String message) {
+    return new ThrowTerminalException(code, message);
   }
 
-  private static class SideEffectThrowStatusRuntimeException extends GreeterGrpc.GreeterImplBase
+  private static class SideEffectThrowTerminalException extends GreeterGrpc.GreeterImplBase
       implements RestateBlockingService {
 
-    private final Status status;
+    private final TerminalException.Code code;
+    private final String message;
 
-    private SideEffectThrowStatusRuntimeException(Status status) {
-      this.status = status;
+    private SideEffectThrowTerminalException(TerminalException.Code code, String message) {
+      this.code = code;
+      this.message = message;
     }
 
     @Override
@@ -80,23 +84,24 @@ public class UserFailuresTest extends UserFailuresTestSuite {
       restateContext()
           .sideEffect(
               () -> {
-                throw new StatusRuntimeException(status);
+                throw new TerminalException(code, message);
               });
     }
   }
 
   @Override
-  protected BindableService sideEffectThrowStatusRuntimeException(Status status) {
-    return new SideEffectThrowStatusRuntimeException(status);
+  protected BindableService sideEffectThrowTerminalException(
+      TerminalException.Code code, String message) {
+    return new SideEffectThrowTerminalException(code, message);
   }
 
   // -- Response observer is something specific to the sdk-java-blocking interface
 
-  private static class ResponseObserverOnErrorStatusRuntimeException
-      extends GreeterGrpc.GreeterImplBase implements RestateBlockingService {
+  private static class ResponseObserverOnErrorTerminalException extends GreeterGrpc.GreeterImplBase
+      implements RestateBlockingService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      responseObserver.onError(new StatusRuntimeException(INTERNAL_MY_ERROR));
+      responseObserver.onError(new TerminalException(TerminalException.Code.INTERNAL, MY_ERROR));
     }
   }
 
@@ -114,17 +119,14 @@ public class UserFailuresTest extends UserFailuresTestSuite {
         super.definitions(),
         Stream.of(
             testInvocation(
-                    new ResponseObserverOnErrorStatusRuntimeException(),
-                    GreeterGrpc.getGreetMethod())
+                    new ResponseObserverOnErrorTerminalException(), GreeterGrpc.getGreetMethod())
                 .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
-                .expectingOutput(outputMessage(INTERNAL_MY_ERROR)),
+                .expectingOutput(outputMessage(TerminalException.Code.INTERNAL, MY_ERROR)),
             testInvocation(
                     new ResponseObserverOnErrorIllegalStateException(),
                     GreeterGrpc.getGreetMethod())
                 .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
-                .expectingOutput(
-                    outputMessage(
-                        Status.UNKNOWN.withDescription(
-                            new IllegalStateException("Whatever").toString())))));
+                .assertingOutput(
+                    containsOnlyExactErrorMessage(new IllegalStateException("Whatever")))));
   }
 }
