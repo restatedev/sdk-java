@@ -1,7 +1,7 @@
 package dev.restate.sdk.core.syscalls;
 
 import com.google.protobuf.ByteString;
-import io.grpc.StatusRuntimeException;
+import dev.restate.sdk.core.TerminalException;
 import javax.annotation.Nullable;
 
 public interface ExitSideEffectSyscallCallback {
@@ -9,7 +9,7 @@ public interface ExitSideEffectSyscallCallback {
   void onResult(ByteString t);
 
   /** This is user failure. */
-  void onFailure(StatusRuntimeException t);
+  void onFailure(TerminalException t);
 
   /**
    * This is internal failure propagation, causing a cancellation of the processing. For example
