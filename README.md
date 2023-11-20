@@ -59,13 +59,16 @@ protobuf {
   protoc { artifact = "com.google.protobuf:protoc:3.24.3" }
 
   plugins {
+    // The Restate plugin depends on the gRPC generated code
     id("grpc") { artifact = "io.grpc:protoc-gen-grpc-java:1.58.0" }
+    id("restate") { artifact = "dev.restate.sdk:protoc-gen-restate-java-blocking:1.0-SNAPSHOT:all@jar" }
   }
 
   generateProtoTasks {
     all().forEach {
       it.plugins {
         id("grpc")
+        id("restate")
       }
     }
   }
@@ -115,18 +118,19 @@ protobuf {
   protoc { artifact = "com.google.protobuf:protoc:3.24.3" }
 
   plugins {
+    // The gRPC Kotlin plugin depends on the gRPC generated code
     id("grpc") { artifact = "io.grpc:protoc-gen-grpc-java:1.58.0" }
     id("grpckt") { artifact = "io.grpc:protoc-gen-grpc-kotlin:1.4.0:jdk8@jar" }
   }
 
   generateProtoTasks {
     all().forEach {
-      // We need both java and kotlin codegen(s) because the kotlin protobuf/grpc codegen depends on the java ones
       it.plugins {
         id("grpc")
         id("grpckt")
       }
       it.builtins {
+        // The Kotlin codegen depends on the Java generated code
         java {}
         id("kotlin")
       }
@@ -170,32 +174,23 @@ By using the Gradle or Maven plugin, the code is automatically re-generated on e
 Implement the service in a new class, for example:
 
 ```java
-public class Greeter extends GreeterGrpc.GreeterImplBase implements RestateBlockingService {
+public class Greeter extends GreeterRestate.GreeterRestateImplBase {
 
-  private static final StateKey<Long> COUNT = StateKey.of("total", Long.class);
+  private static final StateKey<Long> COUNT = StateKey.of("total", CoreSerdes.LONG);
 
   @Override
-  public void greet(GreetRequest request, StreamObserver<GreetResponse> responseObserver) {
-    RestateContext ctx = restateContext();
-
+  public GreetResponse greet(RestateContext ctx, GreetRequest request) {
     long count = ctx.get(COUNT).orElse(0L);
     ctx.set(COUNT, count + 1);
 
-    responseObserver.onNext(
-        GreetResponse.newBuilder()
-            .setMessage(String.format("Hello %s for the %d time!", request.getName(), count))
-            .build());
-    responseObserver.onCompleted();
+    return GreetResponse.newBuilder()
+      .setMessage(String.format("Hello %s for the %d time!", request.getName(), count))
+      .build();
   }
 }
 ```
 
-To serialize the state, you need a state serializer/deserializer.
-To use [Jackson Databind](https://github.com/FasterXML/jackson), add the dependency [`sdk-serde-jackson`](sdk-serde-jackson). For example, in Gradle:
-
-```
-implementation("dev.restate.sdk:sdk-serde-jackson:1.0-SNAPSHOT")
-```
+If you want to use POJOs for state, check [how to use Jackson](#state-serde-using-jackson).
 
 ### Implement the service (Kotlin)
 
@@ -207,7 +202,7 @@ class Greeter :
         GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined),
         RestateCoroutineService {
   companion object {
-    private val COUNT = StateKey.of("total", Long::class.java)
+    private val COUNT = StateKey.of("total", CoreSerdes.LONG)
   }
 
   override suspend fun greet(request: GreetRequest): GreetResponse {
@@ -219,12 +214,7 @@ class Greeter :
 }
 ```
 
-To serialize the state, you need a state serializer/deserializer.
-To use [Jackson Databind](https://github.com/FasterXML/jackson), add the dependency [`sdk-serde-jackson`](sdk-serde-jackson). For example, in Gradle:
-
-```
-implementation("dev.restate.sdk:sdk-serde-jackson:1.0-SNAPSHOT")
-```
+If you want to use POJOs for state, check [how to use Jackson](#state-serde-using-jackson).
 
 ### Deploy the service (HTTP Server)
 
@@ -316,6 +306,22 @@ You can now upload the generated Jar in AWS Lambda, and configure `dev.restate.s
 
 ### Additional setup
 
+#### State ser/de using Jackson
+
+State ser/de is defined by the interface `Serde`. If you want to use [Jackson Databind](https://github.com/FasterXML/jackson) to ser/de POJOs to JSON, add the dependency [`sdk-serde-jackson`](sdk-serde-jackson).
+
+For example, in Gradle:
+
+```
+implementation("dev.restate.sdk:sdk-serde-jackson:1.0-SNAPSHOT")
+```
+
+And then use `JacksonSerdes`:
+
+```java
+private static final StateKey<Person> PERSON = StateKey.of("person", JacksonSerdes.of(Person.class));
+```
+
 #### Logging
 
 The SDK uses log4j2 as logging facade. To enable logging, add the `log4j2` implementation to the dependencies:
@@ -334,7 +340,7 @@ status = warn
 appender.console.type = Console
 appender.console.name = consoleLogger
 appender.console.layout.type = PatternLayout
-appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss} [%tn] %-5p %c{1}:%L - %m%n
+appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss} %-5p %notEmpty{[%X{restateServiceMethod}]}%notEmpty{[%X{restateInvocationId}]} %c - %m%n
 
 # Restate logs to debug level
 logger.app.name = dev.restate
@@ -346,6 +352,12 @@ logger.app.appenderRef.console.ref = consoleLogger
 rootLogger.level = info
 rootLogger.appenderRef.stdout.ref = consoleLogger
 ```
+
+The SDK injects the following additional metadata to the logging context that can be used for filtering as well:
+
+* `restateServiceMethod`: service and method, e.g. `counter.Counter/Add`.
+* `restateInvocationId`: Invocation identifier, to be used in Restate observability tools. See https://docs.restate.dev/services/invocation#invocation-identifier.
+* `restateInvocationStatus`: Invocation status, can be `WAITING_START`, `REPLAYING`, `PROCESSING`, `CLOSED`.
 
 #### Tracing with OpenTelemetry
 
