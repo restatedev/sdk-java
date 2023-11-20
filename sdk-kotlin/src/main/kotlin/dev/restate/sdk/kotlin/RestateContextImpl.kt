@@ -8,7 +8,6 @@ import dev.restate.sdk.core.syscalls.EnterSideEffectSyscallCallback
 import dev.restate.sdk.core.syscalls.ExitSideEffectSyscallCallback
 import dev.restate.sdk.core.syscalls.Syscalls
 import io.grpc.MethodDescriptor
-import io.grpc.StatusRuntimeException
 import kotlin.coroutines.resume
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
@@ -107,7 +106,7 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
                   cont.resume(deferred)
                 }
 
-                override fun onFailure(t: StatusRuntimeException) {
+                override fun onFailure(t: TerminalException) {
                   val deferred: CompletableDeferred<ByteString> = CompletableDeferred()
                   deferred.completeExceptionally(t)
                   cont.resume(deferred)
@@ -141,7 +140,7 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
             exitResult.complete(t)
           }
 
-          override fun onFailure(t: StatusRuntimeException) {
+          override fun onFailure(t: TerminalException) {
             exitResult.completeExceptionally(t)
           }
 

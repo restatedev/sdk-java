@@ -100,8 +100,8 @@ public class {{className}} {
         @java.lang.Deprecated
         {{/deprecated}}
 {{{javadoc}}}
-        public {{#isOutputEmpty}}void{{/isOutputEmpty}}{{^isOutputEmpty}}{{outputType}}{{/isOutputEmpty}} {{methodName}}(RestateContext context{{^isInputEmpty}}, {{inputType}} request{{/isInputEmpty}}) {
-            throw new io.grpc.StatusRuntimeException(io.grpc.Status.UNIMPLEMENTED);
+        public {{#isOutputEmpty}}void{{/isOutputEmpty}}{{^isOutputEmpty}}{{outputType}}{{/isOutputEmpty}} {{methodName}}(RestateContext context{{^isInputEmpty}}, {{inputType}} request{{/isInputEmpty}}) throws dev.restate.sdk.core.TerminalException {
+            throw new dev.restate.sdk.core.TerminalException(dev.restate.sdk.core.TerminalException.Code.UNIMPLEMENTED);
         }
 
         {{/methods}}

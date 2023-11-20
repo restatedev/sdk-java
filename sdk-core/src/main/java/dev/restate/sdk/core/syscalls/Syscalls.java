@@ -2,6 +2,7 @@ package dev.restate.sdk.core.syscalls;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
+import dev.restate.sdk.core.TerminalException;
 import io.grpc.Context;
 import io.grpc.MethodDescriptor;
 import java.time.Duration;
@@ -41,7 +42,7 @@ public interface Syscalls {
 
   <T extends MessageLite> void writeOutput(T value, SyscallCallback<Void> callback);
 
-  void writeOutput(Throwable throwable, SyscallCallback<Void> callback);
+  void writeOutput(TerminalException exception, SyscallCallback<Void> callback);
 
   // ----- State
 

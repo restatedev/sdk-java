@@ -1,6 +1,6 @@
 package dev.restate.sdk.core.syscalls;
 
-import io.grpc.StatusRuntimeException;
+import dev.restate.sdk.core.TerminalException;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 
@@ -35,5 +35,5 @@ public interface ReadyResult<T> {
   <U> ReadyResult<U> map(Function<T, U> mapper);
 
   @Nullable
-  StatusRuntimeException getFailure();
+  TerminalException getFailure();
 }

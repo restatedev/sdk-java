@@ -4,9 +4,8 @@ import com.google.protobuf.MessageLite;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.SuspendedException;
+import dev.restate.sdk.core.TerminalException;
 import io.grpc.Status;
-import io.grpc.StatusException;
-import io.grpc.StatusRuntimeException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
@@ -15,6 +14,11 @@ public final class Util {
   private Util() {}
 
   static Status SUSPENDED_STATUS = Status.INTERNAL.withCause(SuspendedException.INSTANCE);
+
+  @SuppressWarnings("unchecked")
+  static <E extends Throwable> void sneakyThrow(Throwable e) throws E {
+    throw (E) e;
+  }
 
   /**
    * Finds a throwable fulfilling the condition in the cause chain of the given throwable. If there
@@ -44,20 +48,6 @@ public final class Util {
     return Optional.empty();
   }
 
-  public static Status toGrpcStatusWrappingUncaught(Throwable t) {
-    Throwable cause = Objects.requireNonNull(t);
-    while (cause != null) {
-      if (cause instanceof StatusException) {
-        return ((StatusException) cause).getStatus();
-      } else if (cause instanceof StatusRuntimeException) {
-        return ((StatusRuntimeException) cause).getStatus();
-      }
-      cause = cause.getCause();
-    }
-    // Couldn't find a cause with a Status
-    return Status.UNKNOWN.withCause(new UncaughtException(t));
-  }
-
   public static Optional<ProtocolException> findProtocolException(Throwable throwable) {
     return findCause(throwable, t -> t instanceof ProtocolException);
   }
@@ -66,45 +56,28 @@ public final class Util {
     return findCause(throwable, t -> t == SuspendedException.INSTANCE).isPresent();
   }
 
-  static Protocol.Failure toProtocolFailure(Status status) {
-    Protocol.Failure.Builder builder =
-        Protocol.Failure.newBuilder().setCode(status.getCode().value());
-    if (status.getDescription() != null) {
-      builder.setMessage(status.getDescription());
+  static Protocol.Failure toProtocolFailure(TerminalException.Code code, String message) {
+    Protocol.Failure.Builder builder = Protocol.Failure.newBuilder().setCode(code.value());
+    if (message != null) {
+      builder.setMessage(message);
     }
     return builder.build();
   }
 
   static Protocol.Failure toProtocolFailure(Throwable throwable) {
-    return toProtocolFailure(toGrpcStatusErasingCause(throwable));
+    if (throwable instanceof TerminalException) {
+      return toProtocolFailure(((TerminalException) throwable).getCode(), throwable.getMessage());
+    }
+    return toProtocolFailure(TerminalException.Code.UNKNOWN, throwable.toString());
   }
 
-  static Status toGrpcStatus(Protocol.Failure failure) {
-    return Status.fromCodeValue(failure.getCode()).withDescription(failure.getMessage());
-  }
-
-  static Status toGrpcStatusErasingCause(Throwable throwable) {
-    Status status;
-    if (throwable instanceof StatusException) {
-      status = ((StatusException) throwable).getStatus();
-    } else if (throwable instanceof StatusRuntimeException) {
-      status = ((StatusRuntimeException) throwable).getStatus();
-    } else {
-      return Status.UNKNOWN.withDescription(throwable.getMessage());
-    }
-
-    // We erase the cause as it's not stored in the call result structure
-    // and can cause non-determinism.
-    //
-    // We can still set the error message though.
-    if (status.getDescription() == null && status.getCause() != null) {
-      status = status.withDescription(status.getCause().toString());
-    }
-    return status.withCause(null);
+  static TerminalException toRestateException(Protocol.Failure failure) {
+    return new TerminalException(
+        TerminalException.Code.fromValue(failure.getCode()), failure.getMessage());
   }
 
   static boolean isTerminalException(Throwable throwable) {
-    return throwable instanceof StatusRuntimeException || throwable instanceof StatusException;
+    return throwable instanceof TerminalException;
   }
 
   static void assertIsEntry(MessageLite msg) {

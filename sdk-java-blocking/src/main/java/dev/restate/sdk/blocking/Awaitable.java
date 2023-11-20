@@ -1,10 +1,10 @@
 package dev.restate.sdk.blocking;
 
 import dev.restate.sdk.core.SuspendedException;
+import dev.restate.sdk.core.TerminalException;
 import dev.restate.sdk.core.syscalls.DeferredResult;
 import dev.restate.sdk.core.syscalls.ReadyResultHolder;
 import dev.restate.sdk.core.syscalls.Syscalls;
-import io.grpc.StatusRuntimeException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -19,7 +19,7 @@ import javax.annotation.concurrent.NotThreadSafe;
  * execution stops until the asynchronous result is available.
  *
  * <p>The result can be either a success or a failure. In case of a failure, {@code await()} will
- * throw a {@link StatusRuntimeException}.
+ * throw a {@link TerminalException}.
  *
  * @param <T> type of the awaitable result
  */
@@ -46,9 +46,9 @@ public class Awaitable<T> {
    * <p><b>NOTE</b>: You should never wrap this invocation in a try-catch catching {@link
    * RuntimeException}, as it will catch {@link SuspendedException} as well.
    *
-   * @throws StatusRuntimeException if the awaitable is ready and contains a failure
+   * @throws TerminalException if the awaitable is ready and contains a failure
    */
-  public T await() throws StatusRuntimeException {
+  public T await() throws TerminalException {
     if (!this.resultHolder.isCompleted()) {
       Util.<Void>blockOnSyscall(
           cb -> syscalls.resolveDeferred(this.resultHolder.getDeferredResult(), cb));
@@ -60,7 +60,7 @@ public class Awaitable<T> {
    * Same as {@link #await()}, but throws a {@link TimeoutException} if this {@link Awaitable}
    * doesn't complete before the provided {@code timeout}.
    */
-  public T await(Duration timeout) throws StatusRuntimeException, TimeoutException {
+  public T await(Duration timeout) throws TerminalException, TimeoutException {
     DeferredResult<Void> sleep = Util.blockOnSyscall(cb -> this.syscalls.sleep(timeout, cb));
 
     int index =

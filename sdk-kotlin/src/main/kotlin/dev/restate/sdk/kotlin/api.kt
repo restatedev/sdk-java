@@ -162,7 +162,7 @@ sealed interface RestateContext {
  * waits until the asynchronous result is available.
  *
  * The result can be either a success or a failure. In case of a failure, [await] will throw a
- * [StatusRuntimeException].
+ * [dev.restate.sdk.core.TerminalException].
  *
  * @param T type of the awaitable result
  */

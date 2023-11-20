@@ -87,6 +87,9 @@ public interface RestateContext {
    * <p>The returned {@link Channel} will execute the requests using the {@link
    * #call(MethodDescriptor, Object)} method.
    *
+   * <p>Please note that errors will be propagated as {@link dev.restate.sdk.core.TerminalException}
+   * and not as {@link io.grpc.StatusRuntimeException}.
+   *
    * @return a {@link Channel} to send requests through Restate.
    */
   default Channel grpcChannel() {

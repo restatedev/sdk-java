@@ -3,10 +3,10 @@ package dev.restate.sdk.blocking;
 import com.google.protobuf.ByteString;
 import dev.restate.sdk.core.Serde;
 import dev.restate.sdk.core.StateKey;
+import dev.restate.sdk.core.TerminalException;
 import dev.restate.sdk.core.function.ThrowingSupplier;
 import dev.restate.sdk.core.syscalls.*;
 import io.grpc.MethodDescriptor;
-import io.grpc.StatusRuntimeException;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
@@ -87,7 +87,7 @@ class RestateContextImpl implements RestateContext {
           }
 
           @Override
-          public void onFailure(StatusRuntimeException t) {
+          public void onFailure(TerminalException t) {
             enterFut.complete(CompletableFuture.failedFuture(t));
           }
 
@@ -112,7 +112,7 @@ class RestateContextImpl implements RestateContext {
           }
 
           @Override
-          public void onFailure(StatusRuntimeException t) {
+          public void onFailure(TerminalException t) {
             exitFut.completeExceptionally(t);
           }
 
@@ -140,7 +140,7 @@ class RestateContextImpl implements RestateContext {
   }
 
   @Override
-  public <T> Awakeable<T> awakeable(Serde<T> serde) throws StatusRuntimeException {
+  public <T> Awakeable<T> awakeable(Serde<T> serde) throws TerminalException {
     // Retrieve the awakeable
     Map.Entry<String, DeferredResult<ByteString>> awakeable =
         Util.blockOnSyscall(syscalls::awakeable);
