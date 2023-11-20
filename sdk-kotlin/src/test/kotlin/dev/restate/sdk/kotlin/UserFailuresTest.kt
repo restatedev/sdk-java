@@ -6,6 +6,8 @@ import dev.restate.sdk.core.impl.testservices.GreeterGrpcKt
 import dev.restate.sdk.core.impl.testservices.GreetingRequest
 import dev.restate.sdk.core.impl.testservices.GreetingResponse
 import io.grpc.BindableService
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
 
 class UserFailuresTest : UserFailuresTestSuite() {
@@ -20,16 +22,27 @@ class UserFailuresTest : UserFailuresTestSuite() {
     return ThrowIllegalStateException()
   }
 
-  private class SideEffectThrowIllegalStateException :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
+  private class SideEffectThrowIllegalStateException(
+      private val nonTerminalExceptionsSeen: AtomicInteger
+  ) : GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      restateContext().sideEffect { throw IllegalStateException("Whatever") }
+      try {
+        restateContext().sideEffect { throw IllegalStateException("Whatever") }
+      } catch (e: Throwable) {
+        if (e !is CancellationException && e !is TerminalException) {
+          nonTerminalExceptionsSeen.addAndGet(1)
+        } else {
+          throw e
+        }
+      }
       throw IllegalStateException("Not expected to reach this point")
     }
   }
 
-  override fun sideEffectThrowIllegalStateException(): BindableService {
-    return SideEffectThrowIllegalStateException()
+  override fun sideEffectThrowIllegalStateException(
+      nonTerminalExceptionsSeen: AtomicInteger
+  ): BindableService {
+    return SideEffectThrowIllegalStateException(nonTerminalExceptionsSeen)
   }
 
   private class ThrowTerminalException(

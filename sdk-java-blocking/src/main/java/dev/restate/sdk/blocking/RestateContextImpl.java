@@ -3,6 +3,7 @@ package dev.restate.sdk.blocking;
 import com.google.protobuf.ByteString;
 import dev.restate.sdk.core.Serde;
 import dev.restate.sdk.core.StateKey;
+import dev.restate.sdk.core.SuspendedException;
 import dev.restate.sdk.core.TerminalException;
 import dev.restate.sdk.core.function.ThrowingSupplier;
 import dev.restate.sdk.core.syscalls.*;
@@ -32,7 +33,7 @@ class RestateContextImpl implements RestateContext {
     }
 
     return Util.unwrapOptionalReadyResult(deferredResult.toReadyResult())
-        .map(bs -> key.serde().deserialize(bs));
+        .map(bs -> Util.deserializeWrappingException(syscalls, key.serde(), bs));
   }
 
   @Override
@@ -43,7 +44,9 @@ class RestateContextImpl implements RestateContext {
   @Override
   public <T> void set(StateKey<T> key, @Nonnull T value) {
     Util.<Void>blockOnSyscall(
-        cb -> syscalls.set(key.name(), key.serde().serializeToByteString(value), cb));
+        cb ->
+            syscalls.set(
+                key.name(), Util.serializeWrappingException(syscalls, key.serde(), value), cb));
   }
 
   @Override
@@ -82,7 +85,7 @@ class RestateContextImpl implements RestateContext {
           }
 
           @Override
-          public void onResult(ByteString result) {
+          public void onSuccess(ByteString result) {
             enterFut.complete(CompletableFuture.completedFuture(result));
           }
 
@@ -101,13 +104,14 @@ class RestateContextImpl implements RestateContext {
     CompletableFuture<ByteString> exitFut = Util.awaitCompletableFuture(enterFut);
     if (exitFut.isDone()) {
       // We already have a result, we don't need to execute the action
-      return serde.deserialize(Util.awaitCompletableFuture(exitFut));
+      return Util.deserializeWrappingException(
+          syscalls, serde, Util.awaitCompletableFuture(exitFut));
     }
 
     ExitSideEffectSyscallCallback exitCallback =
         new ExitSideEffectSyscallCallback() {
           @Override
-          public void onResult(ByteString result) {
+          public void onSuccess(ByteString result) {
             exitFut.complete(result);
           }
 
@@ -123,20 +127,26 @@ class RestateContextImpl implements RestateContext {
         };
 
     T res = null;
-    Throwable failure = null;
+    TerminalException failure = null;
     try {
       res = action.get();
-    } catch (Throwable e) {
+    } catch (TerminalException e) {
       failure = e;
+    } catch (Error e) {
+      throw e;
+    } catch (Throwable e) {
+      syscalls.fail(e);
+      SuspendedException.sneakyThrow();
     }
 
     if (failure != null) {
-      syscalls.exitSideEffectBlockWithException(failure, exitCallback);
+      syscalls.exitSideEffectBlockWithTerminalException(failure, exitCallback);
     } else {
-      syscalls.exitSideEffectBlock(serde.serializeToByteString(res), exitCallback);
+      syscalls.exitSideEffectBlock(
+          Util.serializeWrappingException(syscalls, serde, res), exitCallback);
     }
 
-    return serde.deserialize(Util.awaitCompletableFuture(exitFut));
+    return Util.deserializeWrappingException(syscalls, serde, Util.awaitCompletableFuture(exitFut));
   }
 
   @Override
@@ -154,7 +164,9 @@ class RestateContextImpl implements RestateContext {
       @Override
       public <T> void resolve(Serde<T> serde, @Nonnull T payload) {
         Util.<Void>blockOnSyscall(
-            cb -> syscalls.resolveAwakeable(id, serde.serializeToByteString(payload), cb));
+            cb ->
+                syscalls.resolveAwakeable(
+                    id, Util.serializeWrappingException(syscalls, serde, payload), cb));
       }
 
       @Override

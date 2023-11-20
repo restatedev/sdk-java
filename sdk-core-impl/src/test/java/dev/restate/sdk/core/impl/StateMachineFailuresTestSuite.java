@@ -1,9 +1,9 @@
 package dev.restate.sdk.core.impl;
 
-import static dev.restate.sdk.core.impl.AssertUtils.containsOnly;
-import static dev.restate.sdk.core.impl.AssertUtils.errorMessageStartingWith;
+import static dev.restate.sdk.core.impl.AssertUtils.*;
 import static dev.restate.sdk.core.impl.ProtoUtils.*;
 import static dev.restate.sdk.core.impl.TestDefinitions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.sdk.core.Serde;
@@ -11,11 +11,12 @@ import dev.restate.sdk.core.impl.testservices.GreeterGrpc;
 import dev.restate.sdk.core.impl.testservices.GreetingRequest;
 import io.grpc.BindableService;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 public abstract class StateMachineFailuresTestSuite implements TestSuite {
 
-  protected abstract BindableService getState();
+  protected abstract BindableService getState(AtomicInteger nonTerminalExceptionsSeen);
 
   protected abstract BindableService sideEffectFailure(Serde<Integer> serde);
 
@@ -35,31 +36,46 @@ public abstract class StateMachineFailuresTestSuite implements TestSuite {
 
   @Override
   public Stream<TestDefinition> definitions() {
+    AtomicInteger nonTerminalExceptionsSeenTest1 = new AtomicInteger();
+    AtomicInteger nonTerminalExceptionsSeenTest2 = new AtomicInteger();
+
     return Stream.of(
-        testInvocation(this::getState, GreeterGrpc.getGreetMethod())
+        testInvocation(
+                () -> this.getState(nonTerminalExceptionsSeenTest1), GreeterGrpc.getGreetMethod())
             .withInput(
                 startMessage(2),
                 inputMessage(GreetingRequest.newBuilder().setName("Till")),
                 getStateMessage("Something"))
             .assertingOutput(
-                containsOnly(
-                    AssertUtils.protocolExceptionErrorMessage(
-                        ProtocolException.JOURNAL_MISMATCH_CODE))),
-        testInvocation(this::getState, GreeterGrpc.getGreetMethod())
+                msgs -> {
+                  assertThat(msgs)
+                      .satisfiesExactly(
+                          protocolExceptionErrorMessage(ProtocolException.JOURNAL_MISMATCH_CODE));
+                  assertThat(nonTerminalExceptionsSeenTest1).hasValue(0);
+                })
+            .named("Protocol Exception"),
+        testInvocation(
+                () -> this.getState(nonTerminalExceptionsSeenTest2), GreeterGrpc.getGreetMethod())
             .withInput(
                 startMessage(2),
                 inputMessage(GreetingRequest.newBuilder().setName("Till")),
                 getStateMessage("STATE", "This is not an integer"))
             .assertingOutput(
-                containsOnly(
-                    errorMessageStartingWith(NumberFormatException.class.getCanonicalName()))),
+                msgs -> {
+                  assertThat(msgs)
+                      .satisfiesExactly(
+                          errorMessageStartingWith(NumberFormatException.class.getCanonicalName()));
+                  assertThat(nonTerminalExceptionsSeenTest2).hasValue(0);
+                })
+            .named("Serde error"),
         testInvocation(
                 () -> this.sideEffectFailure(FAILING_SERIALIZATION_INTEGER_TYPE_TAG),
                 GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
             .assertingOutput(
                 containsOnly(
-                    errorMessageStartingWith(IllegalStateException.class.getCanonicalName()))),
+                    errorMessageStartingWith(IllegalStateException.class.getCanonicalName())))
+            .named("Serde serialization error"),
         testInvocation(
                 () -> this.sideEffectFailure(FAILING_DESERIALIZATION_INTEGER_TYPE_TAG),
                 GreeterGrpc.getGreetMethod())
@@ -69,6 +85,7 @@ public abstract class StateMachineFailuresTestSuite implements TestSuite {
                 Java.SideEffectEntryMessage.newBuilder())
             .assertingOutput(
                 containsOnly(
-                    errorMessageStartingWith(IllegalStateException.class.getCanonicalName()))));
+                    errorMessageStartingWith(IllegalStateException.class.getCanonicalName())))
+            .named("Serde deserialization error"));
   }
 }

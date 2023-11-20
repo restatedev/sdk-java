@@ -4,6 +4,7 @@ import static dev.restate.sdk.core.impl.AssertUtils.containsOnlyExactErrorMessag
 import static dev.restate.sdk.core.impl.ProtoUtils.*;
 import static dev.restate.sdk.core.impl.TestDefinitions.testInvocation;
 
+import dev.restate.sdk.core.SuspendedException;
 import dev.restate.sdk.core.TerminalException;
 import dev.restate.sdk.core.impl.TestDefinitions.TestDefinition;
 import dev.restate.sdk.core.impl.UserFailuresTestSuite;
@@ -12,6 +13,7 @@ import dev.restate.sdk.core.impl.testservices.GreetingRequest;
 import dev.restate.sdk.core.impl.testservices.GreetingResponse;
 import io.grpc.BindableService;
 import io.grpc.stub.StreamObserver;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 public class UserFailuresTest extends UserFailuresTestSuite {
@@ -31,19 +33,38 @@ public class UserFailuresTest extends UserFailuresTestSuite {
 
   private static class SideEffectThrowIllegalStateException extends GreeterGrpc.GreeterImplBase
       implements RestateBlockingService {
+
+    private final AtomicInteger nonTerminalExceptionsSeen;
+
+    private SideEffectThrowIllegalStateException(AtomicInteger nonTerminalExceptionsSeen) {
+      this.nonTerminalExceptionsSeen = nonTerminalExceptionsSeen;
+    }
+
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      restateContext()
-          .sideEffect(
-              () -> {
-                throw new IllegalStateException("Whatever");
-              });
+      try {
+        restateContext()
+            .sideEffect(
+                () -> {
+                  throw new IllegalStateException("Whatever");
+                });
+      } catch (Throwable e) {
+        // A user should never catch Throwable!!!
+        if (SuspendedException.INSTANCE.equals(e)) {
+          SuspendedException.sneakyThrow();
+        }
+        if (!(e instanceof TerminalException)) {
+          nonTerminalExceptionsSeen.addAndGet(1);
+        }
+        throw e;
+      }
     }
   }
 
   @Override
-  protected BindableService sideEffectThrowIllegalStateException() {
-    return new SideEffectThrowIllegalStateException();
+  protected BindableService sideEffectThrowIllegalStateException(
+      AtomicInteger nonTerminalExceptionsSeen) {
+    return new SideEffectThrowIllegalStateException(nonTerminalExceptionsSeen);
   }
 
   private static class ThrowTerminalException extends GreeterGrpc.GreeterImplBase

@@ -434,7 +434,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     if (sideEffectEntry.hasFailure()) {
       callback.onFailure(Util.toRestateException(sideEffectEntry.getFailure()));
     } else {
-      callback.onResult(sideEffectEntry.getValue());
+      callback.onSuccess(sideEffectEntry.getValue());
     }
   }
 

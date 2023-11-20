@@ -3,6 +3,7 @@ package dev.restate.sdk.blocking;
 import dev.restate.sdk.core.CoreSerdes;
 import dev.restate.sdk.core.Serde;
 import dev.restate.sdk.core.StateKey;
+import dev.restate.sdk.core.TerminalException;
 import dev.restate.sdk.core.function.ThrowingRunnable;
 import dev.restate.sdk.core.function.ThrowingSupplier;
 import dev.restate.sdk.core.syscalls.Syscalls;
@@ -21,7 +22,12 @@ import javax.annotation.concurrent.NotThreadSafe;
  * <p>To use it within your Restate service, implement {@link RestateBlockingService} and get an
  * instance with {@link RestateBlockingService#restateContext()}.
  *
- * <p>NOTE: This interface should never be accessed concurrently since it can lead to different
+ * <p>All methods of this interface, and related interfaces, throws either {@link TerminalException}
+ * or {@link dev.restate.sdk.core.SuspendedException}, where the former can be caught and acted
+ * upon, while the second exception MUST never be caught, but simply propagated for clean up
+ * purposes.
+ *
+ * <p>NOTE: This interface MUST NOT be accessed concurrently since it can lead to different
  * orderings of user actions, corrupting the execution of the invocation.
  */
 @NotThreadSafe
@@ -87,8 +93,8 @@ public interface RestateContext {
    * <p>The returned {@link Channel} will execute the requests using the {@link
    * #call(MethodDescriptor, Object)} method.
    *
-   * <p>Please note that errors will be propagated as {@link dev.restate.sdk.core.TerminalException}
-   * and not as {@link io.grpc.StatusRuntimeException}.
+   * <p>Please note that errors will be propagated as {@link TerminalException} and not as {@link
+   * io.grpc.StatusRuntimeException}.
    *
    * @return a {@link Channel} to send requests through Restate.
    */
@@ -119,20 +125,53 @@ public interface RestateContext {
   <T> void delayedCall(MethodDescriptor<T, ?> methodDescriptor, T parameter, Duration delay);
 
   /**
-   * Registers side effects that will be re-played in case of re-invocation (e.g. because of failure
-   * recovery or suspension point).
+   * Execute a non-deterministic closure, recording the result value in the journal. The result
+   * value will be re-played in case of re-invocation (e.g. because of failure recovery or
+   * suspension point) without re-executing the closure. Use this feature if you want to perform
+   * <b>non-deterministic operations</b>.
    *
-   * <p>Use this function if you want to perform non-deterministic operations.
+   * <p>The closure should tolerate retries, that is Restate might re-execute the closure multiple
+   * times until it records a result.
+   *
+   * <h2>Error handling</h2>
+   *
+   * Errors occurring within this closure won't be propagated to the caller, unless they are {@link
+   * TerminalException}. Consider the following code:
+   *
+   * <pre>{@code
+   * // Bad usage of try-catch outside the side effect
+   * try {
+   *     ctx.sideEffect(() -> {
+   *         throw new IllegalStateException();
+   *     });
+   * } catch (IllegalStateException e) {
+   *     // This will never be executed,
+   *     // but the error will be retried by Restate,
+   *     // following the invocation retry policy.
+   * }
+   *
+   * // Good usage of try-catch outside the side effect
+   * try {
+   *     ctx.sideEffect(() -> {
+   *         throw new TerminalException("my error");
+   *     });
+   * } catch (TerminalException e) {
+   *     // This is invoked
+   * }
+   * }</pre>
+   *
+   * To propagate side effects failures to the side effect call-site, make sure to wrap them in
+   * {@link TerminalException}.
    *
    * @param serde the type tag of the return value, used to serialize/deserialize it.
    * @param action to execute for its side effects.
    * @param <T> type of the return value.
    * @return value of the side effect operation.
    */
-  <T> T sideEffect(Serde<T> serde, ThrowingSupplier<T> action);
+  <T> T sideEffect(Serde<T> serde, ThrowingSupplier<T> action) throws TerminalException;
 
   /** Like {@link #sideEffect(Serde, ThrowingSupplier)}, but without returning a value. */
-  default void sideEffect(ThrowingRunnable runnable) {
+  default void sideEffect(ThrowingRunnable runnable) throws TerminalException {
     sideEffect(
         CoreSerdes.VOID,
         () -> {

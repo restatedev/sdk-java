@@ -27,7 +27,7 @@ public final class Awakeable<T> extends Awaitable<T> {
       DeferredResult<ByteString> deferredResult,
       Serde<T> serde,
       String identifier) {
-    super(syscalls, deferredResult, serde::deserialize);
+    super(syscalls, deferredResult, bs -> Util.deserializeWrappingException(syscalls, serde, bs));
     this.identifier = identifier;
   }
 
