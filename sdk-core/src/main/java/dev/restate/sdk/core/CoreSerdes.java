@@ -8,6 +8,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import javax.annotation.Nullable;
 
+/**
+ * Collection of common serializers/deserializers.
+ *
+ * <p>To ser/de POJOs using JSON, you can use the module {@code sdk-serde-jackson}.
+ */
 public abstract class CoreSerdes {
 
   private CoreSerdes() {}
