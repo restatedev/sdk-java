@@ -2,7 +2,13 @@
 
 This directory contains different examples of the SDK features.
 
-For a sample project configuration, check out the templates in https://github.com/restatedev/examples/tree/main/jvm.
+For a sample project configuration and more elaborated examples, check out the templates in https://github.com/restatedev/examples/tree/main/jvm.
+
+Available examples:
+
+* [`Counter`](src/main/java/dev/restate/sdk/examples/Counter.java): Shows a simple service using state primitives.
+* [`VanillaGrpcCounter`](src/main/java/dev/restate/sdk/examples/VanillaGrpcCounter.java): Same as `Counter` but using the vanilla gRPC code generator output.
+* [`CounterKt`](src/main/kotlin/dev/restate/sdk/examples/CounterKt.kt): Same as `Counter` but using Kotlin.
 
 ## Package the examples for Lambda
 
