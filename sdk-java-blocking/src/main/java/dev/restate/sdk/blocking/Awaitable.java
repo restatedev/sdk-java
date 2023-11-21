@@ -1,6 +1,6 @@
 package dev.restate.sdk.blocking;
 
-import dev.restate.sdk.core.SuspendedException;
+import dev.restate.sdk.core.AbortedExecutionException;
 import dev.restate.sdk.core.TerminalException;
 import dev.restate.sdk.core.syscalls.DeferredResult;
 import dev.restate.sdk.core.syscalls.ReadyResultHolder;
@@ -44,7 +44,7 @@ public class Awaitable<T> {
    * the function.
    *
    * <p><b>NOTE</b>: You should never wrap this invocation in a try-catch catching {@link
-   * RuntimeException}, as it will catch {@link SuspendedException} as well.
+   * RuntimeException}, as it will catch {@link AbortedExecutionException} as well.
    *
    * @throws TerminalException if the awaitable is ready and contains a failure
    */

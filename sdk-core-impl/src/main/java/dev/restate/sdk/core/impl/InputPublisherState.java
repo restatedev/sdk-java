@@ -1,6 +1,6 @@
 package dev.restate.sdk.core.impl;
 
-import dev.restate.sdk.core.SuspendedException;
+import dev.restate.sdk.core.AbortedExecutionException;
 import javax.annotation.Nullable;
 
 class InputPublisherState {
@@ -12,7 +12,7 @@ class InputPublisherState {
   }
 
   boolean isSuspended() {
-    return this.closeCause == SuspendedException.INSTANCE;
+    return this.closeCause == AbortedExecutionException.INSTANCE;
   }
 
   boolean isClosed() {

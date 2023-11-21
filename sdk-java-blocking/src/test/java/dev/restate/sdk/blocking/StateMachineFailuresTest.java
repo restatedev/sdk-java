@@ -2,9 +2,9 @@ package dev.restate.sdk.blocking;
 
 import static dev.restate.sdk.core.impl.ProtoUtils.greetingResponse;
 
+import dev.restate.sdk.core.AbortedExecutionException;
 import dev.restate.sdk.core.Serde;
 import dev.restate.sdk.core.StateKey;
-import dev.restate.sdk.core.SuspendedException;
 import dev.restate.sdk.core.TerminalException;
 import dev.restate.sdk.core.impl.StateMachineFailuresTestSuite;
 import dev.restate.sdk.core.impl.testservices.GreeterGrpc;
@@ -39,8 +39,8 @@ public class StateMachineFailuresTest extends StateMachineFailuresTestSuite {
         restateContext().get(STATE);
       } catch (Throwable e) {
         // A user should never catch Throwable!!!
-        if (SuspendedException.INSTANCE.equals(e)) {
-          SuspendedException.sneakyThrow();
+        if (AbortedExecutionException.INSTANCE.equals(e)) {
+          AbortedExecutionException.sneakyThrow();
         }
         if (!(e instanceof TerminalException)) {
           nonTerminalExceptionsSeen.addAndGet(1);

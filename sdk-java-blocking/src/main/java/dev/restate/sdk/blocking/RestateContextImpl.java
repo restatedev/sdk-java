@@ -1,9 +1,9 @@
 package dev.restate.sdk.blocking;
 
 import com.google.protobuf.ByteString;
+import dev.restate.sdk.core.AbortedExecutionException;
 import dev.restate.sdk.core.Serde;
 import dev.restate.sdk.core.StateKey;
-import dev.restate.sdk.core.SuspendedException;
 import dev.restate.sdk.core.TerminalException;
 import dev.restate.sdk.core.function.ThrowingSupplier;
 import dev.restate.sdk.core.syscalls.*;
@@ -136,7 +136,7 @@ class RestateContextImpl implements RestateContext {
       throw e;
     } catch (Throwable e) {
       syscalls.fail(e);
-      SuspendedException.sneakyThrow();
+      AbortedExecutionException.sneakyThrow();
     }
 
     if (failure != null) {

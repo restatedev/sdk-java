@@ -1,9 +1,6 @@
 package dev.restate.sdk.blocking;
 
-import dev.restate.sdk.core.CoreSerdes;
-import dev.restate.sdk.core.Serde;
-import dev.restate.sdk.core.StateKey;
-import dev.restate.sdk.core.TerminalException;
+import dev.restate.sdk.core.*;
 import dev.restate.sdk.core.function.ThrowingRunnable;
 import dev.restate.sdk.core.function.ThrowingSupplier;
 import dev.restate.sdk.core.syscalls.Syscalls;
@@ -23,9 +20,8 @@ import javax.annotation.concurrent.NotThreadSafe;
  * instance with {@link RestateBlockingService#restateContext()}.
  *
  * <p>All methods of this interface, and related interfaces, throws either {@link TerminalException}
- * or {@link dev.restate.sdk.core.SuspendedException}, where the former can be caught and acted
- * upon, while the second exception MUST never be caught, but simply propagated for clean up
- * purposes.
+ * or {@link AbortedExecutionException}, where the former can be caught and acted upon, while the
+ * latter MUST NOT be caught, but simply propagated for clean up purposes.
  *
  * <p>NOTE: This interface MUST NOT be accessed concurrently since it can lead to different
  * orderings of user actions, corrupting the execution of the invocation.

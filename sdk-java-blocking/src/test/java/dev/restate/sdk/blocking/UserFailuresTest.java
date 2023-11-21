@@ -4,7 +4,7 @@ import static dev.restate.sdk.core.impl.AssertUtils.containsOnlyExactErrorMessag
 import static dev.restate.sdk.core.impl.ProtoUtils.*;
 import static dev.restate.sdk.core.impl.TestDefinitions.testInvocation;
 
-import dev.restate.sdk.core.SuspendedException;
+import dev.restate.sdk.core.AbortedExecutionException;
 import dev.restate.sdk.core.TerminalException;
 import dev.restate.sdk.core.impl.TestDefinitions.TestDefinition;
 import dev.restate.sdk.core.impl.UserFailuresTestSuite;
@@ -50,8 +50,8 @@ public class UserFailuresTest extends UserFailuresTestSuite {
                 });
       } catch (Throwable e) {
         // A user should never catch Throwable!!!
-        if (SuspendedException.INSTANCE.equals(e)) {
-          SuspendedException.sneakyThrow();
+        if (AbortedExecutionException.INSTANCE.equals(e)) {
+          AbortedExecutionException.sneakyThrow();
         }
         if (!(e instanceof TerminalException)) {
           nonTerminalExceptionsSeen.addAndGet(1);
