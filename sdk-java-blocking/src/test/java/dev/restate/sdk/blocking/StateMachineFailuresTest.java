@@ -2,8 +2,10 @@ package dev.restate.sdk.blocking;
 
 import static dev.restate.sdk.core.impl.ProtoUtils.greetingResponse;
 
+import dev.restate.sdk.core.AbortedExecutionException;
 import dev.restate.sdk.core.Serde;
 import dev.restate.sdk.core.StateKey;
+import dev.restate.sdk.core.TerminalException;
 import dev.restate.sdk.core.impl.StateMachineFailuresTestSuite;
 import dev.restate.sdk.core.impl.testservices.GreeterGrpc;
 import dev.restate.sdk.core.impl.testservices.GreetingRequest;
@@ -11,6 +13,7 @@ import dev.restate.sdk.core.impl.testservices.GreetingResponse;
 import io.grpc.BindableService;
 import io.grpc.stub.StreamObserver;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class StateMachineFailuresTest extends StateMachineFailuresTestSuite {
 
@@ -24,17 +27,35 @@ public class StateMachineFailuresTest extends StateMachineFailuresTestSuite {
                 i -> Integer.toString(i).getBytes(StandardCharsets.UTF_8),
                 b -> Integer.parseInt(new String(b, StandardCharsets.UTF_8))));
 
+    private final AtomicInteger nonTerminalExceptionsSeen;
+
+    private GetState(AtomicInteger nonTerminalExceptionsSeen) {
+      this.nonTerminalExceptionsSeen = nonTerminalExceptionsSeen;
+    }
+
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      restateContext().get(STATE);
+      try {
+        restateContext().get(STATE);
+      } catch (Throwable e) {
+        // A user should never catch Throwable!!!
+        if (AbortedExecutionException.INSTANCE.equals(e)) {
+          AbortedExecutionException.sneakyThrow();
+        }
+        if (!(e instanceof TerminalException)) {
+          nonTerminalExceptionsSeen.addAndGet(1);
+        } else {
+          throw e;
+        }
+      }
       responseObserver.onNext(greetingResponse("Francesco"));
       responseObserver.onCompleted();
     }
   }
 
   @Override
-  protected BindableService getState() {
-    return new GetState();
+  protected BindableService getState(AtomicInteger nonTerminalExceptionsSeen) {
+    return new GetState(nonTerminalExceptionsSeen);
   }
 
   private static class SideEffectFailure extends GreeterGrpc.GreeterImplBase

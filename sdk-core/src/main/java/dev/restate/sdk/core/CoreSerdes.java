@@ -26,7 +26,17 @@ public abstract class CoreSerdes {
         }
 
         @Override
+        public ByteString serializeToByteString(@Nullable Void value) {
+          return ByteString.EMPTY;
+        }
+
+        @Override
         public Void deserialize(byte[] value) {
+          return null;
+        }
+
+        @Override
+        public Void deserialize(ByteString byteString) {
           return null;
         }
       };

@@ -17,8 +17,11 @@ import kotlin.time.Duration
  * To use it within your Restate service, implement [RestateCoroutineService] and get an instance
  * with [RestateCoroutineService.restateContext].
  *
- * NOTE: This interface should never be accessed concurrently since it can lead to different
- * orderings of user actions, corrupting the execution of the invocation.
+ * All methods of this interface, and related interfaces, throws either [TerminalException] or
+ * cancels the coroutine. [TerminalException] can be caught and acted upon.
+ *
+ * NOTE: This interface MUST NOT be accessed concurrently since it can lead to different orderings
+ * of user actions, corrupting the execution of the invocation.
  */
 sealed interface RestateContext {
 
@@ -115,13 +118,45 @@ sealed interface RestateContext {
   )
 
   /**
-   * Registers side effects that will be re-played in case of re-invocation (e.g. because of failure
-   * recovery or suspension point).
+   * Execute a non-deterministic closure, recording the result value in the journal. The result
+   * value will be re-played in case of re-invocation (e.g. because of failure recovery or
+   * suspension point) without re-executing the closure. Use this feature if you want to perform
+   * <b>non-deterministic operations</b>.
    *
-   * <p>Use this function if you want to perform non-deterministic operations.
+   * <p>The closure should tolerate retries, that is Restate might re-execute the closure multiple
+   * times until it records a result.
+   *
+   * <h2>Error handling</h2>
+   *
+   * Errors occurring within this closure won't be propagated to the caller, unless they are
+   * [TerminalException]. Consider the following code:
+   * ```
+   * // Bad usage of try-catch outside the side effect
+   * try {
+   *     ctx.sideEffect {
+   *         throw IllegalStateException();
+   *     };
+   * } catch (e: IllegalStateException) {
+   *     // This will never be executed,
+   *     // but the error will be retried by Restate,
+   *     // following the invocation retry policy.
+   * }
+   *
+   * // Good usage of try-catch outside the side effect
+   * try {
+   *     ctx.sideEffect {
+   *         throw TerminalException("my error");
+   *     };
+   * } catch (e: TerminalException) {
+   *     // This is invoked
+   * }
+   * ```
+   *
+   * To propagate side effects failures to the side effect call-site, make sure to wrap them in
+   * [TerminalException].
    *
    * @param serde the type tag of the return value, used to serialize/deserialize it.
-   * @param sideEffectAction to execute for its side effects.
+   * @param action to execute for its side effects.
    * @param T type of the return value.
    * @return value of the side effect operation.
    */

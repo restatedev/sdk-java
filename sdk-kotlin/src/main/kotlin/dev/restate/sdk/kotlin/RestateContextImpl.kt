@@ -1,13 +1,13 @@
 package dev.restate.sdk.kotlin
 
 import com.google.protobuf.ByteString
-import com.google.protobuf.UnsafeByteOperations
 import dev.restate.sdk.core.*
 import dev.restate.sdk.core.syscalls.DeferredResult
 import dev.restate.sdk.core.syscalls.EnterSideEffectSyscallCallback
 import dev.restate.sdk.core.syscalls.ExitSideEffectSyscallCallback
 import dev.restate.sdk.core.syscalls.Syscalls
 import io.grpc.MethodDescriptor
+import java.lang.Error
 import kotlin.coroutines.resume
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
@@ -34,16 +34,13 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
     if (readyResult.isEmpty) {
       return null
     }
-    return key.serde().deserialize(readyResult.result!!)!!
+    return key.serde().deserializeWrappingException(syscalls, readyResult.result!!)!!
   }
 
   override suspend fun <T : Any> set(key: StateKey<T>, value: T) {
-    val serializedValue = key.serde().serialize(value)
+    val serializedValue = key.serde().serializeWrappingException(syscalls, value)!!
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-      syscalls.set(
-          key.name(),
-          UnsafeByteOperations.unsafeWrap(serializedValue),
-          completingUnitContinuation(cont))
+      syscalls.set(key.name(), serializedValue, completingUnitContinuation(cont))
     }
   }
 
@@ -100,9 +97,9 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
           ->
           syscalls.enterSideEffectBlock(
               object : EnterSideEffectSyscallCallback {
-                override fun onResult(t: ByteString) {
+                override fun onSuccess(t: ByteString?) {
                   val deferred: CompletableDeferred<ByteString> = CompletableDeferred()
-                  deferred.complete(t)
+                  deferred.complete(t!!)
                   cont.resume(deferred)
                 }
 
@@ -123,21 +120,26 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
         }
 
     if (exitResult.isCompleted) {
-      return serde.deserialize(exitResult.await())
+      return serde.deserializeWrappingException(syscalls, exitResult.await())!!
     }
 
     var actionReturnValue: T? = null
-    var actionFailure: Throwable? = null
+    var actionFailure: TerminalException? = null
     try {
       actionReturnValue = sideEffectAction()
-    } catch (e: Throwable) {
+    } catch (e: TerminalException) {
       actionFailure = e
+    } catch (e: Error) {
+      throw e
+    } catch (t: Throwable) {
+      syscalls.fail(t)
+      throw CancellationException("Side effect failure", t)
     }
 
     val exitCallback =
         object : ExitSideEffectSyscallCallback {
-          override fun onResult(t: ByteString) {
-            exitResult.complete(t)
+          override fun onSuccess(t: ByteString?) {
+            exitResult.complete(t!!)
           }
 
           override fun onFailure(t: TerminalException) {
@@ -150,12 +152,13 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
         }
 
     if (actionFailure != null) {
-      syscalls.exitSideEffectBlockWithException(actionFailure, exitCallback)
+      syscalls.exitSideEffectBlockWithTerminalException(actionFailure, exitCallback)
     } else {
-      syscalls.exitSideEffectBlock(serde.serializeToByteString(actionReturnValue), exitCallback)
+      syscalls.exitSideEffectBlock(
+          serde.serializeWrappingException(syscalls, actionReturnValue), exitCallback)
     }
 
-    return serde.deserialize(exitResult.await())
+    return serde.deserializeWrappingException(syscalls, exitResult.await())
   }
 
   override suspend fun <T> awakeable(serde: Serde<T>): Awakeable<T> {

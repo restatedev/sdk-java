@@ -101,7 +101,7 @@ class RestateServerCall extends ServerCall<MessageLite, MessageLite> {
         if (status.getCause() != null) {
           syscalls.fail(status.getCause());
         } else {
-          // Just propagate cause
+          // Just propagate status
           syscalls.fail(status.asRuntimeException());
         }
       }

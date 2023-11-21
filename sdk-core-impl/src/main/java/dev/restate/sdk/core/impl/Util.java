@@ -3,7 +3,7 @@ package dev.restate.sdk.core.impl;
 import com.google.protobuf.MessageLite;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.core.SuspendedException;
+import dev.restate.sdk.core.AbortedExecutionException;
 import dev.restate.sdk.core.TerminalException;
 import io.grpc.Status;
 import java.util.Objects;
@@ -13,7 +13,7 @@ import java.util.function.Predicate;
 public final class Util {
   private Util() {}
 
-  static Status SUSPENDED_STATUS = Status.INTERNAL.withCause(SuspendedException.INSTANCE);
+  static Status SUSPENDED_STATUS = Status.INTERNAL.withCause(AbortedExecutionException.INSTANCE);
 
   @SuppressWarnings("unchecked")
   static <E extends Throwable> void sneakyThrow(Throwable e) throws E {
@@ -53,7 +53,7 @@ public final class Util {
   }
 
   public static boolean containsSuspendedException(Throwable throwable) {
-    return findCause(throwable, t -> t == SuspendedException.INSTANCE).isPresent();
+    return findCause(throwable, t -> t == AbortedExecutionException.INSTANCE).isPresent();
   }
 
   static Protocol.Failure toProtocolFailure(TerminalException.Code code, String message) {

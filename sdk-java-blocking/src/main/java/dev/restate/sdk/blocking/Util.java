@@ -1,6 +1,8 @@
 package dev.restate.sdk.blocking;
 
-import dev.restate.sdk.core.SuspendedException;
+import com.google.protobuf.ByteString;
+import dev.restate.sdk.core.AbortedExecutionException;
+import dev.restate.sdk.core.Serde;
 import dev.restate.sdk.core.syscalls.DeferredResult;
 import dev.restate.sdk.core.syscalls.ReadyResult;
 import dev.restate.sdk.core.syscalls.SyscallCallback;
@@ -27,7 +29,7 @@ class Util {
     try {
       return future.get();
     } catch (InterruptedException | CancellationException e) {
-      SuspendedException.sneakyThrow();
+      AbortedExecutionException.sneakyThrow();
       return null; // Previous statement throws an exception
     } catch (ExecutionException e) {
       throw (RuntimeException) e.getCause();
@@ -55,5 +57,26 @@ class Util {
       return Optional.empty();
     }
     return Optional.of(res.getResult());
+  }
+
+  static <T> ByteString serializeWrappingException(Syscalls syscalls, Serde<T> serde, T value) {
+    try {
+      return serde.serializeToByteString(value);
+    } catch (Exception e) {
+      syscalls.fail(e);
+      AbortedExecutionException.sneakyThrow();
+      return null;
+    }
+  }
+
+  static <T> T deserializeWrappingException(
+      Syscalls syscalls, Serde<T> serde, ByteString byteString) {
+    try {
+      return serde.deserialize(byteString);
+    } catch (Exception e) {
+      syscalls.fail(e);
+      AbortedExecutionException.sneakyThrow();
+      return null;
+    }
   }
 }

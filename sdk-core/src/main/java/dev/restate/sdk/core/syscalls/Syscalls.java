@@ -71,13 +71,16 @@ public interface Syscalls {
 
   void exitSideEffectBlock(ByteString toWrite, ExitSideEffectSyscallCallback callback);
 
-  void exitSideEffectBlockWithException(Throwable toWrite, ExitSideEffectSyscallCallback callback);
+  void exitSideEffectBlockWithTerminalException(
+      TerminalException toWrite, ExitSideEffectSyscallCallback callback);
 
   void awakeable(SyscallCallback<Map.Entry<String, DeferredResult<ByteString>>> callback);
 
   void resolveAwakeable(String id, ByteString payload, SyscallCallback<Void> requestCallback);
 
   void rejectAwakeable(String id, String reason, SyscallCallback<Void> requestCallback);
+
+  void fail(Throwable cause);
 
   // ----- Deferred
 

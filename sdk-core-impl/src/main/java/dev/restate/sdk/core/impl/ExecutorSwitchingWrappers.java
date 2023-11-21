@@ -74,17 +74,7 @@ class ExecutorSwitchingWrappers {
 
     private ExecutorSwitchingSyscalls(SyscallsInternal syscalls, Executor syscallsExecutor) {
       this.syscalls = syscalls;
-      this.syscallsExecutor =
-          r ->
-              syscallsExecutor.execute(
-                  () -> {
-                    try {
-                      r.run();
-                    } catch (Throwable e) {
-                      syscalls.fail(e);
-                      throw e;
-                    }
-                  });
+      this.syscallsExecutor = syscallsExecutor;
     }
 
     @Override
@@ -152,9 +142,10 @@ class ExecutorSwitchingWrappers {
     }
 
     @Override
-    public void exitSideEffectBlockWithException(
-        Throwable toWrite, ExitSideEffectSyscallCallback callback) {
-      syscallsExecutor.execute(() -> syscalls.exitSideEffectBlockWithException(toWrite, callback));
+    public void exitSideEffectBlockWithTerminalException(
+        TerminalException toWrite, ExitSideEffectSyscallCallback callback) {
+      syscallsExecutor.execute(
+          () -> syscalls.exitSideEffectBlockWithTerminalException(toWrite, callback));
     }
 
     @Override

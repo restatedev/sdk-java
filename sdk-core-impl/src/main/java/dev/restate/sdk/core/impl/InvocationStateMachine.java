@@ -5,8 +5,8 @@ import com.google.protobuf.MessageLite;
 import com.google.rpc.Code;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
+import dev.restate.sdk.core.AbortedExecutionException;
 import dev.restate.sdk.core.InvocationId;
-import dev.restate.sdk.core.SuspendedException;
 import dev.restate.sdk.core.impl.DeferredResults.CombinatorDeferredResult;
 import dev.restate.sdk.core.impl.DeferredResults.ResolvableSingleDeferredResult;
 import dev.restate.sdk.core.impl.DeferredResults.SingleDeferredResultInternal;
@@ -148,8 +148,8 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   @Override
   public void onComplete() {
     LOG.trace("Input publisher closed");
-    this.readyResultStateMachine.abort(SuspendedException.INSTANCE);
-    this.sideEffectAckStateMachine.abort(SuspendedException.INSTANCE);
+    this.readyResultStateMachine.abort(AbortedExecutionException.INSTANCE);
+    this.sideEffectAckStateMachine.abort(AbortedExecutionException.INSTANCE);
   }
 
   // --- Init routine to wait for the start message
@@ -260,7 +260,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       SyscallCallback<DeferredResult<T>> callback) {
     checkInsideSideEffectGuard();
     if (this.state == State.CLOSED) {
-      callback.onCancel(SuspendedException.INSTANCE);
+      callback.onCancel(AbortedExecutionException.INSTANCE);
     } else if (this.state == State.REPLAYING) {
       // Retrieve the entry
       this.readEntry(
@@ -331,7 +331,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       E expectedEntryMessage, JournalEntry<E> journalEntry, SyscallCallback<Void> callback) {
     checkInsideSideEffectGuard();
     if (this.state == State.CLOSED) {
-      callback.onCancel(SuspendedException.INSTANCE);
+      callback.onCancel(AbortedExecutionException.INSTANCE);
     } else if (this.state == State.REPLAYING) {
       // Retrieve the entry
       this.readEntry(
@@ -363,7 +363,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   void enterSideEffectBlock(EnterSideEffectSyscallCallback callback) {
     checkInsideSideEffectGuard();
     if (this.state == State.CLOSED) {
-      callback.onCancel(SuspendedException.INSTANCE);
+      callback.onCancel(AbortedExecutionException.INSTANCE);
     } else if (this.state == State.REPLAYING) {
       // Retrieve the entry
       this.readEntry(
@@ -390,7 +390,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       Java.SideEffectEntryMessage sideEffectEntry, ExitSideEffectSyscallCallback callback) {
     this.insideSideEffect = false;
     if (this.state == State.CLOSED) {
-      callback.onCancel(SuspendedException.INSTANCE);
+      callback.onCancel(AbortedExecutionException.INSTANCE);
     } else if (this.state == State.REPLAYING) {
       throw new IllegalStateException(
           "exitSideEffect has been invoked when the state machine is in replaying mode. "
@@ -415,7 +415,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
             @Override
             public void onSuspend() {
               writeSuspension(sideEffectAckStateMachine.getLastExecutedSideEffect());
-              callback.onCancel(SuspendedException.INSTANCE);
+              callback.onCancel(AbortedExecutionException.INSTANCE);
             }
 
             @Override
@@ -434,7 +434,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     if (sideEffectEntry.hasFailure()) {
       callback.onFailure(Util.toRestateException(sideEffectEntry.getFailure()));
     } else {
-      callback.onResult(sideEffectEntry.getValue());
+      callback.onSuccess(sideEffectEntry.getValue());
     }
   }
 
@@ -479,7 +479,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
           @Override
           public void onSuspend() {
             writeSuspension(deferred.entryIndex());
-            callback.onCancel(SuspendedException.INSTANCE);
+            callback.onCancel(AbortedExecutionException.INSTANCE);
           }
 
           @Override
@@ -620,7 +620,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
             @Override
             public void onSuspend() {
               writeSuspension(resolvableSingles.keySet());
-              callback.onCancel(SuspendedException.INSTANCE);
+              callback.onCancel(AbortedExecutionException.INSTANCE);
             }
 
             @Override

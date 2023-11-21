@@ -23,6 +23,4 @@ public interface SyscallsInternal extends Syscalls {
   // -- Lifecycle methods
 
   void close();
-
-  void fail(Throwable cause);
 }

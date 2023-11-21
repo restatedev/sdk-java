@@ -110,14 +110,16 @@ internal constructor(
     serde: Serde<T>,
     override val id: String
 ) :
-    NonNullAwaitableImpl<T>(syscalls, ReadyResultHolder(deferredResult, serde::deserialize)),
+    NonNullAwaitableImpl<T>(
+        syscalls,
+        ReadyResultHolder(deferredResult) { serde.deserializeWrappingException(syscalls, it) }),
     Awakeable<T>
 
 internal class AwakeableHandleImpl(val syscalls: Syscalls, val id: String) : AwakeableHandle {
   override suspend fun <T : Any> resolve(serde: Serde<T>, payload: T) {
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
       syscalls.resolveAwakeable(
-          id, serde.serializeToByteString(payload), completingUnitContinuation(cont))
+          id, serde.serializeWrappingException(syscalls, payload), completingUnitContinuation(cont))
     }
   }
 
