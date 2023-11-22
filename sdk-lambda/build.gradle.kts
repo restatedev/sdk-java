@@ -43,13 +43,6 @@ dependencies {
   testImplementation(kotlinLibs.kotlinx.coroutines)
 }
 
-configure<com.diffplug.gradle.spotless.SpotlessExtension> {
-  kotlin {
-    ktfmt()
-    targetExclude("build/generated/**/*.kt")
-  }
-}
-
 protobuf {
   plugins {
     id("grpc") { artifact = "io.grpc:protoc-gen-grpc-java:${coreLibs.versions.grpc.get()}" }

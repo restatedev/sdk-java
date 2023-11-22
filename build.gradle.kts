@@ -30,11 +30,37 @@ allprojects {
 
   configure<com.diffplug.gradle.spotless.SpotlessExtension> {
     java {
+      targetExclude("build/generated/**/*.java")
+
       googleJavaFormat()
 
-      targetExclude("build/generated/**/*.java")
+      licenseHeaderFile("$rootDir/config/license-header")
     }
+
+    format("proto") {
+      target("**/*.proto")
+
+      // Exclude proto and service-protocol directories because those get the license header from
+      // their repos.
+      targetExclude(
+          fileTree("$rootDir/sdk-core/src/main/proto") { include("**/*.*") },
+          fileTree("$rootDir/sdk-core-impl/src/main/service-protocol") { include("**/*.*") })
+
+      licenseHeaderFile("$rootDir/config/license-header", "syntax")
+    }
+
+    kotlin {
+      targetExclude("build/generated/**/*.kt")
+      ktfmt()
+      licenseHeaderFile("$rootDir/config/license-header")
+    }
+
     kotlinGradle { ktfmt() }
+
+    format("properties") {
+      target("**/*.properties")
+      trimTrailingWhitespace()
+    }
   }
 
   tasks { check { dependsOn(checkLicense) } }
