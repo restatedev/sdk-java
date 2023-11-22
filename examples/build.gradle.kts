@@ -44,13 +44,6 @@ dependencies {
   implementation(coreLibs.log4j.core)
 }
 
-configure<com.diffplug.gradle.spotless.SpotlessExtension> {
-  kotlin {
-    ktfmt()
-    targetExclude("build/generated/**/*.kt")
-  }
-}
-
 val pluginJar =
     file(
         "${project.rootProject.rootDir}/protoc-gen-restate-java-blocking/build/libs/protoc-gen-restate-java-blocking-${project.version}-all.jar")
