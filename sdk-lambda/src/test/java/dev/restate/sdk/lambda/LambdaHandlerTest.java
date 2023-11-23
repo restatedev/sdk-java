@@ -27,6 +27,7 @@ import dev.restate.sdk.core.impl.ProtoUtils;
 import dev.restate.sdk.lambda.testservices.CounterRequest;
 import dev.restate.sdk.lambda.testservices.JavaCounterGrpc;
 import dev.restate.sdk.lambda.testservices.KotlinCounterGrpc;
+import dev.restate.sdk.lambda.testservices.MyServicesHandler;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -40,7 +41,7 @@ class LambdaHandlerTest {
   @ValueSource(strings = {JavaCounterGrpc.SERVICE_NAME, KotlinCounterGrpc.SERVICE_NAME})
   @ParameterizedTest
   public void testInvoke(String serviceName) throws IOException {
-    LambdaHandler handler = new LambdaHandler();
+    MyServicesHandler handler = new MyServicesHandler();
 
     // Mock request
     APIGatewayProxyRequestEvent request = new APIGatewayProxyRequestEvent();
@@ -85,7 +86,7 @@ class LambdaHandlerTest {
 
   @Test
   public void testDiscovery() throws InvalidProtocolBufferException {
-    LambdaHandler handler = new LambdaHandler();
+    BaseRestateLambdaHandler handler = new MyServicesHandler();
 
     // Mock request
     APIGatewayProxyRequestEvent request = new APIGatewayProxyRequestEvent();

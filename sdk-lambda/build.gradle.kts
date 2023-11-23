@@ -19,8 +19,8 @@ dependencies {
   api(project(":sdk-core"))
   implementation(project(":sdk-core-impl"))
 
-  implementation(lambdaLibs.core)
-  implementation(lambdaLibs.events)
+  api(lambdaLibs.core)
+  api(lambdaLibs.events)
 
   implementation(platform(coreLibs.opentelemetry.bom))
   implementation(coreLibs.opentelemetry.api)

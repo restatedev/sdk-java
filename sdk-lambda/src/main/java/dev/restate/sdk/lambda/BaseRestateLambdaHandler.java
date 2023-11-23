@@ -14,16 +14,29 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
 
 /**
- * Implementation of <a href="https://aws.amazon.com/lambda/">AWS Lambda</a> {@link RequestHandler}
- * for serving Restate functions through <a href="https://aws.amazon.com/api-gateway/">AWS API
- * Gateway</a>.
+ * Base implementation of a Lambda handler to execute restate services
+ *
+ * <p>Implementation of <a href="https://aws.amazon.com/lambda/">AWS Lambda</a> {@link
+ * RequestHandler} for serving Restate functions through <a
+ * href="https://aws.amazon.com/api-gateway/">AWS API Gateway</a>.
  */
-public final class LambdaHandler
+public abstract class BaseRestateLambdaHandler
     implements RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
+
+  private final RestateLambdaEndpoint restateLambdaEndpoint;
+
+  protected BaseRestateLambdaHandler() {
+    RestateLambdaEndpointBuilder builder = RestateLambdaEndpoint.builder();
+    register(builder);
+    this.restateLambdaEndpoint = builder.build();
+  }
+
+  /** Configure your services in this method. */
+  public abstract void register(RestateLambdaEndpointBuilder builder);
 
   @Override
   public APIGatewayProxyResponseEvent handleRequest(
       APIGatewayProxyRequestEvent input, Context context) {
-    return LambdaRestateServer.getInstance().handleRequest(input, context);
+    return restateLambdaEndpoint.handleRequest(input, context);
   }
 }
