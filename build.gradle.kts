@@ -8,6 +8,8 @@ plugins {
 
   id("net.ltgt.errorprone") version "3.0.1"
   id("com.github.jk1.dependency-license-report") version "2.0"
+  id("io.github.gradle-nexus.publish-plugin") version "1.3.0"
+
   alias(pluginLibs.plugins.spotless)
   alias(pluginLibs.plugins.protobuf)
 }
@@ -17,7 +19,7 @@ val restateVersion = libs.versions.restate.get()
 
 val testReport =
     tasks.register<TestReport>("testReport") {
-      destinationDirectory.set(file("$buildDir/reports/tests/test"))
+      destinationDirectory.set(file("${layout.buildDirectory}/reports/tests/test"))
       testResults.setFrom(subprojects.mapNotNull { it.tasks.findByPath("test") })
     }
 
@@ -87,34 +89,18 @@ allprojects {
 
 subprojects {
   apply(plugin = "java")
-  apply(plugin = "maven-publish")
   apply(plugin = "net.ltgt.errorprone")
   apply(plugin = "com.google.protobuf")
 
-  tasks.withType<Test> {
-    useJUnitPlatform()
-    finalizedBy(testReport)
-    testLogging {
-      events(
-          TestLogEvent.PASSED,
-          TestLogEvent.SKIPPED,
-          TestLogEvent.FAILED,
-          TestLogEvent.STANDARD_ERROR,
-          TestLogEvent.STANDARD_OUT)
-      exceptionFormat = TestExceptionFormat.FULL
-    }
-  }
-
   dependencies { errorprone("com.google.errorprone:error_prone_core:2.13.1") }
 
-  protobuf { protoc { artifact = "com.google.protobuf:protoc:$protobufVersion" } }
-
   java {
+    toolchain { languageVersion = JavaLanguageVersion.of(11) }
     withJavadocJar()
     withSourcesJar()
   }
 
-  java { toolchain { languageVersion = JavaLanguageVersion.of(11) } }
+  protobuf { protoc { artifact = "com.google.protobuf:protoc:$protobufVersion" } }
 
   tasks.withType<JavaCompile>().configureEach {
     targetCompatibility = "11"
@@ -131,16 +117,30 @@ subprojects {
     options.errorprone.excludedPaths.set(".*/build/generated/.*")
   }
 
-  configure<PublishingExtension> {
-    repositories {
-      maven {
-        name = "GitHubPackages"
-        url = uri("https://maven.pkg.github.com/restatedev/sdk-java")
-        credentials {
-          username = System.getenv("GITHUB_ACTOR")
-          password = System.getenv("GITHUB_TOKEN")
-        }
-      }
+  // Test platform and reporting
+  tasks.withType<Test> {
+    useJUnitPlatform()
+    finalizedBy(testReport)
+    testLogging {
+      events(
+          TestLogEvent.PASSED,
+          TestLogEvent.SKIPPED,
+          TestLogEvent.FAILED,
+          TestLogEvent.STANDARD_ERROR,
+          TestLogEvent.STANDARD_OUT)
+      exceptionFormat = TestExceptionFormat.FULL
+    }
+  }
+}
+
+nexusPublishing {
+  repositories {
+    sonatype {
+      nexusUrl.set(uri("https://s01.oss.sonatype.org/service/local/"))
+      snapshotRepositoryUrl.set(uri("https://s01.oss.sonatype.org/content/repositories/snapshots/"))
+
+      username.set(System.getenv("MAVEN_CENTRAL_USERNAME") ?: return@sonatype)
+      password.set(System.getenv("MAVEN_CENTRAL_TOKEN") ?: return@sonatype)
     }
   }
 }
