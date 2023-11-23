@@ -269,13 +269,13 @@ plugins {
 }
 ```
 
-To deploy the service, create the following class. For example, in Java:
+Now create the Lambda handler invoking the service. For example, in Java:
 
 ```java
-public class LambdaFactory implements LambdaRestateServerFactory {
+public class MyLambdaHandler extends BaseRestateLambdaHandler {
   @Override
-  public LambdaRestateServer create() {
-    return LambdaRestateServer.builder().withService(new Greeter()).build();
+  public void register(RestateLambdaEndpointBuilder builder) {
+    builder.withService(new Greeter());
   }
 }
 ```
@@ -283,17 +283,11 @@ public class LambdaFactory implements LambdaRestateServerFactory {
 In Kotlin:
 
 ```kotlin
-class LambdaFactory : LambdaRestateServerFactory {
-  override fun create(): LambdaRestateServer {
-    return LambdaRestateServer.builder().withService(Greeter()).build()
+class MyLambdaHandler : BaseRestateLambdaHandler {
+  override fun register(builder: RestateLambdaEndpointBuilder) {
+    builder.withService(Greeter())
   }
 }
-```
-
-Add the file `dev.restate.sdk.lambda.LambdaRestateServerFactory` in the project resources in `resources/META-INF/services` containing the following content:
-
-```
-LambdaFactory
 ```
 
 Now build the Fat-JAR. For example, using Gradle:
@@ -302,7 +296,7 @@ Now build the Fat-JAR. For example, using Gradle:
 gradle shadowJar
 ```
 
-You can now upload the generated Jar in AWS Lambda, and configure `dev.restate.sdk.lambda.LambdaHandler` as the Lambda class in the AWS UI.
+You can now upload the generated Jar in AWS Lambda, and configure `MyLambdaHandler` as the Lambda class in the AWS UI.
 
 ### Additional setup
 

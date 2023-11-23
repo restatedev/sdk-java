@@ -19,14 +19,14 @@ import io.opentelemetry.api.OpenTelemetry;
 import java.util.Arrays;
 
 /** Endpoint builder for a Restate AWS Lambda Endpoint, to serve Restate service. */
-public final class LambdaRestateServerBuilder {
+public final class RestateLambdaEndpointBuilder {
 
   private final RestateGrpcServer.Builder restateGrpcServerBuilder =
       RestateGrpcServer.newBuilder(Discovery.ProtocolMode.REQUEST_RESPONSE);
   private OpenTelemetry openTelemetry = OpenTelemetry.noop();
 
   /** Add a {@link BindableBlockingService} to the endpoint. */
-  public LambdaRestateServerBuilder withService(
+  public RestateLambdaEndpointBuilder withService(
       BindableBlockingService service, ServerInterceptor... interceptors) {
     ServerServiceDefinition definition =
         ServerInterceptors.intercept(service, Arrays.asList(interceptors));
@@ -35,7 +35,7 @@ public final class LambdaRestateServerBuilder {
   }
 
   /** Add a {@link BindableNonBlockingService} to the endpoint. */
-  public LambdaRestateServerBuilder withService(
+  public RestateLambdaEndpointBuilder withService(
       BindableNonBlockingService service, ServerInterceptor... interceptors) {
     ServerServiceDefinition definition =
         ServerInterceptors.intercept(service, Arrays.asList(interceptors));
@@ -48,13 +48,13 @@ public final class LambdaRestateServerBuilder {
    *
    * @see OpenTelemetry
    */
-  public LambdaRestateServerBuilder withOpenTelemetry(OpenTelemetry openTelemetry) {
+  public RestateLambdaEndpointBuilder withOpenTelemetry(OpenTelemetry openTelemetry) {
     this.openTelemetry = openTelemetry;
     return this;
   }
 
-  /** Build the {@link LambdaRestateServer} serving the Restate service endpoint. */
-  public LambdaRestateServer build() {
-    return new LambdaRestateServer(this.restateGrpcServerBuilder.build(), this.openTelemetry);
+  /** Build the {@link RestateLambdaEndpoint} serving the Restate service endpoint. */
+  public RestateLambdaEndpoint build() {
+    return new RestateLambdaEndpoint(this.restateGrpcServerBuilder.build(), this.openTelemetry);
   }
 }

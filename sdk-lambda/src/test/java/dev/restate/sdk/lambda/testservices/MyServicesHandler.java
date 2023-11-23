@@ -8,15 +8,12 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.lambda.testservices;
 
-import dev.restate.sdk.lambda.LambdaRestateServer;
-import dev.restate.sdk.lambda.LambdaRestateServerFactory;
+import dev.restate.sdk.lambda.BaseRestateLambdaHandler;
+import dev.restate.sdk.lambda.RestateLambdaEndpointBuilder;
 
-public class TestServicesFactory implements LambdaRestateServerFactory {
+public class MyServicesHandler extends BaseRestateLambdaHandler {
   @Override
-  public LambdaRestateServer create() {
-    return LambdaRestateServer.builder()
-        .withService(new JavaCounterService())
-        .withService(new KotlinCounterService())
-        .build();
+  public void register(RestateLambdaEndpointBuilder builder) {
+    builder.withService(new JavaCounterService()).withService(new KotlinCounterService());
   }
 }

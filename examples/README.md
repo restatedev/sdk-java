@@ -20,7 +20,7 @@ Run:
 
 You'll find the shadowed jar in the `build` directory.
 
-The class to configure in Lambda is `dev.restate.sdk.lambda.LambdaHandler`.
+The class to configure in Lambda is `dev.restate.sdk.examples.LambdaHandler`.
 
 By default, the [`dev.restate.sdk.examples.Counter`](src/main/java/dev/restate/sdk/examples/Counter.java) service is deployed. Set the env variable `LAMBDA_FACTORY_SERVICE_CLASS` to one of the available example classes to change the deployed class.
 

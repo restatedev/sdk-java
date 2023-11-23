@@ -8,18 +8,15 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.examples;
 
-import dev.restate.sdk.lambda.LambdaRestateServer;
-import dev.restate.sdk.lambda.LambdaRestateServerBuilder;
-import dev.restate.sdk.lambda.LambdaRestateServerFactory;
+import dev.restate.sdk.lambda.BaseRestateLambdaHandler;
+import dev.restate.sdk.lambda.RestateLambdaEndpointBuilder;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
-public class LambdaFactory implements LambdaRestateServerFactory {
+public class LambdaHandler extends BaseRestateLambdaHandler {
 
   @Override
-  public LambdaRestateServer create() {
-    LambdaRestateServerBuilder builder = LambdaRestateServer.builder();
-
+  public void register(RestateLambdaEndpointBuilder builder) {
     for (String serviceClass :
         Objects.requireNonNullElse(
                 System.getenv("LAMBDA_FACTORY_SERVICE_CLASS"), Counter.class.getCanonicalName())
@@ -35,7 +32,5 @@ public class LambdaFactory implements LambdaRestateServerFactory {
             "Bad \"LAMBDA_FACTORY_SERVICE_CLASS\" env: " + serviceClass);
       }
     }
-
-    return builder.build();
   }
 }

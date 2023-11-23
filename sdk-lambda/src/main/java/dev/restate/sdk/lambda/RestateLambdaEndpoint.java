@@ -24,15 +24,15 @@ import io.opentelemetry.context.propagation.TextMapGetter;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.ThreadContext;
 
-public final class LambdaRestateServer {
+/** Restate Lambda Endpoint. */
+public final class RestateLambdaEndpoint {
 
-  private static final Logger LOG = LogManager.getLogger(LambdaRestateServer.class);
+  private static final Logger LOG = LogManager.getLogger(RestateLambdaEndpoint.class);
 
   private static final Pattern SLASH = Pattern.compile(Pattern.quote("/"));
   private static final String INVOKE_PATH_SEGMENT = "invoke";
@@ -62,17 +62,19 @@ public final class LambdaRestateServer {
   private final RestateGrpcServer restateGrpcServer;
   private final OpenTelemetry openTelemetry;
 
-  LambdaRestateServer(RestateGrpcServer restateGrpcServer, OpenTelemetry openTelemetry) {
+  RestateLambdaEndpoint(RestateGrpcServer restateGrpcServer, OpenTelemetry openTelemetry) {
     this.restateGrpcServer = restateGrpcServer;
     this.openTelemetry = openTelemetry;
   }
 
   /** Create a new builder. */
-  public static LambdaRestateServerBuilder builder() {
-    return new LambdaRestateServerBuilder();
+  public static RestateLambdaEndpointBuilder builder() {
+    return new RestateLambdaEndpointBuilder();
   }
 
-  APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent input, Context context) {
+  /** Handle a Lambda request as Restate Lambda endpoint. */
+  public APIGatewayProxyResponseEvent handleRequest(
+      APIGatewayProxyRequestEvent input, Context context) {
     // Remove trailing path separator
     String path =
         input.getPath().endsWith("/")
@@ -188,32 +190,5 @@ public final class LambdaRestateServer {
           "Input is not Base64 encoded. This is most likely an SDK bug, please contact the developers.");
     }
     return ByteBuffer.wrap(Base64.getDecoder().decode(input.getBody()));
-  }
-
-  // --- LambdaRestateService SPI discovery and Singleton
-
-  static LambdaRestateServer getInstance() {
-    return LambdaRestateServerHolder.INSTANCE;
-  }
-
-  private static class LambdaRestateServerHolder {
-    private static final LambdaRestateServer INSTANCE = loadFromSPI();
-
-    private LambdaRestateServerHolder() {}
-
-    private static LambdaRestateServer loadFromSPI() {
-      List<LambdaRestateServer> restateServerList =
-          ServiceLoader.load(LambdaRestateServerFactory.class).stream()
-              .map(factoryProvider -> factoryProvider.get().create())
-              .collect(Collectors.toList());
-
-      if (restateServerList.size() != 1) {
-        throw new IllegalStateException(
-            "There MUST be exactly one LambdaRestateServer available in classpath. Found: "
-                + restateServerList);
-      }
-
-      return restateServerList.get(0);
-    }
   }
 }
