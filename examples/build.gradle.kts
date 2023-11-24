@@ -1,19 +1,8 @@
 import com.google.protobuf.gradle.id
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
-// Without these suppressions version catalog usage here and in other build
-// files is marked red by IntelliJ:
-// https://youtrack.jetbrains.com/issue/KTIJ-19369.
-@Suppress(
-    "DSL_SCOPE_VIOLATION",
-    "MISSING_DEPENDENCY_CLASS",
-    "UNRESOLVED_REFERENCE_WRONG_RECEIVER",
-    "FUNCTION_CALL_EXPECTED")
 plugins {
   java
   kotlin("jvm")
-  idea
-  `maven-publish`
   application
   id("com.github.johnrengelman.shadow").version("7.1.2")
 }
@@ -84,5 +73,3 @@ application {
       project.findProperty("mainClass")?.toString() ?: "dev.restate.sdk.examples.Counter"
   mainClass.set(mainClassValue)
 }
-
-tasks.withType<KotlinCompile> { kotlinOptions.jvmTarget = "11" }

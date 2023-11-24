@@ -399,3 +399,9 @@ To run the tests:
 ```shell
 ./gradlew check
 ```
+
+To publish local snapshots of the project:
+
+```shell
+./gradlew -DskipSigning publishToMavenLocal
+```

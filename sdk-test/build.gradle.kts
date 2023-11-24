@@ -2,8 +2,10 @@ import com.google.protobuf.gradle.id
 
 plugins {
   `java-library`
-  `maven-publish`
+  `library-publishing-conventions`
 }
+
+description = "Restate SDK testing tools"
 
 dependencies {
   api(project(":sdk-core"))
@@ -24,17 +26,6 @@ dependencies {
   testImplementation(coreLibs.grpc.stub)
   testImplementation(coreLibs.grpc.protobuf)
   testImplementation(coreLibs.log4j.core)
-}
-
-publishing {
-  publications {
-    register<MavenPublication>("maven") {
-      groupId = "dev.restate.sdk"
-      artifactId = "sdk-test"
-
-      from(components["java"])
-    }
-  }
 }
 
 // Protobuf codegen for tests

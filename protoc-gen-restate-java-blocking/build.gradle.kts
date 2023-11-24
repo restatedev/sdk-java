@@ -3,9 +3,11 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 plugins {
   java
   application
-  `maven-publish`
   id("com.github.johnrengelman.shadow").version("7.1.2")
+  `library-publishing-conventions`
 }
+
+description = "Protoc plugin to generate interfaces compatible with dev.restate:sdk-java-blocking"
 
 dependencies {
   compileOnly(coreLibs.javax.annotation.api)
@@ -20,15 +22,4 @@ application { mainClass.set("dev.restate.sdk.blocking.gen.JavaBlockingGen") }
 tasks.named<ShadowJar>("shadowJar") {
   // Override the default jar
   archiveClassifier.set("all")
-}
-
-publishing {
-  publications {
-    register<MavenPublication>("maven") {
-      groupId = "dev.restate.sdk"
-      artifactId = "protoc-gen-restate-java-blocking"
-
-      from(components["java"])
-    }
-  }
 }

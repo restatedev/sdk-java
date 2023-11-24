@@ -3,9 +3,11 @@ import org.openapitools.generator.gradle.plugin.tasks.GenerateTask
 
 plugins {
   `java-library`
-  `maven-publish`
   id("org.openapi.generator") version "6.6.0"
+  `library-publishing-conventions`
 }
+
+description = "Code-generated Admin API client for Restate"
 
 dependencies {
   implementation(platform(jacksonLibs.jackson.bom))
@@ -53,16 +55,5 @@ tasks.withType<JavaCompile>().configureEach {
 }
 
 configure<com.diffplug.gradle.spotless.SpotlessExtension> {
-  java { targetExclude(fileTree("$buildDir/generate-resources") { include("**/*.java") }) }
-}
-
-publishing {
-  publications {
-    register<MavenPublication>("maven") {
-      groupId = "dev.restate.sdk"
-      artifactId = "admin-client"
-
-      from(components["java"])
-    }
-  }
+  java { targetExclude(fileTree("build/generate-resources") { include("**/*.java") }) }
 }

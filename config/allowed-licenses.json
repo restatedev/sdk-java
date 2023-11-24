@@ -17,6 +17,9 @@
     },
     {
       "moduleLicense": "Eclipse Public License - v 1.0"
+    },
+    {
+      "moduleName": "org.jetbrains.kotlin:kotlin-stdlib-common"
     }
   ]
 }
