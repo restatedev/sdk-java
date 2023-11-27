@@ -10,14 +10,14 @@ package dev.restate.sdk.http.vertx
 
 import com.google.protobuf.ByteString
 import dev.restate.generated.sdk.java.Java.SideEffectEntryMessage
-import dev.restate.sdk.blocking.RestateBlockingService
-import dev.restate.sdk.core.impl.ProtoUtils.*
-import dev.restate.sdk.core.impl.TestDefinitions.*
-import dev.restate.sdk.core.impl.TestRunner
-import dev.restate.sdk.core.impl.testservices.GreeterGrpc
-import dev.restate.sdk.core.impl.testservices.GreeterGrpcKt
-import dev.restate.sdk.core.impl.testservices.GreetingRequest
-import dev.restate.sdk.core.impl.testservices.GreetingResponse
+import dev.restate.sdk.*
+import dev.restate.sdk.core.ProtoUtils.*
+import dev.restate.sdk.core.TestDefinitions.*
+import dev.restate.sdk.core.TestRunner
+import dev.restate.sdk.core.testservices.GreeterGrpc
+import dev.restate.sdk.core.testservices.GreeterGrpcKt
+import dev.restate.sdk.core.testservices.GreetingRequest
+import dev.restate.sdk.core.testservices.GreetingResponse
 import dev.restate.sdk.kotlin.RestateCoroutineService
 import io.grpc.stub.StreamObserver
 import io.vertx.core.Vertx
@@ -26,7 +26,7 @@ import kotlinx.coroutines.Dispatchers
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 
-class HttpVertxTests : TestRunner() {
+class HttpVertxTests : dev.restate.sdk.core.TestRunner() {
 
   lateinit var vertx: Vertx
 
@@ -46,20 +46,24 @@ class HttpVertxTests : TestRunner() {
 
   class VertxExecutorsTest : TestSuite {
     private class CheckNonBlockingServiceTrampolineEventLoopContext :
-        GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
-      override suspend fun greet(request: GreetingRequest): GreetingResponse {
+        dev.restate.sdk.core.testservices.GreeterGrpcKt.GreeterCoroutineImplBase(
+            Dispatchers.Unconfined),
+        RestateCoroutineService {
+      override suspend fun greet(
+          request: dev.restate.sdk.core.testservices.GreetingRequest
+      ): dev.restate.sdk.core.testservices.GreetingResponse {
         check(Vertx.currentContext().isEventLoopContext)
         restateContext().sideEffect { check(Vertx.currentContext().isEventLoopContext) }
         check(Vertx.currentContext().isEventLoopContext)
-        return GreetingResponse.getDefaultInstance()
+        return dev.restate.sdk.core.testservices.GreetingResponse.getDefaultInstance()
       }
     }
 
     private class CheckBlockingServiceTrampolineExecutor :
-        GreeterGrpc.GreeterImplBase(), RestateBlockingService {
+        dev.restate.sdk.core.testservices.GreeterGrpc.GreeterImplBase(), RestateBlockingService {
       override fun greet(
-          request: GreetingRequest,
-          responseObserver: StreamObserver<GreetingResponse>
+          request: dev.restate.sdk.core.testservices.GreetingRequest,
+          responseObserver: StreamObserver<dev.restate.sdk.core.testservices.GreetingResponse>
       ) {
         val id = Thread.currentThread().id
         check(Vertx.currentContext() == null)
@@ -69,7 +73,8 @@ class HttpVertxTests : TestRunner() {
         }
         check(Thread.currentThread().id == id)
         check(Vertx.currentContext() == null)
-        responseObserver.onNext(GreetingResponse.getDefaultInstance())
+        responseObserver.onNext(
+            dev.restate.sdk.core.testservices.GreetingResponse.getDefaultInstance())
         responseObserver.onCompleted()
       }
     }
@@ -77,40 +82,47 @@ class HttpVertxTests : TestRunner() {
     override fun definitions(): Stream<TestDefinition> {
       return Stream.of(
           testInvocation(
-                  CheckNonBlockingServiceTrampolineEventLoopContext(), GreeterGrpc.getGreetMethod())
+                  CheckNonBlockingServiceTrampolineEventLoopContext(),
+                  dev.restate.sdk.core.testservices.GreeterGrpc.getGreetMethod())
               .withInput(
                   startMessage(1),
-                  inputMessage(GreetingRequest.getDefaultInstance()),
+                  inputMessage(
+                      dev.restate.sdk.core.testservices.GreetingRequest.getDefaultInstance()),
                   ackMessage(1))
               .onlyUnbuffered()
               .expectingOutput(
                   SideEffectEntryMessage.newBuilder().setValue(ByteString.EMPTY),
-                  outputMessage(GreetingResponse.getDefaultInstance())),
-          testInvocation(CheckBlockingServiceTrampolineExecutor(), GreeterGrpc.getGreetMethod())
+                  outputMessage(
+                      dev.restate.sdk.core.testservices.GreetingResponse.getDefaultInstance())),
+          testInvocation(
+                  CheckBlockingServiceTrampolineExecutor(),
+                  dev.restate.sdk.core.testservices.GreeterGrpc.getGreetMethod())
               .withInput(
                   startMessage(1),
-                  inputMessage(GreetingRequest.getDefaultInstance()),
+                  inputMessage(
+                      dev.restate.sdk.core.testservices.GreetingRequest.getDefaultInstance()),
                   ackMessage(1))
               .onlyUnbuffered()
               .expectingOutput(
                   SideEffectEntryMessage.newBuilder().setValue(ByteString.EMPTY),
-                  outputMessage(GreetingResponse.getDefaultInstance())))
+                  outputMessage(
+                      dev.restate.sdk.core.testservices.GreetingResponse.getDefaultInstance())))
     }
   }
 
   override fun definitions(): Stream<TestSuite> {
     return Stream.of(
-        dev.restate.sdk.blocking.AwakeableIdTest(),
-        dev.restate.sdk.blocking.DeferredTest(),
-        dev.restate.sdk.blocking.EagerStateTest(),
-        dev.restate.sdk.blocking.StateTest(),
-        dev.restate.sdk.blocking.InvocationIdTest(),
-        dev.restate.sdk.blocking.OnlyInputAndOutputTest(),
-        dev.restate.sdk.blocking.SideEffectTest(),
-        dev.restate.sdk.blocking.SleepTest(),
-        dev.restate.sdk.blocking.StateMachineFailuresTest(),
-        dev.restate.sdk.blocking.UserFailuresTest(),
-        dev.restate.sdk.blocking.GrpcChannelAdapterTest(),
+        dev.restate.sdk.AwakeableIdTest(),
+        dev.restate.sdk.DeferredTest(),
+        dev.restate.sdk.EagerStateTest(),
+        dev.restate.sdk.StateTest(),
+        dev.restate.sdk.InvocationIdTest(),
+        dev.restate.sdk.OnlyInputAndOutputTest(),
+        dev.restate.sdk.SideEffectTest(),
+        dev.restate.sdk.SleepTest(),
+        dev.restate.sdk.StateMachineFailuresTest(),
+        dev.restate.sdk.UserFailuresTest(),
+        dev.restate.sdk.GrpcChannelAdapterTest(),
         dev.restate.sdk.kotlin.AwakeableIdTest(),
         dev.restate.sdk.kotlin.DeferredTest(),
         dev.restate.sdk.kotlin.EagerStateTest(),

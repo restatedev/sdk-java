@@ -9,8 +9,8 @@
 package dev.restate.sdk.examples
 
 import com.google.protobuf.Empty
-import dev.restate.sdk.core.CoreSerdes
-import dev.restate.sdk.core.StateKey
+import dev.restate.sdk.common.CoreSerdes
+import dev.restate.sdk.common.StateKey
 import dev.restate.sdk.examples.generated.*
 import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder
 import dev.restate.sdk.kotlin.RestateCoroutineService

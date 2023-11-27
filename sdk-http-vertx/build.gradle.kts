@@ -9,8 +9,8 @@ plugins {
 description = "Restate SDK HTTP implementation based on Vert.x"
 
 dependencies {
-  api(project(":sdk-core"))
-  implementation(project(":sdk-core-impl"))
+  api(project(":sdk-common"))
+  implementation(project(":sdk-core"))
 
   implementation(platform(vertxLibs.vertx.bom))
   implementation(vertxLibs.vertx.core)
@@ -20,13 +20,12 @@ dependencies {
   implementation(coreLibs.opentelemetry.api)
   implementation(coreLibs.log4j.api)
   implementation("io.reactiverse:reactiverse-contextual-logging:1.1.2")
-
-  testImplementation(project(":sdk-java-blocking"))
-  testImplementation(project(":sdk-kotlin"))
-  testImplementation(project(":sdk-core-impl", "testArchive"))
-  testImplementation(project(":sdk-java-blocking", "testArchive"))
-  testImplementation(project(":sdk-kotlin", "testArchive"))
-  testProtobuf(project(":sdk-core-impl", "testArchive"))
+  testImplementation(project(":sdk-api"))
+  testImplementation(project(":sdk-api-kotlin"))
+  testImplementation(project(":sdk-core", "testArchive"))
+  testImplementation(project(":sdk-api", "testArchive"))
+  testImplementation(project(":sdk-api-kotlin", "testArchive"))
+  testProtobuf(project(":sdk-core", "testArchive"))
   testImplementation(testingLibs.junit.jupiter)
   testImplementation(testingLibs.assertj)
   testImplementation(vertxLibs.vertx.junit5)

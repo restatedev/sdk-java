@@ -9,10 +9,10 @@
 package dev.restate.sdk.examples;
 
 import com.google.protobuf.Empty;
-import dev.restate.sdk.blocking.RestateBlockingService;
-import dev.restate.sdk.blocking.RestateContext;
-import dev.restate.sdk.core.CoreSerdes;
-import dev.restate.sdk.core.StateKey;
+import dev.restate.sdk.RestateBlockingService;
+import dev.restate.sdk.RestateContext;
+import dev.restate.sdk.common.CoreSerdes;
+import dev.restate.sdk.common.StateKey;
 import dev.restate.sdk.examples.generated.*;
 import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder;
 import io.grpc.stub.StreamObserver;

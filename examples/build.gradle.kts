@@ -8,10 +8,10 @@ plugins {
 }
 
 dependencies {
-  implementation(project(":sdk-java-blocking"))
+  implementation(project(":sdk-api"))
   implementation(project(":sdk-lambda"))
   implementation(project(":sdk-http-vertx"))
-  implementation(project(":sdk-kotlin"))
+  implementation(project(":sdk-api-kotlin"))
   implementation(project(":sdk-serde-jackson"))
 
   implementation(coreLibs.protobuf.java)
@@ -35,7 +35,7 @@ dependencies {
 
 val pluginJar =
     file(
-        "${project.rootProject.rootDir}/protoc-gen-restate-java-blocking/build/libs/protoc-gen-restate-java-blocking-${project.version}-all.jar")
+        "${project.rootProject.rootDir}/protoc-gen-restate/build/libs/protoc-gen-restate-${project.version}-all.jar")
 
 protobuf {
   plugins {
@@ -52,7 +52,7 @@ protobuf {
 
   generateProtoTasks {
     ofSourceSet("main").forEach {
-      it.dependsOn(":protoc-gen-restate-java-blocking:shadowJar")
+      it.dependsOn(":protoc-gen-restate:shadowJar")
       it.plugins {
         id("grpc")
         id("grpckt")
