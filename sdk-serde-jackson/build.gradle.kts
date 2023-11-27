@@ -13,5 +13,5 @@ dependencies {
   testImplementation(testingLibs.junit.jupiter)
   testImplementation(testingLibs.assertj)
 
-  implementation(project(":sdk-api-common"))
+  implementation(project(":sdk-common"))
 }

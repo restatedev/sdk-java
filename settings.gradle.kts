@@ -10,7 +10,7 @@
 rootProject.name = "sdk-java"
 
 include(
-    "sdk-api-common",
+    "sdk-common",
     "sdk-api",
     "sdk-api-kotlin",
     "sdk-core",

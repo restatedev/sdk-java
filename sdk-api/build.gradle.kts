@@ -8,7 +8,7 @@ plugins {
 description = "Restate SDK APIs"
 
 dependencies {
-  api(project(":sdk-api-common"))
+  api(project(":sdk-common"))
 
   testCompileOnly(coreLibs.javax.annotation.api)
 

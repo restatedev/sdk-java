@@ -9,7 +9,7 @@ plugins {
 description = "Restate SDK HTTP implementation based on Vert.x"
 
 dependencies {
-  api(project(":sdk-api-common"))
+  api(project(":sdk-common"))
   implementation(project(":sdk-core"))
 
   implementation(platform(vertxLibs.vertx.bom))

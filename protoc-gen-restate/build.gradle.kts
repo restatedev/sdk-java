@@ -14,7 +14,7 @@ dependencies {
   implementation("com.salesforce.servicelibs:jprotoc:1.2.2") {
     exclude("javax.annotation", "javax.annotation-api")
   }
-  implementation(project(":sdk-api-common"))
+  implementation(project(":sdk-common"))
 }
 
 application { mainClass.set("dev.restate.sdk.gen.JavaGen") }

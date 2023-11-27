@@ -8,7 +8,7 @@ plugins {
 description = "Restate SDK testing tools"
 
 dependencies {
-  api(project(":sdk-api-common"))
+  api(project(":sdk-common"))
   api(testingLibs.junit.api)
   api(testingLibs.testcontainers.core)
 

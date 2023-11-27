@@ -10,7 +10,7 @@ description = "Restate SDK Core"
 sourceSets { main { proto { srcDirs("src/main/sdk-proto", "src/main/service-protocol") } } }
 
 dependencies {
-  implementation(project(":sdk-api-common"))
+  implementation(project(":sdk-common"))
 
   implementation(coreLibs.protobuf.java)
   implementation(coreLibs.grpc.api)

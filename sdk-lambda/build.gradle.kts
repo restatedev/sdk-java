@@ -9,7 +9,7 @@ plugins {
 description = "Restate SDK AWS Lambda integration"
 
 dependencies {
-  api(project(":sdk-api-common"))
+  api(project(":sdk-common"))
   implementation(project(":sdk-core"))
 
   api(lambdaLibs.core)

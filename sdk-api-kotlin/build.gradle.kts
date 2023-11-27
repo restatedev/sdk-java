@@ -9,7 +9,7 @@ plugins {
 description = "Restate SDK Kotlin APIs"
 
 dependencies {
-  api(project(":sdk-api-common"))
+  api(project(":sdk-common"))
 
   implementation(kotlinLibs.kotlinx.coroutines)
 
