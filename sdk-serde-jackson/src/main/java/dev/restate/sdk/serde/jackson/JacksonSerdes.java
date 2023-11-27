@@ -15,7 +15,27 @@ import dev.restate.sdk.common.Serde;
 import java.io.IOException;
 import javax.annotation.Nullable;
 
-/** {@link Serde} implementations for Jackson. */
+/**
+ * {@link Serde} implementations for Jackson.
+ *
+ * <p>You can use these serdes for serializing and deserializing state, side effects results and
+ * awakeables using Jackson's {@link ObjectMapper}.
+ *
+ * <p>For example:
+ *
+ * <pre>{@code
+ * private static final StateKey<Person> PERSON = StateKey.of("person", JacksonSerdes.of(Person.class));
+ * }</pre>
+ *
+ * Or using Jackson's {@link TypeReference} to encapsulate generics:
+ *
+ * <pre>{@code
+ * private static final StateKey<List<Person>> PEOPLE = StateKey.of("people", JacksonSerdes.of(new TypeReference<>() {}));
+ * }</pre>
+ *
+ * When no object mapper is provided, a default one is used, using the default {@link
+ * com.fasterxml.jackson.core.JsonFactory} and discovering SPI modules.
+ */
 public final class JacksonSerdes {
 
   private JacksonSerdes() {}
@@ -28,10 +48,12 @@ public final class JacksonSerdes {
     defaultMapper.findAndRegisterModules();
   }
 
+  /** Serialize/Deserialize class using the default object mapper. */
   public static <T> Serde<T> of(Class<T> clazz) {
     return of(defaultMapper, clazz);
   }
 
+  /** Serialize/Deserialize class using the provided object mapper. */
   public static <T> Serde<T> of(ObjectMapper mapper, Class<T> clazz) {
     return new Serde<>() {
       @Override
@@ -54,10 +76,12 @@ public final class JacksonSerdes {
     };
   }
 
+  /** Serialize/Deserialize {@link TypeReference} using the default object mapper. */
   public static <T> Serde<T> of(TypeReference<T> typeReference) {
     return of(defaultMapper, typeReference);
   }
 
+  /** Serialize/Deserialize {@link TypeReference} using the default object mapper. */
   public static <T> Serde<T> of(ObjectMapper mapper, TypeReference<T> typeReference) {
     return new Serde<>() {
       @Override
