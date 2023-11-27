@@ -25,7 +25,7 @@ import java.util.concurrent.TimeoutException;
 public class DeferredTest extends DeferredTestSuite {
 
   private static class ReverseAwaitOrder extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+      implements RestateService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
@@ -51,7 +51,7 @@ public class DeferredTest extends DeferredTestSuite {
   }
 
   private static class AwaitTwiceTheSameAwaitable extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+      implements RestateService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
@@ -70,8 +70,7 @@ public class DeferredTest extends DeferredTestSuite {
     return new AwaitTwiceTheSameAwaitable();
   }
 
-  private static class AwaitAll extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+  private static class AwaitAll extends GreeterGrpc.GreeterImplBase implements RestateService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
@@ -94,8 +93,7 @@ public class DeferredTest extends DeferredTestSuite {
     return new AwaitAll();
   }
 
-  private static class AwaitAny extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+  private static class AwaitAny extends GreeterGrpc.GreeterImplBase implements RestateService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
@@ -118,7 +116,7 @@ public class DeferredTest extends DeferredTestSuite {
   }
 
   private static class CombineAnyWithAll extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+      implements RestateService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
@@ -143,8 +141,7 @@ public class DeferredTest extends DeferredTestSuite {
     return new CombineAnyWithAll();
   }
 
-  private static class AwaitAnyIndex extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+  private static class AwaitAnyIndex extends GreeterGrpc.GreeterImplBase implements RestateService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
@@ -167,7 +164,7 @@ public class DeferredTest extends DeferredTestSuite {
   }
 
   private static class AwaitOnAlreadyResolvedAwaitables extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+      implements RestateService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
@@ -193,7 +190,7 @@ public class DeferredTest extends DeferredTestSuite {
   }
 
   private static class AwaitWithTimeout extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+      implements RestateService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();

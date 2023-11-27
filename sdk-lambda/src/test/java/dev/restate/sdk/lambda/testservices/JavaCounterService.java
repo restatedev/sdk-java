@@ -8,14 +8,14 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.lambda.testservices;
 
-import dev.restate.sdk.RestateBlockingService;
+import dev.restate.sdk.RestateService;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.StateKey;
 import io.grpc.stub.StreamObserver;
 import java.nio.charset.StandardCharsets;
 
 public class JavaCounterService extends JavaCounterGrpc.JavaCounterImplBase
-    implements RestateBlockingService {
+    implements RestateService {
 
   public static final StateKey<Long> COUNTER =
       StateKey.of(

@@ -24,8 +24,8 @@ import javax.annotation.concurrent.NotThreadSafe;
  * the service instance key-value state storage, interact with other Restate services, record side
  * effects, execute timers and synchronize with external systems.
  *
- * <p>To use it within your Restate service, implement {@link RestateBlockingService} and get an
- * instance with {@link RestateBlockingService#restateContext()}.
+ * <p>To use it within your Restate service, implement {@link RestateService} and get an instance
+ * with {@link RestateService#restateContext()}.
  *
  * <p>All methods of this interface, and related interfaces, throws either {@link TerminalException}
  * or {@link AbortedExecutionException}, where the former can be caught and acted upon, while the
@@ -211,7 +211,7 @@ public interface RestateContext {
    * Build a RestateContext from the underlying {@link Syscalls} object.
    *
    * <p>This method is used by code-generation, you should not use it directly but rather use {@link
-   * RestateBlockingService#restateContext()}.
+   * RestateService#restateContext()}.
    */
   static RestateContext fromSyscalls(Syscalls syscalls) {
     return new RestateContextImpl(syscalls);

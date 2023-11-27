@@ -13,12 +13,7 @@ import dev.restate.generated.sdk.java.Java.SideEffectEntryMessage
 import dev.restate.sdk.*
 import dev.restate.sdk.core.ProtoUtils.*
 import dev.restate.sdk.core.TestDefinitions.*
-import dev.restate.sdk.core.TestRunner
-import dev.restate.sdk.core.testservices.GreeterGrpc
-import dev.restate.sdk.core.testservices.GreeterGrpcKt
-import dev.restate.sdk.core.testservices.GreetingRequest
-import dev.restate.sdk.core.testservices.GreetingResponse
-import dev.restate.sdk.kotlin.RestateCoroutineService
+import dev.restate.sdk.kotlin.RestateKtService
 import io.grpc.stub.StreamObserver
 import io.vertx.core.Vertx
 import java.util.stream.Stream
@@ -48,7 +43,7 @@ class HttpVertxTests : dev.restate.sdk.core.TestRunner() {
     private class CheckNonBlockingServiceTrampolineEventLoopContext :
         dev.restate.sdk.core.testservices.GreeterGrpcKt.GreeterCoroutineImplBase(
             Dispatchers.Unconfined),
-        RestateCoroutineService {
+        RestateKtService {
       override suspend fun greet(
           request: dev.restate.sdk.core.testservices.GreetingRequest
       ): dev.restate.sdk.core.testservices.GreetingResponse {
@@ -60,7 +55,7 @@ class HttpVertxTests : dev.restate.sdk.core.TestRunner() {
     }
 
     private class CheckBlockingServiceTrampolineExecutor :
-        dev.restate.sdk.core.testservices.GreeterGrpc.GreeterImplBase(), RestateBlockingService {
+        dev.restate.sdk.core.testservices.GreeterGrpc.GreeterImplBase(), RestateService {
       override fun greet(
           request: dev.restate.sdk.core.testservices.GreetingRequest,
           responseObserver: StreamObserver<dev.restate.sdk.core.testservices.GreetingResponse>

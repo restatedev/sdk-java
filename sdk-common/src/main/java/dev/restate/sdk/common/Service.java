@@ -10,4 +10,5 @@ package dev.restate.sdk.common;
 
 import io.grpc.BindableService;
 
-public interface BindableBlockingService extends BindableService {}
+/** Marker interface for a Restate service. */
+public interface Service extends BindableService {}

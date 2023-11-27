@@ -25,8 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class StateMachineFailuresTest extends StateMachineFailuresTestSuite {
 
-  private static class GetState extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+  private static class GetState extends GreeterGrpc.GreeterImplBase implements RestateService {
 
     private static final StateKey<Integer> STATE =
         StateKey.of(
@@ -67,7 +66,7 @@ public class StateMachineFailuresTest extends StateMachineFailuresTestSuite {
   }
 
   private static class SideEffectFailure extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+      implements RestateService {
     private final Serde<Integer> serde;
 
     private SideEffectFailure(Serde<Integer> serde) {

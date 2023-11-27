@@ -9,8 +9,8 @@
 package dev.restate.sdk.testing;
 
 import com.google.protobuf.Empty;
-import dev.restate.sdk.RestateBlockingService;
 import dev.restate.sdk.RestateContext;
+import dev.restate.sdk.RestateService;
 import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.common.StateKey;
 import dev.restate.sdk.examples.generated.*;
@@ -18,7 +18,7 @@ import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public class Counter extends CounterGrpc.CounterImplBase implements RestateBlockingService {
+public class Counter extends CounterGrpc.CounterImplBase implements RestateService {
 
   private static final Logger LOG = LogManager.getLogger(Counter.class);
 

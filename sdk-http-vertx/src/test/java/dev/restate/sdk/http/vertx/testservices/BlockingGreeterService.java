@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.http.vertx.testservices;
 
-import dev.restate.sdk.RestateBlockingService;
+import dev.restate.sdk.RestateService;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.StateKey;
 import dev.restate.sdk.core.testservices.GreeterGrpc;
@@ -20,8 +20,7 @@ import java.time.Duration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public class BlockingGreeterService extends GreeterGrpc.GreeterImplBase
-    implements RestateBlockingService {
+public class BlockingGreeterService extends GreeterGrpc.GreeterImplBase implements RestateService {
 
   private static final Logger LOG = LogManager.getLogger(BlockingGreeterService.class);
   public static final StateKey<Long> COUNTER =

@@ -18,7 +18,7 @@ import io.grpc.stub.StreamObserver;
 public class OnlyInputAndOutputTest extends OnlyInputAndOutputTestSuite {
 
   private static class NoSyscallsGreeter extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+      implements RestateService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       responseObserver.onNext(

@@ -21,7 +21,7 @@ import io.grpc.stub.StreamObserver;
 public class AwakeableIdTest extends AwakeableIdTestSuite {
 
   private static class ReturnAwakeableId extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+      implements RestateService {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {

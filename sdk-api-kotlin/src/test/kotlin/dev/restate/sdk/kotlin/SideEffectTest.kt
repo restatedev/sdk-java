@@ -18,7 +18,7 @@ import kotlinx.coroutines.Dispatchers
 
 class SideEffectTest : SideEffectTestSuite() {
   private class SideEffect(private val sideEffectOutput: String) :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val ctx: RestateContext = restateContext()
       val result = ctx.sideEffect(CoreSerdes.STRING_UTF8) { sideEffectOutput }
@@ -31,7 +31,7 @@ class SideEffectTest : SideEffectTestSuite() {
   }
 
   private class ConsecutiveSideEffect(private val sideEffectOutput: String) :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val ctx: RestateContext = restateContext()
       val firstResult = ctx.sideEffect(CoreSerdes.STRING_UTF8) { sideEffectOutput }
@@ -48,7 +48,7 @@ class SideEffectTest : SideEffectTestSuite() {
   private class CheckContextSwitching :
       GreeterGrpcKt.GreeterCoroutineImplBase(
           Dispatchers.Unconfined + CoroutineName("CheckContextSwitchingTestCoroutine")),
-      RestateCoroutineService {
+      RestateKtService {
 
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val sideEffectThread =
@@ -65,7 +65,7 @@ class SideEffectTest : SideEffectTestSuite() {
   }
 
   private class SideEffectGuard :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val ctx = restateContext()
       ctx.sideEffect {

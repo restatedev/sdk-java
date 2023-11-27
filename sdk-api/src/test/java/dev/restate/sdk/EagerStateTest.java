@@ -21,8 +21,7 @@ import io.grpc.stub.StreamObserver;
 
 public class EagerStateTest extends EagerStateTestSuite {
 
-  private static class GetEmpty extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+  private static class GetEmpty extends GreeterGrpc.GreeterImplBase implements RestateService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
@@ -40,7 +39,7 @@ public class EagerStateTest extends EagerStateTestSuite {
     return new GetEmpty();
   }
 
-  private static class Get extends GreeterGrpc.GreeterImplBase implements RestateBlockingService {
+  private static class Get extends GreeterGrpc.GreeterImplBase implements RestateService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
@@ -58,7 +57,7 @@ public class EagerStateTest extends EagerStateTestSuite {
   }
 
   private static class GetAppendAndGet extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+      implements RestateService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
@@ -79,7 +78,7 @@ public class EagerStateTest extends EagerStateTestSuite {
   }
 
   private static class GetClearAndGet extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+      implements RestateService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();

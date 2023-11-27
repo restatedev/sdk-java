@@ -21,8 +21,7 @@ import java.util.Objects;
 
 public class SideEffectTest extends SideEffectTestSuite {
 
-  private static class SideEffect extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+  private static class SideEffect extends GreeterGrpc.GreeterImplBase implements RestateService {
 
     private final String sideEffectOutput;
 
@@ -47,7 +46,7 @@ public class SideEffectTest extends SideEffectTestSuite {
   }
 
   private static class ConsecutiveSideEffect extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+      implements RestateService {
 
     private final String sideEffectOutput;
 
@@ -74,7 +73,7 @@ public class SideEffectTest extends SideEffectTestSuite {
   }
 
   private static class CheckContextSwitching extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+      implements RestateService {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
@@ -103,7 +102,7 @@ public class SideEffectTest extends SideEffectTestSuite {
   }
 
   private static class SideEffectGuard extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+      implements RestateService {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {

@@ -20,7 +20,7 @@ import kotlinx.coroutines.Dispatchers
 
 class StateTest : StateTestSuite() {
   private class GetState :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val state: String =
           restateContext().get(StateKey.of("STATE", CoreSerdes.STRING_UTF8)) ?: "Unknown"
@@ -33,7 +33,7 @@ class StateTest : StateTestSuite() {
   }
 
   private class GetAndSetState :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val ctx = restateContext()
 

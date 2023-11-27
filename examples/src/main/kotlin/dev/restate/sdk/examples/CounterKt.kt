@@ -13,12 +13,11 @@ import dev.restate.sdk.common.CoreSerdes
 import dev.restate.sdk.common.StateKey
 import dev.restate.sdk.examples.generated.*
 import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder
-import dev.restate.sdk.kotlin.RestateCoroutineService
+import dev.restate.sdk.kotlin.RestateKtService
 import kotlinx.coroutines.Dispatchers
 import org.apache.logging.log4j.LogManager
 
-class CounterKt :
-    CounterGrpcKt.CounterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
+class CounterKt : CounterGrpcKt.CounterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
 
   private val LOG = LogManager.getLogger(CounterKt::class.java)
 

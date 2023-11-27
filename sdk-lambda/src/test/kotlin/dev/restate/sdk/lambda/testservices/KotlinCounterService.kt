@@ -8,12 +8,12 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.lambda.testservices
 
-import dev.restate.sdk.kotlin.RestateCoroutineService
+import dev.restate.sdk.kotlin.RestateKtService
 import kotlinx.coroutines.Dispatchers
 
 class KotlinCounterService :
     KotlinCounterGrpcKt.KotlinCounterCoroutineImplBase(coroutineContext = Dispatchers.Unconfined),
-    RestateCoroutineService {
+    RestateKtService {
 
   override suspend fun get(request: CounterRequest): GetResponse {
     val count = (restateContext().get(JavaCounterService.COUNTER) ?: 0) + 1
