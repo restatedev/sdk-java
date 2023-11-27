@@ -8,10 +8,10 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.http.vertx.testservices
 
-import dev.restate.sdk.core.impl.testservices.GreeterGrpcKt
-import dev.restate.sdk.core.impl.testservices.GreetingRequest
-import dev.restate.sdk.core.impl.testservices.GreetingResponse
-import dev.restate.sdk.core.impl.testservices.greetingResponse
+import dev.restate.sdk.core.testservices.GreeterGrpcKt
+import dev.restate.sdk.core.testservices.GreetingRequest
+import dev.restate.sdk.core.testservices.GreetingResponse
+import dev.restate.sdk.core.testservices.greetingResponse
 import dev.restate.sdk.kotlin.RestateCoroutineService
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration.Companion.seconds

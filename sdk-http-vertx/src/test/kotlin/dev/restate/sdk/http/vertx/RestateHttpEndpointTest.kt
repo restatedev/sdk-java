@@ -14,8 +14,8 @@ import com.google.protobuf.MessageLite
 import dev.restate.generated.service.discovery.Discovery.ServiceDiscoveryRequest
 import dev.restate.generated.service.discovery.Discovery.ServiceDiscoveryResponse
 import dev.restate.generated.service.protocol.Protocol.*
-import dev.restate.sdk.core.impl.ProtoUtils.*
-import dev.restate.sdk.core.impl.testservices.*
+import dev.restate.sdk.core.ProtoUtils.*
+import dev.restate.sdk.core.testservices.*
 import dev.restate.sdk.http.vertx.testservices.BlockingGreeterService
 import dev.restate.sdk.http.vertx.testservices.GreeterKtService
 import io.netty.handler.codec.http.HttpResponseStatus
@@ -80,7 +80,9 @@ internal class RestateHttpEndpointTest {
                     HttpMethod.POST,
                     endpointPort,
                     "localhost",
-                    "/invoke/" + GreeterGrpc.getGreetMethod().fullMethodName)
+                    "/invoke/" +
+                        dev.restate.sdk.core.testservices.GreeterGrpc.getGreetMethod()
+                            .fullMethodName)
                 .await()
 
         // Prepare request header
@@ -169,7 +171,9 @@ internal class RestateHttpEndpointTest {
                     HttpMethod.POST,
                     endpointPort,
                     "localhost",
-                    "/invoke/" + GreeterGrpc.getGreetMethod().serviceName + "/unknownMethod")
+                    "/invoke/" +
+                        dev.restate.sdk.core.testservices.GreeterGrpc.getGreetMethod().serviceName +
+                        "/unknownMethod")
                 .await()
 
         // Prepare request header
@@ -216,7 +220,8 @@ internal class RestateHttpEndpointTest {
         // Parse response
         val responseBody = response.body().await()
         val serviceDiscoveryResponse = ServiceDiscoveryResponse.parseFrom(responseBody.bytes)
-        assertThat(serviceDiscoveryResponse.servicesList).containsOnly(GreeterGrpc.SERVICE_NAME)
+        assertThat(serviceDiscoveryResponse.servicesList)
+            .containsOnly(dev.restate.sdk.core.testservices.GreeterGrpc.SERVICE_NAME)
         assertThat(serviceDiscoveryResponse.files.fileList)
             .map<String> { it.name }
             .containsExactlyInAnyOrder(

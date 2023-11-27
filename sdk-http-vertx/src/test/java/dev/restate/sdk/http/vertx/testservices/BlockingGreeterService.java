@@ -8,12 +8,12 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.http.vertx.testservices;
 
-import dev.restate.sdk.blocking.RestateBlockingService;
-import dev.restate.sdk.core.Serde;
-import dev.restate.sdk.core.StateKey;
-import dev.restate.sdk.core.impl.testservices.GreeterGrpc;
-import dev.restate.sdk.core.impl.testservices.GreetingRequest;
-import dev.restate.sdk.core.impl.testservices.GreetingResponse;
+import dev.restate.sdk.RestateBlockingService;
+import dev.restate.sdk.common.Serde;
+import dev.restate.sdk.common.StateKey;
+import dev.restate.sdk.core.testservices.GreeterGrpc;
+import dev.restate.sdk.core.testservices.GreetingRequest;
+import dev.restate.sdk.core.testservices.GreetingResponse;
 import io.grpc.stub.StreamObserver;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;

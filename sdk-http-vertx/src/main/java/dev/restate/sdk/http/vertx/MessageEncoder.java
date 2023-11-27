@@ -9,7 +9,7 @@
 package dev.restate.sdk.http.vertx;
 
 import com.google.protobuf.MessageLite;
-import dev.restate.sdk.core.impl.MessageHeader;
+import dev.restate.sdk.core.MessageHeader;
 import io.vertx.core.buffer.Buffer;
 
 class MessageEncoder {

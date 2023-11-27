@@ -9,8 +9,8 @@
 package dev.restate.sdk.http.vertx;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import dev.restate.sdk.core.impl.InvocationFlow;
-import dev.restate.sdk.core.impl.MessageHeader;
+import dev.restate.sdk.core.InvocationFlow;
+import dev.restate.sdk.core.MessageHeader;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.vertx.core.buffer.Buffer;

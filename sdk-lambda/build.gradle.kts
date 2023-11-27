@@ -9,8 +9,8 @@ plugins {
 description = "Restate SDK AWS Lambda integration"
 
 dependencies {
-  api(project(":sdk-core"))
-  implementation(project(":sdk-core-impl"))
+  api(project(":sdk-api-common"))
+  implementation(project(":sdk-core"))
 
   api(lambdaLibs.core)
   api(lambdaLibs.events)
@@ -19,10 +19,9 @@ dependencies {
   implementation(coreLibs.opentelemetry.api)
 
   implementation(coreLibs.log4j.api)
-
-  testImplementation(project(":sdk-java-blocking"))
-  testImplementation(project(":sdk-kotlin"))
-  testImplementation(project(":sdk-core-impl", "testArchive"))
+  testImplementation(project(":sdk-api"))
+  testImplementation(project(":sdk-api-kotlin"))
+  testImplementation(project(":sdk-core", "testArchive"))
   testImplementation(testingLibs.junit.jupiter)
   testImplementation(testingLibs.assertj)
 

@@ -10,15 +10,15 @@
 rootProject.name = "sdk-java"
 
 include(
+    "sdk-api-common",
+    "sdk-api",
+    "sdk-api-kotlin",
     "sdk-core",
-    "sdk-core-impl",
     "sdk-serde-jackson",
     "sdk-http-vertx",
-    "sdk-java-blocking",
-    "protoc-gen-restate-java-blocking",
+    "protoc-gen-restate",
     "sdk-lambda",
-    "sdk-kotlin",
-    "sdk-test",
+    "sdk-testing",
     "examples",
     "admin-client")
 

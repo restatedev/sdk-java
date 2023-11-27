@@ -8,9 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.examples;
 
-import dev.restate.sdk.blocking.RestateContext;
-import dev.restate.sdk.core.CoreSerdes;
-import dev.restate.sdk.core.StateKey;
+import dev.restate.sdk.RestateContext;
+import dev.restate.sdk.common.CoreSerdes;
+import dev.restate.sdk.common.StateKey;
 import dev.restate.sdk.examples.generated.*;
 import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder;
 import org.apache.logging.log4j.LogManager;

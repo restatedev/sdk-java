@@ -17,12 +17,6 @@ plugins {
 val protobufVersion = coreLibs.versions.protobuf.get()
 val restateVersion = libs.versions.restate.get()
 
-val testReport =
-    tasks.register<TestReport>("testReport") {
-      destinationDirectory.set(file("${layout.buildDirectory}/reports/tests/test"))
-      testResults.setFrom(subprojects.mapNotNull { it.tasks.findByPath("test") })
-    }
-
 allprojects {
   apply(plugin = "com.diffplug.spotless")
   apply(plugin = "com.github.jk1.dependency-license-report")
@@ -116,6 +110,12 @@ subprojects {
         "MissingSummary")
     options.errorprone.excludedPaths.set(".*/build/generated/.*")
   }
+
+  val testReport =
+      tasks.register<TestReport>("testReport") {
+        destinationDirectory.set(file("${layout.buildDirectory}/reports/tests/test"))
+        testResults.setFrom(subprojects.mapNotNull { it.tasks.findByPath("test") })
+      }
 
   // Test platform and reporting
   tasks.withType<Test> {

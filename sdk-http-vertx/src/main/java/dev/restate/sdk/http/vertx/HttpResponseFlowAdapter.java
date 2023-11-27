@@ -9,8 +9,8 @@
 package dev.restate.sdk.http.vertx;
 
 import com.google.protobuf.MessageLite;
-import dev.restate.sdk.core.impl.InvocationFlow;
-import dev.restate.sdk.core.impl.Util;
+import dev.restate.sdk.core.InvocationFlow;
+import dev.restate.sdk.core.Util;
 import io.grpc.Status;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerResponse;

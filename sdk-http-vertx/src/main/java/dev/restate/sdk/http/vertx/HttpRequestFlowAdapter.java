@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.http.vertx;
 
-import dev.restate.sdk.core.impl.InvocationFlow;
+import dev.restate.sdk.core.InvocationFlow;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
 import java.util.concurrent.Flow;

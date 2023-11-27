@@ -10,8 +10,8 @@ package dev.restate.sdk.lambda;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageLite;
-import dev.restate.sdk.core.impl.InvocationFlow;
-import dev.restate.sdk.core.impl.MessageHeader;
+import dev.restate.sdk.core.InvocationFlow;
+import dev.restate.sdk.core.MessageHeader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;

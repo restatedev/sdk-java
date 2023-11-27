@@ -9,9 +9,9 @@
 package dev.restate.sdk.lambda;
 
 import dev.restate.generated.service.discovery.Discovery;
-import dev.restate.sdk.core.BindableBlockingService;
-import dev.restate.sdk.core.BindableNonBlockingService;
-import dev.restate.sdk.core.impl.RestateGrpcServer;
+import dev.restate.sdk.common.BindableBlockingService;
+import dev.restate.sdk.common.BindableNonBlockingService;
+import dev.restate.sdk.core.RestateGrpcServer;
 import io.grpc.ServerInterceptor;
 import io.grpc.ServerInterceptors;
 import io.grpc.ServerServiceDefinition;

@@ -8,9 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.lambda.testservices;
 
-import dev.restate.sdk.blocking.RestateBlockingService;
-import dev.restate.sdk.core.Serde;
-import dev.restate.sdk.core.StateKey;
+import dev.restate.sdk.RestateBlockingService;
+import dev.restate.sdk.common.Serde;
+import dev.restate.sdk.common.StateKey;
 import io.grpc.stub.StreamObserver;
 import java.nio.charset.StandardCharsets;
 

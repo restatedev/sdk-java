@@ -1,0 +1,31 @@
+// Copyright (c) 2023 - Restate Software, Inc., Restate GmbH
+//
+// This file is part of the Restate Java SDK,
+// which is released under the MIT license.
+//
+// You can find a copy of the license in file LICENSE in the root
+// directory of this repository or package, or at
+// https://github.com/restatedev/sdk-java/blob/main/LICENSE
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "dev.restate.sdk.core.testservices";
+option java_outer_classname = "GreeterProto";
+
+import "dev/restate/ext.proto";
+
+package greeter;
+
+service Greeter {
+  option (dev.restate.ext.service_type) = KEYED;
+
+  rpc Greet (GreetingRequest) returns (GreetingResponse);
+}
+
+message GreetingRequest {
+  string name = 1 [(dev.restate.ext.field) = KEY];
+}
+
+message GreetingResponse {
+  string message = 1;
+}

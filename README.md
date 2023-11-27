@@ -28,10 +28,10 @@ Scaffold a project using the build tool of your choice. For example, with Gradle
 gradle init --type java-application
 ```
 
-Add the dependency [sdk-java-blocking](sdk-java-blocking):
+Add the dependency [sdk-api](sdk-api):
 
 ```
-implementation("dev.restate.sdk:sdk-java-blocking:1.0-SNAPSHOT")
+implementation("dev.restate.sdk:sdk-api:1.0-SNAPSHOT")
 ```
 
 Now you need to configure the protobuf plugin to build your Protobuf contracts. For example, with Gradle (Kotlin script):
@@ -61,7 +61,7 @@ protobuf {
   plugins {
     // The Restate plugin depends on the gRPC generated code
     id("grpc") { artifact = "io.grpc:protoc-gen-grpc-java:1.58.0" }
-    id("restate") { artifact = "dev.restate.sdk:protoc-gen-restate-java-blocking:1.0-SNAPSHOT:all@jar" }
+    id("restate") { artifact = "dev.restate.sdk:protoc-gen-restate:1.0-SNAPSHOT:all@jar" }
   }
 
   generateProtoTasks {
@@ -85,10 +85,10 @@ Scaffold a project using the build tool of your choice. For example, with Gradle
 gradle init --type kotlin-application
 ```
 
-Add the dependency [`sdk-kotlin`](sdk-kotlin):
+Add the dependency [`sdk-api-kotlin`](sdk-api-kotlin):
 
 ```
-implementation("dev.restate.sdk:sdk-kotlin:1.0-SNAPSHOT")
+implementation("dev.restate.sdk:sdk-api-kotlin:1.0-SNAPSHOT")
 ```
 
 Now you need to configure the protobuf plugin to build your Protobuf contracts. For example, with Gradle (Kotlin script):

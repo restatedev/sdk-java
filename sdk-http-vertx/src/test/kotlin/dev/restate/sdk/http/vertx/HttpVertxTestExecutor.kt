@@ -9,10 +9,10 @@
 package dev.restate.sdk.http.vertx
 
 import com.google.protobuf.MessageLite
-import dev.restate.sdk.core.BindableBlockingService
-import dev.restate.sdk.core.BindableNonBlockingService
-import dev.restate.sdk.core.impl.TestDefinitions.TestDefinition
-import dev.restate.sdk.core.impl.TestDefinitions.TestExecutor
+import dev.restate.sdk.common.BindableBlockingService
+import dev.restate.sdk.common.BindableNonBlockingService
+import dev.restate.sdk.core.TestDefinitions.TestDefinition
+import dev.restate.sdk.core.TestDefinitions.TestExecutor
 import io.vertx.core.Vertx
 import io.vertx.core.buffer.Buffer
 import io.vertx.core.http.HttpHeaders
