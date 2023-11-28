@@ -19,10 +19,9 @@ import java.util.concurrent.Executor;
 /** Builder for {@link RestateRunner}. See {@link RestateRunner} for more details. */
 public class RestateRunnerBuilder {
 
-  private static final String DEFAULT_RUNTIME_CONTAINER = "ghcr.io/restatedev/restate-dist";
-
+  private static final String DEFAULT_RESTATE_CONTAINER = "docker.io/restatedev/restate";
   private final RestateHttpEndpointBuilder endpointBuilder;
-  private String runtimeContainerImage = DEFAULT_RUNTIME_CONTAINER;
+  private String restateContainerImage = DEFAULT_RESTATE_CONTAINER;
   private final Map<String, String> additionalEnv = new HashMap<>();
   private String configFile;
 
@@ -31,8 +30,8 @@ public class RestateRunnerBuilder {
   }
 
   /** Override the container image to use for the Restate runtime. */
-  public RestateRunnerBuilder withRuntimeContainerImage(String runtimeContainerImage) {
-    this.runtimeContainerImage = runtimeContainerImage;
+  public RestateRunnerBuilder withRestateContainerImage(String restateContainerImage) {
+    this.restateContainerImage = restateContainerImage;
     return this;
   }
 
@@ -81,7 +80,7 @@ public class RestateRunnerBuilder {
   public ManualRestateRunner buildManualRunner() {
     return new ManualRestateRunner(
         this.endpointBuilder.build(),
-        this.runtimeContainerImage,
+        this.restateContainerImage,
         this.additionalEnv,
         this.configFile);
   }

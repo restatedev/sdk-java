@@ -21,7 +21,11 @@ class CounterTest {
 
   @RegisterExtension
   private static final RestateRunner restateRunner =
-      RestateRunnerBuilder.create().withService(new Counter()).buildRunner();
+      RestateRunnerBuilder.create()
+          .withRestateContainerImage(
+              "ghcr.io/restatedev/restate:main") // test against the latest main Restate image
+          .withService(new Counter())
+          .buildRunner();
 
   @Test
   void testGreet(@RestateGrpcChannel ManagedChannel channel) {
