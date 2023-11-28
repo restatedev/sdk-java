@@ -24,13 +24,6 @@ jobs:
           java-version: ${{ matrix.java }}
           distribution: 'adopt'
 
-      - name: Log in to the Container registry
-        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
-        with:
-          registry: ghcr.io
-          username: ${{ secrets.GH_PACKAGE_READ_ACCESS_USER }}
-          password: ${{ secrets.GH_PACKAGE_READ_ACCESS_TOKEN }}
-
       - name: Validate Gradle wrapper
         uses: gradle/wrapper-validation-action@v1
 
