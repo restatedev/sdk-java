@@ -21,7 +21,7 @@ import io.grpc.stub.StreamObserver;
 public class InvocationIdTest extends InvocationIdTestSuite {
 
   private static class ReturnInvocationId extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+      implements RestateService {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {

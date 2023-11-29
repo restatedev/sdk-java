@@ -8,8 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.common.BindableNonBlockingService
 import dev.restate.sdk.common.CoreSerdes
+import dev.restate.sdk.common.NonBlockingService
 import dev.restate.sdk.common.Serde
 import dev.restate.sdk.common.StateKey
 import dev.restate.sdk.common.syscalls.Syscalls
@@ -22,8 +22,8 @@ import kotlin.time.Duration
  * the service instance key-value state storage, interact with other Restate services, record side
  * effects, execute timers and synchronize with external systems.
  *
- * To use it within your Restate service, implement [RestateCoroutineService] and get an instance
- * with [RestateCoroutineService.restateContext].
+ * To use it within your Restate service, implement [RestateKtService] and get an instance with
+ * [RestateKtService.restateContext].
  *
  * All methods of this interface, and related interfaces, throws either [TerminalException] or
  * cancels the coroutine. [TerminalException] can be caught and acted upon.
@@ -328,8 +328,18 @@ sealed interface AwakeableHandle {
   suspend fun reject(reason: String)
 }
 
-/** Marker interface for Kotlin Restate coroutine services. */
-interface RestateCoroutineService : BindableNonBlockingService {
+/**
+ * Marker interface for Restate services implemented using the [RestateContext] interface.
+ *
+ * ## Error handling
+ *
+ * The error handling of Restate services works as follows:
+ * * When throwing {@link TerminalException}, the failure will be used as invocation response error
+ *   value
+ * * When throwing any other type of exception, the failure is considered "non-terminal" and the
+ *   runtime will retry it, according to its configuration
+ */
+interface RestateKtService : NonBlockingService {
   /** @return an instance of the [RestateContext]. */
   fun restateContext(): RestateContext {
     return RestateContextImpl(Syscalls.SYSCALLS_KEY.get())

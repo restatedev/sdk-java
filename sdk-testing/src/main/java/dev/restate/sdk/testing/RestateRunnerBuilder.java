@@ -8,8 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testing;
 
-import dev.restate.sdk.common.BindableBlockingService;
-import dev.restate.sdk.common.BindableNonBlockingService;
+import dev.restate.sdk.common.BlockingService;
+import dev.restate.sdk.common.NonBlockingService;
 import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder;
 import io.grpc.ServerInterceptor;
 import java.util.HashMap;
@@ -49,31 +49,31 @@ public class RestateRunnerBuilder {
   }
 
   /**
-   * Register a service. See {@link RestateHttpEndpointBuilder#withService(BindableBlockingService,
+   * Register a service. See {@link RestateHttpEndpointBuilder#withService(BlockingService,
    * ServerInterceptor...)}.
    */
   public RestateRunnerBuilder withService(
-      BindableBlockingService service, ServerInterceptor... interceptors) {
+      BlockingService service, ServerInterceptor... interceptors) {
     this.endpointBuilder.withService(service, interceptors);
     return this;
   }
 
   /**
-   * Register a service. See {@link RestateHttpEndpointBuilder#withService(BindableBlockingService,
+   * Register a service. See {@link RestateHttpEndpointBuilder#withService(BlockingService,
    * Executor, ServerInterceptor...)}.
    */
   public RestateRunnerBuilder withService(
-      BindableBlockingService service, Executor executor, ServerInterceptor... interceptors) {
+      BlockingService service, Executor executor, ServerInterceptor... interceptors) {
     this.endpointBuilder.withService(service, executor, interceptors);
     return this;
   }
 
   /**
-   * Register a service. See {@link
-   * RestateHttpEndpointBuilder#withService(BindableNonBlockingService, ServerInterceptor...)}.
+   * Register a service. See {@link RestateHttpEndpointBuilder#withService(NonBlockingService,
+   * ServerInterceptor...)}.
    */
   public RestateRunnerBuilder withService(
-      BindableNonBlockingService service, ServerInterceptor... interceptors) {
+      NonBlockingService service, ServerInterceptor... interceptors) {
     this.endpointBuilder.withService(service, interceptors);
     return this;
   }

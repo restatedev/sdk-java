@@ -20,7 +20,7 @@ import kotlinx.coroutines.Dispatchers
 
 class UserFailuresTest : UserFailuresTestSuite() {
   private class ThrowIllegalStateException :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       throw IllegalStateException("Whatever")
     }
@@ -32,7 +32,7 @@ class UserFailuresTest : UserFailuresTestSuite() {
 
   private class SideEffectThrowIllegalStateException(
       private val nonTerminalExceptionsSeen: AtomicInteger
-  ) : GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
+  ) : GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       try {
         restateContext().sideEffect { throw IllegalStateException("Whatever") }
@@ -56,7 +56,7 @@ class UserFailuresTest : UserFailuresTestSuite() {
   private class ThrowTerminalException(
       private val code: TerminalException.Code,
       private val message: String
-  ) : GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
+  ) : GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       throw TerminalException(code, message)
     }
@@ -72,7 +72,7 @@ class UserFailuresTest : UserFailuresTestSuite() {
   private class SideEffectThrowTerminalException(
       private val code: TerminalException.Code,
       private val message: String
-  ) : GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
+  ) : GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       restateContext().sideEffect { throw TerminalException(code, message) }
       throw IllegalStateException("Not expected to reach this point")

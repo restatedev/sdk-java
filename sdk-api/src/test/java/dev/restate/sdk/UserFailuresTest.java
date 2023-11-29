@@ -27,7 +27,7 @@ import java.util.stream.Stream;
 public class UserFailuresTest extends UserFailuresTestSuite {
 
   private static class ThrowIllegalStateException extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+      implements RestateService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       throw new IllegalStateException("Whatever");
@@ -40,7 +40,7 @@ public class UserFailuresTest extends UserFailuresTestSuite {
   }
 
   private static class SideEffectThrowIllegalStateException extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+      implements RestateService {
 
     private final AtomicInteger nonTerminalExceptionsSeen;
 
@@ -76,7 +76,7 @@ public class UserFailuresTest extends UserFailuresTestSuite {
   }
 
   private static class ThrowTerminalException extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+      implements RestateService {
 
     private final TerminalException.Code code;
     private final String message;
@@ -98,7 +98,7 @@ public class UserFailuresTest extends UserFailuresTestSuite {
   }
 
   private static class SideEffectThrowTerminalException extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+      implements RestateService {
 
     private final TerminalException.Code code;
     private final String message;
@@ -127,7 +127,7 @@ public class UserFailuresTest extends UserFailuresTestSuite {
   // -- Response observer is something specific to the sdk-java interface
 
   private static class ResponseObserverOnErrorTerminalException extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+      implements RestateService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       responseObserver.onError(new TerminalException(TerminalException.Code.INTERNAL, MY_ERROR));
@@ -135,7 +135,7 @@ public class UserFailuresTest extends UserFailuresTestSuite {
   }
 
   private static class ResponseObserverOnErrorIllegalStateException
-      extends GreeterGrpc.GreeterImplBase implements RestateBlockingService {
+      extends GreeterGrpc.GreeterImplBase implements RestateService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       responseObserver.onError(new IllegalStateException("Whatever"));

@@ -9,8 +9,8 @@
 package dev.restate.sdk.http.vertx;
 
 import dev.restate.generated.service.discovery.Discovery;
-import dev.restate.sdk.common.BindableBlockingService;
-import dev.restate.sdk.common.BindableNonBlockingService;
+import dev.restate.sdk.common.BlockingService;
+import dev.restate.sdk.common.NonBlockingService;
 import dev.restate.sdk.core.RestateGrpcServer;
 import io.grpc.ServerInterceptor;
 import io.grpc.ServerInterceptors;
@@ -76,26 +76,26 @@ public class RestateHttpEndpointBuilder {
   }
 
   /**
-   * Add a {@link BindableBlockingService} to the endpoint.
+   * Add a {@link BlockingService} to the endpoint.
    *
    * <p>NOTE: The service code will run within the Vert.x worker thread pool. For more details,
    * check the <a href="https://vertx.io/docs/vertx-core/java/#blocking_code">Vert.x
    * documentation</a>.
    */
   public RestateHttpEndpointBuilder withService(
-      BindableBlockingService service, ServerInterceptor... interceptors) {
+      BlockingService service, ServerInterceptor... interceptors) {
     return this.withService(service, defaultExecutor, interceptors);
   }
 
   /**
-   * Add a {@link BindableBlockingService} to the endpoint, specifying the {@code executor} where to
-   * run the service code.
+   * Add a {@link BlockingService} to the endpoint, specifying the {@code executor} where to run the
+   * service code.
    *
    * <p>You can run on virtual threads by using the executor {@code
    * Executors.newVirtualThreadPerTaskExecutor()}.
    */
   public RestateHttpEndpointBuilder withService(
-      BindableBlockingService service, Executor executor, ServerInterceptor... interceptors) {
+      BlockingService service, Executor executor, ServerInterceptor... interceptors) {
     ServerServiceDefinition definition =
         ServerInterceptors.intercept(service, Arrays.asList(interceptors));
     this.restateGrpcServerBuilder.withService(definition);
@@ -104,14 +104,14 @@ public class RestateHttpEndpointBuilder {
   }
 
   /**
-   * Add a {@link BindableNonBlockingService} to the endpoint.
+   * Add a {@link NonBlockingService} to the endpoint.
    *
    * <p>NOTE: The service code will run within the same Vert.x event loop thread handling the HTTP
    * stream, hence the code should never block the thread. For more details, check the <a
    * href="https://vertx.io/docs/vertx-core/java/#golden_rule">Vert.x documentation</a>.
    */
   public RestateHttpEndpointBuilder withService(
-      BindableNonBlockingService service, ServerInterceptor... interceptors) {
+      NonBlockingService service, ServerInterceptor... interceptors) {
     this.restateGrpcServerBuilder.withService(
         ServerInterceptors.intercept(service, Arrays.asList(interceptors)));
     return this;

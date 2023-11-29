@@ -12,13 +12,13 @@ import dev.restate.sdk.core.testservices.GreeterGrpcKt
 import dev.restate.sdk.core.testservices.GreetingRequest
 import dev.restate.sdk.core.testservices.GreetingResponse
 import dev.restate.sdk.core.testservices.greetingResponse
-import dev.restate.sdk.kotlin.RestateCoroutineService
+import dev.restate.sdk.kotlin.RestateKtService
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration.Companion.seconds
 import org.apache.logging.log4j.LogManager
 
 class GreeterKtService(coroutineContext: CoroutineContext) :
-    GreeterGrpcKt.GreeterCoroutineImplBase(coroutineContext), RestateCoroutineService {
+    GreeterGrpcKt.GreeterCoroutineImplBase(coroutineContext), RestateKtService {
 
   private val LOG = LogManager.getLogger(GreeterKtService::class.java)
 

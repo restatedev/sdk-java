@@ -8,12 +8,12 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.common.BindableBlockingService;
+import dev.restate.sdk.common.BlockingService;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.common.syscalls.Syscalls;
 
 /**
- * Marker interface for Restate blocking services.
+ * Marker interface for Restate services implemented using the {@link RestateContext} interface.
  *
  * <p>
  *
@@ -28,7 +28,7 @@ import dev.restate.sdk.common.syscalls.Syscalls;
  *       runtime will retry it, according to its configuration
  * </ul>
  */
-public interface RestateBlockingService extends BindableBlockingService {
+public interface RestateService extends BlockingService {
 
   /**
    * @return an instance of the {@link RestateContext}.

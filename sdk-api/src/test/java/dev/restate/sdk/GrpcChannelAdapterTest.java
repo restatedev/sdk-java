@@ -24,7 +24,7 @@ import java.util.stream.Stream;
 public class GrpcChannelAdapterTest implements TestSuite {
 
   private static class InvokeUsingGeneratedClient extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+      implements RestateService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
@@ -38,7 +38,7 @@ public class GrpcChannelAdapterTest implements TestSuite {
   }
 
   private static class InvokeUsingGeneratedFutureClient extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+      implements RestateService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();

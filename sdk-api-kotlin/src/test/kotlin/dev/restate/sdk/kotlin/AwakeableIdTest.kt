@@ -19,7 +19,7 @@ import kotlinx.coroutines.Dispatchers
 
 class AwakeableIdTest : AwakeableIdTestSuite() {
   private class ReturnAwakeableId :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
 
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val id: String = restateContext().awakeable(CoreSerdes.STRING_UTF8).id

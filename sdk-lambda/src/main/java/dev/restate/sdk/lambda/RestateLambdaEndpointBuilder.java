@@ -9,8 +9,7 @@
 package dev.restate.sdk.lambda;
 
 import dev.restate.generated.service.discovery.Discovery;
-import dev.restate.sdk.common.BindableBlockingService;
-import dev.restate.sdk.common.BindableNonBlockingService;
+import dev.restate.sdk.common.Service;
 import dev.restate.sdk.core.RestateGrpcServer;
 import io.grpc.ServerInterceptor;
 import io.grpc.ServerInterceptors;
@@ -25,18 +24,13 @@ public final class RestateLambdaEndpointBuilder {
       RestateGrpcServer.newBuilder(Discovery.ProtocolMode.REQUEST_RESPONSE);
   private OpenTelemetry openTelemetry = OpenTelemetry.noop();
 
-  /** Add a {@link BindableBlockingService} to the endpoint. */
+  /**
+   * Add a {@link Service} to the endpoint.
+   *
+   * <p>The service code will be executed on the same thread where the lambda is invoked.
+   */
   public RestateLambdaEndpointBuilder withService(
-      BindableBlockingService service, ServerInterceptor... interceptors) {
-    ServerServiceDefinition definition =
-        ServerInterceptors.intercept(service, Arrays.asList(interceptors));
-    this.restateGrpcServerBuilder.withService(definition);
-    return this;
-  }
-
-  /** Add a {@link BindableNonBlockingService} to the endpoint. */
-  public RestateLambdaEndpointBuilder withService(
-      BindableNonBlockingService service, ServerInterceptor... interceptors) {
+      Service service, ServerInterceptor... interceptors) {
     ServerServiceDefinition definition =
         ServerInterceptors.intercept(service, Arrays.asList(interceptors));
     this.restateGrpcServerBuilder.withService(definition);

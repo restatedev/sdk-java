@@ -21,7 +21,7 @@ import org.assertj.core.api.AssertionsForClassTypes.assertThat
 
 class EagerStateTest : EagerStateTestSuite() {
   private class GetEmpty :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val ctx = restateContext()
       val stateIsEmpty = ctx.get(StateKey.of("STATE", CoreSerdes.STRING_UTF8)) == null
@@ -34,7 +34,7 @@ class EagerStateTest : EagerStateTestSuite() {
   }
 
   private class Get :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       return greetingResponse {
         message = restateContext().get(StateKey.of("STATE", CoreSerdes.STRING_UTF8))!!
@@ -47,7 +47,7 @@ class EagerStateTest : EagerStateTestSuite() {
   }
 
   private class GetAppendAndGet :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val ctx = restateContext()
       val oldState = ctx.get(StateKey.of("STATE", CoreSerdes.STRING_UTF8))!!
@@ -62,7 +62,7 @@ class EagerStateTest : EagerStateTestSuite() {
   }
 
   private class GetClearAndGet :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val ctx = restateContext()
       val oldState = ctx.get(StateKey.of("STATE", CoreSerdes.STRING_UTF8))!!

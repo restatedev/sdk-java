@@ -22,8 +22,7 @@ import io.grpc.stub.StreamObserver;
 
 public class StateTest extends StateTestSuite {
 
-  private static class GetState extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+  private static class GetState extends GreeterGrpc.GreeterImplBase implements RestateService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       String state =
@@ -40,7 +39,7 @@ public class StateTest extends StateTestSuite {
   }
 
   private static class GetAndSetState extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+      implements RestateService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
@@ -59,8 +58,7 @@ public class StateTest extends StateTestSuite {
     return new GetAndSetState();
   }
 
-  private static class SetNullState extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+  private static class SetNullState extends GreeterGrpc.GreeterImplBase implements RestateService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       restateContext()

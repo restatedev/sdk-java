@@ -19,7 +19,7 @@ import kotlinx.coroutines.Dispatchers
 
 class SleepTest : SleepTestSuite() {
   private class SleepGreeter :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val ctx = restateContext()
       ctx.sleep(1000.milliseconds)
@@ -32,7 +32,7 @@ class SleepTest : SleepTestSuite() {
   }
 
   private class ManySleeps :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateCoroutineService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val ctx = restateContext()
       val awaitables = mutableListOf<Awaitable<Unit>>()

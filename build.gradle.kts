@@ -113,7 +113,7 @@ subprojects {
 
   val testReport =
       tasks.register<TestReport>("testReport") {
-        destinationDirectory.set(file("${layout.buildDirectory}/reports/tests/test"))
+        destinationDirectory.set(layout.buildDirectory.dir("reports/tests/test"))
         testResults.setFrom(subprojects.mapNotNull { it.tasks.findByPath("test") })
       }
 

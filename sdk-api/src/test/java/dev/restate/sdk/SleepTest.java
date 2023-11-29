@@ -20,8 +20,7 @@ import java.util.List;
 
 public class SleepTest extends SleepTestSuite {
 
-  private static class SleepGreeter extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+  private static class SleepGreeter extends GreeterGrpc.GreeterImplBase implements RestateService {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
@@ -39,8 +38,7 @@ public class SleepTest extends SleepTestSuite {
     return new SleepGreeter();
   }
 
-  private static class ManySleeps extends GreeterGrpc.GreeterImplBase
-      implements RestateBlockingService {
+  private static class ManySleeps extends GreeterGrpc.GreeterImplBase implements RestateService {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
