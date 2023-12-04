@@ -18,6 +18,7 @@ public enum MessageType {
   CompletionMessage,
   SuspensionMessage,
   ErrorMessage,
+  EntryAckMessage,
 
   // IO
   PollInputStreamEntryMessage,
@@ -43,6 +44,7 @@ public enum MessageType {
   public static final short COMPLETION_MESSAGE_TYPE = 0x0001;
   public static final short SUSPENSION_MESSAGE_TYPE = 0x0002;
   public static final short ERROR_MESSAGE_TYPE = 0x0003;
+  public static final short ENTRY_ACK_MESSAGE_TYPE = 0x0004;
   public static final short POLL_INPUT_STREAM_ENTRY_MESSAGE_TYPE = 0x0400;
   public static final short OUTPUT_STREAM_ENTRY_MESSAGE_TYPE = 0x0401;
   public static final short GET_STATE_ENTRY_MESSAGE_TYPE = 0x0800;
@@ -66,6 +68,8 @@ public enum MessageType {
         return Protocol.SuspensionMessage.parser();
       case ErrorMessage:
         return Protocol.ErrorMessage.parser();
+      case EntryAckMessage:
+        return Protocol.EntryAckMessage.parser();
       case PollInputStreamEntryMessage:
         return Protocol.PollInputStreamEntryMessage.parser();
       case OutputStreamEntryMessage:
@@ -104,6 +108,8 @@ public enum MessageType {
         return SUSPENSION_MESSAGE_TYPE;
       case ErrorMessage:
         return ERROR_MESSAGE_TYPE;
+      case EntryAckMessage:
+        return ENTRY_ACK_MESSAGE_TYPE;
       case PollInputStreamEntryMessage:
         return POLL_INPUT_STREAM_ENTRY_MESSAGE_TYPE;
       case OutputStreamEntryMessage:
@@ -142,6 +148,8 @@ public enum MessageType {
         return SuspensionMessage;
       case ERROR_MESSAGE_TYPE:
         return ErrorMessage;
+      case ENTRY_ACK_MESSAGE_TYPE:
+        return EntryAckMessage;
       case POLL_INPUT_STREAM_ENTRY_MESSAGE_TYPE:
         return PollInputStreamEntryMessage;
       case OUTPUT_STREAM_ENTRY_MESSAGE_TYPE:

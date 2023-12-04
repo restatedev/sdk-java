@@ -135,15 +135,10 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       // We check the instance rather than the state, because the user code might still be
       // replaying, but the network layer is already past it and is receiving completions from the
       // runtime.
-      Protocol.CompletionMessage completionMessage = (Protocol.CompletionMessage) msg;
-
-      // If ack, give it to side effect publisher
-      if (completionMessage.getResultCase()
-          == Protocol.CompletionMessage.ResultCase.RESULT_NOT_SET) {
-        this.sideEffectAckStateMachine.tryHandleSideEffectAck(completionMessage.getEntryIndex());
-      } else {
-        this.readyResultStateMachine.offerCompletion((Protocol.CompletionMessage) msg);
-      }
+      this.readyResultStateMachine.offerCompletion((Protocol.CompletionMessage) msg);
+    } else if (msg instanceof Protocol.EntryAckMessage) {
+      this.sideEffectAckStateMachine.tryHandleSideEffectAck(
+          ((Protocol.EntryAckMessage) msg).getEntryIndex());
     } else {
       this.incomingEntriesStateMachine.offer(msg);
     }
