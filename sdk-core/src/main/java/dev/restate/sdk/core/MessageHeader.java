@@ -14,14 +14,14 @@ import dev.restate.generated.service.protocol.Protocol;
 
 public class MessageHeader {
 
-  private static final short DONE_FLAG = 0x0001;
-  private static final short REQUIRES_ACK_FLAG = 0x0001;
+  static final short DONE_FLAG = 0x0001;
+  static final int REQUIRES_ACK_FLAG = 0x8000;
 
   private final MessageType type;
-  private final short flags;
+  private final int flags;
   private final int length;
 
-  public MessageHeader(MessageType type, short flags, int length) {
+  public MessageHeader(MessageType type, int flags, int length) {
     this.type = type;
     this.flags = flags;
     this.length = length;
@@ -57,15 +57,15 @@ public class MessageHeader {
 
   public static MessageHeader fromMessage(MessageLite msg) {
     if (msg instanceof Protocol.SuspensionMessage) {
-      return new MessageHeader(MessageType.SuspensionMessage, (short) 0, msg.getSerializedSize());
+      return new MessageHeader(MessageType.SuspensionMessage, 0, msg.getSerializedSize());
     } else if (msg instanceof Protocol.ErrorMessage) {
-      return new MessageHeader(MessageType.ErrorMessage, (short) 0, msg.getSerializedSize());
+      return new MessageHeader(MessageType.ErrorMessage, 0, msg.getSerializedSize());
+    } else if (msg instanceof Protocol.EntryAckMessage) {
+      return new MessageHeader(MessageType.EntryAckMessage, 0, msg.getSerializedSize());
     } else if (msg instanceof Protocol.PollInputStreamEntryMessage) {
-      return new MessageHeader(
-          MessageType.PollInputStreamEntryMessage, (short) 0, msg.getSerializedSize());
+      return new MessageHeader(MessageType.PollInputStreamEntryMessage, 0, msg.getSerializedSize());
     } else if (msg instanceof Protocol.OutputStreamEntryMessage) {
-      return new MessageHeader(
-          MessageType.OutputStreamEntryMessage, (short) 0, msg.getSerializedSize());
+      return new MessageHeader(MessageType.OutputStreamEntryMessage, 0, msg.getSerializedSize());
     } else if (msg instanceof Protocol.GetStateEntryMessage) {
       return new MessageHeader(
           MessageType.GetStateEntryMessage,
@@ -75,11 +75,9 @@ public class MessageHeader {
               : 0,
           msg.getSerializedSize());
     } else if (msg instanceof Protocol.SetStateEntryMessage) {
-      return new MessageHeader(
-          MessageType.SetStateEntryMessage, (short) 0, msg.getSerializedSize());
+      return new MessageHeader(MessageType.SetStateEntryMessage, 0, msg.getSerializedSize());
     } else if (msg instanceof Protocol.ClearStateEntryMessage) {
-      return new MessageHeader(
-          MessageType.ClearStateEntryMessage, (short) 0, msg.getSerializedSize());
+      return new MessageHeader(MessageType.ClearStateEntryMessage, 0, msg.getSerializedSize());
     } else if (msg instanceof Protocol.SleepEntryMessage) {
       return new MessageHeader(
           MessageType.SleepEntryMessage,
@@ -95,7 +93,7 @@ public class MessageHeader {
           msg.getSerializedSize());
     } else if (msg instanceof Protocol.BackgroundInvokeEntryMessage) {
       return new MessageHeader(
-          MessageType.BackgroundInvokeEntryMessage, (short) 0, msg.getSerializedSize());
+          MessageType.BackgroundInvokeEntryMessage, 0, msg.getSerializedSize());
     } else if (msg instanceof Protocol.AwakeableEntryMessage) {
       return new MessageHeader(
           MessageType.AwakeableEntryMessage,
@@ -106,10 +104,10 @@ public class MessageHeader {
           msg.getSerializedSize());
     } else if (msg instanceof Protocol.CompleteAwakeableEntryMessage) {
       return new MessageHeader(
-          MessageType.CompleteAwakeableEntryMessage, (short) 0, msg.getSerializedSize());
+          MessageType.CompleteAwakeableEntryMessage, 0, msg.getSerializedSize());
     } else if (msg instanceof Java.CombinatorAwaitableEntryMessage) {
       return new MessageHeader(
-          MessageType.CombinatorAwaitableEntryMessage, (short) 0, msg.getSerializedSize());
+          MessageType.CombinatorAwaitableEntryMessage, 0, msg.getSerializedSize());
     } else if (msg instanceof Java.SideEffectEntryMessage) {
       return new MessageHeader(
           MessageType.SideEffectEntryMessage, REQUIRES_ACK_FLAG, msg.getSerializedSize());
