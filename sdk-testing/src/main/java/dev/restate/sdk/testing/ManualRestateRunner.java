@@ -13,7 +13,6 @@ import dev.restate.admin.client.ApiClient;
 import dev.restate.admin.client.ApiException;
 import dev.restate.admin.model.RegisterServiceEndpointRequest;
 import dev.restate.admin.model.RegisterServiceEndpointResponse;
-import dev.restate.admin.model.RegisterServiceResponse;
 import io.vertx.core.http.HttpServer;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -100,13 +99,13 @@ public class ManualRestateRunner
       RegisterServiceEndpointResponse response =
           new ServiceEndpointApi(client)
               .createServiceEndpoint(
-                  new RegisterServiceEndpointRequest()
-                      .uri("http://host.testcontainers.internal:" + serviceEndpointPort)
-                      .force(true));
+                  new RegisterServiceEndpointRequest(
+                      new dev.restate.admin.model.RegisterServiceEndpointRequestAnyOf()
+                          .uri("http://host.testcontainers.internal:" + serviceEndpointPort)));
       LOG.debug(
           "Registered services {}",
           response.getServices().stream()
-              .map(RegisterServiceResponse::getName)
+              .map(dev.restate.admin.model.ServiceMetadata::getName)
               .collect(Collectors.toList()));
     } catch (ApiException e) {
       throw new RuntimeException(e);
