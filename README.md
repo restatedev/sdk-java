@@ -391,6 +391,7 @@ Please refer to the [Opentelemetry manual instrumentation documentation](https:/
 Prerequisites:
 
 - JDK >= 11
+- Docker or Podman
 
 To build the SDK:
 
