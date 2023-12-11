@@ -15,6 +15,7 @@ import dev.restate.sdk.common.StateKey
 import dev.restate.sdk.common.syscalls.Syscalls
 import io.grpc.MethodDescriptor
 import java.util.*
+import kotlin.random.Random
 import kotlin.time.Duration
 
 /**
@@ -198,6 +199,20 @@ sealed interface RestateContext {
    * @see Awakeable
    */
   fun awakeableHandle(id: String): AwakeableHandle
+
+  /**
+   * Create a [Random] instance inherently predictable, seeded on the
+   * [dev.restate.sdk.common.InvocationId], which is not secret.
+   *
+   * This instance is useful to generate identifiers, idempotency keys, and for uniform sampling
+   * from a set of options. If a cryptographically secure value is needed, please generate that
+   * externally using [sideEffect].
+   *
+   * You MUST NOT use this [Random] instance inside a [sideEffect].
+   *
+   * @return the [Random] instance.
+   */
+  fun random(): Random
 }
 
 /**

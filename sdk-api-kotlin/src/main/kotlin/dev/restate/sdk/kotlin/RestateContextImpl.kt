@@ -9,6 +9,7 @@
 package dev.restate.sdk.kotlin
 
 import com.google.protobuf.ByteString
+import dev.restate.sdk.common.InvocationId
 import dev.restate.sdk.common.Serde
 import dev.restate.sdk.common.StateKey
 import dev.restate.sdk.common.TerminalException
@@ -19,6 +20,7 @@ import dev.restate.sdk.common.syscalls.Syscalls
 import io.grpc.MethodDescriptor
 import java.lang.Error
 import kotlin.coroutines.resume
+import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
 import kotlinx.coroutines.*
@@ -183,5 +185,9 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
 
   override fun awakeableHandle(id: String): AwakeableHandle {
     return AwakeableHandleImpl(syscalls, id)
+  }
+
+  override fun random(): Random {
+    return Random(InvocationId.current().toRandomSeed())
   }
 }

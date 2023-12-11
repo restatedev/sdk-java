@@ -28,6 +28,11 @@ public interface InvocationId {
     return INVOCATION_ID_KEY.get();
   }
 
+  /**
+   * @return a seed to be used with {@link java.util.Random}.
+   */
+  long toRandomSeed();
+
   @Override
   String toString();
 }

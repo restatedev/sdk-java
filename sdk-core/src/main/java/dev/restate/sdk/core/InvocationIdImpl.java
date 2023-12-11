@@ -33,7 +33,25 @@ final class InvocationIdImpl implements InvocationId {
   }
 
   @Override
+  public long toRandomSeed() {
+    return stringToSeed(id);
+  }
+
+  @Override
   public String toString() {
     return id;
+  }
+
+  // Thanks https://stackoverflow.com/questions/12458383/java-random-numbers-using-a-seed
+  static long stringToSeed(String s) {
+    if (s == null) {
+      return 0;
+    }
+    long hash = 0;
+    for (int i = 0; i < s.length(); i++) {
+      char c = s.charAt(i);
+      hash = 31L * hash + c;
+    }
+    return hash;
   }
 }
