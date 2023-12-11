@@ -1,11 +1,12 @@
 // Copyright (c) 2023 - Restate Software, Inc., Restate GmbH
 //
-// This file is part of the Restate Java SDK,
-// which is released under the MIT license.
+// This file is part of the Restate service protocol, which is
+// released under the MIT license.
 //
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
-// https://github.com/restatedev/sdk-java/blob/main/LICENSE
+// https://github.com/restatedev/proto/blob/main/LICENSE
+
 syntax = "proto3";
 
 // Restate extensions.
@@ -28,10 +29,11 @@ enum ServiceType {
 
 enum FieldType {
   // protolint:disable:next ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
+  // Note: only string fields can be used for service key fields
   KEY = 0;
 
   // Flag a field as event payload. When receiving events, this field will be filled with the event payload.
-  // Note: only types string and bytes can be used for event payload fields
+  // Note: only string fields can be used for event payload fields
   EVENT_PAYLOAD = 1;
   // Flag a field as event metadata. When receiving events, this field will be filled with the event metadata.
   // Note: only type map<string, string> can be used for event payload fields
