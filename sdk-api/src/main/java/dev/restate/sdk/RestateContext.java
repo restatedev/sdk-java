@@ -16,7 +16,6 @@ import io.grpc.Channel;
 import io.grpc.MethodDescriptor;
 import java.time.Duration;
 import java.util.Optional;
-import java.util.Random;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.NotThreadSafe;
 
@@ -209,19 +208,9 @@ public interface RestateContext {
   AwakeableHandle awakeableHandle(String id);
 
   /**
-   * Create a {@link Random} instance inherently predictable, seeded on the {@link InvocationId},
-   * which is not secret.
-   *
-   * <p>This instance is useful to generate identifiers, idempotency keys, and for uniform sampling
-   * from a set of options. If a cryptographically secure value is needed, please generate that
-   * externally using {@link #sideEffect(Serde, ThrowingSupplier)}.
-   *
-   * <p>You MUST NOT use this {@link Random} instance inside a {@link #sideEffect(Serde,
-   * ThrowingSupplier)}.
-   *
-   * @return the {@link Random} instance.
+   * @see RestateRandom
    */
-  Random random();
+  RestateRandom random();
 
   /**
    * Build a RestateContext from the underlying {@link Syscalls} object.

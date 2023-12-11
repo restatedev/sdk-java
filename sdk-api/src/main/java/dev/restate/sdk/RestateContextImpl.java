@@ -19,7 +19,6 @@ import io.grpc.MethodDescriptor;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -186,7 +185,7 @@ class RestateContextImpl implements RestateContext {
   }
 
   @Override
-  public Random random() {
-    return new Random(InvocationId.current().toRandomSeed());
+  public RestateRandom random() {
+    return new RestateRandom(InvocationId.current().toRandomSeed());
   }
 }
