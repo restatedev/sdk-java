@@ -39,8 +39,8 @@ allprojects {
       // Exclude proto and service-protocol directories because those get the license header from
       // their repos.
       targetExclude(
-          fileTree("$rootDir/sdk-core/src/main/proto") { include("**/*.*") },
-          fileTree("$rootDir/sdk-core-impl/src/main/service-protocol") { include("**/*.*") })
+          fileTree("$rootDir/sdk-common/src/main/proto") { include("**/*.*") },
+          fileTree("$rootDir/sdk-core/src/main/service-protocol") { include("**/*.*") })
 
       licenseHeaderFile("$rootDir/config/license-header", "syntax")
     }
