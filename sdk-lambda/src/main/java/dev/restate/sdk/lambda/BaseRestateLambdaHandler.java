@@ -26,28 +26,26 @@ import org.apache.logging.log4j.CloseableThreadContext;
  * more details.
  */
 public abstract class BaseRestateLambdaHandler
-        implements RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
+    implements RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
 
-    private static final String AWS_REQUEST_ID = "AWSRequestId";
+  private static final String AWS_REQUEST_ID = "AWSRequestId";
 
-    private final RestateLambdaEndpoint restateLambdaEndpoint;
+  private final RestateLambdaEndpoint restateLambdaEndpoint;
 
-    protected BaseRestateLambdaHandler() {
-        RestateLambdaEndpointBuilder builder = RestateLambdaEndpoint.builder();
-        register(builder);
-        this.restateLambdaEndpoint = builder.build();
+  protected BaseRestateLambdaHandler() {
+    RestateLambdaEndpointBuilder builder = RestateLambdaEndpoint.builder();
+    register(builder);
+    this.restateLambdaEndpoint = builder.build();
+  }
+
+  /** Configure your services in this method. */
+  public abstract void register(RestateLambdaEndpointBuilder builder);
+
+  @Override
+  public APIGatewayProxyResponseEvent handleRequest(
+      APIGatewayProxyRequestEvent input, Context context) {
+    try (var requestId = CloseableThreadContext.put(AWS_REQUEST_ID, context.getAwsRequestId())) {
+      return restateLambdaEndpoint.handleRequest(input, context);
     }
-
-    /**
-     * Configure your services in this method.
-     */
-    public abstract void register(RestateLambdaEndpointBuilder builder);
-
-    @Override
-    public APIGatewayProxyResponseEvent handleRequest(
-            APIGatewayProxyRequestEvent input, Context context) {
-        try (var requestId = CloseableThreadContext.put(AWS_REQUEST_ID, context.getAwsRequestId())) {
-            return restateLambdaEndpoint.handleRequest(input, context);
-        }
-    }
+  }
 }
