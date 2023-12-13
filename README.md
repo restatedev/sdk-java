@@ -40,7 +40,7 @@ gradle init --type java-application
 Add the dependency [sdk-api](sdk-api):
 
 ```
-implementation("dev.restate:sdk-api:1.0-SNAPSHOT")
+implementation("dev.restate:sdk-api:0.6.0")
 ```
 
 Now you need to configure the protobuf plugin to build your Protobuf contracts. For example, with Gradle (Kotlin script):
@@ -70,7 +70,7 @@ protobuf {
   plugins {
     // The Restate plugin depends on the gRPC generated code
     id("grpc") { artifact = "io.grpc:protoc-gen-grpc-java:1.58.0" }
-    id("restate") { artifact = "dev.restate:protoc-gen-restate:1.0-SNAPSHOT:all@jar" }
+    id("restate") { artifact = "dev.restate:protoc-gen-restate:0.6.0:all@jar" }
   }
 
   generateProtoTasks {
@@ -97,7 +97,7 @@ gradle init --type kotlin-application
 Add the dependency [`sdk-api-kotlin`](sdk-api-kotlin):
 
 ```
-implementation("dev.restate:sdk-api-kotlin:1.0-SNAPSHOT")
+implementation("dev.restate:sdk-api-kotlin:0.6.0")
 ```
 
 Now you need to configure the protobuf plugin to build your Protobuf contracts. For example, with Gradle (Kotlin script):
@@ -230,7 +230,7 @@ If you want to use POJOs for state, check [how to use Jackson](#state-serde-usin
 To deploy the Restate service as HTTP server, add [`sdk-http-vertx`](sdk-http-vertx) to the dependencies. For example, in Gradle:
 
 ```
-implementation("dev.restate:sdk-http-vertx:1.0-SNAPSHOT")
+implementation("dev.restate:sdk-http-vertx:0.6.0")
 ```
 
 To deploy the service, add the following code to the `main`. For example in Java:
@@ -264,7 +264,7 @@ gradle run
 To deploy the Restate service as Lambda, add [`sdk-lambda`](sdk-lambda) to the dependencies. For example, in Gradle:
 
 ```
-implementation("dev.restate:sdk-lambda:1.0-SNAPSHOT")
+implementation("dev.restate:sdk-lambda:0.6.0")
 ```
 
 Configure the build tool to generate Fat-JARs, which are required by AWS Lambda to correctly load the JAR. For example, using Gradle:
@@ -316,7 +316,7 @@ State ser/de is defined by the interface `Serde`. If you want to use [Jackson Da
 For example, in Gradle:
 
 ```
-implementation("dev.restate:sdk-serde-jackson:1.0-SNAPSHOT")
+implementation("dev.restate:sdk-serde-jackson:0.6.0")
 ```
 
 And then use `JacksonSerdes`:
