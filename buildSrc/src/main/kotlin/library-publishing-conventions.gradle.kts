@@ -46,7 +46,7 @@ project.afterEvaluate {
     signing {
         setRequired { !project.hasProperty("skipSigning") }
 
-        val key = System.getenv("MAVEN_CENTRAL_GPG_KEY") ?: return@signing
+        val key = System.getenv("MAVEN_CENTRAL_GPG_PRIVATE_KEY") ?: return@signing
         val password = System.getenv("MAVEN_CENTRAL_GPG_PASSPHRASE") ?: return@signing
         val publishing: PublishingExtension by project
 
