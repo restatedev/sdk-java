@@ -12,6 +12,7 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
+import org.apache.logging.log4j.CloseableThreadContext;
 
 /**
  * Base implementation of a Lambda handler to execute restate services
@@ -27,6 +28,8 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent
 public abstract class BaseRestateLambdaHandler
     implements RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
 
+  private static final String AWS_REQUEST_ID = "AWSRequestId";
+
   private final RestateLambdaEndpoint restateLambdaEndpoint;
 
   protected BaseRestateLambdaHandler() {
@@ -41,6 +44,8 @@ public abstract class BaseRestateLambdaHandler
   @Override
   public APIGatewayProxyResponseEvent handleRequest(
       APIGatewayProxyRequestEvent input, Context context) {
-    return restateLambdaEndpoint.handleRequest(input, context);
+    try (var requestId = CloseableThreadContext.put(AWS_REQUEST_ID, context.getAwsRequestId())) {
+      return restateLambdaEndpoint.handleRequest(input, context);
+    }
   }
 }
