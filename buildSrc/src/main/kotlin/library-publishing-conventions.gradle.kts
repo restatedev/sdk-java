@@ -30,6 +30,14 @@ project.afterEvaluate {
                         developerConnection = "scm:git:ssh://github.com/restatedev/sdk-java.git"
                         url = "https://github.com/restatedev/sdk-java"
                     }
+
+                    developers {
+                        developer {
+                            name = "Francesco Guardiani"
+                            id = "slinkydeveloper"
+                            email = "francescoguard@gmail.com"
+                        }
+                    }
                 }
             }
         }
@@ -43,6 +51,6 @@ project.afterEvaluate {
         val publishing: PublishingExtension by project
 
         useInMemoryPgpKeys(key, password)
-        sign(publishing.publications)
+        sign(publishing.publications["maven"])
     }
 }
