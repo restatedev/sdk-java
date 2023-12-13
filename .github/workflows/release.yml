@@ -24,7 +24,7 @@ jobs:
         run: curl -sSLf "$(curl -sSLf https://api.github.com/repos/tomwright/dasel/releases/latest | grep browser_download_url | grep linux_amd64 | grep -v .gz | cut -d\" -f 4)" -L -o dasel && chmod +x dasel && mv ./dasel /usr/local/bin/dasel
       - name: Parse published sdk version
         run: |
-          echo "PUBLISHED_SDK_VERSION=$(dasel -f gradle/libs.versions.toml '.versions.restate')" >> "$GITHUB_ENV"
+          echo "PUBLISHED_SDK_VERSION=$(dasel -f gradle/libs.versions.toml .versions.restate)" >> "$GITHUB_ENV"
 
       # Dry run
       - name: Publish dry-run
@@ -45,6 +45,7 @@ jobs:
           MAVEN_CENTRAL_GPG_PASSPHRASE: ${{ secrets.MAVEN_CENTRAL_GPG_PASSPHRASE }}
         with:
           arguments: publishToSonatype
+
       - name: Release staging area
         uses: gradle/gradle-build-action@v2
         if: !contains(env.PUBLISHED_SDK_VERSION, '-SNAPSHOT')
