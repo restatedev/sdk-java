@@ -9,7 +9,9 @@
 package dev.restate.sdk.core;
 
 import dev.restate.sdk.common.InvocationId;
+import java.util.HashMap;
 import java.util.Map;
+import org.apache.logging.log4j.ThreadContext;
 import org.apache.logging.log4j.core.util.ContextDataProvider;
 
 /**
@@ -24,17 +26,16 @@ public class GrpcContextDataProvider implements ContextDataProvider {
     InvocationId invocationId = InvocationId.INVOCATION_ID_KEY.get();
     String serviceMethod = RestateGrpcServer.SERVICE_METHOD.get();
 
-    // We use Map.of constructors to avoid allocating hashmaps
-    if (invocationId == null && serviceMethod == null) {
-      return Map.of();
-    } else if (invocationId == null) {
-      return Map.of(RestateGrpcServer.LoggingContextSetter.SERVICE_METHOD_KEY, serviceMethod);
-    } else {
-      return Map.of(
-          RestateGrpcServer.LoggingContextSetter.INVOCATION_ID_KEY,
-          invocationId.toString(),
-          RestateGrpcServer.LoggingContextSetter.SERVICE_METHOD_KEY,
-          serviceMethod);
+    var context = new HashMap<>(ThreadContext.getContext());
+
+    if (invocationId != null) {
+      context.put(
+          RestateGrpcServer.LoggingContextSetter.INVOCATION_ID_KEY, invocationId.toString());
     }
+    if (serviceMethod != null) {
+      context.put(RestateGrpcServer.LoggingContextSetter.SERVICE_METHOD_KEY, serviceMethod);
+    }
+
+    return context;
   }
 }
