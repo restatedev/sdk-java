@@ -27,7 +27,7 @@ This SDK features:
 
 ### tl;dr Use project templates
 
-To get started, check out a template project in https://github.com/restatedev/examples/tree/main/jvm.
+To get started, check out a template project in https://github.com/restatedev/examples/tree/main/java.
 
 ### Setup a project (Java)
 
