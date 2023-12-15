@@ -2,6 +2,7 @@
 
 To release sdk-java:
 
+* First make sure `service-protocol` and `proto` subtrees are updated to the latest version. See the main [README.md](../README.md#contributing-to-the-sdk)
 * Change the version to the desired version using the [Bump version workflow](https://github.com/restatedev/sdk-java/actions/workflows/bump.yaml).
 * Merge the auto generated PR
 * Wait for CI on main to execute the release
