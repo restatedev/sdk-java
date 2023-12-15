@@ -14,7 +14,7 @@ import dev.restate.sdk.core.DeferredResults.DeferredResultInternal;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public interface SyscallsInternal extends Syscalls {
+interface SyscallsInternal extends Syscalls {
 
   @Override
   default DeferredResult<Integer> createAnyDeferred(List<DeferredResult<?>> children) {
@@ -31,4 +31,13 @@ public interface SyscallsInternal extends Syscalls {
   // -- Lifecycle methods
 
   void close();
+
+  // -- State machine introspection (used by logging propagator)
+
+  /**
+   * @return fully qualified method name in the form {fullyQualifiedServiceName}/{methodName}
+   */
+  String getFullyQualifiedMethodName();
+
+  InvocationState getInvocationState();
 }

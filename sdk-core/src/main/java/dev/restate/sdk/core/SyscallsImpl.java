@@ -314,10 +314,17 @@ public final class SyscallsImpl implements SyscallsInternal {
   public <T> void resolveDeferred(
       DeferredResult<T> deferredToResolve, SyscallCallback<Void> callback) {
     wrapAndPropagateExceptions(
-        () -> {
-          this.stateMachine.resolveDeferred(deferredToResolve, callback);
-        },
-        callback);
+        () -> this.stateMachine.resolveDeferred(deferredToResolve, callback), callback);
+  }
+
+  @Override
+  public String getFullyQualifiedMethodName() {
+    return this.stateMachine.getFullyQualifiedMethodName();
+  }
+
+  @Override
+  public InvocationState getInvocationState() {
+    return this.stateMachine.getInvocationState();
   }
 
   @Override

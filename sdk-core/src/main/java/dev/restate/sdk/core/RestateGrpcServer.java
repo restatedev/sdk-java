@@ -62,9 +62,10 @@ public class RestateGrpcServer {
     if (svc == null) {
       throw ProtocolException.methodNotFound(serviceName, methodName);
     }
-    String serviceMethodName = serviceName + "/" + methodName;
+    String fullyQualifiedServiceMethod = serviceName + "/" + methodName;
     ServerMethodDefinition<MessageLite, MessageLite> method =
-        (ServerMethodDefinition<MessageLite, MessageLite>) svc.getMethod(serviceMethodName);
+        (ServerMethodDefinition<MessageLite, MessageLite>)
+            svc.getMethod(fullyQualifiedServiceMethod);
     if (method == null) {
       throw ProtocolException.methodNotFound(serviceName, methodName);
     }
@@ -81,12 +82,15 @@ public class RestateGrpcServer {
             .startSpan();
 
     // Setup logging context
-    loggingContextSetter.setServiceMethod(serviceMethodName);
+    loggingContextSetter.setServiceMethod(fullyQualifiedServiceMethod);
 
     // Instantiate state machine, syscall and grpc bridge
     InvocationStateMachine stateMachine =
         new InvocationStateMachine(
-            serviceName, span, s -> loggingContextSetter.setInvocationStatus(s.toString()));
+            serviceName,
+            fullyQualifiedServiceMethod,
+            span,
+            s -> loggingContextSetter.setInvocationStatus(s.toString()));
     SyscallsInternal syscalls =
         syscallExecutor != null
             ? ExecutorSwitchingWrappers.syscalls(new SyscallsImpl(stateMachine), syscallExecutor)

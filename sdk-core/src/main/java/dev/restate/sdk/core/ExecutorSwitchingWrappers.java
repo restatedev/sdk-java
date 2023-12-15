@@ -182,6 +182,18 @@ class ExecutorSwitchingWrappers {
     }
 
     @Override
+    public String getFullyQualifiedMethodName() {
+      // We can read this from another thread
+      return syscalls.getFullyQualifiedMethodName();
+    }
+
+    @Override
+    public InvocationState getInvocationState() {
+      // We can read this from another thread
+      return syscalls.getInvocationState();
+    }
+
+    @Override
     public void close() {
       syscallsExecutor.execute(syscalls::close);
     }
