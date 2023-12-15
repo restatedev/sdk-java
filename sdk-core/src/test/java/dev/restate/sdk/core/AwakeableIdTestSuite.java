@@ -52,7 +52,6 @@ public abstract class AwakeableIdTestSuite implements TestSuite {
                     .setId(ByteString.copyFrom(serializedId))
                     .setKnownEntries(1),
                 inputMessage(GreetingRequest.getDefaultInstance()))
-            .onlyUnbuffered()
             .assertingOutput(
                 messages -> {
                   assertThat(messages)
