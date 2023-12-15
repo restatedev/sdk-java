@@ -8,11 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testing;
 
-import dev.restate.admin.api.ServiceEndpointApi;
 import dev.restate.admin.client.ApiClient;
 import dev.restate.admin.client.ApiException;
-import dev.restate.admin.model.RegisterServiceEndpointRequest;
-import dev.restate.admin.model.RegisterServiceEndpointResponse;
+import dev.restate.admin.model.RegisterDeploymentRequest;
 import io.vertx.core.http.HttpServer;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -96,11 +94,11 @@ public class ManualRestateRunner
     // Register services now
     ApiClient client = getAdminClient();
     try {
-      RegisterServiceEndpointResponse response =
-          new ServiceEndpointApi(client)
-              .createServiceEndpoint(
-                  new RegisterServiceEndpointRequest(
-                      new dev.restate.admin.model.RegisterServiceEndpointRequestAnyOf()
+      dev.restate.admin.model.RegisterDeploymentResponse response =
+          new dev.restate.admin.api.DeploymentApi(client)
+              .createDeployment(
+                  new RegisterDeploymentRequest(
+                      new dev.restate.admin.model.RegisterDeploymentRequestAnyOf()
                           .uri("http://host.testcontainers.internal:" + serviceEndpointPort)));
       LOG.debug(
           "Registered services {}",
