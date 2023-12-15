@@ -32,8 +32,6 @@ import org.apache.logging.log4j.ThreadContext;
 public class RestateGrpcServer {
 
   private static final Logger LOG = LogManager.getLogger(RestateGrpcServer.class);
-  static final Context.Key<String> SERVICE_METHOD =
-      Context.key("restate.dev/logging_service_method");
 
   private final Map<String, ServerServiceDefinition> services;
   private final Tracer tracer;
@@ -115,18 +113,19 @@ public class RestateGrpcServer {
               // Set invocation id in logging context
               loggingContextSetter.setInvocationId(invocationId.toString());
 
-              // Create the listener and create the decorators chain
-              ServerCall.Listener<MessageLite> grpcListener =
-                  Contexts.interceptCall(
-                      Context.current()
-                          .withValue(SERVICE_METHOD, serviceMethodName)
-                          .withValue(InvocationId.INVOCATION_ID_KEY, invocationId)
-                          .withValue(Syscalls.SYSCALLS_KEY, syscalls),
-                      bridge,
-                      new Metadata(),
-                      method.getServerCallHandler());
+              // This gRPC context will be propagated to the user thread.
+              // Note: from now on we cannot modify this context anymore!
+              io.grpc.Context context =
+                  Context.current()
+                      .withValue(InvocationId.INVOCATION_ID_KEY, invocationId)
+                      .withValue(Syscalls.SYSCALLS_KEY, syscalls);
+
+              // Create the listener
               RestateServerCallListener<MessageLite> restateListener =
-                  new GrpcServerCallListenerAdaptor<>(grpcListener, bridge);
+                  new GrpcServerCallListenerAdaptor<>(
+                      context, bridge, new Metadata(), method.getServerCallHandler());
+
+              // Wrap in the executor switcher, if needed
               if (serverCallListenerExecutor != null) {
                 restateListener =
                     ExecutorSwitchingWrappers.serverCallListener(

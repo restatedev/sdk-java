@@ -178,12 +178,7 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
   }
 
   private Executor blockingExecutor(String serviceName) {
-    Executor userExecutor = this.blockingServices.get(serviceName);
-    return runnable -> {
-      // We need to propagate the gRPC context!
-      io.grpc.Context ctx = io.grpc.Context.current();
-      userExecutor.execute(ctx.wrap(runnable));
-    };
+    return this.blockingServices.get(serviceName);
   }
 
   private void handleDiscoveryRequest(HttpServerRequest request) {

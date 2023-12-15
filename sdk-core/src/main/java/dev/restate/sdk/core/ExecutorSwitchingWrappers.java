@@ -11,7 +11,6 @@ package dev.restate.sdk.core;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
 import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.common.syscalls.*;
 import dev.restate.sdk.common.syscalls.DeferredResult;
 import dev.restate.sdk.common.syscalls.EnterSideEffectSyscallCallback;
 import dev.restate.sdk.common.syscalls.ExitSideEffectSyscallCallback;
@@ -48,8 +47,8 @@ class ExecutorSwitchingWrappers {
     }
 
     @Override
-    public void onMessageAndHalfClose(MessageLite message) {
-      userExecutor.execute(() -> listener.onMessageAndHalfClose(message));
+    public void invoke(MessageLite message) {
+      userExecutor.execute(() -> listener.invoke(message));
     }
 
     // A bit of explanation why the following methods are not executed on the user executor.
@@ -64,18 +63,18 @@ class ExecutorSwitchingWrappers {
     // as thread local.
 
     @Override
-    public void onCancel() {
-      listener.onCancel();
+    public void cancel() {
+      listener.cancel();
     }
 
     @Override
-    public void onComplete() {
-      listener.onComplete();
+    public void close() {
+      listener.close();
     }
 
     @Override
-    public void onReady() {
-      listener.onReady();
+    public void listenerReady() {
+      listener.listenerReady();
     }
   }
 

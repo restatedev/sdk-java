@@ -9,18 +9,22 @@
 package dev.restate.sdk.core;
 
 /**
- * Callbacks for incoming rpc messages.
+ * Interface to invoke generated service code.
  *
  * <p>This interface is strongly inspired by {@link io.grpc.ServerCall.Listener}.
  *
  * @param <M> type of the incoming message
  */
 public interface RestateServerCallListener<M> {
-  void onMessageAndHalfClose(M message);
+  /** Invoke the service code. */
+  void invoke(M message);
 
-  void onCancel();
+  /** Send cancel signal to service code. */
+  void cancel();
 
-  void onComplete();
+  /** Close the service code. */
+  void close();
 
-  void onReady();
+  /** Set the underlying listener as ready. */
+  void listenerReady();
 }
