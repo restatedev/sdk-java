@@ -136,7 +136,7 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
                 @Override
                 public void setInvocationStatus(String invocationStatus) {
                   ContextualData.put(
-                      RestateGrpcServer.LoggingContextSetter.SERVICE_INVOCATION_STATUS,
+                      RestateGrpcServer.LoggingContextSetter.SERVICE_INVOCATION_STATUS_KEY,
                       invocationStatus);
                 }
               },

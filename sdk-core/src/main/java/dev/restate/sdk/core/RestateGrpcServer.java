@@ -208,23 +208,23 @@ public class RestateGrpcServer {
 
     String INVOCATION_ID_KEY = "restateInvocationId";
     String SERVICE_METHOD_KEY = "restateServiceMethod";
-    String SERVICE_INVOCATION_STATUS = "restateInvocationStatus";
+    String SERVICE_INVOCATION_STATUS_KEY = "restateInvocationStatus";
 
     LoggingContextSetter THREAD_LOCAL_INSTANCE =
         new LoggingContextSetter() {
           @Override
           public void setServiceMethod(String serviceMethod) {
-            ThreadContext.put(INVOCATION_ID_KEY, serviceMethod);
+            ThreadContext.put(SERVICE_METHOD_KEY, serviceMethod);
           }
 
           @Override
           public void setInvocationId(String id) {
-            ThreadContext.put(SERVICE_METHOD_KEY, id);
+            ThreadContext.put(INVOCATION_ID_KEY, id);
           }
 
           @Override
           public void setInvocationStatus(String invocationStatus) {
-            ThreadContext.put(SERVICE_INVOCATION_STATUS, invocationStatus);
+            ThreadContext.put(SERVICE_INVOCATION_STATUS_KEY, invocationStatus);
           }
         };
 
