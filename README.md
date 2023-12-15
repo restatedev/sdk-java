@@ -423,7 +423,7 @@ To update the [`proto`](https://github.com/restatedev/proto/) git subtree:
 git subtree pull --prefix sdk-common/src/main/proto/ git@github.com:restatedev/proto.git main --squash
 ```
 
-To update the [`service-protocol`] git subtree:
+To update the [`service-protocol`](https://github.com/restatedev/service-protocol/) git subtree:
 
 ```shell
 git subtree pull --prefix sdk-core/src/main/service-protocol/ git@github.com:restatedev/service-protocol.git main --squash
