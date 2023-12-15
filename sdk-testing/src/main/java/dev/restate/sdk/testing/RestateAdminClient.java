@@ -15,7 +15,7 @@ import java.lang.annotation.Target;
 
 /**
  * Inject the Restate {@link dev.restate.admin.client.ApiClient}, useful to build admin clients,
- * such as {@link dev.restate.admin.api.ServiceEndpointApi}.
+ * such as {@link dev.restate.admin.api.DeploymentApi}.
  */
 @Target(value = ElementType.PARAMETER)
 @Retention(RetentionPolicy.RUNTIME)
