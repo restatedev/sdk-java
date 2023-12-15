@@ -245,7 +245,7 @@ public final class SyscallsImpl implements SyscallsInternal {
   public void awakeable(SyscallCallback<Map.Entry<String, DeferredResult<ByteString>>> callback) {
     wrapAndPropagateExceptions(
         () -> {
-          LOG.trace("callback");
+          LOG.trace("awakeable");
           this.stateMachine.processCompletableJournalEntry(
               Protocol.AwakeableEntryMessage.getDefaultInstance(),
               AwakeableEntry.INSTANCE,
