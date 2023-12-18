@@ -64,18 +64,26 @@ final class Entries {
 
     @Override
     public boolean hasResult(PollInputStreamEntryMessage actual) {
-      return true;
+      return actual.getResultCase() != PollInputStreamEntryMessage.ResultCase.RESULT_NOT_SET;
     }
 
     @Override
     public ReadyResultInternal<R> parseEntryResult(PollInputStreamEntryMessage actual) {
-      return valueParser.apply(actual.getValue());
+      if (actual.getResultCase() == PollInputStreamEntryMessage.ResultCase.VALUE) {
+        return valueParser.apply(actual.getValue());
+      } else if (actual.getResultCase() == PollInputStreamEntryMessage.ResultCase.FAILURE) {
+        return ReadyResults.failure(Util.toRestateException(actual.getFailure()));
+      } else {
+        throw new IllegalStateException("PollInputEntry has not been completed.");
+      }
     }
 
     @Override
     public ReadyResultInternal<R> parseCompletionResult(CompletionMessage actual) {
       if (actual.getResultCase() == CompletionMessage.ResultCase.VALUE) {
         return valueParser.apply(actual.getValue());
+      } else if (actual.getResultCase() == CompletionMessage.ResultCase.FAILURE) {
+        return ReadyResults.failure(Util.toRestateException(actual.getFailure()));
       }
       return super.parseCompletionResult(actual);
     }
@@ -126,17 +134,23 @@ final class Entries {
     public ReadyResultInternal<ByteString> parseEntryResult(GetStateEntryMessage actual) {
       if (actual.getResultCase() == GetStateEntryMessage.ResultCase.VALUE) {
         return ReadyResults.success(actual.getValue());
+      } else if (actual.getResultCase() == GetStateEntryMessage.ResultCase.FAILURE) {
+        return ReadyResults.failure(Util.toRestateException(actual.getFailure()));
+      } else if (actual.getResultCase() == GetStateEntryMessage.ResultCase.EMPTY) {
+        return ReadyResults.empty();
+      } else {
+        throw new IllegalStateException("GetStateEntry has not been completed.");
       }
-      return ReadyResults.empty();
     }
 
     @Override
     public ReadyResultInternal<ByteString> parseCompletionResult(CompletionMessage actual) {
       if (actual.getResultCase() == CompletionMessage.ResultCase.VALUE) {
         return ReadyResults.success(actual.getValue());
-      }
-      if (actual.getResultCase() == CompletionMessage.ResultCase.EMPTY) {
+      } else if (actual.getResultCase() == CompletionMessage.ResultCase.EMPTY) {
         return ReadyResults.empty();
+      } else if (actual.getResultCase() == CompletionMessage.ResultCase.FAILURE) {
+        return ReadyResults.failure(Util.toRestateException(actual.getFailure()));
       }
       return super.parseCompletionResult(actual);
     }
@@ -239,18 +253,26 @@ final class Entries {
 
     @Override
     public boolean hasResult(SleepEntryMessage actual) {
-      return actual.hasResult();
+      return actual.getResultCase() != Protocol.SleepEntryMessage.ResultCase.RESULT_NOT_SET;
     }
 
     @Override
     public ReadyResultInternal<Void> parseEntryResult(SleepEntryMessage actual) {
-      return ReadyResults.empty();
+      if (actual.getResultCase() == SleepEntryMessage.ResultCase.FAILURE) {
+        return ReadyResults.failure(Util.toRestateException(actual.getFailure()));
+      } else if (actual.getResultCase() == SleepEntryMessage.ResultCase.EMPTY) {
+        return ReadyResults.empty();
+      } else {
+        throw new IllegalStateException("SleepEntry has not been completed.");
+      }
     }
 
     @Override
     public ReadyResultInternal<Void> parseCompletionResult(CompletionMessage actual) {
       if (actual.getResultCase() == CompletionMessage.ResultCase.EMPTY) {
         return ReadyResults.empty();
+      } else if (actual.getResultCase() == CompletionMessage.ResultCase.FAILURE) {
+        return ReadyResults.failure(Util.toRestateException(actual.getFailure()));
       }
       return super.parseCompletionResult(actual);
     }

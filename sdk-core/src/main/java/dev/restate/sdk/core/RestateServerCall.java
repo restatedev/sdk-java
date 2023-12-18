@@ -10,6 +10,7 @@ package dev.restate.sdk.core;
 
 import com.google.protobuf.MessageLite;
 import dev.restate.sdk.common.TerminalException;
+import dev.restate.sdk.common.syscalls.ReadyResult;
 import dev.restate.sdk.common.syscalls.SyscallCallback;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
@@ -160,11 +161,21 @@ class RestateServerCall extends ServerCall<MessageLite, MessageLite> {
                         () -> {
                           Objects.requireNonNull(listener);
 
-                          // PollInput can only be result
-                          MessageLite message = deferredValue.toReadyResult().getResult();
+                          final ReadyResult<MessageLite> pollInputReadyResult =
+                              deferredValue.toReadyResult();
 
-                          LOG.trace("Read input message:\n{}", message);
-                          listener.invoke(message);
+                          if (pollInputReadyResult.isSuccess()) {
+                            final MessageLite message = pollInputReadyResult.getResult();
+                            LOG.trace("Read input message:\n{}", message);
+                            listener.invoke(message);
+                          } else {
+                            final TerminalException failure = pollInputReadyResult.getFailure();
+                            this.close(
+                                Status.UNKNOWN
+                                    .withDescription(failure.getMessage())
+                                    .withCause(failure),
+                                new Metadata());
+                          }
                         },
                         this::onError)),
             this::onError));

@@ -15,6 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.google.protobuf.Empty;
 import com.google.protobuf.MessageLiteOrBuilder;
 import dev.restate.generated.service.protocol.Protocol;
+import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.testservices.GreeterGrpc;
 import dev.restate.sdk.core.testservices.GreetingRequest;
 import dev.restate.sdk.core.testservices.GreetingResponse;
@@ -55,7 +56,7 @@ public abstract class SleepTestSuite implements TestDefinitions.TestSuite {
                 inputMessage(GreetingRequest.newBuilder().setName("Till")),
                 Protocol.SleepEntryMessage.newBuilder()
                     .setWakeUpTime(Instant.now().toEpochMilli())
-                    .setResult(Empty.getDefaultInstance())
+                    .setEmpty(Empty.getDefaultInstance())
                     .build())
             .expectingOutput(
                 outputMessage(GreetingResponse.newBuilder().setMessage("Hello").build()))
@@ -81,13 +82,37 @@ public abstract class SleepTestSuite implements TestDefinitions.TestSuite {
                                     (i % 3 == 0)
                                         ? Protocol.SleepEntryMessage.newBuilder()
                                             .setWakeUpTime(Instant.now().toEpochMilli())
-                                            .setResult(Empty.getDefaultInstance())
+                                            .setEmpty(Empty.getDefaultInstance())
                                             .build()
                                         : Protocol.SleepEntryMessage.newBuilder()
                                             .setWakeUpTime(Instant.now().toEpochMilli())
                                             .build()))
                     .toArray(MessageLiteOrBuilder[]::new))
             .expectingOutput(suspensionMessage(1, 2, 4, 5, 7, 8, 10))
-            .named("Sleep 1000 ms sleep completed"));
+            .named("Sleep 1000 ms sleep completed"),
+        testInvocation(this::sleepGreeter, GreeterGrpc.getGreetMethod())
+            .withInput(
+                startMessage(2),
+                inputMessage(GreetingRequest.newBuilder().setName("Till")),
+                Protocol.SleepEntryMessage.newBuilder()
+                    .setWakeUpTime(Instant.now().toEpochMilli())
+                    .setFailure(
+                        Util.toProtocolFailure(TerminalException.Code.CANCELLED, "canceled"))
+                    .build())
+            .expectingOutput(outputMessage(TerminalException.Code.CANCELLED, "canceled"))
+            .named("Failed sleep"),
+        testInvocation(this::sleepGreeter, GreeterGrpc.getGreetMethod())
+            .withInput(
+                startMessage(1),
+                inputMessage(GreetingRequest.newBuilder().setName("Till")),
+                completionMessage(
+                    1, new TerminalException(TerminalException.Code.CANCELLED, "canceled")))
+            .assertingOutput(
+                messageLites -> {
+                  assertThat(messageLites.get(0)).isInstanceOf(Protocol.SleepEntryMessage.class);
+                  assertThat(messageLites.get(1))
+                      .isEqualTo(outputMessage(TerminalException.Code.CANCELLED, "canceled"));
+                })
+            .named("Failing sleep"));
   }
 }

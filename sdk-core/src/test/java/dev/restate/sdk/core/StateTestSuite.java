@@ -10,8 +10,11 @@ package dev.restate.sdk.core;
 
 import static dev.restate.sdk.core.ProtoUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.testInvocation;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.protobuf.Empty;
+import dev.restate.generated.service.protocol.Protocol;
+import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.testservices.GreeterGrpc;
 import dev.restate.sdk.core.testservices.GreetingRequest;
 import dev.restate.sdk.core.testservices.GreetingResponse;
@@ -76,6 +79,26 @@ public abstract class StateTestSuite implements TestDefinitions.TestSuite {
                 getStateMessage("STATE"),
                 outputMessage(GreetingResponse.newBuilder().setMessage("Hello Francesco")))
             .named("Without GetStateEntry and completed with later CompletionFrame"),
+        testInvocation(this::getState, GreeterGrpc.getGreetMethod())
+            .withInput(
+                startMessage(2),
+                inputMessage(GreetingRequest.newBuilder().setName("Till")),
+                getStateMessage("STATE", new TerminalException(TerminalException.Code.CANCELLED)))
+            .expectingOutput(outputMessage(new TerminalException(TerminalException.Code.CANCELLED)))
+            .named("Failed GetStateEntry"),
+        testInvocation(this::getState, GreeterGrpc.getGreetMethod())
+            .withInput(
+                startMessage(1),
+                inputMessage(GreetingRequest.newBuilder().setName("Till")),
+                completionMessage(1, new TerminalException(TerminalException.Code.CANCELLED)))
+            .assertingOutput(
+                messageLites -> {
+                  assertThat(messageLites.get(0)).isInstanceOf(Protocol.GetStateEntryMessage.class);
+                  assertThat(messageLites.get(1))
+                      .isEqualTo(
+                          outputMessage(new TerminalException(TerminalException.Code.CANCELLED)));
+                })
+            .named("Failing GetStateEntry"),
         testInvocation(this::getAndSetState, GreeterGrpc.getGreetMethod())
             .withInput(
                 startMessage(3),

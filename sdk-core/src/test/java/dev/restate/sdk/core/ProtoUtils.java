@@ -98,6 +98,12 @@ public class ProtoUtils {
         .build();
   }
 
+  public static Protocol.PollInputStreamEntryMessage inputMessage(Throwable error) {
+    return Protocol.PollInputStreamEntryMessage.newBuilder()
+        .setFailure(Util.toProtocolFailure(error))
+        .build();
+  }
+
   public static Protocol.OutputStreamEntryMessage outputMessage(MessageLiteOrBuilder value) {
     return Protocol.OutputStreamEntryMessage.newBuilder()
         .setValue(build(value).toByteString())
@@ -119,6 +125,10 @@ public class ProtoUtils {
 
   public static Protocol.GetStateEntryMessage.Builder getStateMessage(String key) {
     return Protocol.GetStateEntryMessage.newBuilder().setKey(ByteString.copyFromUtf8(key));
+  }
+
+  public static Protocol.GetStateEntryMessage.Builder getStateMessage(String key, Throwable error) {
+    return getStateMessage(key).setFailure(Util.toProtocolFailure(error));
   }
 
   public static Protocol.GetStateEntryMessage getStateEmptyMessage(String key) {

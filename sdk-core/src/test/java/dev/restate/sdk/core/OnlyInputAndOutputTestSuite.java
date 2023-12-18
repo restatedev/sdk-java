@@ -12,6 +12,7 @@ import static dev.restate.sdk.core.ProtoUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.TestDefinition;
 import static dev.restate.sdk.core.TestDefinitions.testInvocation;
 
+import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
 import dev.restate.sdk.core.testservices.GreeterGrpc;
 import dev.restate.sdk.core.testservices.GreetingRequest;
@@ -30,7 +31,12 @@ public abstract class OnlyInputAndOutputTestSuite implements TestSuite {
             .withInput(
                 startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Francesco")))
             .expectingOutput(
-                outputMessage(
-                    GreetingResponse.newBuilder().setMessage("Hello Francesco").build())));
+                outputMessage(GreetingResponse.newBuilder().setMessage("Hello Francesco").build())),
+        testInvocation(this::noSyscallsGreeter, GreeterGrpc.getGreetMethod())
+            .withInput(
+                startMessage(1),
+                inputMessage(new TerminalException(TerminalException.Code.CANCELLED)))
+            .expectingOutput(
+                outputMessage(new TerminalException(TerminalException.Code.CANCELLED))));
   }
 }
