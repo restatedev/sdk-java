@@ -8,9 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import io.grpc.Metadata;
-import io.grpc.ServerCall;
-import io.grpc.Status;
+import io.grpc.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -24,50 +22,75 @@ class GrpcServerCallListenerAdaptor<ReqT, RespT> implements RestateServerCallLis
 
   private static final Logger LOG = LogManager.getLogger(GrpcServerCallListenerAdaptor.class);
 
+  private final Context context;
   private final ServerCall<ReqT, RespT> serverCall;
-
   private final ServerCall.Listener<ReqT> delegate;
 
   GrpcServerCallListenerAdaptor(
-      ServerCall.Listener<ReqT> delegate, ServerCall<ReqT, RespT> serverCall) {
-    this.delegate = delegate;
+      Context context,
+      ServerCall<ReqT, RespT> serverCall,
+      Metadata headers,
+      ServerCallHandler<ReqT, RespT> next) {
+    this.context = context;
     this.serverCall = serverCall;
+
+    // This emulates Contexts.interceptCall.
+    // We need it because some code generator depends on the fact that startCall already has the
+    // context available
+    Context previous = this.context.attach();
+    try {
+      this.delegate = next.startCall(serverCall, headers);
+    } finally {
+      this.context.detach(previous);
+    }
   }
 
   @Override
-  public void onMessageAndHalfClose(ReqT message) {
+  public void invoke(ReqT message) {
+    Context previous = context.attach();
     try {
       delegate.onMessage(message);
       delegate.onHalfClose();
     } catch (Throwable e) {
       closeWithException(e);
+    } finally {
+      context.detach(previous);
     }
   }
 
   @Override
-  public void onCancel() {
+  public void cancel() {
+    Context previous = context.attach();
     try {
       delegate.onCancel();
     } catch (Throwable e) {
       closeWithException(e);
+    } finally {
+      context.detach(previous);
     }
   }
 
   @Override
-  public void onComplete() {
+  public void close() {
+    Context previous = context.attach();
     try {
       delegate.onComplete();
     } catch (Throwable e) {
       closeWithException(e);
+    } finally {
+      context.detach(previous);
     }
   }
 
   @Override
-  public void onReady() {
+  public void listenerReady() {
+    Context previous = context.attach();
     try {
       delegate.onReady();
     } catch (Throwable e) {
       closeWithException(e);
+    } finally {
+      context.detach(previous);
     }
   }
 

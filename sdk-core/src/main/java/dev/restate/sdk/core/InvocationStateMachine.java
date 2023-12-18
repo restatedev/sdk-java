@@ -33,18 +33,12 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   private static final Logger LOG = LogManager.getLogger(InvocationStateMachine.class);
 
-  enum State {
-    WAITING_START,
-    REPLAYING,
-    PROCESSING,
-    CLOSED;
-  }
-
   private final String serviceName;
+  private final String fullyQualifiedMethodName;
   private final Span span;
-  private final Consumer<State> transitionStateObserver;
+  private final Consumer<InvocationState> transitionStateObserver;
 
-  private State state = State.WAITING_START;
+  private volatile InvocationState invocationState = InvocationState.WAITING_START;
 
   // Used for the side effect guard
   private boolean insideSideEffect = false;
@@ -68,8 +62,13 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   private Flow.Subscription inputSubscription;
   private final CallbackHandle<Consumer<InvocationId>> afterStartCallback;
 
-  InvocationStateMachine(String serviceName, Span span, Consumer<State> transitionStateObserver) {
+  InvocationStateMachine(
+      String serviceName,
+      String fullyQualifiedMethodName,
+      Span span,
+      Consumer<InvocationState> transitionStateObserver) {
     this.serviceName = serviceName;
+    this.fullyQualifiedMethodName = fullyQualifiedMethodName;
     this.span = span;
     this.transitionStateObserver = transitionStateObserver;
 
@@ -92,6 +91,14 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   public String debugId() {
     return debugId;
+  }
+
+  public InvocationState getInvocationState() {
+    return this.invocationState;
+  }
+
+  public String getFullyQualifiedMethodName() {
+    return this.fullyQualifiedMethodName;
   }
 
   // --- Output Publisher impl
@@ -122,7 +129,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   public void onNext(InvocationFlow.InvocationInput invocationInput) {
     MessageLite msg = invocationInput.message();
     LOG.trace("Received input message {} {}", msg.getClass(), msg);
-    if (this.state == State.WAITING_START) {
+    if (this.invocationState == InvocationState.WAITING_START) {
       this.onStart(msg);
     } else if (msg instanceof Protocol.CompletionMessage) {
       // We check the instance rather than the state, because the user code might still be
@@ -189,9 +196,9 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     }
 
     // Execute state transition
-    this.transitionState(State.REPLAYING);
+    this.transitionState(InvocationState.REPLAYING);
     if (this.entriesToReplay == 0) {
-      this.transitionState(State.PROCESSING);
+      this.transitionState(InvocationState.PROCESSING);
     }
 
     this.inputSubscription.request(Long.MAX_VALUE);
@@ -201,8 +208,8 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   }
 
   void close() {
-    if (this.state != State.CLOSED) {
-      this.transitionState(State.CLOSED);
+    if (this.invocationState != InvocationState.CLOSED) {
+      this.transitionState(InvocationState.CLOSED);
       LOG.debug("Closing state machine");
 
       // Cancel inputSubscription and complete outputSubscriber
@@ -223,8 +230,8 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   }
 
   void fail(Throwable cause) {
-    if (this.state != State.CLOSED) {
-      this.transitionState(State.CLOSED);
+    if (this.invocationState != InvocationState.CLOSED) {
+      this.transitionState(InvocationState.CLOSED);
       LOG.debug("Closing state machine with failure", cause);
 
       // Cancel inputSubscription and complete outputSubscriber
@@ -262,9 +269,9 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       Entries.CompletableJournalEntry<E, T> journalEntry,
       SyscallCallback<DeferredResult<T>> callback) {
     checkInsideSideEffectGuard();
-    if (this.state == State.CLOSED) {
+    if (this.invocationState == InvocationState.CLOSED) {
       callback.onCancel(AbortedExecutionException.INSTANCE);
-    } else if (this.state == State.REPLAYING) {
+    } else if (this.invocationState == InvocationState.REPLAYING) {
       // Retrieve the entry
       this.readEntry(
           (entryIndex, actualEntryMessage) -> {
@@ -290,7 +297,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
             }
           },
           callback::onCancel);
-    } else if (this.state == State.PROCESSING) {
+    } else if (this.invocationState == InvocationState.PROCESSING) {
       // Try complete with local storage
       E entryToWrite =
           journalEntry.tryCompleteWithUserStateStorage(expectedEntryMessage, userStateStore);
@@ -335,9 +342,9 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       Entries.JournalEntry<E> journalEntry,
       SyscallCallback<Void> callback) {
     checkInsideSideEffectGuard();
-    if (this.state == State.CLOSED) {
+    if (this.invocationState == InvocationState.CLOSED) {
       callback.onCancel(AbortedExecutionException.INSTANCE);
-    } else if (this.state == State.REPLAYING) {
+    } else if (this.invocationState == InvocationState.REPLAYING) {
       // Retrieve the entry
       this.readEntry(
           (entryIndex, actualEntryMessage) -> {
@@ -346,7 +353,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
             callback.onSuccess(null);
           },
           callback::onCancel);
-    } else if (this.state == State.PROCESSING) {
+    } else if (this.invocationState == InvocationState.PROCESSING) {
       if (span.isRecording()) {
         journalEntry.trace(expectedEntryMessage, span);
       }
@@ -367,9 +374,9 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   void enterSideEffectBlock(EnterSideEffectSyscallCallback callback) {
     checkInsideSideEffectGuard();
-    if (this.state == State.CLOSED) {
+    if (this.invocationState == InvocationState.CLOSED) {
       callback.onCancel(AbortedExecutionException.INSTANCE);
-    } else if (this.state == State.REPLAYING) {
+    } else if (this.invocationState == InvocationState.REPLAYING) {
       // Retrieve the entry
       this.readEntry(
           (entryIndex, msg) -> {
@@ -379,7 +386,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
             completeSideEffectCallbackWithEntry((Java.SideEffectEntryMessage) msg, callback);
           },
           callback::onCancel);
-    } else if (this.state == State.PROCESSING) {
+    } else if (this.invocationState == InvocationState.PROCESSING) {
       insideSideEffect = true;
       if (span.isRecording()) {
         span.addEvent("Enter SideEffect");
@@ -394,13 +401,13 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   void exitSideEffectBlock(
       Java.SideEffectEntryMessage sideEffectEntry, ExitSideEffectSyscallCallback callback) {
     this.insideSideEffect = false;
-    if (this.state == State.CLOSED) {
+    if (this.invocationState == InvocationState.CLOSED) {
       callback.onCancel(AbortedExecutionException.INSTANCE);
-    } else if (this.state == State.REPLAYING) {
+    } else if (this.invocationState == InvocationState.REPLAYING) {
       throw new IllegalStateException(
           "exitSideEffect has been invoked when the state machine is in replaying mode. "
               + "This is probably an SDK bug and might be caused by a missing enterSideEffectBlock invocation before exitSideEffectBlock.");
-    } else if (this.state == State.PROCESSING) {
+    } else if (this.invocationState == InvocationState.PROCESSING) {
       if (span.isRecording()) {
         span.addEvent("Exit SideEffect");
       }
@@ -541,7 +548,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     // Calling .await() on a combinator deferred within a side effect is not allowed
     //  as resolving it creates or read a journal entry.
     checkInsideSideEffectGuard();
-    if (Objects.equals(this.state, State.REPLAYING)) {
+    if (Objects.equals(this.invocationState, InvocationState.REPLAYING)) {
       // Retrieve the CombinatorAwaitableEntryMessage
       this.readEntry(
           (entryIndex, actualMsg) -> {
@@ -554,7 +561,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
             callback.onSuccess(null);
           },
           callback::onCancel);
-    } else if (this.state == State.PROCESSING) {
+    } else if (this.invocationState == InvocationState.PROCESSING) {
       // Create map of singles to resolve
       Map<Integer, DeferredResults.ResolvableSingleDeferredResult<?>> resolvableSingles =
           new HashMap<>();
@@ -657,24 +664,25 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   // --- Internal callback
 
-  private void transitionState(State newState) {
-    if (this.state == State.CLOSED) {
+  private void transitionState(InvocationState newInvocationState) {
+    if (this.invocationState == InvocationState.CLOSED) {
       // Cannot move out of the closed state
       return;
     }
-    LOG.debug("Transitioning {} to {}", this, newState);
-    this.state = newState;
-    this.transitionStateObserver.accept(newState);
+    LOG.debug("Transitioning {} to {}", this, newInvocationState);
+    this.invocationState = newInvocationState;
+    this.transitionStateObserver.accept(newInvocationState);
   }
 
   private void incrementCurrentIndex() {
     this.currentJournalIndex++;
 
-    if (currentJournalIndex >= entriesToReplay && this.state == State.REPLAYING) {
+    if (currentJournalIndex >= entriesToReplay
+        && this.invocationState == InvocationState.REPLAYING) {
       if (!this.incomingEntriesStateMachine.isEmpty()) {
         throw new IllegalStateException("Entries queue should be empty at this point");
       }
-      this.transitionState(State.PROCESSING);
+      this.transitionState(InvocationState.PROCESSING);
     }
   }
 
@@ -734,8 +742,8 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
         + "serviceName='"
         + serviceName
         + '\''
-        + ", state="
-        + state
+        + ", invocationState="
+        + invocationState
         + ", id="
         + debugId
         + '}';

@@ -32,8 +32,6 @@ import org.apache.logging.log4j.ThreadContext;
 public class RestateGrpcServer {
 
   private static final Logger LOG = LogManager.getLogger(RestateGrpcServer.class);
-  static final Context.Key<String> SERVICE_METHOD =
-      Context.key("restate.dev/logging_service_method");
 
   private final Map<String, ServerServiceDefinition> services;
   private final Tracer tracer;
@@ -64,9 +62,10 @@ public class RestateGrpcServer {
     if (svc == null) {
       throw ProtocolException.methodNotFound(serviceName, methodName);
     }
-    String serviceMethodName = serviceName + "/" + methodName;
+    String fullyQualifiedServiceMethod = serviceName + "/" + methodName;
     ServerMethodDefinition<MessageLite, MessageLite> method =
-        (ServerMethodDefinition<MessageLite, MessageLite>) svc.getMethod(serviceMethodName);
+        (ServerMethodDefinition<MessageLite, MessageLite>)
+            svc.getMethod(fullyQualifiedServiceMethod);
     if (method == null) {
       throw ProtocolException.methodNotFound(serviceName, methodName);
     }
@@ -83,12 +82,15 @@ public class RestateGrpcServer {
             .startSpan();
 
     // Setup logging context
-    loggingContextSetter.setServiceMethod(serviceMethodName);
+    loggingContextSetter.setServiceMethod(fullyQualifiedServiceMethod);
 
     // Instantiate state machine, syscall and grpc bridge
     InvocationStateMachine stateMachine =
         new InvocationStateMachine(
-            serviceName, span, s -> loggingContextSetter.setInvocationStatus(s.toString()));
+            serviceName,
+            fullyQualifiedServiceMethod,
+            span,
+            s -> loggingContextSetter.setInvocationStatus(s.toString()));
     SyscallsInternal syscalls =
         syscallExecutor != null
             ? ExecutorSwitchingWrappers.syscalls(new SyscallsImpl(stateMachine), syscallExecutor)
@@ -115,18 +117,19 @@ public class RestateGrpcServer {
               // Set invocation id in logging context
               loggingContextSetter.setInvocationId(invocationId.toString());
 
-              // Create the listener and create the decorators chain
-              ServerCall.Listener<MessageLite> grpcListener =
-                  Contexts.interceptCall(
-                      Context.current()
-                          .withValue(SERVICE_METHOD, serviceMethodName)
-                          .withValue(InvocationId.INVOCATION_ID_KEY, invocationId)
-                          .withValue(Syscalls.SYSCALLS_KEY, syscalls),
-                      bridge,
-                      new Metadata(),
-                      method.getServerCallHandler());
+              // This gRPC context will be propagated to the user thread.
+              // Note: from now on we cannot modify this context anymore!
+              io.grpc.Context context =
+                  Context.current()
+                      .withValue(InvocationId.INVOCATION_ID_KEY, invocationId)
+                      .withValue(Syscalls.SYSCALLS_KEY, syscalls);
+
+              // Create the listener
               RestateServerCallListener<MessageLite> restateListener =
-                  new GrpcServerCallListenerAdaptor<>(grpcListener, bridge);
+                  new GrpcServerCallListenerAdaptor<>(
+                      context, bridge, new Metadata(), method.getServerCallHandler());
+
+              // Wrap in the executor switcher, if needed
               if (serverCallListenerExecutor != null) {
                 restateListener =
                     ExecutorSwitchingWrappers.serverCallListener(
@@ -205,23 +208,23 @@ public class RestateGrpcServer {
 
     String INVOCATION_ID_KEY = "restateInvocationId";
     String SERVICE_METHOD_KEY = "restateServiceMethod";
-    String SERVICE_INVOCATION_STATUS = "restateInvocationStatus";
+    String SERVICE_INVOCATION_STATUS_KEY = "restateInvocationStatus";
 
     LoggingContextSetter THREAD_LOCAL_INSTANCE =
         new LoggingContextSetter() {
           @Override
           public void setServiceMethod(String serviceMethod) {
-            ThreadContext.put(INVOCATION_ID_KEY, serviceMethod);
+            ThreadContext.put(SERVICE_METHOD_KEY, serviceMethod);
           }
 
           @Override
           public void setInvocationId(String id) {
-            ThreadContext.put(SERVICE_METHOD_KEY, id);
+            ThreadContext.put(INVOCATION_ID_KEY, id);
           }
 
           @Override
           public void setInvocationStatus(String invocationStatus) {
-            ThreadContext.put(SERVICE_INVOCATION_STATUS, invocationStatus);
+            ThreadContext.put(SERVICE_INVOCATION_STATUS_KEY, invocationStatus);
           }
         };
 

@@ -30,7 +30,7 @@ dependencyResolutionManagement {
       version("protobuf", "3.24.3")
       version("grpc", "1.58.0")
       version("grpckt", "1.4.0")
-      version("log4j", "2.20.0")
+      version("log4j", "2.22.0")
       version("opentelemetry", "1.30.1")
 
       library("protoc", "com.google.protobuf", "protoc").versionRef("protobuf")

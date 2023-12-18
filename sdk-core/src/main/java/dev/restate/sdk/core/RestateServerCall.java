@@ -55,7 +55,7 @@ class RestateServerCall extends ServerCall<MessageLite, MessageLite> {
 
   void setListener(RestateServerCallListener<MessageLite> listener) {
     this.listener = listener;
-    this.listener.onReady();
+    this.listener.listenerReady();
 
     if (requestCount > 0) {
       this.pollInput();
@@ -90,11 +90,11 @@ class RestateServerCall extends ServerCall<MessageLite, MessageLite> {
   @Override
   public void close(Status status, Metadata trailers) {
     if (status.isOk() || Util.containsSuspendedException(status.getCause())) {
-      listener.onComplete();
+      listener.close();
       syscalls.close();
     } else {
       // Let's cancel the listener first
-      listener.onCancel();
+      listener.cancel();
 
       if (Util.isTerminalException(status.getCause())) {
         syscalls.writeOutput(
@@ -165,7 +165,7 @@ class RestateServerCall extends ServerCall<MessageLite, MessageLite> {
                           MessageLite message = deferredValue.toReadyResult().getResult();
 
                           LOG.trace("Read input message:\n{}", message);
-                          listener.onMessageAndHalfClose(message);
+                          listener.invoke(message);
                         },
                         this::onError)),
             this::onError));
