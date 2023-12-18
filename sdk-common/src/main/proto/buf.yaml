@@ -1,8 +1,0 @@
-version: v1
-name: buf.build/restatedev/proto
-breaking:
-  use:
-    - FILE
-lint:
-  use:
-    - DEFAULT
