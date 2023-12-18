@@ -162,7 +162,7 @@ public class ManualRestateRunner
   public void close() {
     runtimeContainer.stop();
     LOG.debug("Stopped Restate container");
-    server.close().toCompletionStage().toCompletableFuture();
+    server.close().toCompletionStage().toCompletableFuture().join();
     LOG.debug("Stopped Embedded Service endpoint server");
   }
 

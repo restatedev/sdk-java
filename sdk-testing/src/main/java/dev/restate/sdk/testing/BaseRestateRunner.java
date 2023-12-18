@@ -32,8 +32,8 @@ abstract class BaseRestateRunner implements ParameterResolver {
         || (parameterContext.isAnnotated(RestateGrpcChannel.class)
             && ManagedChannel.class.isAssignableFrom(parameterContext.getParameter().getType()))
         || (parameterContext.isAnnotated(RestateURL.class)
-                && String.class.isAssignableFrom(parameterContext.getParameter().getType())
-            || URL.class.isAssignableFrom(parameterContext.getParameter().getType()));
+            && (String.class.isAssignableFrom(parameterContext.getParameter().getType())
+                || URL.class.isAssignableFrom(parameterContext.getParameter().getType())));
   }
 
   @Override

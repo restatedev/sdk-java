@@ -16,7 +16,7 @@ class KotlinCounterService :
     RestateKtService {
 
   override suspend fun get(request: CounterRequest): GetResponse {
-    val count = (restateContext().get(JavaCounterService.COUNTER) ?: 0) + 1
+    (restateContext().get(JavaCounterService.COUNTER) ?: 0) + 1
 
     throw IllegalStateException("We shouldn't reach this point")
   }

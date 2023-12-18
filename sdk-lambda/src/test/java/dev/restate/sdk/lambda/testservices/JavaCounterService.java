@@ -26,7 +26,7 @@ public class JavaCounterService extends JavaCounterGrpc.JavaCounterImplBase
 
   @Override
   public void get(CounterRequest request, StreamObserver<GetResponse> responseObserver) {
-    var count = restateContext().get(COUNTER).orElse(0L) + 1;
+    restateContext().get(COUNTER);
 
     throw new IllegalStateException("We shouldn't reach this point");
   }

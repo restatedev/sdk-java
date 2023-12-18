@@ -22,7 +22,6 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageLite;
 import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.core.MessageHeader;
 import dev.restate.sdk.core.ProtoUtils;
 import dev.restate.sdk.lambda.testservices.CounterRequest;
 import dev.restate.sdk.lambda.testservices.JavaCounterGrpc;
@@ -125,23 +124,6 @@ class LambdaHandlerTest {
       msg.writeTo(outputStream);
     }
     return outputStream.toByteArray();
-  }
-
-  private static List<MessageLite> deserializeEntries(byte[] array) throws IOException {
-    List<MessageLite> msgs = new ArrayList<>();
-    ByteBuffer buffer = ByteBuffer.wrap(array);
-    while (buffer.hasRemaining()) {
-      MessageHeader header = MessageHeader.parse(buffer.getLong());
-
-      // Prepare the ByteBuffer and pass it to the Protobuf message parser
-      ByteBuffer messageBuffer = buffer.slice();
-      messageBuffer.limit(header.getLength());
-      msgs.add(header.getType().messageParser().parseFrom(messageBuffer));
-
-      // Move the buffer after this message
-      buffer.position(buffer.position() + header.getLength());
-    }
-    return msgs;
   }
 
   private Context mockContext() {

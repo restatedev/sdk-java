@@ -105,16 +105,16 @@ public abstract class CoreSerdes {
           boxedN -> {
             int n = boxedN;
             byte[] encodedValue = new byte[Integer.SIZE / Byte.SIZE];
-            encodedValue[3] = (byte) (n >> Byte.SIZE * 3);
-            encodedValue[2] = (byte) (n >> Byte.SIZE * 2);
+            encodedValue[3] = (byte) (n >> (Byte.SIZE * 3));
+            encodedValue[2] = (byte) (n >> (Byte.SIZE * 2));
             encodedValue[1] = (byte) (n >> Byte.SIZE);
             encodedValue[0] = (byte) n;
             return encodedValue;
           },
           encodedValue -> {
             int n = 0;
-            n |= (encodedValue[3] & 0xFF) << Byte.SIZE * 3;
-            n |= (encodedValue[2] & 0xFF) << Byte.SIZE * 2;
+            n |= (encodedValue[3] & 0xFF) << (Byte.SIZE * 3);
+            n |= (encodedValue[2] & 0xFF) << (Byte.SIZE * 2);
             n |= (encodedValue[1] & 0xFF) << Byte.SIZE;
             n |= encodedValue[0] & 0xFF;
             return n;
@@ -125,24 +125,24 @@ public abstract class CoreSerdes {
           boxedN -> {
             long n = boxedN;
             byte[] encodedValue = new byte[Long.SIZE / Byte.SIZE];
-            encodedValue[7] = (byte) (n >> Byte.SIZE * 7);
-            encodedValue[6] = (byte) (n >> Byte.SIZE * 6);
-            encodedValue[5] = (byte) (n >> Byte.SIZE * 5);
-            encodedValue[4] = (byte) (n >> Byte.SIZE * 4);
-            encodedValue[3] = (byte) (n >> Byte.SIZE * 3);
-            encodedValue[2] = (byte) (n >> Byte.SIZE * 2);
+            encodedValue[7] = (byte) (n >> (Byte.SIZE * 7));
+            encodedValue[6] = (byte) (n >> (Byte.SIZE * 6));
+            encodedValue[5] = (byte) (n >> (Byte.SIZE * 5));
+            encodedValue[4] = (byte) (n >> (Byte.SIZE * 4));
+            encodedValue[3] = (byte) (n >> (Byte.SIZE * 3));
+            encodedValue[2] = (byte) (n >> (Byte.SIZE * 2));
             encodedValue[1] = (byte) (n >> Byte.SIZE);
             encodedValue[0] = (byte) n;
             return encodedValue;
           },
           encodedValue -> {
             long n = 0;
-            n |= ((long) (encodedValue[7] & 0xFF) << Byte.SIZE * 7);
-            n |= ((long) (encodedValue[6] & 0xFF) << Byte.SIZE * 6);
-            n |= ((long) (encodedValue[5] & 0xFF) << Byte.SIZE * 5);
-            n |= ((long) (encodedValue[4] & 0xFF) << Byte.SIZE * 4);
-            n |= ((long) (encodedValue[3] & 0xFF) << Byte.SIZE * 3);
-            n |= ((encodedValue[2] & 0xFF) << Byte.SIZE * 2);
+            n |= ((long) (encodedValue[7] & 0xFF) << (Byte.SIZE * 7));
+            n |= ((long) (encodedValue[6] & 0xFF) << (Byte.SIZE * 6));
+            n |= ((long) (encodedValue[5] & 0xFF) << (Byte.SIZE * 5));
+            n |= ((long) (encodedValue[4] & 0xFF) << (Byte.SIZE * 4));
+            n |= ((long) (encodedValue[3] & 0xFF) << (Byte.SIZE * 3));
+            n |= ((encodedValue[2] & 0xFF) << (Byte.SIZE * 2));
             n |= ((encodedValue[1] & 0xFF) << Byte.SIZE);
             n |= (encodedValue[0] & 0xFF);
             return n;

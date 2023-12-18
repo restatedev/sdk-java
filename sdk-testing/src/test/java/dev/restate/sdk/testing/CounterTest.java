@@ -20,7 +20,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 class CounterTest {
 
   @RegisterExtension
-  private static final RestateRunner restateRunner =
+  private static final RestateRunner RESTATE_RUNNER =
       RestateRunnerBuilder.create()
           .withRestateContainerImage(
               "ghcr.io/restatedev/restate:main") // test against the latest main Restate image
