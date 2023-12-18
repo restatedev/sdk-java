@@ -742,7 +742,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
         + "serviceName='"
         + serviceName
         + '\''
-        + ", state="
+        + ", invocationState="
         + invocationState
         + ", id="
         + debugId

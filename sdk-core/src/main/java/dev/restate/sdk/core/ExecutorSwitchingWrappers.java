@@ -53,7 +53,7 @@ class ExecutorSwitchingWrappers {
 
     // A bit of explanation why the following methods are not executed on the user executor.
     //
-    // The listener methods onReady/onCancel/onComplete are used purely for notification reasons,
+    // The listener methods listenerReady/cancel/close are used purely for notification reasons,
     // they don't execute any user code.
     //
     // Running them in the userExecutor can also be problematic if the listener
