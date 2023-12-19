@@ -89,13 +89,12 @@ class RestateServerCall extends ServerCall<MessageLite, MessageLite> {
 
   @Override
   public void close(Status status, Metadata trailers) {
+    // Let's close the listener first
+    listener.close();
+
     if (status.isOk() || Util.containsSuspendedException(status.getCause())) {
-      listener.close();
       syscalls.close();
     } else {
-      // Let's cancel the listener first
-      listener.cancel();
-
       if (Util.isTerminalException(status.getCause())) {
         syscalls.writeOutput(
             (TerminalException) status.getCause(),
