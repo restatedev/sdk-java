@@ -111,7 +111,7 @@ public class RestateGrpcServer {
 
       @Override
       public void start() {
-        LOG.debug("Start processing call to {}/{}", serviceName, methodName);
+        LOG.info("Start processing invocation");
         stateMachine.start(
             invocationId -> {
               // Set invocation id in logging context
