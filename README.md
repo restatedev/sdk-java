@@ -346,9 +346,17 @@ appender.console.name = consoleLogger
 appender.console.layout.type = PatternLayout
 appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss} %-5p %notEmpty{[%X{restateServiceMethod}]}%notEmpty{[%X{restateInvocationId}]} %c - %m%n
 
+# Filter out logging during replay
+appender.console.filter.replay.type = ContextMapFilter
+appender.console.filter.replay.onMatch = DENY
+appender.console.filter.replay.onMismatch = NEUTRAL
+appender.console.filter.replay.0.type = KeyValuePair
+appender.console.filter.replay.0.key = restateInvocationStatus
+appender.console.filter.replay.0.value = REPLAYING
+
 # Restate logs to debug level
 logger.app.name = dev.restate
-logger.app.level = debug
+logger.app.level = info
 logger.app.additivity = false
 logger.app.appenderRef.console.ref = consoleLogger
 
