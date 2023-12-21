@@ -29,15 +29,15 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.ThreadContext;
 
-public class RestateGrpcServer {
+public class RestateEndpoint {
 
-  private static final Logger LOG = LogManager.getLogger(RestateGrpcServer.class);
+  private static final Logger LOG = LogManager.getLogger(RestateEndpoint.class);
 
   private final Map<String, ServerServiceDefinition> services;
   private final Tracer tracer;
   private final ServiceDiscoveryHandler serviceDiscoveryHandler;
 
-  private RestateGrpcServer(
+  private RestateEndpoint(
       Discovery.ProtocolMode protocolMode,
       Map<String, ServerServiceDefinition> services,
       Tracer tracer) {
@@ -186,8 +186,8 @@ public class RestateGrpcServer {
       return this;
     }
 
-    public RestateGrpcServer build() {
-      return new RestateGrpcServer(
+    public RestateEndpoint build() {
+      return new RestateEndpoint(
           this.protocolMode,
           this.services.stream()
               .collect(
@@ -201,8 +201,8 @@ public class RestateGrpcServer {
    * Interface to abstract setting the logging context variables.
    *
    * <p>In classic multithreaded environments, you can just use {@link
-   * LoggingContextSetter#THREAD_LOCAL_INSTANCE}, though the caller of {@link RestateGrpcServer}
-   * must take care of the cleanup of the thread local map.
+   * LoggingContextSetter#THREAD_LOCAL_INSTANCE}, though the caller of {@link RestateEndpoint} must
+   * take care of the cleanup of the thread local map.
    */
   public interface LoggingContextSetter {
 

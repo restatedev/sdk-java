@@ -17,7 +17,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.sdk.core.InvocationHandler;
 import dev.restate.sdk.core.ProtocolException;
-import dev.restate.sdk.core.RestateGrpcServer;
+import dev.restate.sdk.core.RestateEndpoint;
 import io.grpc.Status;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.context.propagation.TextMapGetter;
@@ -59,11 +59,11 @@ public final class RestateLambdaEndpoint {
         }
       };
 
-  private final RestateGrpcServer restateGrpcServer;
+  private final RestateEndpoint restateEndpoint;
   private final OpenTelemetry openTelemetry;
 
-  RestateLambdaEndpoint(RestateGrpcServer restateGrpcServer, OpenTelemetry openTelemetry) {
-    this.restateGrpcServer = restateGrpcServer;
+  RestateLambdaEndpoint(RestateEndpoint restateEndpoint, OpenTelemetry openTelemetry) {
+    this.restateEndpoint = restateEndpoint;
     this.openTelemetry = openTelemetry;
   }
 
@@ -118,11 +118,11 @@ public final class RestateLambdaEndpoint {
     InvocationHandler handler;
     try {
       handler =
-          this.restateGrpcServer.resolve(
+          this.restateEndpoint.resolve(
               service,
               method,
               otelContext,
-              RestateGrpcServer.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
+              RestateEndpoint.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
               null,
               null);
     } catch (ProtocolException e) {
@@ -169,7 +169,7 @@ public final class RestateLambdaEndpoint {
     }
 
     final Discovery.ServiceDiscoveryResponse discoveryResponse =
-        this.restateGrpcServer.handleDiscoveryRequest(discoveryRequest);
+        this.restateEndpoint.handleDiscoveryRequest(discoveryRequest);
 
     final APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent();
     response.setHeaders(DISCOVER_RESPONSE_HEADERS);

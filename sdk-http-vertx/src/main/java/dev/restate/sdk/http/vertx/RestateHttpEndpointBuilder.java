@@ -11,7 +11,7 @@ package dev.restate.sdk.http.vertx;
 import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.sdk.common.BlockingService;
 import dev.restate.sdk.common.NonBlockingService;
-import dev.restate.sdk.core.RestateGrpcServer;
+import dev.restate.sdk.core.RestateEndpoint;
 import io.grpc.ServerInterceptor;
 import io.grpc.ServerInterceptors;
 import io.grpc.ServerServiceDefinition;
@@ -46,8 +46,8 @@ public class RestateHttpEndpointBuilder {
   private static final Logger LOG = LogManager.getLogger(RestateHttpEndpointBuilder.class);
 
   private final Vertx vertx;
-  private final RestateGrpcServer.Builder restateGrpcServerBuilder =
-      RestateGrpcServer.newBuilder(Discovery.ProtocolMode.BIDI_STREAM);
+  private final RestateEndpoint.Builder restateGrpcServerBuilder =
+      RestateEndpoint.newBuilder(Discovery.ProtocolMode.BIDI_STREAM);
   private final Executor defaultExecutor = Executors.newCachedThreadPool();
   private final HashMap<String, Executor> blockingServices = new HashMap<>();
   private OpenTelemetry openTelemetry = OpenTelemetry.noop();

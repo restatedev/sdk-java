@@ -40,9 +40,9 @@ public final class MockMultiThreaded implements TestDefinitions.TestExecutor {
     ServerServiceDefinition svc = definition.getService().bindService();
 
     // Prepare server
-    RestateGrpcServer.Builder builder =
-        RestateGrpcServer.newBuilder(Discovery.ProtocolMode.BIDI_STREAM).withService(svc);
-    RestateGrpcServer server = builder.build();
+    RestateEndpoint.Builder builder =
+        RestateEndpoint.newBuilder(Discovery.ProtocolMode.BIDI_STREAM).withService(svc);
+    RestateEndpoint server = builder.build();
 
     // Start invocation
     InvocationHandler handler =
@@ -50,7 +50,7 @@ public final class MockMultiThreaded implements TestDefinitions.TestExecutor {
             svc.getServiceDescriptor().getName(),
             definition.getMethod(),
             io.opentelemetry.context.Context.current(),
-            RestateGrpcServer.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
+            RestateEndpoint.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
             syscallsExecutor,
             userExecutor);
 
