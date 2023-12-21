@@ -45,7 +45,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   // Obtained after WAITING_START
   private ByteString id;
-  private String debugId;
+  private InvocationIdImpl invocationId;
   private int entriesToReplay;
   private UserStateStore userStateStore;
 
@@ -61,6 +61,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   private Flow.Subscriber<? super MessageLite> outputSubscriber;
   private Flow.Subscription inputSubscription;
   private final CallbackHandle<Consumer<InvocationId>> afterStartCallback;
+  private final CallbackHandle<Consumer<Throwable>> closeCallback;
 
   InvocationStateMachine(
       String serviceName,
@@ -77,6 +78,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     this.sideEffectAckStateMachine = new SideEffectAckStateMachine();
 
     this.afterStartCallback = new CallbackHandle<>();
+    this.closeCallback = new CallbackHandle<>();
   }
 
   // --- Getters
@@ -89,8 +91,8 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     return id;
   }
 
-  public String debugId() {
-    return debugId;
+  public InvocationId invocationId() {
+    return this.invocationId;
   }
 
   public InvocationState getInvocationState() {
@@ -178,7 +180,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     // Unpack the StartMessage
     Protocol.StartMessage startMessage = (Protocol.StartMessage) msg;
     this.id = startMessage.getId();
-    this.debugId = startMessage.getDebugId();
+    this.invocationId = new InvocationIdImpl(startMessage.getDebugId());
     this.entriesToReplay = startMessage.getKnownEntries();
 
     // Set up the state cache
@@ -192,7 +194,8 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
                         Protocol.StartMessage.StateEntry::getValue)));
 
     if (this.span.isRecording()) {
-      span.addEvent("Start", Attributes.of(Tracing.RESTATE_INVOCATION_ID, this.debugId));
+      span.addEvent(
+          "Start", Attributes.of(Tracing.RESTATE_INVOCATION_ID, startMessage.getDebugId()));
     }
 
     // Execute state transition
@@ -204,7 +207,13 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     this.inputSubscription.request(Long.MAX_VALUE);
 
     // Now execute the callback after start
-    this.afterStartCallback.consume(cb -> cb.accept(new InvocationIdImpl(this.debugId)));
+    this.afterStartCallback.consume(cb -> cb.accept(this.invocationId));
+  }
+
+  // --- Close state machine
+
+  void registerCloseCallback(Consumer<Throwable> c) {
+    this.closeCallback.set(c);
   }
 
   void end() {
@@ -255,6 +264,9 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       this.sideEffectAckStateMachine.abort(cause);
       this.incomingEntriesStateMachine.abort(cause);
       this.span.end();
+
+      // Invoke close callback if any
+      this.closeCallback.consume(cb -> cb.accept(cause));
     }
   }
 
@@ -726,7 +738,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
         + ", invocationState="
         + invocationState
         + ", id="
-        + debugId
+        + invocationId
         + '}';
   }
 }
