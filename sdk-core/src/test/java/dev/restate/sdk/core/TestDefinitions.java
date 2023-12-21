@@ -268,9 +268,9 @@ public final class TestDefinitions {
             .last()
             .isNotNull()
             .isInstanceOfAny(
-                Protocol.OutputStreamEntryMessage.class,
+                Protocol.ErrorMessage.class,
                 Protocol.SuspensionMessage.class,
-                Protocol.ErrorMessage.class);
+                Protocol.EndMessage.class);
       };
     }
   }

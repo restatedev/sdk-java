@@ -44,7 +44,8 @@ public abstract class EagerStateTestSuite implements TestSuite {
     return Stream.of(
         testInvocation(this::getEmpty, GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1).setPartialState(false), INPUT_TILL)
-            .expectingOutput(getStateEmptyMessage("STATE"), outputMessage(greetingResponse("true")))
+            .expectingOutput(
+                getStateEmptyMessage("STATE"), outputMessage(greetingResponse("true")), END_MESSAGE)
             .named("With complete state"),
         testInvocation(this::getEmpty, GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1).setPartialState(true), INPUT_TILL)
@@ -53,15 +54,15 @@ public abstract class EagerStateTestSuite implements TestSuite {
         testInvocation(this::getEmpty, GreeterGrpc.getGreetMethod())
             .withInput(
                 startMessage(2).setPartialState(true), INPUT_TILL, getStateEmptyMessage("STATE"))
-            .expectingOutput(outputMessage(greetingResponse("true")))
+            .expectingOutput(outputMessage(greetingResponse("true")), END_MESSAGE)
             .named("Resume with partial state"),
         testInvocation(this::get, GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1, STATE_FRANCESCO).setPartialState(false), INPUT_TILL)
-            .expectingOutput(GET_STATE_FRANCESCO, OUTPUT_FRANCESCO)
+            .expectingOutput(GET_STATE_FRANCESCO, OUTPUT_FRANCESCO, END_MESSAGE)
             .named("With complete state"),
         testInvocation(this::get, GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1, STATE_FRANCESCO).setPartialState(true), INPUT_TILL)
-            .expectingOutput(GET_STATE_FRANCESCO, OUTPUT_FRANCESCO)
+            .expectingOutput(GET_STATE_FRANCESCO, OUTPUT_FRANCESCO, END_MESSAGE)
             .named("With partial state"),
         testInvocation(this::get, GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1).setPartialState(true), INPUT_TILL)
@@ -73,7 +74,8 @@ public abstract class EagerStateTestSuite implements TestSuite {
                 GET_STATE_FRANCESCO,
                 SET_STATE_FRANCESCO_TILL,
                 GET_STATE_FRANCESCO_TILL,
-                OUTPUT_FRANCESCO_TILL)
+                OUTPUT_FRANCESCO_TILL,
+                END_MESSAGE)
             .named("With state in the state_map"),
         testInvocation(this::getAppendAndGet, GreeterGrpc.getGreetMethod())
             .withInput(
@@ -84,7 +86,8 @@ public abstract class EagerStateTestSuite implements TestSuite {
                 getStateMessage("STATE"),
                 SET_STATE_FRANCESCO_TILL,
                 GET_STATE_FRANCESCO_TILL,
-                OUTPUT_FRANCESCO_TILL)
+                OUTPUT_FRANCESCO_TILL,
+                END_MESSAGE)
             .named("With partial state on the first get"),
         testInvocation(this::getClearAndGet, GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1, STATE_FRANCESCO), INPUT_TILL)
@@ -92,7 +95,8 @@ public abstract class EagerStateTestSuite implements TestSuite {
                 GET_STATE_FRANCESCO,
                 clearStateMessage("STATE"),
                 getStateEmptyMessage("STATE"),
-                OUTPUT_FRANCESCO)
+                OUTPUT_FRANCESCO,
+                END_MESSAGE)
             .named("With state in the state_map"),
         testInvocation(this::getClearAndGet, GreeterGrpc.getGreetMethod())
             .withInput(
@@ -103,7 +107,8 @@ public abstract class EagerStateTestSuite implements TestSuite {
                 getStateMessage("STATE"),
                 clearStateMessage("STATE"),
                 getStateEmptyMessage("STATE"),
-                OUTPUT_FRANCESCO)
+                OUTPUT_FRANCESCO,
+                END_MESSAGE)
             .named("With partial state on the first get"));
   }
 }

@@ -150,7 +150,8 @@ public class UserFailuresTest extends UserFailuresTestSuite {
             testInvocation(
                     new ResponseObserverOnErrorTerminalException(), GreeterGrpc.getGreetMethod())
                 .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
-                .expectingOutput(outputMessage(TerminalException.Code.INTERNAL, MY_ERROR)),
+                .expectingOutput(
+                    outputMessage(TerminalException.Code.INTERNAL, MY_ERROR), END_MESSAGE),
             testInvocation(
                     new ResponseObserverOnErrorIllegalStateException(),
                     GreeterGrpc.getGreetMethod())

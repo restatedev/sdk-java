@@ -8,7 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import static dev.restate.sdk.core.AssertUtils.*;
+import static dev.restate.sdk.core.AssertUtils.errorMessageStartingWith;
+import static dev.restate.sdk.core.AssertUtils.protocolExceptionErrorMessage;
 import static dev.restate.sdk.core.ProtoUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.*;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -59,8 +60,7 @@ public abstract class StateMachineFailuresTestSuite implements TestDefinitions.T
                 msgs -> {
                   Assertions.assertThat(msgs)
                       .satisfiesExactly(
-                          AssertUtils.protocolExceptionErrorMessage(
-                              ProtocolException.JOURNAL_MISMATCH_CODE));
+                          protocolExceptionErrorMessage(ProtocolException.JOURNAL_MISMATCH_CODE));
                   assertThat(nonTerminalExceptionsSeenTest1).hasValue(0);
                 })
             .named("Protocol Exception"),
@@ -74,8 +74,7 @@ public abstract class StateMachineFailuresTestSuite implements TestDefinitions.T
                 msgs -> {
                   Assertions.assertThat(msgs)
                       .satisfiesExactly(
-                          AssertUtils.errorMessageStartingWith(
-                              NumberFormatException.class.getCanonicalName()));
+                          errorMessageStartingWith(NumberFormatException.class.getCanonicalName()));
                   assertThat(nonTerminalExceptionsSeenTest2).hasValue(0);
                 })
             .named("Serde error"),
@@ -85,8 +84,7 @@ public abstract class StateMachineFailuresTestSuite implements TestDefinitions.T
             .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
             .assertingOutput(
                 AssertUtils.containsOnly(
-                    AssertUtils.errorMessageStartingWith(
-                        IllegalStateException.class.getCanonicalName())))
+                    errorMessageStartingWith(IllegalStateException.class.getCanonicalName())))
             .named("Serde serialization error"),
         testInvocation(
                 () -> this.sideEffectFailure(FAILING_DESERIALIZATION_INTEGER_TYPE_TAG),
@@ -97,8 +95,7 @@ public abstract class StateMachineFailuresTestSuite implements TestDefinitions.T
                 Java.SideEffectEntryMessage.newBuilder())
             .assertingOutput(
                 AssertUtils.containsOnly(
-                    AssertUtils.errorMessageStartingWith(
-                        IllegalStateException.class.getCanonicalName())))
+                    errorMessageStartingWith(IllegalStateException.class.getCanonicalName())))
             .named("Serde deserialization error"));
   }
 }

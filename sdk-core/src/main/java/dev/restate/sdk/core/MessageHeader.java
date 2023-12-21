@@ -60,6 +60,8 @@ public class MessageHeader {
       return new MessageHeader(MessageType.SuspensionMessage, 0, msg.getSerializedSize());
     } else if (msg instanceof Protocol.ErrorMessage) {
       return new MessageHeader(MessageType.ErrorMessage, 0, msg.getSerializedSize());
+    } else if (msg instanceof Protocol.EndMessage) {
+      return new MessageHeader(MessageType.EndMessage, 0, msg.getSerializedSize());
     } else if (msg instanceof Protocol.EntryAckMessage) {
       return new MessageHeader(MessageType.EntryAckMessage, 0, msg.getSerializedSize());
     } else if (msg instanceof Protocol.PollInputStreamEntryMessage) {

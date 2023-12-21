@@ -35,6 +35,6 @@ public abstract class InvocationIdTestSuite implements TestSuite {
                 Protocol.StartMessage.newBuilder().setDebugId(debugId).setId(id).setKnownEntries(1),
                 inputMessage(GreetingRequest.getDefaultInstance()))
             .onlyUnbuffered()
-            .expectingOutput(outputMessage(greetingResponse(debugId))));
+            .expectingOutput(outputMessage(greetingResponse(debugId)), END_MESSAGE));
   }
 }

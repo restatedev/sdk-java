@@ -207,6 +207,8 @@ public class ProtoUtils {
         .build();
   }
 
+  public static Protocol.EndMessage END_MESSAGE = Protocol.EndMessage.getDefaultInstance();
+
   static MessageLite build(MessageLiteOrBuilder value) {
     if (value instanceof MessageLite) {
       return (MessageLite) value;

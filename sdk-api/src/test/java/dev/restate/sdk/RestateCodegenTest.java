@@ -97,14 +97,15 @@ public class RestateCodegenTest implements TestSuite {
                                         .build());
                           });
                   assertThat(msgs)
-                      .elements(1, 2, 3)
+                      .elements(1, 2, 3, 4)
                       .containsExactly(
                           backgroundInvokeMessage(
                                   GreeterGrpc.getGreetMethod(), greetingRequest("Francesco"))
                               .build(),
                           invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco"))
                               .build(),
-                          outputMessage(greetingResponse("Till")));
+                          outputMessage(greetingResponse("Till")),
+                          END_MESSAGE);
                 }),
         testInvocation(new Codegen(), CodegenGrpc.getEmptyInputMethod())
             .withInput(
@@ -114,7 +115,8 @@ public class RestateCodegenTest implements TestSuite {
             .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(CodegenGrpc.getEmptyInputMethod(), Empty.getDefaultInstance()),
-                outputMessage(MyMessage.newBuilder().setValue("Francesco")))
+                outputMessage(MyMessage.newBuilder().setValue("Francesco")),
+                END_MESSAGE)
             .named("Check Codegen::EmptyInput method is correctly generated"),
         testInvocation(new Codegen(), CodegenGrpc.getEmptyOutputMethod())
             .withInput(
@@ -126,7 +128,8 @@ public class RestateCodegenTest implements TestSuite {
                 invokeMessage(
                     CodegenGrpc.getEmptyOutputMethod(),
                     MyMessage.newBuilder().setValue("Francesco").build()),
-                outputMessage(Empty.getDefaultInstance()))
+                outputMessage(Empty.getDefaultInstance()),
+                END_MESSAGE)
             .named("Check Codegen::EmptyOutput method is correctly generated"),
         testInvocation(new Codegen(), CodegenGrpc.getEmptyInputOutputMethod())
             .withInput(
@@ -136,7 +139,8 @@ public class RestateCodegenTest implements TestSuite {
             .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(CodegenGrpc.getEmptyInputOutputMethod(), Empty.getDefaultInstance()),
-                outputMessage(Empty.getDefaultInstance()))
+                outputMessage(Empty.getDefaultInstance()),
+                END_MESSAGE)
             .named("Check Codegen::EmptyInputOutput method is correctly generated"),
         testInvocation(new Codegen(), CodegenGrpc.getOneWayMethod())
             .withInput(startMessage(1), inputMessage(MyMessage.newBuilder().setValue("Francesco")))

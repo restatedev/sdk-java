@@ -11,19 +11,18 @@ package dev.restate.sdk.core;
 import static dev.restate.sdk.core.ProtoUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.*;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.LONG;
+import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 import com.google.protobuf.Empty;
 import com.google.protobuf.MessageLiteOrBuilder;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.testservices.GreeterGrpc;
-import dev.restate.sdk.core.testservices.GreetingRequest;
-import dev.restate.sdk.core.testservices.GreetingResponse;
 import io.grpc.BindableService;
 import java.time.Instant;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-import org.assertj.core.api.Assertions;
 
 public abstract class SleepTestSuite implements TestDefinitions.TestSuite {
 
@@ -37,34 +36,35 @@ public abstract class SleepTestSuite implements TestDefinitions.TestSuite {
   public Stream<TestDefinitions.TestDefinition> definitions() {
     return Stream.of(
         testInvocation(this::sleepGreeter, GreeterGrpc.getGreetMethod())
-            .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Till")))
+            .withInput(startMessage(1), inputMessage(greetingRequest("Till")))
             .assertingOutput(
                 messageLites -> {
-                  Assertions.assertThat(messageLites.get(0))
-                      .isInstanceOf(Protocol.SleepEntryMessage.class);
-                  Protocol.SleepEntryMessage msg = (Protocol.SleepEntryMessage) messageLites.get(0);
-                  assertThat(msg.getWakeUpTime()).isGreaterThanOrEqualTo(startTime + 1000);
-                  assertThat(msg.getWakeUpTime())
+                  assertThat(messageLites)
+                      .element(0)
+                      .asInstanceOf(type(Protocol.SleepEntryMessage.class))
+                      .extracting(Protocol.SleepEntryMessage::getWakeUpTime, LONG)
+                      .isGreaterThanOrEqualTo(startTime + 1000)
                       .isLessThanOrEqualTo(Instant.now().toEpochMilli() + 1000);
-                  Assertions.assertThat(messageLites.get(1))
+
+                  assertThat(messageLites)
+                      .element(1)
                       .isInstanceOf(Protocol.SuspensionMessage.class);
                 })
             .named("Sleep 1000 ms not completed"),
         testInvocation(this::sleepGreeter, GreeterGrpc.getGreetMethod())
             .withInput(
                 startMessage(2),
-                inputMessage(GreetingRequest.newBuilder().setName("Till")),
+                inputMessage(greetingRequest("Till")),
                 Protocol.SleepEntryMessage.newBuilder()
                     .setWakeUpTime(Instant.now().toEpochMilli())
                     .setEmpty(Empty.getDefaultInstance())
                     .build())
-            .expectingOutput(
-                outputMessage(GreetingResponse.newBuilder().setMessage("Hello").build()))
+            .expectingOutput(outputMessage(greetingResponse("Hello")), END_MESSAGE)
             .named("Sleep 1000 ms sleep completed"),
         testInvocation(this::sleepGreeter, GreeterGrpc.getGreetMethod())
             .withInput(
                 startMessage(2),
-                inputMessage(GreetingRequest.newBuilder().setName("Till")),
+                inputMessage(greetingRequest("Till")),
                 Protocol.SleepEntryMessage.newBuilder()
                     .setWakeUpTime(Instant.now().toEpochMilli())
                     .build())
@@ -73,9 +73,7 @@ public abstract class SleepTestSuite implements TestDefinitions.TestSuite {
         testInvocation(this::manySleeps, GreeterGrpc.getGreetMethod())
             .withInput(
                 Stream.concat(
-                        Stream.of(
-                            startMessage(11),
-                            inputMessage(GreetingRequest.newBuilder().setName("Till"))),
+                        Stream.of(startMessage(11), inputMessage(greetingRequest("Till"))),
                         IntStream.rangeClosed(1, 10)
                             .mapToObj(
                                 i ->
@@ -93,25 +91,30 @@ public abstract class SleepTestSuite implements TestDefinitions.TestSuite {
         testInvocation(this::sleepGreeter, GreeterGrpc.getGreetMethod())
             .withInput(
                 startMessage(2),
-                inputMessage(GreetingRequest.newBuilder().setName("Till")),
+                inputMessage(greetingRequest("Till")),
                 Protocol.SleepEntryMessage.newBuilder()
                     .setWakeUpTime(Instant.now().toEpochMilli())
                     .setFailure(
                         Util.toProtocolFailure(TerminalException.Code.CANCELLED, "canceled"))
                     .build())
-            .expectingOutput(outputMessage(TerminalException.Code.CANCELLED, "canceled"))
+            .expectingOutput(
+                outputMessage(TerminalException.Code.CANCELLED, "canceled"), END_MESSAGE)
             .named("Failed sleep"),
         testInvocation(this::sleepGreeter, GreeterGrpc.getGreetMethod())
             .withInput(
                 startMessage(1),
-                inputMessage(GreetingRequest.newBuilder().setName("Till")),
+                inputMessage(greetingRequest("Till")),
                 completionMessage(
                     1, new TerminalException(TerminalException.Code.CANCELLED, "canceled")))
             .assertingOutput(
                 messageLites -> {
-                  assertThat(messageLites.get(0)).isInstanceOf(Protocol.SleepEntryMessage.class);
-                  assertThat(messageLites.get(1))
+                  assertThat(messageLites)
+                      .element(0)
+                      .isInstanceOf(Protocol.SleepEntryMessage.class);
+                  assertThat(messageLites)
+                      .element(1)
                       .isEqualTo(outputMessage(TerminalException.Code.CANCELLED, "canceled"));
+                  assertThat(messageLites).element(2).isEqualTo(END_MESSAGE);
                 })
             .named("Failing sleep"));
   }
