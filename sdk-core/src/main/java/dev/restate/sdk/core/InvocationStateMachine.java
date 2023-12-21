@@ -205,7 +205,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   void close() {
     if (this.invocationState != InvocationState.CLOSED) {
       this.transitionState(InvocationState.CLOSED);
-      LOG.debug("Closing state machine");
+      LOG.info("Stopped processing invocation");
 
       // Cancel inputSubscription and complete outputSubscriber
       if (inputSubscription != null) {
@@ -227,7 +227,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   void fail(Throwable cause) {
     if (this.invocationState != InvocationState.CLOSED) {
       this.transitionState(InvocationState.CLOSED);
-      LOG.debug("Closing state machine with failure", cause);
+      LOG.warn("Stopped processing invocation with failure", cause);
 
       // Cancel inputSubscription and complete outputSubscriber
       if (inputSubscription != null) {
