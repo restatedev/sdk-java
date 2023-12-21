@@ -8,10 +8,15 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
+import com.google.protobuf.ByteString;
+import com.google.protobuf.MessageLite;
 import dev.restate.sdk.common.syscalls.DeferredResult;
+import dev.restate.sdk.common.syscalls.ReadyResult;
+import dev.restate.sdk.common.syscalls.SyscallCallback;
 import dev.restate.sdk.common.syscalls.Syscalls;
 import dev.restate.sdk.core.DeferredResults.DeferredResultInternal;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 interface SyscallsInternal extends Syscalls {
@@ -26,6 +31,22 @@ interface SyscallsInternal extends Syscalls {
   default DeferredResult<Void> createAllDeferred(List<DeferredResult<?>> children) {
     return DeferredResults.all(
         children.stream().map(dr -> (DeferredResultInternal<?>) dr).collect(Collectors.toList()));
+  }
+
+  // -- Helper for pollInput
+
+  default <T extends MessageLite> void pollInputAndResolve(
+      Function<ByteString, T> mapper, SyscallCallback<ReadyResult<T>> callback) {
+    this.pollInput(
+        mapper,
+        SyscallCallback.of(
+            deferredValue ->
+                this.resolveDeferred(
+                    deferredValue,
+                    SyscallCallback.ofVoid(
+                        () -> callback.onSuccess(deferredValue.toReadyResult()),
+                        callback::onCancel)),
+            callback::onCancel));
   }
 
   // -- Lifecycle methods
