@@ -113,7 +113,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
           @Override
           public void cancel() {
-            close();
+            end();
           }
         });
   }
@@ -202,48 +202,45 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     this.afterStartCallback.consume(cb -> cb.accept(new InvocationIdImpl(this.debugId)));
   }
 
-  void close() {
-    if (this.invocationState != InvocationState.CLOSED) {
-      this.transitionState(InvocationState.CLOSED);
-      LOG.info("Stopped processing invocation");
+  void end() {
+    LOG.info("End invocation");
+    this.closeWithMessage(Protocol.EndMessage.getDefaultInstance(), ProtocolException.CLOSED);
+  }
 
-      // Cancel inputSubscription and complete outputSubscriber
-      if (inputSubscription != null) {
-        this.inputSubscription.cancel();
-      }
-      if (this.outputSubscriber != null) {
-        this.outputSubscriber.onComplete();
-        this.outputSubscriber = null;
-      }
-
-      // Unblock any eventual waiting callbacks
-      this.readyResultStateMachine.abort(ProtocolException.CLOSED);
-      this.sideEffectAckStateMachine.abort(ProtocolException.CLOSED);
-      this.incomingEntriesStateMachine.abort(ProtocolException.CLOSED);
-      this.span.end();
-    }
+  void suspend(Collection<Integer> suspensionIndexes) {
+    assert !suspensionIndexes.isEmpty()
+        : "Suspension indexes MUST be a non-empty collection, per protocol specification";
+    LOG.info("Suspend invocation");
+    this.closeWithMessage(
+        Protocol.SuspensionMessage.newBuilder().addAllEntryIndexes(suspensionIndexes).build(),
+        ProtocolException.CLOSED);
   }
 
   void fail(Throwable cause) {
+    LOG.warn("Invocation failed", cause);
+    Protocol.ErrorMessage msg;
+    if (cause instanceof ProtocolException) {
+      msg = ((ProtocolException) cause).toErrorMessage();
+    } else {
+      msg =
+          Protocol.ErrorMessage.newBuilder()
+              .setCode(Code.UNKNOWN_VALUE)
+              .setMessage(cause.toString())
+              .build();
+    }
+    this.closeWithMessage(msg, cause);
+  }
+
+  private void closeWithMessage(MessageLite closeMessage, Throwable cause) {
     if (this.invocationState != InvocationState.CLOSED) {
       this.transitionState(InvocationState.CLOSED);
-      LOG.warn("Stopped processing invocation with failure", cause);
 
       // Cancel inputSubscription and complete outputSubscriber
       if (inputSubscription != null) {
         this.inputSubscription.cancel();
       }
       if (this.outputSubscriber != null) {
-        // Publish ErrorMessage to output subscriber before closing.
-        if (cause instanceof ProtocolException) {
-          this.outputSubscriber.onNext(((ProtocolException) cause).toErrorMessage());
-        } else if (cause != null) {
-          this.outputSubscriber.onNext(
-              Protocol.ErrorMessage.newBuilder()
-                  .setCode(Code.UNKNOWN_VALUE)
-                  .setMessage(cause.toString())
-                  .build());
-        }
+        this.outputSubscriber.onNext(closeMessage);
         this.outputSubscriber.onComplete();
         this.outputSubscriber = null;
       }
@@ -421,7 +418,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
             @Override
             public void onSuspend() {
-              writeSuspension(sideEffectAckStateMachine.getLastExecutedSideEffect());
+              suspend(List.of(sideEffectAckStateMachine.getLastExecutedSideEffect()));
               callback.onCancel(AbortedExecutionException.INSTANCE);
             }
 
@@ -488,7 +485,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
           @Override
           public void onSuspend() {
-            writeSuspension(deferred.entryIndex());
+            suspend(List.of(deferred.entryIndex()));
             callback.onCancel(AbortedExecutionException.INSTANCE);
           }
 
@@ -634,7 +631,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
             @Override
             public void onSuspend() {
-              writeSuspension(resolvableSingles.keySet());
+              suspend(resolvableSingles.keySet());
               callback.onCancel(AbortedExecutionException.INSTANCE);
             }
 
@@ -713,22 +710,6 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     LOG.trace("Writing to output message {} {}", message.getClass(), message);
     Objects.requireNonNull(this.outputSubscriber).onNext(message);
     this.incrementCurrentIndex();
-  }
-
-  private void writeSuspension(int index) {
-    writeSuspension(Protocol.SuspensionMessage.newBuilder().addEntryIndexes(index).build());
-  }
-
-  private void writeSuspension(Iterable<Integer> indexes) {
-    writeSuspension(Protocol.SuspensionMessage.newBuilder().addAllEntryIndexes(indexes).build());
-  }
-
-  private void writeSuspension(Protocol.SuspensionMessage message) {
-    if (this.outputSubscriber != null) {
-      LOG.trace("Writing suspension {}", message.getEntryIndexesList());
-      this.outputSubscriber.onNext(message);
-      this.close();
-    }
   }
 
   @Override

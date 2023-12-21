@@ -10,9 +10,12 @@ package dev.restate.sdk.http.vertx
 
 import com.google.protobuf.ByteString
 import dev.restate.generated.sdk.java.Java.SideEffectEntryMessage
-import dev.restate.sdk.*
+import dev.restate.sdk.RestateService
 import dev.restate.sdk.core.ProtoUtils.*
 import dev.restate.sdk.core.TestDefinitions.*
+import dev.restate.sdk.core.testservices.GreeterGrpc
+import dev.restate.sdk.core.testservices.GreetingRequest
+import dev.restate.sdk.core.testservices.GreetingResponse
 import dev.restate.sdk.kotlin.RestateKtService
 import io.grpc.stub.StreamObserver
 import io.vertx.core.Vertx
@@ -44,21 +47,19 @@ class HttpVertxTests : dev.restate.sdk.core.TestRunner() {
         dev.restate.sdk.core.testservices.GreeterGrpcKt.GreeterCoroutineImplBase(
             Dispatchers.Unconfined),
         RestateKtService {
-      override suspend fun greet(
-          request: dev.restate.sdk.core.testservices.GreetingRequest
-      ): dev.restate.sdk.core.testservices.GreetingResponse {
+      override suspend fun greet(request: GreetingRequest): GreetingResponse {
         check(Vertx.currentContext().isEventLoopContext)
         restateContext().sideEffect { check(Vertx.currentContext().isEventLoopContext) }
         check(Vertx.currentContext().isEventLoopContext)
-        return dev.restate.sdk.core.testservices.GreetingResponse.getDefaultInstance()
+        return GreetingResponse.getDefaultInstance()
       }
     }
 
     private class CheckBlockingServiceTrampolineExecutor :
-        dev.restate.sdk.core.testservices.GreeterGrpc.GreeterImplBase(), RestateService {
+        GreeterGrpc.GreeterImplBase(), RestateService {
       override fun greet(
-          request: dev.restate.sdk.core.testservices.GreetingRequest,
-          responseObserver: StreamObserver<dev.restate.sdk.core.testservices.GreetingResponse>
+          request: GreetingRequest,
+          responseObserver: StreamObserver<GreetingResponse>
       ) {
         val id = Thread.currentThread().id
         check(Vertx.currentContext() == null)
@@ -68,8 +69,7 @@ class HttpVertxTests : dev.restate.sdk.core.TestRunner() {
         }
         check(Thread.currentThread().id == id)
         check(Vertx.currentContext() == null)
-        responseObserver.onNext(
-            dev.restate.sdk.core.testservices.GreetingResponse.getDefaultInstance())
+        responseObserver.onNext(GreetingResponse.getDefaultInstance())
         responseObserver.onCompleted()
       }
     }
@@ -77,31 +77,26 @@ class HttpVertxTests : dev.restate.sdk.core.TestRunner() {
     override fun definitions(): Stream<TestDefinition> {
       return Stream.of(
           testInvocation(
-                  CheckNonBlockingServiceTrampolineEventLoopContext(),
-                  dev.restate.sdk.core.testservices.GreeterGrpc.getGreetMethod())
+                  CheckNonBlockingServiceTrampolineEventLoopContext(), GreeterGrpc.getGreetMethod())
               .withInput(
                   startMessage(1),
-                  inputMessage(
-                      dev.restate.sdk.core.testservices.GreetingRequest.getDefaultInstance()),
+                  inputMessage(GreetingRequest.getDefaultInstance()),
                   ackMessage(1))
               .onlyUnbuffered()
               .expectingOutput(
                   SideEffectEntryMessage.newBuilder().setValue(ByteString.EMPTY),
-                  outputMessage(
-                      dev.restate.sdk.core.testservices.GreetingResponse.getDefaultInstance())),
-          testInvocation(
-                  CheckBlockingServiceTrampolineExecutor(),
-                  dev.restate.sdk.core.testservices.GreeterGrpc.getGreetMethod())
+                  outputMessage(GreetingResponse.getDefaultInstance()),
+                  END_MESSAGE),
+          testInvocation(CheckBlockingServiceTrampolineExecutor(), GreeterGrpc.getGreetMethod())
               .withInput(
                   startMessage(1),
-                  inputMessage(
-                      dev.restate.sdk.core.testservices.GreetingRequest.getDefaultInstance()),
+                  inputMessage(GreetingRequest.getDefaultInstance()),
                   ackMessage(1))
               .onlyUnbuffered()
               .expectingOutput(
                   SideEffectEntryMessage.newBuilder().setValue(ByteString.EMPTY),
-                  outputMessage(
-                      dev.restate.sdk.core.testservices.GreetingResponse.getDefaultInstance())))
+                  outputMessage(GreetingResponse.getDefaultInstance()),
+                  END_MESSAGE))
     }
   }
 

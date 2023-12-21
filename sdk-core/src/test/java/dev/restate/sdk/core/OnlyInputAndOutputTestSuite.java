@@ -15,8 +15,6 @@ import static dev.restate.sdk.core.TestDefinitions.testInvocation;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
 import dev.restate.sdk.core.testservices.GreeterGrpc;
-import dev.restate.sdk.core.testservices.GreetingRequest;
-import dev.restate.sdk.core.testservices.GreetingResponse;
 import io.grpc.BindableService;
 import java.util.stream.Stream;
 
@@ -28,15 +26,14 @@ public abstract class OnlyInputAndOutputTestSuite implements TestSuite {
   public Stream<TestDefinition> definitions() {
     return Stream.of(
         testInvocation(this::noSyscallsGreeter, GreeterGrpc.getGreetMethod())
-            .withInput(
-                startMessage(1), inputMessage(GreetingRequest.newBuilder().setName("Francesco")))
-            .expectingOutput(
-                outputMessage(GreetingResponse.newBuilder().setMessage("Hello Francesco").build())),
+            .withInput(startMessage(1), inputMessage(greetingRequest("Francesco")))
+            .expectingOutput(outputMessage(greetingResponse("Hello Francesco")), END_MESSAGE),
         testInvocation(this::noSyscallsGreeter, GreeterGrpc.getGreetMethod())
             .withInput(
                 startMessage(1),
                 inputMessage(new TerminalException(TerminalException.Code.CANCELLED)))
             .expectingOutput(
-                outputMessage(new TerminalException(TerminalException.Code.CANCELLED))));
+                outputMessage(new TerminalException(TerminalException.Code.CANCELLED)),
+                END_MESSAGE));
   }
 }

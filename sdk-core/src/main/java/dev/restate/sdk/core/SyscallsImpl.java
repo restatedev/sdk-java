@@ -329,7 +329,7 @@ public final class SyscallsImpl implements SyscallsInternal {
 
   @Override
   public void close() {
-    this.stateMachine.close();
+    this.stateMachine.end();
   }
 
   @Override

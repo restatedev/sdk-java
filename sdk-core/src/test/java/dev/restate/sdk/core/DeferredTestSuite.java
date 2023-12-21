@@ -59,7 +59,8 @@ public abstract class DeferredTestSuite implements TestSuite {
                     GreeterGrpc.getGreetMethod(),
                     greetingRequest("Till"),
                     greetingResponse("TILL")))
-            .expectingOutput(combinatorsMessage(2), outputMessage(greetingResponse("TILL")))
+            .expectingOutput(
+                combinatorsMessage(2), outputMessage(greetingResponse("TILL")), END_MESSAGE)
             .named("Only one completion will generate the combinators message"),
         testInvocation(svcSupplier, GreeterGrpc.getGreetMethod())
             .withInput(
@@ -71,7 +72,9 @@ public abstract class DeferredTestSuite implements TestSuite {
                     greetingRequest("Till"),
                     new IllegalStateException("My error")))
             .expectingOutput(
-                combinatorsMessage(2), outputMessage(new IllegalStateException("My error")))
+                combinatorsMessage(2),
+                outputMessage(new IllegalStateException("My error")),
+                END_MESSAGE)
             .named("Only one failure will generate the combinators message"),
         testInvocation(svcSupplier, GreeterGrpc.getGreetMethod())
             .withInput(
@@ -87,7 +90,7 @@ public abstract class DeferredTestSuite implements TestSuite {
                     greetingResponse("TILL")))
             .assertingOutput(
                 msgs -> {
-                  assertThat(msgs).hasSize(2);
+                  assertThat(msgs).hasSize(3);
 
                   assertThat(msgs)
                       .element(0, type(Java.CombinatorAwaitableEntryMessage.class))
@@ -103,6 +106,7 @@ public abstract class DeferredTestSuite implements TestSuite {
                       .isIn(
                           outputMessage(greetingResponse("FRANCESCO")),
                           outputMessage(greetingResponse("TILL")));
+                  assertThat(msgs).element(2).isEqualTo(END_MESSAGE);
                 })
             .named("Everything completed will generate the combinators message"),
         testInvocation(svcSupplier, GreeterGrpc.getGreetMethod())
@@ -118,7 +122,7 @@ public abstract class DeferredTestSuite implements TestSuite {
                     greetingRequest("Till"),
                     greetingResponse("TILL")),
                 combinatorsMessage(2))
-            .expectingOutput(outputMessage(greetingResponse("TILL")))
+            .expectingOutput(outputMessage(greetingResponse("TILL")), END_MESSAGE)
             .named("Replay the combinator"),
         testInvocation(svcSupplier, GreeterGrpc.getGreetMethod())
             .withInput(
@@ -130,7 +134,8 @@ public abstract class DeferredTestSuite implements TestSuite {
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
                 combinatorsMessage(1),
-                outputMessage(greetingResponse("FRANCESCO")))
+                outputMessage(greetingResponse("FRANCESCO")),
+                END_MESSAGE)
             .named("Complete any asynchronously"));
   }
 
@@ -159,7 +164,8 @@ public abstract class DeferredTestSuite implements TestSuite {
                     invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
                     invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
                     setStateMessage("A2", "TILL"),
-                    outputMessage(greetingResponse("FRANCESCO-TILL")))
+                    outputMessage(greetingResponse("FRANCESCO-TILL")),
+                    END_MESSAGE)
                 .named("A1 and A2 completed later"),
             testInvocation(this::reverseAwaitOrder, GreeterGrpc.getGreetMethod())
                 .withInput(
@@ -172,7 +178,8 @@ public abstract class DeferredTestSuite implements TestSuite {
                     invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
                     invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
                     setStateMessage("A2", "TILL"),
-                    outputMessage(greetingResponse("FRANCESCO-TILL")))
+                    outputMessage(greetingResponse("FRANCESCO-TILL")),
+                    END_MESSAGE)
                 .named("A2 and A1 completed later"),
             testInvocation(this::reverseAwaitOrder, GreeterGrpc.getGreetMethod())
                 .withInput(
@@ -207,7 +214,8 @@ public abstract class DeferredTestSuite implements TestSuite {
                 .onlyUnbuffered()
                 .expectingOutput(
                     invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
-                    outputMessage(greetingResponse("FRANCESCO-FRANCESCO"))),
+                    outputMessage(greetingResponse("FRANCESCO-FRANCESCO")),
+                    END_MESSAGE),
 
             // --- All combinator
             testInvocation(this::awaitAll, GreeterGrpc.getGreetMethod())
@@ -242,7 +250,7 @@ public abstract class DeferredTestSuite implements TestSuite {
                         greetingResponse("TILL")))
                 .assertingOutput(
                     msgs -> {
-                      assertThat(msgs).hasSize(2);
+                      assertThat(msgs).hasSize(3);
 
                       assertThat(msgs)
                           .element(0, type(Java.CombinatorAwaitableEntryMessage.class))
@@ -254,6 +262,7 @@ public abstract class DeferredTestSuite implements TestSuite {
                       assertThat(msgs)
                           .element(1)
                           .isEqualTo(outputMessage(greetingResponse("FRANCESCO-TILL")));
+                      assertThat(msgs).element(2).isEqualTo(END_MESSAGE);
                     })
                 .named("Everything completed will generate the combinators message"),
             testInvocation(this::awaitAll, GreeterGrpc.getGreetMethod())
@@ -269,7 +278,7 @@ public abstract class DeferredTestSuite implements TestSuite {
                         greetingRequest("Till"),
                         greetingResponse("TILL")),
                     combinatorsMessage(1, 2))
-                .expectingOutput(outputMessage(greetingResponse("FRANCESCO-TILL")))
+                .expectingOutput(outputMessage(greetingResponse("FRANCESCO-TILL")), END_MESSAGE)
                 .named("Replay the combinator"),
             testInvocation(this::awaitAll, GreeterGrpc.getGreetMethod())
                 .withInput(
@@ -282,7 +291,8 @@ public abstract class DeferredTestSuite implements TestSuite {
                     invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
                     invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
                     combinatorsMessage(1, 2),
-                    outputMessage(greetingResponse("FRANCESCO-TILL")))
+                    outputMessage(greetingResponse("FRANCESCO-TILL")),
+                    END_MESSAGE)
                 .named("Complete all asynchronously"),
             testInvocation(this::awaitAll, GreeterGrpc.getGreetMethod())
                 .withInput(
@@ -294,7 +304,8 @@ public abstract class DeferredTestSuite implements TestSuite {
                     invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
                     invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
                     combinatorsMessage(1),
-                    outputMessage(new IllegalStateException("My error")))
+                    outputMessage(new IllegalStateException("My error")),
+                    END_MESSAGE)
                 .named("All fails on first failure"),
             testInvocation(this::awaitAll, GreeterGrpc.getGreetMethod())
                 .withInput(
@@ -307,7 +318,8 @@ public abstract class DeferredTestSuite implements TestSuite {
                     invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
                     invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
                     combinatorsMessage(1, 2),
-                    outputMessage(new IllegalStateException("My error")))
+                    outputMessage(new IllegalStateException("My error")),
+                    END_MESSAGE)
                 .named("All fails on second failure"),
 
             // --- Compose any with all
@@ -320,7 +332,7 @@ public abstract class DeferredTestSuite implements TestSuite {
                     awakeable("3"),
                     awakeable("4"),
                     combinatorsMessage(2, 3))
-                .expectingOutput(outputMessage(greetingResponse("223"))),
+                .expectingOutput(outputMessage(greetingResponse("223")), END_MESSAGE),
             testInvocation(this::combineAnyWithAll, GreeterGrpc.getGreetMethod())
                 .withInput(
                     startMessage(6),
@@ -330,7 +342,7 @@ public abstract class DeferredTestSuite implements TestSuite {
                     awakeable("3"),
                     awakeable("4"),
                     combinatorsMessage(3, 2))
-                .expectingOutput(outputMessage(greetingResponse("233")))
+                .expectingOutput(outputMessage(greetingResponse("233")), END_MESSAGE)
                 .named("Inverted order"),
 
             // --- Await Any with index
@@ -343,7 +355,7 @@ public abstract class DeferredTestSuite implements TestSuite {
                     awakeable("3"),
                     awakeable("4"),
                     combinatorsMessage(1))
-                .expectingOutput(outputMessage(greetingResponse("0"))),
+                .expectingOutput(outputMessage(greetingResponse("0")), END_MESSAGE),
             testInvocation(this::awaitAnyIndex, GreeterGrpc.getGreetMethod())
                 .withInput(
                     startMessage(6),
@@ -353,7 +365,7 @@ public abstract class DeferredTestSuite implements TestSuite {
                     awakeable("3"),
                     awakeable("4"),
                     combinatorsMessage(3, 2))
-                .expectingOutput(outputMessage(greetingResponse("1")))
+                .expectingOutput(outputMessage(greetingResponse("1")), END_MESSAGE)
                 .named("Complete all"),
 
             // --- Compose nested and resolved all should work
@@ -365,7 +377,7 @@ public abstract class DeferredTestSuite implements TestSuite {
                     awakeable("2"))
                 .assertingOutput(
                     msgs -> {
-                      assertThat(msgs).hasSize(3);
+                      assertThat(msgs).hasSize(4);
 
                       assertThat(msgs)
                           .element(0, type(Java.CombinatorAwaitableEntryMessage.class))
@@ -376,6 +388,7 @@ public abstract class DeferredTestSuite implements TestSuite {
 
                       assertThat(msgs).element(1).isEqualTo(combinatorsMessage());
                       assertThat(msgs).element(2).isEqualTo(outputMessage(greetingResponse("12")));
+                      assertThat(msgs).element(3).isEqualTo(END_MESSAGE);
                     }),
 
             // --- Await with timeout
@@ -387,7 +400,7 @@ public abstract class DeferredTestSuite implements TestSuite {
                 .onlyUnbuffered()
                 .assertingOutput(
                     messages -> {
-                      assertThat(messages).hasSize(4);
+                      assertThat(messages).hasSize(5);
                       assertThat(messages)
                           .element(0)
                           .isEqualTo(
@@ -401,6 +414,7 @@ public abstract class DeferredTestSuite implements TestSuite {
                       assertThat(messages)
                           .element(3)
                           .isEqualTo(outputMessage(greetingResponse("FRANCESCO")));
+                      assertThat(messages).element(4).isEqualTo(END_MESSAGE);
                     }),
             testInvocation(this::awaitWithTimeout, GreeterGrpc.getGreetMethod())
                 .withInput(
@@ -412,7 +426,7 @@ public abstract class DeferredTestSuite implements TestSuite {
                 .onlyUnbuffered()
                 .assertingOutput(
                     messages -> {
-                      assertThat(messages).hasSize(4);
+                      assertThat(messages).hasSize(5);
                       assertThat(messages)
                           .element(0)
                           .isEqualTo(
@@ -426,6 +440,7 @@ public abstract class DeferredTestSuite implements TestSuite {
                       assertThat(messages)
                           .element(3)
                           .isEqualTo(outputMessage(greetingResponse("timeout")));
+                      assertThat(messages).element(4).isEqualTo(END_MESSAGE);
                     })
                 .named("Fires timeout")));
   }

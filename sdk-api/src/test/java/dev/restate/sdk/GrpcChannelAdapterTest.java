@@ -70,7 +70,8 @@ public class GrpcChannelAdapterTest implements TestSuite {
             .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
-                outputMessage(greetingResponse("FRANCESCO"))),
+                outputMessage(greetingResponse("FRANCESCO")),
+                END_MESSAGE),
         testInvocation(new InvokeUsingGeneratedClient(), GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder()))
             .expectingOutput(
@@ -85,7 +86,8 @@ public class GrpcChannelAdapterTest implements TestSuite {
             .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
-                outputMessage(greetingResponse("FRANCESCO"))),
+                outputMessage(greetingResponse("FRANCESCO")),
+                END_MESSAGE),
         testInvocation(new InvokeUsingGeneratedFutureClient(), GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder()))
             .expectingOutput(

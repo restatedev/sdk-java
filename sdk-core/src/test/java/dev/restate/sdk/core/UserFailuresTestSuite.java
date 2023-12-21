@@ -46,16 +46,15 @@ public abstract class UserFailuresTestSuite implements TestSuite {
         // Cases returning ErrorMessage
         testInvocation(this::throwIllegalStateException, GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
-            .assertingOutput(
-                AssertUtils.containsOnlyExactErrorMessage(new IllegalStateException("Whatever"))),
+            .assertingOutput(containsOnlyExactErrorMessage(new IllegalStateException("Whatever"))),
         testInvocation(
                 () -> this.sideEffectThrowIllegalStateException(nonTerminalExceptionsSeen),
                 GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
             .assertingOutput(
                 msgs -> {
-                  AssertUtils.containsOnly(
-                      AssertUtils.exactErrorMessage(new IllegalStateException("Whatever")));
+                  assertThat(msgs)
+                      .satisfiesExactly(exactErrorMessage(new IllegalStateException("Whatever")));
 
                   // Check the counter has not been incremented
                   assertThat(nonTerminalExceptionsSeen).hasValue(0);
@@ -66,13 +65,13 @@ public abstract class UserFailuresTestSuite implements TestSuite {
                 () -> this.throwTerminalException(TerminalException.Code.INTERNAL, MY_ERROR),
                 GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
-            .expectingOutput(outputMessage(TerminalException.Code.INTERNAL, MY_ERROR))
+            .expectingOutput(outputMessage(TerminalException.Code.INTERNAL, MY_ERROR), END_MESSAGE)
             .named("With internal error"),
         testInvocation(
                 () -> this.throwTerminalException(TerminalException.Code.UNKNOWN, WHATEVER),
                 GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
-            .expectingOutput(outputMessage(TerminalException.Code.UNKNOWN, WHATEVER))
+            .expectingOutput(outputMessage(TerminalException.Code.UNKNOWN, WHATEVER), END_MESSAGE)
             .named("With unknown error"),
         testInvocation(
                 () ->
@@ -84,7 +83,8 @@ public abstract class UserFailuresTestSuite implements TestSuite {
             .expectingOutput(
                 Java.SideEffectEntryMessage.newBuilder()
                     .setFailure(Util.toProtocolFailure(TerminalException.Code.INTERNAL, MY_ERROR)),
-                outputMessage(TerminalException.Code.INTERNAL, MY_ERROR))
+                outputMessage(TerminalException.Code.INTERNAL, MY_ERROR),
+                END_MESSAGE)
             .named("With internal error"),
         testInvocation(
                 () ->
@@ -95,7 +95,8 @@ public abstract class UserFailuresTestSuite implements TestSuite {
             .expectingOutput(
                 Java.SideEffectEntryMessage.newBuilder()
                     .setFailure(Util.toProtocolFailure(TerminalException.Code.UNKNOWN, WHATEVER)),
-                outputMessage(TerminalException.Code.UNKNOWN, WHATEVER))
+                outputMessage(TerminalException.Code.UNKNOWN, WHATEVER),
+                END_MESSAGE)
             .named("With unknown error"));
   }
 }
