@@ -10,6 +10,7 @@ package dev.restate.sdk.common.syscalls;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
+import dev.restate.sdk.common.InvocationId;
 import dev.restate.sdk.common.TerminalException;
 import io.grpc.Context;
 import io.grpc.MethodDescriptor;
@@ -40,6 +41,8 @@ public interface Syscalls {
             + "Current thread: "
             + Thread.currentThread().getName());
   }
+
+  InvocationId invocationId();
 
   /**
    * @return true if it's inside a side effect block.
