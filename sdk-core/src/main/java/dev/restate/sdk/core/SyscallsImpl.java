@@ -328,6 +328,11 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
+  public boolean isInsideSideEffect() {
+    return this.stateMachine.isInsideSideEffect();
+  }
+
+  @Override
   public void close() {
     this.stateMachine.end();
   }

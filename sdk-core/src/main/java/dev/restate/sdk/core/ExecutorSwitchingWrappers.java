@@ -194,6 +194,12 @@ class ExecutorSwitchingWrappers {
     }
 
     @Override
+    public boolean isInsideSideEffect() {
+      // We can read this from another thread
+      return syscalls.isInsideSideEffect();
+    }
+
+    @Override
     public void close() {
       syscallsExecutor.execute(syscalls::close);
     }

@@ -11,6 +11,7 @@ package dev.restate.sdk;
 import dev.restate.sdk.common.InvocationId;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.function.ThrowingSupplier;
+import dev.restate.sdk.common.syscalls.Syscalls;
 import java.util.Random;
 import java.util.UUID;
 
@@ -26,8 +27,13 @@ import java.util.UUID;
  * ThrowingSupplier)}.
  */
 public class RestateRandom extends Random {
-  RestateRandom(long randomSeed) {
+
+  private final Syscalls syscalls;
+  private boolean seedInitialized = false;
+
+  RestateRandom(long randomSeed, Syscalls syscalls) {
     super(randomSeed);
+    this.syscalls = syscalls;
   }
 
   /**
@@ -35,7 +41,11 @@ public class RestateRandom extends Random {
    */
   @Override
   public synchronized void setSeed(long seed) {
-    throw new UnsupportedOperationException("You cannot set the seed on RestateRandom");
+    if (seedInitialized) {
+      throw new UnsupportedOperationException("You cannot set the seed on RestateRandom");
+    }
+    super.setSeed(seed);
+    this.seedInitialized = true;
   }
 
   /**
@@ -43,5 +53,14 @@ public class RestateRandom extends Random {
    */
   public UUID nextUUID() {
     return new UUID(this.nextLong(), this.nextLong());
+  }
+
+  @Override
+  protected int next(int bits) {
+    if (this.syscalls.isInsideSideEffect()) {
+      throw new IllegalStateException("You can't use RestateRandom inside a side effect!");
+    }
+
+    return super.next(bits);
   }
 }

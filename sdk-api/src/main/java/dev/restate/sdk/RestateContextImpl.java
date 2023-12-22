@@ -186,6 +186,6 @@ class RestateContextImpl implements RestateContext {
 
   @Override
   public RestateRandom random() {
-    return new RestateRandom(InvocationId.current().toRandomSeed());
+    return new RestateRandom(InvocationId.current().toRandomSeed(), this.syscalls);
   }
 }
