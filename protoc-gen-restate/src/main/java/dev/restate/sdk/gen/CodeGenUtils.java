@@ -10,8 +10,10 @@ package dev.restate.sdk.gen;
 
 import com.google.common.html.HtmlEscapers;
 import com.google.protobuf.DescriptorProtos;
+import com.google.protobuf.compiler.PluginProtos;
 import java.util.*;
 import java.util.function.Predicate;
+import java.util.regex.Pattern;
 
 public final class CodeGenUtils {
   private CodeGenUtils() {}
@@ -73,6 +75,98 @@ public final class CodeGenUtils {
           "true",
           "false");
 
+  // From https://kotlinlang.org/docs/reference/keyword-reference.html
+  static final List<CharSequence> KOTLIN_KEYWORDS =
+      Arrays.asList(
+          // Hard keywords
+          "as",
+          "break",
+          "class",
+          "continue",
+          "do",
+          "else",
+          "false",
+          "for",
+          "fun",
+          "if",
+          "in",
+          "interface",
+          "is",
+          "null",
+          "object",
+          "package",
+          "return",
+          "super",
+          "this",
+          "throw",
+          "true",
+          "try",
+          "typealias",
+          "typeof",
+          "val",
+          "var",
+          "when",
+          "while",
+
+          // Soft keywords
+          "by",
+          "catch",
+          "constructor",
+          "delegate",
+          "dynamic",
+          "field",
+          "file",
+          "finally",
+          "get",
+          "import",
+          "init",
+          "param",
+          "property",
+          "receiver",
+          "set",
+          "setparam",
+          "where",
+
+          // Modifier keywords
+          "actual",
+          "abstract",
+          "annotation",
+          "companion",
+          "const",
+          "crossinline",
+          "data",
+          "enum",
+          "expect",
+          "external",
+          "final",
+          "infix",
+          "inline",
+          "inner",
+          "internal",
+          "lateinit",
+          "noinline",
+          "open",
+          "operator",
+          "out",
+          "override",
+          "private",
+          "protected",
+          "public",
+          "reified",
+          "sealed",
+          "suspend",
+          "tailrec",
+          "value",
+          "vararg",
+
+          // These aren't keywords anymore but still break some code if unescaped.
+          // https://youtrack.jetbrains.com/issue/KT-52315
+          "header",
+          "impl",
+
+          // Other reserved keywords
+          "yield");
+
   static final String SERVICE_INDENDATION = "    ";
   static final String METHOD_INDENDATION = "        ";
 
@@ -85,7 +179,7 @@ public final class CodeGenUtils {
    * @param word method name
    * @return lower name
    */
-  static String mixedLower(String word) {
+  static String mixedLower(String word, boolean isKotlinGen) {
     StringBuffer w = new StringBuffer();
     w.append(Character.toLowerCase(word.charAt(0)));
 
@@ -106,8 +200,14 @@ public final class CodeGenUtils {
       }
     }
 
-    if (JAVA_KEYWORDS.contains(w)) {
-      w.append('_');
+    if (isKotlinGen) {
+      if (KOTLIN_KEYWORDS.contains(w)) {
+        w.append('_');
+      }
+    } else {
+      if (JAVA_KEYWORDS.contains(w)) {
+        w.append('_');
+      }
     }
 
     return w.toString();
@@ -155,5 +255,17 @@ public final class CodeGenUtils {
     }
     builder.append(prefix).append(" */");
     return builder.toString();
+  }
+
+  // This is in the form of key[=value],key[=value],...
+  static boolean findParameterOption(PluginProtos.CodeGeneratorRequest request, String parameter) {
+    String[] params = request.getParameter().split(Pattern.quote(","));
+
+    for (String param : params) {
+      if (param.contains(parameter)) {
+        return true;
+      }
+    }
+    return false;
   }
 }
