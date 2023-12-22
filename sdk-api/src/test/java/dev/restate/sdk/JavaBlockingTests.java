@@ -23,7 +23,7 @@ public class JavaBlockingTests extends TestRunner {
   }
 
   @Override
-  protected Stream<TestSuite> definitions() {
+  public Stream<TestSuite> definitions() {
     return Stream.of(
         new AwakeableIdTest(),
         new DeferredTest(),
@@ -36,6 +36,7 @@ public class JavaBlockingTests extends TestRunner {
         new StateMachineFailuresTest(),
         new UserFailuresTest(),
         new GrpcChannelAdapterTest(),
-        new RestateCodegenTest());
+        new RestateCodegenTest(),
+        new RandomTest());
   }
 }
