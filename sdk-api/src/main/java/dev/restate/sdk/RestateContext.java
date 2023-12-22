@@ -208,6 +208,11 @@ public interface RestateContext {
   AwakeableHandle awakeableHandle(String id);
 
   /**
+   * @see RestateRandom
+   */
+  RestateRandom random();
+
+  /**
    * Build a RestateContext from the underlying {@link Syscalls} object.
    *
    * <p>This method is used by code-generation, you should not use it directly but rather use {@link

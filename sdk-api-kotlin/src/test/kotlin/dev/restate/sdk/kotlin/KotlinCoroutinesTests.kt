@@ -20,7 +20,7 @@ class KotlinCoroutinesTests : TestRunner() {
     return Stream.of(MockSingleThread.INSTANCE, MockMultiThreaded.INSTANCE)
   }
 
-  override fun definitions(): Stream<TestDefinitions.TestSuite> {
+  public override fun definitions(): Stream<TestDefinitions.TestSuite> {
     return Stream.of(
         AwakeableIdTest(),
         DeferredTest(),
@@ -31,6 +31,7 @@ class KotlinCoroutinesTests : TestRunner() {
         SideEffectTest(),
         SleepTest(),
         StateMachineFailuresTest(),
-        UserFailuresTest())
+        UserFailuresTest(),
+        RandomTest())
   }
 }

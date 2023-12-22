@@ -41,7 +41,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   private volatile InvocationState invocationState = InvocationState.WAITING_START;
 
   // Used for the side effect guard
-  private boolean insideSideEffect = false;
+  private volatile boolean insideSideEffect = false;
 
   // Obtained after WAITING_START
   private ByteString id;
@@ -95,6 +95,10 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   public InvocationState getInvocationState() {
     return this.invocationState;
+  }
+
+  public boolean isInsideSideEffect() {
+    return this.insideSideEffect;
   }
 
   public String getFullyQualifiedMethodName() {

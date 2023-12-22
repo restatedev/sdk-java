@@ -41,6 +41,11 @@ public interface Syscalls {
             + Thread.currentThread().getName());
   }
 
+  /**
+   * @return true if it's inside a side effect block.
+   */
+  boolean isInsideSideEffect();
+
   // ----- IO
   // Note: These are not supposed to be exposed to RestateContext, but they should be used through
   // gRPC APIs.

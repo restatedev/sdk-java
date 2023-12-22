@@ -10,12 +10,14 @@ package dev.restate.sdk.http.vertx
 
 import com.google.protobuf.ByteString
 import dev.restate.generated.sdk.java.Java.SideEffectEntryMessage
+import dev.restate.sdk.JavaBlockingTests
 import dev.restate.sdk.RestateService
 import dev.restate.sdk.core.ProtoUtils.*
 import dev.restate.sdk.core.TestDefinitions.*
 import dev.restate.sdk.core.testservices.GreeterGrpc
 import dev.restate.sdk.core.testservices.GreetingRequest
 import dev.restate.sdk.core.testservices.GreetingResponse
+import dev.restate.sdk.kotlin.KotlinCoroutinesTests
 import dev.restate.sdk.kotlin.RestateKtService
 import io.grpc.stub.StreamObserver
 import io.vertx.core.Vertx
@@ -101,28 +103,11 @@ class HttpVertxTests : dev.restate.sdk.core.TestRunner() {
   }
 
   override fun definitions(): Stream<TestSuite> {
-    return Stream.of(
-        dev.restate.sdk.AwakeableIdTest(),
-        dev.restate.sdk.DeferredTest(),
-        dev.restate.sdk.EagerStateTest(),
-        dev.restate.sdk.StateTest(),
-        dev.restate.sdk.InvocationIdTest(),
-        dev.restate.sdk.OnlyInputAndOutputTest(),
-        dev.restate.sdk.SideEffectTest(),
-        dev.restate.sdk.SleepTest(),
-        dev.restate.sdk.StateMachineFailuresTest(),
-        dev.restate.sdk.UserFailuresTest(),
-        dev.restate.sdk.GrpcChannelAdapterTest(),
-        dev.restate.sdk.kotlin.AwakeableIdTest(),
-        dev.restate.sdk.kotlin.DeferredTest(),
-        dev.restate.sdk.kotlin.EagerStateTest(),
-        dev.restate.sdk.kotlin.StateTest(),
-        dev.restate.sdk.kotlin.InvocationIdTest(),
-        dev.restate.sdk.kotlin.OnlyInputAndOutputTest(),
-        dev.restate.sdk.kotlin.SideEffectTest(),
-        dev.restate.sdk.kotlin.SleepTest(),
-        dev.restate.sdk.kotlin.StateMachineFailuresTest(),
-        dev.restate.sdk.kotlin.UserFailuresTest(),
-        VertxExecutorsTest())
+    return Stream.concat(
+        Stream.concat(
+            JavaBlockingTests().definitions(),
+            KotlinCoroutinesTests().definitions(),
+        ),
+        Stream.of(VertxExecutorsTest()))
   }
 }

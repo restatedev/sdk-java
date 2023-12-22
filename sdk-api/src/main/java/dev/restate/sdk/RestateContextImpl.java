@@ -9,10 +9,7 @@
 package dev.restate.sdk;
 
 import com.google.protobuf.ByteString;
-import dev.restate.sdk.common.AbortedExecutionException;
-import dev.restate.sdk.common.Serde;
-import dev.restate.sdk.common.StateKey;
-import dev.restate.sdk.common.TerminalException;
+import dev.restate.sdk.common.*;
 import dev.restate.sdk.common.function.ThrowingSupplier;
 import dev.restate.sdk.common.syscalls.DeferredResult;
 import dev.restate.sdk.common.syscalls.EnterSideEffectSyscallCallback;
@@ -185,5 +182,10 @@ class RestateContextImpl implements RestateContext {
         Util.<Void>blockOnSyscall(cb -> syscalls.rejectAwakeable(id, reason, cb));
       }
     };
+  }
+
+  @Override
+  public RestateRandom random() {
+    return new RestateRandom(InvocationId.current().toRandomSeed(), this.syscalls);
   }
 }
