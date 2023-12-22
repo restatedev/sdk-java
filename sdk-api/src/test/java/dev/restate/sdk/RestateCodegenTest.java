@@ -8,18 +8,12 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import static dev.restate.sdk.core.ProtoUtils.*;
-import static dev.restate.sdk.core.TestDefinitions.*;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.InstanceOfAssertFactories.type;
-
-import com.google.protobuf.Empty;
-import dev.restate.generated.service.protocol.Protocol;
+import dev.restate.sdk.core.RestateCodegenTestSuite;
 import dev.restate.sdk.core.testservices.*;
+import io.grpc.BindableService;
 import java.time.Duration;
-import java.util.stream.Stream;
 
-public class RestateCodegenTest implements TestSuite {
+public class RestateCodegenTest extends RestateCodegenTestSuite {
 
   private static class GreeterWithRestateClientAndServerCodegen
       extends GreeterRestate.GreeterRestateImplBase {
@@ -31,6 +25,11 @@ public class RestateCodegenTest implements TestSuite {
       client.oneWay().greet(request);
       return client.greet(request).await();
     }
+  }
+
+  @Override
+  protected BindableService greeterWithRestateClientAndServerCodegen() {
+    return new GreeterWithRestateClientAndServerCodegen();
   }
 
   private static class Codegen extends CodegenRestate.CodegenRestateImplBase {
@@ -56,107 +55,18 @@ public class RestateCodegenTest implements TestSuite {
     @Override
     public MyMessage oneWay(RestateContext context, MyMessage request) {
       CodegenRestate.CodegenRestateClient client = CodegenRestate.newClient(context);
-      return client.callOneWay(request).await();
+      return client._oneWay(request).await();
     }
 
     @Override
     public MyMessage delayed(RestateContext context, MyMessage request) {
       CodegenRestate.CodegenRestateClient client = CodegenRestate.newClient(context);
-      return client.callDelayed(request).await();
+      return client._delayed(request).await();
     }
   }
 
   @Override
-  public Stream<TestDefinition> definitions() {
-    return Stream.of(
-        testInvocation(new GreeterWithRestateClientAndServerCodegen(), GreeterGrpc.getGreetMethod())
-            .withInput(
-                startMessage(1),
-                inputMessage(greetingRequest("Francesco")),
-                completionMessage(3, greetingResponse("Till")))
-            .onlyUnbuffered()
-            .assertingOutput(
-                msgs -> {
-                  assertThat(msgs)
-                      .element(0)
-                      .asInstanceOf(type(Protocol.BackgroundInvokeEntryMessage.class))
-                      .satisfies(
-                          backgroundInvokeEntryMessage -> {
-                            // Check invoke time is non zero
-                            assertThat(backgroundInvokeEntryMessage.getInvokeTime())
-                                .isGreaterThan(0);
-                            // Check background invoke header
-                            assertThat(
-                                    backgroundInvokeEntryMessage.toBuilder()
-                                        .clearInvokeTime()
-                                        .build())
-                                .isEqualTo(
-                                    backgroundInvokeMessage(
-                                            GreeterGrpc.getGreetMethod(),
-                                            greetingRequest("Francesco"))
-                                        .build());
-                          });
-                  assertThat(msgs)
-                      .elements(1, 2, 3, 4)
-                      .containsExactly(
-                          backgroundInvokeMessage(
-                                  GreeterGrpc.getGreetMethod(), greetingRequest("Francesco"))
-                              .build(),
-                          invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco"))
-                              .build(),
-                          outputMessage(greetingResponse("Till")),
-                          END_MESSAGE);
-                }),
-        testInvocation(new Codegen(), CodegenGrpc.getEmptyInputMethod())
-            .withInput(
-                startMessage(1),
-                inputMessage(Empty.getDefaultInstance()),
-                completionMessage(1, MyMessage.newBuilder().setValue("Francesco")))
-            .onlyUnbuffered()
-            .expectingOutput(
-                invokeMessage(CodegenGrpc.getEmptyInputMethod(), Empty.getDefaultInstance()),
-                outputMessage(MyMessage.newBuilder().setValue("Francesco")),
-                END_MESSAGE)
-            .named("Check Codegen::EmptyInput method is correctly generated"),
-        testInvocation(new Codegen(), CodegenGrpc.getEmptyOutputMethod())
-            .withInput(
-                startMessage(1),
-                inputMessage(MyMessage.newBuilder().setValue("Francesco")),
-                completionMessage(1, Empty.getDefaultInstance()))
-            .onlyUnbuffered()
-            .expectingOutput(
-                invokeMessage(
-                    CodegenGrpc.getEmptyOutputMethod(),
-                    MyMessage.newBuilder().setValue("Francesco").build()),
-                outputMessage(Empty.getDefaultInstance()),
-                END_MESSAGE)
-            .named("Check Codegen::EmptyOutput method is correctly generated"),
-        testInvocation(new Codegen(), CodegenGrpc.getEmptyInputOutputMethod())
-            .withInput(
-                startMessage(1),
-                inputMessage(Empty.getDefaultInstance()),
-                completionMessage(1, Empty.getDefaultInstance()))
-            .onlyUnbuffered()
-            .expectingOutput(
-                invokeMessage(CodegenGrpc.getEmptyInputOutputMethod(), Empty.getDefaultInstance()),
-                outputMessage(Empty.getDefaultInstance()),
-                END_MESSAGE)
-            .named("Check Codegen::EmptyInputOutput method is correctly generated"),
-        testInvocation(new Codegen(), CodegenGrpc.getOneWayMethod())
-            .withInput(startMessage(1), inputMessage(MyMessage.newBuilder().setValue("Francesco")))
-            .expectingOutput(
-                invokeMessage(
-                    CodegenGrpc.getOneWayMethod(),
-                    MyMessage.newBuilder().setValue("Francesco").build()),
-                suspensionMessage(1))
-            .named("Check Codegen::OneWay method is correctly generated"),
-        testInvocation(new Codegen(), CodegenGrpc.getDelayedMethod())
-            .withInput(startMessage(1), inputMessage(MyMessage.newBuilder().setValue("Francesco")))
-            .expectingOutput(
-                invokeMessage(
-                    CodegenGrpc.getDelayedMethod(),
-                    MyMessage.newBuilder().setValue("Francesco").build()),
-                suspensionMessage(1))
-            .named("Check Codegen::Delayed method is correctly generated"));
+  protected BindableService codegen() {
+    return new Codegen();
   }
 }
