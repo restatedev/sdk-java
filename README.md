@@ -132,14 +132,16 @@ protobuf {
   plugins {
     // The gRPC Kotlin plugin depends on the gRPC generated code
     id("grpc") { artifact = "io.grpc:protoc-gen-grpc-java:1.58.0" }
-    id("grpckt") { artifact = "io.grpc:protoc-gen-grpc-kotlin:1.4.0:jdk8@jar" }
+    id("restate") { artifact = "dev.restate:protoc-gen-restate:0.6.0:all@jar" }
   }
 
   generateProtoTasks {
     all().forEach {
       it.plugins {
         id("grpc")
-        id("grpckt")
+        id("restate") {
+          option("kotlin")
+        }
       }
       it.builtins {
         // The Kotlin codegen depends on the Java generated code
@@ -209,18 +211,14 @@ If you want to use POJOs for state, check [how to use Jackson](#state-serde-usin
 Implement the service in a new class, for example:
 
 ```kotlin
-class Greeter :
-        // Use Dispatchers.Unconfined as the Executor/thread pool is managed by the SDK itself.
-        GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined),
-        RestateCoroutineService {
+class Greeter : GreeterRestateKtImplBase() {
   companion object {
     private val COUNT = StateKey.of("total", CoreSerdes.LONG)
   }
 
-  override suspend fun greet(request: GreetRequest): GreetResponse {
-    val ctx = restateContext()
-    val count = ctx.get(COUNT) ?: 0L
-    ctx.set(COUNT, count + 1)
+  override suspend fun greet(context: RestateContext, request: GreetRequest): GreetResponse {
+    val count = context.get(COUNT) ?: 0L
+    context.set(COUNT, count + 1)
     return greetResponse { message = "Hello ${request.name} for the $count time!" }
   }
 }
