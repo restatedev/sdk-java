@@ -20,7 +20,6 @@ import dev.restate.sdk.common.syscalls.Syscalls
 import io.grpc.MethodDescriptor
 import java.lang.Error
 import kotlin.coroutines.resume
-import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
 import kotlinx.coroutines.*
@@ -187,7 +186,7 @@ internal class RestateContextImpl internal constructor(private val syscalls: Sys
     return AwakeableHandleImpl(syscalls, id)
   }
 
-  override fun random(): Random {
-    return Random(InvocationId.current().toRandomSeed())
+  override fun random(): RestateRandom {
+    return RestateRandom(InvocationId.current().toRandomSeed(), syscalls)
   }
 }

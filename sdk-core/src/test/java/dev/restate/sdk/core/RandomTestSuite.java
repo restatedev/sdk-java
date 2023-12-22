@@ -27,6 +27,8 @@ public abstract class RandomTestSuite implements TestSuite {
 
   protected abstract BindableService randomInsideSideEffect();
 
+  protected abstract int getExpectedInt(long seed);
+
   @Override
   public Stream<TestDefinition> definitions() {
     String debugId = "my-id";
@@ -38,7 +40,10 @@ public abstract class RandomTestSuite implements TestSuite {
                 Protocol.StartMessage.newBuilder().setDebugId(debugId).setKnownEntries(1),
                 inputMessage(GreetingRequest.getDefaultInstance()))
             .expectingOutput(
-                outputMessage(greetingResponse(Integer.toString(expectedRandomNumber))),
+                outputMessage(
+                    greetingResponse(
+                        Integer.toString(
+                            getExpectedInt(new InvocationIdImpl(debugId).toRandomSeed())))),
                 END_MESSAGE),
         testInvocation(this::randomInsideSideEffect, GreeterGrpc.getGreetMethod())
             .withInput(

@@ -31,6 +31,7 @@ class KotlinCoroutinesTests : TestRunner() {
         SideEffectTest(),
         SleepTest(),
         StateMachineFailuresTest(),
-        UserFailuresTest())
+        UserFailuresTest(),
+        RandomTest())
   }
 }

@@ -201,7 +201,7 @@ sealed interface RestateContext {
   fun awakeableHandle(id: String): AwakeableHandle
 
   /**
-   * Create a [Random] instance inherently predictable, seeded on the
+   * Create a [RestateRandom] instance inherently predictable, seeded on the
    * [dev.restate.sdk.common.InvocationId], which is not secret.
    *
    * This instance is useful to generate identifiers, idempotency keys, and for uniform sampling
@@ -212,7 +212,20 @@ sealed interface RestateContext {
    *
    * @return the [Random] instance.
    */
-  fun random(): Random
+  fun random(): RestateRandom
+}
+
+class RestateRandom(seed: Long, private val syscalls: Syscalls) : Random() {
+  private val r = Random(seed)
+
+  override fun nextBits(bitCount: Int): Int {
+    check(!syscalls.isInsideSideEffect) { "You can't use RestateRandom inside a side effect!" }
+    return r.nextBits(bitCount)
+  }
+
+  fun nextUUID(): UUID {
+    return UUID(this.nextLong(), this.nextLong())
+  }
 }
 
 /**

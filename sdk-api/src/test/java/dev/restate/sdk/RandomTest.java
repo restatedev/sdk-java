@@ -14,6 +14,7 @@ import dev.restate.sdk.core.testservices.GreeterRestate;
 import dev.restate.sdk.core.testservices.GreetingRequest;
 import dev.restate.sdk.core.testservices.GreetingResponse;
 import io.grpc.BindableService;
+import java.util.Random;
 
 public class RandomTest extends RandomTestSuite {
 
@@ -44,5 +45,10 @@ public class RandomTest extends RandomTestSuite {
   @Override
   protected BindableService randomInsideSideEffect() {
     return new RandomInsideSideEffect();
+  }
+
+  @Override
+  protected int getExpectedInt(long seed) {
+    return new Random(seed).nextInt();
   }
 }
