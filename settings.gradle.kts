@@ -9,6 +9,8 @@
 
 rootProject.name = "sdk-java"
 
+plugins { id("org.gradle.toolchains.foojay-resolver-convention") version "0.7.0" }
+
 include(
     "sdk-common",
     "sdk-api",

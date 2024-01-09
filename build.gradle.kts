@@ -88,8 +88,10 @@ subprojects {
 
   dependencies { errorprone("com.google.errorprone:error_prone_core:2.13.1") }
 
+  // Configure the java toolchain to use. If not found, it will be downloaded automatically
   java {
     toolchain { languageVersion = JavaLanguageVersion.of(11) }
+
     withJavadocJar()
     withSourcesJar()
   }
@@ -97,9 +99,6 @@ subprojects {
   protobuf { protoc { artifact = "com.google.protobuf:protoc:$protobufVersion" } }
 
   tasks.withType<JavaCompile>().configureEach {
-    targetCompatibility = "11"
-    sourceCompatibility = "11"
-
     options.errorprone.disableWarningsInGeneratedCode.set(true)
     options.errorprone.disable(
         // We use toString() in proto messages for debugging reasons.
