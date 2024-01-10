@@ -134,6 +134,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     MessageLite msg = invocationInput.message();
     LOG.trace("Received input message {} {}", msg.getClass(), msg);
     if (this.invocationState == InvocationState.WAITING_START) {
+      MessageHeader.checkProtocolVersion(invocationInput.header());
       this.onStart(msg);
     } else if (msg instanceof Protocol.CompletionMessage) {
       // We check the instance rather than the state, because the user code might still be
