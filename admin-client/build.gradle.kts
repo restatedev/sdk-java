@@ -47,9 +47,6 @@ tasks.withType<GenerateTask> {
 }
 
 tasks.withType<JavaCompile>().configureEach {
-  targetCompatibility = "11"
-  sourceCompatibility = "11"
-
   // Disable errorprone for this module
   options.errorprone.disableAllChecks.set(true)
 }
