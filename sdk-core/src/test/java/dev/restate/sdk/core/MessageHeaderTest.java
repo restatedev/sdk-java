@@ -9,6 +9,7 @@
 package dev.restate.sdk.core;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 
@@ -23,5 +24,17 @@ public class MessageHeaderTest {
                     2)
                 .encode())
         .isEqualTo(0x0C01_8001_0000_0002L);
+  }
+
+  @Test
+  void checkProtocolVersion() {
+    int unknownVersion = Integer.MAX_VALUE & MessageHeader.VERSION_MASK;
+    assertThatThrownBy(
+            () ->
+                MessageHeader.checkProtocolVersion(
+                    new MessageHeader(MessageType.StartMessage, unknownVersion, 0)))
+        .hasMessage(
+            "Unsupported protocol version %d, only version %d is supported",
+            unknownVersion, MessageHeader.SUPPORTED_PROTOCOL_VERSION);
   }
 }
