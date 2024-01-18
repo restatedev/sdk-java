@@ -18,11 +18,13 @@ This SDK features:
   - Non-blocking HTTP servers
   - On AWS Lambda
 
-📖 Check out our [docs](https://docs.restate.dev) to get quickly started!
+## Community
 
-🗣️ Join our [discord channel](https://discord.gg/skW3AZ6uGd) to talk to the community.
-
-🏠 Visit our [GitHub org](https://github.com/restatedev) for more details.
+* 🤗️ [Join our online community](https://discord.gg/skW3AZ6uGd) for help, sharing feedback and talking to the community.
+* 📖 [Check out our documentation](https://docs.restate.dev) to get quickly started!
+* 📣 [Follow us on Twitter](https://twitter.com/restatedev) for staying up to date.
+* 🙋 [Create a GitHub issue](https://github.com/restatedev/sdk-java/issues) for requesting a new feature or reporting a problem.
+* 🏠 [Visit our GitHub org](https://github.com/restatedev) for exploring other repositories.
 
 ## Using the SDK
 
@@ -400,7 +402,13 @@ export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://localhost:14250
 
 Please refer to the [Opentelemetry manual instrumentation documentation](https://opentelemetry.io/docs/instrumentation/java/manual/#manual-instrumentation-setup) and the [autoconfigure documentation](https://github.com/open-telemetry/opentelemetry-java/blob/main/sdk-extensions/autoconfigure/README.md) for more info.
 
-## Contributing to the SDK
+## Contributing
+
+We’re excited if you join the Restate community and start contributing!
+Whether it is feature requests, bug reports, ideas & feedback or PRs, we appreciate any and all contributions.
+We know that your time is precious and, therefore, deeply value any effort to contribute!
+
+### Building the SDK locally
 
 Prerequisites:
 
