@@ -265,7 +265,8 @@ public final class SyscallsImpl implements SyscallsInternal {
                                         .rewind()));
 
                     return new AbstractMap.SimpleImmutableEntry<>(
-                        Base64.getUrlEncoder().encodeToString(awakeableId.toByteArray()),
+                        Entries.AWAKEABLE_IDENTIFIER_PREFIX
+                            + Base64.getUrlEncoder().encodeToString(awakeableId.toByteArray()),
                         deferredResult);
                   },
                   callback));

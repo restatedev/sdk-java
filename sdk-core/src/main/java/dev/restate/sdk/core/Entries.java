@@ -19,6 +19,7 @@ import io.opentelemetry.api.trace.Span;
 import java.util.function.Function;
 
 final class Entries {
+  public static final String AWAKEABLE_IDENTIFIER_PREFIX = "prom_1";
 
   private Entries() {}
 
