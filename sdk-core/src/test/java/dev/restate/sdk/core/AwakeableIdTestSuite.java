@@ -42,7 +42,8 @@ public abstract class AwakeableIdTestSuite implements TestSuite {
     expectedAwakeableId.putInt(1);
     expectedAwakeableId.rewind();
     String base64ExpectedAwakeableId =
-        Base64.getUrlEncoder().encodeToString(expectedAwakeableId.array());
+        Entries.AWAKEABLE_IDENTIFIER_PREFIX
+            + Base64.getUrlEncoder().encodeToString(expectedAwakeableId.array());
 
     return Stream.of(
         testInvocation(this::returnAwakeableId, GreeterGrpc.getGreetMethod())
