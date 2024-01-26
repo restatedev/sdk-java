@@ -30,3 +30,8 @@ build
 
 .idea
 *.iml
+.settings
+.project
+.classpath
+.factorypath
+kls_database.db
