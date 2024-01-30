@@ -70,7 +70,7 @@ dependencyResolutionManagement {
       library("events", "com.amazonaws:aws-lambda-java-events:3.11.0")
     }
     create("jacksonLibs") {
-      version("jackson", "2.15.2")
+      version("jackson", "2.16.1")
 
       library("jackson-bom", "com.fasterxml.jackson", "jackson-bom").versionRef("jackson")
       library("jackson-core", "com.fasterxml.jackson.core", "jackson-core").withoutVersion()
