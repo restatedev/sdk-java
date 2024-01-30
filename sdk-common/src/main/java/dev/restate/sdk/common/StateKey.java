@@ -35,8 +35,8 @@ public final class StateKey<T> {
   }
 
   /** Create a new {@link StateKey} for bytes state. */
-  public static StateKey<byte[]> bytes(String name) {
-    return new StateKey<>(name, CoreSerdes.BYTES);
+  public static StateKey<byte[]> raw(String name) {
+    return new StateKey<>(name, CoreSerdes.RAW);
   }
 
   public String name() {

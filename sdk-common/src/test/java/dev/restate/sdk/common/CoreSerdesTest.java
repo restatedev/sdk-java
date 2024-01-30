@@ -29,7 +29,7 @@ class CoreSerdesTest {
     var random = new Random();
     return Stream.of(
         roundtripCase(CoreSerdes.VOID, null),
-        roundtripCase(CoreSerdes.BYTES, new byte[] {1, 2, 3, 4}),
+        roundtripCase(CoreSerdes.RAW, new byte[] {1, 2, 3, 4}),
         roundtripCase(CoreSerdes.JSON_STRING, ""),
         roundtripCase(CoreSerdes.JSON_STRING, "Francesco1234"),
         roundtripCase(CoreSerdes.JSON_STRING, "😀"),

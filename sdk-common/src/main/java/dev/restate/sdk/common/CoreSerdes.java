@@ -58,7 +58,7 @@ public abstract class CoreSerdes {
       };
 
   /** Pass through {@link Serde} for byte array. */
-  public static Serde<byte[]> BYTES =
+  public static Serde<byte[]> RAW =
       new Serde<>() {
         @Override
         public byte[] serialize(byte[] value) {
