@@ -15,7 +15,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.sdk.core.InvocationHandler;
 import dev.restate.sdk.core.ProtocolException;
-import dev.restate.sdk.core.RestateGrpcServer;
+import dev.restate.sdk.core.RestateEndpoint;
 import io.grpc.Status;
 import io.netty.buffer.Unpooled;
 import io.netty.util.AsciiString;
@@ -66,15 +66,15 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
         }
       };
 
-  private final RestateGrpcServer restateGrpcServer;
+  private final RestateEndpoint restateEndpoint;
   private final HashMap<String, Executor> blockingServices;
   private final OpenTelemetry openTelemetry;
 
   RequestHttpServerHandler(
-      RestateGrpcServer restateGrpcServer,
+      RestateEndpoint restateEndpoint,
       HashMap<String, Executor> blockingServices,
       OpenTelemetry openTelemetry) {
-    this.restateGrpcServer = restateGrpcServer;
+    this.restateEndpoint = restateEndpoint;
     this.blockingServices = blockingServices;
     this.openTelemetry = openTelemetry;
   }
@@ -117,26 +117,26 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
     InvocationHandler handler;
     try {
       handler =
-          restateGrpcServer.resolve(
+          restateEndpoint.resolve(
               serviceName,
               methodName,
               otelContext,
-              new RestateGrpcServer.LoggingContextSetter() {
+              new RestateEndpoint.LoggingContextSetter() {
                 @Override
                 public void setServiceMethod(String serviceMethod) {
                   ContextualData.put(
-                      RestateGrpcServer.LoggingContextSetter.SERVICE_METHOD_KEY, serviceMethod);
+                      RestateEndpoint.LoggingContextSetter.SERVICE_METHOD_KEY, serviceMethod);
                 }
 
                 @Override
                 public void setInvocationId(String id) {
-                  ContextualData.put(RestateGrpcServer.LoggingContextSetter.INVOCATION_ID_KEY, id);
+                  ContextualData.put(RestateEndpoint.LoggingContextSetter.INVOCATION_ID_KEY, id);
                 }
 
                 @Override
                 public void setInvocationStatus(String invocationStatus) {
                   ContextualData.put(
-                      RestateGrpcServer.LoggingContextSetter.SERVICE_INVOCATION_STATUS_KEY,
+                      RestateEndpoint.LoggingContextSetter.SERVICE_INVOCATION_STATUS_KEY,
                       invocationStatus);
                 }
               },
@@ -219,7 +219,7 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
 
               // Compute response and write it back
               Discovery.ServiceDiscoveryResponse response =
-                  this.restateGrpcServer.handleDiscoveryRequest(discoveryRequest);
+                  this.restateEndpoint.handleDiscoveryRequest(discoveryRequest);
               request
                   .response()
                   .setStatusCode(OK.code())

@@ -10,7 +10,7 @@ package dev.restate.sdk.lambda;
 
 import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.sdk.common.Service;
-import dev.restate.sdk.core.RestateGrpcServer;
+import dev.restate.sdk.core.RestateEndpoint;
 import io.grpc.ServerInterceptor;
 import io.grpc.ServerInterceptors;
 import io.grpc.ServerServiceDefinition;
@@ -20,8 +20,8 @@ import java.util.Arrays;
 /** Endpoint builder for a Restate AWS Lambda Endpoint, to serve Restate service. */
 public final class RestateLambdaEndpointBuilder {
 
-  private final RestateGrpcServer.Builder restateGrpcServerBuilder =
-      RestateGrpcServer.newBuilder(Discovery.ProtocolMode.REQUEST_RESPONSE);
+  private final RestateEndpoint.Builder restateGrpcServerBuilder =
+      RestateEndpoint.newBuilder(Discovery.ProtocolMode.REQUEST_RESPONSE);
   private OpenTelemetry openTelemetry = OpenTelemetry.noop();
 
   /**

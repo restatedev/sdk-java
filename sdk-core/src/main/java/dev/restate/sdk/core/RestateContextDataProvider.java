@@ -23,7 +23,7 @@ import org.apache.logging.log4j.core.util.ContextDataProvider;
  * <p>This is based on grpc Context due to the fact that it's the only guaranteed thread
  * local/context we can rely on that is always available in the user code.
  */
-public class GrpcContextDataProvider implements ContextDataProvider {
+public class RestateContextDataProvider implements ContextDataProvider {
   @Override
   public Map<String, String> supplyContextData() {
     InvocationId invocationId = InvocationId.INVOCATION_ID_KEY.get();
@@ -36,12 +36,12 @@ public class GrpcContextDataProvider implements ContextDataProvider {
     // We can't use the immutable MapN implementation from Map.of because of
     // https://github.com/apache/logging-log4j2/issues/2098
     HashMap<String, String> m = new HashMap<>();
-    m.put(RestateGrpcServer.LoggingContextSetter.INVOCATION_ID_KEY, invocationId.toString());
+    m.put(RestateEndpoint.LoggingContextSetter.INVOCATION_ID_KEY, invocationId.toString());
     m.put(
-        RestateGrpcServer.LoggingContextSetter.SERVICE_METHOD_KEY,
+        RestateEndpoint.LoggingContextSetter.SERVICE_METHOD_KEY,
         syscalls.getFullyQualifiedMethodName());
     m.put(
-        RestateGrpcServer.LoggingContextSetter.SERVICE_INVOCATION_STATUS_KEY,
+        RestateEndpoint.LoggingContextSetter.SERVICE_INVOCATION_STATUS_KEY,
         syscalls.getInvocationState().toString());
     return m;
   }

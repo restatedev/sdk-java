@@ -10,8 +10,6 @@ package dev.restate.sdk.core;
 
 import com.google.protobuf.MessageLite;
 import dev.restate.generated.service.discovery.Discovery;
-import dev.restate.sdk.common.InvocationId;
-import dev.restate.sdk.common.syscalls.Syscalls;
 import io.grpc.*;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
@@ -29,15 +27,15 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.ThreadContext;
 
-public class RestateGrpcServer {
+public class RestateEndpoint {
 
-  private static final Logger LOG = LogManager.getLogger(RestateGrpcServer.class);
+  private static final Logger LOG = LogManager.getLogger(RestateEndpoint.class);
 
   private final Map<String, ServerServiceDefinition> services;
   private final Tracer tracer;
   private final ServiceDiscoveryHandler serviceDiscoveryHandler;
 
-  private RestateGrpcServer(
+  private RestateEndpoint(
       Discovery.ProtocolMode protocolMode,
       Map<String, ServerServiceDefinition> services,
       Tracer tracer) {
@@ -55,7 +53,7 @@ public class RestateGrpcServer {
       io.opentelemetry.context.Context otelContext,
       LoggingContextSetter loggingContextSetter,
       @Nullable Executor syscallExecutor,
-      @Nullable Executor serverCallListenerExecutor)
+      @Nullable Executor userCodeExecutor)
       throws ProtocolException {
     // Resolve the service method definition
     ServerServiceDefinition svc = this.services.get(serviceName);
@@ -93,9 +91,8 @@ public class RestateGrpcServer {
             s -> loggingContextSetter.setInvocationStatus(s.toString()));
     SyscallsInternal syscalls =
         syscallExecutor != null
-            ? ExecutorSwitchingWrappers.syscalls(new SyscallsImpl(stateMachine), syscallExecutor)
+            ? new ExecutorSwitchingSyscalls(new SyscallsImpl(stateMachine), syscallExecutor)
             : new SyscallsImpl(stateMachine);
-    RestateServerCall bridge = new RestateServerCall(method.getMethodDescriptor(), syscalls);
 
     return new InvocationHandler() {
 
@@ -117,26 +114,14 @@ public class RestateGrpcServer {
               // Set invocation id in logging context
               loggingContextSetter.setInvocationId(invocationId.toString());
 
-              // This gRPC context will be propagated to the user thread.
-              // Note: from now on we cannot modify this context anymore!
-              io.grpc.Context context =
-                  Context.current()
-                      .withValue(InvocationId.INVOCATION_ID_KEY, invocationId)
-                      .withValue(Syscalls.SYSCALLS_KEY, syscalls);
+              // Prepare RpcHandler
+              RpcHandler m = new GrpcUnaryRpcHandler(method, syscalls, userCodeExecutor);
 
-              // Create the listener
-              RestateServerCallListener<MessageLite> restateListener =
-                  new GrpcServerCallListenerAdaptor<>(
-                      context, bridge, new Metadata(), method.getServerCallHandler());
+              // Wire up "close" notification
+              stateMachine.registerCloseCallback(c -> m.notifyClosed());
 
-              // Wrap in the executor switcher, if needed
-              if (serverCallListenerExecutor != null) {
-                restateListener =
-                    ExecutorSwitchingWrappers.serverCallListener(
-                        restateListener, serverCallListenerExecutor);
-              }
-
-              bridge.setListener(restateListener);
+              // Start RpcHandler
+              m.start();
             });
       }
     };
@@ -186,8 +171,8 @@ public class RestateGrpcServer {
       return this;
     }
 
-    public RestateGrpcServer build() {
-      return new RestateGrpcServer(
+    public RestateEndpoint build() {
+      return new RestateEndpoint(
           this.protocolMode,
           this.services.stream()
               .collect(
@@ -201,8 +186,8 @@ public class RestateGrpcServer {
    * Interface to abstract setting the logging context variables.
    *
    * <p>In classic multithreaded environments, you can just use {@link
-   * LoggingContextSetter#THREAD_LOCAL_INSTANCE}, though the caller of {@link RestateGrpcServer}
-   * must take care of the cleanup of the thread local map.
+   * LoggingContextSetter#THREAD_LOCAL_INSTANCE}, though the caller of {@link RestateEndpoint} must
+   * take care of the cleanup of the thread local map.
    */
   public interface LoggingContextSetter {
 

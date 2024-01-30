@@ -14,6 +14,7 @@ import com.google.rpc.Code;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.generated.service.protocol.Protocol.PollInputStreamEntryMessage;
+import dev.restate.sdk.common.InvocationId;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.common.syscalls.DeferredResult;
 import dev.restate.sdk.common.syscalls.EnterSideEffectSyscallCallback;
@@ -43,6 +44,11 @@ public final class SyscallsImpl implements SyscallsInternal {
 
   SyscallsImpl(InvocationStateMachine stateMachine) {
     this.stateMachine = stateMachine;
+  }
+
+  @Override
+  public InvocationId invocationId() {
+    return this.stateMachine.invocationId();
   }
 
   @Override
