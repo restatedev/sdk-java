@@ -8,11 +8,19 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.common;
 
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.Parser;
-import java.nio.charset.StandardCharsets;
+import dev.restate.sdk.common.function.ThrowingBiConsumer;
+import dev.restate.sdk.common.function.ThrowingFunction;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.Objects;
 import javax.annotation.Nullable;
 
@@ -63,100 +71,80 @@ public abstract class CoreSerdes {
         }
       };
 
-  /** Serde for primitive types */
-  public static Serde<String> STRING_UTF8 =
-      Serde.using(
-          s -> s.getBytes(StandardCharsets.UTF_8), b -> new String(b, StandardCharsets.UTF_8));
-
-  public static Serde<Boolean> BOOLEAN =
-      Serde.using(
-          bool -> {
-            byte[] encodedValue = new byte[1];
-            encodedValue[0] = (byte) (bool ? 1 : 0);
-            return encodedValue;
-          },
-          encodedValue -> encodedValue[0] != 0);
-  public static Serde<Byte> BYTE =
-      Serde.using(
-          boxedN -> {
-            byte[] encodedValue = new byte[1];
-            encodedValue[0] = boxedN;
-            return encodedValue;
-          },
-          encodedValue -> encodedValue[0]);
-  public static Serde<Short> SHORT =
-      Serde.using(
-          boxedN -> {
-            short n = boxedN;
-            byte[] encodedValue = new byte[Short.SIZE / Byte.SIZE];
-            encodedValue[1] = (byte) (n >> Byte.SIZE);
-            encodedValue[0] = (byte) n;
-            return encodedValue;
-          },
-          encodedValue -> {
-            short n = 0;
-            n |= (short) ((encodedValue[1] & 0xFF) << 8);
-            n |= (short) (encodedValue[0] & 0xFF);
-            return n;
+  /** {@link Serde} for {@link String}. This writes and reads {@link String} as JSON value. */
+  public static Serde<String> JSON_STRING =
+      usingJackson(
+          JsonGenerator::writeString,
+          p -> {
+            if (p.nextToken() != JsonToken.VALUE_STRING) {
+              throw new IllegalStateException(
+                  "Expecting token " + JsonToken.VALUE_STRING + ", got " + p.getCurrentToken());
+            }
+            return p.getText();
           });
 
-  public static Serde<Integer> INT =
-      Serde.using(
-          boxedN -> {
-            int n = boxedN;
-            byte[] encodedValue = new byte[Integer.SIZE / Byte.SIZE];
-            encodedValue[3] = (byte) (n >> (Byte.SIZE * 3));
-            encodedValue[2] = (byte) (n >> (Byte.SIZE * 2));
-            encodedValue[1] = (byte) (n >> Byte.SIZE);
-            encodedValue[0] = (byte) n;
-            return encodedValue;
-          },
-          encodedValue -> {
-            int n = 0;
-            n |= (encodedValue[3] & 0xFF) << (Byte.SIZE * 3);
-            n |= (encodedValue[2] & 0xFF) << (Byte.SIZE * 2);
-            n |= (encodedValue[1] & 0xFF) << Byte.SIZE;
-            n |= encodedValue[0] & 0xFF;
-            return n;
+  /** {@link Serde} for {@link Boolean}. This writes and reads {@link Boolean} as JSON value. */
+  public static Serde<Boolean> JSON_BOOLEAN =
+      usingJackson(
+          JsonGenerator::writeBoolean,
+          p -> {
+            p.nextToken();
+            return p.getBooleanValue();
           });
 
-  public static Serde<Long> LONG =
-      Serde.using(
-          boxedN -> {
-            long n = boxedN;
-            byte[] encodedValue = new byte[Long.SIZE / Byte.SIZE];
-            encodedValue[7] = (byte) (n >> (Byte.SIZE * 7));
-            encodedValue[6] = (byte) (n >> (Byte.SIZE * 6));
-            encodedValue[5] = (byte) (n >> (Byte.SIZE * 5));
-            encodedValue[4] = (byte) (n >> (Byte.SIZE * 4));
-            encodedValue[3] = (byte) (n >> (Byte.SIZE * 3));
-            encodedValue[2] = (byte) (n >> (Byte.SIZE * 2));
-            encodedValue[1] = (byte) (n >> Byte.SIZE);
-            encodedValue[0] = (byte) n;
-            return encodedValue;
-          },
-          encodedValue -> {
-            long n = 0;
-            n |= ((long) (encodedValue[7] & 0xFF) << (Byte.SIZE * 7));
-            n |= ((long) (encodedValue[6] & 0xFF) << (Byte.SIZE * 6));
-            n |= ((long) (encodedValue[5] & 0xFF) << (Byte.SIZE * 5));
-            n |= ((long) (encodedValue[4] & 0xFF) << (Byte.SIZE * 4));
-            n |= ((long) (encodedValue[3] & 0xFF) << (Byte.SIZE * 3));
-            n |= ((encodedValue[2] & 0xFF) << (Byte.SIZE * 2));
-            n |= ((encodedValue[1] & 0xFF) << Byte.SIZE);
-            n |= (encodedValue[0] & 0xFF);
-            return n;
+  /** {@link Serde} for {@link Byte}. This writes and reads {@link Byte} as JSON value. */
+  public static Serde<Byte> JSON_BYTE =
+      usingJackson(
+          JsonGenerator::writeNumber,
+          p -> {
+            p.nextToken();
+            return p.getByteValue();
           });
 
-  public static Serde<Float> FLOAT =
-      Serde.using(
-          boxedN -> INT.serialize(Float.floatToIntBits(boxedN)),
-          encodedValue -> Float.intBitsToFloat(INT.deserialize(encodedValue)));
+  /** {@link Serde} for {@link Short}. This writes and reads {@link Short} as JSON value. */
+  public static Serde<Short> JSON_SHORT =
+      usingJackson(
+          JsonGenerator::writeNumber,
+          p -> {
+            p.nextToken();
+            return p.getShortValue();
+          });
 
-  public static Serde<Double> DOUBLE =
-      Serde.using(
-          boxedN -> LONG.serialize(Double.doubleToLongBits(boxedN)),
-          encodedValue -> Double.longBitsToDouble(LONG.deserialize(encodedValue)));
+  /** {@link Serde} for {@link Integer}. This writes and reads {@link Integer} as JSON value. */
+  public static Serde<Integer> JSON_INT =
+      usingJackson(
+          JsonGenerator::writeNumber,
+          p -> {
+            p.nextToken();
+            return p.getIntValue();
+          });
+
+  /** {@link Serde} for {@link Long}. This writes and reads {@link Long} as JSON value. */
+  public static Serde<Long> JSON_LONG =
+      usingJackson(
+          JsonGenerator::writeNumber,
+          p -> {
+            p.nextToken();
+            return p.getLongValue();
+          });
+
+  /** {@link Serde} for {@link Float}. This writes and reads {@link Float} as JSON value. */
+  public static Serde<Float> JSON_FLOAT =
+      usingJackson(
+          JsonGenerator::writeNumber,
+          p -> {
+            p.nextToken();
+            return p.getFloatValue();
+          });
+
+  /** {@link Serde} for {@link Double}. This writes and reads {@link Double} as JSON value. */
+  public static Serde<Double> JSON_DOUBLE =
+      usingJackson(
+          JsonGenerator::writeNumber,
+          p -> {
+            p.nextToken();
+            return p.getDoubleValue();
+          });
 
   public static <T extends MessageLite> Serde<T> ofProtobuf(Parser<T> parser) {
     return new Serde<>() {
@@ -186,6 +174,37 @@ public abstract class CoreSerdes {
           return parser.parseFrom(byteString);
         } catch (InvalidProtocolBufferException e) {
           throw new RuntimeException("Cannot deserialize Protobuf object", e);
+        }
+      }
+    };
+  }
+
+  // --- Helpers for jackson-core
+
+  private static final JsonFactory JSON_FACTORY = new JsonFactory();
+
+  private static <T> Serde<T> usingJackson(
+      ThrowingBiConsumer<JsonGenerator, T> serializer,
+      ThrowingFunction<JsonParser, T> deserializer) {
+    return new Serde<>() {
+      @Override
+      public byte[] serialize(@Nullable T value) {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        try (JsonGenerator gen = JSON_FACTORY.createGenerator(outputStream)) {
+          serializer.asBiConsumer().accept(gen, value);
+        } catch (IOException e) {
+          throw new RuntimeException("Cannot create JsonGenerator", e);
+        }
+        return outputStream.toByteArray();
+      }
+
+      @Override
+      public T deserialize(byte[] value) {
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(value);
+        try (JsonParser parser = JSON_FACTORY.createParser(inputStream)) {
+          return deserializer.asFunction().apply(parser);
+        } catch (IOException e) {
+          throw new RuntimeException("Cannot create JsonGenerator", e);
         }
       }
     };
