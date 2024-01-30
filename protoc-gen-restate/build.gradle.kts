@@ -7,7 +7,8 @@ plugins {
   `library-publishing-conventions`
 }
 
-description = "Protoc plugin to generate interfaces compatible with dev.restate:sdk-api"
+description =
+    "Protoc plugin to generate interfaces compatible with dev.restate:sdk-api or dev.restate:sdk-api-kotlin"
 
 dependencies {
   compileOnly(coreLibs.javax.annotation.api)
@@ -17,7 +18,7 @@ dependencies {
   implementation(project(":sdk-common"))
 }
 
-application { mainClass.set("dev.restate.sdk.gen.JavaGen") }
+application { mainClass.set("dev.restate.sdk.gen.RestateGen") }
 
 tasks.named<ShadowJar>("shadowJar") {
   // Override the default jar

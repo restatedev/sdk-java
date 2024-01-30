@@ -20,8 +20,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
-public class JavaGen extends Generator {
+public class RestateGen extends Generator {
 
   @Override
   protected List<PluginProtos.CodeGeneratorResponse.Feature> supportedFeatures() {
@@ -32,20 +33,44 @@ public class JavaGen extends Generator {
   @Override
   public List<PluginProtos.CodeGeneratorResponse.File> generateFiles(
       PluginProtos.CodeGeneratorRequest request) throws GeneratorException {
-    ProtoTypeMap typeMap = ProtoTypeMap.of(request.getProtoFileList());
-
-    List<DescriptorProtos.FileDescriptorProto> protosToGenerate =
+    List<DescriptorProtos.FileDescriptorProto> protos =
         request.getProtoFileList().stream()
             .filter(protoFile -> request.getFileToGenerateList().contains(protoFile.getName()))
             .collect(Collectors.toList());
+    ProtoTypeMap typeMap = ProtoTypeMap.of(request.getProtoFileList());
 
-    List<ServiceContext> services = findServices(protosToGenerate, typeMap);
-    return generateFiles(services);
+    boolean isJavaGen = CodeGenUtils.findParameterOption(request, "java");
+    boolean isKotlinGen = CodeGenUtils.findParameterOption(request, "kotlin");
+    if (!isJavaGen && !isKotlinGen) {
+      // If no parameter specified, default to only java gen
+      isJavaGen = true;
+    }
+
+    Stream<PluginProtos.CodeGeneratorResponse.File> generatedFiles = Stream.empty();
+    if (isJavaGen) {
+      generatedFiles = Stream.concat(generatedFiles, generateJava(protos, typeMap));
+    }
+    if (isKotlinGen) {
+      generatedFiles = Stream.concat(generatedFiles, generateKotlin(protos, typeMap));
+    }
+
+    return generatedFiles.collect(Collectors.toList());
   }
 
-  private List<ServiceContext> findServices(
+  private Stream<PluginProtos.CodeGeneratorResponse.File> generateJava(
       List<DescriptorProtos.FileDescriptorProto> protos, ProtoTypeMap typeMap) {
+    return findServices(protos, typeMap, false).map(ctx -> buildFile(ctx, "javaStub.mustache"));
+  }
 
+  private Stream<PluginProtos.CodeGeneratorResponse.File> generateKotlin(
+      List<DescriptorProtos.FileDescriptorProto> protos, ProtoTypeMap typeMap) {
+    return findServices(protos, typeMap, true).map(ctx -> buildFile(ctx, "ktStub.mustache"));
+  }
+
+  private Stream<ServiceContext> findServices(
+      List<DescriptorProtos.FileDescriptorProto> protos,
+      ProtoTypeMap typeMap,
+      boolean isKotlinGen) {
     return protos.stream()
         .flatMap(
             fileProto ->
@@ -56,14 +81,14 @@ public class JavaGen extends Generator {
                           ServiceContext serviceContext =
                               buildServiceContext(
                                   typeMap,
+                                  isKotlinGen,
                                   fileProto.getSourceCodeInfo().getLocationList(),
                                   fileProto.getService(serviceIndex),
                                   serviceIndex);
                           serviceContext.protoName = fileProto.getName();
                           serviceContext.packageName = extractPackageName(fileProto);
                           return serviceContext;
-                        }))
-        .collect(Collectors.toList());
+                        }));
   }
 
   private String extractPackageName(DescriptorProtos.FileDescriptorProto proto) {
@@ -78,12 +103,20 @@ public class JavaGen extends Generator {
 
   private ServiceContext buildServiceContext(
       ProtoTypeMap typeMap,
+      boolean isKotlinGen,
       List<DescriptorProtos.SourceCodeInfo.Location> locations,
       DescriptorProtos.ServiceDescriptorProto serviceProto,
       int serviceIndex) {
     ServiceContext serviceContext = new ServiceContext();
     serviceContext.className = serviceProto.getName() + "Restate";
-    serviceContext.fileName = serviceContext.className + ".java";
+    if (isKotlinGen) {
+      serviceContext.className += "Kt";
+    }
+    if (isKotlinGen) {
+      serviceContext.fileName = serviceContext.className + ".kt";
+    } else {
+      serviceContext.fileName = serviceContext.className + ".java";
+    }
     serviceContext.serviceName = serviceProto.getName();
     serviceContext.deprecated = serviceProto.getOptions().getDeprecated();
 
@@ -95,7 +128,7 @@ public class JavaGen extends Generator {
                     DescriptorProtos.FileDescriptorProto.SERVICE_FIELD_NUMBER, serviceIndex))
             .findFirst()
             .orElseGet(DescriptorProtos.SourceCodeInfo.Location::getDefaultInstance);
-    serviceContext.javadoc =
+    serviceContext.apidoc =
         CodeGenUtils.getJavadoc(
             CodeGenUtils.getComments(serviceLocation),
             serviceProto.getOptions().getDeprecated(),
@@ -104,24 +137,32 @@ public class JavaGen extends Generator {
     for (int methodIndex = 0; methodIndex < serviceProto.getMethodCount(); methodIndex++) {
       serviceContext.methods.add(
           buildMethodContext(
-              typeMap, locations, serviceProto.getMethod(methodIndex), serviceIndex, methodIndex));
+              typeMap,
+              isKotlinGen,
+              locations,
+              serviceProto.getMethod(methodIndex),
+              serviceIndex,
+              methodIndex));
     }
     return serviceContext;
   }
 
   private MethodContext buildMethodContext(
       ProtoTypeMap typeMap,
+      boolean isKotlinGen,
       List<DescriptorProtos.SourceCodeInfo.Location> locations,
       DescriptorProtos.MethodDescriptorProto methodProto,
       int serviceIndex,
       int methodIndex) {
     MethodContext methodContext = new MethodContext();
-    methodContext.methodName = CodeGenUtils.mixedLower(methodProto.getName());
+    methodContext.methodName = CodeGenUtils.mixedLower(methodProto.getName(), isKotlinGen);
+
     // This is needed to avoid clashes with generated oneWay and delayed methods.
-    methodContext.topLevelClientMethodName =
-        (methodContext.methodName.equals("oneWay") || methodContext.methodName.equals("delayed"))
-            ? "call" + CodeGenUtils.firstUppercase(methodContext.methodName)
-            : methodContext.methodName;
+    methodContext.topLevelClientMethodName = methodContext.methodName;
+    if (methodContext.methodName.equals("oneWay") || methodContext.methodName.equals("delayed")) {
+      methodContext.topLevelClientMethodName = "_" + methodContext.topLevelClientMethodName;
+    }
+
     methodContext.inputType = typeMap.toJavaTypeName(methodProto.getInputType());
     methodContext.isInputEmpty = CodeGenUtils.isGoogleProtobufEmpty(methodProto.getInputType());
     methodContext.outputType = typeMap.toJavaTypeName(methodProto.getOutputType());
@@ -139,7 +180,7 @@ public class JavaGen extends Generator {
                     methodIndex))
             .findFirst()
             .orElseGet(DescriptorProtos.SourceCodeInfo.Location::getDefaultInstance);
-    methodContext.javadoc =
+    methodContext.apidoc =
         CodeGenUtils.getJavadoc(
             CodeGenUtils.getComments(serviceLocation),
             methodProto.getOptions().getDeprecated(),
@@ -148,13 +189,9 @@ public class JavaGen extends Generator {
     return methodContext;
   }
 
-  private List<PluginProtos.CodeGeneratorResponse.File> generateFiles(
-      List<ServiceContext> services) {
-    return services.stream().map(this::buildFile).collect(Collectors.toList());
-  }
-
-  private PluginProtos.CodeGeneratorResponse.File buildFile(ServiceContext context) {
-    String content = applyTemplate("blockingStub.mustache", context);
+  private PluginProtos.CodeGeneratorResponse.File buildFile(
+      ServiceContext context, String templateFile) {
+    String content = applyTemplate(templateFile, context);
     return PluginProtos.CodeGeneratorResponse.File.newBuilder()
         .setName(absoluteFileName(context))
         .setContent(content)
@@ -178,7 +215,7 @@ public class JavaGen extends Generator {
     public String packageName;
     public String className;
     public String serviceName;
-    public String javadoc;
+    public String apidoc;
     public boolean deprecated;
     public final List<MethodContext> methods = new ArrayList<>();
   }
@@ -193,7 +230,7 @@ public class JavaGen extends Generator {
     public String outputType;
 
     public boolean isOutputEmpty;
-    public String javadoc;
+    public String apidoc;
     public boolean deprecated;
 
     // This method mimics the upper-casing method ogf gRPC to ensure compatibility
@@ -214,15 +251,15 @@ public class JavaGen extends Generator {
     }
 
     public String methodDescriptorGetter() {
-      return CodeGenUtils.mixedLower("get_" + methodName + "_method");
+      return CodeGenUtils.mixedLower("get_" + methodName + "_method", false);
     }
   }
 
   public static void main(String[] args) {
     if (args.length == 0) {
-      ProtocPlugin.generate(List.of(new JavaGen()), List.of(Ext.serviceType));
+      ProtocPlugin.generate(List.of(new RestateGen()), List.of(Ext.serviceType));
     } else {
-      ProtocPlugin.debug(List.of(new JavaGen()), List.of(Ext.serviceType), args[0]);
+      ProtocPlugin.debug(List.of(new RestateGen()), List.of(Ext.serviceType), args[0]);
     }
   }
 }

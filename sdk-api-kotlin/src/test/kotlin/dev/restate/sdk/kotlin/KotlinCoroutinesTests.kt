@@ -32,6 +32,7 @@ class KotlinCoroutinesTests : TestRunner() {
         SleepTest(),
         StateMachineFailuresTest(),
         UserFailuresTest(),
+        RestateCodegenTest(),
         RandomTest())
   }
 }

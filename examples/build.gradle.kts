@@ -40,9 +40,6 @@ val pluginJar =
 protobuf {
   plugins {
     id("grpc") { artifact = "io.grpc:protoc-gen-grpc-java:${coreLibs.versions.grpc.get()}" }
-    id("grpckt") {
-      artifact = "io.grpc:protoc-gen-grpc-kotlin:${coreLibs.versions.grpckt.get()}:jdk8@jar"
-    }
     id("restate") {
       // NOTE: This is not needed in a regular project configuration, you should rather use:
       // artifact = "dev.restate.sdk:protoc-gen-restate-java-blocking:1.0-SNAPSHOT:all@jar"
@@ -55,15 +52,12 @@ protobuf {
       it.dependsOn(":protoc-gen-restate:shadowJar")
       it.plugins {
         id("grpc")
-        id("grpckt")
-        id("restate")
+        id("restate") {
+          option("java")
+          option("kotlin")
+        }
       }
       it.builtins { id("kotlin") }
-
-      // Generate descriptor set including the imports in order to make it easier to
-      // invoke the services via grpcurl (using -protoset).
-      it.generateDescriptorSet = true
-      it.descriptorSetOptions.includeImports = true
     }
   }
 }

@@ -28,7 +28,7 @@ public class {{className}} {
         return new {{serviceName}}RestateClient(ctx);
     }
 
-{{{javadoc}}}
+{{{apidoc}}}
     public static final class {{serviceName}}RestateClient {
         private final RestateContext ctx;
 
@@ -48,7 +48,7 @@ public class {{className}} {
 
         {{#methods}}
         {{#deprecated}}@java.lang.Deprecated{{/deprecated}}
-{{{javadoc}}}
+{{{apidoc}}}
         public Awaitable<{{outputType}}> {{topLevelClientMethodName}}({{^isInputEmpty}}{{inputType}} request{{/isInputEmpty}}) {
             return this.ctx.call({{packageName}}.{{serviceName}}Grpc.{{methodDescriptorGetter}}(), {{#isInputEmpty}}com.google.protobuf.Empty.getDefaultInstance(){{/isInputEmpty}}{{^isInputEmpty}}request{{/isInputEmpty}});
         }
@@ -65,7 +65,7 @@ public class {{className}} {
 
         {{#methods}}
         {{#deprecated}}@java.lang.Deprecated{{/deprecated}}
-{{{javadoc}}}
+{{{apidoc}}}
         public void {{methodName}}({{^isInputEmpty}}{{inputType}} request{{/isInputEmpty}}) {
             this.ctx.oneWayCall({{packageName}}.{{serviceName}}Grpc.{{methodDescriptorGetter}}(), {{#isInputEmpty}}com.google.protobuf.Empty.getDefaultInstance(){{/isInputEmpty}}{{^isInputEmpty}}request{{/isInputEmpty}});
         }
@@ -84,7 +84,7 @@ public class {{className}} {
 
         {{#methods}}
         {{#deprecated}}@java.lang.Deprecated{{/deprecated}}
-{{{javadoc}}}
+{{{apidoc}}}
         public void {{methodName}}({{^isInputEmpty}}{{inputType}} request{{/isInputEmpty}}) {
             this.ctx.delayedCall({{packageName}}.{{serviceName}}Grpc.{{methodDescriptorGetter}}(), {{#isInputEmpty}}com.google.protobuf.Empty.getDefaultInstance(){{/isInputEmpty}}{{^isInputEmpty}}request{{/isInputEmpty}}, this.delay);
         }
@@ -92,14 +92,14 @@ public class {{className}} {
         {{/methods}}
     }
 
-{{{javadoc}}}
+{{{apidoc}}}
     public static abstract class {{serviceName}}RestateImplBase implements dev.restate.sdk.RestateService {
 
         {{#methods}}
         {{#deprecated}}
         @java.lang.Deprecated
         {{/deprecated}}
-{{{javadoc}}}
+{{{apidoc}}}
         public {{#isOutputEmpty}}void{{/isOutputEmpty}}{{^isOutputEmpty}}{{outputType}}{{/isOutputEmpty}} {{methodName}}(RestateContext context{{^isInputEmpty}}, {{inputType}} request{{/isInputEmpty}}) throws dev.restate.sdk.common.TerminalException {
             throw new dev.restate.sdk.common.TerminalException(dev.restate.sdk.common.TerminalException.Code.UNIMPLEMENTED);
         }

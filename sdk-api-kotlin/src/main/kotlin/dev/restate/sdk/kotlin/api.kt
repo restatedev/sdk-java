@@ -373,3 +373,13 @@ interface RestateKtService : NonBlockingService {
     return RestateContextImpl(Syscalls.SYSCALLS_KEY.get())
   }
 }
+
+/**
+ * Build a RestateContext from the [Syscalls] object.
+ *
+ * This method is used by code-generation, you should not use it directly but rather use
+ * [RestateKtService.restateContext].
+ */
+fun restateContextFromSyscalls(syscalls: Syscalls): RestateContext {
+  return RestateContextImpl(syscalls)
+}
