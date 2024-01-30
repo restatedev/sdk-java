@@ -33,7 +33,7 @@ public class SideEffectTest extends SideEffectTestSuite {
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
 
-      String result = ctx.sideEffect(CoreSerdes.STRING_UTF8, () -> this.sideEffectOutput);
+      String result = ctx.sideEffect(CoreSerdes.JSON_STRING, () -> this.sideEffectOutput);
 
       responseObserver.onNext(GreetingResponse.newBuilder().setMessage("Hello " + result).build());
       responseObserver.onCompleted();
@@ -58,8 +58,8 @@ public class SideEffectTest extends SideEffectTestSuite {
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
 
-      String firstResult = ctx.sideEffect(CoreSerdes.STRING_UTF8, () -> this.sideEffectOutput);
-      String secondResult = ctx.sideEffect(CoreSerdes.STRING_UTF8, firstResult::toUpperCase);
+      String firstResult = ctx.sideEffect(CoreSerdes.JSON_STRING, () -> this.sideEffectOutput);
+      String secondResult = ctx.sideEffect(CoreSerdes.JSON_STRING, firstResult::toUpperCase);
 
       responseObserver.onNext(
           GreetingResponse.newBuilder().setMessage("Hello " + secondResult).build());
@@ -81,7 +81,7 @@ public class SideEffectTest extends SideEffectTestSuite {
 
       String sideEffectThread =
           restateContext()
-              .sideEffect(CoreSerdes.STRING_UTF8, () -> Thread.currentThread().getName());
+              .sideEffect(CoreSerdes.JSON_STRING, () -> Thread.currentThread().getName());
 
       if (!Objects.equals(currentThread, sideEffectThread)) {
         throw new IllegalStateException(

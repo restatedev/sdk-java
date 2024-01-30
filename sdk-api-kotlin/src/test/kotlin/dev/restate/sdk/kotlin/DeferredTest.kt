@@ -25,7 +25,7 @@ class DeferredTest : DeferredTestSuite() {
       val a1 = ctx.callAsync(GreeterGrpcKt.greetMethod, greetingRequest { name = "Francesco" })
       val a2 = ctx.callAsync(GreeterGrpcKt.greetMethod, greetingRequest { name = "Till" })
       val a2Res = a2.await().getMessage()
-      ctx.set(StateKey.of("A2", CoreSerdes.STRING_UTF8), a2Res)
+      ctx.set(StateKey.of("A2", CoreSerdes.JSON_STRING), a2Res)
       val a1Res = a1.await().getMessage()
       return greetingResponse { message = "$a1Res-$a2Res" }
     }
@@ -99,10 +99,10 @@ class DeferredTest : DeferredTestSuite() {
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val ctx = restateContext()
-      val a1 = ctx.awakeable(CoreSerdes.STRING_UTF8)
-      val a2 = ctx.awakeable(CoreSerdes.STRING_UTF8)
-      val a3 = ctx.awakeable(CoreSerdes.STRING_UTF8)
-      val a4 = ctx.awakeable(CoreSerdes.STRING_UTF8)
+      val a1 = ctx.awakeable(CoreSerdes.JSON_STRING)
+      val a2 = ctx.awakeable(CoreSerdes.JSON_STRING)
+      val a3 = ctx.awakeable(CoreSerdes.JSON_STRING)
+      val a4 = ctx.awakeable(CoreSerdes.JSON_STRING)
       val a12 = Awaitable.any(a1, a2)
       val a23 = Awaitable.any(a2, a3)
       val a34 = Awaitable.any(a3, a4)
@@ -122,10 +122,10 @@ class DeferredTest : DeferredTestSuite() {
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val ctx = restateContext()
-      val a1 = ctx.awakeable(CoreSerdes.STRING_UTF8)
-      val a2 = ctx.awakeable(CoreSerdes.STRING_UTF8)
-      val a3 = ctx.awakeable(CoreSerdes.STRING_UTF8)
-      val a4 = ctx.awakeable(CoreSerdes.STRING_UTF8)
+      val a1 = ctx.awakeable(CoreSerdes.JSON_STRING)
+      val a2 = ctx.awakeable(CoreSerdes.JSON_STRING)
+      val a3 = ctx.awakeable(CoreSerdes.JSON_STRING)
+      val a4 = ctx.awakeable(CoreSerdes.JSON_STRING)
 
       return greetingResponse {
         message = Awaitable.any(a1, Awaitable.all(a2, a3), a4).awaitIndex().toString()
@@ -141,8 +141,8 @@ class DeferredTest : DeferredTestSuite() {
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val ctx = restateContext()
-      val a1 = ctx.awakeable(CoreSerdes.STRING_UTF8)
-      val a2 = ctx.awakeable(CoreSerdes.STRING_UTF8)
+      val a1 = ctx.awakeable(CoreSerdes.JSON_STRING)
+      val a2 = ctx.awakeable(CoreSerdes.JSON_STRING)
       val a12 = Awaitable.all(a1, a2)
       val a12and1 = Awaitable.all(a12, a1)
       val a121and12 = Awaitable.all(a12and1, a12)

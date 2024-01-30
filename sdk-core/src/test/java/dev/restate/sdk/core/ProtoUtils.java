@@ -15,6 +15,7 @@ import com.google.protobuf.MessageLiteOrBuilder;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.generated.service.protocol.Protocol.StartMessage.StateEntry;
+import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.testservices.GreetingRequest;
 import dev.restate.sdk.core.testservices.GreetingResponse;
@@ -57,31 +58,28 @@ public class ProtoUtils {
                     e ->
                         StateEntry.newBuilder()
                             .setKey(ByteString.copyFromUtf8(e.getKey()))
-                            .setValue(ByteString.copyFromUtf8(e.getValue()))
+                            .setValue(CoreSerdes.JSON_STRING.serializeToByteString(e.getValue()))
                             .build())
                 .collect(Collectors.toList()));
   }
 
+  public static Protocol.CompletionMessage.Builder completionMessage(int index) {
+    return Protocol.CompletionMessage.newBuilder().setEntryIndex(index);
+  }
+
   public static Protocol.CompletionMessage completionMessage(int index, String value) {
-    return Protocol.CompletionMessage.newBuilder()
-        .setEntryIndex(index)
-        .setValue(ByteString.copyFromUtf8(value))
+    return completionMessage(index)
+        .setValue(CoreSerdes.JSON_STRING.serializeToByteString(value))
         .build();
   }
 
   public static Protocol.CompletionMessage completionMessage(
       int index, MessageLiteOrBuilder value) {
-    return Protocol.CompletionMessage.newBuilder()
-        .setEntryIndex(index)
-        .setValue(build(value).toByteString())
-        .build();
+    return completionMessage(index).setValue(build(value).toByteString()).build();
   }
 
   public static Protocol.CompletionMessage completionMessage(int index, Throwable e) {
-    return Protocol.CompletionMessage.newBuilder()
-        .setEntryIndex(index)
-        .setFailure(Util.toProtocolFailure(e))
-        .build();
+    return completionMessage(index).setFailure(Util.toProtocolFailure(e)).build();
   }
 
   public static Protocol.EntryAckMessage ackMessage(int index) {
@@ -139,13 +137,15 @@ public class ProtoUtils {
   }
 
   public static Protocol.GetStateEntryMessage getStateMessage(String key, String value) {
-    return getStateMessage(key).setValue(ByteString.copyFromUtf8(value)).build();
+    return getStateMessage(key)
+        .setValue(CoreSerdes.JSON_STRING.serializeToByteString(value))
+        .build();
   }
 
   public static Protocol.SetStateEntryMessage setStateMessage(String key, String value) {
     return Protocol.SetStateEntryMessage.newBuilder()
         .setKey(ByteString.copyFromUtf8(key))
-        .setValue(ByteString.copyFromUtf8(value))
+        .setValue(CoreSerdes.JSON_STRING.serializeToByteString(value))
         .build();
   }
 
@@ -190,7 +190,7 @@ public class ProtoUtils {
   }
 
   public static Protocol.AwakeableEntryMessage awakeable(String value) {
-    return awakeable().setValue(ByteString.copyFromUtf8(value)).build();
+    return awakeable().setValue(CoreSerdes.JSON_STRING.serializeToByteString(value)).build();
   }
 
   public static GreetingRequest greetingRequest(String name) {

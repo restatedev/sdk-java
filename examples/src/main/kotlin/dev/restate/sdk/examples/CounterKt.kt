@@ -19,7 +19,7 @@ class CounterKt : CounterRestateKt.CounterRestateKtImplBase() {
 
   private val LOG = LogManager.getLogger(CounterKt::class.java)
 
-  private val TOTAL = StateKey.of("total", CoreSerdes.LONG)
+  private val TOTAL = StateKey.of("total", CoreSerdes.JSON_LONG)
 
   override suspend fun reset(context: RestateContext, request: CounterRequest) {
     context.clear(TOTAL)

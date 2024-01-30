@@ -31,12 +31,12 @@ public final class StateKey<T> {
 
   /** Create a new {@link StateKey} for {@link String} state. */
   public static StateKey<String> string(String name) {
-    return new StateKey<>(name, CoreSerdes.STRING_UTF8);
+    return new StateKey<>(name, CoreSerdes.JSON_STRING);
   }
 
   /** Create a new {@link StateKey} for bytes state. */
-  public static StateKey<byte[]> bytes(String name) {
-    return new StateKey<>(name, CoreSerdes.BYTES);
+  public static StateKey<byte[]> raw(String name) {
+    return new StateKey<>(name, CoreSerdes.RAW);
   }
 
   public String name() {

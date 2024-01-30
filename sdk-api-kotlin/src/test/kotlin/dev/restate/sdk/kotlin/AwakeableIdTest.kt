@@ -22,7 +22,7 @@ class AwakeableIdTest : AwakeableIdTestSuite() {
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
 
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val id: String = restateContext().awakeable(CoreSerdes.STRING_UTF8).id
+      val id: String = restateContext().awakeable(CoreSerdes.JSON_STRING).id
       return greetingResponse { message = id }
     }
   }

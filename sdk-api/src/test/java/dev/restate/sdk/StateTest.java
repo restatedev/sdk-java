@@ -26,7 +26,7 @@ public class StateTest extends StateTestSuite {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       String state =
-          restateContext().get(StateKey.of("STATE", CoreSerdes.STRING_UTF8)).orElse("Unknown");
+          restateContext().get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).orElse("Unknown");
 
       responseObserver.onNext(GreetingResponse.newBuilder().setMessage("Hello " + state).build());
       responseObserver.onCompleted();
@@ -44,9 +44,9 @@ public class StateTest extends StateTestSuite {
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
 
-      String state = ctx.get(StateKey.of("STATE", CoreSerdes.STRING_UTF8)).get();
+      String state = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
 
-      ctx.set(StateKey.of("STATE", CoreSerdes.STRING_UTF8), request.getName());
+      ctx.set(StateKey.of("STATE", CoreSerdes.JSON_STRING), request.getName());
 
       responseObserver.onNext(GreetingResponse.newBuilder().setMessage("Hello " + state).build());
       responseObserver.onCompleted();

@@ -14,6 +14,7 @@ import com.google.protobuf.MessageLite
 import dev.restate.generated.service.discovery.Discovery.ServiceDiscoveryRequest
 import dev.restate.generated.service.discovery.Discovery.ServiceDiscoveryResponse
 import dev.restate.generated.service.protocol.Protocol.*
+import dev.restate.sdk.common.CoreSerdes
 import dev.restate.sdk.core.ProtoUtils.*
 import dev.restate.sdk.core.testservices.*
 import dev.restate.sdk.http.vertx.testservices.BlockingGreeterService
@@ -114,7 +115,11 @@ internal class RestateHttpEndpointTest {
             .returns(ByteString.copyFromUtf8("counter"), GetStateEntryMessage::getKey)
 
         // Send completion
-        request.write(encode(completionMessage(1, "2")))
+        request.write(
+            encode(
+                completionMessage(1)
+                    .setValue(CoreSerdes.JSON_LONG.serializeToByteString(2))
+                    .build()))
 
         // Wait for Set State Entry
         val setStateEntry = inputChannel.receive()
