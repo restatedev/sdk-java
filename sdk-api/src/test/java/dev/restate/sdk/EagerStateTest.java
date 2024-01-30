@@ -26,7 +26,7 @@ public class EagerStateTest extends EagerStateTestSuite {
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
 
-      boolean stateIsEmpty = ctx.get(StateKey.of("STATE", CoreSerdes.STRING_UTF8)).isEmpty();
+      boolean stateIsEmpty = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).isEmpty();
 
       responseObserver.onNext(
           GreetingResponse.newBuilder().setMessage(String.valueOf(stateIsEmpty)).build());
@@ -44,7 +44,7 @@ public class EagerStateTest extends EagerStateTestSuite {
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
 
-      String state = ctx.get(StateKey.of("STATE", CoreSerdes.STRING_UTF8)).get();
+      String state = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
 
       responseObserver.onNext(GreetingResponse.newBuilder().setMessage(state).build());
       responseObserver.onCompleted();
@@ -62,10 +62,10 @@ public class EagerStateTest extends EagerStateTestSuite {
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
 
-      String oldState = ctx.get(StateKey.of("STATE", CoreSerdes.STRING_UTF8)).get();
-      ctx.set(StateKey.of("STATE", CoreSerdes.STRING_UTF8), oldState + request.getName());
+      String oldState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
+      ctx.set(StateKey.of("STATE", CoreSerdes.JSON_STRING), oldState + request.getName());
 
-      String newState = ctx.get(StateKey.of("STATE", CoreSerdes.STRING_UTF8)).get();
+      String newState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
 
       responseObserver.onNext(GreetingResponse.newBuilder().setMessage(newState).build());
       responseObserver.onCompleted();
@@ -83,10 +83,10 @@ public class EagerStateTest extends EagerStateTestSuite {
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
 
-      String oldState = ctx.get(StateKey.of("STATE", CoreSerdes.STRING_UTF8)).get();
+      String oldState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
 
-      ctx.clear(StateKey.of("STATE", CoreSerdes.STRING_UTF8));
-      assertThat(ctx.get(StateKey.of("STATE", CoreSerdes.STRING_UTF8))).isEmpty();
+      ctx.clear(StateKey.of("STATE", CoreSerdes.JSON_STRING));
+      assertThat(ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))).isEmpty();
 
       responseObserver.onNext(GreetingResponse.newBuilder().setMessage(oldState).build());
       responseObserver.onCompleted();

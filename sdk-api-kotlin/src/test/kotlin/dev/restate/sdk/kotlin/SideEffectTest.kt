@@ -21,7 +21,7 @@ class SideEffectTest : SideEffectTestSuite() {
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val ctx: RestateContext = restateContext()
-      val result = ctx.sideEffect(CoreSerdes.STRING_UTF8) { sideEffectOutput }
+      val result = ctx.sideEffect(CoreSerdes.JSON_STRING) { sideEffectOutput }
       return greetingResponse { message = "Hello $result" }
     }
   }
@@ -34,9 +34,9 @@ class SideEffectTest : SideEffectTestSuite() {
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val ctx: RestateContext = restateContext()
-      val firstResult = ctx.sideEffect(CoreSerdes.STRING_UTF8) { sideEffectOutput }
+      val firstResult = ctx.sideEffect(CoreSerdes.JSON_STRING) { sideEffectOutput }
       val secondResult =
-          ctx.sideEffect(CoreSerdes.STRING_UTF8) { firstResult.uppercase(Locale.getDefault()) }
+          ctx.sideEffect(CoreSerdes.JSON_STRING) { firstResult.uppercase(Locale.getDefault()) }
       return greetingResponse { message = "Hello $secondResult" }
     }
   }
@@ -52,7 +52,7 @@ class SideEffectTest : SideEffectTestSuite() {
 
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val sideEffectThread =
-          restateContext().sideEffect(CoreSerdes.STRING_UTF8) { Thread.currentThread().name }
+          restateContext().sideEffect(CoreSerdes.JSON_STRING) { Thread.currentThread().name }
       check(sideEffectThread.contains("CheckContextSwitchingTestCoroutine")) {
         "Side effect thread is not running within the same coroutine context of the handler method: $sideEffectThread"
       }

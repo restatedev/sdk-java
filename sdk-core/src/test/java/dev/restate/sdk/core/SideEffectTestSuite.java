@@ -14,8 +14,8 @@ import static dev.restate.sdk.core.TestDefinitions.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
-import com.google.protobuf.ByteString;
 import dev.restate.generated.sdk.java.Java;
+import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.core.testservices.GreeterGrpc;
 import dev.restate.sdk.core.testservices.GreetingRequest;
 import io.grpc.BindableService;
@@ -38,14 +38,14 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
             .withInput(startMessage(1), inputMessage(greetingRequest("Till")))
             .expectingOutput(
                 Java.SideEffectEntryMessage.newBuilder()
-                    .setValue(ByteString.copyFromUtf8("Francesco")),
+                    .setValue(CoreSerdes.JSON_STRING.serializeToByteString("Francesco")),
                 suspensionMessage(1))
             .named("Without optimization suspends"),
         testInvocation(() -> this.sideEffect("Francesco"), GreeterGrpc.getGreetMethod())
             .withInput(startMessage(1), inputMessage(greetingRequest("Till")), ackMessage(1))
             .expectingOutput(
                 Java.SideEffectEntryMessage.newBuilder()
-                    .setValue(ByteString.copyFromUtf8("Francesco")),
+                    .setValue(CoreSerdes.JSON_STRING.serializeToByteString("Francesco")),
                 outputMessage(greetingResponse("Hello Francesco")),
                 END_MESSAGE)
             .named("Without optimization and with acks returns"),
@@ -53,7 +53,7 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
             .withInput(startMessage(1), inputMessage(greetingRequest("Till")))
             .expectingOutput(
                 Java.SideEffectEntryMessage.newBuilder()
-                    .setValue(ByteString.copyFromUtf8("Francesco")),
+                    .setValue(CoreSerdes.JSON_STRING.serializeToByteString("Francesco")),
                 suspensionMessage(1))
             .named("With optimization and without ack on first side effect will suspend"),
         testInvocation(() -> this.consecutiveSideEffect("Francesco"), GreeterGrpc.getGreetMethod())
@@ -61,9 +61,9 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
             .onlyUnbuffered()
             .expectingOutput(
                 Java.SideEffectEntryMessage.newBuilder()
-                    .setValue(ByteString.copyFromUtf8("Francesco")),
+                    .setValue(CoreSerdes.JSON_STRING.serializeToByteString("Francesco")),
                 Java.SideEffectEntryMessage.newBuilder()
-                    .setValue(ByteString.copyFromUtf8("FRANCESCO")),
+                    .setValue(CoreSerdes.JSON_STRING.serializeToByteString("FRANCESCO")),
                 suspensionMessage(2))
             .named("With optimization and ack on first side effect will suspend"),
         testInvocation(() -> this.consecutiveSideEffect("Francesco"), GreeterGrpc.getGreetMethod())
@@ -75,9 +75,9 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
             .onlyUnbuffered()
             .expectingOutput(
                 Java.SideEffectEntryMessage.newBuilder()
-                    .setValue(ByteString.copyFromUtf8("Francesco")),
+                    .setValue(CoreSerdes.JSON_STRING.serializeToByteString("Francesco")),
                 Java.SideEffectEntryMessage.newBuilder()
-                    .setValue(ByteString.copyFromUtf8("FRANCESCO")),
+                    .setValue(CoreSerdes.JSON_STRING.serializeToByteString("FRANCESCO")),
                 outputMessage(greetingResponse("Hello FRANCESCO")),
                 END_MESSAGE)
             .named("With optimization and ack on first and second side effect will resume"),

@@ -9,13 +9,12 @@
 package dev.restate.sdk.http.vertx.testservices;
 
 import dev.restate.sdk.RestateService;
-import dev.restate.sdk.common.Serde;
+import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.common.StateKey;
 import dev.restate.sdk.core.testservices.GreeterGrpc;
 import dev.restate.sdk.core.testservices.GreetingRequest;
 import dev.restate.sdk.core.testservices.GreetingResponse;
 import io.grpc.stub.StreamObserver;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -23,12 +22,7 @@ import org.apache.logging.log4j.Logger;
 public class BlockingGreeterService extends GreeterGrpc.GreeterImplBase implements RestateService {
 
   private static final Logger LOG = LogManager.getLogger(BlockingGreeterService.class);
-  public static final StateKey<Long> COUNTER =
-      StateKey.of(
-          "counter",
-          Serde.using(
-              l -> l.toString().getBytes(StandardCharsets.UTF_8),
-              v -> Long.parseLong(new String(v, StandardCharsets.UTF_8))));
+  public static final StateKey<Long> COUNTER = StateKey.of("counter", CoreSerdes.JSON_LONG);
 
   @Override
   public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {

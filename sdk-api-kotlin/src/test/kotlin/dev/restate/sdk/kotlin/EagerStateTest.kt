@@ -24,7 +24,7 @@ class EagerStateTest : EagerStateTestSuite() {
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val ctx = restateContext()
-      val stateIsEmpty = ctx.get(StateKey.of("STATE", CoreSerdes.STRING_UTF8)) == null
+      val stateIsEmpty = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)) == null
       return greetingResponse { message = stateIsEmpty.toString() }
     }
   }
@@ -37,7 +37,7 @@ class EagerStateTest : EagerStateTestSuite() {
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       return greetingResponse {
-        message = restateContext().get(StateKey.of("STATE", CoreSerdes.STRING_UTF8))!!
+        message = restateContext().get(StateKey.of("STATE", CoreSerdes.JSON_STRING))!!
       }
     }
   }
@@ -50,9 +50,9 @@ class EagerStateTest : EagerStateTestSuite() {
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val ctx = restateContext()
-      val oldState = ctx.get(StateKey.of("STATE", CoreSerdes.STRING_UTF8))!!
-      ctx.set(StateKey.of("STATE", CoreSerdes.STRING_UTF8), oldState + request.getName())
-      val newState = ctx.get(StateKey.of("STATE", CoreSerdes.STRING_UTF8))!!
+      val oldState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))!!
+      ctx.set(StateKey.of("STATE", CoreSerdes.JSON_STRING), oldState + request.getName())
+      val newState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))!!
       return greetingResponse { message = newState }
     }
   }
@@ -65,9 +65,9 @@ class EagerStateTest : EagerStateTestSuite() {
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val ctx = restateContext()
-      val oldState = ctx.get(StateKey.of("STATE", CoreSerdes.STRING_UTF8))!!
-      ctx.clear(StateKey.of("STATE", CoreSerdes.STRING_UTF8))
-      assertThat(ctx.get(StateKey.of("STATE", CoreSerdes.STRING_UTF8))).isNull()
+      val oldState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))!!
+      ctx.clear(StateKey.of("STATE", CoreSerdes.JSON_STRING))
+      assertThat(ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))).isNull()
       return greetingResponse { message = oldState }
     }
   }

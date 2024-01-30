@@ -20,7 +20,7 @@ public class Counter extends CounterRestate.CounterRestateImplBase {
 
   private static final Logger LOG = LogManager.getLogger(Counter.class);
 
-  private static final StateKey<Long> TOTAL = StateKey.of("total", CoreSerdes.LONG);
+  private static final StateKey<Long> TOTAL = StateKey.of("total", CoreSerdes.JSON_LONG);
 
   @Override
   public void reset(RestateContext ctx, CounterRequest request) {

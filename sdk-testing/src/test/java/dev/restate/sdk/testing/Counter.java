@@ -22,7 +22,7 @@ public class Counter extends CounterGrpc.CounterImplBase implements RestateServi
 
   private static final Logger LOG = LogManager.getLogger(Counter.class);
 
-  private static final StateKey<Long> TOTAL = StateKey.of("total", CoreSerdes.LONG);
+  private static final StateKey<Long> TOTAL = StateKey.of("total", CoreSerdes.JSON_LONG);
 
   @Override
   public void reset(CounterRequest request, StreamObserver<Empty> responseObserver) {

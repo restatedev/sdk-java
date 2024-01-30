@@ -36,7 +36,7 @@ public class DeferredTest extends DeferredTestSuite {
           ctx.call(GreeterGrpc.getGreetMethod(), greetingRequest("Till"));
 
       String a2Res = a2.await().getMessage();
-      ctx.set(StateKey.of("A2", CoreSerdes.STRING_UTF8), a2Res);
+      ctx.set(StateKey.of("A2", CoreSerdes.JSON_STRING), a2Res);
 
       String a1Res = a1.await().getMessage();
 
@@ -121,10 +121,10 @@ public class DeferredTest extends DeferredTestSuite {
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
 
-      Awaitable<String> a1 = ctx.awakeable(CoreSerdes.STRING_UTF8);
-      Awaitable<String> a2 = ctx.awakeable(CoreSerdes.STRING_UTF8);
-      Awaitable<String> a3 = ctx.awakeable(CoreSerdes.STRING_UTF8);
-      Awaitable<String> a4 = ctx.awakeable(CoreSerdes.STRING_UTF8);
+      Awaitable<String> a1 = ctx.awakeable(CoreSerdes.JSON_STRING);
+      Awaitable<String> a2 = ctx.awakeable(CoreSerdes.JSON_STRING);
+      Awaitable<String> a3 = ctx.awakeable(CoreSerdes.JSON_STRING);
+      Awaitable<String> a4 = ctx.awakeable(CoreSerdes.JSON_STRING);
 
       Awaitable<Object> a12 = Awaitable.any(a1, a2);
       Awaitable<Object> a23 = Awaitable.any(a2, a3);
@@ -146,10 +146,10 @@ public class DeferredTest extends DeferredTestSuite {
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
 
-      Awaitable<String> a1 = ctx.awakeable(CoreSerdes.STRING_UTF8);
-      Awaitable<String> a2 = ctx.awakeable(CoreSerdes.STRING_UTF8);
-      Awaitable<String> a3 = ctx.awakeable(CoreSerdes.STRING_UTF8);
-      Awaitable<String> a4 = ctx.awakeable(CoreSerdes.STRING_UTF8);
+      Awaitable<String> a1 = ctx.awakeable(CoreSerdes.JSON_STRING);
+      Awaitable<String> a2 = ctx.awakeable(CoreSerdes.JSON_STRING);
+      Awaitable<String> a3 = ctx.awakeable(CoreSerdes.JSON_STRING);
+      Awaitable<String> a4 = ctx.awakeable(CoreSerdes.JSON_STRING);
 
       responseObserver.onNext(
           greetingResponse(
@@ -169,8 +169,8 @@ public class DeferredTest extends DeferredTestSuite {
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       RestateContext ctx = restateContext();
 
-      Awaitable<String> a1 = ctx.awakeable(CoreSerdes.STRING_UTF8);
-      Awaitable<String> a2 = ctx.awakeable(CoreSerdes.STRING_UTF8);
+      Awaitable<String> a1 = ctx.awakeable(CoreSerdes.JSON_STRING);
+      Awaitable<String> a2 = ctx.awakeable(CoreSerdes.JSON_STRING);
 
       Awaitable<Void> a12 = Awaitable.all(a1, a2);
       Awaitable<Void> a12and1 = Awaitable.all(a12, a1);
