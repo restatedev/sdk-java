@@ -57,7 +57,7 @@ dependencyResolutionManagement {
       library("javax-annotation-api", "org.apache.tomcat", "annotations-api").version("6.0.53")
     }
     create("vertxLibs") {
-      library("vertx-bom", "io.vertx:vertx-stack-depchain:4.4.6")
+      library("vertx-bom", "io.vertx:vertx-stack-depchain:4.5.1")
       library("vertx-core", "io.vertx", "vertx-core").withoutVersion()
       library("vertx-grpc-context-storage", "io.vertx", "vertx-grpc-context-storage")
           .withoutVersion()
@@ -86,7 +86,7 @@ dependencyResolutionManagement {
     create("testingLibs") {
       version("junit-jupiter", "5.9.1")
       version("assertj", "3.23.1")
-      version("testcontainers", "1.19.0")
+      version("testcontainers", "1.19.4")
 
       library("junit-jupiter", "org.junit.jupiter", "junit-jupiter").versionRef("junit-jupiter")
       library("junit-api", "org.junit.jupiter", "junit-jupiter-api").versionRef("junit-jupiter")
