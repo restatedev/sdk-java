@@ -10,118 +10,153 @@ package dev.restate.sdk.kotlin
 
 import com.google.protobuf.ByteString
 import dev.restate.sdk.common.Serde
-import dev.restate.sdk.common.syscalls.DeferredResult
-import dev.restate.sdk.common.syscalls.ReadyResultHolder
+import dev.restate.sdk.common.syscalls.Deferred
+import dev.restate.sdk.common.syscalls.Result
 import dev.restate.sdk.common.syscalls.Syscalls
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.suspendCancellableCoroutine
 
-internal abstract class BaseAwaitableImpl<JAVA_T, KT_T>
-internal constructor(
-    internal val syscalls: Syscalls,
-    internal val resultHolder: ReadyResultHolder<JAVA_T>
-) : Awaitable<KT_T> {
+internal abstract class BaseAwaitableImpl<T : Any?>
+internal constructor(internal val syscalls: Syscalls) : Awaitable<T> {
+  abstract fun deferred(): Deferred<*>
 
-  abstract fun unpack(): KT_T
+  abstract suspend fun awaitResult(): Result<T>
 
-  override val onAwait: SelectClause<KT_T>
+  override val onAwait: SelectClause<T>
     get() = SelectClauseImpl(this)
 
-  override suspend fun await(): KT_T {
-    if (!resultHolder.isCompleted) {
+  override suspend fun await(): T {
+    val res = awaitResult()
+    if (!res.isSuccess) {
+      throw res.failure!!
+    }
+    @Suppress("UNCHECKED_CAST") return res.value as T
+  }
+}
+
+internal class SingleAwaitableImpl<T : Any?>(
+    syscalls: Syscalls,
+    private val deferred: Deferred<T>
+) : BaseAwaitableImpl<T>(syscalls) {
+  private var result: Result<T>? = null
+
+  override fun deferred(): Deferred<*> {
+    return deferred
+  }
+
+  override suspend fun awaitResult(): Result<T> {
+    if (!deferred().isCompleted) {
       suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-        syscalls.resolveDeferred(resultHolder.deferredResult, completingUnitContinuation(cont))
+        syscalls.resolveDeferred(deferred(), completingUnitContinuation(cont))
       }
     }
-    return unpack()
+    if (this.result == null) {
+      this.result = deferred.toResult()
+    }
+    return this.result!!
   }
 }
 
-internal open class NonNullAwaitableImpl<T>
-internal constructor(syscalls: Syscalls, resultHolder: ReadyResultHolder<T>) :
-    BaseAwaitableImpl<T, T>(syscalls, resultHolder) {
+internal abstract class BaseSingleMappedAwaitableImpl<T : Any, U : Any>(
+    private val inner: BaseAwaitableImpl<T>
+) : BaseAwaitableImpl<U>(inner.syscalls) {
+  private var mappedResult: Result<U>? = null
 
-  companion object {
-    fun <T> of(syscalls: Syscalls, deferredResult: DeferredResult<T>): NonNullAwaitableImpl<T> {
-      return NonNullAwaitableImpl(syscalls, ReadyResultHolder(deferredResult))
-    }
+  override fun deferred(): Deferred<*> {
+    return inner.deferred()
   }
 
-  override fun unpack(): T {
-    val readyResult = resultHolder.readyResult
-    if (!readyResult.isSuccess) {
-      throw readyResult.failure!!
+  abstract suspend fun map(res: Result<T>): Result<U>
+
+  override suspend fun awaitResult(): Result<U> {
+    if (mappedResult == null) {
+      this.mappedResult = map(inner.awaitResult())
     }
-    return readyResult.result!!
+    return mappedResult!!
   }
 }
 
-internal class UnitAwaitableImpl
-internal constructor(syscalls: Syscalls, deferredResult: DeferredResult<Void>) :
-    BaseAwaitableImpl<Void, Unit>(syscalls, ReadyResultHolder(deferredResult)) {
-  override fun unpack() {
-    val readyResult = resultHolder.readyResult
-    if (!readyResult.isSuccess) {
-      throw readyResult.failure!!
+// internal class SingleMappedAwaitableImpl<T: Any, U: Any>(inner: BaseAwaitableImpl<T>, private val
+// mapper: suspend (res: Result<T>) -> Result<U>) : BaseSingleMappedAwaitableImpl<T, U>(inner) {
+//  override suspend fun map(res: Result<T>): Result<U> {
+//    return mapper(res)
+//  }
+//
+// }
+
+internal class UnitAwakeableImpl(syscalls: Syscalls, deferred: Deferred<Void>) :
+    BaseSingleMappedAwaitableImpl<Void, Unit>(SingleAwaitableImpl(syscalls, deferred)) {
+  @Suppress("UNCHECKED_CAST")
+  override suspend fun map(res: Result<Void>): Result<Unit> {
+    return if (res.isSuccess) {
+      Result.success(Unit)
+    } else {
+      res as Result<Unit>
     }
-    return
   }
 }
 
 internal class AnyAwaitableImpl
-internal constructor(syscalls: Syscalls, awaitables: List<Awaitable<*>>) :
-    BaseAwaitableImpl<Any, Any>(
-        syscalls,
-        ReadyResultHolder(
+internal constructor(syscalls: Syscalls, private val awaitables: List<Awaitable<*>>) :
+    BaseSingleMappedAwaitableImpl<Int, Any>(
+        SingleAwaitableImpl<Int>(
+            syscalls,
             syscalls.createAnyDeferred(
-                awaitables.map { (it as BaseAwaitableImpl<*, *>).resultHolder.deferredResult })) {
-              (awaitables[it] as BaseAwaitableImpl<*, *>).unpack()
-            },
-    ),
+                awaitables.map { (it as BaseAwaitableImpl<*>).deferred() }))),
     AnyAwaitable {
-  override fun unpack(): Any {
-    val readyResult = resultHolder.readyResult
-    if (!readyResult.isSuccess) {
-      throw readyResult.failure!!
-    }
-    return readyResult.result!!
-  }
 
   override suspend fun awaitIndex(): Int {
-    if (!resultHolder.isCompleted) {
+    if (!deferred().isCompleted) {
       suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-        syscalls.resolveDeferred(resultHolder.deferredResult, completingUnitContinuation(cont))
+        syscalls.resolveDeferred(deferred(), completingUnitContinuation(cont))
       }
     }
 
-    return resultHolder.deferredResult.toReadyResult()!!.result as Int
+    return deferred().toResult()!!.value as Int
+  }
+
+  @Suppress("UNCHECKED_CAST")
+  override suspend fun map(res: Result<Int>): Result<Any> {
+    return if (res.isSuccess)
+        ((awaitables[res.value!!] as BaseAwaitableImpl<*>).awaitResult() as Result<Any>)
+    else (res as Result<Any>)
   }
 }
 
 internal fun wrapAllAwaitable(awaitables: List<Awaitable<*>>): Awaitable<Unit> {
-  val syscalls = (awaitables.get(0) as BaseAwaitableImpl<*, *>).syscalls
-  return UnitAwaitableImpl(
+  val syscalls = (awaitables.get(0) as BaseAwaitableImpl<*>).syscalls
+  return UnitAwakeableImpl(
       syscalls,
-      syscalls.createAllDeferred(
-          awaitables.map { (it as BaseAwaitableImpl<*, *>).resultHolder.deferredResult }))
+      syscalls.createAllDeferred(awaitables.map { (it as BaseAwaitableImpl<*>).deferred() }),
+  )
 }
 
 internal fun wrapAnyAwaitable(awaitables: List<Awaitable<*>>): AnyAwaitable {
-  val syscalls = (awaitables.get(0) as BaseAwaitableImpl<*, *>).syscalls
+  val syscalls = (awaitables.get(0) as BaseAwaitableImpl<*>).syscalls
   return AnyAwaitableImpl(syscalls, awaitables)
 }
 
-internal class AwakeableImpl<T>
+internal class AwakeableImpl<T : Any>
 internal constructor(
     syscalls: Syscalls,
-    deferredResult: DeferredResult<ByteString>,
-    serde: Serde<T>,
+    deferred: Deferred<ByteString>,
+    private val serde: Serde<T>,
     override val id: String
 ) :
-    NonNullAwaitableImpl<T>(
-        syscalls,
-        ReadyResultHolder(deferredResult) { serde.deserializeWrappingException(syscalls, it) }),
-    Awakeable<T>
+    BaseSingleMappedAwaitableImpl<ByteString, T>(
+        SingleAwaitableImpl(syscalls, deferred),
+    ),
+    Awakeable<T> {
+
+  @Suppress("UNCHECKED_CAST")
+  override suspend fun map(res: Result<ByteString>): Result<T> {
+    return if (res.isSuccess) {
+      Result.success(serde.deserializeWrappingException(syscalls, res.value!!))
+    } else {
+      res as Result<T>
+    }
+  }
+}
 
 internal class AwakeableHandleImpl(val syscalls: Syscalls, val id: String) : AwakeableHandle {
   override suspend fun <T : Any> resolve(serde: Serde<T>, payload: T) {
