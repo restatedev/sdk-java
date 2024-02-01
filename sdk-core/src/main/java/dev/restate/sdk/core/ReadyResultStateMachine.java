@@ -9,6 +9,7 @@
 package dev.restate.sdk.core;
 
 import dev.restate.generated.service.protocol.Protocol;
+import dev.restate.sdk.common.syscalls.Result;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
@@ -22,14 +23,12 @@ class ReadyResultStateMachine
   private static final Logger LOG = LogManager.getLogger(ReadyResultStateMachine.class);
 
   interface OnNewReadyResultCallback extends SuspendableCallback {
-    boolean onNewReadyResult(Map<Integer, ReadyResults.ReadyResultInternal<?>> resultMap);
+    boolean onNewResult(Map<Integer, Result<?>> resultMap);
   }
 
   private final Map<Integer, Protocol.CompletionMessage> completions;
-  private final Map<
-          Integer, Function<Protocol.CompletionMessage, ReadyResults.ReadyResultInternal<?>>>
-      completionParsers;
-  private final Map<Integer, ReadyResults.ReadyResultInternal<?>> results;
+  private final Map<Integer, Function<Protocol.CompletionMessage, Result<?>>> completionParsers;
+  private final Map<Integer, Result<?>> results;
 
   ReadyResultStateMachine() {
     this.completions = new HashMap<>();
@@ -45,8 +44,7 @@ class ReadyResultStateMachine
   }
 
   void offerCompletionParser(
-      int entryIndex,
-      Function<Protocol.CompletionMessage, ReadyResults.ReadyResultInternal<?>> parser) {
+      int entryIndex, Function<Protocol.CompletionMessage, Result<?>> parser) {
     LOG.trace("Offered new completion parser for index {}", entryIndex);
 
     this.completionParsers.put(entryIndex, parser);
@@ -71,7 +69,7 @@ class ReadyResultStateMachine
       return;
     }
 
-    Function<Protocol.CompletionMessage, ReadyResults.ReadyResultInternal<?>> parser =
+    Function<Protocol.CompletionMessage, Result<?>> parser =
         this.completionParsers.remove(entryIndex);
     if (parser == null) {
       return;
@@ -80,7 +78,7 @@ class ReadyResultStateMachine
     this.completions.remove(entryIndex, completionMessage);
 
     // Parse to ready result
-    ReadyResults.ReadyResultInternal<?> readyResult = parser.apply(completionMessage);
+    Result<?> readyResult = parser.apply(completionMessage);
 
     // Push to the ready result queue
     this.results.put(completionMessage.getEntryIndex(), readyResult);
@@ -90,7 +88,7 @@ class ReadyResultStateMachine
   }
 
   private void tryProgress(OnNewReadyResultCallback cb) {
-    boolean resolved = cb.onNewReadyResult(this.results);
+    boolean resolved = cb.onNewResult(this.results);
     if (!resolved) {
       this.setCallback(cb);
     }

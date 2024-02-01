@@ -12,7 +12,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
 import dev.restate.sdk.common.InvocationId;
 import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.common.syscalls.DeferredResult;
+import dev.restate.sdk.common.syscalls.Deferred;
 import dev.restate.sdk.common.syscalls.EnterSideEffectSyscallCallback;
 import dev.restate.sdk.common.syscalls.ExitSideEffectSyscallCallback;
 import dev.restate.sdk.common.syscalls.SyscallCallback;
@@ -34,7 +34,7 @@ class ExecutorSwitchingSyscalls implements SyscallsInternal {
 
   @Override
   public <T extends MessageLite> void pollInput(
-      Function<ByteString, T> mapper, SyscallCallback<DeferredResult<T>> callback) {
+      Function<ByteString, T> mapper, SyscallCallback<Deferred<T>> callback) {
     syscallsExecutor.execute(() -> syscalls.pollInput(mapper, callback));
   }
 
@@ -49,7 +49,7 @@ class ExecutorSwitchingSyscalls implements SyscallsInternal {
   }
 
   @Override
-  public void get(String name, SyscallCallback<DeferredResult<ByteString>> callback) {
+  public void get(String name, SyscallCallback<Deferred<ByteString>> callback) {
     syscallsExecutor.execute(() -> syscalls.get(name, callback));
   }
 
@@ -64,15 +64,13 @@ class ExecutorSwitchingSyscalls implements SyscallsInternal {
   }
 
   @Override
-  public void sleep(Duration duration, SyscallCallback<DeferredResult<Void>> callback) {
+  public void sleep(Duration duration, SyscallCallback<Deferred<Void>> callback) {
     syscallsExecutor.execute(() -> syscalls.sleep(duration, callback));
   }
 
   @Override
   public <T, R> void call(
-      MethodDescriptor<T, R> methodDescriptor,
-      T parameter,
-      SyscallCallback<DeferredResult<R>> callback) {
+      MethodDescriptor<T, R> methodDescriptor, T parameter, SyscallCallback<Deferred<R>> callback) {
     syscallsExecutor.execute(() -> syscalls.call(methodDescriptor, parameter, callback));
   }
 
@@ -104,7 +102,7 @@ class ExecutorSwitchingSyscalls implements SyscallsInternal {
   }
 
   @Override
-  public void awakeable(SyscallCallback<Map.Entry<String, DeferredResult<ByteString>>> callback) {
+  public void awakeable(SyscallCallback<Map.Entry<String, Deferred<ByteString>>> callback) {
     syscallsExecutor.execute(() -> syscalls.awakeable(callback));
   }
 
@@ -120,8 +118,7 @@ class ExecutorSwitchingSyscalls implements SyscallsInternal {
   }
 
   @Override
-  public <T> void resolveDeferred(
-      DeferredResult<T> deferredToResolve, SyscallCallback<Void> callback) {
+  public <T> void resolveDeferred(Deferred<T> deferredToResolve, SyscallCallback<Void> callback) {
     syscallsExecutor.execute(() -> syscalls.resolveDeferred(deferredToResolve, callback));
   }
 

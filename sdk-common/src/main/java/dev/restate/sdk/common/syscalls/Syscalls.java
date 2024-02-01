@@ -54,7 +54,7 @@ public interface Syscalls {
   // gRPC APIs.
 
   <T extends MessageLite> void pollInput(
-      Function<ByteString, T> mapper, SyscallCallback<DeferredResult<T>> callback);
+      Function<ByteString, T> mapper, SyscallCallback<Deferred<T>> callback);
 
   <T extends MessageLite> void writeOutput(T value, SyscallCallback<Void> callback);
 
@@ -62,7 +62,7 @@ public interface Syscalls {
 
   // ----- State
 
-  void get(String name, SyscallCallback<DeferredResult<ByteString>> callback);
+  void get(String name, SyscallCallback<Deferred<ByteString>> callback);
 
   void clear(String name, SyscallCallback<Void> callback);
 
@@ -70,12 +70,10 @@ public interface Syscalls {
 
   // ----- Syscalls
 
-  void sleep(Duration duration, SyscallCallback<DeferredResult<Void>> callback);
+  void sleep(Duration duration, SyscallCallback<Deferred<Void>> callback);
 
   <T, R> void call(
-      MethodDescriptor<T, R> methodDescriptor,
-      T parameter,
-      SyscallCallback<DeferredResult<R>> callback);
+      MethodDescriptor<T, R> methodDescriptor, T parameter, SyscallCallback<Deferred<R>> callback);
 
   <T> void backgroundCall(
       MethodDescriptor<T, ?> methodDescriptor,
@@ -90,7 +88,7 @@ public interface Syscalls {
   void exitSideEffectBlockWithTerminalException(
       TerminalException toWrite, ExitSideEffectSyscallCallback callback);
 
-  void awakeable(SyscallCallback<Map.Entry<String, DeferredResult<ByteString>>> callback);
+  void awakeable(SyscallCallback<Map.Entry<String, Deferred<ByteString>>> callback);
 
   void resolveAwakeable(String id, ByteString payload, SyscallCallback<Void> requestCallback);
 
@@ -100,9 +98,9 @@ public interface Syscalls {
 
   // ----- Deferred
 
-  <T> void resolveDeferred(DeferredResult<T> deferredToResolve, SyscallCallback<Void> callback);
+  <T> void resolveDeferred(Deferred<T> deferredToResolve, SyscallCallback<Void> callback);
 
-  DeferredResult<Integer> createAnyDeferred(List<DeferredResult<?>> children);
+  Deferred<Integer> createAnyDeferred(List<Deferred<?>> children);
 
-  DeferredResult<Void> createAllDeferred(List<DeferredResult<?>> children);
+  Deferred<Void> createAllDeferred(List<Deferred<?>> children);
 }

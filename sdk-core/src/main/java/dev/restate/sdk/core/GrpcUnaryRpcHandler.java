@@ -69,7 +69,7 @@ class GrpcUnaryRpcHandler implements RpcHandler {
         SyscallCallback.of(
             pollInputReadyResult -> {
               if (pollInputReadyResult.isSuccess()) {
-                final MessageLite message = pollInputReadyResult.getResult();
+                final MessageLite message = pollInputReadyResult.getValue();
                 LOG.trace("Read input message:\n{}", message);
 
                 // In theory, we never need this, as once we reach this point of the code the server
