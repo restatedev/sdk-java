@@ -190,7 +190,7 @@ sealed interface RestateContext {
    * @return the [Awakeable] to await on.
    * @see Awakeable
    */
-  suspend fun <T> awakeable(serde: Serde<T>): Awakeable<T>
+  suspend fun <T : Any> awakeable(serde: Serde<T>): Awakeable<T>
 
   /**
    * Create a new [AwakeableHandle] for the provided identifier. You can use it to

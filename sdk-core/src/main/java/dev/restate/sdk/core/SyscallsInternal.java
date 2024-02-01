@@ -10,11 +10,11 @@ package dev.restate.sdk.core;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
-import dev.restate.sdk.common.syscalls.DeferredResult;
-import dev.restate.sdk.common.syscalls.ReadyResult;
+import dev.restate.sdk.common.syscalls.Deferred;
+import dev.restate.sdk.common.syscalls.Result;
 import dev.restate.sdk.common.syscalls.SyscallCallback;
 import dev.restate.sdk.common.syscalls.Syscalls;
-import dev.restate.sdk.core.DeferredResults.DeferredResultInternal;
+import dev.restate.sdk.core.DeferredResults.DeferredInternal;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -22,21 +22,21 @@ import java.util.stream.Collectors;
 interface SyscallsInternal extends Syscalls {
 
   @Override
-  default DeferredResult<Integer> createAnyDeferred(List<DeferredResult<?>> children) {
+  default Deferred<Integer> createAnyDeferred(List<Deferred<?>> children) {
     return DeferredResults.any(
-        children.stream().map(dr -> (DeferredResultInternal<?>) dr).collect(Collectors.toList()));
+        children.stream().map(dr -> (DeferredInternal<?>) dr).collect(Collectors.toList()));
   }
 
   @Override
-  default DeferredResult<Void> createAllDeferred(List<DeferredResult<?>> children) {
+  default Deferred<Void> createAllDeferred(List<Deferred<?>> children) {
     return DeferredResults.all(
-        children.stream().map(dr -> (DeferredResultInternal<?>) dr).collect(Collectors.toList()));
+        children.stream().map(dr -> (DeferredInternal<?>) dr).collect(Collectors.toList()));
   }
 
   // -- Helper for pollInput
 
   default <T extends MessageLite> void pollInputAndResolve(
-      Function<ByteString, T> mapper, SyscallCallback<ReadyResult<T>> callback) {
+      Function<ByteString, T> mapper, SyscallCallback<Result<T>> callback) {
     this.pollInput(
         mapper,
         SyscallCallback.of(
@@ -44,8 +44,7 @@ interface SyscallsInternal extends Syscalls {
                 this.resolveDeferred(
                     deferredValue,
                     SyscallCallback.ofVoid(
-                        () -> callback.onSuccess(deferredValue.toReadyResult()),
-                        callback::onCancel)),
+                        () -> callback.onSuccess(deferredValue.toResult()), callback::onCancel)),
             callback::onCancel));
   }
 

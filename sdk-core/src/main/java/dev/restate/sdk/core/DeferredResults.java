@@ -8,7 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import dev.restate.sdk.common.syscalls.DeferredResult;
+import dev.restate.sdk.common.syscalls.Deferred;
+import dev.restate.sdk.common.syscalls.Result;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -19,49 +20,48 @@ abstract class DeferredResults {
 
   private DeferredResults() {}
 
-  static <T> DeferredResultInternal<T> single(int entryIndex) {
-    return new ResolvableSingleDeferredResult<>(null, entryIndex);
+  static <T> DeferredInternal<T> single(int entryIndex) {
+    return new ResolvableSingleDeferred<>(null, entryIndex);
   }
 
-  static <T> DeferredResultInternal<T> completedSingle(
-      int entryIndex, ReadyResults.ReadyResultInternal<T> readyResultInternal) {
-    return new ResolvableSingleDeferredResult<>(readyResultInternal, entryIndex);
+  static <T> DeferredInternal<T> completedSingle(int entryIndex, Result<T> result) {
+    return new ResolvableSingleDeferred<>(result, entryIndex);
   }
 
-  static DeferredResultInternal<Integer> any(List<DeferredResultInternal<?>> any) {
-    return new AnyDeferredResult(any);
+  static DeferredInternal<Integer> any(List<DeferredInternal<?>> any) {
+    return new AnyDeferred(any);
   }
 
-  static DeferredResultInternal<Void> all(List<DeferredResultInternal<?>> all) {
-    return new AllDeferredResult(all);
+  static DeferredInternal<Void> all(List<DeferredInternal<?>> all) {
+    return new AllDeferred(all);
   }
 
-  interface DeferredResultInternal<T> extends DeferredResult<T> {
+  interface DeferredInternal<T> extends Deferred<T> {
 
     @Nullable
     @Override
-    ReadyResults.ReadyResultInternal<T> toReadyResult();
+    Result<T> toResult();
 
     /**
      * Look at the implementation of all and any for more details.
      *
-     * @see AllDeferredResult#tryResolve(int)
-     * @see AnyDeferredResult#tryResolve(int)
+     * @see AllDeferred#tryResolve(int)
+     * @see AnyDeferred#tryResolve(int)
      */
-    Stream<DeferredResults.SingleDeferredResultInternal<?>> unprocessedLeafs();
+    Stream<SingleDeferredInternal<?>> unprocessedLeafs();
   }
 
-  interface SingleDeferredResultInternal<T> extends DeferredResultInternal<T> {
+  interface SingleDeferredInternal<T> extends DeferredInternal<T> {
 
     int entryIndex();
   }
 
-  private abstract static class BaseDeferredResult<T> implements DeferredResultInternal<T> {
+  private abstract static class BaseDeferred<T> implements DeferredInternal<T> {
 
-    @Nullable private ReadyResults.ReadyResultInternal<T> readyResult;
+    @Nullable private Result<T> readyResult;
 
-    BaseDeferredResult(@Nullable ReadyResults.ReadyResultInternal<T> readyResult) {
-      this.readyResult = readyResult;
+    BaseDeferred(@Nullable Result<T> result) {
+      this.readyResult = result;
     }
 
     @Override
@@ -69,25 +69,24 @@ abstract class DeferredResults {
       return readyResult != null;
     }
 
-    public void resolve(ReadyResults.ReadyResultInternal<T> readyResultInternal) {
-      this.readyResult = readyResultInternal;
+    public void resolve(Result<T> result) {
+      this.readyResult = result;
     }
 
     @Override
     @Nullable
-    public ReadyResults.ReadyResultInternal<T> toReadyResult() {
+    public Result<T> toResult() {
       return readyResult;
     }
   }
 
-  static class ResolvableSingleDeferredResult<T> extends BaseDeferredResult<T>
-      implements SingleDeferredResultInternal<T> {
+  static class ResolvableSingleDeferred<T> extends BaseDeferred<T>
+      implements SingleDeferredInternal<T> {
 
     private final int entryIndex;
 
-    private ResolvableSingleDeferredResult(
-        @Nullable ReadyResults.ReadyResultInternal<T> readyResultInternal, int entryIndex) {
-      super(readyResultInternal);
+    private ResolvableSingleDeferred(@Nullable Result<T> result, int entryIndex) {
+      super(result);
       this.entryIndex = entryIndex;
     }
 
@@ -97,23 +96,23 @@ abstract class DeferredResults {
     }
 
     @Override
-    public Stream<DeferredResults.SingleDeferredResultInternal<?>> unprocessedLeafs() {
+    public Stream<SingleDeferredInternal<?>> unprocessedLeafs() {
       return Stream.of(this);
     }
   }
 
-  abstract static class CombinatorDeferredResult<T> extends BaseDeferredResult<T> {
+  abstract static class CombinatorDeferred<T> extends BaseDeferred<T> {
 
     // The reason to have these two data structures is to optimize the best case where we have a
     // combinator with a large number of single deferred (which can be addressed by entry index),
     // but little number of nested combinators (which cannot be addressed by an index, but needs to
     // be iterated through).
-    protected final Map<Integer, SingleDeferredResultInternal<?>> unresolvedSingles;
-    protected final Set<CombinatorDeferredResult<?>> unresolvedCombinators;
+    protected final Map<Integer, SingleDeferredInternal<?>> unresolvedSingles;
+    protected final Set<CombinatorDeferred<?>> unresolvedCombinators;
 
-    CombinatorDeferredResult(
-        Map<Integer, SingleDeferredResultInternal<?>> unresolvedSingles,
-        Set<CombinatorDeferredResult<?>> unresolvedCombinators) {
+    CombinatorDeferred(
+        Map<Integer, SingleDeferredInternal<?>> unresolvedSingles,
+        Set<CombinatorDeferred<?>> unresolvedCombinators) {
       super(null);
 
       this.unresolvedSingles = unresolvedSingles;
@@ -142,28 +141,26 @@ abstract class DeferredResults {
     }
 
     @Override
-    public Stream<DeferredResults.SingleDeferredResultInternal<?>> unprocessedLeafs() {
+    public Stream<SingleDeferredInternal<?>> unprocessedLeafs() {
       return Stream.concat(
           this.unresolvedSingles.values().stream(),
-          this.unresolvedCombinators.stream().flatMap(CombinatorDeferredResult::unprocessedLeafs));
+          this.unresolvedCombinators.stream().flatMap(CombinatorDeferred::unprocessedLeafs));
     }
   }
 
-  static class AnyDeferredResult extends CombinatorDeferredResult<Integer>
-      implements DeferredResult<Integer> {
+  static class AnyDeferred extends CombinatorDeferred<Integer> implements Deferred<Integer> {
 
-    private final IdentityHashMap<DeferredResultInternal<?>, Integer> indexMapping;
+    private final IdentityHashMap<DeferredInternal<?>, Integer> indexMapping;
 
-    private AnyDeferredResult(List<DeferredResultInternal<?>> children) {
+    private AnyDeferred(List<DeferredInternal<?>> children) {
       super(
           children.stream()
-              .filter(d -> d instanceof SingleDeferredResultInternal)
-              .map(d -> (SingleDeferredResultInternal<?>) d)
-              .collect(
-                  Collectors.toMap(SingleDeferredResultInternal::entryIndex, Function.identity())),
+              .filter(d -> d instanceof SingleDeferredInternal)
+              .map(d -> (SingleDeferredInternal<?>) d)
+              .collect(Collectors.toMap(SingleDeferredInternal::entryIndex, Function.identity())),
           children.stream()
-              .filter(d -> d instanceof CombinatorDeferredResult)
-              .map(d -> (CombinatorDeferredResult<?>) d)
+              .filter(d -> d instanceof CombinatorDeferred)
+              .map(d -> (CombinatorDeferred<?>) d)
               .collect(Collectors.toSet()));
 
       // The index mapping relies on instance hashing
@@ -180,18 +177,17 @@ abstract class DeferredResults {
         return true;
       }
 
-      SingleDeferredResultInternal<?> resolvedSingle =
-          this.unresolvedSingles.get(newResolvedSingle);
+      SingleDeferredInternal<?> resolvedSingle = this.unresolvedSingles.get(newResolvedSingle);
       if (resolvedSingle != null) {
         // Resolved
-        this.resolve(ReadyResults.success(this.indexMapping.get(resolvedSingle)));
+        this.resolve(Result.success(this.indexMapping.get(resolvedSingle)));
         return true;
       }
 
-      for (CombinatorDeferredResult<?> combinator : this.unresolvedCombinators) {
+      for (CombinatorDeferred<?> combinator : this.unresolvedCombinators) {
         if (combinator.tryResolve(newResolvedSingle)) {
           // Resolved
-          this.resolve(ReadyResults.success(this.indexMapping.get(combinator)));
+          this.resolve(Result.success(this.indexMapping.get(combinator)));
           return true;
         }
       }
@@ -200,22 +196,22 @@ abstract class DeferredResults {
     }
   }
 
-  static class AllDeferredResult extends CombinatorDeferredResult<Void> {
+  static class AllDeferred extends CombinatorDeferred<Void> {
 
-    private AllDeferredResult(List<DeferredResultInternal<?>> children) {
+    private AllDeferred(List<DeferredInternal<?>> children) {
       super(
           children.stream()
-              .filter(d -> d instanceof SingleDeferredResultInternal)
-              .map(d -> (SingleDeferredResultInternal<?>) d)
+              .filter(d -> d instanceof SingleDeferredInternal)
+              .map(d -> (SingleDeferredInternal<?>) d)
               .collect(
                   Collectors.toMap(
-                      SingleDeferredResultInternal::entryIndex,
+                      SingleDeferredInternal::entryIndex,
                       Function.identity(),
                       (v1, v2) -> v1,
                       HashMap::new)),
           children.stream()
-              .filter(d -> d instanceof CombinatorDeferredResult)
-              .map(d -> (CombinatorDeferredResult<?>) d)
+              .filter(d -> d instanceof CombinatorDeferred)
+              .map(d -> (CombinatorDeferred<?>) d)
               .collect(Collectors.toCollection(HashSet::new)));
     }
 
@@ -226,31 +222,30 @@ abstract class DeferredResults {
         return true;
       }
 
-      SingleDeferredResultInternal<?> resolvedSingle =
-          this.unresolvedSingles.remove(newResolvedSingle);
+      SingleDeferredInternal<?> resolvedSingle = this.unresolvedSingles.remove(newResolvedSingle);
       if (resolvedSingle != null) {
-        if (!resolvedSingle.toReadyResult().isSuccess()) {
-          this.resolve((ReadyResults.ReadyResultInternal<Void>) resolvedSingle.toReadyResult());
+        if (!resolvedSingle.toResult().isSuccess()) {
+          this.resolve((Result<Void>) resolvedSingle.toResult());
           return true;
         }
       }
 
-      Iterator<CombinatorDeferredResult<?>> it = this.unresolvedCombinators.iterator();
+      Iterator<CombinatorDeferred<?>> it = this.unresolvedCombinators.iterator();
       while (it.hasNext()) {
-        CombinatorDeferredResult<?> combinator = it.next();
+        CombinatorDeferred<?> combinator = it.next();
         if (combinator.tryResolve(newResolvedSingle)) {
           // Resolved
           it.remove();
 
-          if (!combinator.toReadyResult().isSuccess()) {
-            this.resolve((ReadyResults.ReadyResultInternal<Void>) combinator.toReadyResult());
+          if (!combinator.toResult().isSuccess()) {
+            this.resolve((Result<Void>) combinator.toResult());
             return true;
           }
         }
       }
 
       if (this.unresolvedSingles.isEmpty() && this.unresolvedCombinators.isEmpty()) {
-        this.resolve(ReadyResults.empty());
+        this.resolve(Result.empty());
         return true;
       }
 

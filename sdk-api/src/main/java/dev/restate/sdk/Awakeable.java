@@ -10,7 +10,8 @@ package dev.restate.sdk;
 
 import com.google.protobuf.ByteString;
 import dev.restate.sdk.common.Serde;
-import dev.restate.sdk.common.syscalls.DeferredResult;
+import dev.restate.sdk.common.syscalls.Deferred;
+import dev.restate.sdk.common.syscalls.Result;
 import dev.restate.sdk.common.syscalls.Syscalls;
 import javax.annotation.concurrent.NotThreadSafe;
 
@@ -26,16 +27,21 @@ import javax.annotation.concurrent.NotThreadSafe;
  * {@link RestateContext#awakeableHandle(String)}.
  */
 @NotThreadSafe
-public final class Awakeable<T> extends Awaitable<T> {
+public final class Awakeable<T> extends Awaitable.MappedAwaitable<ByteString, T> {
 
   private final String identifier;
 
-  Awakeable(
-      Syscalls syscalls,
-      DeferredResult<ByteString> deferredResult,
-      Serde<T> serde,
-      String identifier) {
-    super(syscalls, deferredResult, bs -> Util.deserializeWrappingException(syscalls, serde, bs));
+  Awakeable(Syscalls syscalls, Deferred<ByteString> deferred, Serde<T> serde, String identifier) {
+    super(
+        Awaitable.single(syscalls, deferred),
+        res -> {
+          if (res.isSuccess()) {
+            return Result.success(
+                Util.deserializeWrappingException(syscalls, serde, res.getValue()));
+          }
+          //noinspection unchecked
+          return (Result<T>) res;
+        });
     this.identifier = identifier;
   }
 

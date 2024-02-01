@@ -6,33 +6,61 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-package dev.restate.sdk.core;
+package dev.restate.sdk.common.syscalls;
 
 import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.common.syscalls.ReadyResult;
-import java.util.function.Function;
 import javax.annotation.Nullable;
 
-abstract class ReadyResults {
+/**
+ * Result can be 3 valued:
+ *
+ * <ul>
+ *   <li>Empty
+ *   <li>Value
+ *   <li>Failure
+ * </ul>
+ *
+ * Empty and Value are used to distinguish the logical empty with the null result.
+ *
+ * <p>Failure in a ready result is always a user failure, and never a syscall failure, as opposed to
+ * {@link SyscallCallback#onCancel(Throwable)}.
+ *
+ * @param <T> result type
+ */
+public abstract class Result<T> {
 
-  private ReadyResults() {}
+  private Result() {}
+
+  /**
+   * @return true if there is no failure.
+   */
+  public abstract boolean isSuccess();
+
+  public abstract boolean isEmpty();
+
+  /**
+   * @return The success value, or null in case is empty.
+   */
+  @Nullable
+  public abstract T getValue();
+
+  @Nullable
+  public abstract TerminalException getFailure();
 
   @SuppressWarnings("unchecked")
-  static <T> ReadyResultInternal<T> empty() {
-    return (ReadyResultInternal<T>) Empty.INSTANCE;
+  public static <T> Result<T> empty() {
+    return (Result<T>) Empty.INSTANCE;
   }
 
-  static <T> ReadyResultInternal<T> success(T value) {
+  public static <T> Result<T> success(T value) {
     return new Success<>(value);
   }
 
-  static <T> ReadyResultInternal<T> failure(TerminalException t) {
+  public static <T> Result<T> failure(TerminalException t) {
     return new Failure<>(t);
   }
 
-  interface ReadyResultInternal<T> extends ReadyResult<T> {}
-
-  static class Empty<T> implements ReadyResultInternal<T> {
+  static class Empty<T> extends Result<T> {
 
     public static Empty<?> INSTANCE = new Empty<>();
 
@@ -50,14 +78,8 @@ abstract class ReadyResults {
 
     @Nullable
     @Override
-    public T getResult() {
+    public T getValue() {
       return null;
-    }
-
-    @SuppressWarnings("unchecked")
-    @Override
-    public <U> ReadyResult<U> map(Function<T, U> mapper) {
-      return (ReadyResult<U>) this;
     }
 
     @Nullable
@@ -67,7 +89,7 @@ abstract class ReadyResults {
     }
   }
 
-  static class Success<T> implements ReadyResultInternal<T> {
+  static class Success<T> extends Result<T> {
     private final T value;
 
     private Success(T value) {
@@ -86,13 +108,8 @@ abstract class ReadyResults {
 
     @Nullable
     @Override
-    public T getResult() {
+    public T getValue() {
       return value;
-    }
-
-    @Override
-    public <U> ReadyResult<U> map(Function<T, U> mapper) {
-      return new Success<>(mapper.apply(value));
     }
 
     @Nullable
@@ -102,7 +119,7 @@ abstract class ReadyResults {
     }
   }
 
-  static class Failure<T> implements ReadyResultInternal<T> {
+  static class Failure<T> extends Result<T> {
     private final TerminalException cause;
 
     private Failure(TerminalException cause) {
@@ -121,14 +138,8 @@ abstract class ReadyResults {
 
     @Nullable
     @Override
-    public T getResult() {
+    public T getValue() {
       return null;
-    }
-
-    @SuppressWarnings("unchecked")
-    @Override
-    public <U> ReadyResult<U> map(Function<T, U> mapper) {
-      return (ReadyResult<U>) this;
     }
 
     @Nullable

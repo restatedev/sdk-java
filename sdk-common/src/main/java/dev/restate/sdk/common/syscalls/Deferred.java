@@ -16,10 +16,9 @@ import javax.annotation.Nullable;
  * <p>Implementations of this class are provided by {@link Syscalls} and should not be
  * overriden/wrapped.
  *
- * <p>To resolve a {@link DeferredResult}, check {@link Syscalls#resolveDeferred(DeferredResult,
- * SyscallCallback)}
+ * <p>To resolve a {@link Deferred}, use {@link Syscalls#resolveDeferred(Deferred, SyscallCallback)}
  */
-public interface DeferredResult<T> {
+public interface Deferred<T> {
 
   boolean isCompleted();
 
@@ -27,5 +26,5 @@ public interface DeferredResult<T> {
    * @return {@code null} if {@link #isCompleted()} is false.
    */
   @Nullable
-  ReadyResult<T> toReadyResult();
+  Result<T> toResult();
 }

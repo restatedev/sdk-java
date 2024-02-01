@@ -11,7 +11,7 @@ package dev.restate.sdk;
 import com.google.protobuf.ByteString;
 import dev.restate.sdk.common.*;
 import dev.restate.sdk.common.function.ThrowingSupplier;
-import dev.restate.sdk.common.syscalls.DeferredResult;
+import dev.restate.sdk.common.syscalls.Deferred;
 import dev.restate.sdk.common.syscalls.EnterSideEffectSyscallCallback;
 import dev.restate.sdk.common.syscalls.ExitSideEffectSyscallCallback;
 import dev.restate.sdk.common.syscalls.Syscalls;
@@ -33,14 +33,13 @@ class RestateContextImpl implements RestateContext {
 
   @Override
   public <T> Optional<T> get(StateKey<T> key) {
-    DeferredResult<ByteString> deferredResult =
-        Util.blockOnSyscall(cb -> syscalls.get(key.name(), cb));
+    Deferred<ByteString> deferred = Util.blockOnSyscall(cb -> syscalls.get(key.name(), cb));
 
-    if (!deferredResult.isCompleted()) {
-      Util.<Void>blockOnSyscall(cb -> syscalls.resolveDeferred(deferredResult, cb));
+    if (!deferred.isCompleted()) {
+      Util.<Void>blockOnSyscall(cb -> syscalls.resolveDeferred(deferred, cb));
     }
 
-    return Util.unwrapOptionalReadyResult(deferredResult.toReadyResult())
+    return Util.unwrapOptionalReadyResult(deferred.toResult())
         .map(bs -> Util.deserializeWrappingException(syscalls, key.serde(), bs));
   }
 
@@ -59,15 +58,14 @@ class RestateContextImpl implements RestateContext {
 
   @Override
   public Awaitable<Void> timer(Duration duration) {
-    DeferredResult<Void> result = Util.blockOnSyscall(cb -> syscalls.sleep(duration, cb));
-    return new Awaitable<>(syscalls, result);
+    Deferred<Void> result = Util.blockOnSyscall(cb -> syscalls.sleep(duration, cb));
+    return Awaitable.single(syscalls, result);
   }
 
   @Override
   public <T, R> Awaitable<R> call(MethodDescriptor<T, R> methodDescriptor, T parameter) {
-    DeferredResult<R> result =
-        Util.blockOnSyscall(cb -> syscalls.call(methodDescriptor, parameter, cb));
-    return new Awaitable<>(syscalls, result);
+    Deferred<R> result = Util.blockOnSyscall(cb -> syscalls.call(methodDescriptor, parameter, cb));
+    return Awaitable.single(syscalls, result);
   }
 
   @Override
@@ -160,8 +158,7 @@ class RestateContextImpl implements RestateContext {
   @Override
   public <T> Awakeable<T> awakeable(Serde<T> serde) throws TerminalException {
     // Retrieve the awakeable
-    Map.Entry<String, DeferredResult<ByteString>> awakeable =
-        Util.blockOnSyscall(syscalls::awakeable);
+    Map.Entry<String, Deferred<ByteString>> awakeable = Util.blockOnSyscall(syscalls::awakeable);
 
     return new Awakeable<>(syscalls, awakeable.getValue(), serde, awakeable.getKey());
   }

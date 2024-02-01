@@ -23,7 +23,7 @@ class KotlinCoroutinesTests : TestRunner() {
   public override fun definitions(): Stream<TestDefinitions.TestSuite> {
     return Stream.of(
         AwakeableIdTest(),
-        DeferredTest(),
+        AwaitableTest(),
         EagerStateTest(),
         StateTest(),
         InvocationIdTest(),

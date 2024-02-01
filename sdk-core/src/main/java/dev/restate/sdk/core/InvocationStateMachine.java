@@ -15,10 +15,7 @@ import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.common.AbortedExecutionException;
 import dev.restate.sdk.common.InvocationId;
-import dev.restate.sdk.common.syscalls.DeferredResult;
-import dev.restate.sdk.common.syscalls.EnterSideEffectSyscallCallback;
-import dev.restate.sdk.common.syscalls.ExitSideEffectSyscallCallback;
-import dev.restate.sdk.common.syscalls.SyscallCallback;
+import dev.restate.sdk.common.syscalls.*;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
 import java.util.*;
@@ -276,7 +273,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   <E extends MessageLite, T> void processCompletableJournalEntry(
       E expectedEntryMessage,
       Entries.CompletableJournalEntry<E, T> journalEntry,
-      SyscallCallback<DeferredResult<T>> callback) {
+      SyscallCallback<Deferred<T>> callback) {
     checkInsideSideEffectGuard();
     if (this.invocationState == InvocationState.CLOSED) {
       callback.onCancel(AbortedExecutionException.INSTANCE);
@@ -290,8 +287,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
               // Entry is already completed
               journalEntry.updateUserStateStoreWithEntry(
                   (E) actualEntryMessage, this.userStateStore);
-              ReadyResults.ReadyResultInternal<T> readyResultInternal =
-                  journalEntry.parseEntryResult((E) actualEntryMessage);
+              Result<T> readyResultInternal = journalEntry.parseEntryResult((E) actualEntryMessage);
               callback.onSuccess(DeferredResults.completedSingle(entryIndex, readyResultInternal));
             } else {
               // Entry is not completed yet
@@ -461,21 +457,21 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   // --- Deferred
 
-  <T> void resolveDeferred(DeferredResult<T> deferredToResolve, SyscallCallback<Void> callback) {
+  <T> void resolveDeferred(Deferred<T> deferredToResolve, SyscallCallback<Void> callback) {
     if (deferredToResolve.isCompleted()) {
       callback.onSuccess(null);
       return;
     }
 
-    if (deferredToResolve instanceof DeferredResults.ResolvableSingleDeferredResult) {
+    if (deferredToResolve instanceof DeferredResults.ResolvableSingleDeferred) {
       this.resolveSingleDeferred(
-          (DeferredResults.ResolvableSingleDeferredResult<T>) deferredToResolve, callback);
+          (DeferredResults.ResolvableSingleDeferred<T>) deferredToResolve, callback);
       return;
     }
 
-    if (deferredToResolve instanceof DeferredResults.CombinatorDeferredResult) {
+    if (deferredToResolve instanceof DeferredResults.CombinatorDeferred) {
       this.resolveCombinatorDeferred(
-          (DeferredResults.CombinatorDeferredResult<T>) deferredToResolve, callback);
+          (DeferredResults.CombinatorDeferred<T>) deferredToResolve, callback);
       return;
     }
 
@@ -483,15 +479,13 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   }
 
   <T> void resolveSingleDeferred(
-      DeferredResults.ResolvableSingleDeferredResult<T> deferred, SyscallCallback<Void> callback) {
+      DeferredResults.ResolvableSingleDeferred<T> deferred, SyscallCallback<Void> callback) {
     this.readyResultStateMachine.onNewReadyResult(
         new ReadyResultStateMachine.OnNewReadyResultCallback() {
           @SuppressWarnings("unchecked")
           @Override
-          public boolean onNewReadyResult(
-              Map<Integer, ReadyResults.ReadyResultInternal<?>> resultMap) {
-            ReadyResults.ReadyResultInternal<T> resolved =
-                (ReadyResults.ReadyResultInternal<T>) resultMap.remove(deferred.entryIndex());
+          public boolean onNewResult(Map<Integer, Result<?>> resultMap) {
+            Result<T> resolved = (Result<T>) resultMap.remove(deferred.entryIndex());
             if (resolved != null) {
               deferred.resolve(resolved);
               callback.onSuccess(null);
@@ -516,14 +510,13 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   /**
    * This method implements the algorithm to resolve deferred combinator trees, where inner nodes of
    * the tree are ANY or ALL combinators, and leafs are {@link
-   * DeferredResults.ResolvableSingleDeferredResult}, created as result of completable syscalls.
+   * DeferredResults.ResolvableSingleDeferred}, created as result of completable syscalls.
    *
    * <p>The idea of the algorithm is the following: {@code rootDeferred} is the root of this tree,
    * and has internal state that can be mutated through {@link
-   * DeferredResults.CombinatorDeferredResult#tryResolve(int)} to flag the tree as resolved. Every
-   * time a new leaf is resolved through {@link
-   * DeferredResults.ResolvableSingleDeferredResult#resolve(ReadyResults.ReadyResultInternal)}, we
-   * try to resolve the tree again. We start by checking if we have enough resolved leafs in the
+   * DeferredResults.CombinatorDeferred#tryResolve(int)} to flag the tree as resolved. Every time a
+   * new leaf is resolved through {@link DeferredResults.ResolvableSingleDeferred#resolve(Result)},
+   * we try to resolve the tree again. We start by checking if we have enough resolved leafs in the
    * combinator tree to resolve it. If not, we register a callback to the {@link
    * ReadyResultStateMachine} to wait on future completions. As soon as the tree is resolved, we
    * record in the journal the order of the leafs we've seen so far, and we finish by calling the
@@ -547,13 +540,13 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
    *       the combinator journal entry only when there is a subset of resolved leafs which
    *       completes the combinator tree. Moreover, the leaf journal entries precede the combinator
    *       entry because they are created first.
-   *   <li>In case there are no {@link DeferredResults.SingleDeferredResultInternal
+   *   <li>In case there are no {@link DeferredResults.SingleDeferredInternal
    *       SingleDeferredResultInternals}, it means every leaf has been resolved beforehand. In this
    *       case, we must be able to flag this combinator tree as resolved as well.
    * </ul>
    */
   private void resolveCombinatorDeferred(
-      DeferredResults.CombinatorDeferredResult<?> rootDeferred, SyscallCallback<Void> callback) {
+      DeferredResults.CombinatorDeferred<?> rootDeferred, SyscallCallback<Void> callback) {
     // Calling .await() on a combinator deferred within a side effect is not allowed
     //  as resolving it creates or read a journal entry.
     checkInsideSideEffectGuard();
@@ -572,10 +565,9 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
           callback::onCancel);
     } else if (this.invocationState == InvocationState.PROCESSING) {
       // Create map of singles to resolve
-      Map<Integer, DeferredResults.ResolvableSingleDeferredResult<?>> resolvableSingles =
-          new HashMap<>();
+      Map<Integer, DeferredResults.ResolvableSingleDeferred<?>> resolvableSingles = new HashMap<>();
 
-      Set<DeferredResults.SingleDeferredResultInternal<?>> unprocessedLeafs =
+      Set<DeferredResults.SingleDeferredInternal<?>> unprocessedLeafs =
           rootDeferred.unprocessedLeafs().collect(Collectors.toSet());
 
       // If there are no leafs, it means the combinator must be resolvable
@@ -596,7 +588,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       List<Integer> resolvedOrder = new ArrayList<>();
 
       // Walk the tree and populate the resolvable singles, and keep the already known ready results
-      for (DeferredResults.SingleDeferredResultInternal<?> singleDeferred : unprocessedLeafs) {
+      for (DeferredResults.SingleDeferredInternal<?> singleDeferred : unprocessedLeafs) {
         int entryIndex = singleDeferred.entryIndex();
         if (singleDeferred.isCompleted()) {
           resolvedOrder.add(entryIndex);
@@ -610,7 +602,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
         } else {
           // If not completed, then it's a ResolvableSingleDeferredResult
           resolvableSingles.put(
-              entryIndex, (DeferredResults.ResolvableSingleDeferredResult<?>) singleDeferred);
+              entryIndex, (DeferredResults.ResolvableSingleDeferred<?>) singleDeferred);
         }
       }
 
@@ -619,19 +611,17 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
           new ReadyResultStateMachine.OnNewReadyResultCallback() {
             @SuppressWarnings({"unchecked", "rawtypes"})
             @Override
-            public boolean onNewReadyResult(
-                Map<Integer, ReadyResults.ReadyResultInternal<?>> resultMap) {
-              Iterator<Map.Entry<Integer, DeferredResults.ResolvableSingleDeferredResult<?>>> it =
+            public boolean onNewResult(Map<Integer, Result<?>> resultMap) {
+              Iterator<Map.Entry<Integer, DeferredResults.ResolvableSingleDeferred<?>>> it =
                   resolvableSingles.entrySet().iterator();
               while (it.hasNext()) {
-                Map.Entry<Integer, DeferredResults.ResolvableSingleDeferredResult<?>> entry =
-                    it.next();
+                Map.Entry<Integer, DeferredResults.ResolvableSingleDeferred<?>> entry = it.next();
                 int entryIndex = entry.getKey();
 
-                ReadyResults.ReadyResultInternal<?> result = resultMap.remove(entryIndex);
+                Result<?> result = resultMap.remove(entryIndex);
                 if (result != null) {
                   resolvedOrder.add(entryIndex);
-                  entry.getValue().resolve((ReadyResults.ReadyResultInternal) result);
+                  entry.getValue().resolve((Result) result);
                   it.remove();
 
                   // Try to resolve the combinator now

@@ -22,7 +22,7 @@ import io.grpc.stub.StreamObserver;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 
-public class DeferredTest extends DeferredTestSuite {
+public class AwaitableTest extends DeferredTestSuite {
 
   private static class ReverseAwaitOrder extends GreeterGrpc.GreeterImplBase
       implements RestateService {

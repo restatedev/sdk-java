@@ -10,14 +10,15 @@ package dev.restate.sdk;
 
 import dev.restate.sdk.common.AbortedExecutionException;
 import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.common.syscalls.DeferredResult;
-import dev.restate.sdk.common.syscalls.ReadyResultHolder;
+import dev.restate.sdk.common.syscalls.Deferred;
+import dev.restate.sdk.common.syscalls.Result;
 import dev.restate.sdk.common.syscalls.Syscalls;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -32,20 +33,17 @@ import javax.annotation.concurrent.NotThreadSafe;
  * @param <T> type of the awaitable result
  */
 @NotThreadSafe
-public class Awaitable<T> {
+public abstract class Awaitable<T> {
 
-  final Syscalls syscalls;
-  final ReadyResultHolder<T> resultHolder;
+  protected final Syscalls syscalls;
 
-  Awaitable(Syscalls syscalls, DeferredResult<T> deferredResult) {
+  Awaitable(Syscalls syscalls) {
     this.syscalls = syscalls;
-    this.resultHolder = new ReadyResultHolder<>(deferredResult);
   }
 
-  <U> Awaitable(Syscalls syscalls, DeferredResult<U> deferredResult, Function<U, T> resultMapper) {
-    this.syscalls = syscalls;
-    this.resultHolder = new ReadyResultHolder<>(deferredResult, resultMapper);
-  }
+  protected abstract Deferred<?> deferred();
+
+  protected abstract Result<T> awaitResult();
 
   /**
    * Wait for the current awaitable to complete. Executing this method may trigger the suspension of
@@ -56,25 +54,19 @@ public class Awaitable<T> {
    *
    * @throws TerminalException if the awaitable is ready and contains a failure
    */
-  public T await() throws TerminalException {
-    if (!this.resultHolder.isCompleted()) {
-      Util.<Void>blockOnSyscall(
-          cb -> syscalls.resolveDeferred(this.resultHolder.getDeferredResult(), cb));
-    }
-    return Util.unwrapReadyResult(this.resultHolder.getReadyResult());
+  public final T await() throws TerminalException {
+    return Util.unwrapResult(this.awaitResult());
   }
 
   /**
    * Same as {@link #await()}, but throws a {@link TimeoutException} if this {@link Awaitable}
    * doesn't complete before the provided {@code timeout}.
    */
-  public T await(Duration timeout) throws TerminalException, TimeoutException {
-    DeferredResult<Void> sleep = Util.blockOnSyscall(cb -> this.syscalls.sleep(timeout, cb));
+  public final T await(Duration timeout) throws TerminalException, TimeoutException {
+    Deferred<Void> sleep = Util.blockOnSyscall(cb -> this.syscalls.sleep(timeout, cb));
+    Awaitable<Void> sleepAwaitable = single(this.syscalls, sleep);
 
-    int index =
-        Util.blockOnResolve(
-            this.syscalls,
-            this.syscalls.createAnyDeferred(List.of(this.resultHolder.getDeferredResult(), sleep)));
+    int index = any(this, sleepAwaitable).awaitIndex();
 
     if (index == 1) {
       throw new TimeoutException();
@@ -83,6 +75,29 @@ public class Awaitable<T> {
     return this.await();
   }
 
+  /** Map the result of this {@link Awaitable}. */
+  public final <U> Awaitable<U> map(Function<T, U> mapper) {
+    return new MappedAwaitable<>(
+        this,
+        result -> {
+          if (result.isSuccess()) {
+            return Result.success(mapper.apply(result.getValue()));
+          }
+          //noinspection unchecked
+          return (Result<U>) result;
+        });
+  }
+
+  static <T> Awaitable<T> single(Syscalls syscalls, Deferred<T> deferred) {
+    return new SingleAwaitable<>(syscalls, deferred);
+  }
+
+  /**
+   * Create an {@link Awaitable} that awaits any of the given awaitables.
+   *
+   * <p>The behavior is the same as {@link
+   * java.util.concurrent.CompletableFuture#anyOf(CompletableFuture[])}.
+   */
   public static AnyAwaitable any(Awaitable<?> first, Awaitable<?> second, Awaitable<?>... others) {
     List<Awaitable<?>> awaitables = new ArrayList<>(2 + others.length);
     awaitables.add(first);
@@ -92,19 +107,76 @@ public class Awaitable<T> {
     return new AnyAwaitable(
         first.syscalls,
         first.syscalls.createAnyDeferred(
-            awaitables.stream()
-                .map(a -> a.resultHolder.getDeferredResult())
-                .collect(Collectors.toList())),
+            awaitables.stream().map(Awaitable::deferred).collect(Collectors.toList())),
         awaitables);
   }
 
+  /**
+   * Create an {@link Awaitable} that awaits all the given awaitables.
+   *
+   * <p>The behavior is the same as {@link
+   * java.util.concurrent.CompletableFuture#allOf(CompletableFuture[])}.
+   */
   public static Awaitable<Void> all(
       Awaitable<?> first, Awaitable<?> second, Awaitable<?>... others) {
-    List<DeferredResult<?>> deferred = new ArrayList<>(2 + others.length);
-    deferred.add(first.resultHolder.getDeferredResult());
-    deferred.add(second.resultHolder.getDeferredResult());
-    Arrays.stream(others).map(a -> a.resultHolder.getDeferredResult()).forEach(deferred::add);
+    List<Deferred<?>> deferred = new ArrayList<>(2 + others.length);
+    deferred.add(first.deferred());
+    deferred.add(second.deferred());
+    Arrays.stream(others).map(Awaitable::deferred).forEach(deferred::add);
 
-    return new Awaitable<>(first.syscalls, first.syscalls.createAllDeferred(deferred));
+    return single(first.syscalls, first.syscalls.createAllDeferred(deferred));
+  }
+
+  static class SingleAwaitable<T> extends Awaitable<T> {
+
+    private final Deferred<T> deferred;
+    private Result<T> result;
+
+    SingleAwaitable(Syscalls syscalls, Deferred<T> deferred) {
+      super(syscalls);
+      this.deferred = deferred;
+    }
+
+    @Override
+    protected Deferred<?> deferred() {
+      return this.deferred;
+    }
+
+    @Override
+    protected Result<T> awaitResult() {
+      if (!this.deferred.isCompleted()) {
+        Util.<Void>blockOnSyscall(cb -> syscalls.resolveDeferred(this.deferred, cb));
+      }
+      if (this.result == null) {
+        this.result = this.deferred.toResult();
+      }
+      return this.result;
+    }
+  }
+
+  static class MappedAwaitable<T, U> extends Awaitable<U> {
+
+    private final Awaitable<T> inner;
+    private final Function<Result<T>, Result<U>> mapper;
+    private Result<U> mappedResult;
+
+    MappedAwaitable(Awaitable<T> inner, Function<Result<T>, Result<U>> mapper) {
+      super(inner.syscalls);
+      this.inner = inner;
+      this.mapper = mapper;
+    }
+
+    @Override
+    protected Deferred<?> deferred() {
+      return inner.deferred();
+    }
+
+    @Override
+    public Result<U> awaitResult() throws TerminalException {
+      if (mappedResult == null) {
+        this.mappedResult = this.mapper.apply(this.inner.awaitResult());
+      }
+      return this.mappedResult;
+    }
   }
 }

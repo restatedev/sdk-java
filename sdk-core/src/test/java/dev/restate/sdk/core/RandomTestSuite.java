@@ -18,7 +18,6 @@ import dev.restate.sdk.core.TestDefinitions.TestSuite;
 import dev.restate.sdk.core.testservices.GreeterGrpc;
 import dev.restate.sdk.core.testservices.GreetingRequest;
 import io.grpc.BindableService;
-import java.util.Random;
 import java.util.stream.Stream;
 
 public abstract class RandomTestSuite implements TestSuite {
@@ -33,7 +32,6 @@ public abstract class RandomTestSuite implements TestSuite {
   public Stream<TestDefinition> definitions() {
     String debugId = "my-id";
 
-    int expectedRandomNumber = new Random(new InvocationIdImpl(debugId).toRandomSeed()).nextInt();
     return Stream.of(
         testInvocation(this::randomShouldBeDeterministic, GreeterGrpc.getGreetMethod())
             .withInput(

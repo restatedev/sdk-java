@@ -16,13 +16,9 @@ import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.generated.service.protocol.Protocol.PollInputStreamEntryMessage;
 import dev.restate.sdk.common.InvocationId;
 import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.common.syscalls.DeferredResult;
-import dev.restate.sdk.common.syscalls.EnterSideEffectSyscallCallback;
-import dev.restate.sdk.common.syscalls.ExitSideEffectSyscallCallback;
-import dev.restate.sdk.common.syscalls.SyscallCallback;
-import dev.restate.sdk.core.DeferredResults.SingleDeferredResultInternal;
+import dev.restate.sdk.common.syscalls.*;
+import dev.restate.sdk.core.DeferredResults.SingleDeferredInternal;
 import dev.restate.sdk.core.Entries.*;
-import dev.restate.sdk.core.ReadyResults.ReadyResultInternal;
 import io.grpc.MethodDescriptor;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -53,7 +49,7 @@ public final class SyscallsImpl implements SyscallsInternal {
 
   @Override
   public <T extends MessageLite> void pollInput(
-      Function<ByteString, T> mapper, SyscallCallback<DeferredResult<T>> callback) {
+      Function<ByteString, T> mapper, SyscallCallback<Deferred<T>> callback) {
     wrapAndPropagateExceptions(
         () -> {
           LOG.trace("pollInput");
@@ -99,7 +95,7 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public void get(String name, SyscallCallback<DeferredResult<ByteString>> callback) {
+  public void get(String name, SyscallCallback<Deferred<ByteString>> callback) {
     wrapAndPropagateExceptions(
         () -> {
           LOG.trace("get {}", name);
@@ -145,7 +141,7 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public void sleep(Duration duration, SyscallCallback<DeferredResult<Void>> callback) {
+  public void sleep(Duration duration, SyscallCallback<Deferred<Void>> callback) {
     wrapAndPropagateExceptions(
         () -> {
           LOG.trace("sleep {}", duration);
@@ -161,9 +157,7 @@ public final class SyscallsImpl implements SyscallsInternal {
 
   @Override
   public <T, R> void call(
-      MethodDescriptor<T, R> methodDescriptor,
-      T parameter,
-      SyscallCallback<DeferredResult<R>> callback) {
+      MethodDescriptor<T, R> methodDescriptor, T parameter, SyscallCallback<Deferred<R>> callback) {
     wrapAndPropagateExceptions(
         () -> {
           String serviceName = methodDescriptor.getServiceName();
@@ -248,7 +242,7 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public void awakeable(SyscallCallback<Map.Entry<String, DeferredResult<ByteString>>> callback) {
+  public void awakeable(SyscallCallback<Map.Entry<String, Deferred<ByteString>>> callback) {
     wrapAndPropagateExceptions(
         () -> {
           LOG.trace("awakeable");
@@ -265,8 +259,7 @@ public final class SyscallsImpl implements SyscallsInternal {
                                 ByteString.copyFrom(
                                     ByteBuffer.allocate(4)
                                         .putInt(
-                                            ((SingleDeferredResultInternal<ByteString>)
-                                                    deferredResult)
+                                            ((SingleDeferredInternal<ByteString>) deferredResult)
                                                 .entryIndex())
                                         .rewind()));
 
@@ -318,8 +311,7 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public <T> void resolveDeferred(
-      DeferredResult<T> deferredToResolve, SyscallCallback<Void> callback) {
+  public <T> void resolveDeferred(Deferred<T> deferredToResolve, SyscallCallback<Void> callback) {
     wrapAndPropagateExceptions(
         () -> this.stateMachine.resolveDeferred(deferredToResolve, callback), callback);
   }
@@ -371,8 +363,7 @@ public final class SyscallsImpl implements SyscallsInternal {
     }
   }
 
-  private <T> Function<ByteString, ReadyResultInternal<T>> protoDeserializer(
-      Function<ByteString, T> mapper) {
-    return value -> ReadyResults.success(mapper.apply(value));
+  private <T> Function<ByteString, Result<T>> protoDeserializer(Function<ByteString, T> mapper) {
+    return value -> Result.success(mapper.apply(value));
   }
 }

@@ -26,7 +26,7 @@ public class JavaBlockingTests extends TestRunner {
   public Stream<TestSuite> definitions() {
     return Stream.of(
         new AwakeableIdTest(),
-        new DeferredTest(),
+        new AwaitableTest(),
         new EagerStateTest(),
         new StateTest(),
         new InvocationIdTest(),
