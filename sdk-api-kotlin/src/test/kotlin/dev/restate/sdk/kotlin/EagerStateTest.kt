@@ -23,7 +23,7 @@ class EagerStateTest : EagerStateTestSuite() {
   private class GetEmpty :
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx = restateContext()
+      val ctx = KeyedContext.current()
       val stateIsEmpty = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)) == null
       return greetingResponse { message = stateIsEmpty.toString() }
     }
@@ -37,7 +37,7 @@ class EagerStateTest : EagerStateTestSuite() {
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       return greetingResponse {
-        message = restateContext().get(StateKey.of("STATE", CoreSerdes.JSON_STRING))!!
+        message = KeyedContext.current().get(StateKey.of("STATE", CoreSerdes.JSON_STRING))!!
       }
     }
   }
@@ -49,7 +49,7 @@ class EagerStateTest : EagerStateTestSuite() {
   private class GetAppendAndGet :
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx = restateContext()
+      val ctx = KeyedContext.current()
       val oldState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))!!
       ctx.set(StateKey.of("STATE", CoreSerdes.JSON_STRING), oldState + request.getName())
       val newState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))!!
@@ -64,7 +64,7 @@ class EagerStateTest : EagerStateTestSuite() {
   private class GetClearAndGet :
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx = restateContext()
+      val ctx = KeyedContext.current()
       val oldState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))!!
       ctx.clear(StateKey.of("STATE", CoreSerdes.JSON_STRING))
       assertThat(ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))).isNull()

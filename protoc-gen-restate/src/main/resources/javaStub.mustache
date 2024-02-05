@@ -2,7 +2,8 @@
 package {{packageName}};
 {{/packageName}}
 
-import dev.restate.sdk.RestateContext;
+import dev.restate.sdk.UnkeyedContext;
+import dev.restate.sdk.KeyedContext;
 import dev.restate.sdk.Awaitable;
 import dev.restate.sdk.common.syscalls.Syscalls;
 import java.time.Duration;
@@ -15,24 +16,17 @@ public class {{className}} {
     private {{className}}() {}
 
     /**
-    * Create a new client.
-    */
-    public static {{serviceName}}RestateClient newClient() {
-        return newClient(RestateContext.fromSyscalls(Syscalls.current()));
-    }
-
-    /**
-     * Create a new client from the given {@link RestateContext}.
+     * Create a new client from the given {@link KeyedContext}.
      */
-    public static {{serviceName}}RestateClient newClient(RestateContext ctx) {
+    public static {{serviceName}}RestateClient newClient(UnkeyedContext ctx) {
         return new {{serviceName}}RestateClient(ctx);
     }
 
 {{{apidoc}}}
     public static final class {{serviceName}}RestateClient {
-        private final RestateContext ctx;
+        private final UnkeyedContext ctx;
 
-        {{serviceName}}RestateClient(RestateContext ctx) {
+        {{serviceName}}RestateClient(UnkeyedContext ctx) {
             this.ctx = ctx;
         }
 
@@ -57,9 +51,9 @@ public class {{className}} {
     }
 
     public static final class {{serviceName}}RestateOneWayClient {
-        private final RestateContext ctx;
+        private final UnkeyedContext ctx;
 
-        {{serviceName}}RestateOneWayClient(RestateContext ctx) {
+        {{serviceName}}RestateOneWayClient(UnkeyedContext ctx) {
             this.ctx = ctx;
         }
 
@@ -74,10 +68,10 @@ public class {{className}} {
     }
 
     public static final class {{serviceName}}RestateDelayedClient {
-        private final RestateContext ctx;
+        private final UnkeyedContext ctx;
         private final Duration delay;
 
-        {{serviceName}}RestateDelayedClient(RestateContext ctx, Duration delay) {
+        {{serviceName}}RestateDelayedClient(UnkeyedContext ctx, Duration delay) {
             this.ctx = ctx;
             this.delay = delay;
         }
@@ -100,7 +94,7 @@ public class {{className}} {
         @java.lang.Deprecated
         {{/deprecated}}
 {{{apidoc}}}
-        public {{#isOutputEmpty}}void{{/isOutputEmpty}}{{^isOutputEmpty}}{{outputType}}{{/isOutputEmpty}} {{methodName}}(RestateContext context{{^isInputEmpty}}, {{inputType}} request{{/isInputEmpty}}) throws dev.restate.sdk.common.TerminalException {
+        public {{#isOutputEmpty}}void{{/isOutputEmpty}}{{^isOutputEmpty}}{{outputType}}{{/isOutputEmpty}} {{methodName}}({{contextType}} context{{^isInputEmpty}}, {{inputType}} request{{/isInputEmpty}}) throws dev.restate.sdk.common.TerminalException {
             throw new dev.restate.sdk.common.TerminalException(dev.restate.sdk.common.TerminalException.Code.UNIMPLEMENTED);
         }
 
@@ -120,34 +114,34 @@ public class {{className}} {
     private static final class HandlerAdapter<Req, Resp> implements
         io.grpc.stub.ServerCalls.UnaryMethod<Req, Resp> {
 
-        private final java.util.function.BiFunction<RestateContext, Req, Resp> handler;
+        private final java.util.function.BiFunction<KeyedContext, Req, Resp> handler;
 
-        private HandlerAdapter(java.util.function.BiFunction<RestateContext, Req, Resp> handler) {
+        private HandlerAdapter(java.util.function.BiFunction<KeyedContext, Req, Resp> handler) {
             this.handler = handler;
         }
 
         @Override
         public void invoke(Req request, io.grpc.stub.StreamObserver<Resp> responseObserver) {
-            responseObserver.onNext(handler.apply(RestateContext.fromSyscalls(Syscalls.current()), request));
+            responseObserver.onNext(handler.apply(KeyedContext.fromSyscalls(Syscalls.current()), request));
             responseObserver.onCompleted();
         }
 
-        private static <Req, Resp> HandlerAdapter<Req, Resp> of(java.util.function.BiFunction<RestateContext, Req, Resp> handler) {
+        private static <Req, Resp> HandlerAdapter<Req, Resp> of(java.util.function.BiFunction<KeyedContext, Req, Resp> handler) {
             return new HandlerAdapter<>(handler);
         }
 
-        private static <Resp> HandlerAdapter<com.google.protobuf.Empty, Resp> of(java.util.function.Function<RestateContext, Resp> handler) {
+        private static <Resp> HandlerAdapter<com.google.protobuf.Empty, Resp> of(java.util.function.Function<KeyedContext, Resp> handler) {
             return new HandlerAdapter<>((ctx, e) -> handler.apply(ctx));
         }
 
-        private static <Req> HandlerAdapter<Req, com.google.protobuf.Empty> of(java.util.function.BiConsumer<RestateContext, Req> handler) {
+        private static <Req> HandlerAdapter<Req, com.google.protobuf.Empty> of(java.util.function.BiConsumer<KeyedContext, Req> handler) {
             return new HandlerAdapter<>((ctx, req) -> {
                 handler.accept(ctx, req);
                 return com.google.protobuf.Empty.getDefaultInstance();
             });
         }
 
-        private static HandlerAdapter<com.google.protobuf.Empty, com.google.protobuf.Empty> of(java.util.function.Consumer<RestateContext> handler) {
+        private static HandlerAdapter<com.google.protobuf.Empty, com.google.protobuf.Empty> of(java.util.function.Consumer<KeyedContext> handler) {
             return new HandlerAdapter<>((ctx, req) -> {
                 handler.accept(ctx);
                 return com.google.protobuf.Empty.getDefaultInstance();

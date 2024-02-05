@@ -15,6 +15,7 @@ import com.salesforce.jprotoc.GeneratorException;
 import com.salesforce.jprotoc.ProtoTypeMap;
 import com.salesforce.jprotoc.ProtocPlugin;
 import dev.restate.generated.ext.Ext;
+import dev.restate.generated.ext.ServiceType;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -120,6 +121,12 @@ public class RestateGen extends Generator {
     serviceContext.serviceName = serviceProto.getName();
     serviceContext.deprecated = serviceProto.getOptions().getDeprecated();
 
+    // Resolve context type
+    serviceContext.contextType =
+        serviceProto.getOptions().getExtension(Ext.serviceType) == ServiceType.UNKEYED
+            ? "UnkeyedContext"
+            : "KeyedContext";
+
     // Resolve javadoc
     DescriptorProtos.SourceCodeInfo.Location serviceLocation =
         locations.stream()
@@ -215,6 +222,7 @@ public class RestateGen extends Generator {
     public String packageName;
     public String className;
     public String serviceName;
+    public String contextType;
     public String apidoc;
     public boolean deprecated;
     public final List<MethodContext> methods = new ArrayList<>();

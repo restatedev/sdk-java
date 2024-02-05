@@ -22,7 +22,7 @@ class RandomTest : RandomTestSuite() {
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
 
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val number = restateContext().random().nextInt()
+      val number = KeyedContext.current().random().nextInt()
       return greetingResponse { message = number.toString() }
     }
   }
@@ -34,7 +34,7 @@ class RandomTest : RandomTestSuite() {
   private class RandomInsideSideEffect :
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx = restateContext()
+      val ctx = KeyedContext.current()
       ctx.sideEffect { ctx.random().nextInt() }
       throw IllegalStateException("This should not unreachable")
     }

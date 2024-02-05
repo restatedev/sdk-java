@@ -51,7 +51,7 @@ public class UserFailuresTest extends UserFailuresTestSuite {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       try {
-        restateContext()
+        KeyedContext.current()
             .sideEffect(
                 () -> {
                   throw new IllegalStateException("Whatever");
@@ -110,7 +110,7 @@ public class UserFailuresTest extends UserFailuresTestSuite {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      restateContext()
+      KeyedContext.current()
           .sideEffect(
               () -> {
                 throw new TerminalException(code, message);

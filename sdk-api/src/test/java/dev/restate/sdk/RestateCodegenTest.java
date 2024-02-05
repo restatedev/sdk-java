@@ -19,7 +19,7 @@ public class RestateCodegenTest extends RestateCodegenTestSuite {
       extends GreeterRestate.GreeterRestateImplBase {
 
     @Override
-    public GreetingResponse greet(RestateContext context, GreetingRequest request) {
+    public GreetingResponse greet(KeyedContext context, GreetingRequest request) {
       GreeterRestate.GreeterRestateClient client = GreeterRestate.newClient(context);
       client.delayed(Duration.ofSeconds(1)).greet(request);
       client.oneWay().greet(request);
@@ -35,31 +35,31 @@ public class RestateCodegenTest extends RestateCodegenTestSuite {
   private static class Codegen extends CodegenRestate.CodegenRestateImplBase {
 
     @Override
-    public MyMessage emptyInput(RestateContext context) {
+    public MyMessage emptyInput(UnkeyedContext context) {
       CodegenRestate.CodegenRestateClient client = CodegenRestate.newClient(context);
       return client.emptyInput().await();
     }
 
     @Override
-    public void emptyOutput(RestateContext context, MyMessage request) {
+    public void emptyOutput(UnkeyedContext context, MyMessage request) {
       CodegenRestate.CodegenRestateClient client = CodegenRestate.newClient(context);
       client.emptyOutput(request).await();
     }
 
     @Override
-    public void emptyInputOutput(RestateContext context) {
+    public void emptyInputOutput(UnkeyedContext context) {
       CodegenRestate.CodegenRestateClient client = CodegenRestate.newClient(context);
       client.emptyInputOutput().await();
     }
 
     @Override
-    public MyMessage oneWay(RestateContext context, MyMessage request) {
+    public MyMessage oneWay(UnkeyedContext context, MyMessage request) {
       CodegenRestate.CodegenRestateClient client = CodegenRestate.newClient(context);
       return client._oneWay(request).await();
     }
 
     @Override
-    public MyMessage delayed(RestateContext context, MyMessage request) {
+    public MyMessage delayed(UnkeyedContext context, MyMessage request) {
       CodegenRestate.CodegenRestateClient client = CodegenRestate.newClient(context);
       return client._delayed(request).await();
     }

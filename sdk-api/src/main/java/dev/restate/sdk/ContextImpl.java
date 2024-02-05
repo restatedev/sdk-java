@@ -23,11 +23,11 @@ import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-class RestateContextImpl implements RestateContext {
+class ContextImpl implements KeyedContext {
 
   private final Syscalls syscalls;
 
-  RestateContextImpl(Syscalls syscalls) {
+  ContextImpl(Syscalls syscalls) {
     this.syscalls = syscalls;
   }
 

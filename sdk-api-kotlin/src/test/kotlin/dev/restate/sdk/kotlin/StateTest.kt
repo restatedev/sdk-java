@@ -23,7 +23,7 @@ class StateTest : StateTestSuite() {
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val state: String =
-          restateContext().get(StateKey.of("STATE", CoreSerdes.JSON_STRING)) ?: "Unknown"
+          KeyedContext.current().get(StateKey.of("STATE", CoreSerdes.JSON_STRING)) ?: "Unknown"
       return greetingResponse { message = "Hello $state" }
     }
   }
@@ -35,7 +35,7 @@ class StateTest : StateTestSuite() {
   private class GetAndSetState :
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx = restateContext()
+      val ctx = KeyedContext.current()
 
       val state = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))!!
       ctx.set(StateKey.of("STATE", CoreSerdes.JSON_STRING), request.getName())

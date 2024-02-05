@@ -21,7 +21,7 @@ class SleepTest : SleepTestSuite() {
   private class SleepGreeter :
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx = restateContext()
+      val ctx = KeyedContext.current()
       ctx.sleep(1000.milliseconds)
       return greetingResponse { message = "Hello" }
     }
@@ -34,7 +34,7 @@ class SleepTest : SleepTestSuite() {
   private class ManySleeps :
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx = restateContext()
+      val ctx = KeyedContext.current()
       val awaitables = mutableListOf<Awaitable<Unit>>()
       for (i in 0..9) {
         awaitables.add(ctx.timer(1000.milliseconds))

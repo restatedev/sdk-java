@@ -25,7 +25,7 @@ public class AwakeableIdTest extends AwakeableIdTestSuite {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      String id = restateContext().awakeable(CoreSerdes.JSON_STRING).id();
+      String id = KeyedContext.current().awakeable(CoreSerdes.JSON_STRING).id();
       responseObserver.onNext(greetingResponse(id));
       responseObserver.onCompleted();
     }

@@ -24,7 +24,7 @@ import javax.annotation.concurrent.NotThreadSafe;
  *
  * <p>For example, you can send a Kafka record including the {@link Awakeable#id()}, and then let
  * another service consume from Kafka the responses of given external system interaction by using
- * {@link RestateContext#awakeableHandle(String)}.
+ * {@link KeyedContext#awakeableHandle(String)}.
  */
 @NotThreadSafe
 public final class Awakeable<T> extends Awaitable.MappedAwaitable<ByteString, T> {

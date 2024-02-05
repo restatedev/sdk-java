@@ -8,6 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.lambda.testservices;
 
+import dev.restate.sdk.KeyedContext;
 import dev.restate.sdk.RestateService;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.StateKey;
@@ -26,7 +27,7 @@ public class JavaCounterService extends JavaCounterGrpc.JavaCounterImplBase
 
   @Override
   public void get(CounterRequest request, StreamObserver<GetResponse> responseObserver) {
-    restateContext().get(COUNTER);
+    KeyedContext.current().get(COUNTER);
 
     throw new IllegalStateException("We shouldn't reach this point");
   }

@@ -27,7 +27,7 @@ class StateMachineFailuresTest : StateMachineFailuresTestSuite() {
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       try {
-        restateContext().get(STATE)
+        KeyedContext.current().get(STATE)
       } catch (e: Throwable) {
         // A user should never catch Throwable!!!
         if (e !is CancellationException && e !is TerminalException) {
@@ -57,7 +57,7 @@ class StateMachineFailuresTest : StateMachineFailuresTestSuite() {
   private class SideEffectFailure(private val serde: Serde<Int>) :
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      restateContext().sideEffect(serde) { 0 }
+      KeyedContext.current().sideEffect(serde) { 0 }
       return greetingResponse { message = "Francesco" }
     }
   }
