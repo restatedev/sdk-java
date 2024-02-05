@@ -15,17 +15,12 @@ import dev.restate.sdk.common.syscalls.Syscalls;
 import io.grpc.Channel;
 import io.grpc.MethodDescriptor;
 import java.time.Duration;
-import java.util.Optional;
-import javax.annotation.Nonnull;
 import javax.annotation.concurrent.NotThreadSafe;
 
 /**
- * This interface exposes the Restate functionalities to Restate services. It can be used to access
- * the service instance key-value state storage, interact with other Restate services, record side
- * effects, execute timers and synchronize with external systems.
- *
- * <p>To use it within your Restate service, implement {@link RestateService} and get an instance
- * with {@link RestateService#restateContext()}.
+ * This interface exposes the Restate functionalities to Restate services. It can be used to
+ * interact with other Restate services, record side effects, execute timers and synchronize with
+ * external systems.
  *
  * <p>All methods of this interface, and related interfaces, throws either {@link TerminalException}
  * or {@link AbortedExecutionException}, where the former can be caught and acted upon, while the
@@ -35,51 +30,7 @@ import javax.annotation.concurrent.NotThreadSafe;
  * orderings of user actions, corrupting the execution of the invocation.
  */
 @NotThreadSafe
-public interface RestateContext {
-
-  /**
-   * Gets the state stored under key, deserializing the raw value using the {@link Serde} in the
-   * {@link StateKey}.
-   *
-   * @param key identifying the state to get and its type.
-   * @return an {@link Optional} containing the stored state deserialized or an empty {@link
-   *     Optional} if not set yet.
-   * @throws RuntimeException when the state cannot be deserialized.
-   */
-  <T> Optional<T> get(StateKey<T> key);
-
-  /**
-   * Clears the state stored under key.
-   *
-   * @param key identifying the state to clear.
-   */
-  void clear(StateKey<?> key);
-
-  /**
-   * Sets the given value under the given key, serializing the value using the {@link Serde} in the
-   * {@link StateKey}.
-   *
-   * @param key identifying the value to store and its type.
-   * @param value to store under the given key. MUST NOT be null.
-   */
-  <T> void set(StateKey<T> key, @Nonnull T value);
-
-  /**
-   * Causes the current execution of the function invocation to sleep for the given duration.
-   *
-   * @param duration for which to sleep.
-   */
-  default void sleep(Duration duration) {
-    timer(duration).await();
-  }
-
-  /**
-   * Causes the start of a timer for the given duration. You can await on the timer end by invoking
-   * {@link Awaitable#await()}.
-   *
-   * @param duration for which to sleep.
-   */
-  Awaitable<Void> timer(Duration duration);
+public interface UnkeyedContext {
 
   /**
    * Invoke another Restate service method.
@@ -127,6 +78,23 @@ public interface RestateContext {
    * @param delay time to wait before executing the call.
    */
   <T> void delayedCall(MethodDescriptor<T, ?> methodDescriptor, T parameter, Duration delay);
+
+  /**
+   * Causes the current execution of the function invocation to sleep for the given duration.
+   *
+   * @param duration for which to sleep.
+   */
+  default void sleep(Duration duration) {
+    timer(duration).await();
+  }
+
+  /**
+   * Causes the start of a timer for the given duration. You can await on the timer end by invoking
+   * {@link Awaitable#await()}.
+   *
+   * @param duration for which to sleep.
+   */
+  Awaitable<Void> timer(Duration duration);
 
   /**
    * Execute a non-deterministic closure, recording the result value in the journal. The result
@@ -213,12 +181,16 @@ public interface RestateContext {
   RestateRandom random();
 
   /**
-   * Build a RestateContext from the underlying {@link Syscalls} object.
-   *
-   * <p>This method is used by code-generation, you should not use it directly but rather use {@link
-   * RestateService#restateContext()}.
+   * Create a {@link KeyedContext}. This will look up the thread-local/async-context storage for the
+   * underlying context implementation, so make sure to call it always from the same context where
+   * the service is executed.
    */
-  static RestateContext fromSyscalls(Syscalls syscalls) {
-    return new RestateContextImpl(syscalls);
+  static UnkeyedContext current() {
+    return fromSyscalls(Syscalls.current());
+  }
+
+  /** Build a RestateContext from the underlying {@link Syscalls} object. */
+  static UnkeyedContext fromSyscalls(Syscalls syscalls) {
+    return new ContextImpl(syscalls);
   }
 }

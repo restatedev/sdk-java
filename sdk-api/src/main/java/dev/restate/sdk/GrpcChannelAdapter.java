@@ -18,10 +18,10 @@ import javax.annotation.Nullable;
  * <p>Keep in mind that this channel should be used only with generated blocking stubs.
  */
 public class GrpcChannelAdapter extends Channel {
-  private final RestateContext restateContext;
+  private final UnkeyedContext ctx;
 
-  GrpcChannelAdapter(RestateContext restateContext) {
-    this.restateContext = restateContext;
+  GrpcChannelAdapter(UnkeyedContext ctx) {
+    this.ctx = ctx;
   }
 
   @Override
@@ -56,7 +56,7 @@ public class GrpcChannelAdapter extends Channel {
 
       @Override
       public void sendMessage(RequestT message) {
-        this.awaitable = restateContext.call(methodDescriptor, message);
+        this.awaitable = ctx.call(methodDescriptor, message);
       }
     };
   }
