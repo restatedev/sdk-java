@@ -2,14 +2,14 @@
 package {{packageName}};
 {{/packageName}}
 
-import dev.restate.sdk.kotlin.RestateContext;
+import dev.restate.sdk.kotlin.UnkeyedContext;
+import dev.restate.sdk.kotlin.KeyedContext;
 import dev.restate.sdk.kotlin.Awaitable;
 import dev.restate.sdk.kotlin.RestateKtService;
 import dev.restate.sdk.common.syscalls.Syscalls;
 import io.grpc.kotlin.ClientCalls.unaryRpc
 import io.grpc.kotlin.ServerCalls.unaryServerMethodDefinition
 import {{packageName}}.{{serviceName}}Grpc.getServiceDescriptor;
-import dev.restate.sdk.kotlin.restateContextFromSyscalls;
 import kotlin.time.Duration
 
 {{#deprecated}}
@@ -18,14 +18,14 @@ import kotlin.time.Duration
 public object {{className}} {
 
     /**
-     * Create a new client from the given [RestateContext].
+     * Create a new client from the given [UnkeyedContext].
      */
-    fun newClient(ctx: RestateContext): {{serviceName}}RestateKtClient {
+    fun newClient(ctx: UnkeyedContext): {{serviceName}}RestateKtClient {
         return {{serviceName}}RestateKtClient(ctx);
     }
 
 {{{javadoc}}}
-    public class {{serviceName}}RestateKtClient(private val ctx: RestateContext) {
+    public class {{serviceName}}RestateKtClient(private val ctx: UnkeyedContext) {
         // Create a variant of this client to execute oneWay calls.
         public fun oneWay(): {{serviceName}}RestateKtOneWayClient {
             return {{serviceName}}RestateKtOneWayClient(ctx);
@@ -46,7 +46,7 @@ public object {{className}} {
         {{/methods}}
     }
 
-    public class {{serviceName}}RestateKtOneWayClient(private val ctx: RestateContext) {
+    public class {{serviceName}}RestateKtOneWayClient(private val ctx: UnkeyedContext) {
         {{#methods}}
         {{#deprecated}}@Deprecated{{/deprecated}}
 {{{javadoc}}}
@@ -57,7 +57,7 @@ public object {{className}} {
         {{/methods}}
     }
 
-    public class {{serviceName}}RestateKtDelayedClient(private val ctx: RestateContext, private val delay: Duration) {
+    public class {{serviceName}}RestateKtDelayedClient(private val ctx: UnkeyedContext, private val delay: Duration) {
         {{#methods}}
         {{#deprecated}}@Deprecated{{/deprecated}}
 {{{javadoc}}}
@@ -78,7 +78,7 @@ public object {{className}} {
         @Deprecated
         {{/deprecated}}
 {{{javadoc}}}
-        public open suspend fun {{methodName}}(context: RestateContext{{^isInputEmpty}}, request: {{inputType}} {{/isInputEmpty}}){{^isOutputEmpty}}: {{outputType}}{{/isOutputEmpty}} {
+        public open suspend fun {{methodName}}(context: {{contextType}}{{^isInputEmpty}}, request: {{inputType}} {{/isInputEmpty}}){{^isOutputEmpty}}: {{outputType}}{{/isOutputEmpty}} {
             throw dev.restate.sdk.common.TerminalException(dev.restate.sdk.common.TerminalException.Code.UNIMPLEMENTED);
         }
 
@@ -91,18 +91,18 @@ public object {{className}} {
                         descriptor = {{packageName}}.{{serviceName}}Grpc.{{methodDescriptorGetter}}(),
                         implementation = {
                             {{#isInputEmpty}}{{#isOutputEmpty}}
-                            {{methodName}}(restateContextFromSyscalls(Syscalls.current()))
+                            {{methodName}}(KeyedContext.fromSyscalls(Syscalls.current()))
                             return@unaryServerMethodDefinition com.google.protobuf.Empty.getDefaultInstance()
                             {{/isOutputEmpty}}{{/isInputEmpty}}
                             {{#isInputEmpty}}{{^isOutputEmpty}}
-                            return@unaryServerMethodDefinition {{methodName}}(restateContextFromSyscalls(Syscalls.current()))
+                            return@unaryServerMethodDefinition {{methodName}}(KeyedContext.fromSyscalls(Syscalls.current()))
                             {{/isOutputEmpty}}{{/isInputEmpty}}
                             {{^isInputEmpty}}{{#isOutputEmpty}}
-                            {{methodName}}(restateContextFromSyscalls(Syscalls.current()), it)
+                            {{methodName}}(KeyedContext.fromSyscalls(Syscalls.current()), it)
                             return@unaryServerMethodDefinition com.google.protobuf.Empty.getDefaultInstance()
                             {{/isOutputEmpty}}{{/isInputEmpty}}
                             {{^isInputEmpty}}{{^isOutputEmpty}}
-                            return@unaryServerMethodDefinition {{methodName}}(restateContextFromSyscalls(Syscalls.current()), it)
+                            return@unaryServerMethodDefinition {{methodName}}(KeyedContext.fromSyscalls(Syscalls.current()), it)
                             {{/isOutputEmpty}}{{/isInputEmpty}}
                         }
                     ))
