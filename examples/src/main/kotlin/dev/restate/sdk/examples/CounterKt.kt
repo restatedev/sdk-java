@@ -12,7 +12,7 @@ import dev.restate.sdk.common.CoreSerdes
 import dev.restate.sdk.common.StateKey
 import dev.restate.sdk.examples.generated.*
 import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder
-import dev.restate.sdk.kotlin.RestateContext
+import dev.restate.sdk.kotlin.KeyedContext
 import org.apache.logging.log4j.LogManager
 
 class CounterKt : CounterRestateKt.CounterRestateKtImplBase() {
@@ -21,20 +21,20 @@ class CounterKt : CounterRestateKt.CounterRestateKtImplBase() {
 
   private val TOTAL = StateKey.of("total", CoreSerdes.JSON_LONG)
 
-  override suspend fun reset(context: RestateContext, request: CounterRequest) {
+  override suspend fun reset(context: KeyedContext, request: CounterRequest) {
     context.clear(TOTAL)
   }
 
-  override suspend fun add(context: RestateContext, request: CounterAddRequest) {
+  override suspend fun add(context: KeyedContext, request: CounterAddRequest) {
     updateCounter(context, request.value)
   }
 
-  override suspend fun get(context: RestateContext, request: CounterRequest): GetResponse {
+  override suspend fun get(context: KeyedContext, request: CounterRequest): GetResponse {
     return getResponse { value = context.get(TOTAL) ?: 0L }
   }
 
   override suspend fun getAndAdd(
-      context: RestateContext,
+      context: KeyedContext,
       request: CounterAddRequest
   ): CounterUpdateResult {
     LOG.info("Invoked get and add with " + request.value)
@@ -45,7 +45,7 @@ class CounterKt : CounterRestateKt.CounterRestateKtImplBase() {
     }
   }
 
-  private suspend fun updateCounter(context: RestateContext, add: Long): Pair<Long, Long> {
+  private suspend fun updateCounter(context: KeyedContext, add: Long): Pair<Long, Long> {
     val currentValue = context.get(TOTAL) ?: 0L
     val newValue = currentValue + add
 

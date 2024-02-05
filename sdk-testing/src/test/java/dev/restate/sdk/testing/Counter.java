@@ -9,7 +9,7 @@
 package dev.restate.sdk.testing;
 
 import com.google.protobuf.Empty;
-import dev.restate.sdk.RestateContext;
+import dev.restate.sdk.KeyedContext;
 import dev.restate.sdk.RestateService;
 import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.common.StateKey;
@@ -26,7 +26,7 @@ public class Counter extends CounterGrpc.CounterImplBase implements RestateServi
 
   @Override
   public void reset(CounterRequest request, StreamObserver<Empty> responseObserver) {
-    restateContext().clear(TOTAL);
+    KeyedContext.current().clear(TOTAL);
 
     responseObserver.onNext(Empty.getDefaultInstance());
     responseObserver.onCompleted();
@@ -34,7 +34,7 @@ public class Counter extends CounterGrpc.CounterImplBase implements RestateServi
 
   @Override
   public void add(CounterAddRequest request, StreamObserver<Empty> responseObserver) {
-    RestateContext ctx = restateContext();
+    KeyedContext ctx = KeyedContext.current();
 
     long currentValue = ctx.get(TOTAL).orElse(0L);
     long newValue = currentValue + request.getValue();
@@ -46,7 +46,7 @@ public class Counter extends CounterGrpc.CounterImplBase implements RestateServi
 
   @Override
   public void get(CounterRequest request, StreamObserver<GetResponse> responseObserver) {
-    long currentValue = restateContext().get(TOTAL).orElse(0L);
+    long currentValue = KeyedContext.current().get(TOTAL).orElse(0L);
 
     responseObserver.onNext(GetResponse.newBuilder().setValue(currentValue).build());
     responseObserver.onCompleted();
@@ -57,7 +57,7 @@ public class Counter extends CounterGrpc.CounterImplBase implements RestateServi
       CounterAddRequest request, StreamObserver<CounterUpdateResult> responseObserver) {
     LOG.info("Invoked get and add with " + request.getValue());
 
-    RestateContext ctx = restateContext();
+    KeyedContext ctx = KeyedContext.current();
 
     long currentValue = ctx.get(TOTAL).orElse(0L);
     long newValue = currentValue + request.getValue();

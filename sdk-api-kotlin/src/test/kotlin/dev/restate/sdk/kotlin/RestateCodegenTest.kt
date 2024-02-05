@@ -17,10 +17,7 @@ import kotlin.time.Duration.Companion.seconds
 
 class RestateCodegenTest : RestateCodegenTestSuite() {
   private class GreeterWithRestateClientAndServerCodegen : GreeterRestateKtImplBase() {
-    override suspend fun greet(
-        context: RestateContext,
-        request: GreetingRequest
-    ): GreetingResponse {
+    override suspend fun greet(context: KeyedContext, request: GreetingRequest): GreetingResponse {
       val client = GreeterRestateKt.newClient(context)
       client.delayed(1.seconds).greet(request)
       client.oneWay().greet(request)
@@ -33,27 +30,27 @@ class RestateCodegenTest : RestateCodegenTestSuite() {
   }
 
   private class Codegen : CodegenRestateKtImplBase() {
-    override suspend fun emptyInput(context: RestateContext): MyMessage {
+    override suspend fun emptyInput(context: UnkeyedContext): MyMessage {
       val client = CodegenRestateKt.newClient(context)
       return client.emptyInput().await()
     }
 
-    override suspend fun emptyOutput(context: RestateContext, request: MyMessage) {
+    override suspend fun emptyOutput(context: UnkeyedContext, request: MyMessage) {
       val client = CodegenRestateKt.newClient(context)
       client.emptyOutput(request).await()
     }
 
-    override suspend fun emptyInputOutput(context: RestateContext) {
+    override suspend fun emptyInputOutput(context: UnkeyedContext) {
       val client = CodegenRestateKt.newClient(context)
       client.emptyInputOutput().await()
     }
 
-    override suspend fun oneWay(context: RestateContext, request: MyMessage): MyMessage {
+    override suspend fun oneWay(context: UnkeyedContext, request: MyMessage): MyMessage {
       val client = CodegenRestateKt.newClient(context)
       return client._oneWay(request).await()
     }
 
-    override suspend fun delayed(context: RestateContext, request: MyMessage): MyMessage {
+    override suspend fun delayed(context: UnkeyedContext, request: MyMessage): MyMessage {
       val client = CodegenRestateKt.newClient(context)
       return client._delayed(request).await()
     }

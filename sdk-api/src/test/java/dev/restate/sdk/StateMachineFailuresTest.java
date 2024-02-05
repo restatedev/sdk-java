@@ -43,7 +43,7 @@ public class StateMachineFailuresTest extends StateMachineFailuresTestSuite {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       try {
-        restateContext().get(STATE);
+        KeyedContext.current().get(STATE);
       } catch (Throwable e) {
         // A user should never catch Throwable!!!
         if (AbortedExecutionException.INSTANCE.equals(e)) {
@@ -75,7 +75,7 @@ public class StateMachineFailuresTest extends StateMachineFailuresTestSuite {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      restateContext().sideEffect(serde, () -> 0);
+      KeyedContext.current().sideEffect(serde, () -> 0);
 
       responseObserver.onNext(greetingResponse("Francesco"));
       responseObserver.onCompleted();

@@ -20,7 +20,7 @@ class SideEffectTest : SideEffectTestSuite() {
   private class SideEffect(private val sideEffectOutput: String) :
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx: RestateContext = restateContext()
+      val ctx = KeyedContext.current()
       val result = ctx.sideEffect(CoreSerdes.JSON_STRING) { sideEffectOutput }
       return greetingResponse { message = "Hello $result" }
     }
@@ -33,7 +33,7 @@ class SideEffectTest : SideEffectTestSuite() {
   private class ConsecutiveSideEffect(private val sideEffectOutput: String) :
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx: RestateContext = restateContext()
+      val ctx = KeyedContext.current()
       val firstResult = ctx.sideEffect(CoreSerdes.JSON_STRING) { sideEffectOutput }
       val secondResult =
           ctx.sideEffect(CoreSerdes.JSON_STRING) { firstResult.uppercase(Locale.getDefault()) }
@@ -52,7 +52,7 @@ class SideEffectTest : SideEffectTestSuite() {
 
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val sideEffectThread =
-          restateContext().sideEffect(CoreSerdes.JSON_STRING) { Thread.currentThread().name }
+          KeyedContext.current().sideEffect(CoreSerdes.JSON_STRING) { Thread.currentThread().name }
       check(sideEffectThread.contains("CheckContextSwitchingTestCoroutine")) {
         "Side effect thread is not running within the same coroutine context of the handler method: $sideEffectThread"
       }
@@ -67,7 +67,7 @@ class SideEffectTest : SideEffectTestSuite() {
   private class SideEffectGuard :
       GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx = restateContext()
+      val ctx = KeyedContext.current()
       ctx.sideEffect {
         ctx.oneWayCall(GreeterGrpcKt.greetMethod, greetingRequest { name = "something" })
       }

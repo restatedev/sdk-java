@@ -24,7 +24,7 @@ public class SleepTest extends SleepTestSuite {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      RestateContext ctx = restateContext();
+      KeyedContext ctx = KeyedContext.current();
 
       ctx.sleep(Duration.ofSeconds(1));
 
@@ -42,7 +42,7 @@ public class SleepTest extends SleepTestSuite {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      RestateContext ctx = restateContext();
+      KeyedContext ctx = KeyedContext.current();
       List<Awaitable<?>> collectedAwaitables = new ArrayList<>();
 
       for (int i = 0; i < 10; i++) {

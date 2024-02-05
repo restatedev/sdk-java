@@ -31,7 +31,7 @@ public class SideEffectTest extends SideEffectTestSuite {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      RestateContext ctx = restateContext();
+      KeyedContext ctx = KeyedContext.current();
 
       String result = ctx.sideEffect(CoreSerdes.JSON_STRING, () -> this.sideEffectOutput);
 
@@ -56,7 +56,7 @@ public class SideEffectTest extends SideEffectTestSuite {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      RestateContext ctx = restateContext();
+      KeyedContext ctx = KeyedContext.current();
 
       String firstResult = ctx.sideEffect(CoreSerdes.JSON_STRING, () -> this.sideEffectOutput);
       String secondResult = ctx.sideEffect(CoreSerdes.JSON_STRING, firstResult::toUpperCase);
@@ -80,7 +80,7 @@ public class SideEffectTest extends SideEffectTestSuite {
       String currentThread = Thread.currentThread().getName();
 
       String sideEffectThread =
-          restateContext()
+          KeyedContext.current()
               .sideEffect(CoreSerdes.JSON_STRING, () -> Thread.currentThread().getName());
 
       if (!Objects.equals(currentThread, sideEffectThread)) {
@@ -106,7 +106,7 @@ public class SideEffectTest extends SideEffectTestSuite {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      RestateContext ctx = restateContext();
+      KeyedContext ctx = KeyedContext.current();
       ctx.sideEffect(
           () -> ctx.oneWayCall(GreeterGrpc.getGreetMethod(), greetingRequest("something")));
 

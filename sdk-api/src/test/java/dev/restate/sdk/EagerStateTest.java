@@ -24,7 +24,7 @@ public class EagerStateTest extends EagerStateTestSuite {
   private static class GetEmpty extends GreeterGrpc.GreeterImplBase implements RestateService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      RestateContext ctx = restateContext();
+      KeyedContext ctx = KeyedContext.current();
 
       boolean stateIsEmpty = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).isEmpty();
 
@@ -42,7 +42,7 @@ public class EagerStateTest extends EagerStateTestSuite {
   private static class Get extends GreeterGrpc.GreeterImplBase implements RestateService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      RestateContext ctx = restateContext();
+      KeyedContext ctx = KeyedContext.current();
 
       String state = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
 
@@ -60,7 +60,7 @@ public class EagerStateTest extends EagerStateTestSuite {
       implements RestateService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      RestateContext ctx = restateContext();
+      KeyedContext ctx = KeyedContext.current();
 
       String oldState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
       ctx.set(StateKey.of("STATE", CoreSerdes.JSON_STRING), oldState + request.getName());
@@ -81,7 +81,7 @@ public class EagerStateTest extends EagerStateTestSuite {
       implements RestateService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      RestateContext ctx = restateContext();
+      KeyedContext ctx = KeyedContext.current();
 
       String oldState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
 

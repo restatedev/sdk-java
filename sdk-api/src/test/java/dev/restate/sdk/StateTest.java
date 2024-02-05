@@ -26,7 +26,9 @@ public class StateTest extends StateTestSuite {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       String state =
-          restateContext().get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).orElse("Unknown");
+          KeyedContext.current()
+              .get(StateKey.of("STATE", CoreSerdes.JSON_STRING))
+              .orElse("Unknown");
 
       responseObserver.onNext(GreetingResponse.newBuilder().setMessage("Hello " + state).build());
       responseObserver.onCompleted();
@@ -42,7 +44,7 @@ public class StateTest extends StateTestSuite {
       implements RestateService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      RestateContext ctx = restateContext();
+      KeyedContext ctx = KeyedContext.current();
 
       String state = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
 
@@ -61,7 +63,7 @@ public class StateTest extends StateTestSuite {
   private static class SetNullState extends GreeterGrpc.GreeterImplBase implements RestateService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      restateContext()
+      KeyedContext.current()
           .set(
               StateKey.of(
                   "STATE",

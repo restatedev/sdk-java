@@ -12,6 +12,7 @@ import dev.restate.sdk.core.testservices.GreeterGrpcKt
 import dev.restate.sdk.core.testservices.GreetingRequest
 import dev.restate.sdk.core.testservices.GreetingResponse
 import dev.restate.sdk.core.testservices.greetingResponse
+import dev.restate.sdk.kotlin.KeyedContext
 import dev.restate.sdk.kotlin.RestateKtService
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration.Companion.seconds
@@ -25,10 +26,10 @@ class GreeterKtService(coroutineContext: CoroutineContext) :
   override suspend fun greet(request: GreetingRequest): GreetingResponse {
     LOG.info("Greet invoked!")
 
-    val count = (restateContext().get(BlockingGreeterService.COUNTER) ?: 0) + 1
-    restateContext().set(BlockingGreeterService.COUNTER, count)
+    val count = (KeyedContext.current().get(BlockingGreeterService.COUNTER) ?: 0) + 1
+    KeyedContext.current().set(BlockingGreeterService.COUNTER, count)
 
-    restateContext().sleep(1.seconds)
+    KeyedContext.current().sleep(1.seconds)
 
     return greetingResponse { message = "Hello ${request.name}. Count: $count" }
   }

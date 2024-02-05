@@ -35,7 +35,7 @@ class UserFailuresTest : UserFailuresTestSuite() {
   ) : GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       try {
-        restateContext().sideEffect { throw IllegalStateException("Whatever") }
+        KeyedContext.current().sideEffect { throw IllegalStateException("Whatever") }
       } catch (e: Throwable) {
         if (e !is CancellationException && e !is TerminalException) {
           nonTerminalExceptionsSeen.addAndGet(1)
@@ -74,7 +74,7 @@ class UserFailuresTest : UserFailuresTestSuite() {
       private val message: String
   ) : GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      restateContext().sideEffect { throw TerminalException(code, message) }
+      KeyedContext.current().sideEffect { throw TerminalException(code, message) }
       throw IllegalStateException("Not expected to reach this point")
     }
   }

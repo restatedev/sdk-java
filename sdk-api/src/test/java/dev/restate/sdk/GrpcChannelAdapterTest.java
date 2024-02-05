@@ -27,7 +27,7 @@ public class GrpcChannelAdapterTest implements TestSuite {
       implements RestateService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      RestateContext ctx = restateContext();
+      KeyedContext ctx = KeyedContext.current();
       GreeterGrpc.GreeterBlockingStub client = GreeterGrpc.newBlockingStub(ctx.grpcChannel());
       String response =
           client.greet(GreetingRequest.newBuilder().setName("Francesco").build()).getMessage();
@@ -41,7 +41,7 @@ public class GrpcChannelAdapterTest implements TestSuite {
       implements RestateService {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      RestateContext ctx = restateContext();
+      KeyedContext ctx = KeyedContext.current();
       GreeterGrpc.GreeterFutureStub client = GreeterGrpc.newFutureStub(ctx.grpcChannel());
       String response;
       try {
