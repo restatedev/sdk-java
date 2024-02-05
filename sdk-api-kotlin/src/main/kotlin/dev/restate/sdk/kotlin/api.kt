@@ -19,9 +19,9 @@ import kotlin.random.Random
 import kotlin.time.Duration
 
 /**
- * This interface exposes the Restate functionalities to Restate services. It can be used to access
- * the service instance key-value state storage, interact with other Restate services, record side
- * effects, execute timers and synchronize with external systems.
+ * This interface exposes the Restate functionalities to Restate services. It can be used to
+ * interact with other Restate services, record side effects, execute timers and synchronize with
+ * external systems.
  *
  * To use it within your Restate service, implement [RestateKtService] and get an instance with
  * [RestateKtService.restateContext].
@@ -32,33 +32,7 @@ import kotlin.time.Duration
  * NOTE: This interface MUST NOT be accessed concurrently since it can lead to different orderings
  * of user actions, corrupting the execution of the invocation.
  */
-sealed interface RestateContext {
-
-  /**
-   * Gets the state stored under key, deserializing the raw value using the registered
-   * [dev.restate.sdk.core.serde.Serde] in the interceptor.
-   *
-   * @param key identifying the state to get and its type.
-   * @return the value containing the stored state deserialized.
-   * @throws RuntimeException when the state cannot be deserialized.
-   */
-  suspend fun <T : Any> get(key: StateKey<T>): T?
-
-  /**
-   * Sets the given value under the given key, serializing the value using the registered
-   * [dev.restate.sdk.core.serde.Serde] in the interceptor.
-   *
-   * @param key identifying the value to store and its type.
-   * @param value to store under the given key.
-   */
-  suspend fun <T : Any> set(key: StateKey<T>, value: T)
-
-  /**
-   * Clears the state stored under key.
-   *
-   * @param key identifying the state to clear.
-   */
-  suspend fun clear(key: StateKey<*>)
+sealed interface UnkeyedContext {
 
   /**
    * Causes the current execution of the function invocation to sleep for the given duration.
@@ -213,6 +187,73 @@ sealed interface RestateContext {
    * @return the [Random] instance.
    */
   fun random(): RestateRandom
+
+  companion object {
+
+    /**
+     * Create a [UnkeyedContext]. This will look up the thread-local/async-context storage for the
+     * underlying context implementation, so make sure to call it always from the same context where
+     * the service is executed.
+     */
+    fun current(): UnkeyedContext {
+      return fromSyscalls(Syscalls.current())
+    }
+
+    /** Build a context from the underlying [Syscalls] object. */
+    fun fromSyscalls(syscalls: Syscalls): UnkeyedContext {
+      return ContextImpl(syscalls)
+    }
+  }
+}
+
+/**
+ * This interface extends [UnkeyedContext] adding access to the service instance key-value state
+ * storage.
+ */
+sealed interface KeyedContext : UnkeyedContext {
+
+  /**
+   * Gets the state stored under key, deserializing the raw value using the registered
+   * [dev.restate.sdk.core.serde.Serde] in the interceptor.
+   *
+   * @param key identifying the state to get and its type.
+   * @return the value containing the stored state deserialized.
+   * @throws RuntimeException when the state cannot be deserialized.
+   */
+  suspend fun <T : Any> get(key: StateKey<T>): T?
+
+  /**
+   * Sets the given value under the given key, serializing the value using the registered
+   * [dev.restate.sdk.core.serde.Serde] in the interceptor.
+   *
+   * @param key identifying the value to store and its type.
+   * @param value to store under the given key.
+   */
+  suspend fun <T : Any> set(key: StateKey<T>, value: T)
+
+  /**
+   * Clears the state stored under key.
+   *
+   * @param key identifying the state to clear.
+   */
+  suspend fun clear(key: StateKey<*>)
+
+  companion object {
+
+    /**
+     * Create a [KeyedContext]. This will look up the thread-local/async-context storage for the
+     * underlying context implementation, so make sure to call it always from the same context where
+     * the service is executed.
+     */
+    fun current(): KeyedContext {
+      return fromSyscalls(Syscalls.current())
+    }
+
+    /** Build a context from the underlying [Syscalls] object. */
+    fun fromSyscalls(syscalls: Syscalls): KeyedContext {
+      return ContextImpl(syscalls)
+    }
+  }
 }
 
 class RestateRandom(seed: Long, private val syscalls: Syscalls) : Random() {
@@ -357,7 +398,7 @@ sealed interface AwakeableHandle {
 }
 
 /**
- * Marker interface for Restate services implemented using the [RestateContext] interface.
+ * Marker interface for Restate services.
  *
  * ## Error handling
  *
@@ -367,19 +408,4 @@ sealed interface AwakeableHandle {
  * * When throwing any other type of exception, the failure is considered "non-terminal" and the
  *   runtime will retry it, according to its configuration
  */
-interface RestateKtService : NonBlockingService {
-  /** @return an instance of the [RestateContext]. */
-  fun restateContext(): RestateContext {
-    return RestateContextImpl(Syscalls.SYSCALLS_KEY.get())
-  }
-}
-
-/**
- * Build a RestateContext from the [Syscalls] object.
- *
- * This method is used by code-generation, you should not use it directly but rather use
- * [RestateKtService.restateContext].
- */
-fun restateContextFromSyscalls(syscalls: Syscalls): RestateContext {
-  return RestateContextImpl(syscalls)
-}
+interface RestateKtService : NonBlockingService

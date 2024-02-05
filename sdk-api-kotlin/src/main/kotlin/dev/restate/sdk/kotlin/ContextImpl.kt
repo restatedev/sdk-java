@@ -24,8 +24,7 @@ import kotlin.time.Duration
 import kotlin.time.toJavaDuration
 import kotlinx.coroutines.*
 
-internal class RestateContextImpl internal constructor(private val syscalls: Syscalls) :
-    RestateContext {
+internal class ContextImpl internal constructor(private val syscalls: Syscalls) : KeyedContext {
   override suspend fun <T : Any> get(key: StateKey<T>): T? {
     val deferred: Deferred<ByteString> =
         suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<ByteString>> ->
