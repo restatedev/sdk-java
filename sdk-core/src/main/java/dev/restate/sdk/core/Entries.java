@@ -49,14 +49,12 @@ final class Entries {
         E expected, CompletionMessage actual, UserStateStore userStateStore) {}
   }
 
-  static final class PollInputEntry<R extends MessageLite>
-      extends CompletableJournalEntry<PollInputStreamEntryMessage, R> {
+  static final class PollInputEntry
+      extends CompletableJournalEntry<PollInputStreamEntryMessage, ByteString> {
 
-    private final Function<ByteString, Result<R>> valueParser;
+    static final PollInputEntry INSTANCE = new PollInputEntry();
 
-    PollInputEntry(Function<ByteString, Result<R>> valueParser) {
-      this.valueParser = valueParser;
-    }
+    private PollInputEntry() {}
 
     @Override
     public void trace(PollInputStreamEntryMessage expected, Span span) {
@@ -69,9 +67,9 @@ final class Entries {
     }
 
     @Override
-    public Result<R> parseEntryResult(PollInputStreamEntryMessage actual) {
+    public Result<ByteString> parseEntryResult(PollInputStreamEntryMessage actual) {
       if (actual.getResultCase() == PollInputStreamEntryMessage.ResultCase.VALUE) {
-        return valueParser.apply(actual.getValue());
+        return Result.success(actual.getValue());
       } else if (actual.getResultCase() == PollInputStreamEntryMessage.ResultCase.FAILURE) {
         return Result.failure(Util.toRestateException(actual.getFailure()));
       } else {
@@ -80,9 +78,9 @@ final class Entries {
     }
 
     @Override
-    public Result<R> parseCompletionResult(CompletionMessage actual) {
+    public Result<ByteString> parseCompletionResult(CompletionMessage actual) {
       if (actual.getResultCase() == CompletionMessage.ResultCase.VALUE) {
-        return valueParser.apply(actual.getValue());
+        return Result.success(actual.getValue());
       } else if (actual.getResultCase() == CompletionMessage.ResultCase.FAILURE) {
         return Result.failure(Util.toRestateException(actual.getFailure()));
       }
