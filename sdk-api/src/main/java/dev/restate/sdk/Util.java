@@ -11,6 +11,7 @@ package dev.restate.sdk;
 import com.google.protobuf.ByteString;
 import dev.restate.sdk.common.AbortedExecutionException;
 import dev.restate.sdk.common.Serde;
+import dev.restate.sdk.common.function.ThrowingFunction;
 import dev.restate.sdk.common.syscalls.Deferred;
 import dev.restate.sdk.common.syscalls.Result;
 import dev.restate.sdk.common.syscalls.SyscallCallback;
@@ -67,24 +68,22 @@ class Util {
     return Optional.of(res.getValue());
   }
 
-  static <T> ByteString serializeWrappingException(Syscalls syscalls, Serde<T> serde, T value) {
+  static <T, R> R executeMappingException(Syscalls syscalls, ThrowingFunction<T, R> fn, T t) {
     try {
-      return serde.serializeToByteString(value);
-    } catch (Exception e) {
+      return fn.apply(t);
+    } catch (Throwable e) {
       syscalls.fail(e);
       AbortedExecutionException.sneakyThrow();
       return null;
     }
   }
 
+  static <T> ByteString serializeWrappingException(Syscalls syscalls, Serde<T> serde, T value) {
+    return executeMappingException(syscalls, serde::serializeToByteString, value);
+  }
+
   static <T> T deserializeWrappingException(
       Syscalls syscalls, Serde<T> serde, ByteString byteString) {
-    try {
-      return serde.deserialize(byteString);
-    } catch (Exception e) {
-      syscalls.fail(e);
-      AbortedExecutionException.sneakyThrow();
-      return null;
-    }
+    return executeMappingException(syscalls, serde::deserialize, byteString);
   }
 }
