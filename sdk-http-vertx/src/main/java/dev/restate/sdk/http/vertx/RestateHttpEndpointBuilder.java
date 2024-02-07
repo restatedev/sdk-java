@@ -117,6 +117,27 @@ public class RestateHttpEndpointBuilder {
     return this;
   }
 
+  /** Add a Restate entity to the endpoint. */
+  public RestateHttpEndpointBuilder with(Object service) {
+    return this.with(service, defaultExecutor);
+  }
+
+  /**
+   * Add a Restate entity to the endpoint, specifying the {@code executor} where to run the entity
+   * code.
+   *
+   * <p>You can run on virtual threads by using the executor {@code
+   * Executors.newVirtualThreadPerTaskExecutor()}.
+   */
+  public RestateHttpEndpointBuilder with(Object service, Executor executor) {
+    List<BlockingService> services = RestateEndpoint.adapt(service).services();
+    for (BlockingService svc : services) {
+      this.withService(svc, executor);
+    }
+
+    return this;
+  }
+
   /**
    * Add a {@link OpenTelemetry} implementation for tracing and metrics.
    *

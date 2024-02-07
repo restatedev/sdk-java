@@ -10,12 +10,15 @@ package dev.restate.sdk.core;
 
 import com.google.protobuf.MessageLite;
 import dev.restate.generated.service.discovery.Discovery;
+import dev.restate.sdk.common.ServiceAdapter;
+import dev.restate.sdk.common.ServicesBundle;
 import io.grpc.*;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.semconv.trace.attributes.SemanticAttributes;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -218,5 +221,39 @@ public class RestateEndpoint {
     void setInvocationId(String id);
 
     void setInvocationStatus(String invocationStatus);
+  }
+
+  /** Resolve the code generated {@link ServiceAdapter} */
+  public static ServicesBundle adapt(Object entity) {
+    Class<?> userClazz = entity.getClass();
+
+    // Find Service code-generated class
+    // TODO This could be done with an SPI
+    Class<?> serviceAdapterClazz;
+    try {
+      serviceAdapterClazz = Class.forName(userClazz.getCanonicalName() + "ServiceAdapter");
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException(
+          "Code generated class not found. "
+              + "Make sure the annotation processor is correctly configured.",
+          e);
+    }
+
+    // Instantiate it
+    ServiceAdapter<Object> serviceAdapter;
+    try {
+      //noinspection unchecked
+      serviceAdapter = (ServiceAdapter<Object>) serviceAdapterClazz.getConstructor().newInstance();
+    } catch (InstantiationException
+        | IllegalAccessException
+        | InvocationTargetException
+        | NoSuchMethodException e) {
+      throw new RuntimeException(
+          "Cannot invoke code generated class constructor. "
+              + "Make sure the annotation processor is correctly configured.",
+          e);
+    }
+
+    return serviceAdapter.adapt(entity);
   }
 }

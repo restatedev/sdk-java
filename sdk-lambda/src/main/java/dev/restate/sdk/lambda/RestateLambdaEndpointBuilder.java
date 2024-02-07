@@ -9,6 +9,7 @@
 package dev.restate.sdk.lambda;
 
 import dev.restate.generated.service.discovery.Discovery;
+import dev.restate.sdk.common.BlockingService;
 import dev.restate.sdk.common.Service;
 import dev.restate.sdk.core.RestateEndpoint;
 import io.grpc.ServerInterceptor;
@@ -16,6 +17,7 @@ import io.grpc.ServerInterceptors;
 import io.grpc.ServerServiceDefinition;
 import io.opentelemetry.api.OpenTelemetry;
 import java.util.Arrays;
+import java.util.List;
 
 /** Endpoint builder for a Restate AWS Lambda Endpoint, to serve Restate service. */
 public final class RestateLambdaEndpointBuilder {
@@ -34,6 +36,19 @@ public final class RestateLambdaEndpointBuilder {
     ServerServiceDefinition definition =
         ServerInterceptors.intercept(service, Arrays.asList(interceptors));
     this.restateGrpcServerBuilder.withService(definition);
+    return this;
+  }
+
+  /**
+   * Add a Restate entity to the endpoint, specifying the {@code executor} where to run the entity
+   * code.
+   */
+  public RestateLambdaEndpointBuilder with(Object service) {
+    List<BlockingService> services = RestateEndpoint.adapt(service).services();
+    for (BlockingService svc : services) {
+      this.restateGrpcServerBuilder.withService(svc);
+    }
+
     return this;
   }
 
