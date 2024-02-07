@@ -97,4 +97,26 @@ public class EagerStateTest extends EagerStateTestSuite {
   protected BindableService getClearAndGet() {
     return new GetClearAndGet();
   }
+
+  private static class GetClearAllAndGet extends GreeterGrpc.GreeterImplBase
+      implements RestateService {
+    @Override
+    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
+      KeyedContext ctx = KeyedContext.current();
+
+      String oldState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
+
+      ctx.clearAll();
+      assertThat(ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))).isEmpty();
+      assertThat(ctx.get(StateKey.of("ANOTHER_STATE", CoreSerdes.JSON_STRING))).isEmpty();
+
+      responseObserver.onNext(GreetingResponse.newBuilder().setMessage(oldState).build());
+      responseObserver.onCompleted();
+    }
+  }
+
+  @Override
+  protected BindableService getClearAllAndGet() {
+    return new GetClearAllAndGet();
+  }
 }

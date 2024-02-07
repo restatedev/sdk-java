@@ -13,6 +13,7 @@ import static dev.restate.sdk.core.TestDefinitions.*;
 import static org.assertj.core.api.AssertionsForClassTypes.entry;
 
 import com.google.protobuf.MessageLite;
+import dev.restate.generated.service.protocol.Protocol.ClearAllStateEntryMessage;
 import dev.restate.sdk.core.testservices.GreeterGrpc;
 import io.grpc.BindableService;
 import java.util.Map;
@@ -28,7 +29,11 @@ public abstract class EagerStateTestSuite implements TestSuite {
 
   protected abstract BindableService getClearAndGet();
 
+  protected abstract BindableService getClearAllAndGet();
+
   private static final Map.Entry<String, String> STATE_FRANCESCO = entry("STATE", "Francesco");
+  private static final Map.Entry<String, String> ANOTHER_STATE_FRANCESCO =
+      entry("ANOTHER_STATE", "Francesco");
   private static final MessageLite INPUT_TILL = inputMessage(greetingRequest("Till"));
   private static final MessageLite GET_STATE_FRANCESCO = getStateMessage("STATE", "Francesco");
   private static final MessageLite GET_STATE_FRANCESCO_TILL =
@@ -107,6 +112,29 @@ public abstract class EagerStateTestSuite implements TestSuite {
                 getStateMessage("STATE"),
                 clearStateMessage("STATE"),
                 getStateEmptyMessage("STATE"),
+                OUTPUT_FRANCESCO,
+                END_MESSAGE)
+            .named("With partial state on the first get"),
+        testInvocation(this::getClearAllAndGet, GreeterGrpc.getGreetMethod())
+            .withInput(startMessage(1, STATE_FRANCESCO, ANOTHER_STATE_FRANCESCO), INPUT_TILL)
+            .expectingOutput(
+                GET_STATE_FRANCESCO,
+                ClearAllStateEntryMessage.getDefaultInstance(),
+                getStateEmptyMessage("STATE"),
+                getStateEmptyMessage("ANOTHER_STATE"),
+                OUTPUT_FRANCESCO,
+                END_MESSAGE)
+            .named("With state in the state_map"),
+        testInvocation(this::getClearAllAndGet, GreeterGrpc.getGreetMethod())
+            .withInput(
+                startMessage(1).setPartialState(true),
+                INPUT_TILL,
+                completionMessage(1, STATE_FRANCESCO.getValue()))
+            .expectingOutput(
+                getStateMessage("STATE"),
+                ClearAllStateEntryMessage.getDefaultInstance(),
+                getStateEmptyMessage("STATE"),
+                getStateEmptyMessage("ANOTHER_STATE"),
                 OUTPUT_FRANCESCO,
                 END_MESSAGE)
             .named("With partial state on the first get"));

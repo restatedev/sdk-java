@@ -63,6 +63,8 @@ public interface Syscalls {
 
   void clear(String name, SyscallCallback<Void> callback);
 
+  void clearAll(SyscallCallback<Void> callback);
+
   void set(String name, ByteString value, SyscallCallback<Void> callback);
 
   // ----- Syscalls

@@ -41,7 +41,7 @@ final class UserStateStore {
     }
   }
 
-  private final boolean isPartial;
+  private boolean isPartial;
   private final HashMap<ByteString, State> map;
 
   UserStateStore(boolean isPartial, Map<ByteString, ByteString> map) {
@@ -62,5 +62,10 @@ final class UserStateStore {
 
   public void clear(ByteString key) {
     this.map.put(key, Empty.INSTANCE);
+  }
+
+  public void clearAll() {
+    this.map.clear();
+    this.isPartial = false;
   }
 }

@@ -85,6 +85,8 @@ public class MessageHeader {
       return new MessageHeader(MessageType.SetStateEntryMessage, 0, msg.getSerializedSize());
     } else if (msg instanceof Protocol.ClearStateEntryMessage) {
       return new MessageHeader(MessageType.ClearStateEntryMessage, 0, msg.getSerializedSize());
+    } else if (msg instanceof Protocol.ClearAllStateEntryMessage) {
+      return new MessageHeader(MessageType.ClearAllStateEntryMessage, 0, msg.getSerializedSize());
     } else if (msg instanceof Protocol.SleepEntryMessage) {
       return new MessageHeader(
           MessageType.SleepEntryMessage,

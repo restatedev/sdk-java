@@ -238,6 +238,9 @@ sealed interface KeyedContext : UnkeyedContext {
    */
   suspend fun clear(key: StateKey<*>)
 
+  /** Clears all the state of this service instance key-value state storage */
+  suspend fun clearAll()
+
   companion object {
 
     /**
