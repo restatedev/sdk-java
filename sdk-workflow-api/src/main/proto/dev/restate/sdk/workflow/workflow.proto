@@ -1,0 +1,131 @@
+// Copyright (c) 2023 - Restate Software, Inc., Restate GmbH
+//
+// This file is part of the Restate Java SDK,
+// which is released under the MIT license.
+//
+// You can find a copy of the license in file LICENSE in the root
+// directory of this repository or package, or at
+// https://github.com/restatedev/sdk-java/blob/main/LICENSE
+syntax = "proto3";
+
+package dev.restate.sdk.workflow;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/struct.proto";
+import "dev/restate/ext.proto";
+
+option java_multiple_files = true;
+option java_package = "dev.restate.sdk.workflow.generated";
+option java_outer_classname = "WorkflowProto";
+
+message InvokeRequest {
+  string key = 1;
+  google.protobuf.Value payload = 2;
+}
+
+message StateRequest {
+  string key = 1 [(dev.restate.ext.field) = KEY];
+
+  string state_key = 2;
+}
+
+message GetStateResponse {
+  oneof result {
+    bytes value = 1;
+    google.protobuf.Empty empty = 2;
+  }
+}
+
+message SetStateRequest {
+  string key = 1 [(dev.restate.ext.field) = KEY];
+
+  string state_key = 2;
+  bytes state_value = 3;
+}
+
+message StartRequest {
+  string key = 1 [(dev.restate.ext.field) = KEY];
+}
+
+message StartResponse {
+  WorkflowExecutionState state = 1;
+}
+
+message SubmitResponse {
+  WorkflowExecutionState state = 1;
+}
+
+enum WorkflowExecutionState {
+  STARTED = 0;
+  ALREADY_STARTED = 1;
+  ALREADY_COMPLETED = 2;
+}
+
+message OutputRequest {
+  string key = 1 [(dev.restate.ext.field) = KEY];
+}
+
+message GetOutputResponse {
+  oneof result {
+    google.protobuf.Value value = 1;
+    Failure failure = 2;
+    google.protobuf.Empty not_completed = 3;
+  };
+}
+
+message SetOutputRequest {
+  string key = 1 [(dev.restate.ext.field) = KEY];
+
+  MethodOutput output = 2;
+}
+
+message WorkflowManagerRequest {
+  string key = 1 [(dev.restate.ext.field) = KEY];
+}
+
+message WaitDurablePromiseCompletionRequest {
+  string key = 1 [(dev.restate.ext.field) = KEY];
+
+  string durable_promise_key = 2;
+  string awakeable_id = 3;
+}
+
+message DurablePromiseCompletion {
+  oneof result {
+    bytes value = 1;
+    Failure failure = 2;
+  };
+}
+
+message GetDurablePromiseCompletionRequest {
+  string key = 1 [(dev.restate.ext.field) = KEY];
+
+  string durable_promise_key = 2;
+}
+
+message MaybeDurablePromiseCompletion {
+  oneof result {
+    bytes value = 1;
+    Failure failure = 2;
+    google.protobuf.Empty not_completed = 3;
+  };
+}
+
+message CompleteDurablePromiseRequest {
+  string key = 1 [(dev.restate.ext.field) = KEY];
+
+  string durable_promise_key = 2;
+  DurablePromiseCompletion completion = 3;
+}
+
+message MethodOutput {
+  oneof result {
+    google.protobuf.Value value = 1;
+    Failure failure = 2;
+  }
+}
+
+message Failure {
+  uint32 code = 1;
+  string message = 2;
+}
