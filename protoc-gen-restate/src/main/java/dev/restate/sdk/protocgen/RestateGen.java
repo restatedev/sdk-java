@@ -6,7 +6,7 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-package dev.restate.sdk.gen;
+package dev.restate.sdk.protocgen;
 
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.compiler.PluginProtos;
