@@ -1,4 +1,5 @@
 import com.google.protobuf.gradle.id
+import com.google.protobuf.gradle.protobuf
 
 plugins {
   java
@@ -8,16 +9,20 @@ plugins {
 }
 
 dependencies {
+  annotationProcessor(project(":sdk-api-gen"))
+
   implementation(project(":sdk-api"))
   implementation(project(":sdk-lambda"))
   implementation(project(":sdk-http-vertx"))
   implementation(project(":sdk-api-kotlin"))
   implementation(project(":sdk-serde-jackson"))
+  implementation(project(":sdk-workflow-api"))
 
   implementation(coreLibs.protobuf.java)
   implementation(coreLibs.protobuf.kotlin)
   implementation(coreLibs.grpc.stub)
   implementation(coreLibs.grpc.protobuf)
+  implementation(coreLibs.grpc.netty)
   implementation(coreLibs.grpc.kotlin.stub) { exclude("javax.annotation", "javax.annotation-api") }
 
   // Replace javax.annotations-api with tomcat annotations

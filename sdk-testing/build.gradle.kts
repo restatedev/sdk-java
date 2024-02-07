@@ -17,7 +17,7 @@ dependencies {
   implementation(coreLibs.log4j.api)
   implementation(platform(vertxLibs.vertx.bom))
   implementation(vertxLibs.vertx.core)
-  implementation(coreLibs.grpc.netty.shaded)
+  implementation(coreLibs.grpc.netty)
 
   testCompileOnly(coreLibs.javax.annotation.api)
   testImplementation(project(":sdk-api"))
