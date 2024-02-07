@@ -223,6 +223,13 @@ sealed interface KeyedContext : UnkeyedContext {
   suspend fun <T : Any> get(key: StateKey<T>): T?
 
   /**
+   * Gets all the known state keys for this service instance.
+   *
+   * @return the immutable collection of known state keys.
+   */
+  suspend fun stateKeys(): Collection<String>
+
+  /**
    * Sets the given value under the given key, serializing the value using the registered
    * [dev.restate.sdk.core.serde.Serde] in the interceptor.
    *

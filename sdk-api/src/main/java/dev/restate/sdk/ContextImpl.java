@@ -17,6 +17,7 @@ import dev.restate.sdk.common.syscalls.ExitSideEffectSyscallCallback;
 import dev.restate.sdk.common.syscalls.Syscalls;
 import io.grpc.MethodDescriptor;
 import java.time.Duration;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -41,6 +42,17 @@ class ContextImpl implements KeyedContext {
 
     return Util.unwrapOptionalReadyResult(deferred.toResult())
         .map(bs -> Util.deserializeWrappingException(syscalls, key.serde(), bs));
+  }
+
+  @Override
+  public Collection<String> stateKeys() {
+    Deferred<Collection<String>> deferred = Util.blockOnSyscall(syscalls::getKeys);
+
+    if (!deferred.isCompleted()) {
+      Util.<Void>blockOnSyscall(cb -> syscalls.resolveDeferred(deferred, cb));
+    }
+
+    return Util.unwrapResult(deferred.toResult());
   }
 
   @Override

@@ -17,6 +17,7 @@ import dev.restate.sdk.common.syscalls.ExitSideEffectSyscallCallback;
 import dev.restate.sdk.common.syscalls.SyscallCallback;
 import io.grpc.MethodDescriptor;
 import java.time.Duration;
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
@@ -48,6 +49,11 @@ class ExecutorSwitchingSyscalls implements SyscallsInternal {
   @Override
   public void get(String name, SyscallCallback<Deferred<ByteString>> callback) {
     syscallsExecutor.execute(() -> syscalls.get(name, callback));
+  }
+
+  @Override
+  public void getKeys(SyscallCallback<Deferred<Collection<String>>> callback) {
+    syscallsExecutor.execute(() -> syscalls.getKeys(callback));
   }
 
   @Override

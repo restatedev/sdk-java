@@ -90,4 +90,14 @@ class EagerStateTest : EagerStateTestSuite() {
   override fun getClearAllAndGet(): BindableService {
     return GetClearAllAndGet()
   }
+
+  private class ListKeys : GreeterRestateKt.GreeterRestateKtImplBase() {
+    override suspend fun greet(context: KeyedContext, request: GreetingRequest): GreetingResponse {
+      return greetingResponse { message = context.stateKeys().joinToString(separator = ",") }
+    }
+  }
+
+  override fun listKeys(): BindableService {
+    return ListKeys()
+  }
 }

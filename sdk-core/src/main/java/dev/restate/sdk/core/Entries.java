@@ -10,13 +10,16 @@ package dev.restate.sdk.core;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageLite;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.generated.service.protocol.Protocol.*;
 import dev.restate.sdk.common.syscalls.Result;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
+import java.util.Collection;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 final class Entries {
   static final String AWAKEABLE_IDENTIFIER_PREFIX = "prom_1";
@@ -180,6 +183,78 @@ final class Entries {
       } else {
         userStateStore.set(expected.getKey(), actual.getValue());
       }
+    }
+  }
+
+  static final class GetStateKeysEntry
+      extends CompletableJournalEntry<GetStateKeysEntryMessage, Collection<String>> {
+
+    static final GetStateKeysEntry INSTANCE = new GetStateKeysEntry();
+
+    private GetStateKeysEntry() {}
+
+    @Override
+    void trace(GetStateKeysEntryMessage expected, Span span) {
+      span.addEvent("GetStateKeys");
+    }
+
+    @Override
+    public boolean hasResult(GetStateKeysEntryMessage actual) {
+      return actual.getResultCase() != GetStateKeysEntryMessage.ResultCase.RESULT_NOT_SET;
+    }
+
+    @Override
+    void checkEntryHeader(GetStateKeysEntryMessage expected, MessageLite actual)
+        throws ProtocolException {
+      if (!(actual instanceof GetStateKeysEntryMessage)) {
+        throw ProtocolException.entryDoesNotMatch(expected, actual);
+      }
+    }
+
+    @Override
+    public Result<Collection<String>> parseEntryResult(GetStateKeysEntryMessage actual) {
+      if (actual.getResultCase() == GetStateKeysEntryMessage.ResultCase.VALUE) {
+        return Result.success(
+            actual.getValue().getKeysList().stream()
+                .map(ByteString::toStringUtf8)
+                .collect(Collectors.toUnmodifiableList()));
+      } else if (actual.getResultCase() == GetStateKeysEntryMessage.ResultCase.FAILURE) {
+        return Result.failure(Util.toRestateException(actual.getFailure()));
+      } else {
+        throw new IllegalStateException("GetStateKeysEntryMessage has not been completed.");
+      }
+    }
+
+    @Override
+    public Result<Collection<String>> parseCompletionResult(CompletionMessage actual) {
+      if (actual.getResultCase() == CompletionMessage.ResultCase.VALUE) {
+        GetStateKeysEntryMessage.StateKeys stateKeys;
+        try {
+          stateKeys = GetStateKeysEntryMessage.StateKeys.parseFrom(actual.getValue());
+        } catch (InvalidProtocolBufferException e) {
+          throw new ProtocolException(
+              "Cannot parse get state keys completion", e, ProtocolException.PROTOCOL_VIOLATION);
+        }
+        return Result.success(
+            stateKeys.getKeysList().stream()
+                .map(ByteString::toStringUtf8)
+                .collect(Collectors.toUnmodifiableList()));
+      } else if (actual.getResultCase() == CompletionMessage.ResultCase.FAILURE) {
+        return Result.failure(Util.toRestateException(actual.getFailure()));
+      }
+      return super.parseCompletionResult(actual);
+    }
+
+    @Override
+    GetStateKeysEntryMessage tryCompleteWithUserStateStorage(
+        GetStateKeysEntryMessage expected, UserStateStore userStateStore) {
+      if (userStateStore.isComplete()) {
+        return expected.toBuilder()
+            .setValue(
+                GetStateKeysEntryMessage.StateKeys.newBuilder().addAllKeys(userStateStore.keys()))
+            .build();
+      }
+      return expected;
     }
   }
 

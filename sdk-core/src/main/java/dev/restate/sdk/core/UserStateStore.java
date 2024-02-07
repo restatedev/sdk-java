@@ -11,6 +11,7 @@ package dev.restate.sdk.core;
 import com.google.protobuf.ByteString;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 final class UserStateStore {
@@ -67,5 +68,13 @@ final class UserStateStore {
   public void clearAll() {
     this.map.clear();
     this.isPartial = false;
+  }
+
+  public boolean isComplete() {
+    return !isPartial;
+  }
+
+  public Set<ByteString> keys() {
+    return this.map.keySet();
   }
 }

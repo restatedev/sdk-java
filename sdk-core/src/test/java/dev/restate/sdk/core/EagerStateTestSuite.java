@@ -13,6 +13,7 @@ import static dev.restate.sdk.core.TestDefinitions.*;
 import static org.assertj.core.api.AssertionsForClassTypes.entry;
 
 import com.google.protobuf.MessageLite;
+import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.generated.service.protocol.Protocol.ClearAllStateEntryMessage;
 import dev.restate.sdk.core.testservices.GreeterGrpc;
 import io.grpc.BindableService;
@@ -30,6 +31,8 @@ public abstract class EagerStateTestSuite implements TestSuite {
   protected abstract BindableService getClearAndGet();
 
   protected abstract BindableService getClearAllAndGet();
+
+  protected abstract BindableService listKeys();
 
   private static final Map.Entry<String, String> STATE_FRANCESCO = entry("STATE", "Francesco");
   private static final Map.Entry<String, String> ANOTHER_STATE_FRANCESCO =
@@ -137,6 +140,31 @@ public abstract class EagerStateTestSuite implements TestSuite {
                 getStateEmptyMessage("ANOTHER_STATE"),
                 OUTPUT_FRANCESCO,
                 END_MESSAGE)
-            .named("With partial state on the first get"));
+            .named("With partial state on the first get"),
+        testInvocation(this::listKeys, GreeterGrpc.getGreetMethod())
+            .withInput(
+                startMessage(1, STATE_FRANCESCO).setPartialState(true),
+                INPUT_TILL,
+                completionMessage(1, stateKeys("a", "b")))
+            .expectingOutput(
+                Protocol.GetStateKeysEntryMessage.getDefaultInstance(),
+                outputMessage(greetingResponse("a,b")),
+                END_MESSAGE)
+            .named("With partial state"),
+        testInvocation(this::listKeys, GreeterGrpc.getGreetMethod())
+            .withInput(startMessage(1, STATE_FRANCESCO).setPartialState(false), INPUT_TILL)
+            .expectingOutput(
+                Protocol.GetStateKeysEntryMessage.newBuilder()
+                    .setValue(stateKeys(STATE_FRANCESCO.getKey())),
+                outputMessage(greetingResponse(STATE_FRANCESCO.getKey())),
+                END_MESSAGE)
+            .named("With complete state"),
+        testInvocation(this::listKeys, GreeterGrpc.getGreetMethod())
+            .withInput(
+                startMessage(2).setPartialState(true),
+                INPUT_TILL,
+                Protocol.GetStateKeysEntryMessage.newBuilder().setValue(stateKeys("3", "2", "1")))
+            .expectingOutput(outputMessage(greetingResponse("3,2,1")), END_MESSAGE)
+            .named("With replayed list"));
   }
 }

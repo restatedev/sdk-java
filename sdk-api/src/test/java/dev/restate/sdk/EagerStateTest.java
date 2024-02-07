@@ -12,8 +12,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.common.StateKey;
+import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.EagerStateTestSuite;
 import dev.restate.sdk.core.testservices.GreeterGrpc;
+import dev.restate.sdk.core.testservices.GreeterRestate;
 import dev.restate.sdk.core.testservices.GreetingRequest;
 import dev.restate.sdk.core.testservices.GreetingResponse;
 import io.grpc.BindableService;
@@ -118,5 +120,20 @@ public class EagerStateTest extends EagerStateTestSuite {
   @Override
   protected BindableService getClearAllAndGet() {
     return new GetClearAllAndGet();
+  }
+
+  private static class ListKeys extends GreeterRestate.GreeterRestateImplBase {
+    @Override
+    public GreetingResponse greet(KeyedContext context, GreetingRequest request)
+        throws TerminalException {
+      return GreetingResponse.newBuilder()
+          .setMessage(String.join(",", context.stateKeys()))
+          .build();
+    }
+  }
+
+  @Override
+  protected BindableService listKeys() {
+    return new ListKeys();
   }
 }
