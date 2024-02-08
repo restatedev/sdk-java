@@ -9,6 +9,7 @@
 package dev.restate.sdk.common.syscalls;
 
 import dev.restate.sdk.common.TerminalException;
+import java.util.function.Function;
 import javax.annotation.Nullable;
 
 /**
@@ -46,6 +47,29 @@ public abstract class Result<T> {
 
   @Nullable
   public abstract TerminalException getFailure();
+
+  // --- Helper methods
+
+  /**
+   * Map this result success value. If the mapper throws an exception, this exception will be
+   * converted to {@link TerminalException} and return a new failed {@link Result}.
+   */
+  public <U> Result<U> mapSuccess(Function<T, U> mapper) {
+    if (this.isSuccess()) {
+      try {
+        return Result.success(mapper.apply(this.getValue()));
+      } catch (TerminalException e) {
+        return Result.failure(e);
+      } catch (Exception e) {
+        return Result.failure(
+            new TerminalException(TerminalException.Code.UNKNOWN, e.getMessage()));
+      }
+    }
+    //noinspection unchecked
+    return (Result<U>) this;
+  }
+
+  // --- Factory methods
 
   @SuppressWarnings("unchecked")
   public static <T> Result<T> empty() {

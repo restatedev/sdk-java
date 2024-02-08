@@ -9,7 +9,6 @@
 package dev.restate.sdk.core;
 
 import com.google.protobuf.ByteString;
-import com.google.protobuf.MessageLite;
 import dev.restate.sdk.common.InvocationId;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.common.syscalls.Deferred;
@@ -20,7 +19,6 @@ import io.grpc.MethodDescriptor;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.Executor;
-import java.util.function.Function;
 
 class ExecutorSwitchingSyscalls implements SyscallsInternal {
 
@@ -33,13 +31,12 @@ class ExecutorSwitchingSyscalls implements SyscallsInternal {
   }
 
   @Override
-  public <T extends MessageLite> void pollInput(
-      Function<ByteString, T> mapper, SyscallCallback<Deferred<T>> callback) {
-    syscallsExecutor.execute(() -> syscalls.pollInput(mapper, callback));
+  public void pollInput(SyscallCallback<Deferred<ByteString>> callback) {
+    syscallsExecutor.execute(() -> syscalls.pollInput(callback));
   }
 
   @Override
-  public <T extends MessageLite> void writeOutput(T value, SyscallCallback<Void> callback) {
+  public void writeOutput(ByteString value, SyscallCallback<Void> callback) {
     syscallsExecutor.execute(() -> syscalls.writeOutput(value, callback));
   }
 

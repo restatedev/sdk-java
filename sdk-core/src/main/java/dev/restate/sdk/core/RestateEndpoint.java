@@ -8,7 +8,6 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import com.google.protobuf.MessageLite;
 import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.sdk.common.ServiceAdapter;
 import dev.restate.sdk.common.ServicesBundle;
@@ -64,9 +63,7 @@ public class RestateEndpoint {
       throw ProtocolException.methodNotFound(serviceName, methodName);
     }
     String fullyQualifiedServiceMethod = serviceName + "/" + methodName;
-    ServerMethodDefinition<MessageLite, MessageLite> method =
-        (ServerMethodDefinition<MessageLite, MessageLite>)
-            svc.getMethod(fullyQualifiedServiceMethod);
+    ServerMethodDefinition<?, ?> method = svc.getMethod(fullyQualifiedServiceMethod);
     if (method == null) {
       throw ProtocolException.methodNotFound(serviceName, methodName);
     }

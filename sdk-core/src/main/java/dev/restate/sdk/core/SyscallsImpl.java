@@ -9,7 +9,6 @@
 package dev.restate.sdk.core;
 
 import com.google.protobuf.ByteString;
-import com.google.protobuf.MessageLite;
 import com.google.rpc.Code;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
@@ -48,27 +47,23 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public <T extends MessageLite> void pollInput(
-      Function<ByteString, T> mapper, SyscallCallback<Deferred<T>> callback) {
+  public void pollInput(SyscallCallback<Deferred<ByteString>> callback) {
     wrapAndPropagateExceptions(
         () -> {
           LOG.trace("pollInput");
           this.stateMachine.processCompletableJournalEntry(
-              PollInputStreamEntryMessage.getDefaultInstance(),
-              new PollInputEntry<>(protoDeserializer(mapper)),
-              callback);
+              PollInputStreamEntryMessage.getDefaultInstance(), PollInputEntry.INSTANCE, callback);
         },
         callback);
   }
 
   @Override
-  public <T extends MessageLite> void writeOutput(T value, SyscallCallback<Void> callback) {
+  public void writeOutput(ByteString value, SyscallCallback<Void> callback) {
     wrapAndPropagateExceptions(
         () -> {
           LOG.trace("writeOutput success");
           this.writeOutput(
-              Protocol.OutputStreamEntryMessage.newBuilder().setValue(value.toByteString()).build(),
-              callback);
+              Protocol.OutputStreamEntryMessage.newBuilder().setValue(value).build(), callback);
         },
         callback);
   }

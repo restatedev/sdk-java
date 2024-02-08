@@ -8,36 +8,37 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import com.google.protobuf.MessageLite;
+import com.google.protobuf.ByteString;
 import dev.restate.sdk.common.InvocationId;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.common.syscalls.SyscallCallback;
 import dev.restate.sdk.common.syscalls.Syscalls;
 import io.grpc.*;
+import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-class GrpcUnaryRpcHandler implements RpcHandler {
+class GrpcUnaryRpcHandler<Req, Res> implements RpcHandler {
 
   private static final Logger LOG = LogManager.getLogger(GrpcUnaryRpcHandler.class);
 
   private final SyscallsInternal syscalls;
-  private final RestateServerCallListener<MessageLite> restateListener;
+  private final RestateServerCallListener<Req> restateListener;
   private final CompletableFuture<Void> serverCallReady;
-  private final MethodDescriptor<MessageLite, MessageLite> methodDescriptor;
+  private final MethodDescriptor<Req, Res> methodDescriptor;
 
   GrpcUnaryRpcHandler(
-      ServerMethodDefinition<MessageLite, MessageLite> method,
+      ServerMethodDefinition<Req, Res> method,
       SyscallsInternal syscalls,
       @Nullable Executor userCodeExecutor) {
     this.syscalls = syscalls;
     this.methodDescriptor = method.getMethodDescriptor();
     this.serverCallReady = new CompletableFuture<>();
-    RestateServerCall serverCall =
-        new RestateServerCall(this.methodDescriptor, this.syscalls, this.serverCallReady);
+    RestateServerCall<Req, Res> serverCall =
+        new RestateServerCall<>(method.getMethodDescriptor(), this.syscalls, this.serverCallReady);
 
     // This gRPC context will be propagated to the user thread.
     // Note: from now on we cannot modify this context anymore!
@@ -47,13 +48,13 @@ class GrpcUnaryRpcHandler implements RpcHandler {
             .withValue(Syscalls.SYSCALLS_KEY, this.syscalls);
 
     // Create the listener
-    RestateServerCallListener<MessageLite> listener =
+    RestateServerCallListener<Req> listener =
         new GrpcServerCallListenerAdaptor<>(
             context, serverCall, new Metadata(), method.getServerCallHandler());
 
     // Wrap in the executor switcher, if needed
     if (userCodeExecutor != null) {
-      listener = new ExecutorSwitchingServerCallListener(listener, userCodeExecutor);
+      listener = new ExecutorSwitchingServerCallListener<>(listener, userCodeExecutor);
     }
 
     this.restateListener = listener;
@@ -69,7 +70,7 @@ class GrpcUnaryRpcHandler implements RpcHandler {
         SyscallCallback.of(
             pollInputReadyResult -> {
               if (pollInputReadyResult.isSuccess()) {
-                final MessageLite message = pollInputReadyResult.getValue();
+                final Req message = pollInputReadyResult.getValue();
                 LOG.trace("Read input message:\n{}", message);
 
                 // In theory, we never need this, as once we reach this point of the code the server
@@ -198,20 +199,20 @@ class GrpcUnaryRpcHandler implements RpcHandler {
     }
   }
 
-  private static class ExecutorSwitchingServerCallListener
-      implements RestateServerCallListener<MessageLite> {
+  private static class ExecutorSwitchingServerCallListener<Req>
+      implements RestateServerCallListener<Req> {
 
-    private final RestateServerCallListener<MessageLite> listener;
+    private final RestateServerCallListener<Req> listener;
     private final Executor userExecutor;
 
     private ExecutorSwitchingServerCallListener(
-        RestateServerCallListener<MessageLite> listener, Executor userExecutor) {
+        RestateServerCallListener<Req> listener, Executor userExecutor) {
       this.listener = listener;
       this.userExecutor = userExecutor;
     }
 
     @Override
-    public void invoke(MessageLite message) {
+    public void invoke(Req message) {
       userExecutor.execute(() -> listener.invoke(message));
     }
 
@@ -254,9 +255,9 @@ class GrpcUnaryRpcHandler implements RpcHandler {
    *   <li>Trampolining back to state machine executor is provided by the syscalls wrapper.
    * </ul>
    */
-  static class RestateServerCall extends ServerCall<MessageLite, MessageLite> {
+  static class RestateServerCall<Req, Res> extends ServerCall<Req, Res> {
 
-    private final MethodDescriptor<MessageLite, MessageLite> methodDescriptor;
+    private final MethodDescriptor<Req, Res> methodDescriptor;
     private final SyscallsInternal syscalls;
 
     // This variable don't need to be volatile because it's accessed only by #request()
@@ -264,7 +265,7 @@ class GrpcUnaryRpcHandler implements RpcHandler {
     private final CompletableFuture<Void> serverCallReady;
 
     RestateServerCall(
-        MethodDescriptor<MessageLite, MessageLite> methodDescriptor,
+        MethodDescriptor<Req, Res> methodDescriptor,
         SyscallsInternal syscalls,
         CompletableFuture<Void> serverCallReady) {
       this.methodDescriptor = methodDescriptor;
@@ -308,9 +309,17 @@ class GrpcUnaryRpcHandler implements RpcHandler {
     }
 
     @Override
-    public void sendMessage(MessageLite message) {
+    public void sendMessage(Res message) {
+      ByteString output;
+      try {
+        output = ByteString.readFrom(methodDescriptor.streamResponse(message));
+      } catch (IOException e) {
+        syscalls.fail(e);
+        return;
+      }
+
       syscalls.writeOutput(
-          message,
+          output,
           SyscallCallback.ofVoid(
               () -> LOG.trace("Wrote output message:\n{}", message), syscalls::fail));
     }
@@ -346,7 +355,7 @@ class GrpcUnaryRpcHandler implements RpcHandler {
     }
 
     @Override
-    public MethodDescriptor<MessageLite, MessageLite> getMethodDescriptor() {
+    public MethodDescriptor<Req, Res> getMethodDescriptor() {
       return methodDescriptor;
     }
   }

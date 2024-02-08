@@ -9,7 +9,6 @@
 package dev.restate.sdk.core;
 
 import com.google.protobuf.ByteString;
-import com.google.protobuf.MessageLite;
 import dev.restate.sdk.common.syscalls.Deferred;
 import dev.restate.sdk.common.syscalls.Result;
 import dev.restate.sdk.common.syscalls.SyscallCallback;
@@ -35,16 +34,16 @@ interface SyscallsInternal extends Syscalls {
 
   // -- Helper for pollInput
 
-  default <T extends MessageLite> void pollInputAndResolve(
+  default <T> void pollInputAndResolve(
       Function<ByteString, T> mapper, SyscallCallback<Result<T>> callback) {
     this.pollInput(
-        mapper,
         SyscallCallback.of(
             deferredValue ->
                 this.resolveDeferred(
                     deferredValue,
                     SyscallCallback.ofVoid(
-                        () -> callback.onSuccess(deferredValue.toResult()), callback::onCancel)),
+                        () -> callback.onSuccess(deferredValue.toResult().mapSuccess(mapper)),
+                        callback::onCancel)),
             callback::onCancel));
   }
 

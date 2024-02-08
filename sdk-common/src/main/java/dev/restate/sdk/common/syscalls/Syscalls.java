@@ -9,7 +9,6 @@
 package dev.restate.sdk.common.syscalls;
 
 import com.google.protobuf.ByteString;
-import com.google.protobuf.MessageLite;
 import dev.restate.sdk.common.InvocationId;
 import dev.restate.sdk.common.TerminalException;
 import io.grpc.Context;
@@ -18,7 +17,6 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Function;
 import javax.annotation.Nullable;
 
 /**
@@ -53,10 +51,9 @@ public interface Syscalls {
   // Note: These are not supposed to be exposed to RestateContext, but they should be used through
   // gRPC APIs.
 
-  <T extends MessageLite> void pollInput(
-      Function<ByteString, T> mapper, SyscallCallback<Deferred<T>> callback);
+  void pollInput(SyscallCallback<Deferred<ByteString>> callback);
 
-  <T extends MessageLite> void writeOutput(T value, SyscallCallback<Void> callback);
+  void writeOutput(ByteString value, SyscallCallback<Void> callback);
 
   void writeOutput(TerminalException exception, SyscallCallback<Void> callback);
 
