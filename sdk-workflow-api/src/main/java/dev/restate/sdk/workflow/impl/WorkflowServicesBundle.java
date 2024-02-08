@@ -10,7 +10,7 @@ package dev.restate.sdk.workflow.impl;
 
 import static dev.restate.sdk.workflow.impl.DescriptorUtils.toMethodName;
 
-import dev.restate.sdk.UnkeyedContext;
+import dev.restate.sdk.Context;
 import dev.restate.sdk.common.BlockingService;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.ServicesBundle;
@@ -117,20 +117,19 @@ public class WorkflowServicesBundle implements ServicesBundle {
   public static class Method<REQ, RES> {
     private final MethodSignature<REQ, RES> methodSignature;
 
-    private final BiFunction<UnkeyedContext, REQ, RES> runner;
+    private final BiFunction<Context, REQ, RES> runner;
 
     Method(
-        MethodSignature<REQ, RES> methodSignature,
-        BiFunction<? extends UnkeyedContext, REQ, RES> runner) {
+        MethodSignature<REQ, RES> methodSignature, BiFunction<? extends Context, REQ, RES> runner) {
       this.methodSignature = methodSignature;
-      this.runner = (BiFunction<UnkeyedContext, REQ, RES>) runner;
+      this.runner = (BiFunction<Context, REQ, RES>) runner;
     }
 
     public MethodSignature<REQ, RES> getMethodSignature() {
       return methodSignature;
     }
 
-    public RES run(UnkeyedContext ctx, REQ req) {
+    public RES run(Context ctx, REQ req) {
       return runner.apply(ctx, req);
     }
   }

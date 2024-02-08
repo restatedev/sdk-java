@@ -32,7 +32,7 @@ import kotlin.time.Duration
  * NOTE: This interface MUST NOT be accessed concurrently since it can lead to different orderings
  * of user actions, corrupting the execution of the invocation.
  */
-sealed interface UnkeyedContext {
+sealed interface Context {
 
   /**
    * Causes the current execution of the function invocation to sleep for the given duration.
@@ -191,26 +191,25 @@ sealed interface UnkeyedContext {
   companion object {
 
     /**
-     * Create a [UnkeyedContext]. This will look up the thread-local/async-context storage for the
+     * Create a [Context]. This will look up the thread-local/async-context storage for the
      * underlying context implementation, so make sure to call it always from the same context where
      * the service is executed.
      */
-    fun current(): UnkeyedContext {
+    fun current(): Context {
       return fromSyscalls(Syscalls.current())
     }
 
     /** Build a context from the underlying [Syscalls] object. */
-    fun fromSyscalls(syscalls: Syscalls): UnkeyedContext {
+    fun fromSyscalls(syscalls: Syscalls): Context {
       return ContextImpl(syscalls)
     }
   }
 }
 
 /**
- * This interface extends [UnkeyedContext] adding access to the service instance key-value state
- * storage.
+ * This interface extends [Context] adding access to the service instance key-value state storage.
  */
-sealed interface KeyedContext : UnkeyedContext {
+sealed interface KeyedContext : Context {
 
   /**
    * Gets the state stored under key, deserializing the raw value using the registered

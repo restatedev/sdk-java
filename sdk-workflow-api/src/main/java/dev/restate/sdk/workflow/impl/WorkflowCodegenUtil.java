@@ -16,7 +16,7 @@ import com.google.protobuf.Value;
 import com.google.protobuf.util.JsonFormat;
 import dev.restate.generated.IngressGrpc;
 import dev.restate.sdk.Awaitable;
-import dev.restate.sdk.UnkeyedContext;
+import dev.restate.sdk.Context;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.StateKey;
 import dev.restate.sdk.common.TerminalException;
@@ -63,7 +63,7 @@ public class WorkflowCodegenUtil {
     private RestateClient() {}
 
     public static Awaitable<WorkflowExecutionState> submit(
-        UnkeyedContext ctx,
+        Context ctx,
         MethodDescriptor<InvokeRequest, SubmitResponse> submitMethodDesc,
         String workflowKey,
         @Nullable Value payload) {
@@ -75,7 +75,7 @@ public class WorkflowCodegenUtil {
     }
 
     public static <T> Awaitable<Optional<T>> getOutput(
-        UnkeyedContext ctx,
+        Context ctx,
         MethodDescriptor<OutputRequest, GetOutputResponse> getOutputMethodDesc,
         String workflowKey,
         Serde<T> serde) {
@@ -95,7 +95,7 @@ public class WorkflowCodegenUtil {
     }
 
     public static Awaitable<Boolean> isCompleted(
-        UnkeyedContext ctx,
+        Context ctx,
         MethodDescriptor<OutputRequest, GetOutputResponse> getOutputMethodDesc,
         String workflowKey) {
       return ctx.call(getOutputMethodDesc, OutputRequest.newBuilder().setKey(workflowKey).build())
@@ -111,7 +111,7 @@ public class WorkflowCodegenUtil {
     }
 
     public static Awaitable<Value> invokeShared(
-        UnkeyedContext ctx,
+        Context ctx,
         MethodDescriptor<InvokeRequest, Value> invokeMethodDesc,
         String workflowKey,
         @Nullable Value payload) {
@@ -124,7 +124,7 @@ public class WorkflowCodegenUtil {
     }
 
     public static void invokeSharedOneWay(
-        UnkeyedContext ctx,
+        Context ctx,
         MethodDescriptor<InvokeRequest, Value> invokeMethodDesc,
         String workflowKey,
         @Nullable Value payload) {
@@ -137,7 +137,7 @@ public class WorkflowCodegenUtil {
     }
 
     public static void invokeSharedDelayed(
-        UnkeyedContext ctx,
+        Context ctx,
         MethodDescriptor<InvokeRequest, Value> invokeMethodDesc,
         String workflowKey,
         @Nullable Value payload,
@@ -151,7 +151,7 @@ public class WorkflowCodegenUtil {
     }
 
     public static <T> Awaitable<Optional<T>> getState(
-        UnkeyedContext ctx,
+        Context ctx,
         MethodDescriptor<StateRequest, GetStateResponse> getStateMethodDesc,
         String workflowKey,
         StateKey<T> key) {

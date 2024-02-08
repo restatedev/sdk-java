@@ -2,7 +2,7 @@
 package {{packageName}};
 {{/packageName}}
 
-import dev.restate.sdk.UnkeyedContext;
+import dev.restate.sdk.Context;
 import dev.restate.sdk.KeyedContext;
 import dev.restate.sdk.Awaitable;
 import dev.restate.sdk.common.syscalls.Syscalls;
@@ -18,15 +18,15 @@ public class {{className}} {
     /**
      * Create a new client from the given {@link KeyedContext}.
      */
-    public static {{serviceName}}RestateClient newClient(UnkeyedContext ctx) {
+    public static {{serviceName}}RestateClient newClient(Context ctx) {
         return new {{serviceName}}RestateClient(ctx);
     }
 
 {{{apidoc}}}
     public static final class {{serviceName}}RestateClient {
-        private final UnkeyedContext ctx;
+        private final Context ctx;
 
-        {{serviceName}}RestateClient(UnkeyedContext ctx) {
+        {{serviceName}}RestateClient(Context ctx) {
             this.ctx = ctx;
         }
 
@@ -51,9 +51,9 @@ public class {{className}} {
     }
 
     public static final class {{serviceName}}RestateOneWayClient {
-        private final UnkeyedContext ctx;
+        private final Context ctx;
 
-        {{serviceName}}RestateOneWayClient(UnkeyedContext ctx) {
+        {{serviceName}}RestateOneWayClient(Context ctx) {
             this.ctx = ctx;
         }
 
@@ -68,10 +68,10 @@ public class {{className}} {
     }
 
     public static final class {{serviceName}}RestateDelayedClient {
-        private final UnkeyedContext ctx;
+        private final Context ctx;
         private final Duration delay;
 
-        {{serviceName}}RestateDelayedClient(UnkeyedContext ctx, Duration delay) {
+        {{serviceName}}RestateDelayedClient(Context ctx, Duration delay) {
             this.ctx = ctx;
             this.delay = delay;
         }

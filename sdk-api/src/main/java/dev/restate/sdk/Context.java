@@ -30,7 +30,7 @@ import javax.annotation.concurrent.NotThreadSafe;
  * orderings of user actions, corrupting the execution of the invocation.
  */
 @NotThreadSafe
-public interface UnkeyedContext {
+public interface Context {
 
   /**
    * Invoke another Restate service method.
@@ -185,12 +185,12 @@ public interface UnkeyedContext {
    * underlying context implementation, so make sure to call it always from the same context where
    * the service is executed.
    */
-  static UnkeyedContext current() {
+  static Context current() {
     return fromSyscalls(Syscalls.current());
   }
 
   /** Build a RestateContext from the underlying {@link Syscalls} object. */
-  static UnkeyedContext fromSyscalls(Syscalls syscalls) {
+  static Context fromSyscalls(Syscalls syscalls) {
     return new ContextImpl(syscalls);
   }
 }

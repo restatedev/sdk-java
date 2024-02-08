@@ -10,7 +10,7 @@ package my.restate.sdk.examples;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import dev.restate.sdk.UnkeyedContext;
+import dev.restate.sdk.Context;
 import dev.restate.sdk.annotation.Service;
 import dev.restate.sdk.annotation.ServiceType;
 import dev.restate.sdk.annotation.Shared;
@@ -221,7 +221,7 @@ public class Loan {
 
   private static class MockBank extends BankRestate.BankRestateImplBase {
     @Override
-    public TransferResult transfer(UnkeyedContext context, TransferRequest request)
+    public TransferResult transfer(Context context, TransferRequest request)
         throws TerminalException {
       boolean shouldAccept = context.random().nextInt(3) != 1;
       if (shouldAccept) {
