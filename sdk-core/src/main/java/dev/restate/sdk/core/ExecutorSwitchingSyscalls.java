@@ -56,6 +56,11 @@ class ExecutorSwitchingSyscalls implements SyscallsInternal {
   }
 
   @Override
+  public void clearAll(SyscallCallback<Void> callback) {
+    syscallsExecutor.execute(() -> syscalls.clearAll(callback));
+  }
+
+  @Override
   public void set(String name, ByteString value, SyscallCallback<Void> callback) {
     syscallsExecutor.execute(() -> syscalls.set(name, value, callback));
   }

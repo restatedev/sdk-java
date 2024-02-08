@@ -49,6 +49,11 @@ class ContextImpl implements KeyedContext {
   }
 
   @Override
+  public void clearAll() {
+    Util.<Void>blockOnSyscall(syscalls::clearAll);
+  }
+
+  @Override
   public <T> void set(StateKey<T> key, @Nonnull T value) {
     Util.<Void>blockOnSyscall(
         cb ->

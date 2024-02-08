@@ -60,6 +60,12 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
     }
   }
 
+  override suspend fun clearAll() {
+    return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
+      syscalls.clearAll(completingUnitContinuation(cont))
+    }
+  }
+
   override suspend fun timer(duration: Duration): Awaitable<Unit> {
     val deferred: Deferred<Void> =
         suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<Void>> ->

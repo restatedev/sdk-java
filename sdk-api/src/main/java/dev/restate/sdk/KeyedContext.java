@@ -41,6 +41,9 @@ public interface KeyedContext extends UnkeyedContext {
    */
   void clear(StateKey<?> key);
 
+  /** Clears all the state of this service instance key-value state storage */
+  void clearAll();
+
   /**
    * Sets the given value under the given key, serializing the value using the {@link Serde} in the
    * {@link StateKey}.

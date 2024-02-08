@@ -164,7 +164,7 @@ class WorkflowManagerImpl extends WorkflowManagerRestate.WorkflowManagerRestateI
   @Override
   public void cleanup(KeyedContext context, WorkflowManagerRequest request)
       throws TerminalException {
-    // TODO could use https://github.com/restatedev/restate/issues/224
+    context.clearAll();
   }
 
   private StateKey<DurablePromiseCompletion> durablePromiseKey(String key) {

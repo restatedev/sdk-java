@@ -120,6 +120,19 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
+  public void clearAll(SyscallCallback<Void> callback) {
+    wrapAndPropagateExceptions(
+        () -> {
+          LOG.trace("clearAll");
+          this.stateMachine.processJournalEntry(
+              Protocol.ClearAllStateEntryMessage.newBuilder().build(),
+              ClearAllStateEntry.INSTANCE,
+              callback);
+        },
+        callback);
+  }
+
+  @Override
   public void set(String name, ByteString value, SyscallCallback<Void> callback) {
     wrapAndPropagateExceptions(
         () -> {

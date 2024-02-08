@@ -208,6 +208,30 @@ final class Entries {
     }
   }
 
+  static final class ClearAllStateEntry extends JournalEntry<ClearAllStateEntryMessage> {
+
+    static final ClearAllStateEntry INSTANCE = new ClearAllStateEntry();
+
+    private ClearAllStateEntry() {}
+
+    @Override
+    public void trace(ClearAllStateEntryMessage expected, Span span) {
+      span.addEvent("ClearAllState");
+    }
+
+    @Override
+    void checkEntryHeader(ClearAllStateEntryMessage expected, MessageLite actual)
+        throws ProtocolException {
+      Util.assertEntryEquals(expected, actual);
+    }
+
+    @Override
+    void updateUserStateStoreWithEntry(
+        ClearAllStateEntryMessage expected, UserStateStore userStateStore) {
+      userStateStore.clearAll();
+    }
+  }
+
   static final class SetStateEntry extends JournalEntry<SetStateEntryMessage> {
 
     static final SetStateEntry INSTANCE = new SetStateEntry();

@@ -11,10 +11,7 @@ package dev.restate.sdk.kotlin
 import dev.restate.sdk.common.CoreSerdes
 import dev.restate.sdk.common.StateKey
 import dev.restate.sdk.core.EagerStateTestSuite
-import dev.restate.sdk.core.testservices.GreeterGrpcKt
-import dev.restate.sdk.core.testservices.GreetingRequest
-import dev.restate.sdk.core.testservices.GreetingResponse
-import dev.restate.sdk.core.testservices.greetingResponse
+import dev.restate.sdk.core.testservices.*
 import io.grpc.BindableService
 import kotlinx.coroutines.Dispatchers
 import org.assertj.core.api.AssertionsForClassTypes.assertThat
@@ -74,5 +71,23 @@ class EagerStateTest : EagerStateTestSuite() {
 
   override fun getClearAndGet(): BindableService {
     return GetClearAndGet()
+  }
+
+  private class GetClearAllAndGet : GreeterRestateKt.GreeterRestateKtImplBase() {
+    override suspend fun greet(context: KeyedContext, request: GreetingRequest): GreetingResponse {
+      val ctx = KeyedContext.current()
+      val oldState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))!!
+
+      ctx.clearAll()
+
+      assertThat(ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))).isNull()
+      assertThat(ctx.get(StateKey.of("ANOTHER_STATE", CoreSerdes.JSON_STRING))).isNull()
+
+      return greetingResponse { message = oldState }
+    }
+  }
+
+  override fun getClearAllAndGet(): BindableService {
+    return GetClearAllAndGet()
   }
 }

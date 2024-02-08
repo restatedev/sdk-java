@@ -112,6 +112,7 @@ public final class Util {
         || msg instanceof Protocol.GetStateEntryMessage
         || msg instanceof Protocol.SetStateEntryMessage
         || msg instanceof Protocol.ClearStateEntryMessage
+        || msg instanceof Protocol.ClearAllStateEntryMessage
         || msg instanceof Protocol.SleepEntryMessage
         || msg instanceof Protocol.InvokeEntryMessage
         || msg instanceof Protocol.BackgroundInvokeEntryMessage
