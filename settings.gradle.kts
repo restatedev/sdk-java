@@ -22,7 +22,10 @@ include(
     "sdk-lambda",
     "sdk-testing",
     "examples",
-    "admin-client")
+    "admin-client",
+    "sdk-api-gen",
+    "sdk-workflow-api",
+)
 
 dependencyResolutionManagement {
   repositories { mavenCentral() }
@@ -37,12 +40,13 @@ dependencyResolutionManagement {
 
       library("protoc", "com.google.protobuf", "protoc").versionRef("protobuf")
       library("protobuf-java", "com.google.protobuf", "protobuf-java").versionRef("protobuf")
+      library("protobuf-util", "com.google.protobuf", "protobuf-java-util").versionRef("protobuf")
       library("protobuf-kotlin", "com.google.protobuf", "protobuf-kotlin").versionRef("protobuf")
 
       library("grpc-core", "io.grpc", "grpc-core").versionRef("grpc")
       library("grpc-stub", "io.grpc", "grpc-stub").versionRef("grpc")
       library("grpc-protobuf", "io.grpc", "grpc-protobuf").versionRef("grpc")
-      library("grpc-netty-shaded", "io.grpc", "grpc-netty-shaded").versionRef("grpc")
+      library("grpc-netty", "io.grpc", "grpc-netty-shaded").versionRef("grpc")
       library("grpc-api", "io.grpc", "grpc-api").versionRef("grpc")
       library("grpc-kotlin-stub", "io.grpc", "grpc-kotlin-stub").versionRef("grpckt")
 

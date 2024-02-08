@@ -10,6 +10,7 @@ package dev.restate.sdk;
 
 import dev.restate.sdk.common.AbortedExecutionException;
 import dev.restate.sdk.common.TerminalException;
+import dev.restate.sdk.common.function.ThrowingFunction;
 import dev.restate.sdk.common.syscalls.Deferred;
 import dev.restate.sdk.common.syscalls.Result;
 import dev.restate.sdk.common.syscalls.Syscalls;
@@ -76,12 +77,13 @@ public abstract class Awaitable<T> {
   }
 
   /** Map the result of this {@link Awaitable}. */
-  public final <U> Awaitable<U> map(Function<T, U> mapper) {
+  public final <U> Awaitable<U> map(ThrowingFunction<T, U> mapper) {
     return new MappedAwaitable<>(
         this,
         result -> {
           if (result.isSuccess()) {
-            return Result.success(mapper.apply(result.getValue()));
+            return Result.success(
+                Util.executeMappingException(this.syscalls, mapper, result.getValue()));
           }
           //noinspection unchecked
           return (Result<U>) result;

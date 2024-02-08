@@ -6,7 +6,7 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-package dev.restate.sdk.gen;
+package dev.restate.sdk.protocgen;
 
 import com.google.common.html.HtmlEscapers;
 import com.google.protobuf.DescriptorProtos;
@@ -180,7 +180,7 @@ public final class CodeGenUtils {
    * @return lower name
    */
   static String mixedLower(String word, boolean isKotlinGen) {
-    StringBuffer w = new StringBuffer();
+    StringBuilder w = new StringBuilder();
     w.append(Character.toLowerCase(word.charAt(0)));
 
     boolean afterUnderscore = false;

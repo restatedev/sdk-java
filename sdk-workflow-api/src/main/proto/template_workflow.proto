@@ -1,0 +1,49 @@
+// Copyright (c) 2023 - Restate Software, Inc., Restate GmbH
+//
+// This file is part of the Restate Java SDK,
+// which is released under the MIT license.
+//
+// You can find a copy of the license in file LICENSE in the root
+// directory of this repository or package, or at
+// https://github.com/restatedev/sdk-java/blob/main/LICENSE
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/struct.proto";
+import "dev/restate/ext.proto";
+import "dev/restate/sdk/workflow/workflow.proto";
+
+option java_multiple_files = true;
+option java_package = "dev.restate.sdk.workflow.template.generated";
+option java_outer_classname = "TemplateWorkflowProto";
+
+service Workflow {
+  option (dev.restate.ext.service_type) = UNKEYED;
+
+  rpc Submit(dev.restate.sdk.workflow.InvokeRequest) returns (dev.restate.sdk.workflow.SubmitResponse);
+  rpc InternalStart(dev.restate.sdk.workflow.InvokeRequest) returns (google.protobuf.Empty);
+  rpc InvokeTemplate(dev.restate.sdk.workflow.InvokeRequest) returns (google.protobuf.Value);
+}
+
+service WorkflowManager {
+  option (dev.restate.ext.service_type) = KEYED;
+
+  // State
+  rpc GetState(dev.restate.sdk.workflow.StateRequest) returns (dev.restate.sdk.workflow.GetStateResponse);
+  rpc SetState(dev.restate.sdk.workflow.SetStateRequest) returns (google.protobuf.Empty);
+  rpc ClearState(dev.restate.sdk.workflow.StateRequest) returns (google.protobuf.Empty);
+
+  // Start and output
+  rpc TryStart(dev.restate.sdk.workflow.StartRequest) returns (dev.restate.sdk.workflow.StartResponse);
+  rpc GetOutput(dev.restate.sdk.workflow.OutputRequest) returns (dev.restate.sdk.workflow.GetOutputResponse);
+  rpc SetOutput(dev.restate.sdk.workflow.SetOutputRequest) returns (google.protobuf.Empty);
+
+  // Durable promises
+  rpc WaitDurablePromiseCompletion(dev.restate.sdk.workflow.WaitDurablePromiseCompletionRequest) returns (google.protobuf.Empty);
+  rpc GetDurablePromiseCompletion(dev.restate.sdk.workflow.GetDurablePromiseCompletionRequest) returns (dev.restate.sdk.workflow.MaybeDurablePromiseCompletion);
+  rpc CompleteDurablePromise(dev.restate.sdk.workflow.CompleteDurablePromiseRequest) returns (google.protobuf.Empty);
+
+  // Others
+  rpc Cleanup(dev.restate.sdk.workflow.WorkflowManagerRequest) returns (google.protobuf.Empty);
+}
+

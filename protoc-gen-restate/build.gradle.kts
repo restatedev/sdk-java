@@ -15,10 +15,12 @@ dependencies {
   implementation("com.salesforce.servicelibs:jprotoc:1.2.2") {
     exclude("javax.annotation", "javax.annotation-api")
   }
-  implementation(project(":sdk-common"))
+  protobuf(project(":sdk-common"))
 }
 
-application { mainClass.set("dev.restate.sdk.gen.RestateGen") }
+protobuf { generateProtoTasks { ofSourceSet("main").forEach { it.builtins { java } } } }
+
+application { mainClass.set("dev.restate.sdk.protocgen.RestateGen") }
 
 tasks.named<ShadowJar>("shadowJar") {
   // Override the default jar

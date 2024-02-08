@@ -1,0 +1,35 @@
+{{#if packageName}}package {{packageName}};{{/if}}
+
+public class {{className}}ServiceAdapter implements dev.restate.sdk.common.ServiceAdapter<{{fqcn}}> {
+
+    @java.lang.Override
+    public dev.restate.sdk.workflow.impl.WorkflowServicesBundle adapt({{fqcn}} service) {
+        return dev.restate.sdk.workflow.impl.WorkflowServicesBundle.named(
+            "{{fqcn}}",
+            {{#methods}}{{#if isWorkflow}}
+            dev.restate.sdk.workflow.impl.WorkflowServicesBundle.MethodSignature.of("{{name}}", {{{inputSerdeDecl}}}, {{{outputSerdeDecl}}}),
+            (ctx, req) -> {
+            {{#if outputEmpty}}
+                {{#if inputEmpty}}service.{{name}}(ctx){{else}}service.{{name}}(ctx, req){{/if}};
+                return null;
+            {{else}}
+                return {{#if inputEmpty}}service.{{name}}(ctx){{else}}service.{{name}}(ctx, req){{/if}};
+            {{/if}}
+            }
+            {{/if}}{{/methods}})
+            {{#methods}}{{#if isShared}}
+            .{{builderMethod}}(
+            dev.restate.sdk.workflow.impl.WorkflowServicesBundle.MethodSignature.of("{{name}}", {{{inputSerdeDecl}}}, {{{outputSerdeDecl}}}),
+            (ctx, req) -> {
+                {{#if outputEmpty}}
+                {{#if inputEmpty}}service.{{name}}(ctx){{else}}service.{{name}}(ctx, req){{/if}};
+                return null;
+                {{else}}
+                return {{#if inputEmpty}}service.{{name}}(ctx){{else}}service.{{name}}(ctx, req){{/if}};
+                {{/if}}
+            })
+            {{/if}}{{/methods}}
+            .build();
+    }
+
+}

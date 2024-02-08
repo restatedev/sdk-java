@@ -1,0 +1,95 @@
+{{#if packageName}}package {{packageName}};{{/if}}
+
+import dev.restate.sdk.common.StateKey;
+import dev.restate.sdk.common.Serde;
+import dev.restate.sdk.Awaitable;
+import dev.restate.sdk.UnkeyedContext;
+import dev.restate.sdk.workflow.impl.WorkflowCodegenUtil;
+import java.util.Optional;
+import java.time.Duration;
+
+public class {{className}}RestateClient {
+
+    private static final String WORKFLOW_NAME = "{{fqcn}}";
+    private static final io.grpc.MethodDescriptor<dev.restate.sdk.workflow.generated.StateRequest, dev.restate.sdk.workflow.generated.GetStateResponse> WF_MANAGER_GET_STATE_METHOD_DESC = WorkflowCodegenUtil.generateMethodDescriptorForWorkflowManager(dev.restate.sdk.workflow.template.generated.WorkflowManagerGrpc.getGetStateMethod(), WORKFLOW_NAME);
+    private static final io.grpc.MethodDescriptor<dev.restate.sdk.workflow.generated.OutputRequest, dev.restate.sdk.workflow.generated.GetOutputResponse> WF_MANAGER_GET_OUTPUT_METHOD_DESC = WorkflowCodegenUtil.generateMethodDescriptorForWorkflowManager(dev.restate.sdk.workflow.template.generated.WorkflowManagerGrpc.getGetOutputMethod(), WORKFLOW_NAME);
+    private static final io.grpc.MethodDescriptor<dev.restate.sdk.workflow.generated.InvokeRequest, dev.restate.sdk.workflow.generated.SubmitResponse> WF_SUBMIT_METHOD_DESC = WorkflowCodegenUtil.generateMethodDescriptorForWorkflowSubmit(WORKFLOW_NAME);
+
+    {{#methods}}
+    private static final io.grpc.MethodDescriptor<dev.restate.sdk.workflow.generated.InvokeRequest, com.google.protobuf.Value> {{descFieldName}} = WorkflowCodegenUtil.generateMethodDescriptorForWorkflow(dev.restate.sdk.workflow.template.generated.WorkflowGrpc.getInvokeTemplateMethod(), WORKFLOW_NAME, "{{name}}");
+    {{^inputEmpty}}private static final Serde<{{{inputFqcn}}}> {{inputSerdeFieldName}} = {{{inputSerdeDecl}}};{{/inputEmpty}}
+    {{^outputEmpty}}private static final Serde<{{{outputFqcn}}}> {{outputSerdeFieldName}} = {{{outputSerdeDecl}}};{{/outputEmpty}}
+    {{/methods}}
+
+    private final UnkeyedContext restateContext;
+    private final String workflowKey;
+
+    public {{className}}RestateClient(UnkeyedContext restateContext, String workflowKey) {
+        this.restateContext = restateContext;
+        this.workflowKey = workflowKey;
+    }
+
+    {{#methods}}{{#if isWorkflow}}
+    public Awaitable<dev.restate.sdk.workflow.generated.WorkflowExecutionState> submit({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
+        return WorkflowCodegenUtil.RestateClient.submit(restateContext, WF_SUBMIT_METHOD_DESC, workflowKey, {{#if inputEmpty}}null{{else}}WorkflowCodegenUtil.tToValue({{inputSerdeFieldName}}, req){{/if}});
+    }
+
+    public Awaitable<Boolean> isCompleted() {
+        return WorkflowCodegenUtil.RestateClient.isCompleted(restateContext, WF_MANAGER_GET_OUTPUT_METHOD_DESC, workflowKey);
+    }
+
+    {{^outputEmpty}}
+    public Awaitable<Optional<{{{outputFqcn}}}>> getOutput() {
+        return WorkflowCodegenUtil.RestateClient.getOutput(restateContext, WF_MANAGER_GET_OUTPUT_METHOD_DESC, workflowKey, {{outputSerdeFieldName}});
+    }{{/outputEmpty}}
+    {{/if}}{{/methods}}
+    
+    public <T> Awaitable<Optional<T>> getState(StateKey<T> key) {
+        return WorkflowCodegenUtil.RestateClient.getState(restateContext, WF_MANAGER_GET_STATE_METHOD_DESC, workflowKey, key);
+    }
+
+    {{#methods}}{{#if isShared}}
+    public {{#if outputEmpty}}Awaitable<Void>{{else}}Awaitable<{{{outputFqcn}}}>{{/if}} {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
+        Awaitable<com.google.protobuf.Value> response = WorkflowCodegenUtil.RestateClient.invokeShared(restateContext, {{descFieldName}}, workflowKey, {{#if inputEmpty}}null{{else}}WorkflowCodegenUtil.tToValue({{inputSerdeFieldName}}, req){{/if}});
+        {{#if outputEmpty}}
+            return response.map(v -> { return null; });
+        {{else}}
+            return response.map(v -> WorkflowCodegenUtil.valueToT({{outputSerdeFieldName}}, v));
+        {{/if}}
+    }
+    {{/if}}{{/methods}}
+
+    public {{className}}OneWayExternalClient oneWay() {
+        return new {{className}}OneWayExternalClient();
+    }
+
+    public {{className}}DelayedExternalClient delayed(Duration delay) {
+        return new {{className}}DelayedExternalClient(delay);
+    }
+
+    public class {{className}}OneWayExternalClient {
+
+        {{#methods}}{{#if isShared}}
+        public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
+            WorkflowCodegenUtil.RestateClient.invokeSharedOneWay(restateContext, {{descFieldName}}, workflowKey, {{#if inputEmpty}}null{{else}}WorkflowCodegenUtil.tToValue({{inputSerdeFieldName}}, req){{/if}});
+        }
+        {{/if}}{{/methods}}
+
+    }
+
+    public class {{className}}DelayedExternalClient {
+
+        private final Duration delay;
+
+        {{className}}DelayedExternalClient(Duration delay) {
+            this.delay = delay;
+        }
+
+        {{#methods}}{{#if isShared}}
+        public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
+            WorkflowCodegenUtil.RestateClient.invokeSharedDelayed(restateContext, {{descFieldName}}, workflowKey, {{#if inputEmpty}}null{{else}}WorkflowCodegenUtil.tToValue({{inputSerdeFieldName}}, req){{/if}}, delay);
+        }
+        {{/if}}{{/methods}}
+
+    }
+}

@@ -1,0 +1,33 @@
+// Copyright (c) 2023 - Restate Software, Inc., Restate GmbH
+//
+// This file is part of the Restate Java SDK,
+// which is released under the MIT license.
+//
+// You can find a copy of the license in file LICENSE in the root
+// directory of this repository or package, or at
+// https://github.com/restatedev/sdk-java/blob/main/LICENSE
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+import "dev/restate/ext.proto";
+
+package bank;
+
+option java_multiple_files = true;
+option java_package = "my.restate.sdk.examples.generated.bank";
+
+service Bank {
+  option (dev.restate.ext.service_type) = UNKEYED;
+
+  rpc Transfer (TransferRequest) returns (TransferResult);
+}
+
+message TransferRequest {
+  string bank_account = 1;
+
+  string amount = 2;
+}
+
+message TransferResult {
+  string execution_time = 1;
+}
