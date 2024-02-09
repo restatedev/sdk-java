@@ -14,6 +14,7 @@ import dev.restate.sdk.common.TerminalException;
 import io.grpc.Context;
 import io.grpc.MethodDescriptor;
 import java.time.Duration;
+import java.util.*;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -60,6 +61,8 @@ public interface Syscalls {
   // ----- State
 
   void get(String name, SyscallCallback<Deferred<ByteString>> callback);
+
+  void getKeys(SyscallCallback<Deferred<Collection<String>>> callback);
 
   void clear(String name, SyscallCallback<Void> callback);
 

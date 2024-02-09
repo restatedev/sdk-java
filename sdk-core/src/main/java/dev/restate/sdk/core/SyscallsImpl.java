@@ -23,9 +23,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.AbstractMap;
-import java.util.Base64;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
@@ -99,6 +97,19 @@ public final class SyscallsImpl implements SyscallsInternal {
                   .setKey(ByteString.copyFromUtf8(name))
                   .build(),
               GetStateEntry.INSTANCE,
+              callback);
+        },
+        callback);
+  }
+
+  @Override
+  public void getKeys(SyscallCallback<Deferred<Collection<String>>> callback) {
+    wrapAndPropagateExceptions(
+        () -> {
+          LOG.trace("get keys");
+          this.stateMachine.processCompletableJournalEntry(
+              Protocol.GetStateKeysEntryMessage.newBuilder().build(),
+              GetStateKeysEntry.INSTANCE,
               callback);
         },
         callback);

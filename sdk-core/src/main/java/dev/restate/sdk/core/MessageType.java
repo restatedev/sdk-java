@@ -30,6 +30,7 @@ public enum MessageType {
   SetStateEntryMessage,
   ClearStateEntryMessage,
   ClearAllStateEntryMessage,
+  GetStateKeysEntryMessage,
 
   // Syscalls
   SleepEntryMessage,
@@ -54,6 +55,7 @@ public enum MessageType {
   public static final short SET_STATE_ENTRY_MESSAGE_TYPE = 0x0801;
   public static final short CLEAR_STATE_ENTRY_MESSAGE_TYPE = 0x0802;
   public static final short CLEAR_ALL_STATE_ENTRY_MESSAGE_TYPE = 0x0803;
+  public static final short GET_STATE_KEYS_ENTRY_MESSAGE_TYPE = 0x0804;
   public static final short SLEEP_ENTRY_MESSAGE_TYPE = 0x0C00;
   public static final short INVOKE_ENTRY_MESSAGE_TYPE = 0x0C01;
   public static final short BACKGROUND_INVOKE_ENTRY_MESSAGE_TYPE = 0x0C02;
@@ -88,6 +90,8 @@ public enum MessageType {
         return Protocol.ClearStateEntryMessage.parser();
       case ClearAllStateEntryMessage:
         return Protocol.ClearAllStateEntryMessage.parser();
+      case GetStateKeysEntryMessage:
+        return Protocol.GetStateKeysEntryMessage.parser();
       case SleepEntryMessage:
         return Protocol.SleepEntryMessage.parser();
       case InvokeEntryMessage:
@@ -132,6 +136,8 @@ public enum MessageType {
         return CLEAR_STATE_ENTRY_MESSAGE_TYPE;
       case ClearAllStateEntryMessage:
         return CLEAR_ALL_STATE_ENTRY_MESSAGE_TYPE;
+      case GetStateKeysEntryMessage:
+        return GET_STATE_KEYS_ENTRY_MESSAGE_TYPE;
       case SleepEntryMessage:
         return SLEEP_ENTRY_MESSAGE_TYPE;
       case InvokeEntryMessage:
@@ -176,6 +182,8 @@ public enum MessageType {
         return ClearStateEntryMessage;
       case CLEAR_ALL_STATE_ENTRY_MESSAGE_TYPE:
         return ClearAllStateEntryMessage;
+      case GET_STATE_KEYS_ENTRY_MESSAGE_TYPE:
+        return GetStateKeysEntryMessage;
       case SLEEP_ENTRY_MESSAGE_TYPE:
         return SleepEntryMessage;
       case INVOKE_ENTRY_MESSAGE_TYPE:

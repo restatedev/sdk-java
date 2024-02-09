@@ -209,6 +209,11 @@ public class ProtoUtils {
 
   public static Protocol.EndMessage END_MESSAGE = Protocol.EndMessage.getDefaultInstance();
 
+  public static Protocol.GetStateKeysEntryMessage.StateKeys.Builder stateKeys(String... keys) {
+    return Protocol.GetStateKeysEntryMessage.StateKeys.newBuilder()
+        .addAllKeys(Arrays.stream(keys).map(ByteString::copyFromUtf8).collect(Collectors.toList()));
+  }
+
   static MessageLite build(MessageLiteOrBuilder value) {
     if (value instanceof MessageLite) {
       return (MessageLite) value;

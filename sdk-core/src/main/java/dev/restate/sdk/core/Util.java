@@ -90,7 +90,7 @@ public final class Util {
 
   static void assertIsEntry(MessageLite msg) {
     if (!isEntry(msg)) {
-      throw new IllegalStateException("Expected input to be entry");
+      throw new IllegalStateException("Expected input to be entry: " + msg);
     }
   }
 
@@ -110,6 +110,7 @@ public final class Util {
     return msg instanceof Protocol.PollInputStreamEntryMessage
         || msg instanceof Protocol.OutputStreamEntryMessage
         || msg instanceof Protocol.GetStateEntryMessage
+        || msg instanceof Protocol.GetStateKeysEntryMessage
         || msg instanceof Protocol.SetStateEntryMessage
         || msg instanceof Protocol.ClearStateEntryMessage
         || msg instanceof Protocol.ClearAllStateEntryMessage

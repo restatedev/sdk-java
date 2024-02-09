@@ -47,6 +47,25 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
     return key.serde().deserializeWrappingException(syscalls, readyResult.value!!)!!
   }
 
+  override suspend fun stateKeys(): Collection<String> {
+    val deferred: Deferred<Collection<String>> =
+        suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<Collection<String>>> ->
+          syscalls.getKeys(completingContinuation(cont))
+        }
+
+    if (!deferred.isCompleted) {
+      suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
+        syscalls.resolveDeferred(deferred, completingUnitContinuation(cont))
+      }
+    }
+
+    val readyResult = deferred.toResult()!!
+    if (!readyResult.isSuccess) {
+      throw readyResult.failure!!
+    }
+    return readyResult.value!!
+  }
+
   override suspend fun <T : Any> set(key: StateKey<T>, value: T) {
     val serializedValue = key.serde().serializeWrappingException(syscalls, value)!!
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->

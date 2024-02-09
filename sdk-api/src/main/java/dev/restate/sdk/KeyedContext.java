@@ -10,6 +10,7 @@ package dev.restate.sdk;
 
 import dev.restate.sdk.common.*;
 import dev.restate.sdk.common.syscalls.Syscalls;
+import java.util.Collection;
 import java.util.Optional;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -33,6 +34,13 @@ public interface KeyedContext extends UnkeyedContext {
    * @throws RuntimeException when the state cannot be deserialized.
    */
   <T> Optional<T> get(StateKey<T> key);
+
+  /**
+   * Gets all the known state keys for this service instance.
+   *
+   * @return the immutable collection of known state keys.
+   */
+  Collection<String> stateKeys();
 
   /**
    * Clears the state stored under key.
