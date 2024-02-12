@@ -11,6 +11,7 @@ package dev.restate.sdk.lambda;
 import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.sdk.common.BlockingService;
 import dev.restate.sdk.common.Service;
+import dev.restate.sdk.common.ServiceAdapter;
 import dev.restate.sdk.core.RestateEndpoint;
 import io.grpc.ServerInterceptor;
 import io.grpc.ServerInterceptors;
@@ -44,8 +45,12 @@ public final class RestateLambdaEndpointBuilder {
    * code.
    */
   public RestateLambdaEndpointBuilder with(Object service) {
-    List<BlockingService> services = RestateEndpoint.adapt(service).services();
-    for (BlockingService svc : services) {
+    return this.with(service, RestateEndpoint.discoverAdapter(service));
+  }
+
+  public <T> RestateLambdaEndpointBuilder with(T service, ServiceAdapter<T> adapter) {
+    List<BlockingService> services = adapter.adapt(service).services();
+    for (Service svc : services) {
       this.restateGrpcServerBuilder.withService(svc);
     }
 

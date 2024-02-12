@@ -135,10 +135,10 @@ class WorkflowManagerImpl extends WorkflowManagerRestate.WorkflowManagerRestateI
       return maybeResponse.get();
     }
 
-    StartResponse response =
-        StartResponse.newBuilder().setState(WorkflowExecutionState.STARTED).build();
-    context.set(WORKFLOW_EXECUTION_STATE_KEY, response);
-    return response;
+    context.set(
+        WORKFLOW_EXECUTION_STATE_KEY,
+        StartResponse.newBuilder().setState(WorkflowExecutionState.ALREADY_STARTED).build());
+    return StartResponse.newBuilder().setState(WorkflowExecutionState.STARTED).build();
   }
 
   @Override
@@ -159,6 +159,9 @@ class WorkflowManagerImpl extends WorkflowManagerRestate.WorkflowManagerRestateI
   @Override
   public void setOutput(KeyedContext context, SetOutputRequest request) throws TerminalException {
     context.set(OUTPUT_KEY, request.getOutput());
+    context.set(
+        WORKFLOW_EXECUTION_STATE_KEY,
+        StartResponse.newBuilder().setState(WorkflowExecutionState.ALREADY_COMPLETED).build());
   }
 
   @Override
