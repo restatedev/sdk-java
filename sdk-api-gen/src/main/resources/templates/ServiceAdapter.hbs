@@ -2,10 +2,12 @@
 
 public class {{className}}ServiceAdapter implements dev.restate.sdk.common.ServiceAdapter<{{fqcn}}> {
 
+    public static final String SERVICE_NAME = "{{fqcn}}";
+
     @java.lang.Override
     public dev.restate.sdk.workflow.impl.WorkflowServicesBundle adapt({{fqcn}} service) {
         return dev.restate.sdk.workflow.impl.WorkflowServicesBundle.named(
-            "{{fqcn}}",
+            SERVICE_NAME,
             {{#methods}}{{#if isWorkflow}}
             dev.restate.sdk.workflow.impl.WorkflowServicesBundle.MethodSignature.of("{{name}}", {{{inputSerdeDecl}}}, {{{outputSerdeDecl}}}),
             (ctx, req) -> {

@@ -10,7 +10,6 @@ package dev.restate.sdk.core;
 
 import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.sdk.common.ServiceAdapter;
-import dev.restate.sdk.common.ServicesBundle;
 import io.grpc.*;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
@@ -221,11 +220,12 @@ public class RestateEndpoint {
   }
 
   /** Resolve the code generated {@link ServiceAdapter} */
-  public static ServicesBundle adapt(Object entity) {
+  public static ServiceAdapter<Object> discoverAdapter(Object entity) {
     Class<?> userClazz = entity.getClass();
 
     // Find Service code-generated class
     // TODO This could be done with an SPI
+    // TODO This should support interfaces
     Class<?> serviceAdapterClazz;
     try {
       serviceAdapterClazz = Class.forName(userClazz.getCanonicalName() + "ServiceAdapter");
@@ -251,6 +251,6 @@ public class RestateEndpoint {
           e);
     }
 
-    return serviceAdapter.adapt(entity);
+    return serviceAdapter;
   }
 }
