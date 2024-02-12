@@ -10,6 +10,7 @@ package dev.restate.sdk.testing;
 
 import dev.restate.sdk.common.BlockingService;
 import dev.restate.sdk.common.NonBlockingService;
+import dev.restate.sdk.common.ServiceAdapter;
 import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder;
 import io.grpc.ServerInterceptor;
 import java.util.HashMap;
@@ -74,6 +75,47 @@ public class RestateRunnerBuilder {
   public RestateRunnerBuilder withService(
       NonBlockingService service, ServerInterceptor... interceptors) {
     this.endpointBuilder.withService(service, interceptors);
+    return this;
+  }
+
+  /**
+   * Add a Restate service to the endpoint. This will automatically discover the adapter based on
+   * the class name. You can provide the adapter manually using {@link #with(Object,
+   * ServiceAdapter)}
+   */
+  public RestateRunnerBuilder with(Object service) {
+    this.endpointBuilder.with(service);
+    return this;
+  }
+
+  /**
+   * Add a Restate service to the endpoint, specifying the {@code executor} where to run the service
+   * code. This will automatically discover the adapter based on the class name. You can provide the
+   * adapter manually using {@link #with(Object, ServiceAdapter, Executor)}
+   *
+   * <p>You can run on virtual threads by using the executor {@code
+   * Executors.newVirtualThreadPerTaskExecutor()}.
+   */
+  public RestateRunnerBuilder with(Object service, Executor executor) {
+    this.endpointBuilder.with(service, executor);
+    return this;
+  }
+
+  /** Add a Restate service to the endpoint, specifying an adapter. */
+  public <T> RestateRunnerBuilder with(T service, ServiceAdapter<T> adapter) {
+    this.endpointBuilder.with(service, adapter);
+    return this;
+  }
+
+  /**
+   * Add a Restate service to the endpoint, specifying the {@code executor} where to run the service
+   * code.
+   *
+   * <p>You can run on virtual threads by using the executor {@code
+   * Executors.newVirtualThreadPerTaskExecutor()}.
+   */
+  public <T> RestateRunnerBuilder with(T service, ServiceAdapter<T> adapter, Executor executor) {
+    this.endpointBuilder.with(service, adapter, executor);
     return this;
   }
 
