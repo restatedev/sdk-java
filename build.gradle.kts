@@ -71,7 +71,10 @@ allprojects {
         arrayOf(
             "io.vertx:vertx-stack-depchain", // Vertx bom file
             "com.google.guava:guava-parent", // Guava bom
-            "org.jetbrains.kotlinx:kotlinx-coroutines-core", // Kotlinx coroutines bom file
+            // kotlinx dependencies are APL 2, but somehow the plugin doesn't recognize that.
+            "org.jetbrains.kotlinx:kotlinx-coroutines-core",
+            "org.jetbrains.kotlinx:kotlinx-serialization-core",
+            "org.jetbrains.kotlinx:kotlinx-serialization-json",
         )
 
     allowedLicensesFile = file("$rootDir/config/allowed-licenses.json")
