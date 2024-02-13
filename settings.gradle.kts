@@ -86,6 +86,10 @@ dependencyResolutionManagement {
     create("kotlinLibs") {
       library("kotlinx-coroutines", "org.jetbrains.kotlinx", "kotlinx-coroutines-core")
           .version("1.7.3")
+      library("kotlinx-serialization-core", "org.jetbrains.kotlinx", "kotlinx-serialization-core")
+          .version("1.6.2")
+      library("kotlinx-serialization-json", "org.jetbrains.kotlinx", "kotlinx-serialization-json")
+          .version("1.6.2")
     }
     create("testingLibs") {
       version("junit-jupiter", "5.9.1")

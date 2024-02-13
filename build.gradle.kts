@@ -5,6 +5,7 @@ import org.gradle.api.tasks.testing.logging.TestLogEvent
 plugins {
   java
   kotlin("jvm") version "1.9.20" apply false
+  kotlin("plugin.serialization") version "1.9.20" apply false
 
   id("net.ltgt.errorprone") version "3.0.1"
   id("com.github.jk1.dependency-license-report") version "2.0"
@@ -70,7 +71,10 @@ allprojects {
         arrayOf(
             "io.vertx:vertx-stack-depchain", // Vertx bom file
             "com.google.guava:guava-parent", // Guava bom
-            "org.jetbrains.kotlinx:kotlinx-coroutines-core", // Kotlinx coroutines bom file
+            // kotlinx dependencies are APL 2, but somehow the plugin doesn't recognize that.
+            "org.jetbrains.kotlinx:kotlinx-coroutines-core",
+            "org.jetbrains.kotlinx:kotlinx-serialization-core",
+            "org.jetbrains.kotlinx:kotlinx-serialization-json",
         )
 
     allowedLicensesFile = file("$rootDir/config/allowed-licenses.json")

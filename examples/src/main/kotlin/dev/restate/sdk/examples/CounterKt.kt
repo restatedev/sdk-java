@@ -8,18 +8,18 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.examples
 
-import dev.restate.sdk.common.CoreSerdes
 import dev.restate.sdk.common.StateKey
 import dev.restate.sdk.examples.generated.*
 import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder
 import dev.restate.sdk.kotlin.KeyedContext
+import dev.restate.sdk.kotlin.KtSerdes
 import org.apache.logging.log4j.LogManager
 
 class CounterKt : CounterRestateKt.CounterRestateKtImplBase() {
 
   private val LOG = LogManager.getLogger(CounterKt::class.java)
 
-  private val TOTAL = StateKey.of("total", CoreSerdes.JSON_LONG)
+  private val TOTAL = StateKey.of<Long>("total", KtSerdes.json())
 
   override suspend fun reset(context: KeyedContext, request: CounterRequest) {
     context.clear(TOTAL)
