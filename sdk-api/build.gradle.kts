@@ -16,6 +16,7 @@ dependencies {
 
   implementation(coreLibs.protobuf.util)
   implementation(coreLibs.grpc.stub)
+  implementation(coreLibs.grpc.protobuf)
 
   testCompileOnly(coreLibs.javax.annotation.api)
 
@@ -23,8 +24,6 @@ dependencies {
   testImplementation(testingLibs.junit.jupiter)
   testImplementation(testingLibs.assertj)
   testImplementation(coreLibs.protobuf.java)
-  testImplementation(coreLibs.grpc.stub)
-  testImplementation(coreLibs.grpc.protobuf)
   testImplementation(coreLibs.log4j.core)
 
   // Import test suites from sdk-core
