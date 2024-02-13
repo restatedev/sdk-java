@@ -3,6 +3,7 @@ import com.google.protobuf.gradle.id
 plugins {
   java
   kotlin("jvm")
+  kotlin("plugin.serialization")
   `library-publishing-conventions`
 }
 
@@ -12,6 +13,8 @@ dependencies {
   api(project(":sdk-common"))
 
   implementation(kotlinLibs.kotlinx.coroutines)
+  implementation(kotlinLibs.kotlinx.serialization.core)
+  implementation(kotlinLibs.kotlinx.serialization.json)
 
   testImplementation(project(":sdk-core"))
   testImplementation(testingLibs.junit.jupiter)

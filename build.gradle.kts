@@ -5,6 +5,7 @@ import org.gradle.api.tasks.testing.logging.TestLogEvent
 plugins {
   java
   kotlin("jvm") version "1.9.20" apply false
+  kotlin("plugin.serialization") version "1.9.20" apply false
 
   id("net.ltgt.errorprone") version "3.0.1"
   id("com.github.jk1.dependency-license-report") version "2.0"

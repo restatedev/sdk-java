@@ -212,8 +212,7 @@ sealed interface Context {
 sealed interface KeyedContext : Context {
 
   /**
-   * Gets the state stored under key, deserializing the raw value using the registered
-   * [dev.restate.sdk.core.serde.Serde] in the interceptor.
+   * Gets the state stored under key, deserializing the raw value using the [StateKey.serde].
    *
    * @param key identifying the state to get and its type.
    * @return the value containing the stored state deserialized.
@@ -229,8 +228,7 @@ sealed interface KeyedContext : Context {
   suspend fun stateKeys(): Collection<String>
 
   /**
-   * Sets the given value under the given key, serializing the value using the registered
-   * [dev.restate.sdk.core.serde.Serde] in the interceptor.
+   * Sets the given value under the given key, serializing the value using the [StateKey.serde].
    *
    * @param key identifying the value to store and its type.
    * @param value to store under the given key.
