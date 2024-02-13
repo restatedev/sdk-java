@@ -37,7 +37,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 @Service(ServiceType.WORKFLOW)
-public class Loan {
+public class LoanWorkflow {
 
   // --- Data types used by the Loan Worfklow
 
@@ -86,7 +86,7 @@ public class Loan {
     }
   }
 
-  private static final Logger LOG = LogManager.getLogger(Loan.class);
+  private static final Logger LOG = LogManager.getLogger(LoanWorkflow.class);
 
   private static final StateKey<Status> STATUS =
       StateKey.of("status", JacksonSerdes.of(Status.class));
@@ -160,7 +160,7 @@ public class Loan {
 
   public static void main(String[] args) {
     RestateHttpEndpointBuilder.builder()
-        .with(new Loan())
+        .with(new LoanWorkflow())
         .withService(new MockBank())
         .buildAndListen();
 
@@ -176,7 +176,7 @@ public class Loan {
     // To invoke the workflow:
     Channel restateChannel =
         NettyChannelBuilder.forAddress("127.0.0.1", 8080).usePlaintext().build();
-    LoanExternalClient client = new LoanExternalClient(restateChannel, "my-loan");
+    LoanWorkflowExternalClient client = new LoanWorkflowExternalClient(restateChannel, "my-loan");
 
     WorkflowExecutionState state =
         client.submit(

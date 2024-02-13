@@ -18,6 +18,8 @@ import java.util.regex.Pattern;
 
 class WorkflowMangledDescriptors {
 
+  static final String MANAGER_SERVICE_SUFFIX = "InternalManager";
+
   private final Descriptors.FileDescriptor outputFileDescriptor;
   private final String workflowServiceFqsn;
   private final String workflowServiceSimpleName;
@@ -84,7 +86,7 @@ class WorkflowMangledDescriptors {
             workflowServicesBundle.getSimpleName(),
             workflowServicesBundle.getSharedMethods());
     String workflowManagerServiceSimpleName =
-        mangleWorkflowOrchestratorDescriptor(
+        mangleWorkflowManagerDescriptor(
             protoDescriptorBuilder, workflowServicesBundle.getSimpleName());
 
     String workflowServiceFqcn =
@@ -116,13 +118,12 @@ class WorkflowMangledDescriptors {
 
   private static String mangleWorkflowDescriptor(
       DescriptorProtos.FileDescriptorProto.Builder protoDescriptorBuilder,
-      String prefix,
+      String newSimpleName,
       Set<String> methods) {
     var serviceDescriptorBuilder = protoDescriptorBuilder.getServiceBuilder(0);
 
     // Prefix service name
-    String newServiceName = prefix + protoDescriptorBuilder.getService(0).getName();
-    serviceDescriptorBuilder.setName(newServiceName);
+    serviceDescriptorBuilder.setName(newSimpleName);
 
     // Unroll methods
     assert serviceDescriptorBuilder.getMethodCount() == 3;
@@ -136,13 +137,13 @@ class WorkflowMangledDescriptors {
     // Update original descriptor builder
     protoDescriptorBuilder.setService(0, serviceDescriptorBuilder);
 
-    return newServiceName;
+    return newSimpleName;
   }
 
-  private static String mangleWorkflowOrchestratorDescriptor(
+  private static String mangleWorkflowManagerDescriptor(
       DescriptorProtos.FileDescriptorProto.Builder protoDescriptorBuilder, String prefix) {
     // Prefix service name
-    String newServiceName = prefix + protoDescriptorBuilder.getService(1).getName();
+    String newServiceName = prefix + MANAGER_SERVICE_SUFFIX;
     protoDescriptorBuilder.setService(
         1, protoDescriptorBuilder.getServiceBuilder(1).setName(newServiceName));
 
