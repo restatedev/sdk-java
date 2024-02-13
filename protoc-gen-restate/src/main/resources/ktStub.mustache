@@ -2,7 +2,7 @@
 package {{packageName}};
 {{/packageName}}
 
-import dev.restate.sdk.kotlin.UnkeyedContext;
+import dev.restate.sdk.kotlin.Context;
 import dev.restate.sdk.kotlin.KeyedContext;
 import dev.restate.sdk.kotlin.Awaitable;
 import dev.restate.sdk.kotlin.RestateKtService;
@@ -18,14 +18,14 @@ import kotlin.time.Duration
 public object {{className}} {
 
     /**
-     * Create a new client from the given [UnkeyedContext].
+     * Create a new client from the given [Context].
      */
-    fun newClient(ctx: UnkeyedContext): {{serviceName}}RestateKtClient {
+    fun newClient(ctx: Context): {{serviceName}}RestateKtClient {
         return {{serviceName}}RestateKtClient(ctx);
     }
 
 {{{javadoc}}}
-    public class {{serviceName}}RestateKtClient(private val ctx: UnkeyedContext) {
+    public class {{serviceName}}RestateKtClient(private val ctx: Context) {
         // Create a variant of this client to execute oneWay calls.
         public fun oneWay(): {{serviceName}}RestateKtOneWayClient {
             return {{serviceName}}RestateKtOneWayClient(ctx);
@@ -46,7 +46,7 @@ public object {{className}} {
         {{/methods}}
     }
 
-    public class {{serviceName}}RestateKtOneWayClient(private val ctx: UnkeyedContext) {
+    public class {{serviceName}}RestateKtOneWayClient(private val ctx: Context) {
         {{#methods}}
         {{#deprecated}}@Deprecated{{/deprecated}}
 {{{javadoc}}}
@@ -57,7 +57,7 @@ public object {{className}} {
         {{/methods}}
     }
 
-    public class {{serviceName}}RestateKtDelayedClient(private val ctx: UnkeyedContext, private val delay: Duration) {
+    public class {{serviceName}}RestateKtDelayedClient(private val ctx: Context, private val delay: Duration) {
         {{#methods}}
         {{#deprecated}}@Deprecated{{/deprecated}}
 {{{javadoc}}}

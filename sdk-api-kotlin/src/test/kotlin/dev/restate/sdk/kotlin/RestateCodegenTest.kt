@@ -30,27 +30,27 @@ class RestateCodegenTest : RestateCodegenTestSuite() {
   }
 
   private class Codegen : CodegenRestateKtImplBase() {
-    override suspend fun emptyInput(context: UnkeyedContext): MyMessage {
+    override suspend fun emptyInput(context: Context): MyMessage {
       val client = CodegenRestateKt.newClient(context)
       return client.emptyInput().await()
     }
 
-    override suspend fun emptyOutput(context: UnkeyedContext, request: MyMessage) {
+    override suspend fun emptyOutput(context: Context, request: MyMessage) {
       val client = CodegenRestateKt.newClient(context)
       client.emptyOutput(request).await()
     }
 
-    override suspend fun emptyInputOutput(context: UnkeyedContext) {
+    override suspend fun emptyInputOutput(context: Context) {
       val client = CodegenRestateKt.newClient(context)
       client.emptyInputOutput().await()
     }
 
-    override suspend fun oneWay(context: UnkeyedContext, request: MyMessage): MyMessage {
+    override suspend fun oneWay(context: Context, request: MyMessage): MyMessage {
       val client = CodegenRestateKt.newClient(context)
       return client._oneWay(request).await()
     }
 
-    override suspend fun delayed(context: UnkeyedContext, request: MyMessage): MyMessage {
+    override suspend fun delayed(context: Context, request: MyMessage): MyMessage {
       val client = CodegenRestateKt.newClient(context)
       return client._delayed(request).await()
     }

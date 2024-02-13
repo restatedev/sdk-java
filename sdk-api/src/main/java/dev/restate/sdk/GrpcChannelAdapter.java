@@ -18,9 +18,9 @@ import javax.annotation.Nullable;
  * <p>Keep in mind that this channel should be used only with generated blocking stubs.
  */
 public class GrpcChannelAdapter extends Channel {
-  private final UnkeyedContext ctx;
+  private final Context ctx;
 
-  GrpcChannelAdapter(UnkeyedContext ctx) {
+  GrpcChannelAdapter(Context ctx) {
     this.ctx = ctx;
   }
 

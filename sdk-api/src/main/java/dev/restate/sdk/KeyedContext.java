@@ -16,13 +16,13 @@ import javax.annotation.Nonnull;
 import javax.annotation.concurrent.NotThreadSafe;
 
 /**
- * This interface extends {@link UnkeyedContext} adding access to the service instance key-value
- * state storage
+ * This interface extends {@link Context} adding access to the service instance key-value state
+ * storage
  *
- * @see UnkeyedContext
+ * @see Context
  */
 @NotThreadSafe
-public interface KeyedContext extends UnkeyedContext {
+public interface KeyedContext extends Context {
 
   /**
    * Gets the state stored under key, deserializing the raw value using the {@link Serde} in the

@@ -124,7 +124,7 @@ public class RestateGen extends Generator {
     // Resolve context type
     serviceContext.contextType =
         serviceProto.getOptions().getExtension(Ext.serviceType) == ServiceType.UNKEYED
-            ? "UnkeyedContext"
+            ? "Context"
             : "KeyedContext";
 
     // Resolve javadoc

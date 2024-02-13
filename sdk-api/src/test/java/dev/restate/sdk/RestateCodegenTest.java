@@ -35,31 +35,31 @@ public class RestateCodegenTest extends RestateCodegenTestSuite {
   private static class Codegen extends CodegenRestate.CodegenRestateImplBase {
 
     @Override
-    public MyMessage emptyInput(UnkeyedContext context) {
+    public MyMessage emptyInput(Context context) {
       CodegenRestate.CodegenRestateClient client = CodegenRestate.newClient(context);
       return client.emptyInput().await();
     }
 
     @Override
-    public void emptyOutput(UnkeyedContext context, MyMessage request) {
+    public void emptyOutput(Context context, MyMessage request) {
       CodegenRestate.CodegenRestateClient client = CodegenRestate.newClient(context);
       client.emptyOutput(request).await();
     }
 
     @Override
-    public void emptyInputOutput(UnkeyedContext context) {
+    public void emptyInputOutput(Context context) {
       CodegenRestate.CodegenRestateClient client = CodegenRestate.newClient(context);
       client.emptyInputOutput().await();
     }
 
     @Override
-    public MyMessage oneWay(UnkeyedContext context, MyMessage request) {
+    public MyMessage oneWay(Context context, MyMessage request) {
       CodegenRestate.CodegenRestateClient client = CodegenRestate.newClient(context);
       return client._oneWay(request).await();
     }
 
     @Override
-    public MyMessage delayed(UnkeyedContext context, MyMessage request) {
+    public MyMessage delayed(Context context, MyMessage request) {
       CodegenRestate.CodegenRestateClient client = CodegenRestate.newClient(context);
       return client._delayed(request).await();
     }

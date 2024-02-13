@@ -8,11 +8,11 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.workflow;
 
-import dev.restate.sdk.UnkeyedContext;
+import dev.restate.sdk.Context;
 import dev.restate.sdk.common.StateKey;
 import java.util.Optional;
 
-public interface WorkflowSharedContext extends UnkeyedContext {
+public interface WorkflowSharedContext extends Context {
 
   String workflowKey();
 
