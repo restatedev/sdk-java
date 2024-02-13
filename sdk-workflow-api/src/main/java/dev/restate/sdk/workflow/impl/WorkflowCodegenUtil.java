@@ -281,11 +281,7 @@ public class WorkflowCodegenUtil {
 
   public static <Req, Res> MethodDescriptor<Req, Res> generateMethodDescriptorForWorkflowManager(
       MethodDescriptor<Req, Res> original, String workflowFqsn) {
-    String workflowServiceFqsn =
-        workflowFqsn
-            +
-            // This is simple name because our template service doesn't have a package!
-            original.getServiceName();
+    String workflowServiceFqsn = workflowFqsn + WorkflowMangledDescriptors.MANAGER_SERVICE_SUFFIX;
     return original.toBuilder()
         .setFullMethodName(
             MethodDescriptor.generateFullMethodName(
@@ -295,43 +291,28 @@ public class WorkflowCodegenUtil {
 
   public static <Req, Res> MethodDescriptor<Req, Res> generateMethodDescriptorForWorkflow(
       MethodDescriptor<Req, Res> original, String workflowFqsn, String methodName) {
-    String workflowServiceFqsn =
-        workflowFqsn
-            +
-            // This is simple name because our template service doesn't have a package!
-            original.getServiceName();
     return original.toBuilder()
         .setFullMethodName(
             MethodDescriptor.generateFullMethodName(
-                workflowServiceFqsn, DescriptorUtils.toMethodName(methodName)))
+                workflowFqsn, DescriptorUtils.toMethodName(methodName)))
         .build();
   }
 
   public static MethodDescriptor<InvokeRequest, SubmitResponse>
       generateMethodDescriptorForWorkflowSubmit(String workflowFqsn) {
-    String workflowServiceFqsn =
-        workflowFqsn
-            +
-            // This is simple name because our template service doesn't have a package!
-            WorkflowGrpc.getSubmitMethod().getServiceName();
     return WorkflowGrpc.getSubmitMethod().toBuilder()
         .setFullMethodName(
             MethodDescriptor.generateFullMethodName(
-                workflowServiceFqsn, WorkflowGrpc.getSubmitMethod().getBareMethodName()))
+                workflowFqsn, WorkflowGrpc.getSubmitMethod().getBareMethodName()))
         .build();
   }
 
   public static MethodDescriptor<InvokeRequest, Empty>
       generateMethodDescriptorForWorkflowInternalStart(String workflowFqsn) {
-    String workflowServiceFqsn =
-        workflowFqsn
-            +
-            // This is simple name because our template service doesn't have a package!
-            WorkflowGrpc.getInternalStartMethod().getServiceName();
     return WorkflowGrpc.getInternalStartMethod().toBuilder()
         .setFullMethodName(
             MethodDescriptor.generateFullMethodName(
-                workflowServiceFqsn, WorkflowGrpc.getInternalStartMethod().getBareMethodName()))
+                workflowFqsn, WorkflowGrpc.getInternalStartMethod().getBareMethodName()))
         .build();
   }
 }
