@@ -10,5 +10,7 @@ package dev.restate.sdk.gen.model;
 
 public enum MethodType {
   SHARED,
-  WORKFLOW
+  EXCLUSIVE,
+  STATELESS,
+  WORKFLOW;
 }

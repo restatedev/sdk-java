@@ -9,7 +9,7 @@
 package dev.restate.sdk.annotation;
 
 public enum ServiceType {
-  STATELESS,
+  WORKFLOW,
   OBJECT,
-  WORKFLOW
+  STATELESS
 }
