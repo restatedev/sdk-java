@@ -14,7 +14,7 @@ import dev.restate.generated.service.protocol.Protocol;
 
 public class MessageHeader {
 
-  static final short SUPPORTED_PROTOCOL_VERSION = 0;
+  static final short SUPPORTED_PROTOCOL_VERSION = 1;
 
   static final short VERSION_MASK = 0x03FF;
   static final short DONE_FLAG = 0x0001;

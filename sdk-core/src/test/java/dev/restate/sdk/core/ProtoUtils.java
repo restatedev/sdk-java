@@ -33,7 +33,10 @@ public class ProtoUtils {
    */
   public static MessageHeader headerFromMessage(MessageLite msg) {
     if (msg instanceof Protocol.StartMessage) {
-      return new MessageHeader(MessageType.StartMessage, (short) 0, msg.getSerializedSize());
+      return new MessageHeader(
+          MessageType.StartMessage,
+          MessageHeader.SUPPORTED_PROTOCOL_VERSION,
+          msg.getSerializedSize());
     } else if (msg instanceof Protocol.CompletionMessage) {
       return new MessageHeader(MessageType.CompletionMessage, (short) 0, msg.getSerializedSize());
     }
