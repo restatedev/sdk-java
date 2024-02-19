@@ -8,8 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.common;
 
-@FunctionalInterface
 public interface ServiceAdapter<T> {
 
-  ServicesBundle adapt(T entity);
+  ServicesBundle adapt(T serviceObject);
+
+  boolean supportsObject(Object serviceObject);
 }

@@ -16,10 +16,7 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.semconv.trace.attributes.SemanticAttributes;
-import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -219,38 +216,45 @@ public class RestateEndpoint {
     void setInvocationStatus(String invocationStatus);
   }
 
+  private static class ServiceAdapterSingleton {
+    private static final ServiceAdapterDiscovery INSTANCE = new ServiceAdapterDiscovery();
+  }
+
+  @SuppressWarnings("rawtypes")
+  private static class ServiceAdapterDiscovery {
+
+    private final List<ServiceAdapter> adapters;
+
+    private ServiceAdapterDiscovery() {
+      this.adapters =
+          ServiceLoader.load(ServiceAdapter.class).stream()
+              .map(ServiceLoader.Provider::get)
+              .collect(Collectors.toList());
+    }
+
+    private @Nullable ServiceAdapter discoverAdapter(Object service) {
+      return this.adapters.stream()
+          .filter(sa -> sa.supportsObject(service))
+          .findFirst()
+          .orElse(null);
+    }
+  }
+
   /** Resolve the code generated {@link ServiceAdapter} */
-  public static ServiceAdapter<Object> discoverAdapter(Object entity) {
-    Class<?> userClazz = entity.getClass();
-
-    // Find Service code-generated class
-    // TODO This could be done with an SPI
-    // TODO This should support interfaces
-    Class<?> serviceAdapterClazz;
-    try {
-      serviceAdapterClazz = Class.forName(userClazz.getCanonicalName() + "ServiceAdapter");
-    } catch (ClassNotFoundException e) {
-      throw new RuntimeException(
-          "Code generated class not found. "
-              + "Make sure the annotation processor is correctly configured.",
-          e);
-    }
-
-    // Instantiate it
-    ServiceAdapter<Object> serviceAdapter;
-    try {
-      //noinspection unchecked
-      serviceAdapter = (ServiceAdapter<Object>) serviceAdapterClazz.getConstructor().newInstance();
-    } catch (InstantiationException
-        | IllegalAccessException
-        | InvocationTargetException
-        | NoSuchMethodException e) {
-      throw new RuntimeException(
-          "Cannot invoke code generated class constructor. "
-              + "Make sure the annotation processor is correctly configured.",
-          e);
-    }
-
-    return serviceAdapter;
+  @SuppressWarnings("unchecked")
+  public static ServiceAdapter<Object> discoverAdapter(Object service) {
+    return Objects.requireNonNull(
+        ServiceAdapterSingleton.INSTANCE.discoverAdapter(service),
+        () ->
+            "ServiceAdapter class not found for service "
+                + service.getClass().getCanonicalName()
+                + ". "
+                + "Make sure the annotation processor is correctly configured to generate the ServiceAdapter, "
+                + "and it generates the META-INF/services/"
+                + ServiceAdapter.class.getCanonicalName()
+                + " file containing the generated class. "
+                + "If you're using fat jars, make sure the jar plugin correctly squashes all the META-INF/services files. "
+                + "Found ServiceAdapter: "
+                + ServiceAdapterSingleton.INSTANCE.adapters);
   }
 }

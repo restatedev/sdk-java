@@ -22,4 +22,9 @@ public class {{className}}ServiceAdapter implements dev.restate.sdk.common.Servi
             .build();
     }
 
+    @java.lang.Override
+    public boolean supportsObject(Object serviceObject) {
+        return serviceObject instanceof {{fqcn}};
+    }
+
 }

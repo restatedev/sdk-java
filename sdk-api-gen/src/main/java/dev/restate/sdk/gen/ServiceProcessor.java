@@ -9,15 +9,20 @@
 package dev.restate.sdk.gen;
 
 import dev.restate.sdk.annotation.ServiceType;
+import dev.restate.sdk.common.ServiceAdapter;
 import dev.restate.sdk.gen.model.Service;
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.util.*;
 import java.util.stream.Collectors;
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.TypeElement;
+import javax.tools.FileObject;
+import javax.tools.StandardLocation;
 
 @SupportedAnnotationTypes("dev.restate.sdk.annotation.Service")
 @SupportedSourceVersion(SourceVersion.RELEASE_11)
@@ -92,6 +97,43 @@ public class ServiceProcessor extends AbstractProcessor {
       }
     }
 
+    // META-INF
+    Path resourceFilePath;
+    try {
+      resourceFilePath =
+          readOrCreateResource(
+              processingEnv.getFiler(),
+              "META-INF/services/" + ServiceAdapter.class.getCanonicalName());
+      Files.createDirectories(resourceFilePath.getParent());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
+    try (BufferedWriter writer =
+        Files.newBufferedWriter(
+            resourceFilePath,
+            StandardCharsets.UTF_8,
+            StandardOpenOption.WRITE,
+            StandardOpenOption.CREATE,
+            StandardOpenOption.APPEND)) {
+      for (Service svc : parsedServices) {
+        writer.write(svc.getFqcn() + "ServiceAdapter");
+        writer.write('\n');
+      }
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
     return true;
+  }
+
+  public static Path readOrCreateResource(Filer filer, String file) throws IOException {
+    try {
+      FileObject fileObject = filer.getResource(StandardLocation.CLASS_OUTPUT, "", file);
+      return new File(fileObject.toUri()).toPath();
+    } catch (IOException e) {
+      FileObject fileObject = filer.createResource(StandardLocation.CLASS_OUTPUT, "", file);
+      return new File(fileObject.toUri()).toPath();
+    }
   }
 }
