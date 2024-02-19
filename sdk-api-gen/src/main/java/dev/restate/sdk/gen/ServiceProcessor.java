@@ -8,9 +8,11 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.gen;
 
+import dev.restate.sdk.annotation.ServiceType;
 import dev.restate.sdk.gen.model.Service;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.processing.*;
@@ -29,15 +31,32 @@ public class ServiceProcessor extends AbstractProcessor {
   public synchronized void init(ProcessingEnvironment processingEnv) {
     super.init(processingEnv);
 
-    try {
       this.serviceAdapterCodegen =
-          new HandlebarsCodegen(processingEnv.getFiler(), "ServiceAdapter");
+          new HandlebarsCodegen(processingEnv.getFiler(), "ServiceAdapter", Map.of(
+                  ServiceType.WORKFLOW,
+                  "templates.workflow",
+                  ServiceType.STATELESS,
+                  "templates",
+                  ServiceType.OBJECT,
+                  "templates"
+          ));
       this.externalClientCodegen =
-          new HandlebarsCodegen(processingEnv.getFiler(), "ExternalClient");
-      this.restateClientCodegen = new HandlebarsCodegen(processingEnv.getFiler(), "RestateClient");
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+          new HandlebarsCodegen(processingEnv.getFiler(), "ExternalClient", Map.of(
+                  ServiceType.WORKFLOW,
+                  "templates.workflow",
+                  ServiceType.STATELESS,
+                  "templates",
+                  ServiceType.OBJECT,
+                  "templates"
+          ));
+      this.restateClientCodegen = new HandlebarsCodegen(processingEnv.getFiler(), "RestateClient", Map.of(
+              ServiceType.WORKFLOW,
+              "templates.workflow",
+              ServiceType.STATELESS,
+              "templates",
+              ServiceType.OBJECT,
+              "templates"
+      ));
   }
 
   @Override

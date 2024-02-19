@@ -12,7 +12,9 @@ import com.google.protobuf.Descriptors;
 import dev.restate.sdk.Context;
 import dev.restate.sdk.KeyedContext;
 import dev.restate.sdk.RestateService;
+import dev.restate.sdk.common.BlockingService;
 import dev.restate.sdk.common.Serde;
+import dev.restate.sdk.common.ServicesBundle;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.common.syscalls.Syscalls;
 import dev.restate.sdk.dynrpc.generated.KeyedRpcRequest;
@@ -26,36 +28,32 @@ import io.grpc.ServerServiceDefinition;
 import io.grpc.ServiceDescriptor;
 import io.grpc.stub.ServerCalls;
 import io.grpc.stub.StreamObserver;
-
-import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
+import javax.annotation.Nullable;
 
-public class DynService implements RestateService {
+public class DynService implements RestateService, ServicesBundle {
   private final String name;
   private final HashMap<String, Method<?, ?>> methods;
   private final ServerServiceDefinition serverServiceDefinition;
 
-  public DynService(
-          String fqsn,
-          boolean isKeyed,
-          HashMap<String, Method<?, ?>> methods) {
+  private DynService(String fqsn, boolean isKeyed, HashMap<String, Method<?, ?>> methods) {
     this.name = fqsn;
     this.methods = methods;
 
-      String simpleName = getSimpleName(fqsn);
-      String packageName = getPackageName(fqsn);
+    String simpleName = getSimpleName(fqsn);
+    String packageName = getPackageName(fqsn);
 
-      this.serverServiceDefinition = buildServerServiceDefinition(
-              DescriptorUtils.mangle(packageName, simpleName, methods.keySet(), isKeyed),
-              simpleName,
-              fqsn,
-              methods.keySet(),
-              isKeyed
-      );
+    this.serverServiceDefinition =
+        buildServerServiceDefinition(
+            DescriptorUtils.mangle(packageName, simpleName, methods.keySet(), isKeyed),
+            simpleName,
+            fqsn,
+            methods.keySet(),
+            isKeyed);
   }
 
   private Method<?, ?> getMethod(String name) {
@@ -71,35 +69,56 @@ public class DynService implements RestateService {
     return this.serverServiceDefinition;
   }
 
-  public static DynServiceBuilder unkeyed(
-      String name) {
-    return new DynServiceBuilder(name, false);
+  public static StatelessServiceBuilder stateless(String name) {
+    return new StatelessServiceBuilder(name);
   }
 
-  public static DynServiceBuilder keyed(
-          String name) {
-    return new DynServiceBuilder(name, true);
+  public static ObjectServiceBuilder object(String name) {
+    return new ObjectServiceBuilder(name);
   }
 
-  public static class DynServiceBuilder {
+  @Override
+  public List<BlockingService> services() {
+    return List.of(this);
+  }
+
+  public static class ObjectServiceBuilder {
     private final String name;
-    private final boolean isKeyed;
     private final HashMap<String, Method<?, ?>> methods;
 
-    DynServiceBuilder(String name, boolean isKeyed) {
+    ObjectServiceBuilder(String name) {
       this.name = name;
-        this.isKeyed = isKeyed;
-        this.methods = new HashMap<>();
+      this.methods = new HashMap<>();
     }
 
-    public <REQ, RES> DynServiceBuilder with(
-        MethodSignature<REQ, RES> sig, BiFunction<Context, REQ, RES> runner) {
+    public <REQ, RES> ObjectServiceBuilder withExclusive(
+        MethodSignature<REQ, RES> sig, BiFunction<KeyedContext, REQ, RES> runner) {
       this.methods.put(sig.getMethod(), new Method<>(sig, runner));
       return this;
     }
 
     public DynService build() {
-      return new DynService(this.name, this.isKeyed, this.methods);
+      return new DynService(this.name, true, this.methods);
+    }
+  }
+
+  public static class StatelessServiceBuilder {
+    private final String name;
+    private final HashMap<String, Method<?, ?>> methods;
+
+    StatelessServiceBuilder(String name) {
+      this.name = name;
+      this.methods = new HashMap<>();
+    }
+
+    public <REQ, RES> StatelessServiceBuilder with(
+            MethodSignature<REQ, RES> sig, BiFunction<Context, REQ, RES> runner) {
+      this.methods.put(sig.getMethod(), new Method<>(sig, runner));
+      return this;
+    }
+
+    public DynService build() {
+      return new DynService(this.name, false, this.methods);
     }
   }
 
@@ -154,11 +173,11 @@ public class DynService implements RestateService {
     }
   }
 
-  private static  String getSimpleName(String name ) {
+  private static String getSimpleName(String name) {
     return name.substring(name.lastIndexOf(".") + 1);
   }
 
-  private static @Nullable String getPackageName(String name ) {
+  private static @Nullable String getPackageName(String name) {
     int i = name.lastIndexOf(".");
     if (i < 0) {
       return null;
@@ -167,16 +186,20 @@ public class DynService implements RestateService {
   }
 
   private ServerServiceDefinition buildServerServiceDefinition(
-          Descriptors.FileDescriptor outputFileDescriptor,
-          String simpleName,
-          String fqsn,
-          Set<String> methodNames, boolean isKeyed) {
+      Descriptors.FileDescriptor outputFileDescriptor,
+      String simpleName,
+      String fqsn,
+      Set<String> methodNames,
+      boolean isKeyed) {
     var adapterDescriptorSupplier =
-            new DescriptorUtils.AdapterServiceDescriptorSupplier(outputFileDescriptor, simpleName);
+        new DescriptorUtils.AdapterServiceDescriptorSupplier(outputFileDescriptor, simpleName);
     ServiceDescriptor.Builder grpcServiceDescriptorBuilder =
-            ServiceDescriptor.newBuilder(fqsn).setSchemaDescriptor(adapterDescriptorSupplier);
+        ServiceDescriptor.newBuilder(fqsn).setSchemaDescriptor(adapterDescriptorSupplier);
 
-    var methodDescriptors = List.copyOf((isKeyed ? KeyedServiceGrpc.getServiceDescriptor() : ServiceGrpc.getServiceDescriptor()).getMethods());
+    var methodDescriptors =
+        List.copyOf(
+            (isKeyed ? KeyedServiceGrpc.getServiceDescriptor() : ServiceGrpc.getServiceDescriptor())
+                .getMethods());
     assert methodDescriptors.size() == 1;
 
     // Compute methods
@@ -184,12 +207,12 @@ public class DynService implements RestateService {
     Map<String, MethodDescriptor<?, ?>> methods = new HashMap<>();
     for (String methodName : methodNames) {
       var newMethodDescriptor =
-              invokeTemplateDescriptor.toBuilder()
-                      .setSchemaDescriptor(
-                              new DescriptorUtils.AdapterMethodDescriptorSupplier(
-                                      outputFileDescriptor, simpleName, methodName))
-                      .setFullMethodName(MethodDescriptor.generateFullMethodName(fqsn, methodName))
-                      .build();
+          invokeTemplateDescriptor.toBuilder()
+              .setSchemaDescriptor(
+                  new DescriptorUtils.AdapterMethodDescriptorSupplier(
+                      outputFileDescriptor, simpleName, methodName))
+              .setFullMethodName(MethodDescriptor.generateFullMethodName(fqsn, methodName))
+              .build();
       methods.put(methodName, newMethodDescriptor);
       grpcServiceDescriptorBuilder.addMethod(newMethodDescriptor);
     }
@@ -197,36 +220,36 @@ public class DynService implements RestateService {
     ServiceDescriptor grpcServiceDescriptor = grpcServiceDescriptorBuilder.build();
 
     ServerServiceDefinition.Builder serverServiceDefinitionBuilder =
-            ServerServiceDefinition.builder(grpcServiceDescriptor);
+        ServerServiceDefinition.builder(grpcServiceDescriptor);
 
     // Compute shared methods
     for (var method : methods.entrySet()) {
       if (isKeyed) {
         @SuppressWarnings("unchecked")
         MethodDescriptor<KeyedRpcRequest, RpcResponse> desc =
-                (MethodDescriptor<KeyedRpcRequest, RpcResponse>) methods.get(method.getKey());
+            (MethodDescriptor<KeyedRpcRequest, RpcResponse>) methods.get(method.getKey());
         ServerCallHandler<KeyedRpcRequest, RpcResponse> handler =
-                ServerCalls.asyncUnaryCall(
-                        (invokeRequest, streamObserver) ->
-                                this.invokeKeyed(
-                                        method.getKey(),
-                                        KeyedContext.fromSyscalls(Syscalls.current()),
-                                        invokeRequest,
-                                        streamObserver));
+            ServerCalls.asyncUnaryCall(
+                (invokeRequest, streamObserver) ->
+                    this.invokeKeyed(
+                        method.getKey(),
+                        KeyedContext.fromSyscalls(Syscalls.current()),
+                        invokeRequest,
+                        streamObserver));
 
         serverServiceDefinitionBuilder.addMethod(desc, handler);
       } else {
         @SuppressWarnings("unchecked")
         MethodDescriptor<RpcRequest, RpcResponse> desc =
-                (MethodDescriptor<RpcRequest, RpcResponse>) methods.get(method.getKey());
+            (MethodDescriptor<RpcRequest, RpcResponse>) methods.get(method.getKey());
         ServerCallHandler<RpcRequest, RpcResponse> handler =
-                ServerCalls.asyncUnaryCall(
-                        (invokeRequest, streamObserver) ->
-                                this.invokeUnkeyed(
-                                        method.getKey(),
-                                        Context.fromSyscalls(Syscalls.current()),
-                                        invokeRequest,
-                                        streamObserver));
+            ServerCalls.asyncUnaryCall(
+                (invokeRequest, streamObserver) ->
+                    this.invokeUnkeyed(
+                        method.getKey(),
+                        Context.fromSyscalls(Syscalls.current()),
+                        invokeRequest,
+                        streamObserver));
 
         serverServiceDefinitionBuilder.addMethod(desc, handler);
       }
@@ -235,21 +258,24 @@ public class DynService implements RestateService {
     return serverServiceDefinitionBuilder.build();
   }
 
-  private void invokeKeyed(String methodName, KeyedContext keyedContext, KeyedRpcRequest invokeRequest, StreamObserver<RpcResponse> streamObserver) {
+  private void invokeKeyed(
+      String methodName,
+      KeyedContext keyedContext,
+      KeyedRpcRequest invokeRequest,
+      StreamObserver<RpcResponse> streamObserver) {
     // Lookup the method
     @SuppressWarnings("unchecked")
     DynService.Method<Object, Object> method =
-            (DynService.Method<Object, Object>)
-                    this.getMethod(methodName);
+        (DynService.Method<Object, Object>) this.getMethod(methodName);
     if (method == null) {
       throw new TerminalException(
-              TerminalException.Code.NOT_FOUND, "Method " + methodName + " not found");
+          TerminalException.Code.NOT_FOUND, "Method " + methodName + " not found");
     }
 
     // Convert input
     Object input =
-            CodegenUtils.valueToT(
-                    method.getMethodSignature().getRequestSerde(), invokeRequest.getRequest());
+        CodegenUtils.valueToT(
+            method.getMethodSignature().getRequestSerde(), invokeRequest.getRequest());
 
     // Invoke method
     // We let the sdk core to manage the failures
@@ -258,33 +284,42 @@ public class DynService implements RestateService {
     Object output = method.run(keyedContext, input);
 
     replySuccess(
-            RpcResponse.newBuilder().setResponse(CodegenUtils.tToValue(method.getMethodSignature().getResponseSerde(), output)).build(),
-            streamObserver);
+        RpcResponse.newBuilder()
+            .setResponse(
+                CodegenUtils.tToValue(method.getMethodSignature().getResponseSerde(), output))
+            .build(),
+        streamObserver);
   }
 
-  private void invokeUnkeyed(String methodName, Context context, RpcRequest invokeRequest, StreamObserver<RpcResponse> streamObserver) {
+  private void invokeUnkeyed(
+      String methodName,
+      Context context,
+      RpcRequest invokeRequest,
+      StreamObserver<RpcResponse> streamObserver) {
     // Lookup the method
     @SuppressWarnings("unchecked")
     DynService.Method<Object, Object> method =
-            (DynService.Method<Object, Object>)
-                    this.getMethod(methodName);
+        (DynService.Method<Object, Object>) this.getMethod(methodName);
     if (method == null) {
       throw new TerminalException(
-              TerminalException.Code.NOT_FOUND, "Method " + methodName + " not found");
+          TerminalException.Code.NOT_FOUND, "Method " + methodName + " not found");
     }
 
     // Convert input
     Object input =
-            CodegenUtils.valueToT(
-                    method.getMethodSignature().getRequestSerde(), invokeRequest.getRequest());
+        CodegenUtils.valueToT(
+            method.getMethodSignature().getRequestSerde(), invokeRequest.getRequest());
 
     // Invoke method
     // We let the sdk core to manage the failures
     Object output = method.run(context, input);
 
     replySuccess(
-            RpcResponse.newBuilder().setResponse(CodegenUtils.tToValue(method.getMethodSignature().getResponseSerde(), output)).build(),
-            streamObserver);
+        RpcResponse.newBuilder()
+            .setResponse(
+                CodegenUtils.tToValue(method.getMethodSignature().getResponseSerde(), output))
+            .build(),
+        streamObserver);
   }
 
   private <T> void replySuccess(T value, StreamObserver<T> streamObserver) {

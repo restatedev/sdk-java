@@ -22,6 +22,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
+import java.util.stream.Stream;
 
 public class Method {
 
@@ -92,14 +93,15 @@ public class Method {
         || isAnnotatedWithStateless;
 
     // Check there's no more than one annotation
-    if (Boolean.logicalXor(
+    if (!
+            Boolean.logicalXor(
         isAnnotatedWithShared,
         Boolean.logicalXor(
             isAnnotatedWithWorkflow,
             Boolean.logicalXor(isAnnotatedWithExclusive, isAnnotatedWithStateless)))) {
       messager.printMessage(
           Diagnostic.Kind.ERROR,
-          "You can annotate only one method with a Restate method annotation");
+          "You can annotate only one method with a Restate method annotation", element);
     }
 
     MethodType methodType =
@@ -133,7 +135,8 @@ public class Method {
         } else {
           messager.printMessage(
               Diagnostic.Kind.ERROR,
-              "The annotation @Shared is not supported by the service type " + serviceType, element);
+              "The annotation @Shared is not supported by the service type " + serviceType,
+              element);
         }
         break;
       case EXCLUSIVE:
@@ -142,7 +145,8 @@ public class Method {
         } else {
           messager.printMessage(
               Diagnostic.Kind.ERROR,
-              "The annotation @Exclusive is not supported by the service type " + serviceType, element);
+              "The annotation @Exclusive is not supported by the service type " + serviceType,
+              element);
         }
         break;
       case STATELESS:
@@ -154,7 +158,8 @@ public class Method {
         } else {
           messager.printMessage(
               Diagnostic.Kind.ERROR,
-              "The annotation @Shared is not supported by the service type " + serviceType, element);
+              "The annotation @Shared is not supported by the service type " + serviceType,
+              element);
         }
         break;
     }
@@ -171,7 +176,8 @@ public class Method {
         elements.getTypeElement(clazz.getCanonicalName()).asType())) {
       messager.printMessage(
           Diagnostic.Kind.ERROR,
-          "The method signature must have " + clazz.getCanonicalName() + " as first parameter", element);
+          "The method signature must have " + clazz.getCanonicalName() + " as first parameter",
+          element);
     }
   }
 }

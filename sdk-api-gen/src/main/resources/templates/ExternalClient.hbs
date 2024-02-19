@@ -2,58 +2,36 @@
 
 import dev.restate.sdk.common.StateKey;
 import dev.restate.sdk.common.Serde;
-import dev.restate.sdk.workflow.impl.WorkflowCodegenUtil;
+import dev.restate.sdk.dynrpc.CodegenUtils;
 import io.grpc.Channel;
 import java.util.Optional;
 
 public class {{className}}ExternalClient {
 
-    private static final String WORKFLOW_NAME = "{{fqcn}}";
-    private static final io.grpc.MethodDescriptor<dev.restate.sdk.workflow.generated.StateRequest, dev.restate.sdk.workflow.generated.GetStateResponse> WF_MANAGER_GET_STATE_METHOD_DESC = WorkflowCodegenUtil.generateMethodDescriptorForWorkflowManager(dev.restate.sdk.workflow.template.generated.WorkflowManagerGrpc.getGetStateMethod(), WORKFLOW_NAME);
-    private static final io.grpc.MethodDescriptor<dev.restate.sdk.workflow.generated.OutputRequest, dev.restate.sdk.workflow.generated.GetOutputResponse> WF_MANAGER_GET_OUTPUT_METHOD_DESC = WorkflowCodegenUtil.generateMethodDescriptorForWorkflowManager(dev.restate.sdk.workflow.template.generated.WorkflowManagerGrpc.getGetOutputMethod(), WORKFLOW_NAME);
-    private static final io.grpc.MethodDescriptor<dev.restate.sdk.workflow.generated.InvokeRequest, dev.restate.sdk.workflow.generated.SubmitResponse> WF_SUBMIT_METHOD_DESC = WorkflowCodegenUtil.generateMethodDescriptorForWorkflowSubmit(WORKFLOW_NAME);
+    private static final String SERVICE_NAME = "{{fqcn}}";
 
     {{#methods}}
-    private static final io.grpc.MethodDescriptor<dev.restate.sdk.workflow.generated.InvokeRequest, com.google.protobuf.Value> {{descFieldName}} = WorkflowCodegenUtil.generateMethodDescriptorForWorkflow(dev.restate.sdk.workflow.template.generated.WorkflowGrpc.getInvokeTemplateMethod(), WORKFLOW_NAME, "{{name}}");
+    private static final io.grpc.MethodDescriptor<dev.restate.sdk.dynrpc.generated.{{#if isObject}}KeyedRpcRequest{{else}}RpcRequest{{/if}}, dev.restate.sdk.dynrpc.generated.RpcResponse> {{descFieldName}} = CodegenUtils.generateMethodDescriptor(dev.restate.sdk.dynrpc.template.generated.{{#if isObject}}KeyedServiceGrpc{{else}}ServiceGrpc{{/if}}.getTemplateMethod(), SERVICE_NAME, "{{name}}");
     {{^inputEmpty}}private static final Serde<{{{inputFqcn}}}> {{inputSerdeFieldName}} = {{{inputSerdeDecl}}};{{/inputEmpty}}
     {{^outputEmpty}}private static final Serde<{{{outputFqcn}}}> {{outputSerdeFieldName}} = {{{outputSerdeDecl}}};{{/outputEmpty}}
     {{/methods}}
 
     private final Channel restateChannel;
-    private final String workflowKey;
+    {{#isObject}}private final String key;{{/isObject}}
 
-    public {{className}}ExternalClient(Channel restateChannel, String workflowKey) {
+    public {{className}}ExternalClient(Channel restateChannel{{#isObject}}, String key{{/isObject}}) {
         this.restateChannel = restateChannel;
-        this.workflowKey = workflowKey;
+        {{#isObject}}this.key = key;{{/isObject}}
     }
 
-    {{#methods}}{{#if isWorkflow}}
-    public dev.restate.sdk.workflow.generated.WorkflowExecutionState submit({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-        return WorkflowCodegenUtil.ExternalClient.submit(restateChannel, WF_SUBMIT_METHOD_DESC, workflowKey, {{#if inputEmpty}}null{{else}}WorkflowCodegenUtil.tToValue({{inputSerdeFieldName}}, req){{/if}});
-    }
-
-    public boolean isCompleted() {
-        return WorkflowCodegenUtil.ExternalClient.isCompleted(restateChannel, WF_MANAGER_GET_OUTPUT_METHOD_DESC, workflowKey);
-    }
-
-    {{^outputEmpty}}
-    public Optional<{{{outputFqcn}}}> getOutput() {
-        return WorkflowCodegenUtil.ExternalClient.getOutput(restateChannel, WF_MANAGER_GET_OUTPUT_METHOD_DESC, workflowKey, {{outputSerdeFieldName}});
-    }{{/outputEmpty}}
-    {{/if}}{{/methods}}
-
-    public <T> Optional<T> getState(StateKey<T> key) {
-        return WorkflowCodegenUtil.ExternalClient.getState(restateChannel, WF_MANAGER_GET_STATE_METHOD_DESC, workflowKey, key);
-    }
-
-    {{#methods}}{{#if isShared}}
+    {{#methods}}
     public {{#if outputEmpty}}void{{else}}{{{outputFqcn}}}{{/if}} {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-        com.google.protobuf.Value response = WorkflowCodegenUtil.ExternalClient.invokeShared(restateChannel, {{descFieldName}}, workflowKey, {{#if inputEmpty}}null{{else}}WorkflowCodegenUtil.tToValue({{inputSerdeFieldName}}, req){{/if}});
+        com.google.protobuf.Value response = CodegenUtils.ExternalClient.{{#if isObject}}invokeKeyed{{else}}invoke{{/if}}(this.restateChannel, {{descFieldName}}{{#isObject}}, this.key{{/isObject}}, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}});
         {{^outputEmpty}}
-        return WorkflowCodegenUtil.valueToT({{outputSerdeFieldName}}, response);
+        return CodegenUtils.valueToT({{outputSerdeFieldName}}, response);
         {{/outputEmpty}}
     }
-    {{/if}}{{/methods}}
+    {{/methods}}
 
     public {{className}}OneWayExternalClient oneWay() {
         return new {{className}}OneWayExternalClient();
@@ -61,11 +39,11 @@ public class {{className}}ExternalClient {
 
     public class {{className}}OneWayExternalClient {
 
-        {{#methods}}{{#if isShared}}
+        {{#methods}}
         public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-            WorkflowCodegenUtil.ExternalClient.invokeSharedOneWay(restateChannel, {{descFieldName}}, workflowKey, {{#if inputEmpty}}null{{else}}WorkflowCodegenUtil.tToValue({{inputSerdeFieldName}}, req){{/if}});
+            CodegenUtils.ExternalClient.{{#if isObject}}invokeKeyed{{else}}invoke{{/if}}OneWay({{../className}}ExternalClient.this.restateChannel, {{descFieldName}}{{#isObject}}, {{../className}}ExternalClient.this.key{{/isObject}}, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}});
         }
-        {{/if}}{{/methods}}
+        {{/methods}}
 
     }
 }

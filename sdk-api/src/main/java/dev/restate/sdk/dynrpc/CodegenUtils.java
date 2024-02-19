@@ -8,6 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.dynrpc;
 
+import static io.grpc.stub.ClientCalls.blockingUnaryCall;
+
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Value;
 import com.google.protobuf.util.JsonFormat;
@@ -21,12 +23,9 @@ import dev.restate.sdk.dynrpc.generated.RpcResponse;
 import io.grpc.CallOptions;
 import io.grpc.Channel;
 import io.grpc.MethodDescriptor;
-
-import javax.annotation.Nullable;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-
-import static io.grpc.stub.ClientCalls.blockingUnaryCall;
+import javax.annotation.Nullable;
 
 // Methods invoked from code-generated classes
 // DON'T invoke these methods directly unless you know what you're doing!
@@ -61,9 +60,9 @@ public class CodegenUtils {
     private RestateClient() {}
 
     public static Awaitable<Value> invoke(
-            Context ctx,
-            MethodDescriptor<RpcRequest, RpcResponse> methodDesc,
-            @Nullable Value payload) {
+        Context ctx,
+        MethodDescriptor<RpcRequest, RpcResponse> methodDesc,
+        @Nullable Value payload) {
       RpcRequest.Builder reqBuilder = RpcRequest.newBuilder();
       if (payload != null) {
         reqBuilder.setRequest(payload);
@@ -73,9 +72,9 @@ public class CodegenUtils {
     }
 
     public static void invokeOneWay(
-            Context ctx,
-            MethodDescriptor<RpcRequest, RpcResponse> methodDesc,
-            @Nullable Value payload) {
+        Context ctx,
+        MethodDescriptor<RpcRequest, RpcResponse> methodDesc,
+        @Nullable Value payload) {
       RpcRequest.Builder reqBuilder = RpcRequest.newBuilder();
       if (payload != null) {
         reqBuilder.setRequest(payload);
@@ -85,11 +84,11 @@ public class CodegenUtils {
     }
 
     public static void invokeDelayed(
-            Context ctx,
-            MethodDescriptor<RpcRequest, RpcResponse> methodDesc,
-            String key,
-            @Nullable Value payload,
-            Duration delay) {
+        Context ctx,
+        MethodDescriptor<RpcRequest, RpcResponse> methodDesc,
+        String key,
+        @Nullable Value payload,
+        Duration delay) {
       RpcRequest.Builder reqBuilder = RpcRequest.newBuilder();
       if (payload != null) {
         reqBuilder.setRequest(payload);
@@ -137,7 +136,6 @@ public class CodegenUtils {
 
       ctx.delayedCall(methodDesc, reqBuilder.build(), delay);
     }
-
   }
 
   // --- External client methods
@@ -145,22 +143,22 @@ public class CodegenUtils {
   public static class ExternalClient {
     private ExternalClient() {}
 
-    public static RpcResponse invoke(
-            Channel channel,
-            MethodDescriptor<RpcRequest, RpcResponse> methodDesc,
-            @Nullable Value payload) {
+    public static Value invoke(
+        Channel channel,
+        MethodDescriptor<RpcRequest, RpcResponse> methodDesc,
+        @Nullable Value payload) {
       RpcRequest.Builder reqBuilder = RpcRequest.newBuilder();
       if (payload != null) {
         reqBuilder.setRequest(payload);
       }
 
-      return blockingUnaryCall(channel, methodDesc, CallOptions.DEFAULT, reqBuilder.build());
+      return blockingUnaryCall(channel, methodDesc, CallOptions.DEFAULT, reqBuilder.build()).getResponse();
     }
 
     public static void invokeOneWay(
-            Channel channel,
-            MethodDescriptor<RpcRequest, RpcResponse> methodDesc,
-            @Nullable Value payload) {
+        Channel channel,
+        MethodDescriptor<RpcRequest, RpcResponse> methodDesc,
+        @Nullable Value payload) {
       RpcRequest.Builder reqBuilder = RpcRequest.newBuilder();
       if (payload != null) {
         reqBuilder.setRequest(payload);
@@ -168,31 +166,31 @@ public class CodegenUtils {
 
       var ingressClient = IngressGrpc.newBlockingStub(channel);
       ingressClient.invoke(
-              dev.restate.generated.InvokeRequest.newBuilder()
-                      .setService(methodDesc.getServiceName())
-                      .setMethod(methodDesc.getBareMethodName())
-                      .setPb(reqBuilder.build().toByteString())
-                      .build());
+          dev.restate.generated.InvokeRequest.newBuilder()
+              .setService(methodDesc.getServiceName())
+              .setMethod(methodDesc.getBareMethodName())
+              .setPb(reqBuilder.build().toByteString())
+              .build());
     }
 
-    public static RpcResponse invokeKeyed(
-            Channel channel,
-            MethodDescriptor<KeyedRpcRequest, RpcResponse> methodDesc,
-            String key,
-            @Nullable Value payload) {
+    public static Value invokeKeyed(
+        Channel channel,
+        MethodDescriptor<KeyedRpcRequest, RpcResponse> methodDesc,
+        String key,
+        @Nullable Value payload) {
       KeyedRpcRequest.Builder reqBuilder = KeyedRpcRequest.newBuilder().setKey(key);
       if (payload != null) {
         reqBuilder.setRequest(payload);
       }
 
-      return blockingUnaryCall(channel, methodDesc, CallOptions.DEFAULT, reqBuilder.build());
+      return blockingUnaryCall(channel, methodDesc, CallOptions.DEFAULT, reqBuilder.build()).getResponse();
     }
 
     public static void invokeKeyedOneWay(
-            Channel channel,
-            MethodDescriptor<KeyedRpcRequest, RpcResponse> methodDesc,
-            String key,
-            @Nullable Value payload) {
+        Channel channel,
+        MethodDescriptor<KeyedRpcRequest, RpcResponse> methodDesc,
+        String key,
+        @Nullable Value payload) {
       KeyedRpcRequest.Builder reqBuilder = KeyedRpcRequest.newBuilder().setKey(key);
       if (payload != null) {
         reqBuilder.setRequest(payload);
@@ -200,11 +198,11 @@ public class CodegenUtils {
 
       var ingressClient = IngressGrpc.newBlockingStub(channel);
       ingressClient.invoke(
-              dev.restate.generated.InvokeRequest.newBuilder()
-                      .setService(methodDesc.getServiceName())
-                      .setMethod(methodDesc.getBareMethodName())
-                      .setPb(reqBuilder.build().toByteString())
-                      .build());
+          dev.restate.generated.InvokeRequest.newBuilder()
+              .setService(methodDesc.getServiceName())
+              .setMethod(methodDesc.getBareMethodName())
+              .setPb(reqBuilder.build().toByteString())
+              .build());
     }
   }
 

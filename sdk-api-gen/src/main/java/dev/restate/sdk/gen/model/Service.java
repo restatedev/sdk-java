@@ -87,18 +87,16 @@ public class Service {
         elements.getPackageOf(element).getQualifiedName(), element.getSimpleName(), type, methods);
   }
 
-  private static void validateType(
-          TypeElement element,
-          Messager messager) {
+  private static void validateType(TypeElement element, Messager messager) {
     if (!element.getTypeParameters().isEmpty()) {
       messager.printMessage(
-              Diagnostic.Kind.ERROR,
-              "The EntityProcessor doesn't support services with generics",
-              element);
+          Diagnostic.Kind.ERROR,
+          "The EntityProcessor doesn't support services with generics",
+          element);
     }
     if (element.getKind().equals(ElementKind.ENUM)) {
       messager.printMessage(
-              Diagnostic.Kind.ERROR, "The EntityProcessor doesn't support enums", element);
+          Diagnostic.Kind.ERROR, "The EntityProcessor doesn't support enums", element);
     }
 
     if (element.getModifiers().contains(Modifier.PRIVATE)) {
@@ -107,18 +105,15 @@ public class Service {
   }
 
   private static void validateMethods(
-          ServiceType serviceType,
-          List<Method> methods,
-          TypeElement element,
-          Messager messager) {
+      ServiceType serviceType, List<Method> methods, TypeElement element, Messager messager) {
     // Additional validation for Workflow types
     if (serviceType.equals(ServiceType.WORKFLOW)) {
       if (methods.stream().filter(m -> m.getMethodType().equals(MethodType.WORKFLOW)).count()
-              != 1) {
+          != 1) {
         messager.printMessage(
-                Diagnostic.Kind.ERROR,
-                "Workflow services must have exactly one method annotated as @Workflow",
-                element);
+            Diagnostic.Kind.ERROR,
+            "Workflow services must have exactly one method annotated as @Workflow",
+            element);
       }
     }
   }

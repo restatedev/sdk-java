@@ -5,23 +5,11 @@ public class {{className}}ServiceAdapter implements dev.restate.sdk.common.Servi
     public static final String SERVICE_NAME = "{{fqcn}}";
 
     @java.lang.Override
-    public dev.restate.sdk.workflow.impl.WorkflowServicesBundle adapt({{fqcn}} service) {
-        return dev.restate.sdk.workflow.impl.WorkflowServicesBundle.named(
-            SERVICE_NAME,
-            {{#methods}}{{#if isWorkflow}}
-            dev.restate.sdk.workflow.impl.WorkflowServicesBundle.MethodSignature.of("{{name}}", {{{inputSerdeDecl}}}, {{{outputSerdeDecl}}}),
-            (ctx, req) -> {
-            {{#if outputEmpty}}
-                {{#if inputEmpty}}service.{{name}}(ctx){{else}}service.{{name}}(ctx, req){{/if}};
-                return null;
-            {{else}}
-                return {{#if inputEmpty}}service.{{name}}(ctx){{else}}service.{{name}}(ctx, req){{/if}};
-            {{/if}}
-            }
-            {{/if}}{{/methods}})
-            {{#methods}}{{#if isShared}}
-            .{{builderMethod}}(
-            dev.restate.sdk.workflow.impl.WorkflowServicesBundle.MethodSignature.of("{{name}}", {{{inputSerdeDecl}}}, {{{outputSerdeDecl}}}),
+    public dev.restate.sdk.dynrpc.DynService adapt({{fqcn}} service) {
+        return dev.restate.sdk.dynrpc.DynService.{{lower serviceType}}(SERVICE_NAME)
+            {{#methods}}
+            .with{{#if ../isObject}}{{capitalizeFirst (lower methodType)}}{{/if}}(
+            dev.restate.sdk.dynrpc.DynService.MethodSignature.of("{{name}}", {{{inputSerdeDecl}}}, {{{outputSerdeDecl}}}),
             (ctx, req) -> {
                 {{#if outputEmpty}}
                 {{#if inputEmpty}}service.{{name}}(ctx){{else}}service.{{name}}(ctx, req){{/if}};
@@ -30,7 +18,7 @@ public class {{className}}ServiceAdapter implements dev.restate.sdk.common.Servi
                 return {{#if inputEmpty}}service.{{name}}(ctx){{else}}service.{{name}}(ctx, req){{/if}};
                 {{/if}}
             })
-            {{/if}}{{/methods}}
+            {{/methods}}
             .build();
     }
 

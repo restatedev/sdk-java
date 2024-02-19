@@ -17,14 +17,14 @@ dependencies {
   implementation(coreLibs.protobuf.util)
   implementation(coreLibs.grpc.stub)
   implementation(coreLibs.grpc.protobuf)
-
-  testCompileOnly(coreLibs.javax.annotation.api)
+  compileOnly(coreLibs.javax.annotation.api)
 
   testImplementation(project(":sdk-core"))
   testImplementation(testingLibs.junit.jupiter)
   testImplementation(testingLibs.assertj)
   testImplementation(coreLibs.protobuf.java)
   testImplementation(coreLibs.log4j.core)
+  testCompileOnly(coreLibs.javax.annotation.api)
 
   // Import test suites from sdk-core
   testImplementation(project(":sdk-core", "testArchive"))
@@ -47,12 +47,8 @@ protobuf {
 
   generateProtoTasks {
     ofSourceSet("main").forEach {
-      it.builtins {
-        java
-      }
-      it.plugins {
-        id("grpc")
-      }
+      it.builtins { java }
+      it.plugins { id("grpc") }
     }
     ofSourceSet("test").forEach {
       // Make sure we depend on shadowJar from protoc-gen-restate

@@ -14,7 +14,6 @@ import dev.restate.sdk.dynrpc.template.generated.KeyedServiceGrpc;
 import io.grpc.protobuf.ProtoFileDescriptorSupplier;
 import io.grpc.protobuf.ProtoMethodDescriptorSupplier;
 import io.grpc.protobuf.ProtoServiceDescriptorSupplier;
-
 import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -24,7 +23,7 @@ class DescriptorUtils {
   private DescriptorUtils() {}
 
   static class AdapterServiceDescriptorSupplier
-          implements ProtoFileDescriptorSupplier, ProtoServiceDescriptorSupplier {
+      implements ProtoFileDescriptorSupplier, ProtoServiceDescriptorSupplier {
     private final Descriptors.FileDescriptor desc;
     private final String serviceName;
 
@@ -45,11 +44,11 @@ class DescriptorUtils {
   }
 
   static class AdapterMethodDescriptorSupplier extends AdapterServiceDescriptorSupplier
-          implements ProtoMethodDescriptorSupplier {
+      implements ProtoMethodDescriptorSupplier {
     private final String methodName;
 
     AdapterMethodDescriptorSupplier(
-            Descriptors.FileDescriptor desc, String serviceName, String methodName) {
+        Descriptors.FileDescriptor desc, String serviceName, String methodName) {
       super(desc, serviceName);
       this.methodName = methodName;
     }
@@ -60,11 +59,13 @@ class DescriptorUtils {
     }
   }
 
-  public static Descriptors.FileDescriptor mangle(String packageName, String simpleName, Set<String> methods, boolean isKeyed) {
+  public static Descriptors.FileDescriptor mangle(
+      String packageName, String simpleName, Set<String> methods, boolean isKeyed) {
     // This is the built-in workflow.proto descriptor
     var templateDescriptor =
         ((ProtoFileDescriptorSupplier)
-                Objects.requireNonNull(KeyedServiceGrpc.getServiceDescriptor().getSchemaDescriptor()))
+                Objects.requireNonNull(
+                    KeyedServiceGrpc.getServiceDescriptor().getSchemaDescriptor()))
             .getFileDescriptor();
     var protoDescriptorBuilder =
         DescriptorProtos.FileDescriptorProto.newBuilder(templateDescriptor.toProto());
@@ -80,13 +81,11 @@ class DescriptorUtils {
     }
 
     // Mangle service descriptors
-    DescriptorProtos.ServiceDescriptorProto templateServiceDescriptorProto = isKeyed ? protoDescriptorBuilder.getService(1) : protoDescriptorBuilder.getService(0);
+    DescriptorProtos.ServiceDescriptorProto templateServiceDescriptorProto =
+        isKeyed ? protoDescriptorBuilder.getService(1) : protoDescriptorBuilder.getService(0);
 
-        mangleServiceDescriptor(
-                templateServiceDescriptorProto,
-            protoDescriptorBuilder,
-            simpleName,
-            methods);
+    mangleServiceDescriptor(
+        templateServiceDescriptorProto, protoDescriptorBuilder, simpleName, methods);
 
     Descriptors.FileDescriptor outputFileDescriptor;
     try {
@@ -121,6 +120,6 @@ class DescriptorUtils {
 
     // Update original descriptor builder
     protoDescriptorBuilder.clearService();
-    protoDescriptorBuilder.setService(0, serviceDescriptorBuilder);
+    protoDescriptorBuilder.addService(serviceDescriptorBuilder);
   }
 }

@@ -12,15 +12,20 @@ import com.github.jknack.handlebars.Context;
 import com.github.jknack.handlebars.Handlebars;
 import com.github.jknack.handlebars.Template;
 import com.github.jknack.handlebars.context.FieldValueResolver;
+import com.github.jknack.handlebars.helper.StringHelpers;
+import com.github.jknack.handlebars.internal.lang3.StringUtils;
 import com.github.jknack.handlebars.io.AbstractTemplateLoader;
 import com.github.jknack.handlebars.io.TemplateSource;
+import dev.restate.sdk.annotation.ServiceType;
 import dev.restate.sdk.gen.model.Method;
 import dev.restate.sdk.gen.model.MethodType;
 import dev.restate.sdk.gen.model.Service;
 import java.io.IOException;
 import java.io.Writer;
 import java.nio.charset.Charset;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import javax.annotation.processing.Filer;
@@ -31,22 +36,31 @@ import javax.tools.StandardLocation;
 public class HandlebarsCodegen {
 
   private final Filer filer;
-  private final String templateName;
-  private final Template template;
+  private final String baseTemplateName;
+  private final Map<ServiceType, Template> templates;
 
-  public HandlebarsCodegen(Filer filer, String templateName) throws IOException {
+  public HandlebarsCodegen(Filer filer, String baseTemplateName, Map<ServiceType, String> templates) {
     this.filer = filer;
-    this.templateName = templateName;
+    this.baseTemplateName = baseTemplateName;
 
-    Handlebars handlebars = new Handlebars(new FilerTemplateLoader(filer));
-    this.template = handlebars.compile(templateName);
+    Handlebars handlebars = new Handlebars(new FilerTemplateLoader(filer, this.baseTemplateName));
+  handlebars.registerHelpers(StringHelpers.class);
+
+    this.templates = templates.entrySet().stream()
+            .collect(Collectors.toMap(Map.Entry::getKey, e -> {
+                try {
+                    return handlebars.compile(e.getValue());
+                } catch (IOException ex) {
+                    throw new RuntimeException("Can't compile template for service " + e.getKey() + " with base template name " + baseTemplateName, ex);
+                }
+            }));
   }
 
   public void generate(Service service) throws IOException {
     JavaFileObject entityAdapterFile =
-        filer.createSourceFile(service.getFqcn() + this.templateName);
+        filer.createSourceFile(service.getFqcn() + this.baseTemplateName);
     try (Writer out = entityAdapterFile.openWriter()) {
-      this.template.apply(
+      this.templates.get(service.getServiceType()).apply(
           Context.newBuilder(new EntityTemplateModel(service))
               .resolver(FieldValueResolver.INSTANCE)
               .build(),
@@ -60,23 +74,34 @@ public class HandlebarsCodegen {
     public final String packageName;
     public final String className;
     public final String fqcn;
+    public final String serviceType;
+    public final boolean isWorkflow;
+    public final boolean isObject;
+    public final boolean isStateless;
     public final List<MethodTemplateModel> methods;
 
     private EntityTemplateModel(Service inner) {
       this.packageName = inner.getPkg() != null ? inner.getPkg().toString() : null;
       this.className = inner.getSimpleClassName().toString();
       this.fqcn = inner.getFqcn().toString();
+      this.serviceType = inner.getServiceType().toString();
+      this.isWorkflow = inner.getServiceType() == ServiceType.WORKFLOW;
+      this.isObject = inner.getServiceType() == ServiceType.OBJECT;
+      this.isStateless =      inner.getServiceType() == ServiceType.STATELESS;
+
       this.methods =
           inner.getMethods().stream().map(MethodTemplateModel::new).collect(Collectors.toList());
     }
   }
 
   static class MethodTemplateModel {
-    public final String builderMethod;
     public final String name;
     public final String descFieldName;
+    public final String methodType;
     public final boolean isWorkflow;
     public final boolean isShared;
+    public final boolean isStateless;
+    public final boolean isExclusive;
 
     public final boolean inputEmpty;
     public final String inputFqcn;
@@ -89,12 +114,13 @@ public class HandlebarsCodegen {
     public final String outputSerdeFieldName;
 
     private MethodTemplateModel(Method inner) {
-      this.builderMethod =
-          inner.getMethodType().equals(MethodType.SHARED) ? "withShared" : "withExclusive";
       this.name = inner.getName().toString();
       this.descFieldName = "DESC_" + this.name.toUpperCase();
+      this.methodType = inner.getMethodType().toString();
       this.isWorkflow = inner.getMethodType() == MethodType.WORKFLOW;
       this.isShared = inner.getMethodType() == MethodType.SHARED;
+      this.isExclusive = inner.getMethodType() == MethodType.EXCLUSIVE;
+      this.isStateless = inner.getMethodType() == MethodType.STATELESS;
 
       this.inputEmpty = inner.getInputType() == null;
       this.inputFqcn = this.inputEmpty ? "" : inner.getInputType().toString();
@@ -121,9 +147,11 @@ public class HandlebarsCodegen {
   // processor context
   private static class FilerTemplateLoader extends AbstractTemplateLoader {
     private final Filer filer;
+    private final String templateName;
 
-    public FilerTemplateLoader(Filer filer) {
+    public FilerTemplateLoader(Filer filer, String baseTemplateName) {
       this.filer = filer;
+      this.templateName = baseTemplateName + ".hbs";
     }
 
     @Override
@@ -133,14 +161,14 @@ public class HandlebarsCodegen {
         public String content(Charset charset) throws IOException {
           return filer
               .getResource(
-                  StandardLocation.ANNOTATION_PROCESSOR_PATH, "templates", location + ".hbs")
+                  StandardLocation.ANNOTATION_PROCESSOR_PATH, location, templateName)
               .getCharContent(true)
               .toString();
         }
 
         @Override
         public String filename() {
-          return "/templates/" + location + ".hbs";
+          return "/" + location.replace('.', '/') + "/" + templateName;
         }
 
         @Override
