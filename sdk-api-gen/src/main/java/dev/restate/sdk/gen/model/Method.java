@@ -22,7 +22,6 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
-import java.util.stream.Stream;
 
 public class Method {
 
@@ -93,15 +92,15 @@ public class Method {
         || isAnnotatedWithStateless;
 
     // Check there's no more than one annotation
-    if (!
-            Boolean.logicalXor(
+    if (!Boolean.logicalXor(
         isAnnotatedWithShared,
         Boolean.logicalXor(
             isAnnotatedWithWorkflow,
             Boolean.logicalXor(isAnnotatedWithExclusive, isAnnotatedWithStateless)))) {
       messager.printMessage(
           Diagnostic.Kind.ERROR,
-          "You can annotate only one method with a Restate method annotation", element);
+          "You can annotate only one method with a Restate method annotation",
+          element);
     }
 
     MethodType methodType =

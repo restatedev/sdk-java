@@ -11,21 +11,19 @@ package dev.restate.sdk.workflow.impl;
 import static io.grpc.stub.ClientCalls.blockingUnaryCall;
 
 import com.google.protobuf.Empty;
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Value;
-import com.google.protobuf.util.JsonFormat;
 import dev.restate.generated.IngressGrpc;
 import dev.restate.sdk.Awaitable;
 import dev.restate.sdk.Context;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.StateKey;
 import dev.restate.sdk.common.TerminalException;
+import dev.restate.sdk.dynrpc.CodegenUtils;
 import dev.restate.sdk.workflow.generated.*;
 import dev.restate.sdk.workflow.template.generated.WorkflowGrpc;
 import io.grpc.CallOptions;
 import io.grpc.Channel;
 import io.grpc.MethodDescriptor;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
@@ -35,27 +33,6 @@ import javax.annotation.Nullable;
 public class WorkflowCodegenUtil {
 
   private WorkflowCodegenUtil() {}
-
-  public static <T> T valueToT(Serde<T> serde, Value value) {
-    String reqAsString;
-    try {
-      reqAsString = JsonFormat.printer().print(value);
-    } catch (InvalidProtocolBufferException e) {
-      throw new RuntimeException(e);
-    }
-    return serde.deserialize(reqAsString.getBytes(StandardCharsets.UTF_8));
-  }
-
-  public static <T> Value tToValue(Serde<T> serde, T value) {
-    String resAsString = serde.serializeToByteString(value).toStringUtf8();
-    Value.Builder outValueBuilder = Value.newBuilder();
-    try {
-      JsonFormat.parser().merge(resAsString, outValueBuilder);
-    } catch (InvalidProtocolBufferException e) {
-      throw new RuntimeException(e);
-    }
-    return outValueBuilder.build();
-  }
 
   // -- Restate client methods
 
@@ -90,7 +67,7 @@ public class WorkflowCodegenUtil {
                       TerminalException.Code.fromValue(response.getFailure().getCode()),
                       response.getFailure().getMessage());
                 }
-                return Optional.ofNullable(valueToT(serde, response.getValue()));
+                return Optional.ofNullable(CodegenUtils.valueToT(serde, response.getValue()));
               });
     }
 
@@ -206,7 +183,7 @@ public class WorkflowCodegenUtil {
             TerminalException.Code.fromValue(response.getFailure().getCode()),
             response.getFailure().getMessage());
       }
-      return Optional.ofNullable(valueToT(serde, response.getValue()));
+      return Optional.ofNullable(CodegenUtils.valueToT(serde, response.getValue()));
     }
 
     public static boolean isCompleted(

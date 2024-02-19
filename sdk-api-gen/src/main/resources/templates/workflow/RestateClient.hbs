@@ -5,6 +5,7 @@ import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.Awaitable;
 import dev.restate.sdk.Context;
 import dev.restate.sdk.workflow.impl.WorkflowCodegenUtil;
+import dev.restate.sdk.dynrpc.CodegenUtils;
 import java.util.Optional;
 import java.time.Duration;
 
@@ -31,7 +32,7 @@ public class {{className}}RestateClient {
 
     {{#methods}}{{#if isWorkflow}}
     public Awaitable<dev.restate.sdk.workflow.generated.WorkflowExecutionState> submit({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-        return WorkflowCodegenUtil.RestateClient.submit(ctx, WF_SUBMIT_METHOD_DESC, workflowKey, {{#if inputEmpty}}null{{else}}WorkflowCodegenUtil.tToValue({{inputSerdeFieldName}}, req){{/if}});
+        return WorkflowCodegenUtil.RestateClient.submit(ctx, WF_SUBMIT_METHOD_DESC, workflowKey, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}});
     }
 
     public Awaitable<Boolean> isCompleted() {
@@ -50,11 +51,11 @@ public class {{className}}RestateClient {
 
     {{#methods}}{{#if isShared}}
     public {{#if outputEmpty}}Awaitable<Void>{{else}}Awaitable<{{{outputFqcn}}}>{{/if}} {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-        Awaitable<com.google.protobuf.Value> response = WorkflowCodegenUtil.RestateClient.invokeShared(ctx, {{descFieldName}}, workflowKey, {{#if inputEmpty}}null{{else}}WorkflowCodegenUtil.tToValue({{inputSerdeFieldName}}, req){{/if}});
+        Awaitable<com.google.protobuf.Value> response = WorkflowCodegenUtil.RestateClient.invokeShared(ctx, {{descFieldName}}, workflowKey, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}});
         {{#if outputEmpty}}
             return response.map(v -> { return null; });
         {{else}}
-            return response.map(v -> WorkflowCodegenUtil.valueToT({{outputSerdeFieldName}}, v));
+            return response.map(v -> CodegenUtils.valueToT({{outputSerdeFieldName}}, v));
         {{/if}}
     }
     {{/if}}{{/methods}}
@@ -71,7 +72,7 @@ public class {{className}}RestateClient {
 
         {{#methods}}{{#if isShared}}
         public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-            WorkflowCodegenUtil.RestateClient.invokeSharedOneWay(ctx, {{descFieldName}}, workflowKey, {{#if inputEmpty}}null{{else}}WorkflowCodegenUtil.tToValue({{inputSerdeFieldName}}, req){{/if}});
+            WorkflowCodegenUtil.RestateClient.invokeSharedOneWay(ctx, {{descFieldName}}, workflowKey, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}});
         }
         {{/if}}{{/methods}}
 
@@ -87,7 +88,7 @@ public class {{className}}RestateClient {
 
         {{#methods}}{{#if isShared}}
         public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-            WorkflowCodegenUtil.RestateClient.invokeSharedDelayed(ctx, {{descFieldName}}, workflowKey, {{#if inputEmpty}}null{{else}}WorkflowCodegenUtil.tToValue({{inputSerdeFieldName}}, req){{/if}}, delay);
+            WorkflowCodegenUtil.RestateClient.invokeSharedDelayed(ctx, {{descFieldName}}, workflowKey, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}}, delay);
         }
         {{/if}}{{/methods}}
 

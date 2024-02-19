@@ -16,6 +16,7 @@ import dev.restate.sdk.RestateService;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.common.syscalls.Syscalls;
+import dev.restate.sdk.dynrpc.CodegenUtils;
 import dev.restate.sdk.workflow.WorkflowContext;
 import dev.restate.sdk.workflow.generated.*;
 import dev.restate.sdk.workflow.template.generated.WorkflowGrpc;
@@ -96,7 +97,7 @@ class WorkflowImpl implements RestateService {
     try {
       // Convert input
       Object input =
-          WorkflowCodegenUtil.valueToT(
+          CodegenUtils.valueToT(
               workflowServicesBundle.getSig().getRequestSerde(), invokeRequest.getPayload());
 
       // Invoke method
@@ -110,7 +111,7 @@ class WorkflowImpl implements RestateService {
 
       //noinspection unchecked
       valueOutput =
-          WorkflowCodegenUtil.tToValue(
+          CodegenUtils.tToValue(
               (Serde<? super Object>) workflowServicesBundle.getSig().getResponseSerde(), output);
     } catch (TerminalException e) {
       // Intercept TerminalException to record it
@@ -156,8 +157,7 @@ class WorkflowImpl implements RestateService {
 
     // Convert input
     Object input =
-        WorkflowCodegenUtil.valueToT(
-            method.getMethodSignature().getRequestSerde(), request.getPayload());
+        CodegenUtils.valueToT(method.getMethodSignature().getRequestSerde(), request.getPayload());
 
     // Invoke method
     WorkflowContext ctx =
@@ -166,7 +166,7 @@ class WorkflowImpl implements RestateService {
     Object output = method.run(ctx, input);
 
     replySuccess(
-        WorkflowCodegenUtil.tToValue(method.getMethodSignature().getResponseSerde(), output),
+        CodegenUtils.tToValue(method.getMethodSignature().getResponseSerde(), output),
         streamObserver);
   }
 

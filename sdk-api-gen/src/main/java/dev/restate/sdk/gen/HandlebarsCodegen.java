@@ -13,7 +13,6 @@ import com.github.jknack.handlebars.Handlebars;
 import com.github.jknack.handlebars.Template;
 import com.github.jknack.handlebars.context.FieldValueResolver;
 import com.github.jknack.handlebars.helper.StringHelpers;
-import com.github.jknack.handlebars.internal.lang3.StringUtils;
 import com.github.jknack.handlebars.io.AbstractTemplateLoader;
 import com.github.jknack.handlebars.io.TemplateSource;
 import dev.restate.sdk.annotation.ServiceType;
@@ -23,7 +22,6 @@ import dev.restate.sdk.gen.model.Service;
 import java.io.IOException;
 import java.io.Writer;
 import java.nio.charset.Charset;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -39,32 +37,44 @@ public class HandlebarsCodegen {
   private final String baseTemplateName;
   private final Map<ServiceType, Template> templates;
 
-  public HandlebarsCodegen(Filer filer, String baseTemplateName, Map<ServiceType, String> templates) {
+  public HandlebarsCodegen(
+      Filer filer, String baseTemplateName, Map<ServiceType, String> templates) {
     this.filer = filer;
     this.baseTemplateName = baseTemplateName;
 
     Handlebars handlebars = new Handlebars(new FilerTemplateLoader(filer, this.baseTemplateName));
-  handlebars.registerHelpers(StringHelpers.class);
+    handlebars.registerHelpers(StringHelpers.class);
 
-    this.templates = templates.entrySet().stream()
-            .collect(Collectors.toMap(Map.Entry::getKey, e -> {
-                try {
-                    return handlebars.compile(e.getValue());
-                } catch (IOException ex) {
-                    throw new RuntimeException("Can't compile template for service " + e.getKey() + " with base template name " + baseTemplateName, ex);
-                }
-            }));
+    this.templates =
+        templates.entrySet().stream()
+            .collect(
+                Collectors.toMap(
+                    Map.Entry::getKey,
+                    e -> {
+                      try {
+                        return handlebars.compile(e.getValue());
+                      } catch (IOException ex) {
+                        throw new RuntimeException(
+                            "Can't compile template for service "
+                                + e.getKey()
+                                + " with base template name "
+                                + baseTemplateName,
+                            ex);
+                      }
+                    }));
   }
 
   public void generate(Service service) throws IOException {
     JavaFileObject entityAdapterFile =
         filer.createSourceFile(service.getFqcn() + this.baseTemplateName);
     try (Writer out = entityAdapterFile.openWriter()) {
-      this.templates.get(service.getServiceType()).apply(
-          Context.newBuilder(new EntityTemplateModel(service))
-              .resolver(FieldValueResolver.INSTANCE)
-              .build(),
-          out);
+      this.templates
+          .get(service.getServiceType())
+          .apply(
+              Context.newBuilder(new EntityTemplateModel(service))
+                  .resolver(FieldValueResolver.INSTANCE)
+                  .build(),
+              out);
     }
   }
 
@@ -87,7 +97,7 @@ public class HandlebarsCodegen {
       this.serviceType = inner.getServiceType().toString();
       this.isWorkflow = inner.getServiceType() == ServiceType.WORKFLOW;
       this.isObject = inner.getServiceType() == ServiceType.OBJECT;
-      this.isStateless =      inner.getServiceType() == ServiceType.STATELESS;
+      this.isStateless = inner.getServiceType() == ServiceType.STATELESS;
 
       this.methods =
           inner.getMethods().stream().map(MethodTemplateModel::new).collect(Collectors.toList());
@@ -160,8 +170,7 @@ public class HandlebarsCodegen {
         @Override
         public String content(Charset charset) throws IOException {
           return filer
-              .getResource(
-                  StandardLocation.ANNOTATION_PROCESSOR_PATH, location, templateName)
+              .getResource(StandardLocation.ANNOTATION_PROCESSOR_PATH, location, templateName)
               .getCharContent(true)
               .toString();
         }

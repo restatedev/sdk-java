@@ -3,6 +3,7 @@
 import dev.restate.sdk.common.StateKey;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.workflow.impl.WorkflowCodegenUtil;
+import dev.restate.sdk.dynrpc.CodegenUtils;
 import io.grpc.Channel;
 import java.util.Optional;
 
@@ -29,7 +30,7 @@ public class {{className}}ExternalClient {
 
     {{#methods}}{{#if isWorkflow}}
     public dev.restate.sdk.workflow.generated.WorkflowExecutionState submit({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-        return WorkflowCodegenUtil.ExternalClient.submit(restateChannel, WF_SUBMIT_METHOD_DESC, workflowKey, {{#if inputEmpty}}null{{else}}WorkflowCodegenUtil.tToValue({{inputSerdeFieldName}}, req){{/if}});
+        return WorkflowCodegenUtil.ExternalClient.submit(restateChannel, WF_SUBMIT_METHOD_DESC, workflowKey, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}});
     }
 
     public boolean isCompleted() {
@@ -48,9 +49,9 @@ public class {{className}}ExternalClient {
 
     {{#methods}}{{#if isShared}}
     public {{#if outputEmpty}}void{{else}}{{{outputFqcn}}}{{/if}} {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-        com.google.protobuf.Value response = WorkflowCodegenUtil.ExternalClient.invokeShared(restateChannel, {{descFieldName}}, workflowKey, {{#if inputEmpty}}null{{else}}WorkflowCodegenUtil.tToValue({{inputSerdeFieldName}}, req){{/if}});
+        com.google.protobuf.Value response = WorkflowCodegenUtil.ExternalClient.invokeShared(restateChannel, {{descFieldName}}, workflowKey, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}});
         {{^outputEmpty}}
-        return WorkflowCodegenUtil.valueToT({{outputSerdeFieldName}}, response);
+        return CodegenUtils.valueToT({{outputSerdeFieldName}}, response);
         {{/outputEmpty}}
     }
     {{/if}}{{/methods}}
@@ -63,7 +64,7 @@ public class {{className}}ExternalClient {
 
         {{#methods}}{{#if isShared}}
         public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-            WorkflowCodegenUtil.ExternalClient.invokeSharedOneWay(restateChannel, {{descFieldName}}, workflowKey, {{#if inputEmpty}}null{{else}}WorkflowCodegenUtil.tToValue({{inputSerdeFieldName}}, req){{/if}});
+            WorkflowCodegenUtil.ExternalClient.invokeSharedOneWay(restateChannel, {{descFieldName}}, workflowKey, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}});
         }
         {{/if}}{{/methods}}
 

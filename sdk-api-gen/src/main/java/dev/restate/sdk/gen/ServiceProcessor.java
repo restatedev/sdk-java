@@ -31,32 +31,39 @@ public class ServiceProcessor extends AbstractProcessor {
   public synchronized void init(ProcessingEnvironment processingEnv) {
     super.init(processingEnv);
 
-      this.serviceAdapterCodegen =
-          new HandlebarsCodegen(processingEnv.getFiler(), "ServiceAdapter", Map.of(
-                  ServiceType.WORKFLOW,
-                  "templates.workflow",
-                  ServiceType.STATELESS,
-                  "templates",
-                  ServiceType.OBJECT,
-                  "templates"
-          ));
-      this.externalClientCodegen =
-          new HandlebarsCodegen(processingEnv.getFiler(), "ExternalClient", Map.of(
-                  ServiceType.WORKFLOW,
-                  "templates.workflow",
-                  ServiceType.STATELESS,
-                  "templates",
-                  ServiceType.OBJECT,
-                  "templates"
-          ));
-      this.restateClientCodegen = new HandlebarsCodegen(processingEnv.getFiler(), "RestateClient", Map.of(
-              ServiceType.WORKFLOW,
-              "templates.workflow",
-              ServiceType.STATELESS,
-              "templates",
-              ServiceType.OBJECT,
-              "templates"
-      ));
+    this.serviceAdapterCodegen =
+        new HandlebarsCodegen(
+            processingEnv.getFiler(),
+            "ServiceAdapter",
+            Map.of(
+                ServiceType.WORKFLOW,
+                "templates.workflow",
+                ServiceType.STATELESS,
+                "templates",
+                ServiceType.OBJECT,
+                "templates"));
+    this.externalClientCodegen =
+        new HandlebarsCodegen(
+            processingEnv.getFiler(),
+            "ExternalClient",
+            Map.of(
+                ServiceType.WORKFLOW,
+                "templates.workflow",
+                ServiceType.STATELESS,
+                "templates",
+                ServiceType.OBJECT,
+                "templates"));
+    this.restateClientCodegen =
+        new HandlebarsCodegen(
+            processingEnv.getFiler(),
+            "RestateClient",
+            Map.of(
+                ServiceType.WORKFLOW,
+                "templates.workflow",
+                ServiceType.STATELESS,
+                "templates",
+                ServiceType.OBJECT,
+                "templates"));
   }
 
   @Override

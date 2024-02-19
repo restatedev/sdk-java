@@ -152,7 +152,8 @@ public class CodegenUtils {
         reqBuilder.setRequest(payload);
       }
 
-      return blockingUnaryCall(channel, methodDesc, CallOptions.DEFAULT, reqBuilder.build()).getResponse();
+      return blockingUnaryCall(channel, methodDesc, CallOptions.DEFAULT, reqBuilder.build())
+          .getResponse();
     }
 
     public static void invokeOneWay(
@@ -183,7 +184,8 @@ public class CodegenUtils {
         reqBuilder.setRequest(payload);
       }
 
-      return blockingUnaryCall(channel, methodDesc, CallOptions.DEFAULT, reqBuilder.build()).getResponse();
+      return blockingUnaryCall(channel, methodDesc, CallOptions.DEFAULT, reqBuilder.build())
+          .getResponse();
     }
 
     public static void invokeKeyedOneWay(

@@ -112,7 +112,7 @@ public class DynService implements RestateService, ServicesBundle {
     }
 
     public <REQ, RES> StatelessServiceBuilder with(
-            MethodSignature<REQ, RES> sig, BiFunction<Context, REQ, RES> runner) {
+        MethodSignature<REQ, RES> sig, BiFunction<Context, REQ, RES> runner) {
       this.methods.put(sig.getMethod(), new Method<>(sig, runner));
       return this;
     }
