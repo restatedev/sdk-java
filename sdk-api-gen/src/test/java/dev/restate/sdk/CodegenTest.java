@@ -62,13 +62,13 @@ public class CodegenTest implements TestSuite {
                 completionMessage(3, greetingResponse("Till")))
             .onlyUnbuffered()
             .expectingOutput(outputMessage("Francesco"), END_MESSAGE),
-            testInvocation(ObjectGreeter::new, "greet")
-                    .withInput(
-                            startMessage(1),
-                            keyedInputMessage("slinkydeveloper", "Francesco"),
-                            completionMessage(3, greetingResponse("Till")))
-                    .onlyUnbuffered()
-                    .expectingOutput(outputMessage("Francesco"), END_MESSAGE),
+        testInvocation(ObjectGreeter::new, "greet")
+            .withInput(
+                startMessage(1),
+                keyedInputMessage("slinkydeveloper", "Francesco"),
+                completionMessage(3, greetingResponse("Till")))
+            .onlyUnbuffered()
+            .expectingOutput(outputMessage("Francesco"), END_MESSAGE),
         testInvocation(ObjectGreeterImplementedFromInterface::new, "greet")
             .withInput(
                 startMessage(1),

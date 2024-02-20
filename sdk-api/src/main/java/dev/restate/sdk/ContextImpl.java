@@ -86,11 +86,12 @@ class ContextImpl implements KeyedContext {
   }
 
   @Override
-  public <T, R> Awaitable<R> call(Address address, Serde<T> inputSerde, Serde<R> outputSerde, T parameter) {
+  public <T, R> Awaitable<R> call(
+      Address address, Serde<T> inputSerde, Serde<R> outputSerde, T parameter) {
     ByteString input = Util.serializeWrappingException(syscalls, inputSerde, parameter);
     Deferred<ByteString> result = Util.blockOnSyscall(cb -> syscalls.call(address, input, cb));
-    return Awaitable.single(syscalls, result).map(bs -> Util.deserializeWrappingException(
-            syscalls, outputSerde, bs));
+    return Awaitable.single(syscalls, result)
+        .map(bs -> Util.deserializeWrappingException(syscalls, outputSerde, bs));
   }
 
   @Override

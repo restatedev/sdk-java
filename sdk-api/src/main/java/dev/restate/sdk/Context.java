@@ -53,9 +53,7 @@ public interface Context {
    */
   <T, R> Awaitable<R> call(Address address, Serde<T> inputSerde, Serde<R> outputSerde, T parameter);
 
-  /**
-   * Like {@link #call(Address, Serde, Serde, Object)} with raw input/output.
-   */
+  /** Like {@link #call(Address, Serde, Serde, Object)} with raw input/output. */
   default Awaitable<byte[]> call(Address address, byte[] parameter) {
     return call(address, CoreSerdes.RAW, CoreSerdes.RAW, parameter);
   }
@@ -84,9 +82,7 @@ public interface Context {
    */
   <T> void oneWayCall(Address address, Serde<T> inputSerde, T parameter);
 
-  /**
-   * Like {@link #oneWayCall(Address, Serde, Object)} with raw input.
-   */
+  /** Like {@link #oneWayCall(Address, Serde, Object)} with raw input. */
   default void oneWayCall(Address address, byte[] parameter) {
     oneWayCall(address, CoreSerdes.RAW, parameter);
   }
@@ -113,9 +109,7 @@ public interface Context {
    */
   <T> void delayedCall(Address address, Serde<T> inputSerde, T parameter, Duration delay);
 
-  /**
-   * Like {@link #delayedCall(Address, Serde, Object, Duration)} with raw input.
-   */
+  /** Like {@link #delayedCall(Address, Serde, Object, Duration)} with raw input. */
   default void delayedCall(Address address, byte[] parameter, Duration delay) {
     delayedCall(address, CoreSerdes.RAW, parameter, delay);
   }

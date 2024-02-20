@@ -12,10 +12,12 @@ import com.google.protobuf.Descriptors;
 import dev.restate.sdk.Context;
 import dev.restate.sdk.KeyedContext;
 import dev.restate.sdk.RestateService;
+import dev.restate.sdk.annotation.ServiceType;
 import dev.restate.sdk.common.BlockingService;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.ServicesBundle;
 import dev.restate.sdk.common.TerminalException;
+import dev.restate.sdk.common.syscalls.ServiceDefinition;
 import dev.restate.sdk.common.syscalls.Syscalls;
 import dev.restate.sdk.dynrpc.generated.KeyedRpcRequest;
 import dev.restate.sdk.dynrpc.generated.RpcRequest;
@@ -28,10 +30,7 @@ import io.grpc.ServerServiceDefinition;
 import io.grpc.ServiceDescriptor;
 import io.grpc.stub.ServerCalls;
 import io.grpc.stub.StreamObserver;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.BiFunction;
 import javax.annotation.Nullable;
 
@@ -39,6 +38,7 @@ public class DynService implements RestateService, ServicesBundle {
   private final String name;
   private final HashMap<String, Method<?, ?>> methods;
   private final ServerServiceDefinition serverServiceDefinition;
+  private final ServiceDefinition serviceDefinition;
 
   private DynService(String fqsn, boolean isKeyed, HashMap<String, Method<?, ?>> methods) {
     this.name = fqsn;
@@ -54,6 +54,14 @@ public class DynService implements RestateService, ServicesBundle {
             fqsn,
             methods.keySet(),
             isKeyed);
+
+    this.serviceDefinition =
+        new ServiceDefinition(
+            fqsn,
+            ServiceDefinition.ExecutorType.BLOCKING,
+            isKeyed ? ServiceType.OBJECT : ServiceType.STATELESS,
+            Collections.emptyList() // TODO
+            );
   }
 
   private Method<?, ?> getMethod(String name) {
@@ -62,6 +70,11 @@ public class DynService implements RestateService, ServicesBundle {
 
   public String getName() {
     return name;
+  }
+
+  @Override
+  public ServiceDefinition definition() {
+    return this.serviceDefinition;
   }
 
   @Override

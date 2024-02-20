@@ -6,14 +6,11 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-package dev.restate.sdk.common;
+package dev.restate.sdk.common.syscalls;
 
-import dev.restate.sdk.common.syscalls.ServiceDefinition;
-import io.grpc.BindableService;
+import com.google.protobuf.ByteString;
 
-/** Marker interface for a Restate service. */
-public interface Service extends BindableService {
-  default ServiceDefinition definition() {
-    return null;
-  }
+public interface RequestHandler {
+
+  void handle(Syscalls syscalls, ByteString input, SyscallCallback<ByteString> callback);
 }
