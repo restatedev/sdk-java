@@ -10,6 +10,7 @@ package dev.restate.sdk.workflow.impl;
 
 import com.google.protobuf.Empty;
 import dev.restate.sdk.*;
+import dev.restate.sdk.common.Address;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.StateKey;
 import dev.restate.sdk.common.TerminalException;
@@ -151,8 +152,24 @@ class WorkflowContextImpl implements WorkflowContext {
   }
 
   @Override
+  public <T, R> Awaitable<R> call(
+      Address address, Serde<T> inputSerde, Serde<R> outputSerde, T parameter) {
+    return ctx.call(address, inputSerde, outputSerde, parameter);
+  }
+
+  @Override
+  public <T> void oneWayCall(Address address, Serde<T> inputSerde, T parameter) {
+    ctx.oneWayCall(address, inputSerde, parameter);
+  }
+
+  @Override
   public <T> void oneWayCall(MethodDescriptor<T, ?> methodDescriptor, T parameter) {
     ctx.oneWayCall(methodDescriptor, parameter);
+  }
+
+  @Override
+  public <T> void delayedCall(Address address, Serde<T> inputSerde, T parameter, Duration delay) {
+    ctx.delayedCall(address, inputSerde, parameter, delay);
   }
 
   @Override

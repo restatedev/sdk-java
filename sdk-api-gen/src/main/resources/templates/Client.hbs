@@ -1,0 +1,107 @@
+{{#if originalClassPkg}}package {{originalClassPkg}};{{/if}}
+
+import dev.restate.sdk.common.StateKey;
+import dev.restate.sdk.common.Serde;
+import dev.restate.sdk.dynrpc.CodegenUtils;
+import io.grpc.Channel;
+import java.util.Optional;
+import java.time.Duration;
+
+public class {{generatedClassSimpleName}} {
+
+    public static final String SERVICE_NAME = "{{fqsn}}";
+
+    {{#methods}}
+    private static final io.grpc.MethodDescriptor<dev.restate.sdk.dynrpc.generated.{{#if isObject}}KeyedRpcRequest{{else}}RpcRequest{{/if}}, dev.restate.sdk.dynrpc.generated.RpcResponse> {{descFieldName}} = CodegenUtils.generateMethodDescriptor(dev.restate.sdk.dynrpc.template.generated.{{#if isObject}}KeyedServiceGrpc{{else}}ServiceGrpc{{/if}}.getTemplateMethod(), SERVICE_NAME, "{{name}}");
+    {{^inputEmpty}}private static final Serde<{{{inputFqcn}}}> {{inputSerdeFieldName}} = {{{inputSerdeDecl}}};{{/inputEmpty}}
+    {{^outputEmpty}}private static final Serde<{{{outputFqcn}}}> {{outputSerdeFieldName}} = {{{outputSerdeDecl}}};{{/outputEmpty}}
+    {{/methods}}
+
+    public static ContextClient fromContext(Context ctx{{#isObject}}, String key{{/isObject}}) {
+        return new ContextClient(ctx{{#isObject}}, key{{/isObject}});
+    }
+
+    public static IngressClient fromIngress(Channel restateChannel{{#isObject}}, String key{{/isObject}}) {
+        return new IngressClient(restateChannel{{#isObject}}, key{{/isObject}});
+    }
+
+    public static class ContextClient {
+
+        private final Context ctx;
+        {{#isObject}}private final String key;{{/isObject}}
+
+        public ContextClient(Context ctx{{#isObject}}, String key{{/isObject}}) {
+            this.ctx = ctx;
+            {{#isObject}}this.key = key;{{/isObject}}
+        }
+
+        {{#methods}}
+        public {{#if outputEmpty}}Awaitable<Void>{{else}}Awaitable<{{{outputFqcn}}}>{{/if}} {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
+            Awaitable<com.google.protobuf.Value> response = CodegenUtils.RestateClient.{{#if isObject}}invokeKeyed{{else}}invoke{{/if}}(this.ctx, {{descFieldName}}{{#isObject}}, this.key{{/isObject}}, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}});
+        {{#if outputEmpty}}
+            return response.map(v -> { return null; });
+        {{else}}
+            return response.map(v -> CodegenUtils.valueToT({{outputSerdeFieldName}}, v));
+        {{/if}}
+        }{{/methods}}
+
+        public OneWay oneWay() {
+            return new OneWay();
+        }
+
+        public Delayed delayed(Duration delay) {
+            return new Delayed(delay);
+        }
+
+        public class OneWay {
+            {{#methods}}
+            public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
+                CodegenUtils.RestateClient.{{#if isObject}}invokeKeyed{{else}}invoke{{/if}}OneWay(ContextClient.this.ctx, {{descFieldName}}{{#isObject}}, ContextClient.this.key{{/isObject}}, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}});
+            }{{/methods}}
+        }
+
+        public class Delayed {
+
+            private final Duration delay;
+
+            Delayed(Duration delay) {
+                this.delay = delay;
+            }
+
+            {{#methods}}
+            public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
+                CodegenUtils.RestateClient.{{#if isObject}}invokeKeyed{{else}}invoke{{/if}}Delayed(ContextClient.this.ctx, {{descFieldName}}{{#isObject}}, ContextClient.this.key{{/isObject}}, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}}, delay);
+            }{{/methods}}
+        }
+    }
+
+    public static class IngressClient {
+
+        private final Channel restateChannel;
+        {{#isObject}}private final String key;{{/isObject}}
+
+        public IngressClient(Channel restateChannel{{#isObject}}, String key{{/isObject}}) {
+            this.restateChannel = restateChannel;
+            {{#isObject}}this.key = key;{{/isObject}}
+        }
+
+        {{#methods}}
+        public {{#if outputEmpty}}void{{else}}{{{outputFqcn}}}{{/if}} {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
+            com.google.protobuf.Value response = CodegenUtils.ExternalClient.{{#if isObject}}invokeKeyed{{else}}invoke{{/if}}(this.restateChannel, {{descFieldName}}{{#isObject}}, this.key{{/isObject}}, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}});
+            {{^outputEmpty}}
+            return CodegenUtils.valueToT({{outputSerdeFieldName}}, response);
+            {{/outputEmpty}}
+        }{{/methods}}
+
+        public OneWay oneWay() {
+            return new OneWay();
+        }
+
+        public class OneWay {
+            {{#methods}}
+            public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
+                CodegenUtils.ExternalClient.{{#if isObject}}invokeKeyed{{else}}invoke{{/if}}OneWay(IngressClient.this.restateChannel, {{descFieldName}}{{#isObject}}, IngressClient.this.key{{/isObject}}, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}});
+            }{{/methods}}
+        }
+    }
+}

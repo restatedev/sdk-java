@@ -31,6 +31,7 @@ public class ServiceProcessor extends AbstractProcessor {
   private HandlebarsCodegen serviceAdapterCodegen;
   private HandlebarsCodegen externalClientCodegen;
   private HandlebarsCodegen restateClientCodegen;
+  private HandlebarsCodegen clientCodegen;
 
   @Override
   public synchronized void init(ProcessingEnvironment processingEnv) {
@@ -51,24 +52,17 @@ public class ServiceProcessor extends AbstractProcessor {
         new HandlebarsCodegen(
             processingEnv.getFiler(),
             "ExternalClient",
-            Map.of(
-                ServiceType.WORKFLOW,
-                "templates.workflow",
-                ServiceType.STATELESS,
-                "templates",
-                ServiceType.OBJECT,
-                "templates"));
+            Map.of(ServiceType.WORKFLOW, "templates.workflow"));
     this.restateClientCodegen =
         new HandlebarsCodegen(
             processingEnv.getFiler(),
             "RestateClient",
-            Map.of(
-                ServiceType.WORKFLOW,
-                "templates.workflow",
-                ServiceType.STATELESS,
-                "templates",
-                ServiceType.OBJECT,
-                "templates"));
+            Map.of(ServiceType.WORKFLOW, "templates.workflow"));
+    this.clientCodegen =
+        new HandlebarsCodegen(
+            processingEnv.getFiler(),
+            "Client",
+            Map.of(ServiceType.STATELESS, "templates", ServiceType.OBJECT, "templates"));
   }
 
   @Override
@@ -90,8 +84,12 @@ public class ServiceProcessor extends AbstractProcessor {
     for (Service e : parsedServices) {
       try {
         this.serviceAdapterCodegen.generate(e);
-        this.externalClientCodegen.generate(e);
-        this.restateClientCodegen.generate(e);
+        if (e.getServiceType() == ServiceType.WORKFLOW) {
+          this.externalClientCodegen.generate(e);
+          this.restateClientCodegen.generate(e);
+        } else {
+          this.clientCodegen.generate(e);
+        }
       } catch (IOException ex) {
         throw new RuntimeException(ex);
       }
