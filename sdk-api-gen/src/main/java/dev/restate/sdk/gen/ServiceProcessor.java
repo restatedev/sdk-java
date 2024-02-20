@@ -117,14 +117,14 @@ public class ServiceProcessor extends AbstractProcessor {
             StandardOpenOption.CREATE,
             StandardOpenOption.APPEND)) {
       for (Service svc : parsedServices) {
-        writer.write(svc.getFqcn() + "ServiceAdapter");
+        writer.write(svc.getGeneratedClassFqcnPrefix() + "ServiceAdapter");
         writer.write('\n');
       }
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
 
-    return true;
+    return false;
   }
 
   public static Path readOrCreateResource(Filer filer, String file) throws IOException {

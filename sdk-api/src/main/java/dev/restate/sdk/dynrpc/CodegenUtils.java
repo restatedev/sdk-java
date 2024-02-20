@@ -86,7 +86,6 @@ public class CodegenUtils {
     public static void invokeDelayed(
         Context ctx,
         MethodDescriptor<RpcRequest, RpcResponse> methodDesc,
-        String key,
         @Nullable Value payload,
         Duration delay) {
       RpcRequest.Builder reqBuilder = RpcRequest.newBuilder();

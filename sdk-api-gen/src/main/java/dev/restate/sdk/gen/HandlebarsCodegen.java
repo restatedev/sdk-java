@@ -66,12 +66,12 @@ public class HandlebarsCodegen {
 
   public void generate(Service service) throws IOException {
     JavaFileObject entityAdapterFile =
-        filer.createSourceFile(service.getFqcn() + this.baseTemplateName);
+        filer.createSourceFile(service.getGeneratedClassFqcnPrefix() + this.baseTemplateName);
     try (Writer out = entityAdapterFile.openWriter()) {
       this.templates
           .get(service.getServiceType())
           .apply(
-              Context.newBuilder(new EntityTemplateModel(service))
+              Context.newBuilder(new EntityTemplateModel(service, this.baseTemplateName))
                   .resolver(FieldValueResolver.INSTANCE)
                   .build(),
               out);
@@ -81,19 +81,26 @@ public class HandlebarsCodegen {
   // --- classes to interact with the handlebars template
 
   static class EntityTemplateModel {
-    public final String packageName;
-    public final String className;
-    public final String fqcn;
+    public final String originalClassPkg;
+    public final String originalClassFqcn;
+    public final String generatedClassSimpleNamePrefix;
+    public final String generatedClassSimpleName;
+    public final String generatedClassFqcnPrefix;
+    public final String fqsn;
     public final String serviceType;
     public final boolean isWorkflow;
     public final boolean isObject;
     public final boolean isStateless;
     public final List<MethodTemplateModel> methods;
 
-    private EntityTemplateModel(Service inner) {
-      this.packageName = inner.getPkg() != null ? inner.getPkg().toString() : null;
-      this.className = inner.getSimpleClassName().toString();
-      this.fqcn = inner.getFqcn().toString();
+    private EntityTemplateModel(Service inner, String baseTemplateName) {
+      this.originalClassPkg = inner.getPkg().toString();
+      this.originalClassFqcn = inner.getOriginalClassFqcn().toString();
+      this.generatedClassSimpleNamePrefix = inner.getGeneratedClassSimpleNamePrefix().toString();
+      this.generatedClassSimpleName = this.generatedClassSimpleNamePrefix + baseTemplateName;
+      this.fqsn = inner.getFqsn().toString();
+      this.generatedClassFqcnPrefix = inner.getGeneratedClassFqcnPrefix().toString();
+
       this.serviceType = inner.getServiceType().toString();
       this.isWorkflow = inner.getServiceType() == ServiceType.WORKFLOW;
       this.isObject = inner.getServiceType() == ServiceType.OBJECT;

@@ -1,4 +1,4 @@
-{{#if packageName}}package {{packageName}};{{/if}}
+{{#if originalClassPkg}}package {{originalClassPkg}};{{/if}}
 
 import dev.restate.sdk.common.StateKey;
 import dev.restate.sdk.common.Serde;
@@ -9,9 +9,9 @@ import dev.restate.sdk.dynrpc.CodegenUtils;
 import java.util.Optional;
 import java.time.Duration;
 
-public class {{className}}RestateClient {
+public class {{generatedClassSimpleName}} {
 
-    private static final String WORKFLOW_NAME = "{{fqcn}}";
+    private static final String WORKFLOW_NAME = "{{fqsn}}";
     private static final io.grpc.MethodDescriptor<dev.restate.sdk.workflow.generated.StateRequest, dev.restate.sdk.workflow.generated.GetStateResponse> WF_MANAGER_GET_STATE_METHOD_DESC = WorkflowCodegenUtil.generateMethodDescriptorForWorkflowManager(dev.restate.sdk.workflow.template.generated.WorkflowManagerGrpc.getGetStateMethod(), WORKFLOW_NAME);
     private static final io.grpc.MethodDescriptor<dev.restate.sdk.workflow.generated.OutputRequest, dev.restate.sdk.workflow.generated.GetOutputResponse> WF_MANAGER_GET_OUTPUT_METHOD_DESC = WorkflowCodegenUtil.generateMethodDescriptorForWorkflowManager(dev.restate.sdk.workflow.template.generated.WorkflowManagerGrpc.getGetOutputMethod(), WORKFLOW_NAME);
     private static final io.grpc.MethodDescriptor<dev.restate.sdk.workflow.generated.InvokeRequest, dev.restate.sdk.workflow.generated.SubmitResponse> WF_SUBMIT_METHOD_DESC = WorkflowCodegenUtil.generateMethodDescriptorForWorkflowSubmit(WORKFLOW_NAME);
@@ -25,7 +25,7 @@ public class {{className}}RestateClient {
     private final Context ctx;
     private final String workflowKey;
 
-    public {{className}}RestateClient(Context ctx, String workflowKey) {
+    public {{generatedClassSimpleName}}(Context ctx, String workflowKey) {
         this.ctx = ctx;
         this.workflowKey = workflowKey;
     }
@@ -60,15 +60,15 @@ public class {{className}}RestateClient {
     }
     {{/if}}{{/methods}}
 
-    public {{className}}OneWayExternalClient oneWay() {
-        return new {{className}}OneWayExternalClient();
+    public {{generatedClassSimpleNamePrefix}}OneWayExternalClient oneWay() {
+        return new {{generatedClassSimpleNamePrefix}}OneWayExternalClient();
     }
 
-    public {{className}}DelayedExternalClient delayed(Duration delay) {
-        return new {{className}}DelayedExternalClient(delay);
+    public {{generatedClassSimpleNamePrefix}}DelayedExternalClient delayed(Duration delay) {
+        return new {{generatedClassSimpleNamePrefix}}DelayedExternalClient(delay);
     }
 
-    public class {{className}}OneWayExternalClient {
+    public class {{generatedClassSimpleNamePrefix}}OneWayExternalClient {
 
         {{#methods}}{{#if isShared}}
         public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
@@ -78,11 +78,11 @@ public class {{className}}RestateClient {
 
     }
 
-    public class {{className}}DelayedExternalClient {
+    public class {{generatedClassSimpleNamePrefix}}DelayedExternalClient {
 
         private final Duration delay;
 
-        {{className}}DelayedExternalClient(Duration delay) {
+        {{generatedClassSimpleNamePrefix}}DelayedExternalClient(Duration delay) {
             this.delay = delay;
         }
 

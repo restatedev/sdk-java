@@ -1,11 +1,11 @@
-{{#if packageName}}package {{packageName}};{{/if}}
+{{#if originalClassPkg}}package {{originalClassPkg}};{{/if}}
 
-public class {{className}}ServiceAdapter implements dev.restate.sdk.common.ServiceAdapter<{{fqcn}}> {
+public class {{generatedClassSimpleName}} implements dev.restate.sdk.common.ServiceAdapter<{{originalClassFqcn}}> {
 
-    public static final String SERVICE_NAME = "{{fqcn}}";
+    public static final String SERVICE_NAME = "{{fqsn}}";
 
     @java.lang.Override
-    public dev.restate.sdk.workflow.impl.WorkflowServicesBundle adapt({{fqcn}} service) {
+    public dev.restate.sdk.workflow.impl.WorkflowServicesBundle adapt({{originalClassFqcn}} service) {
         return dev.restate.sdk.workflow.impl.WorkflowServicesBundle.named(
             SERVICE_NAME,
             {{#methods}}{{#if isWorkflow}}
@@ -36,7 +36,7 @@ public class {{className}}ServiceAdapter implements dev.restate.sdk.common.Servi
 
     @java.lang.Override
     public boolean supportsObject(Object serviceObject) {
-        return serviceObject instanceof {{fqcn}};
+        return serviceObject instanceof {{originalClassFqcn}};
     }
 
 }

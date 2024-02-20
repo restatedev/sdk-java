@@ -10,6 +10,7 @@ package dev.restate.sdk.gen.model;
 
 import dev.restate.sdk.annotation.*;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.ElementKind;
@@ -23,17 +24,24 @@ import javax.tools.Diagnostic;
 public class Service {
 
   private final CharSequence pkg;
-  private final CharSequence simpleClassName;
+  private final CharSequence fqcn;
+  private final CharSequence fqsn;
+  private final CharSequence generatedClassSimpleName;
   private final ServiceType serviceType;
   private final List<Method> methods;
 
-  Service(
-      CharSequence pkg,
-      CharSequence simpleClassName,
-      ServiceType serviceType,
-      List<Method> methods) {
+  Service(CharSequence pkg, CharSequence fqcn, ServiceType serviceType, List<Method> methods) {
     this.pkg = pkg;
-    this.simpleClassName = simpleClassName;
+    this.fqcn = fqcn;
+
+    // Service name flattens subclasses!
+    this.generatedClassSimpleName =
+        fqcn.toString().substring(pkg.length()).replaceAll(Pattern.quote("."), "");
+    this.fqsn =
+        this.pkg.length() > 0
+            ? this.pkg + "." + this.generatedClassSimpleName
+            : this.generatedClassSimpleName;
+
     this.serviceType = serviceType;
     this.methods = methods;
   }
@@ -42,15 +50,21 @@ public class Service {
     return pkg;
   }
 
-  public CharSequence getSimpleClassName() {
-    return simpleClassName;
+  public CharSequence getOriginalClassFqcn() {
+    return this.fqcn;
   }
 
-  public CharSequence getFqcn() {
-    if (pkg.length() == 0) {
-      return simpleClassName;
-    }
-    return pkg + "." + simpleClassName;
+  public CharSequence getFqsn() {
+    return fqsn;
+  }
+
+  public CharSequence getGeneratedClassSimpleNamePrefix() {
+    return this.generatedClassSimpleName;
+  }
+
+  public CharSequence getGeneratedClassFqcnPrefix() {
+    // This might be different if the package name of the service can be modified
+    return fqsn;
   }
 
   public ServiceType getServiceType() {
@@ -84,7 +98,10 @@ public class Service {
     validateMethods(type, methods, element, messager);
 
     return new Service(
-        elements.getPackageOf(element).getQualifiedName(), element.getSimpleName(), type, methods);
+        elements.getPackageOf(element).getQualifiedName(),
+        element.getQualifiedName(),
+        type,
+        methods);
   }
 
   private static void validateType(TypeElement element, Messager messager) {

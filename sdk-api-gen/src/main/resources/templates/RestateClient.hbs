@@ -1,4 +1,4 @@
-{{#if packageName}}package {{packageName}};{{/if}}
+{{#if originalClassPkg}}package {{originalClassPkg}};{{/if}}
 
 import dev.restate.sdk.common.StateKey;
 import dev.restate.sdk.common.Serde;
@@ -8,9 +8,9 @@ import dev.restate.sdk.dynrpc.CodegenUtils;
 import java.util.Optional;
 import java.time.Duration;
 
-public class {{className}}RestateClient {
+public class {{generatedClassSimpleName}} {
 
-    private static final String SERVICE_NAME = "{{fqcn}}";
+    private static final String SERVICE_NAME = "{{fqsn}}";
 
     {{#methods}}
     private static final io.grpc.MethodDescriptor<dev.restate.sdk.dynrpc.generated.{{#if isObject}}KeyedRpcRequest{{else}}RpcRequest{{/if}}, dev.restate.sdk.dynrpc.generated.RpcResponse> {{descFieldName}} = CodegenUtils.generateMethodDescriptor(dev.restate.sdk.dynrpc.template.generated.{{#if isObject}}KeyedServiceGrpc{{else}}ServiceGrpc{{/if}}.getTemplateMethod(), SERVICE_NAME, "{{name}}");
@@ -21,7 +21,7 @@ public class {{className}}RestateClient {
     private final Context ctx;
     {{#isObject}}private final String key;{{/isObject}}
 
-    public {{className}}RestateClient(Context ctx{{#isObject}}, String key{{/isObject}}) {
+    public {{generatedClassSimpleName}}(Context ctx{{#isObject}}, String key{{/isObject}}) {
         this.ctx = ctx;
         {{#isObject}}this.key = key;{{/isObject}}
     }
@@ -37,35 +37,35 @@ public class {{className}}RestateClient {
     }
     {{/methods}}
 
-    public {{className}}OneWayRestateClient oneWay() {
-        return new {{className}}OneWayRestateClient();
+    public {{generatedClassSimpleNamePrefix}}OneWayRestateClient oneWay() {
+        return new {{generatedClassSimpleNamePrefix}}OneWayRestateClient();
     }
 
-    public {{className}}DelayedRestateClient delayed(Duration delay) {
-        return new {{className}}DelayedRestateClient(delay);
+    public {{generatedClassSimpleNamePrefix}}DelayedRestateClient delayed(Duration delay) {
+        return new {{generatedClassSimpleNamePrefix}}DelayedRestateClient(delay);
     }
 
-    public class {{className}}OneWayRestateClient {
+    public class {{generatedClassSimpleNamePrefix}}OneWayRestateClient {
 
         {{#methods}}
         public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-                CodegenUtils.RestateClient.{{#if isObject}}invokeKeyed{{else}}invoke{{/if}}OneWay({{../className}}RestateClient.this.ctx, {{descFieldName}}{{#isObject}}, {{../className}}RestateClient.this.key{{/isObject}}, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}});
+                CodegenUtils.RestateClient.{{#if isObject}}invokeKeyed{{else}}invoke{{/if}}OneWay({{../generatedClassSimpleName}}.this.ctx, {{descFieldName}}{{#isObject}}, {{../generatedClassSimpleName}}.this.key{{/isObject}}, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}});
         }
         {{/methods}}
 
     }
 
-    public class {{className}}DelayedRestateClient {
+    public class {{generatedClassSimpleNamePrefix}}DelayedRestateClient {
 
         private final Duration delay;
 
-        {{className}}DelayedRestateClient(Duration delay) {
+        {{generatedClassSimpleNamePrefix}}DelayedRestateClient(Duration delay) {
             this.delay = delay;
         }
 
         {{#methods}}
         public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-            CodegenUtils.RestateClient.{{#if isObject}}invokeKeyed{{else}}invoke{{/if}}Delayed({{../className}}RestateClient.this.ctx, {{descFieldName}}{{#isObject}}, {{../className}}RestateClient.this.key{{/isObject}}, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}}, delay);
+            CodegenUtils.RestateClient.{{#if isObject}}invokeKeyed{{else}}invoke{{/if}}Delayed({{../generatedClassSimpleName}}.this.ctx, {{descFieldName}}{{#isObject}}, {{../generatedClassSimpleName}}.this.key{{/isObject}}, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}}, delay);
         }
         {{/methods}}
 

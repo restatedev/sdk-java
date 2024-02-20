@@ -1,4 +1,4 @@
-{{#if packageName}}package {{packageName}};{{/if}}
+{{#if originalClassPkg}}package {{originalClassPkg}};{{/if}}
 
 import dev.restate.sdk.common.StateKey;
 import dev.restate.sdk.common.Serde;
@@ -7,9 +7,9 @@ import dev.restate.sdk.dynrpc.CodegenUtils;
 import io.grpc.Channel;
 import java.util.Optional;
 
-public class {{className}}ExternalClient {
+public class {{generatedClassSimpleName}} {
 
-    private static final String WORKFLOW_NAME = "{{fqcn}}";
+    private static final String WORKFLOW_NAME = "{{fqsn}}";
     private static final io.grpc.MethodDescriptor<dev.restate.sdk.workflow.generated.StateRequest, dev.restate.sdk.workflow.generated.GetStateResponse> WF_MANAGER_GET_STATE_METHOD_DESC = WorkflowCodegenUtil.generateMethodDescriptorForWorkflowManager(dev.restate.sdk.workflow.template.generated.WorkflowManagerGrpc.getGetStateMethod(), WORKFLOW_NAME);
     private static final io.grpc.MethodDescriptor<dev.restate.sdk.workflow.generated.OutputRequest, dev.restate.sdk.workflow.generated.GetOutputResponse> WF_MANAGER_GET_OUTPUT_METHOD_DESC = WorkflowCodegenUtil.generateMethodDescriptorForWorkflowManager(dev.restate.sdk.workflow.template.generated.WorkflowManagerGrpc.getGetOutputMethod(), WORKFLOW_NAME);
     private static final io.grpc.MethodDescriptor<dev.restate.sdk.workflow.generated.InvokeRequest, dev.restate.sdk.workflow.generated.SubmitResponse> WF_SUBMIT_METHOD_DESC = WorkflowCodegenUtil.generateMethodDescriptorForWorkflowSubmit(WORKFLOW_NAME);
@@ -23,7 +23,7 @@ public class {{className}}ExternalClient {
     private final Channel restateChannel;
     private final String workflowKey;
 
-    public {{className}}ExternalClient(Channel restateChannel, String workflowKey) {
+    public {{generatedClassSimpleName}}(Channel restateChannel, String workflowKey) {
         this.restateChannel = restateChannel;
         this.workflowKey = workflowKey;
     }
@@ -56,11 +56,11 @@ public class {{className}}ExternalClient {
     }
     {{/if}}{{/methods}}
 
-    public {{className}}OneWayExternalClient oneWay() {
-        return new {{className}}OneWayExternalClient();
+    public {{generatedClassSimpleNamePrefix}}OneWayExternalClient oneWay() {
+        return new {{generatedClassSimpleNamePrefix}}OneWayExternalClient();
     }
 
-    public class {{className}}OneWayExternalClient {
+    public class {{generatedClassSimpleNamePrefix}}OneWayExternalClient {
 
         {{#methods}}{{#if isShared}}
         public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
