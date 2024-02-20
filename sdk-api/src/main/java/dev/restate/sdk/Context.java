@@ -43,6 +43,24 @@ public interface Context {
   <T, R> Awaitable<R> call(MethodDescriptor<T, R> methodDescriptor, T parameter);
 
   /**
+   * Invoke another Restate service method.
+   *
+   * @param address the address of the callee
+   * @param inputSerde Input serde
+   * @param outputSerde Output serde
+   * @param parameter the invocation request parameter.
+   * @return an {@link Awaitable} that wraps the Restate service method result.
+   */
+  <T, R> Awaitable<R> call(Address address, Serde<T> inputSerde, Serde<R> outputSerde, T parameter);
+
+  /**
+   * Like {@link #call(Address, Serde, Serde, Object)} with raw input/output.
+   */
+  default Awaitable<byte[]> call(Address address, byte[] parameter) {
+    return call(address, CoreSerdes.RAW, CoreSerdes.RAW, parameter);
+  }
+
+  /**
    * Create a {@link Channel} to use with generated blocking stubs to invoke other Restate services.
    *
    * <p>The returned {@link Channel} will execute the requests using the {@link
@@ -60,11 +78,47 @@ public interface Context {
   /**
    * Invoke another Restate service without waiting for the response.
    *
+   * @param address the address of the callee
+   * @param inputSerde Input serde
+   * @param parameter the invocation request parameter.
+   */
+  <T> void oneWayCall(Address address, Serde<T> inputSerde, T parameter);
+
+  /**
+   * Like {@link #oneWayCall(Address, Serde, Object)} with raw input.
+   */
+  default void oneWayCall(Address address, byte[] parameter) {
+    oneWayCall(address, CoreSerdes.RAW, parameter);
+  }
+
+  /**
+   * Invoke another Restate service without waiting for the response.
+   *
    * @param methodDescriptor The method descriptor of the method to invoke. This is found in the
    *     generated `*Grpc` class.
    * @param parameter the invocation request parameter.
    */
   <T> void oneWayCall(MethodDescriptor<T, ?> methodDescriptor, T parameter);
+
+  /**
+   * Invoke another Restate service without waiting for the response after the provided {@code
+   * delay} has elapsed.
+   *
+   * <p>This method returns immediately, as the timer is executed and awaited on Restate.
+   *
+   * @param address the address of the callee
+   * @param inputSerde Input serde
+   * @param parameter the invocation request parameter.
+   * @param delay time to wait before executing the call.
+   */
+  <T> void delayedCall(Address address, Serde<T> inputSerde, T parameter, Duration delay);
+
+  /**
+   * Like {@link #delayedCall(Address, Serde, Object, Duration)} with raw input.
+   */
+  default void delayedCall(Address address, byte[] parameter, Duration delay) {
+    delayedCall(address, CoreSerdes.RAW, parameter, delay);
+  }
 
   /**
    * Invoke another Restate service without waiting for the response after the provided {@code

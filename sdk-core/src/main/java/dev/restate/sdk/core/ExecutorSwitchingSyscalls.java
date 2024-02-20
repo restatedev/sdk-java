@@ -9,13 +9,17 @@
 package dev.restate.sdk.core;
 
 import com.google.protobuf.ByteString;
+import dev.restate.sdk.common.Address;
 import dev.restate.sdk.common.InvocationId;
+import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.common.syscalls.Deferred;
 import dev.restate.sdk.common.syscalls.EnterSideEffectSyscallCallback;
 import dev.restate.sdk.common.syscalls.ExitSideEffectSyscallCallback;
 import dev.restate.sdk.common.syscalls.SyscallCallback;
 import io.grpc.MethodDescriptor;
+
+import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Map;
@@ -80,6 +84,16 @@ class ExecutorSwitchingSyscalls implements SyscallsInternal {
   public <T, R> void call(
       MethodDescriptor<T, R> methodDescriptor, T parameter, SyscallCallback<Deferred<R>> callback) {
     syscallsExecutor.execute(() -> syscalls.call(methodDescriptor, parameter, callback));
+  }
+
+  @Override
+  public void call(Address address, ByteString parameter, SyscallCallback<Deferred<ByteString>> callback) {
+    syscallsExecutor.execute(() -> syscalls.call(address, parameter, callback));
+  }
+
+  @Override
+  public void backgroundCall(Address address, ByteString parameter, @Nullable Duration delay, SyscallCallback<Void> requestCallback) {
+    syscallsExecutor.execute(() -> syscalls.backgroundCall(address, parameter, delay, requestCallback));
   }
 
   @Override
