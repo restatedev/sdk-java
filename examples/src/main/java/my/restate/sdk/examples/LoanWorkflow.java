@@ -176,7 +176,7 @@ public class LoanWorkflow {
     // To invoke the workflow:
     Channel restateChannel =
         NettyChannelBuilder.forAddress("127.0.0.1", 8080).usePlaintext().build();
-    LoanWorkflowExternalClient client = new LoanWorkflowExternalClient(restateChannel, "my-loan");
+    LoanWorkflowClient.IngressClient client = LoanWorkflowClient.fromIngress(restateChannel, "my-loan");
 
     WorkflowExecutionState state =
         client.submit(

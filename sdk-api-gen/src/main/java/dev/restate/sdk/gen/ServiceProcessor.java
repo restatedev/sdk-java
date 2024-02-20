@@ -29,8 +29,6 @@ import javax.tools.StandardLocation;
 public class ServiceProcessor extends AbstractProcessor {
 
   private HandlebarsCodegen serviceAdapterCodegen;
-  private HandlebarsCodegen externalClientCodegen;
-  private HandlebarsCodegen restateClientCodegen;
   private HandlebarsCodegen clientCodegen;
 
   @Override
@@ -48,21 +46,17 @@ public class ServiceProcessor extends AbstractProcessor {
                 "templates",
                 ServiceType.OBJECT,
                 "templates"));
-    this.externalClientCodegen =
-        new HandlebarsCodegen(
-            processingEnv.getFiler(),
-            "ExternalClient",
-            Map.of(ServiceType.WORKFLOW, "templates.workflow"));
-    this.restateClientCodegen =
-        new HandlebarsCodegen(
-            processingEnv.getFiler(),
-            "RestateClient",
-            Map.of(ServiceType.WORKFLOW, "templates.workflow"));
     this.clientCodegen =
         new HandlebarsCodegen(
             processingEnv.getFiler(),
             "Client",
-            Map.of(ServiceType.STATELESS, "templates", ServiceType.OBJECT, "templates"));
+            Map.of(
+                ServiceType.WORKFLOW,
+                "templates.workflow",
+                ServiceType.STATELESS,
+                "templates",
+                ServiceType.OBJECT,
+                "templates"));
   }
 
   @Override
@@ -84,12 +78,7 @@ public class ServiceProcessor extends AbstractProcessor {
     for (Service e : parsedServices) {
       try {
         this.serviceAdapterCodegen.generate(e);
-        if (e.getServiceType() == ServiceType.WORKFLOW) {
-          this.externalClientCodegen.generate(e);
-          this.restateClientCodegen.generate(e);
-        } else {
-          this.clientCodegen.generate(e);
-        }
+        this.clientCodegen.generate(e);
       } catch (IOException ex) {
         throw new RuntimeException(ex);
       }

@@ -123,11 +123,13 @@ public class HandlebarsCodegen {
     public final boolean inputEmpty;
     public final String inputFqcn;
     public final String inputSerdeDecl;
+    public final String boxedInputFqcn;
     public final String inputSerdeFieldName;
 
     public final boolean outputEmpty;
     public final String outputFqcn;
     public final String outputSerdeDecl;
+    public final String boxedOutputFqcn;
     public final String outputSerdeFieldName;
 
     private MethodTemplateModel(Method inner) {
@@ -142,11 +144,13 @@ public class HandlebarsCodegen {
       this.inputEmpty = inner.getInputType() == null;
       this.inputFqcn = this.inputEmpty ? "" : inner.getInputType().toString();
       this.inputSerdeDecl = serdeDecl(inner.getInputType());
+      this.boxedInputFqcn = boxedType(inner.getInputType());
       this.inputSerdeFieldName = "SERDE_" + this.name.toUpperCase() + "_INPUT";
 
       this.outputEmpty = inner.getOutputType() == null;
       this.outputFqcn = this.outputEmpty ? "" : inner.getOutputType().toString();
       this.outputSerdeDecl = serdeDecl(inner.getOutputType());
+      this.boxedOutputFqcn = boxedType(inner.getOutputType());
       this.outputSerdeFieldName = "SERDE_" + this.name.toUpperCase() + "_OUTPUT";
     }
 
@@ -154,9 +158,55 @@ public class HandlebarsCodegen {
       if (ty == null) {
         return "dev.restate.sdk.common.CoreSerdes.VOID";
       }
-      return "dev.restate.sdk.serde.jackson.JacksonSerdes.of(new com.fasterxml.jackson.core.type.TypeReference<"
-          + ty
-          + ">() {})";
+      switch (ty.getKind()) {
+        case BOOLEAN:
+          return "dev.restate.sdk.common.CoreSerdes.JSON_BOOLEAN";
+        case BYTE:
+          return "dev.restate.sdk.common.CoreSerdes.JSON_BYTE";
+        case SHORT:
+          return "dev.restate.sdk.common.CoreSerdes.JSON_SHORT";
+        case INT:
+          return "dev.restate.sdk.common.CoreSerdes.JSON_INT";
+        case LONG:
+          return "dev.restate.sdk.common.CoreSerdes.JSON_LONG";
+        case CHAR:
+          return "dev.restate.sdk.common.CoreSerdes.JSON_CHAR";
+        case FLOAT:
+          return "dev.restate.sdk.common.CoreSerdes.JSON_FLOAT";
+        case DOUBLE:
+          return "dev.restate.sdk.common.CoreSerdes.JSON_DOUBLE";
+        default:
+          // Default to Jackson type reference serde
+          return "dev.restate.sdk.serde.jackson.JacksonSerdes.of(new com.fasterxml.jackson.core.type.TypeReference<"
+              + ty
+              + ">() {})";
+      }
+    }
+
+    private static String boxedType(@Nullable TypeMirror ty) {
+      if (ty == null) {
+        return "Void";
+      }
+      switch (ty.getKind()) {
+        case BOOLEAN:
+          return "Boolean";
+        case BYTE:
+          return "Byte";
+        case SHORT:
+          return "Short";
+        case INT:
+          return "Integer";
+        case LONG:
+          return "Long";
+        case CHAR:
+          return "Char";
+        case FLOAT:
+          return "Float";
+        case DOUBLE:
+          return "Double";
+        default:
+          return ty.toString();
+      }
     }
   }
 
