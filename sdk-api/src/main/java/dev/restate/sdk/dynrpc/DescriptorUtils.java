@@ -73,10 +73,10 @@ class DescriptorUtils {
     // Set package name and file desc name
     if (packageName != null) {
       protoDescriptorBuilder.setName(
-          packageName.replaceAll(Pattern.quote("."), "/") + "/dynrpc.proto");
+          packageName.replaceAll(Pattern.quote("."), "/") + "/" + simpleName + "/dynrpc.proto");
       protoDescriptorBuilder.setPackage(packageName);
     } else {
-      protoDescriptorBuilder.setName("dynrpc.proto");
+      protoDescriptorBuilder.setName(simpleName + "/dynrpc.proto");
       protoDescriptorBuilder.clearPackage();
     }
 
