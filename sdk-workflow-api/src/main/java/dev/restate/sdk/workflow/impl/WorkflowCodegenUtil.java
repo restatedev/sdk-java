@@ -269,9 +269,7 @@ public class WorkflowCodegenUtil {
   public static <Req, Res> MethodDescriptor<Req, Res> generateMethodDescriptorForWorkflow(
       MethodDescriptor<Req, Res> original, String workflowFqsn, String methodName) {
     return original.toBuilder()
-        .setFullMethodName(
-            MethodDescriptor.generateFullMethodName(
-                workflowFqsn, DescriptorUtils.toMethodName(methodName)))
+        .setFullMethodName(MethodDescriptor.generateFullMethodName(workflowFqsn, methodName))
         .build();
   }
 

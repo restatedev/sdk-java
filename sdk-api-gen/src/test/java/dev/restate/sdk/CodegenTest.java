@@ -13,41 +13,41 @@ import static dev.restate.sdk.core.ProtoUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.testInvocation;
 
 import dev.restate.sdk.annotation.Exclusive;
+import dev.restate.sdk.annotation.Handler;
 import dev.restate.sdk.annotation.Service;
-import dev.restate.sdk.annotation.ServiceType;
-import dev.restate.sdk.annotation.Stateless;
+import dev.restate.sdk.annotation.VirtualObject;
 import dev.restate.sdk.core.TestDefinitions;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
 import java.util.stream.Stream;
 
 public class CodegenTest implements TestSuite {
 
-  @Service(ServiceType.STATELESS)
+  @Service
   static class StatelessGreeter {
-    @Stateless
+    @Handler
     String greet(Context context, String request) {
       return request;
     }
   }
 
-  @Service(ServiceType.OBJECT)
+  @VirtualObject
   static class ObjectGreeter {
     @Exclusive
-    String greet(KeyedContext context, String request) {
+    String greet(ObjectContext context, String request) {
       return request;
     }
   }
 
-  @Service(ServiceType.OBJECT)
+  @VirtualObject
   public interface GreeterInterface {
     @Exclusive
-    String greet(KeyedContext context, String request);
+    String greet(ObjectContext context, String request);
   }
 
   private static class ObjectGreeterImplementedFromInterface implements GreeterInterface {
 
     @Override
-    public String greet(KeyedContext context, String request) {
+    public String greet(ObjectContext context, String request) {
       return request;
     }
   }

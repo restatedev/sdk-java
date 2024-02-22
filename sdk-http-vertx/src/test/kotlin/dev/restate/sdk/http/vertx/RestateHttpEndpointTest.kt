@@ -18,7 +18,7 @@ import dev.restate.sdk.common.CoreSerdes
 import dev.restate.sdk.core.ProtoUtils.*
 import dev.restate.sdk.core.testservices.*
 import dev.restate.sdk.http.vertx.testservices.BlockingGreeterService
-import dev.restate.sdk.http.vertx.testservices.GreeterKtService
+import dev.restate.sdk.http.vertx.testservices.GreeterKtComponent
 import io.netty.handler.codec.http.HttpResponseStatus
 import io.vertx.core.Vertx
 import io.vertx.core.buffer.Buffer
@@ -50,7 +50,7 @@ internal class RestateHttpEndpointTest {
   @Timeout(value = 1, timeUnit = TimeUnit.SECONDS)
   @Test
   fun endpointWithNonBlockingService(vertx: Vertx): Unit =
-      greetTest(vertx) { it.withService(GreeterKtService(coroutineContext = vertx.dispatcher())) }
+      greetTest(vertx) { it.withService(GreeterKtComponent(coroutineContext = vertx.dispatcher())) }
 
   @Timeout(value = 1, timeUnit = TimeUnit.SECONDS)
   @Test

@@ -8,16 +8,16 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.lambda.testservices
 
-import dev.restate.sdk.kotlin.KeyedContext
-import dev.restate.sdk.kotlin.RestateKtService
+import dev.restate.sdk.kotlin.ObjectContext
+import dev.restate.sdk.kotlin.RestateKtComponent
 import kotlinx.coroutines.Dispatchers
 
-class KotlinCounterService :
+class KotlinCounterComponent :
     KotlinCounterGrpcKt.KotlinCounterCoroutineImplBase(coroutineContext = Dispatchers.Unconfined),
-    RestateKtService {
+    RestateKtComponent {
 
   override suspend fun get(request: CounterRequest): GetResponse {
-    (KeyedContext.current().get(JavaCounterService.COUNTER) ?: 0) + 1
+    (ObjectContext.current().get(JavaCounterService.COUNTER) ?: 0) + 1
 
     throw IllegalStateException("We shouldn't reach this point")
   }

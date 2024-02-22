@@ -15,7 +15,7 @@ import com.github.jknack.handlebars.context.FieldValueResolver;
 import com.github.jknack.handlebars.helper.StringHelpers;
 import com.github.jknack.handlebars.io.AbstractTemplateLoader;
 import com.github.jknack.handlebars.io.TemplateSource;
-import dev.restate.sdk.annotation.ServiceType;
+import dev.restate.sdk.common.ComponentType;
 import dev.restate.sdk.gen.model.Method;
 import dev.restate.sdk.gen.model.MethodType;
 import dev.restate.sdk.gen.model.Service;
@@ -35,10 +35,10 @@ public class HandlebarsCodegen {
 
   private final Filer filer;
   private final String baseTemplateName;
-  private final Map<ServiceType, Template> templates;
+  private final Map<ComponentType, Template> templates;
 
   public HandlebarsCodegen(
-      Filer filer, String baseTemplateName, Map<ServiceType, String> templates) {
+      Filer filer, String baseTemplateName, Map<ComponentType, String> templates) {
     this.filer = filer;
     this.baseTemplateName = baseTemplateName;
 
@@ -69,7 +69,7 @@ public class HandlebarsCodegen {
         filer.createSourceFile(service.getGeneratedClassFqcnPrefix() + this.baseTemplateName);
     try (Writer out = entityAdapterFile.openWriter()) {
       this.templates
-          .get(service.getServiceType())
+          .get(service.getComponentType())
           .apply(
               Context.newBuilder(new EntityTemplateModel(service, this.baseTemplateName))
                   .resolver(FieldValueResolver.INSTANCE)
@@ -87,10 +87,10 @@ public class HandlebarsCodegen {
     public final String generatedClassSimpleName;
     public final String generatedClassFqcnPrefix;
     public final String fqsn;
-    public final String serviceType;
+    public final String componentType;
     public final boolean isWorkflow;
     public final boolean isObject;
-    public final boolean isStateless;
+    public final boolean isService;
     public final List<MethodTemplateModel> methods;
 
     private EntityTemplateModel(Service inner, String baseTemplateName) {
@@ -101,10 +101,10 @@ public class HandlebarsCodegen {
       this.fqsn = inner.getFqsn().toString();
       this.generatedClassFqcnPrefix = inner.getGeneratedClassFqcnPrefix().toString();
 
-      this.serviceType = inner.getServiceType().toString();
-      this.isWorkflow = inner.getServiceType() == ServiceType.WORKFLOW;
-      this.isObject = inner.getServiceType() == ServiceType.OBJECT;
-      this.isStateless = inner.getServiceType() == ServiceType.STATELESS;
+      this.componentType = inner.getComponentType().toString();
+      this.isWorkflow = inner.getComponentType() == ComponentType.WORKFLOW;
+      this.isObject = inner.getComponentType() == ComponentType.VIRTUAL_OBJECT;
+      this.isService = inner.getComponentType() == ComponentType.SERVICE;
 
       this.methods =
           inner.getMethods().stream().map(MethodTemplateModel::new).collect(Collectors.toList());

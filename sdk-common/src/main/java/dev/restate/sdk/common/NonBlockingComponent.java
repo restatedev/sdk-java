@@ -8,10 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.common;
 
-import java.util.List;
-
-/** Bundle of different Restate services. */
-public interface ServicesBundle {
-
-  List<BlockingService> services();
-}
+/**
+ * Marker interface for non-blocking components. This is used by some component endpoint
+ * implementations (like http-vertx) to select on which executor/context the component code should
+ * be executed. Refer to the *EndpointBuilder javadocs for more details.
+ */
+public interface NonBlockingComponent extends Component {}

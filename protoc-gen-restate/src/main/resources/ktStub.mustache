@@ -3,9 +3,9 @@ package {{packageName}};
 {{/packageName}}
 
 import dev.restate.sdk.kotlin.Context;
-import dev.restate.sdk.kotlin.KeyedContext;
+import dev.restate.sdk.kotlin.ObjectContext;
 import dev.restate.sdk.kotlin.Awaitable;
-import dev.restate.sdk.kotlin.RestateKtService;
+import dev.restate.sdk.kotlin.RestateKtComponent;
 import dev.restate.sdk.common.syscalls.Syscalls;
 import io.grpc.kotlin.ClientCalls.unaryRpc
 import io.grpc.kotlin.ServerCalls.unaryServerMethodDefinition
@@ -71,7 +71,7 @@ public object {{className}} {
 {{{javadoc}}}
     public abstract class {{serviceName}}RestateKtImplBase(
             private val coroutineContext: kotlin.coroutines.CoroutineContext = kotlinx.coroutines.Dispatchers.Unconfined,
-        ): RestateKtService {
+        ): RestateKtComponent {
 
         {{#methods}}
         {{#deprecated}}
@@ -91,18 +91,18 @@ public object {{className}} {
                         descriptor = {{packageName}}.{{serviceName}}Grpc.{{methodDescriptorGetter}}(),
                         implementation = {
                             {{#isInputEmpty}}{{#isOutputEmpty}}
-                            {{methodName}}(KeyedContext.fromSyscalls(Syscalls.current()))
+                            {{methodName}}(ObjectContext.fromSyscalls(Syscalls.current()))
                             return@unaryServerMethodDefinition com.google.protobuf.Empty.getDefaultInstance()
                             {{/isOutputEmpty}}{{/isInputEmpty}}
                             {{#isInputEmpty}}{{^isOutputEmpty}}
-                            return@unaryServerMethodDefinition {{methodName}}(KeyedContext.fromSyscalls(Syscalls.current()))
+                            return@unaryServerMethodDefinition {{methodName}}(ObjectContext.fromSyscalls(Syscalls.current()))
                             {{/isOutputEmpty}}{{/isInputEmpty}}
                             {{^isInputEmpty}}{{#isOutputEmpty}}
-                            {{methodName}}(KeyedContext.fromSyscalls(Syscalls.current()), it)
+                            {{methodName}}(ObjectContext.fromSyscalls(Syscalls.current()), it)
                             return@unaryServerMethodDefinition com.google.protobuf.Empty.getDefaultInstance()
                             {{/isOutputEmpty}}{{/isInputEmpty}}
                             {{^isInputEmpty}}{{^isOutputEmpty}}
-                            return@unaryServerMethodDefinition {{methodName}}(KeyedContext.fromSyscalls(Syscalls.current()), it)
+                            return@unaryServerMethodDefinition {{methodName}}(ObjectContext.fromSyscalls(Syscalls.current()), it)
                             {{/isOutputEmpty}}{{/isInputEmpty}}
                         }
                     ))

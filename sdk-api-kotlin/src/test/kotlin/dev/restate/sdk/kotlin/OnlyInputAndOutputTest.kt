@@ -18,7 +18,7 @@ import kotlinx.coroutines.Dispatchers
 
 class OnlyInputAndOutputTest : OnlyInputAndOutputTestSuite() {
   private class NoSyscallsGreeter :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       return greetingResponse { message = "Hello " + request.getName() }
     }

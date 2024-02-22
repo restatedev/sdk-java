@@ -8,11 +8,11 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.common.BlockingService;
+import dev.restate.sdk.common.BlockingComponent;
 import dev.restate.sdk.common.TerminalException;
 
 /**
- * Marker interface for Restate services.
+ * Marker interface for Restate components.
  *
  * <p>
  *
@@ -27,4 +27,4 @@ import dev.restate.sdk.common.TerminalException;
  *       runtime will retry it, according to its configuration
  * </ul>
  */
-public interface RestateService extends BlockingService {}
+public interface Component extends BlockingComponent {}

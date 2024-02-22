@@ -19,9 +19,9 @@ import kotlinx.coroutines.Dispatchers
 
 class AwaitableTest : DeferredTestSuite() {
   private class ReverseAwaitOrder :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx = KeyedContext.current()
+      val ctx = ObjectContext.current()
       val a1 = ctx.callAsync(GreeterGrpcKt.greetMethod, greetingRequest { name = "Francesco" })
       val a2 = ctx.callAsync(GreeterGrpcKt.greetMethod, greetingRequest { name = "Till" })
       val a2Res = a2.await().getMessage()
@@ -36,9 +36,9 @@ class AwaitableTest : DeferredTestSuite() {
   }
 
   private class AwaitTwiceTheSameAwaitable :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx = KeyedContext.current()
+      val ctx = ObjectContext.current()
       val a = ctx.callAsync(GreeterGrpcKt.greetMethod, greetingRequest { name = "Francesco" })
       return greetingResponse { message = a.await().getMessage() + "-" + a.await().getMessage() }
     }
@@ -49,9 +49,9 @@ class AwaitableTest : DeferredTestSuite() {
   }
 
   private class AwaitAll :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx = KeyedContext.current()
+      val ctx = ObjectContext.current()
       val a1 = ctx.callAsync(GreeterGrpcKt.greetMethod, greetingRequest { name = "Francesco" })
       val a2 = ctx.callAsync(GreeterGrpcKt.greetMethod, greetingRequest { name = "Till" })
 
@@ -69,9 +69,9 @@ class AwaitableTest : DeferredTestSuite() {
   }
 
   private class AwaitAny :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx = KeyedContext.current()
+      val ctx = ObjectContext.current()
       val a1 = ctx.callAsync(GreeterGrpcKt.greetMethod, greetingRequest { name = "Francesco" })
       val a2 = ctx.callAsync(GreeterGrpcKt.greetMethod, greetingRequest { name = "Till" })
       return Awaitable.any(a1, a2).await() as GreetingResponse
@@ -79,9 +79,9 @@ class AwaitableTest : DeferredTestSuite() {
   }
 
   private class AwaitSelect :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx = KeyedContext.current()
+      val ctx = ObjectContext.current()
       val a1 = ctx.callAsync(GreeterGrpcKt.greetMethod, greetingRequest { name = "Francesco" })
       val a2 = ctx.callAsync(GreeterGrpcKt.greetMethod, greetingRequest { name = "Till" })
       return select {
@@ -96,9 +96,9 @@ class AwaitableTest : DeferredTestSuite() {
   }
 
   private class CombineAnyWithAll :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx = KeyedContext.current()
+      val ctx = ObjectContext.current()
       val a1 = ctx.awakeable(CoreSerdes.JSON_STRING)
       val a2 = ctx.awakeable(CoreSerdes.JSON_STRING)
       val a3 = ctx.awakeable(CoreSerdes.JSON_STRING)
@@ -119,9 +119,9 @@ class AwaitableTest : DeferredTestSuite() {
   }
 
   private class AwaitAnyIndex :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx = KeyedContext.current()
+      val ctx = ObjectContext.current()
       val a1 = ctx.awakeable(CoreSerdes.JSON_STRING)
       val a2 = ctx.awakeable(CoreSerdes.JSON_STRING)
       val a3 = ctx.awakeable(CoreSerdes.JSON_STRING)
@@ -138,9 +138,9 @@ class AwaitableTest : DeferredTestSuite() {
   }
 
   private class AwaitOnAlreadyResolvedAwaitables :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx = KeyedContext.current()
+      val ctx = ObjectContext.current()
       val a1 = ctx.awakeable(CoreSerdes.JSON_STRING)
       val a2 = ctx.awakeable(CoreSerdes.JSON_STRING)
       val a12 = Awaitable.all(a1, a2)

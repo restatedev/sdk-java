@@ -8,25 +8,25 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.common.syscalls;
 
-import dev.restate.sdk.annotation.ServiceType;
+import dev.restate.sdk.common.ComponentType;
 import java.util.List;
 import java.util.Objects;
 
-public final class ServiceDefinition {
+public final class ComponentDefinition {
 
   public enum ExecutorType {
     BLOCKING,
     NON_BLOCKING
   }
 
-  public static final class MethodDefinition {
+  public static final class HandlerDefinition {
     private final String name;
     private final Object inputSchema;
     private final Object outputSchema;
-    private final RequestHandler handler;
+    private final InvocationHandler handler;
 
-    public MethodDefinition(
-        String name, Object inputSchema, Object outputSchema, RequestHandler handler) {
+    public HandlerDefinition(
+        String name, Object inputSchema, Object outputSchema, InvocationHandler handler) {
       this.name = name;
       this.inputSchema = inputSchema;
       this.outputSchema = outputSchema;
@@ -45,7 +45,7 @@ public final class ServiceDefinition {
       return outputSchema;
     }
 
-    public RequestHandler getHandler() {
+    public InvocationHandler getHandler() {
       return handler;
     }
 
@@ -53,7 +53,7 @@ public final class ServiceDefinition {
     public boolean equals(Object object) {
       if (this == object) return true;
       if (object == null || getClass() != object.getClass()) return false;
-      MethodDefinition that = (MethodDefinition) object;
+      HandlerDefinition that = (HandlerDefinition) object;
       return Objects.equals(name, that.name)
           && Objects.equals(inputSchema, that.inputSchema)
           && Objects.equals(outputSchema, that.outputSchema)
@@ -68,17 +68,17 @@ public final class ServiceDefinition {
 
   private final String fullyQualifiedServiceName;
   private final ExecutorType executorType;
-  private final ServiceType serviceType;
-  private final List<MethodDefinition> methods;
+  private final ComponentType componentType;
+  private final List<HandlerDefinition> methods;
 
-  public ServiceDefinition(
+  public ComponentDefinition(
       String fullyQualifiedServiceName,
       ExecutorType executorType,
-      ServiceType serviceType,
-      List<MethodDefinition> methods) {
+      ComponentType componentType,
+      List<HandlerDefinition> methods) {
     this.fullyQualifiedServiceName = fullyQualifiedServiceName;
     this.executorType = executorType;
-    this.serviceType = serviceType;
+    this.componentType = componentType;
     this.methods = methods;
   }
 
@@ -90,11 +90,11 @@ public final class ServiceDefinition {
     return executorType;
   }
 
-  public ServiceType getServiceType() {
-    return serviceType;
+  public ComponentType getServiceType() {
+    return componentType;
   }
 
-  public List<MethodDefinition> getMethods() {
+  public List<HandlerDefinition> getMethods() {
     return methods;
   }
 
@@ -102,15 +102,15 @@ public final class ServiceDefinition {
   public boolean equals(Object object) {
     if (this == object) return true;
     if (object == null || getClass() != object.getClass()) return false;
-    ServiceDefinition that = (ServiceDefinition) object;
+    ComponentDefinition that = (ComponentDefinition) object;
     return Objects.equals(fullyQualifiedServiceName, that.fullyQualifiedServiceName)
         && executorType == that.executorType
-        && serviceType == that.serviceType
+        && componentType == that.componentType
         && Objects.equals(methods, that.methods);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(fullyQualifiedServiceName, executorType, serviceType, methods);
+    return Objects.hash(fullyQualifiedServiceName, executorType, componentType, methods);
   }
 }

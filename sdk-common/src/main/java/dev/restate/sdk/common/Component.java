@@ -6,13 +6,14 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-package dev.restate.sdk.annotation;
+package dev.restate.sdk.common;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import dev.restate.sdk.common.syscalls.ComponentDefinition;
+import io.grpc.BindableService;
 
-@Target(ElementType.METHOD)
-@Retention(RetentionPolicy.SOURCE)
-public @interface Workflow {}
+/** Marker interface for a Restate component. */
+public interface Component extends BindableService {
+  default ComponentDefinition definition() {
+    return null;
+  }
+}

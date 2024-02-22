@@ -71,15 +71,15 @@ public class {{generatedClassSimpleName}} {
         }
         {{/if}}{{/methods}}
 
-        public OneWay oneWay() {
-            return new OneWay();
+        public Send send() {
+            return new Send();
         }
 
-        public Delayed delayed(Duration delay) {
-            return new Delayed(delay);
+        public SendDelayed sendDelayed(Duration delay) {
+            return new SendDelayed(delay);
         }
 
-        public class OneWay {
+        public class Send {
 
             {{#methods}}{{#if isShared}}
             public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
@@ -88,11 +88,11 @@ public class {{generatedClassSimpleName}} {
 
         }
 
-        public class Delayed {
+        public class SendDelayed {
 
             private final Duration delay;
 
-            Delayed(Duration delay) {
+            SendDelayed(Duration delay) {
                 this.delay = delay;
             }
 
@@ -142,11 +142,11 @@ public class {{generatedClassSimpleName}} {
         }
         {{/if}}{{/methods}}
 
-        public OneWay oneWay() {
-            return new OneWay();
+        public Send send() {
+            return new Send();
         }
 
-        public class OneWay {
+        public class Send {
 
             {{#methods}}{{#if isShared}}
             public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {

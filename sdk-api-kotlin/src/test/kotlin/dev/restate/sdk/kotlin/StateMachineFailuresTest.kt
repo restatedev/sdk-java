@@ -24,10 +24,10 @@ import kotlinx.coroutines.Dispatchers
 
 class StateMachineFailuresTest : StateMachineFailuresTestSuite() {
   private class GetState(private val nonTerminalExceptionsSeen: AtomicInteger) :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       try {
-        KeyedContext.current().get(STATE)
+        ObjectContext.current().get(STATE)
       } catch (e: Throwable) {
         // A user should never catch Throwable!!!
         if (e !is CancellationException && e !is TerminalException) {
@@ -55,9 +55,9 @@ class StateMachineFailuresTest : StateMachineFailuresTestSuite() {
   }
 
   private class SideEffectFailure(private val serde: Serde<Int>) :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      KeyedContext.current().sideEffect(serde) { 0 }
+      ObjectContext.current().sideEffect(serde) { 0 }
       return greetingResponse { message = "Francesco" }
     }
   }

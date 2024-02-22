@@ -22,11 +22,11 @@ import io.grpc.stub.StreamObserver;
 
 public class StateTest extends StateTestSuite {
 
-  private static class GetState extends GreeterGrpc.GreeterImplBase implements RestateService {
+  private static class GetState extends GreeterGrpc.GreeterImplBase implements Component {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       String state =
-          KeyedContext.current()
+          ObjectContext.current()
               .get(StateKey.of("STATE", CoreSerdes.JSON_STRING))
               .orElse("Unknown");
 
@@ -40,11 +40,10 @@ public class StateTest extends StateTestSuite {
     return new GetState();
   }
 
-  private static class GetAndSetState extends GreeterGrpc.GreeterImplBase
-      implements RestateService {
+  private static class GetAndSetState extends GreeterGrpc.GreeterImplBase implements Component {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      KeyedContext ctx = KeyedContext.current();
+      ObjectContext ctx = ObjectContext.current();
 
       String state = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
 
@@ -60,10 +59,10 @@ public class StateTest extends StateTestSuite {
     return new GetAndSetState();
   }
 
-  private static class SetNullState extends GreeterGrpc.GreeterImplBase implements RestateService {
+  private static class SetNullState extends GreeterGrpc.GreeterImplBase implements Component {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      KeyedContext.current()
+      ObjectContext.current()
           .set(
               StateKey.of(
                   "STATE",

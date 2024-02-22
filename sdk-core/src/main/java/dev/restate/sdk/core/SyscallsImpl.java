@@ -13,8 +13,8 @@ import com.google.rpc.Code;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.generated.service.protocol.Protocol.PollInputStreamEntryMessage;
-import dev.restate.sdk.common.Address;
 import dev.restate.sdk.common.InvocationId;
+import dev.restate.sdk.common.Target;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.common.syscalls.*;
 import dev.restate.sdk.core.DeferredResults.SingleDeferredInternal;
@@ -177,17 +177,17 @@ public final class SyscallsImpl implements SyscallsInternal {
 
   @Override
   public void call(
-      Address address, ByteString parameter, SyscallCallback<Deferred<ByteString>> callback) {
+      Target target, ByteString parameter, SyscallCallback<Deferred<ByteString>> callback) {
     wrapAndPropagateExceptions(
         () -> {
-          LOG.trace("call {}", address);
+          LOG.trace("call {}", target);
 
           Protocol.InvokeEntryMessage.Builder builder =
               Protocol.InvokeEntryMessage.newBuilder()
-                  .setServiceName(address.getService())
-                  .setMethodName(address.getMethod())
+                  .setServiceName(target.getComponent())
+                  .setMethodName(target.getHandler())
                   .setParameter(parameter);
-          if (address.getKey() != null) {
+          if (target.getKey() != null) {
             // TODO add key!
           }
 
@@ -198,21 +198,21 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public void backgroundCall(
-      Address address,
+  public void send(
+      Target target,
       ByteString parameter,
       @Nullable Duration delay,
       SyscallCallback<Void> callback) {
     wrapAndPropagateExceptions(
         () -> {
-          LOG.trace("backgroundCall {}", address);
+          LOG.trace("backgroundCall {}", target);
 
           Protocol.BackgroundInvokeEntryMessage.Builder builder =
               Protocol.BackgroundInvokeEntryMessage.newBuilder()
-                  .setServiceName(address.getService())
-                  .setMethodName(address.getMethod())
+                  .setServiceName(target.getComponent())
+                  .setMethodName(target.getHandler())
                   .setParameter(parameter);
-          if (address.getKey() != null) {
+          if (target.getKey() != null) {
             // TODO add key!
           }
           if (delay != null) {
@@ -248,7 +248,7 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public <T> void backgroundCall(
+  public <T> void send(
       MethodDescriptor<T, ?> methodDescriptor,
       T parameter,
       @Nullable Duration delay,

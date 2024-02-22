@@ -8,8 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import dev.restate.sdk.annotation.ServiceType;
-import dev.restate.sdk.common.syscalls.ServiceDefinition;
+import dev.restate.sdk.common.ComponentType;
+import dev.restate.sdk.common.syscalls.ComponentDefinition;
 import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
 import dev.restate.sdk.core.manifest.Method;
 import dev.restate.sdk.core.manifest.Service;
@@ -21,7 +21,8 @@ final class DeploymentManifest {
   private final DeploymentManifestSchema manifest;
 
   public DeploymentManifest(
-      DeploymentManifestSchema.ProtocolMode protocolMode, Map<String, ServiceDefinition> services) {
+      DeploymentManifestSchema.ProtocolMode protocolMode,
+      Map<String, ComponentDefinition> services) {
     this.manifest =
         new DeploymentManifestSchema()
             .withMinProtocolVersion(1)
@@ -50,13 +51,13 @@ final class DeploymentManifest {
     return this.manifest;
   }
 
-  private static Service.ServiceType convertServiceType(ServiceType serviceType) {
-    switch (serviceType) {
+  private static Service.ServiceType convertServiceType(ComponentType componentType) {
+    switch (componentType) {
       case WORKFLOW:
         return Service.ServiceType.WORKFLOW;
-      case OBJECT:
+      case VIRTUAL_OBJECT:
         return Service.ServiceType.KEYED;
-      case STATELESS:
+      case SERVICE:
         return Service.ServiceType.UNKEYED;
     }
     throw new IllegalStateException();

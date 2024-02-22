@@ -59,7 +59,7 @@ class WorkflowMangledDescriptors {
     return workflowManagerServiceSimpleName;
   }
 
-  public static WorkflowMangledDescriptors mangle(WorkflowServicesBundle workflowServicesBundle) {
+  public static WorkflowMangledDescriptors mangle(WorkflowComponentBundle workflowServicesBundle) {
     // This is the built-in workflow.proto descriptor
     var templateDescriptor =
         ((ProtoFileDescriptorSupplier)

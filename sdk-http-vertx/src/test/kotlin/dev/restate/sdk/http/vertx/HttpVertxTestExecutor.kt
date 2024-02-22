@@ -9,8 +9,8 @@
 package dev.restate.sdk.http.vertx
 
 import com.google.protobuf.MessageLite
-import dev.restate.sdk.common.BlockingService
-import dev.restate.sdk.common.NonBlockingService
+import dev.restate.sdk.common.BlockingComponent
+import dev.restate.sdk.common.NonBlockingComponent
 import dev.restate.sdk.core.TestDefinitions.TestDefinition
 import dev.restate.sdk.core.TestDefinitions.TestExecutor
 import io.vertx.core.Vertx
@@ -38,11 +38,11 @@ class HttpVertxTestExecutor(private val vertx: Vertx) : TestExecutor {
       val builder =
           RestateHttpEndpointBuilder.builder(vertx).withOptions(HttpServerOptions().setPort(0))
       when (definition.service) {
-        is BlockingService -> {
-          builder.withService(definition.service as BlockingService)
+        is BlockingComponent -> {
+          builder.withService(definition.service as BlockingComponent)
         }
-        is NonBlockingService -> {
-          builder.withService(definition.service as NonBlockingService)
+        is NonBlockingComponent -> {
+          builder.withService(definition.service as NonBlockingComponent)
         }
         else -> {
           throw IllegalStateException("Unexpected service class " + definition.service)

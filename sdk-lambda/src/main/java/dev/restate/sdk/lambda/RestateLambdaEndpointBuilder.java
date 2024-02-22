@@ -9,9 +9,9 @@
 package dev.restate.sdk.lambda;
 
 import dev.restate.generated.service.discovery.Discovery;
-import dev.restate.sdk.common.BlockingService;
-import dev.restate.sdk.common.Service;
-import dev.restate.sdk.common.ServiceAdapter;
+import dev.restate.sdk.common.BlockingComponent;
+import dev.restate.sdk.common.Component;
+import dev.restate.sdk.common.ComponentAdapter;
 import dev.restate.sdk.core.RestateEndpoint;
 import io.grpc.ServerInterceptor;
 import io.grpc.ServerInterceptors;
@@ -28,14 +28,14 @@ public final class RestateLambdaEndpointBuilder {
   private OpenTelemetry openTelemetry = OpenTelemetry.noop();
 
   /**
-   * Add a {@link Service} to the endpoint.
+   * Add a {@link Component} to the endpoint.
    *
    * <p>The service code will be executed on the same thread where the lambda is invoked.
    */
   public RestateLambdaEndpointBuilder withService(
-      Service service, ServerInterceptor... interceptors) {
+      Component component, ServerInterceptor... interceptors) {
     ServerServiceDefinition definition =
-        ServerInterceptors.intercept(service, Arrays.asList(interceptors));
+        ServerInterceptors.intercept(component, Arrays.asList(interceptors));
     this.restateGrpcServerBuilder.withService(definition);
     return this;
   }
@@ -48,9 +48,9 @@ public final class RestateLambdaEndpointBuilder {
     return this.with(service, RestateEndpoint.discoverAdapter(service));
   }
 
-  public <T> RestateLambdaEndpointBuilder with(T service, ServiceAdapter<T> adapter) {
-    List<BlockingService> services = adapter.adapt(service).services();
-    for (Service svc : services) {
+  public <T> RestateLambdaEndpointBuilder with(T service, ComponentAdapter<T> adapter) {
+    List<BlockingComponent> services = adapter.adapt(service).components();
+    for (Component svc : services) {
       this.restateGrpcServerBuilder.withService(svc);
     }
 

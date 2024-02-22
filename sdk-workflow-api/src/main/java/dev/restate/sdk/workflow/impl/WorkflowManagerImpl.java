@@ -12,7 +12,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.Empty;
 import com.google.protobuf.UnsafeByteOperations;
-import dev.restate.sdk.KeyedContext;
+import dev.restate.sdk.ObjectContext;
 import dev.restate.sdk.common.*;
 import dev.restate.sdk.serde.jackson.JacksonSerdes;
 import dev.restate.sdk.workflow.generated.*;
@@ -36,7 +36,7 @@ class WorkflowManagerImpl extends WorkflowManagerRestate.WorkflowManagerRestateI
       StateKey.of("_workflow_execution_state", CoreSerdes.ofProtobuf(StartResponse.parser()));
 
   @Override
-  public GetStateResponse getState(KeyedContext context, StateRequest request)
+  public GetStateResponse getState(ObjectContext context, StateRequest request)
       throws TerminalException {
     return context
         .get(stateKey(request.getStateKey()))
@@ -50,12 +50,12 @@ class WorkflowManagerImpl extends WorkflowManagerRestate.WorkflowManagerRestateI
   }
 
   @Override
-  public void setState(KeyedContext context, SetStateRequest request) throws TerminalException {
+  public void setState(ObjectContext context, SetStateRequest request) throws TerminalException {
     context.set(stateKey(request.getStateKey()), request.getStateValue().toByteArray());
   }
 
   @Override
-  public void clearState(KeyedContext context, StateRequest request) throws TerminalException {
+  public void clearState(ObjectContext context, StateRequest request) throws TerminalException {
     context.clear(stateKey(request.getStateKey()));
   }
 
@@ -65,7 +65,7 @@ class WorkflowManagerImpl extends WorkflowManagerRestate.WorkflowManagerRestateI
 
   @Override
   public void waitDurablePromiseCompletion(
-      KeyedContext context, WaitDurablePromiseCompletionRequest request) throws TerminalException {
+      ObjectContext context, WaitDurablePromiseCompletionRequest request) throws TerminalException {
     Optional<DurablePromiseCompletion> val =
         context.get(durablePromiseKey(request.getDurablePromiseKey()));
     if (val.isPresent()) {
@@ -81,7 +81,7 @@ class WorkflowManagerImpl extends WorkflowManagerRestate.WorkflowManagerRestateI
 
   @Override
   public MaybeDurablePromiseCompletion getDurablePromiseCompletion(
-      KeyedContext context, GetDurablePromiseCompletionRequest request) throws TerminalException {
+      ObjectContext context, GetDurablePromiseCompletionRequest request) throws TerminalException {
     StateKey<DurablePromiseCompletion> durablePromiseKey =
         durablePromiseKey(request.getDurablePromiseKey());
     Optional<DurablePromiseCompletion> val = context.get(durablePromiseKey);
@@ -97,7 +97,7 @@ class WorkflowManagerImpl extends WorkflowManagerRestate.WorkflowManagerRestateI
   }
 
   @Override
-  public void completeDurablePromise(KeyedContext context, CompleteDurablePromiseRequest request)
+  public void completeDurablePromise(ObjectContext context, CompleteDurablePromiseRequest request)
       throws TerminalException {
     // User can decide whether they want to allow overwriting the previously resolved value or not
     StateKey<DurablePromiseCompletion> durablePromiseKey =
@@ -117,7 +117,7 @@ class WorkflowManagerImpl extends WorkflowManagerRestate.WorkflowManagerRestateI
   }
 
   private void completeListener(
-      KeyedContext context, String listener, DurablePromiseCompletion completion) {
+      ObjectContext context, String listener, DurablePromiseCompletion completion) {
     if (completion.hasValue()) {
       context
           .awakeableHandle(listener)
@@ -128,7 +128,7 @@ class WorkflowManagerImpl extends WorkflowManagerRestate.WorkflowManagerRestateI
   }
 
   @Override
-  public StartResponse tryStart(KeyedContext context, StartRequest request)
+  public StartResponse tryStart(ObjectContext context, StartRequest request)
       throws TerminalException {
     Optional<StartResponse> maybeResponse = context.get(WORKFLOW_EXECUTION_STATE_KEY);
     if (maybeResponse.isPresent()) {
@@ -142,7 +142,7 @@ class WorkflowManagerImpl extends WorkflowManagerRestate.WorkflowManagerRestateI
   }
 
   @Override
-  public GetOutputResponse getOutput(KeyedContext context, OutputRequest request)
+  public GetOutputResponse getOutput(ObjectContext context, OutputRequest request)
       throws TerminalException {
     return context
         .get(OUTPUT_KEY)
@@ -157,7 +157,7 @@ class WorkflowManagerImpl extends WorkflowManagerRestate.WorkflowManagerRestateI
   }
 
   @Override
-  public void setOutput(KeyedContext context, SetOutputRequest request) throws TerminalException {
+  public void setOutput(ObjectContext context, SetOutputRequest request) throws TerminalException {
     context.set(OUTPUT_KEY, request.getOutput());
     context.set(
         WORKFLOW_EXECUTION_STATE_KEY,
@@ -165,7 +165,7 @@ class WorkflowManagerImpl extends WorkflowManagerRestate.WorkflowManagerRestateI
   }
 
   @Override
-  public void cleanup(KeyedContext context, WorkflowManagerRequest request)
+  public void cleanup(ObjectContext context, WorkflowManagerRequest request)
       throws TerminalException {
     context.clearAll();
   }
@@ -178,7 +178,7 @@ class WorkflowManagerImpl extends WorkflowManagerRestate.WorkflowManagerRestateI
     return StateKey.of("_durablePromise_listeners_" + key, DURABLEPROMISE_LISTENER_SERDE);
   }
 
-  static BlockingService create(
+  static BlockingComponent create(
       Descriptors.FileDescriptor outputFileDescriptor, String simpleName, String fqsn) {
     WorkflowManagerImpl workflowManager = new WorkflowManagerImpl();
     ServerServiceDefinition originalDefinition = workflowManager.bindService();

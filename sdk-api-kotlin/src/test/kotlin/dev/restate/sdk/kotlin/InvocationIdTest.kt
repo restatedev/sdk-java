@@ -19,7 +19,7 @@ import kotlinx.coroutines.Dispatchers
 
 class InvocationIdTest : InvocationIdTestSuite() {
   private class ReturnInvocationId :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       return greetingResponse { message = InvocationId.current().toString() }
     }

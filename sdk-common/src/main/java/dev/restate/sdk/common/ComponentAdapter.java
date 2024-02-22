@@ -6,10 +6,11 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-package dev.restate.sdk.annotation;
+package dev.restate.sdk.common;
 
-public enum ServiceType {
-  STATELESS,
-  OBJECT,
-  WORKFLOW
+public interface ComponentAdapter<T> {
+
+  ComponentBundle adapt(T componentObject);
+
+  boolean supportsObject(Object componentObject);
 }

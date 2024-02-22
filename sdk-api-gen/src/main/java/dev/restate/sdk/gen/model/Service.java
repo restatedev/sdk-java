@@ -9,6 +9,7 @@
 package dev.restate.sdk.gen.model;
 
 import dev.restate.sdk.annotation.*;
+import dev.restate.sdk.common.ComponentType;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -27,10 +28,10 @@ public class Service {
   private final CharSequence fqcn;
   private final CharSequence fqsn;
   private final CharSequence generatedClassSimpleName;
-  private final ServiceType serviceType;
+  private final ComponentType componentType;
   private final List<Method> methods;
 
-  Service(CharSequence pkg, CharSequence fqcn, ServiceType serviceType, List<Method> methods) {
+  Service(CharSequence pkg, CharSequence fqcn, ComponentType componentType, List<Method> methods) {
     this.pkg = pkg;
     this.fqcn = fqcn;
 
@@ -42,7 +43,7 @@ public class Service {
             ? this.pkg + "." + this.generatedClassSimpleName
             : this.generatedClassSimpleName;
 
-    this.serviceType = serviceType;
+    this.componentType = componentType;
     this.methods = methods;
   }
 
@@ -67,8 +68,8 @@ public class Service {
     return fqsn;
   }
 
-  public ServiceType getServiceType() {
-    return serviceType;
+  public ComponentType getComponentType() {
+    return componentType;
   }
 
   public List<Method> getMethods() {
@@ -79,17 +80,40 @@ public class Service {
       TypeElement element, Messager messager, Elements elements, Types types) {
     validateType(element, messager);
 
-    ServiceType type = element.getAnnotation(dev.restate.sdk.annotation.Service.class).value();
+    boolean isAnnotatedWithService =
+        element.getAnnotation(dev.restate.sdk.annotation.Service.class) != null;
+    boolean isAnnotatedWithVirtualObject =
+        element.getAnnotation(dev.restate.sdk.annotation.VirtualObject.class) != null;
+    boolean isAnnotatedWithWorkflow =
+        element.getAnnotation(dev.restate.sdk.annotation.Workflow.class) != null;
+
+    // Should be guaranteed by the caller
+    assert isAnnotatedWithWorkflow || isAnnotatedWithVirtualObject || isAnnotatedWithService;
+
+    // Check there's no more than one annotation
+    if (!Boolean.logicalXor(
+        isAnnotatedWithService,
+        Boolean.logicalXor(isAnnotatedWithWorkflow, isAnnotatedWithVirtualObject))) {
+      messager.printMessage(
+          Diagnostic.Kind.ERROR,
+          "The type can be annotated only with one annotation between @VirtualObject, @Workflow and @Service",
+          element);
+    }
+
+    ComponentType type =
+        isAnnotatedWithWorkflow
+            ? ComponentType.WORKFLOW
+            : isAnnotatedWithService ? ComponentType.SERVICE : ComponentType.VIRTUAL_OBJECT;
 
     List<Method> methods =
         elements.getAllMembers(element).stream()
             .filter(e -> e instanceof ExecutableElement)
             .filter(
                 e ->
-                    e.getAnnotation(Shared.class) != null
+                    e.getAnnotation(Handler.class) != null
                         || e.getAnnotation(Workflow.class) != null
                         || e.getAnnotation(Exclusive.class) != null
-                        || e.getAnnotation(Stateless.class) != null)
+                        || e.getAnnotation(Shared.class) != null)
             .map(
                 e ->
                     Method.fromExecutableElement(
@@ -122,9 +146,9 @@ public class Service {
   }
 
   private static void validateMethods(
-      ServiceType serviceType, List<Method> methods, TypeElement element, Messager messager) {
+      ComponentType componentType, List<Method> methods, TypeElement element, Messager messager) {
     // Additional validation for Workflow types
-    if (serviceType.equals(ServiceType.WORKFLOW)) {
+    if (componentType.equals(ComponentType.WORKFLOW)) {
       if (methods.stream().filter(m -> m.getMethodType().equals(MethodType.WORKFLOW)).count()
           != 1) {
         messager.printMessage(

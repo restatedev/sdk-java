@@ -8,42 +8,41 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package my.restate.sdk.examples;
 
-import dev.restate.sdk.KeyedContext;
-import dev.restate.sdk.annotation.Exclusive;
-import dev.restate.sdk.annotation.Service;
-import dev.restate.sdk.annotation.ServiceType;
+import dev.restate.sdk.ObjectContext;
+import dev.restate.sdk.annotation.Handler;
+import dev.restate.sdk.annotation.VirtualObject;
 import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.common.StateKey;
 import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-@Service(ServiceType.OBJECT)
+@VirtualObject
 public class Counter {
 
   private static final Logger LOG = LogManager.getLogger(Counter.class);
 
   private static final StateKey<Long> TOTAL = StateKey.of("total", CoreSerdes.JSON_LONG);
 
-  @Exclusive
-  public void reset(KeyedContext ctx) {
+  @Handler
+  public void reset(ObjectContext ctx) {
     ctx.clearAll();
   }
 
-  @Exclusive
-  public void add(KeyedContext ctx, Long request) {
+  @Handler
+  public void add(ObjectContext ctx, Long request) {
     long currentValue = ctx.get(TOTAL).orElse(0L);
     long newValue = currentValue + request;
     ctx.set(TOTAL, newValue);
   }
 
-  @Exclusive
-  public Long get(KeyedContext ctx) {
+  @Handler
+  public Long get(ObjectContext ctx) {
     return ctx.get(TOTAL).orElse(0L);
   }
 
-  @Exclusive
-  public CounterUpdateResult getAndAdd(KeyedContext ctx, Long request) {
+  @Handler
+  public CounterUpdateResult getAndAdd(ObjectContext ctx, Long request) {
     LOG.info("Invoked get and add with " + request);
 
     long currentValue = ctx.get(TOTAL).orElse(0L);

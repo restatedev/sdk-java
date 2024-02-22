@@ -11,10 +11,10 @@ import java.time.Duration;
 
 public class {{generatedClassSimpleName}} {
 
-    public static final String SERVICE_NAME = "{{fqsn}}";
+    public static final String COMPONENT_NAME = "{{fqsn}}";
 
     {{#methods}}
-    private static final io.grpc.MethodDescriptor<dev.restate.sdk.dynrpc.generated.{{#if isObject}}KeyedRpcRequest{{else}}RpcRequest{{/if}}, dev.restate.sdk.dynrpc.generated.RpcResponse> {{descFieldName}} = CodegenUtils.generateMethodDescriptor(dev.restate.sdk.dynrpc.template.generated.{{#if isObject}}KeyedServiceGrpc{{else}}ServiceGrpc{{/if}}.getTemplateMethod(), SERVICE_NAME, "{{name}}");
+    private static final io.grpc.MethodDescriptor<dev.restate.sdk.dynrpc.generated.{{#if isObject}}KeyedRpcRequest{{else}}RpcRequest{{/if}}, dev.restate.sdk.dynrpc.generated.RpcResponse> {{descFieldName}} = CodegenUtils.generateMethodDescriptor(dev.restate.sdk.dynrpc.template.generated.{{#if isObject}}KeyedServiceGrpc{{else}}ServiceGrpc{{/if}}.getTemplateMethod(), COMPONENT_NAME, "{{name}}");
     {{^inputEmpty}}private static final Serde<{{{boxedInputFqcn}}}> {{inputSerdeFieldName}} = {{{inputSerdeDecl}}};{{/inputEmpty}}
     {{^outputEmpty}}private static final Serde<{{{boxedOutputFqcn}}}> {{outputSerdeFieldName}} = {{{outputSerdeDecl}}};{{/outputEmpty}}
     {{/methods}}
@@ -47,26 +47,26 @@ public class {{generatedClassSimpleName}} {
         {{/if}}
         }{{/methods}}
 
-        public OneWay oneWay() {
-            return new OneWay();
+        public Send send() {
+            return new Send();
         }
 
-        public Delayed delayed(Duration delay) {
-            return new Delayed(delay);
+        public SendDelayed sendDelayed(Duration delay) {
+            return new SendDelayed(delay);
         }
 
-        public class OneWay {
+        public class Send {
             {{#methods}}
             public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
                 CodegenUtils.RestateClient.{{#if isObject}}invokeKeyed{{else}}invoke{{/if}}OneWay(ContextClient.this.ctx, {{descFieldName}}{{#isObject}}, ContextClient.this.key{{/isObject}}, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}});
             }{{/methods}}
         }
 
-        public class Delayed {
+        public class SendDelayed {
 
             private final Duration delay;
 
-            Delayed(Duration delay) {
+            SendDelayed(Duration delay) {
                 this.delay = delay;
             }
 
@@ -95,11 +95,11 @@ public class {{generatedClassSimpleName}} {
             {{/outputEmpty}}
         }{{/methods}}
 
-        public OneWay oneWay() {
-            return new OneWay();
+        public Send send() {
+            return new Send();
         }
 
-        public class OneWay {
+        public class Send {
             {{#methods}}
             public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
                 CodegenUtils.ExternalClient.{{#if isObject}}invokeKeyed{{else}}invoke{{/if}}OneWay(IngressClient.this.restateChannel, {{descFieldName}}{{#isObject}}, IngressClient.this.key{{/isObject}}, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}});

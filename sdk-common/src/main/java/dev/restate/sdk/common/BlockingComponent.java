@@ -9,8 +9,8 @@
 package dev.restate.sdk.common;
 
 /**
- * Marker interface for non-blocking services. This is used by some service endpoint implementations
- * (like http-vertx) to select on which executor/context the service code should be executed. Refer
- * to the *EndpointBuilder javadocs for more details.
+ * Marker interface for blocking components. This is used by some endpoint implementations (like
+ * http-vertx) to select on which executor/context the component code should be executed. Refer to
+ * the *EndpointBuilder javadocs for more details.
  */
-public interface NonBlockingService extends Service {}
+public interface BlockingComponent extends Component {}

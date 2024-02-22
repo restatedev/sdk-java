@@ -9,7 +9,7 @@
 package dev.restate.sdk.core;
 
 import dev.restate.generated.service.discovery.Discovery;
-import dev.restate.sdk.common.ServiceAdapter;
+import dev.restate.sdk.common.ComponentAdapter;
 import io.grpc.*;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
@@ -223,16 +223,16 @@ public class RestateEndpoint {
   @SuppressWarnings("rawtypes")
   private static class ServiceAdapterDiscovery {
 
-    private final List<ServiceAdapter> adapters;
+    private final List<ComponentAdapter> adapters;
 
     private ServiceAdapterDiscovery() {
       this.adapters =
-          ServiceLoader.load(ServiceAdapter.class).stream()
+          ServiceLoader.load(ComponentAdapter.class).stream()
               .map(ServiceLoader.Provider::get)
               .collect(Collectors.toList());
     }
 
-    private @Nullable ServiceAdapter discoverAdapter(Object service) {
+    private @Nullable ComponentAdapter discoverAdapter(Object service) {
       return this.adapters.stream()
           .filter(sa -> sa.supportsObject(service))
           .findFirst()
@@ -240,9 +240,9 @@ public class RestateEndpoint {
     }
   }
 
-  /** Resolve the code generated {@link ServiceAdapter} */
+  /** Resolve the code generated {@link ComponentAdapter} */
   @SuppressWarnings("unchecked")
-  public static ServiceAdapter<Object> discoverAdapter(Object service) {
+  public static ComponentAdapter<Object> discoverAdapter(Object service) {
     return Objects.requireNonNull(
         ServiceAdapterSingleton.INSTANCE.discoverAdapter(service),
         () ->
@@ -251,7 +251,7 @@ public class RestateEndpoint {
                 + ". "
                 + "Make sure the annotation processor is correctly configured to generate the ServiceAdapter, "
                 + "and it generates the META-INF/services/"
-                + ServiceAdapter.class.getCanonicalName()
+                + ComponentAdapter.class.getCanonicalName()
                 + " file containing the generated class. "
                 + "If you're using fat jars, make sure the jar plugin correctly squashes all the META-INF/services files. "
                 + "Found ServiceAdapter: "

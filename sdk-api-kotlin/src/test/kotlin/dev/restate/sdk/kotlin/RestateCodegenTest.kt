@@ -17,7 +17,7 @@ import kotlin.time.Duration.Companion.seconds
 
 class RestateCodegenTest : RestateCodegenTestSuite() {
   private class GreeterWithRestateClientAndServerCodegen : GreeterRestateKtImplBase() {
-    override suspend fun greet(context: KeyedContext, request: GreetingRequest): GreetingResponse {
+    override suspend fun greet(context: ObjectContext, request: GreetingRequest): GreetingResponse {
       val client = GreeterRestateKt.newClient(context)
       client.delayed(1.seconds).greet(request)
       client.oneWay().greet(request)

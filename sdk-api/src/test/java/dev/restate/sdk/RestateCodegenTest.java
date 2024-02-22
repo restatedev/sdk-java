@@ -19,7 +19,7 @@ public class RestateCodegenTest extends RestateCodegenTestSuite {
       extends GreeterRestate.GreeterRestateImplBase {
 
     @Override
-    public GreetingResponse greet(KeyedContext context, GreetingRequest request) {
+    public GreetingResponse greet(ObjectContext context, GreetingRequest request) {
       GreeterRestate.GreeterRestateClient client = GreeterRestate.newClient(context);
       client.delayed(Duration.ofSeconds(1)).greet(request);
       client.oneWay().greet(request);

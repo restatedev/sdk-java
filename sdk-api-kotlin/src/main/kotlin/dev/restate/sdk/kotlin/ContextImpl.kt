@@ -24,7 +24,7 @@ import kotlin.time.Duration
 import kotlin.time.toJavaDuration
 import kotlinx.coroutines.*
 
-internal class ContextImpl internal constructor(private val syscalls: Syscalls) : KeyedContext {
+internal class ContextImpl internal constructor(private val syscalls: Syscalls) : ObjectContext {
   override suspend fun <T : Any> get(key: StateKey<T>): T? {
     val deferred: Deferred<ByteString> =
         suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<ByteString>> ->
@@ -108,7 +108,7 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
 
   override suspend fun <T, R> oneWayCall(methodDescriptor: MethodDescriptor<T, R>, parameter: T) {
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-      syscalls.backgroundCall(methodDescriptor, parameter, null, completingUnitContinuation(cont))
+      syscalls.send(methodDescriptor, parameter, null, completingUnitContinuation(cont))
     }
   }
 
@@ -118,7 +118,7 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
       delay: Duration
   ) {
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-      syscalls.backgroundCall(
+      syscalls.send(
           methodDescriptor, parameter, delay.toJavaDuration(), completingUnitContinuation(cont))
     }
   }

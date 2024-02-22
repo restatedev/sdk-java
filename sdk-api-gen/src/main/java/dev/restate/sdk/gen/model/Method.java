@@ -9,8 +9,9 @@
 package dev.restate.sdk.gen.model;
 
 import dev.restate.sdk.Context;
-import dev.restate.sdk.KeyedContext;
+import dev.restate.sdk.ObjectContext;
 import dev.restate.sdk.annotation.*;
+import dev.restate.sdk.common.ComponentType;
 import dev.restate.sdk.workflow.WorkflowContext;
 import dev.restate.sdk.workflow.WorkflowSharedContext;
 import javax.annotation.Nullable;
@@ -60,7 +61,7 @@ public class Method {
   }
 
   public static Method fromExecutableElement(
-      ServiceType serviceType,
+      ComponentType componentType,
       ExecutableElement element,
       Messager messager,
       Elements elements,
@@ -81,25 +82,20 @@ public class Method {
     }
 
     boolean isAnnotatedWithShared = element.getAnnotation(Shared.class) != null;
-    boolean isAnnotatedWithWorkflow = element.getAnnotation(Workflow.class) != null;
     boolean isAnnotatedWithExclusive = element.getAnnotation(Exclusive.class) != null;
-    boolean isAnnotatedWithStateless = element.getAnnotation(Stateless.class) != null;
-
-    // Should be guaranteed by the caller
-    assert isAnnotatedWithWorkflow
-        || isAnnotatedWithShared
-        || isAnnotatedWithExclusive
-        || isAnnotatedWithStateless;
+    boolean isAnnotatedWithWorkflow = element.getAnnotation(Workflow.class) != null;
 
     // Check there's no more than one annotation
-    if (!Boolean.logicalXor(
-        isAnnotatedWithShared,
+    boolean hasAnyAnnotation =
+        isAnnotatedWithExclusive || isAnnotatedWithShared || isAnnotatedWithWorkflow;
+    boolean hasExactlyOneAnnotation =
         Boolean.logicalXor(
-            isAnnotatedWithWorkflow,
-            Boolean.logicalXor(isAnnotatedWithExclusive, isAnnotatedWithStateless)))) {
+            isAnnotatedWithShared,
+            Boolean.logicalXor(isAnnotatedWithWorkflow, isAnnotatedWithExclusive));
+    if (!(!hasAnyAnnotation || hasExactlyOneAnnotation)) {
       messager.printMessage(
           Diagnostic.Kind.ERROR,
-          "You can annotate only one method with a Restate method annotation",
+          "You can have only one annotation between @Shared, @Exclusive and @Workflow to a method",
           element);
     }
 
@@ -108,9 +104,11 @@ public class Method {
             ? MethodType.WORKFLOW
             : isAnnotatedWithShared
                 ? MethodType.SHARED
-                : isAnnotatedWithExclusive ? MethodType.EXCLUSIVE : MethodType.STATELESS;
+                : isAnnotatedWithExclusive
+                    ? MethodType.EXCLUSIVE
+                    : defaultMethodType(componentType, element, messager);
 
-    validateMethodSignature(serviceType, methodType, element, messager, elements, types);
+    validateMethodSignature(componentType, methodType, element, messager, elements, types);
 
     return new Method(
         element.getSimpleName(),
@@ -119,8 +117,25 @@ public class Method {
         !element.getReturnType().getKind().equals(TypeKind.VOID) ? element.getReturnType() : null);
   }
 
+  private static MethodType defaultMethodType(
+      ComponentType componentType, ExecutableElement element, Messager messager) {
+    switch (componentType) {
+      case SERVICE:
+        return MethodType.STATELESS;
+      case VIRTUAL_OBJECT:
+        return MethodType.EXCLUSIVE;
+      case WORKFLOW:
+        messager.printMessage(
+            Diagnostic.Kind.ERROR,
+            "Workflow methods MUST be annotated with either @Shared or @Workflow",
+            element);
+    }
+    throw new IllegalStateException(
+        "Workflow methods MUST be annotated with either @Shared or @Workflow");
+  }
+
   private static void validateMethodSignature(
-      ServiceType serviceType,
+      ComponentType componentType,
       MethodType methodType,
       ExecutableElement element,
       Messager messager,
@@ -128,23 +143,23 @@ public class Method {
       Types types) {
     switch (methodType) {
       case SHARED:
-        if (serviceType == ServiceType.WORKFLOW) {
+        if (componentType == ComponentType.WORKFLOW) {
           validateFirstParameterType(
               WorkflowSharedContext.class, element, messager, elements, types);
         } else {
           messager.printMessage(
               Diagnostic.Kind.ERROR,
-              "The annotation @Shared is not supported by the service type " + serviceType,
+              "The annotation @Shared is not supported by the service type " + componentType,
               element);
         }
         break;
       case EXCLUSIVE:
-        if (serviceType == ServiceType.OBJECT) {
-          validateFirstParameterType(KeyedContext.class, element, messager, elements, types);
+        if (componentType == ComponentType.VIRTUAL_OBJECT) {
+          validateFirstParameterType(ObjectContext.class, element, messager, elements, types);
         } else {
           messager.printMessage(
               Diagnostic.Kind.ERROR,
-              "The annotation @Exclusive is not supported by the service type " + serviceType,
+              "The annotation @Exclusive is not supported by the service type " + componentType,
               element);
         }
         break;
@@ -152,12 +167,12 @@ public class Method {
         validateFirstParameterType(Context.class, element, messager, elements, types);
         break;
       case WORKFLOW:
-        if (serviceType == ServiceType.WORKFLOW) {
+        if (componentType == ComponentType.WORKFLOW) {
           validateFirstParameterType(WorkflowContext.class, element, messager, elements, types);
         } else {
           messager.printMessage(
               Diagnostic.Kind.ERROR,
-              "The annotation @Shared is not supported by the service type " + serviceType,
+              "The annotation @Shared is not supported by the service type " + componentType,
               element);
         }
         break;

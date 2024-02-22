@@ -21,7 +21,7 @@ import java.util.Objects;
 
 public class SideEffectTest extends SideEffectTestSuite {
 
-  private static class SideEffect extends GreeterGrpc.GreeterImplBase implements RestateService {
+  private static class SideEffect extends GreeterGrpc.GreeterImplBase implements Component {
 
     private final String sideEffectOutput;
 
@@ -31,7 +31,7 @@ public class SideEffectTest extends SideEffectTestSuite {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      KeyedContext ctx = KeyedContext.current();
+      ObjectContext ctx = ObjectContext.current();
 
       String result = ctx.sideEffect(CoreSerdes.JSON_STRING, () -> this.sideEffectOutput);
 
@@ -46,7 +46,7 @@ public class SideEffectTest extends SideEffectTestSuite {
   }
 
   private static class ConsecutiveSideEffect extends GreeterGrpc.GreeterImplBase
-      implements RestateService {
+      implements Component {
 
     private final String sideEffectOutput;
 
@@ -56,7 +56,7 @@ public class SideEffectTest extends SideEffectTestSuite {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      KeyedContext ctx = KeyedContext.current();
+      ObjectContext ctx = ObjectContext.current();
 
       String firstResult = ctx.sideEffect(CoreSerdes.JSON_STRING, () -> this.sideEffectOutput);
       String secondResult = ctx.sideEffect(CoreSerdes.JSON_STRING, firstResult::toUpperCase);
@@ -73,14 +73,14 @@ public class SideEffectTest extends SideEffectTestSuite {
   }
 
   private static class CheckContextSwitching extends GreeterGrpc.GreeterImplBase
-      implements RestateService {
+      implements Component {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       String currentThread = Thread.currentThread().getName();
 
       String sideEffectThread =
-          KeyedContext.current()
+          ObjectContext.current()
               .sideEffect(CoreSerdes.JSON_STRING, () -> Thread.currentThread().getName());
 
       if (!Objects.equals(currentThread, sideEffectThread)) {
@@ -101,12 +101,11 @@ public class SideEffectTest extends SideEffectTestSuite {
     return new CheckContextSwitching();
   }
 
-  private static class SideEffectGuard extends GreeterGrpc.GreeterImplBase
-      implements RestateService {
+  private static class SideEffectGuard extends GreeterGrpc.GreeterImplBase implements Component {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      KeyedContext ctx = KeyedContext.current();
+      ObjectContext ctx = ObjectContext.current();
       ctx.sideEffect(
           () -> ctx.oneWayCall(GreeterGrpc.getGreetMethod(), greetingRequest("something")));
 

@@ -20,8 +20,7 @@ import io.grpc.stub.StreamObserver;
 
 public class InvocationIdTest extends InvocationIdTestSuite {
 
-  private static class ReturnInvocationId extends GreeterGrpc.GreeterImplBase
-      implements RestateService {
+  private static class ReturnInvocationId extends GreeterGrpc.GreeterImplBase implements Component {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {

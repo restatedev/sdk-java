@@ -53,9 +53,4 @@ class DescriptorUtils {
       return getServiceDescriptor().findMethodByName(methodName);
     }
   }
-
-  static String toMethodName(String methodName) {
-    return Character.toString(Character.toUpperCase(methodName.codePointAt(0)))
-        + methodName.substring(1);
-  }
 }

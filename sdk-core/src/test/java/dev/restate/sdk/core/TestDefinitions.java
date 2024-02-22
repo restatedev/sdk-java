@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.MessageLiteOrBuilder;
 import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.common.BlockingService;
+import dev.restate.sdk.common.BlockingComponent;
 import io.grpc.BindableService;
 import io.grpc.MethodDescriptor;
 import java.util.*;
@@ -84,7 +84,7 @@ public final class TestDefinitions {
     }
 
     // For handler API service
-    List<BlockingService> bundle = RestateEndpoint.discoverAdapter(svc).adapt(svc).services();
+    List<BlockingComponent> bundle = RestateEndpoint.discoverAdapter(svc).adapt(svc).components();
     Preconditions.condition(
         bundle.size() == 1, "This test infra supports only 1 service, was " + bundle.size());
     return new TestInvocationBuilder(bundle.get(0), method);

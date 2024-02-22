@@ -8,9 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testing;
 
-import dev.restate.sdk.common.BlockingService;
-import dev.restate.sdk.common.NonBlockingService;
-import dev.restate.sdk.common.ServiceAdapter;
+import dev.restate.sdk.common.BlockingComponent;
+import dev.restate.sdk.common.ComponentAdapter;
+import dev.restate.sdk.common.NonBlockingComponent;
 import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder;
 import io.grpc.ServerInterceptor;
 import java.util.HashMap;
@@ -49,31 +49,31 @@ public class RestateRunnerBuilder {
   }
 
   /**
-   * Register a service. See {@link RestateHttpEndpointBuilder#withService(BlockingService,
+   * Register a service. See {@link RestateHttpEndpointBuilder#withService(BlockingComponent,
    * ServerInterceptor...)}.
    */
   public RestateRunnerBuilder withService(
-      BlockingService service, ServerInterceptor... interceptors) {
+      BlockingComponent service, ServerInterceptor... interceptors) {
     this.endpointBuilder.withService(service, interceptors);
     return this;
   }
 
   /**
-   * Register a service. See {@link RestateHttpEndpointBuilder#withService(BlockingService,
+   * Register a service. See {@link RestateHttpEndpointBuilder#withService(BlockingComponent,
    * Executor, ServerInterceptor...)}.
    */
   public RestateRunnerBuilder withService(
-      BlockingService service, Executor executor, ServerInterceptor... interceptors) {
+      BlockingComponent service, Executor executor, ServerInterceptor... interceptors) {
     this.endpointBuilder.withService(service, executor, interceptors);
     return this;
   }
 
   /**
-   * Register a service. See {@link RestateHttpEndpointBuilder#withService(NonBlockingService,
+   * Register a service. See {@link RestateHttpEndpointBuilder#withService(NonBlockingComponent,
    * ServerInterceptor...)}.
    */
   public RestateRunnerBuilder withService(
-      NonBlockingService service, ServerInterceptor... interceptors) {
+      NonBlockingComponent service, ServerInterceptor... interceptors) {
     this.endpointBuilder.withService(service, interceptors);
     return this;
   }
@@ -81,7 +81,7 @@ public class RestateRunnerBuilder {
   /**
    * Add a Restate service to the endpoint. This will automatically discover the adapter based on
    * the class name. You can provide the adapter manually using {@link #with(Object,
-   * ServiceAdapter)}
+   * ComponentAdapter)}
    */
   public RestateRunnerBuilder with(Object service) {
     this.endpointBuilder.with(service);
@@ -91,7 +91,7 @@ public class RestateRunnerBuilder {
   /**
    * Add a Restate service to the endpoint, specifying the {@code executor} where to run the service
    * code. This will automatically discover the adapter based on the class name. You can provide the
-   * adapter manually using {@link #with(Object, ServiceAdapter, Executor)}
+   * adapter manually using {@link #with(Object, ComponentAdapter, Executor)}
    *
    * <p>You can run on virtual threads by using the executor {@code
    * Executors.newVirtualThreadPerTaskExecutor()}.
@@ -102,7 +102,7 @@ public class RestateRunnerBuilder {
   }
 
   /** Add a Restate service to the endpoint, specifying an adapter. */
-  public <T> RestateRunnerBuilder with(T service, ServiceAdapter<T> adapter) {
+  public <T> RestateRunnerBuilder with(T service, ComponentAdapter<T> adapter) {
     this.endpointBuilder.with(service, adapter);
     return this;
   }
@@ -114,7 +114,7 @@ public class RestateRunnerBuilder {
    * <p>You can run on virtual threads by using the executor {@code
    * Executors.newVirtualThreadPerTaskExecutor()}.
    */
-  public <T> RestateRunnerBuilder with(T service, ServiceAdapter<T> adapter, Executor executor) {
+  public <T> RestateRunnerBuilder with(T service, ComponentAdapter<T> adapter, Executor executor) {
     this.endpointBuilder.with(service, adapter, executor);
     return this;
   }

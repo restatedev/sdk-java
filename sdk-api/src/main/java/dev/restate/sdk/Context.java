@@ -45,17 +45,17 @@ public interface Context {
   /**
    * Invoke another Restate service method.
    *
-   * @param address the address of the callee
+   * @param target the address of the callee
    * @param inputSerde Input serde
    * @param outputSerde Output serde
    * @param parameter the invocation request parameter.
    * @return an {@link Awaitable} that wraps the Restate service method result.
    */
-  <T, R> Awaitable<R> call(Address address, Serde<T> inputSerde, Serde<R> outputSerde, T parameter);
+  <T, R> Awaitable<R> call(Target target, Serde<T> inputSerde, Serde<R> outputSerde, T parameter);
 
-  /** Like {@link #call(Address, Serde, Serde, Object)} with raw input/output. */
-  default Awaitable<byte[]> call(Address address, byte[] parameter) {
-    return call(address, CoreSerdes.RAW, CoreSerdes.RAW, parameter);
+  /** Like {@link #call(Target, Serde, Serde, Object)} with raw input/output. */
+  default Awaitable<byte[]> call(Target target, byte[] parameter) {
+    return call(target, CoreSerdes.RAW, CoreSerdes.RAW, parameter);
   }
 
   /**
@@ -76,15 +76,15 @@ public interface Context {
   /**
    * Invoke another Restate service without waiting for the response.
    *
-   * @param address the address of the callee
+   * @param target the address of the callee
    * @param inputSerde Input serde
    * @param parameter the invocation request parameter.
    */
-  <T> void oneWayCall(Address address, Serde<T> inputSerde, T parameter);
+  <T> void oneWayCall(Target target, Serde<T> inputSerde, T parameter);
 
-  /** Like {@link #oneWayCall(Address, Serde, Object)} with raw input. */
-  default void oneWayCall(Address address, byte[] parameter) {
-    oneWayCall(address, CoreSerdes.RAW, parameter);
+  /** Like {@link #oneWayCall(Target, Serde, Object)} with raw input. */
+  default void oneWayCall(Target target, byte[] parameter) {
+    oneWayCall(target, CoreSerdes.RAW, parameter);
   }
 
   /**
@@ -102,16 +102,16 @@ public interface Context {
    *
    * <p>This method returns immediately, as the timer is executed and awaited on Restate.
    *
-   * @param address the address of the callee
+   * @param target the address of the callee
    * @param inputSerde Input serde
    * @param parameter the invocation request parameter.
    * @param delay time to wait before executing the call.
    */
-  <T> void delayedCall(Address address, Serde<T> inputSerde, T parameter, Duration delay);
+  <T> void delayedCall(Target target, Serde<T> inputSerde, T parameter, Duration delay);
 
-  /** Like {@link #delayedCall(Address, Serde, Object, Duration)} with raw input. */
-  default void delayedCall(Address address, byte[] parameter, Duration delay) {
-    delayedCall(address, CoreSerdes.RAW, parameter, delay);
+  /** Like {@link #delayedCall(Target, Serde, Object, Duration)} with raw input. */
+  default void delayedCall(Target target, byte[] parameter, Duration delay) {
+    delayedCall(target, CoreSerdes.RAW, parameter, delay);
   }
 
   /**
@@ -229,9 +229,9 @@ public interface Context {
   RestateRandom random();
 
   /**
-   * Create a {@link KeyedContext}. This will look up the thread-local/async-context storage for the
-   * underlying context implementation, so make sure to call it always from the same context where
-   * the service is executed.
+   * Create a {@link ObjectContext}. This will look up the thread-local/async-context storage for
+   * the underlying context implementation, so make sure to call it always from the same context
+   * where the service is executed.
    */
   static Context current() {
     return fromSyscalls(Syscalls.current());

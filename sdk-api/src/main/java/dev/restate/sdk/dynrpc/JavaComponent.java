@@ -9,15 +9,12 @@
 package dev.restate.sdk.dynrpc;
 
 import com.google.protobuf.Descriptors;
+import dev.restate.sdk.Component;
 import dev.restate.sdk.Context;
-import dev.restate.sdk.KeyedContext;
-import dev.restate.sdk.RestateService;
-import dev.restate.sdk.annotation.ServiceType;
-import dev.restate.sdk.common.BlockingService;
-import dev.restate.sdk.common.Serde;
-import dev.restate.sdk.common.ServicesBundle;
-import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.common.syscalls.ServiceDefinition;
+import dev.restate.sdk.ObjectContext;
+import dev.restate.sdk.common.*;
+import dev.restate.sdk.common.ComponentType;
+import dev.restate.sdk.common.syscalls.ComponentDefinition;
 import dev.restate.sdk.common.syscalls.Syscalls;
 import dev.restate.sdk.dynrpc.generated.KeyedRpcRequest;
 import dev.restate.sdk.dynrpc.generated.RpcRequest;
@@ -34,38 +31,38 @@ import java.util.*;
 import java.util.function.BiFunction;
 import javax.annotation.Nullable;
 
-public class DynService implements RestateService, ServicesBundle {
+public class JavaComponent implements Component, ComponentBundle {
   private final String name;
-  private final HashMap<String, Method<?, ?>> methods;
+  private final HashMap<String, Handler<?, ?>> handlers;
   private final ServerServiceDefinition serverServiceDefinition;
-  private final ServiceDefinition serviceDefinition;
+  private final ComponentDefinition componentDefinition;
 
-  private DynService(String fqsn, boolean isKeyed, HashMap<String, Method<?, ?>> methods) {
+  private JavaComponent(String fqsn, boolean isKeyed, HashMap<String, Handler<?, ?>> handlers) {
     this.name = fqsn;
-    this.methods = methods;
+    this.handlers = handlers;
 
     String simpleName = getSimpleName(fqsn);
     String packageName = getPackageName(fqsn);
 
     this.serverServiceDefinition =
         buildServerServiceDefinition(
-            DescriptorUtils.mangle(packageName, simpleName, methods.keySet(), isKeyed),
+            DescriptorUtils.mangle(packageName, simpleName, handlers.keySet(), isKeyed),
             simpleName,
             fqsn,
-            methods.keySet(),
+            handlers.keySet(),
             isKeyed);
 
-    this.serviceDefinition =
-        new ServiceDefinition(
+    this.componentDefinition =
+        new ComponentDefinition(
             fqsn,
-            ServiceDefinition.ExecutorType.BLOCKING,
-            isKeyed ? ServiceType.OBJECT : ServiceType.STATELESS,
+            ComponentDefinition.ExecutorType.BLOCKING,
+            isKeyed ? ComponentType.VIRTUAL_OBJECT : ComponentType.SERVICE,
             Collections.emptyList() // TODO
             );
   }
 
-  private Method<?, ?> getMethod(String name) {
-    return methods.get(name);
+  private Handler<?, ?> getHandler(String name) {
+    return handlers.get(name);
   }
 
   public String getName() {
@@ -73,8 +70,8 @@ public class DynService implements RestateService, ServicesBundle {
   }
 
   @Override
-  public ServiceDefinition definition() {
-    return this.serviceDefinition;
+  public ComponentDefinition definition() {
+    return this.componentDefinition;
   }
 
   @Override
@@ -82,42 +79,42 @@ public class DynService implements RestateService, ServicesBundle {
     return this.serverServiceDefinition;
   }
 
-  public static StatelessServiceBuilder stateless(String name) {
+  public static StatelessServiceBuilder service(String name) {
     return new StatelessServiceBuilder(name);
   }
 
-  public static ObjectServiceBuilder object(String name) {
+  public static ObjectServiceBuilder virtualObject(String name) {
     return new ObjectServiceBuilder(name);
   }
 
   @Override
-  public List<BlockingService> services() {
+  public List<BlockingComponent> components() {
     return List.of(this);
   }
 
   public static class ObjectServiceBuilder {
     private final String name;
-    private final HashMap<String, Method<?, ?>> methods;
+    private final HashMap<String, Handler<?, ?>> handlers;
 
     ObjectServiceBuilder(String name) {
       this.name = name;
-      this.methods = new HashMap<>();
+      this.handlers = new HashMap<>();
     }
 
-    public <REQ, RES> ObjectServiceBuilder withExclusive(
-        MethodSignature<REQ, RES> sig, BiFunction<KeyedContext, REQ, RES> runner) {
-      this.methods.put(sig.getMethod(), new Method<>(sig, runner));
+    public <REQ, RES> ObjectServiceBuilder with(
+        HandlerSignature<REQ, RES> sig, BiFunction<ObjectContext, REQ, RES> runner) {
+      this.handlers.put(sig.getMethod(), new Handler<>(sig, runner));
       return this;
     }
 
-    public DynService build() {
-      return new DynService(this.name, true, this.methods);
+    public JavaComponent build() {
+      return new JavaComponent(this.name, true, this.handlers);
     }
   }
 
   public static class StatelessServiceBuilder {
     private final String name;
-    private final HashMap<String, Method<?, ?>> methods;
+    private final HashMap<String, Handler<?, ?>> methods;
 
     StatelessServiceBuilder(String name) {
       this.name = name;
@@ -125,30 +122,31 @@ public class DynService implements RestateService, ServicesBundle {
     }
 
     public <REQ, RES> StatelessServiceBuilder with(
-        MethodSignature<REQ, RES> sig, BiFunction<Context, REQ, RES> runner) {
-      this.methods.put(sig.getMethod(), new Method<>(sig, runner));
+        HandlerSignature<REQ, RES> sig, BiFunction<Context, REQ, RES> runner) {
+      this.methods.put(sig.getMethod(), new Handler<>(sig, runner));
       return this;
     }
 
-    public DynService build() {
-      return new DynService(this.name, false, this.methods);
+    public JavaComponent build() {
+      return new JavaComponent(this.name, false, this.methods);
     }
   }
 
   @SuppressWarnings("unchecked")
-  public static class Method<REQ, RES> {
-    private final MethodSignature<REQ, RES> methodSignature;
+  public static class Handler<REQ, RES> {
+    private final HandlerSignature<REQ, RES> handlerSignature;
 
     private final BiFunction<Context, REQ, RES> runner;
 
-    Method(
-        MethodSignature<REQ, RES> methodSignature, BiFunction<? extends Context, REQ, RES> runner) {
-      this.methodSignature = methodSignature;
+    Handler(
+        HandlerSignature<REQ, RES> handlerSignature,
+        BiFunction<? extends Context, REQ, RES> runner) {
+      this.handlerSignature = handlerSignature;
       this.runner = (BiFunction<Context, REQ, RES>) runner;
     }
 
-    public MethodSignature<REQ, RES> getMethodSignature() {
-      return methodSignature;
+    public HandlerSignature<REQ, RES> getHandlerSignature() {
+      return handlerSignature;
     }
 
     public RES run(Context ctx, REQ req) {
@@ -156,21 +154,21 @@ public class DynService implements RestateService, ServicesBundle {
     }
   }
 
-  public static class MethodSignature<REQ, RES> {
+  public static class HandlerSignature<REQ, RES> {
 
     private final String method;
     private final Serde<REQ> requestSerde;
     private final Serde<RES> responseSerde;
 
-    MethodSignature(String method, Serde<REQ> requestSerde, Serde<RES> responseSerde) {
+    HandlerSignature(String method, Serde<REQ> requestSerde, Serde<RES> responseSerde) {
       this.method = method;
       this.requestSerde = requestSerde;
       this.responseSerde = responseSerde;
     }
 
-    public static <T, R> MethodSignature<T, R> of(
+    public static <T, R> HandlerSignature<T, R> of(
         String method, Serde<T> requestSerde, Serde<R> responseSerde) {
-      return new MethodSignature<>(method, requestSerde, responseSerde);
+      return new HandlerSignature<>(method, requestSerde, responseSerde);
     }
 
     public String getMethod() {
@@ -246,7 +244,7 @@ public class DynService implements RestateService, ServicesBundle {
                 (invokeRequest, streamObserver) ->
                     this.invokeKeyed(
                         method.getKey(),
-                        KeyedContext.fromSyscalls(Syscalls.current()),
+                        ObjectContext.fromSyscalls(Syscalls.current()),
                         invokeRequest,
                         streamObserver));
 
@@ -273,14 +271,13 @@ public class DynService implements RestateService, ServicesBundle {
 
   private void invokeKeyed(
       String methodName,
-      KeyedContext keyedContext,
+      ObjectContext objectContext,
       KeyedRpcRequest invokeRequest,
       StreamObserver<RpcResponse> streamObserver) {
     // Lookup the method
     @SuppressWarnings("unchecked")
-    DynService.Method<Object, Object> method =
-        (DynService.Method<Object, Object>) this.getMethod(methodName);
-    if (method == null) {
+    Handler<Object, Object> handler = (Handler<Object, Object>) this.getHandler(methodName);
+    if (handler == null) {
       throw new TerminalException(
           TerminalException.Code.NOT_FOUND, "Method " + methodName + " not found");
     }
@@ -288,18 +285,18 @@ public class DynService implements RestateService, ServicesBundle {
     // Convert input
     Object input =
         CodegenUtils.valueToT(
-            method.getMethodSignature().getRequestSerde(), invokeRequest.getRequest());
+            handler.getHandlerSignature().getRequestSerde(), invokeRequest.getRequest());
 
     // Invoke method
     // We let the sdk core to manage the failures
 
     // TODO add key to context?
-    Object output = method.run(keyedContext, input);
+    Object output = handler.run(objectContext, input);
 
     replySuccess(
         RpcResponse.newBuilder()
             .setResponse(
-                CodegenUtils.tToValue(method.getMethodSignature().getResponseSerde(), output))
+                CodegenUtils.tToValue(handler.getHandlerSignature().getResponseSerde(), output))
             .build(),
         streamObserver);
   }
@@ -311,9 +308,8 @@ public class DynService implements RestateService, ServicesBundle {
       StreamObserver<RpcResponse> streamObserver) {
     // Lookup the method
     @SuppressWarnings("unchecked")
-    DynService.Method<Object, Object> method =
-        (DynService.Method<Object, Object>) this.getMethod(methodName);
-    if (method == null) {
+    Handler<Object, Object> handler = (Handler<Object, Object>) this.getHandler(methodName);
+    if (handler == null) {
       throw new TerminalException(
           TerminalException.Code.NOT_FOUND, "Method " + methodName + " not found");
     }
@@ -321,16 +317,16 @@ public class DynService implements RestateService, ServicesBundle {
     // Convert input
     Object input =
         CodegenUtils.valueToT(
-            method.getMethodSignature().getRequestSerde(), invokeRequest.getRequest());
+            handler.getHandlerSignature().getRequestSerde(), invokeRequest.getRequest());
 
     // Invoke method
     // We let the sdk core to manage the failures
-    Object output = method.run(context, input);
+    Object output = handler.run(context, input);
 
     replySuccess(
         RpcResponse.newBuilder()
             .setResponse(
-                CodegenUtils.tToValue(method.getMethodSignature().getResponseSerde(), output))
+                CodegenUtils.tToValue(handler.getHandlerSignature().getResponseSerde(), output))
             .build(),
         streamObserver);
   }
