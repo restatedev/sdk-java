@@ -216,16 +216,16 @@ public class RestateEndpoint {
     void setInvocationStatus(String invocationStatus);
   }
 
-  private static class ServiceAdapterSingleton {
-    private static final ServiceAdapterDiscovery INSTANCE = new ServiceAdapterDiscovery();
+  private static class ComponentAdapterSingleton {
+    private static final ComponentAdapterDiscovery INSTANCE = new ComponentAdapterDiscovery();
   }
 
   @SuppressWarnings("rawtypes")
-  private static class ServiceAdapterDiscovery {
+  private static class ComponentAdapterDiscovery {
 
     private final List<ComponentAdapter> adapters;
 
-    private ServiceAdapterDiscovery() {
+    private ComponentAdapterDiscovery() {
       this.adapters =
           ServiceLoader.load(ComponentAdapter.class).stream()
               .map(ServiceLoader.Provider::get)
@@ -242,19 +242,19 @@ public class RestateEndpoint {
 
   /** Resolve the code generated {@link ComponentAdapter} */
   @SuppressWarnings("unchecked")
-  public static ComponentAdapter<Object> discoverAdapter(Object service) {
+  public static ComponentAdapter<Object> discoverAdapter(Object component) {
     return Objects.requireNonNull(
-        ServiceAdapterSingleton.INSTANCE.discoverAdapter(service),
+        ComponentAdapterSingleton.INSTANCE.discoverAdapter(component),
         () ->
-            "ServiceAdapter class not found for service "
-                + service.getClass().getCanonicalName()
+            "ComponentAdapter class not found for service "
+                + component.getClass().getCanonicalName()
                 + ". "
-                + "Make sure the annotation processor is correctly configured to generate the ServiceAdapter, "
+                + "Make sure the annotation processor is correctly configured to generate the ComponentAdapter, "
                 + "and it generates the META-INF/services/"
                 + ComponentAdapter.class.getCanonicalName()
                 + " file containing the generated class. "
                 + "If you're using fat jars, make sure the jar plugin correctly squashes all the META-INF/services files. "
-                + "Found ServiceAdapter: "
-                + ServiceAdapterSingleton.INSTANCE.adapters);
+                + "Found ComponentAdapter: "
+                + ComponentAdapterSingleton.INSTANCE.adapters);
   }
 }

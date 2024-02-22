@@ -53,8 +53,8 @@ jsonSchema2Pojo {
 }
 
 tasks {
-  withType<JavaCompile> { dependsOn(generateJsonSchema2Pojo) }
-  withType<Jar> { dependsOn(generateJsonSchema2Pojo) }
+  withType<JavaCompile> { dependsOn(generateJsonSchema2Pojo, generateProto) }
+  withType<Jar> { dependsOn(generateJsonSchema2Pojo, generateProto) }
 }
 
 protobuf {
