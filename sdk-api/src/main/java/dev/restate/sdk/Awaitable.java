@@ -22,7 +22,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import javax.annotation.concurrent.NotThreadSafe;
 
 /**
  * An {@code Awaitable} allows to await an asynchronous result. Once {@code await()} is called, the
@@ -31,9 +30,11 @@ import javax.annotation.concurrent.NotThreadSafe;
  * <p>The result can be either a success or a failure. In case of a failure, {@code await()} will
  * throw a {@link TerminalException}.
  *
+ * <p>NOTE: This interface MUST NOT be accessed concurrently since it can lead to different
+ * orderings of user actions, corrupting the execution of the invocation.
+ *
  * @param <T> type of the awaitable result
  */
-@NotThreadSafe
 public abstract class Awaitable<T> {
 
   protected final Syscalls syscalls;

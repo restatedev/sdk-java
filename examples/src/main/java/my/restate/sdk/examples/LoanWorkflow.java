@@ -11,6 +11,8 @@ package my.restate.sdk.examples;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import dev.restate.sdk.Context;
+import dev.restate.sdk.annotation.Handler;
+import dev.restate.sdk.annotation.Service;
 import dev.restate.sdk.annotation.Shared;
 import dev.restate.sdk.annotation.Workflow;
 import dev.restate.sdk.common.CoreSerdes;
@@ -20,17 +22,12 @@ import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder;
 import dev.restate.sdk.serde.jackson.JacksonSerdes;
 import dev.restate.sdk.workflow.DurablePromiseKey;
 import dev.restate.sdk.workflow.WorkflowContext;
+import dev.restate.sdk.workflow.WorkflowExecutionState;
 import dev.restate.sdk.workflow.WorkflowSharedContext;
-import dev.restate.sdk.workflow.generated.WorkflowExecutionState;
-import io.grpc.Channel;
-import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.TimeoutException;
-import my.restate.sdk.examples.generated.bank.BankRestate;
-import my.restate.sdk.examples.generated.bank.TransferRequest;
-import my.restate.sdk.examples.generated.bank.TransferResult;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -120,16 +117,14 @@ public class LoanWorkflow {
     ctx.set(STATUS, Status.APPROVED);
 
     // 4. Request money transaction to the bank
-    var bankClient = BankRestate.newClient(ctx);
-    TransferResult transferResponse;
+    var bankClient = LoanWorkflowMockBankClient.fromContext(ctx);
+    Instant executionTime;
     try {
-      transferResponse =
+      executionTime =
           bankClient
               .transfer(
-                  TransferRequest.newBuilder()
-                      .setAmount(loanRequest.getAmount().toString())
-                      .setBankAccount(loanRequest.getCustomerBankAccount())
-                      .build())
+                  new TransferRequest(
+                      loanRequest.getCustomerBankAccount(), loanRequest.getAmount()))
               .await(Duration.ofDays(7));
     } catch (TerminalException | TimeoutException e) {
       LOG.warn("Transaction failed", e);
@@ -140,7 +135,7 @@ public class LoanWorkflow {
     LOG.info("Transfer complete");
 
     // 5. Transfer complete!
-    ctx.set(TRANSFER_EXECUTION_TIME, transferResponse.getExecutionTime());
+    ctx.set(TRANSFER_EXECUTION_TIME, executionTime.toString());
     ctx.set(STATUS, Status.TRANSFER_SUCCEEDED);
   }
 
@@ -159,7 +154,7 @@ public class LoanWorkflow {
   public static void main(String[] args) {
     RestateHttpEndpointBuilder.builder()
         .with(new LoanWorkflow())
-        .withService(new MockBank())
+        .with(new MockBank())
         .buildAndListen();
 
     // Register the service in the meantime!
@@ -172,10 +167,8 @@ public class LoanWorkflow {
     }
 
     // To invoke the workflow:
-    Channel restateChannel =
-        NettyChannelBuilder.forAddress("127.0.0.1", 8080).usePlaintext().build();
     LoanWorkflowClient.IngressClient client =
-        LoanWorkflowClient.fromIngress(restateChannel, "my-loan");
+        LoanWorkflowClient.fromIngress("http://127.0.0.1:8080", "my-loan");
 
     WorkflowExecutionState state =
         client.submit(
@@ -218,16 +211,37 @@ public class LoanWorkflow {
     Thread.sleep(1000);
   }
 
-  private static class MockBank extends BankRestate.BankRestateImplBase {
-    @Override
-    public TransferResult transfer(Context context, TransferRequest request)
-        throws TerminalException {
+  @Service
+  static class MockBank {
+    @Handler
+    public Instant transfer(Context context, TransferRequest request) throws TerminalException {
       boolean shouldAccept = context.random().nextInt(3) != 1;
       if (shouldAccept) {
-        return TransferResult.newBuilder().setExecutionTime(Instant.now().toString()).build();
+        return Instant.now();
       } else {
         throw new TerminalException("Won't accept the transfer");
       }
+    }
+  }
+
+  public static class TransferRequest {
+    private final String bankAccount;
+    private final BigDecimal amount;
+
+    @JsonCreator
+    public TransferRequest(
+        @JsonProperty("bankAccount") String bankAccount,
+        @JsonProperty("amount") BigDecimal amount) {
+      this.bankAccount = bankAccount;
+      this.amount = amount;
+    }
+
+    public String getBankAccount() {
+      return bankAccount;
+    }
+
+    public BigDecimal getAmount() {
+      return amount;
     }
   }
 }

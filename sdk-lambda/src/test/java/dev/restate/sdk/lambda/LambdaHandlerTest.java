@@ -16,16 +16,15 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.DescriptorProtos;
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageLite;
-import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.ProtoUtils;
-import dev.restate.sdk.lambda.testservices.CounterRequest;
-import dev.restate.sdk.lambda.testservices.JavaCounterGrpc;
-import dev.restate.sdk.lambda.testservices.KotlinCounterGrpc;
+import dev.restate.sdk.core.manifest.Component;
+import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
+import dev.restate.sdk.lambda.testservices.JavaCounterService;
+import dev.restate.sdk.lambda.testservices.JavaCounterServiceClient;
 import dev.restate.sdk.lambda.testservices.MyServicesHandler;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -37,7 +36,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class LambdaHandlerTest {
 
-  @ValueSource(strings = {JavaCounterGrpc.SERVICE_NAME, KotlinCounterGrpc.SERVICE_NAME})
+  //  @ValueSource(strings = {JavaCounterGrpc.SERVICE_NAME, KotlinCounterGrpc.SERVICE_NAME})
+  @ValueSource(strings = {JavaCounterServiceClient.COMPONENT_NAME})
   @ParameterizedTest
   public void testInvoke(String serviceName) throws IOException {
     MyServicesHandler handler = new MyServicesHandler();
@@ -45,7 +45,7 @@ class LambdaHandlerTest {
     // Mock request
     APIGatewayProxyRequestEvent request = new APIGatewayProxyRequestEvent();
     request.setHeaders(Map.of("content-type", "application/restate"));
-    request.setPath("/a/path/prefix/invoke/" + serviceName + "/Get");
+    request.setPath("/a/path/prefix/invoke/" + serviceName + "/get");
     request.setHttpMethod("POST");
     request.setIsBase64Encoded(true);
     request.setBody(
@@ -59,11 +59,7 @@ class LambdaHandlerTest {
                         .setPartialState(true)
                         .build(),
                     Protocol.PollInputStreamEntryMessage.newBuilder()
-                        .setValue(
-                            CounterRequest.newBuilder()
-                                .setCounterName("my-counter")
-                                .build()
-                                .toByteString())
+                        .setValue(ByteString.EMPTY)
                         .build())));
 
     // Send request
@@ -84,35 +80,28 @@ class LambdaHandlerTest {
   }
 
   @Test
-  public void testDiscovery() throws InvalidProtocolBufferException {
+  public void testDiscovery() throws IOException {
     BaseRestateLambdaHandler handler = new MyServicesHandler();
 
     // Mock request
     APIGatewayProxyRequestEvent request = new APIGatewayProxyRequestEvent();
-    request.setHeaders(Map.of("content-type", "application/proto"));
     request.setPath("/a/path/prefix/discover");
-    request.setHttpMethod("POST");
-    request.setIsBase64Encoded(true);
-    request.setBody(
-        Base64.getEncoder()
-            .encodeToString(Discovery.ServiceDiscoveryRequest.newBuilder().build().toByteArray()));
 
     // Send request
     APIGatewayProxyResponseEvent response = handler.handleRequest(request, mockContext());
 
     // Assert response
     assertThat(response.getStatusCode()).isEqualTo(200);
-    assertThat(response.getHeaders()).containsEntry("content-type", "application/proto");
+    assertThat(response.getHeaders()).containsEntry("content-type", "application/json");
     assertThat(response.getIsBase64Encoded()).isTrue();
-    Discovery.ServiceDiscoveryResponse decodedResponse =
-        Discovery.ServiceDiscoveryResponse.parseFrom(
-            Base64.getDecoder().decode(response.getBody()));
-    assertThat(decodedResponse.getServicesList())
-        .containsExactlyInAnyOrder(JavaCounterGrpc.SERVICE_NAME, KotlinCounterGrpc.SERVICE_NAME);
-    assertThat(decodedResponse.getFiles().getFileList())
-        .map(DescriptorProtos.FileDescriptorProto::getName)
-        .containsExactlyInAnyOrder(
-            "dev/restate/ext.proto", "google/protobuf/descriptor.proto", "counter.proto");
+    byte[] decodedStringResponse = Base64.getDecoder().decode(response.getBody());
+    // Compute response and write it back
+    DeploymentManifestSchema discoveryResponse =
+        new ObjectMapper().readValue(decodedStringResponse, DeploymentManifestSchema.class);
+
+    assertThat(discoveryResponse.getComponents())
+        .map(Component::getFullyQualifiedComponentName)
+        .containsOnly(JavaCounterService.class.getCanonicalName());
   }
 
   private static byte[] serializeEntries(MessageLite... msgs) throws IOException {

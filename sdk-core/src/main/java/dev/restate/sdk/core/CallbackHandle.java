@@ -9,7 +9,7 @@
 package dev.restate.sdk.core;
 
 import java.util.function.Consumer;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /** Handle for callbacks. */
 final class CallbackHandle<T> {

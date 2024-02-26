@@ -20,13 +20,13 @@ Run:
 
 You'll find the shadowed jar in the `build` directory.
 
-The class to configure in Lambda is `dev.restate.sdk.examples.LambdaHandler`.
+The class to configure in Lambda is `my.restate.sdk.examples.LambdaHandler`.
 
-By default, the [`dev.restate.sdk.examples.Counter`](src/main/java/dev/restate/sdk/examples/Counter.java) component is deployed. Set the env variable `LAMBDA_FACTORY_SERVICE_CLASS` to one of the available example classes to change the deployed class.
+By default, the [`dev.restate.sdk.examples.Counter`](src/main/java/dev/restate/sdk/examples/Counter.java) bindableComponent is deployed. Set the env variable `LAMBDA_FACTORY_SERVICE_CLASS` to one of the available example classes to change the deployed class.
 
 ## Running the examples (HTTP)
 
-You can run the Java counter component via:
+You can run the Java counter bindableComponent via:
 
 ```shell
 ./gradlew :examples:run
@@ -38,9 +38,9 @@ You can modify the class to run setting `-PmainClass=<FQCN>`, for example, in or
 ./gradlew :examples:run -PmainClass=dev.restate.sdk.examples.CounterKt
 ```
 
-## Invoking the counter component
+## Invoking the counter bindableComponent
 
-If you want to invoke the counter component via [grpcurl](https://github.com/fullstorydev/grpcurl):
+If you want to invoke the counter bindableComponent via [grpcurl](https://github.com/fullstorydev/grpcurl):
 
 ```shell
 grpcurl -plaintext -d '{"counter_name": "my_counter"}' localhost:9090 counter.Counter/Get

@@ -9,20 +9,25 @@
 package dev.restate.sdk;
 
 import dev.restate.sdk.common.*;
-import dev.restate.sdk.common.syscalls.Syscalls;
 import java.util.Collection;
 import java.util.Optional;
-import javax.annotation.Nonnull;
-import javax.annotation.concurrent.NotThreadSafe;
+import org.jspecify.annotations.NonNull;
 
 /**
  * This interface extends {@link Context} adding access to the virtual object instance key-value
  * state storage
  *
+ * <p>NOTE: This interface MUST NOT be accessed concurrently since it can lead to different
+ * orderings of user actions, corrupting the execution of the invocation.
+ *
  * @see Context
  */
-@NotThreadSafe
 public interface ObjectContext extends Context {
+
+  /**
+   * @return the key of this object
+   */
+  String key();
 
   /**
    * Gets the state stored under key, deserializing the raw value using the {@link Serde} in the
@@ -59,19 +64,5 @@ public interface ObjectContext extends Context {
    * @param key identifying the value to store and its type.
    * @param value to store under the given key. MUST NOT be null.
    */
-  <T> void set(StateKey<T> key, @Nonnull T value);
-
-  /**
-   * Create a {@link ObjectContext}. This will look up the thread-local/async-context storage for
-   * the underlying context implementation, so make sure to call it always from the same context
-   * where the service is executed.
-   */
-  static ObjectContext current() {
-    return fromSyscalls(Syscalls.current());
-  }
-
-  /** Build a RestateContext from the underlying {@link Syscalls} object. */
-  static ObjectContext fromSyscalls(Syscalls syscalls) {
-    return new ContextImpl(syscalls);
-  }
+  <T> void set(StateKey<T> key, @NonNull T value);
 }

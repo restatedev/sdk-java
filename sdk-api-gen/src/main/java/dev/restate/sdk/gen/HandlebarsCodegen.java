@@ -25,11 +25,11 @@ import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import javax.annotation.processing.Filer;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardLocation;
+import org.jspecify.annotations.Nullable;
 
 public class HandlebarsCodegen {
 
@@ -111,7 +111,6 @@ public class HandlebarsCodegen {
 
   static class MethodTemplateModel {
     public final String name;
-    public final String descFieldName;
     public final String methodType;
     public final boolean isWorkflow;
     public final boolean isShared;
@@ -132,7 +131,6 @@ public class HandlebarsCodegen {
 
     private MethodTemplateModel(Method inner) {
       this.name = inner.getName().toString();
-      this.descFieldName = "DESC_" + this.name.toUpperCase();
       this.methodType = inner.getMethodType().toString();
       this.isWorkflow = inner.getMethodType() == MethodType.WORKFLOW;
       this.isShared = inner.getMethodType() == MethodType.SHARED;
@@ -173,6 +171,8 @@ public class HandlebarsCodegen {
           return "dev.restate.sdk.common.CoreSerdes.JSON_FLOAT";
         case DOUBLE:
           return "dev.restate.sdk.common.CoreSerdes.JSON_DOUBLE";
+        case VOID:
+          return "dev.restate.sdk.common.CoreSerdes.VOID";
         default:
           // Default to Jackson type reference serde
           return "dev.restate.sdk.serde.jackson.JacksonSerdes.of(new com.fasterxml.jackson.core.type.TypeReference<"
@@ -202,6 +202,8 @@ public class HandlebarsCodegen {
           return "Float";
         case DOUBLE:
           return "Double";
+        case VOID:
+          return "Void";
         default:
           return ty.toString();
       }

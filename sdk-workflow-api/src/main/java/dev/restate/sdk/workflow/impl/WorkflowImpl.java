@@ -8,117 +8,115 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.workflow.impl;
 
-import com.google.protobuf.Descriptors;
-import com.google.protobuf.Empty;
-import com.google.protobuf.Value;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.protobuf.*;
 import dev.restate.sdk.Component;
+import dev.restate.sdk.Component.HandlerSignature;
+import dev.restate.sdk.Context;
 import dev.restate.sdk.ObjectContext;
-import dev.restate.sdk.common.Serde;
-import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.common.syscalls.Syscalls;
-import dev.restate.sdk.dynrpc.CodegenUtils;
+import dev.restate.sdk.common.*;
+import dev.restate.sdk.common.syscalls.ComponentDefinition;
+import dev.restate.sdk.serde.jackson.JacksonSerdes;
 import dev.restate.sdk.workflow.WorkflowContext;
+import dev.restate.sdk.workflow.WorkflowExecutionState;
 import dev.restate.sdk.workflow.generated.*;
-import dev.restate.sdk.workflow.template.generated.WorkflowGrpc;
-import dev.restate.sdk.workflow.template.generated.WorkflowManagerGrpc;
-import io.grpc.MethodDescriptor;
-import io.grpc.ServerCallHandler;
-import io.grpc.ServerServiceDefinition;
-import io.grpc.ServiceDescriptor;
-import io.grpc.stub.ServerCalls;
-import io.grpc.stub.StreamObserver;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 import java.util.function.BiFunction;
+import org.jspecify.annotations.Nullable;
 
-class WorkflowImpl implements Component {
+public class WorkflowImpl implements BindableComponent {
 
-  private final WorkflowComponentBundle workflowServicesBundle;
-  private final ServerServiceDefinition serverServiceDefinition;
-  private final MethodDescriptor<StartRequest, StartResponse> workflowManagerTryStart;
-  private final MethodDescriptor<SetOutputRequest, Empty> workflowManagerSetOutput;
-  private final MethodDescriptor<InvokeRequest, Empty> workflowInternalStart;
+  public static final Serde<InvokeRequest> INVOKE_REQUEST_SERDE =
+      JacksonSerdes.of(InvokeRequest.class);
+  static final Serde<WorkflowExecutionState> WORKFLOW_EXECUTION_STATE_SERDE =
+      JacksonSerdes.of(WorkflowExecutionState.class);
+  static final Serde<GetStateResponse> GET_STATE_RESPONSE_SERDE =
+      CoreSerdes.ofProtobuf(GetStateResponse.parser());
+  static final Serde<SetStateRequest> SET_STATE_REQUEST_SERDE =
+      CoreSerdes.ofProtobuf(SetStateRequest.parser());
+  static final Serde<WaitDurablePromiseCompletionRequest>
+      WAIT_DURABLE_PROMISE_COMPLETION_REQUEST_SERDE =
+          CoreSerdes.ofProtobuf(WaitDurablePromiseCompletionRequest.parser());
+  static final Serde<MaybeDurablePromiseCompletion> MAYBE_DURABLE_PROMISE_COMPLETION_SERDE =
+      CoreSerdes.ofProtobuf(MaybeDurablePromiseCompletion.parser());
+  static final Serde<CompleteDurablePromiseRequest> COMPLETE_DURABLE_PROMISE_REQUEST_SERDE =
+      CoreSerdes.ofProtobuf(CompleteDurablePromiseRequest.parser());
+  static final Serde<GetOutputResponse> GET_OUTPUT_RESPONSE_SERDE =
+      CoreSerdes.ofProtobuf(GetOutputResponse.parser());
+  private static final Serde<SetOutputRequest> SET_OUTPUT_REQUEST_SERDE =
+      CoreSerdes.ofProtobuf(SetOutputRequest.parser());
+  private static final Serde<DurablePromiseCompletion> DURABLE_PROMISE_COMPLETION_SERDE =
+      CoreSerdes.ofProtobuf(DurablePromiseCompletion.parser());
 
-  WorkflowImpl(
-      WorkflowComponentBundle workflowServicesBundle,
-      WorkflowMangledDescriptors mangledDescriptors) {
-    this.workflowServicesBundle = workflowServicesBundle;
+  private static final Serde<Set<String>> DURABLEPROMISE_LISTENER_SERDE =
+      JacksonSerdes.of(new TypeReference<>() {});
+  private static final StateKey<MethodOutput> OUTPUT_KEY =
+      StateKey.of("_output", CoreSerdes.ofProtobuf(MethodOutput.parser()));
 
-    this.serverServiceDefinition =
-        buildWorfklowServerServiceDefinition(
-            mangledDescriptors.getOutputFileDescriptor(),
-            mangledDescriptors.getWorkflowServiceSimpleName(),
-            mangledDescriptors.getWorkflowServiceFqsn(),
-            workflowServicesBundle.getSharedMethods());
+  private static final StateKey<WorkflowExecutionState> WORKFLOW_EXECUTION_STATE_KEY =
+      StateKey.of("_workflow_execution_state", WORKFLOW_EXECUTION_STATE_SERDE);
 
-    this.workflowManagerTryStart =
-        WorkflowCodegenUtil.generateMethodDescriptorForWorkflowManager(
-            WorkflowManagerGrpc.getTryStartMethod(), workflowServicesBundle.getName());
-    this.workflowManagerSetOutput =
-        WorkflowCodegenUtil.generateMethodDescriptorForWorkflowManager(
-            WorkflowManagerGrpc.getSetOutputMethod(), workflowServicesBundle.getName());
-    this.workflowInternalStart =
-        WorkflowCodegenUtil.generateMethodDescriptorForWorkflowInternalStart(
-            workflowServicesBundle.getName());
+  private final String name;
+  private final Component.Handler<?, ?> workflowMethod;
+  private final HashMap<String, Component.Handler<?, ?>> sharedHandlers;
+
+  public WorkflowImpl(
+      String name,
+      Component.Handler<?, ?> workflowMethod,
+      HashMap<String, Component.Handler<?, ?>> sharedHandlers) {
+    this.name = name;
+    this.workflowMethod = workflowMethod;
+    this.sharedHandlers = sharedHandlers;
   }
 
-  @Override
-  public final ServerServiceDefinition bindService() {
-    return this.serverServiceDefinition;
-  }
+  // --- Workflow methods
 
-  private void submit(
-      ObjectContext objectContext,
-      InvokeRequest invokeRequest,
-      StreamObserver<SubmitResponse> streamObserver) {
+  private WorkflowExecutionState submit(Context objectContext, InvokeRequest invokeRequest) {
     // Try start
     var response =
         objectContext
             .call(
-                workflowManagerTryStart,
-                StartRequest.newBuilder().setKey(invokeRequest.getKey()).build())
+                workflowManagerTarget(invokeRequest.getKey(), "tryStart"),
+                CoreSerdes.JSON_STRING,
+                WORKFLOW_EXECUTION_STATE_SERDE,
+                invokeRequest.getKey())
             .await();
-    if (response.getState().equals(WorkflowExecutionState.STARTED)) {
+    if (response.equals(WorkflowExecutionState.STARTED)) {
       // Schedule start
-      objectContext.oneWayCall(this.workflowInternalStart, invokeRequest);
+      objectContext.send(workflowTarget(name), INVOKE_REQUEST_SERDE, invokeRequest);
     }
 
-    replySuccess(SubmitResponse.newBuilder().setState(response.getState()).build(), streamObserver);
+    return response;
   }
 
-  private void internalStart(
-      ObjectContext objectContext,
-      InvokeRequest invokeRequest,
-      StreamObserver<Empty> streamObserver) {
+  private void internalStart(Context context, InvokeRequest invokeRequest) {
     // We can start now!
-    Value valueOutput;
+    byte[] valueOutput;
     try {
       // Convert input
       Object input =
-          CodegenUtils.valueToT(
-              workflowServicesBundle.getSig().getRequestSerde(), invokeRequest.getPayload());
+          this.workflowMethod
+              .getHandlerSignature()
+              .getRequestSerde()
+              .deserialize(invokeRequest.getPayload().toString().getBytes(StandardCharsets.UTF_8));
 
-      // Invoke method
-      WorkflowContext ctx =
-          new WorkflowContextImpl(
-              workflowServicesBundle.getName(), objectContext, invokeRequest.getKey(), true);
+      // Invoke run
+      WorkflowContext ctx = new WorkflowContextImpl(context, name, invokeRequest.getKey(), true);
       @SuppressWarnings("unchecked")
       Object output =
-          ((BiFunction<WorkflowContext, Object, Object>) workflowServicesBundle.getRunner())
-              .apply(ctx, input);
+          ((BiFunction<Context, Object, Object>) this.workflowMethod.getRunner()).apply(ctx, input);
 
       //noinspection unchecked
       valueOutput =
-          CodegenUtils.tToValue(
-              (Serde<? super Object>) workflowServicesBundle.getSig().getResponseSerde(), output);
+          ((Serde<Object>) this.workflowMethod.getHandlerSignature().getResponseSerde())
+              .serialize(output);
     } catch (TerminalException e) {
       // Intercept TerminalException to record it
-      objectContext.oneWayCall(
-          workflowManagerSetOutput,
+      context.send(
+          workflowManagerTarget(invokeRequest.getKey(), "setOutput"),
+          SET_OUTPUT_REQUEST_SERDE,
           SetOutputRequest.newBuilder()
-              .setKey(invokeRequest.getKey())
               .setOutput(
                   MethodOutput.newBuilder()
                       .setFailure(
@@ -130,149 +128,288 @@ class WorkflowImpl implements Component {
     }
 
     // Record output
-    objectContext.oneWayCall(
-        workflowManagerSetOutput,
+    context.send(
+        workflowManagerTarget(invokeRequest.getKey(), "setOutput"),
+        SET_OUTPUT_REQUEST_SERDE,
         SetOutputRequest.newBuilder()
-            .setKey(invokeRequest.getKey())
-            .setOutput(MethodOutput.newBuilder().setValue(valueOutput))
+            .setOutput(
+                MethodOutput.newBuilder().setValue(UnsafeByteOperations.unsafeWrap(valueOutput)))
             .build());
-
-    replySuccess(Empty.getDefaultInstance(), streamObserver);
   }
 
-  private void invokeSharedMethod(
-      String methodName,
-      ObjectContext context,
-      InvokeRequest request,
-      StreamObserver<Value> streamObserver) {
+  private byte[] invokeSharedMethod(String handlerName, Context context, InvokeRequest request) {
     // Lookup the method
     @SuppressWarnings("unchecked")
-    WorkflowComponentBundle.Method<Object, Object> method =
-        (WorkflowComponentBundle.Method<Object, Object>)
-            workflowServicesBundle.getSharedMethod(methodName);
+    Component.Handler<Object, Object> method =
+        (Component.Handler<Object, Object>) sharedHandlers.get(handlerName);
     if (method == null) {
       throw new TerminalException(
-          TerminalException.Code.NOT_FOUND, "Method " + methodName + " not found");
+          TerminalException.Code.NOT_FOUND, "Method " + handlerName + " not found");
     }
 
     // Convert input
     Object input =
-        CodegenUtils.valueToT(method.getMethodSignature().getRequestSerde(), request.getPayload());
+        method
+            .getHandlerSignature()
+            .getRequestSerde()
+            .deserialize(request.getPayload().toString().getBytes(StandardCharsets.UTF_8));
 
     // Invoke method
-    WorkflowContext ctx =
-        new WorkflowContextImpl(workflowServicesBundle.getName(), context, request.getKey(), false);
+    WorkflowContext ctx = new WorkflowContextImpl(context, name, request.getKey(), false);
     // We let the sdk core to manage the failures
-    Object output = method.run(ctx, input);
+    Object output = method.getRunner().apply(ctx, input);
 
-    replySuccess(
-        CodegenUtils.tToValue(method.getMethodSignature().getResponseSerde(), output),
-        streamObserver);
+    return method.getHandlerSignature().getResponseSerde().serialize(output);
   }
 
-  private <T> void replySuccess(T value, StreamObserver<T> streamObserver) {
-    streamObserver.onNext(value);
-    streamObserver.onCompleted();
+  // --- Workflow manager methods
+
+  private GetStateResponse getState(ObjectContext context, String key) throws TerminalException {
+    return context
+        .get(stateKey(key))
+        .map(val -> GetStateResponse.newBuilder().setValue(val).build())
+        .orElseGet(
+            () -> GetStateResponse.newBuilder().setEmpty(Empty.getDefaultInstance()).build());
   }
 
-  private ServerServiceDefinition buildWorfklowServerServiceDefinition(
-      Descriptors.FileDescriptor outputFileDescriptor,
-      String simpleName,
-      String fqsn,
-      Set<String> methodNames) {
-    var adapterDescriptorSupplier =
-        new DescriptorUtils.AdapterServiceDescriptorSupplier(outputFileDescriptor, simpleName);
-    ServiceDescriptor.Builder grpcServiceDescriptorBuilder =
-        ServiceDescriptor.newBuilder(fqsn).setSchemaDescriptor(adapterDescriptorSupplier);
+  private void setState(ObjectContext context, SetStateRequest request) throws TerminalException {
+    context.set(stateKey(request.getStateKey()), request.getStateValue());
+  }
 
-    var methodDescriptors = List.copyOf(WorkflowGrpc.getServiceDescriptor().getMethods());
-    assert methodDescriptors.size() == 3;
+  private void clearState(ObjectContext context, String key) throws TerminalException {
+    context.clear(stateKey(key));
+  }
 
-    // Add Submit and InternalStart method
-    @SuppressWarnings("unchecked")
-    MethodDescriptor<InvokeRequest, SubmitResponse> submitMethodDescriptor =
-        (MethodDescriptor<InvokeRequest, SubmitResponse>)
-            methodDescriptors.get(0).toBuilder()
-                .setSchemaDescriptor(
-                    new DescriptorUtils.AdapterMethodDescriptorSupplier(
-                        outputFileDescriptor,
-                        simpleName,
-                        methodDescriptors.get(0).getBareMethodName()))
-                .setFullMethodName(
-                    MethodDescriptor.generateFullMethodName(
-                        fqsn, methodDescriptors.get(0).getBareMethodName()))
-                .build();
-    grpcServiceDescriptorBuilder.addMethod(submitMethodDescriptor);
-    @SuppressWarnings("unchecked")
-    MethodDescriptor<InvokeRequest, Empty> internalStartMethodDescriptor =
-        (MethodDescriptor<InvokeRequest, Empty>)
-            methodDescriptors.get(1).toBuilder()
-                .setSchemaDescriptor(
-                    new DescriptorUtils.AdapterMethodDescriptorSupplier(
-                        outputFileDescriptor,
-                        simpleName,
-                        methodDescriptors.get(1).getBareMethodName()))
-                .setFullMethodName(
-                    MethodDescriptor.generateFullMethodName(
-                        fqsn, methodDescriptors.get(1).getBareMethodName()))
-                .build();
-    grpcServiceDescriptorBuilder.addMethod(internalStartMethodDescriptor);
-
-    // Compute shared methods
-    MethodDescriptor<?, ?> invokeTemplateDescriptor = methodDescriptors.get(2);
-    Map<String, MethodDescriptor<?, ?>> methods = new HashMap<>();
-    for (String methodName : methodNames) {
-      var newMethodDescriptor =
-          invokeTemplateDescriptor.toBuilder()
-              .setSchemaDescriptor(
-                  new DescriptorUtils.AdapterMethodDescriptorSupplier(
-                      outputFileDescriptor, simpleName, methodName))
-              .setFullMethodName(MethodDescriptor.generateFullMethodName(fqsn, methodName))
-              .build();
-      methods.put(methodName, newMethodDescriptor);
-      grpcServiceDescriptorBuilder.addMethod(newMethodDescriptor);
+  private void waitDurablePromiseCompletion(
+      ObjectContext context, WaitDurablePromiseCompletionRequest request) throws TerminalException {
+    Optional<DurablePromiseCompletion> val =
+        context.get(durablePromiseKey(request.getDurablePromiseKey()));
+    if (val.isPresent()) {
+      completeListener(context, request.getAwakeableId(), val.get());
+      return;
     }
 
-    ServiceDescriptor grpcServiceDescriptor = grpcServiceDescriptorBuilder.build();
+    StateKey<Set<String>> listenersKey = durablePromiseListenersKey(request.getDurablePromiseKey());
+    Set<String> listeners = context.get(listenersKey).orElseGet(HashSet::new);
+    listeners.add(request.getAwakeableId());
+    context.set(listenersKey, listeners);
+  }
 
-    ServerServiceDefinition.Builder serverServiceDefinitionBuilder =
-        ServerServiceDefinition.builder(grpcServiceDescriptor);
+  private MaybeDurablePromiseCompletion getDurablePromiseCompletion(
+      ObjectContext context, String durablePromiseKeyStr) throws TerminalException {
+    StateKey<DurablePromiseCompletion> durablePromiseKey = durablePromiseKey(durablePromiseKeyStr);
+    Optional<DurablePromiseCompletion> val = context.get(durablePromiseKey);
+    if (val.isEmpty()) {
+      return MaybeDurablePromiseCompletion.newBuilder()
+          .setNotCompleted(Empty.getDefaultInstance())
+          .build();
+    }
+    if (val.get().hasValue()) {
+      return MaybeDurablePromiseCompletion.newBuilder().setValue(val.get().getValue()).build();
+    }
+    return MaybeDurablePromiseCompletion.newBuilder().setFailure(val.get().getFailure()).build();
+  }
 
-    // Add submit and internal start method
-    serverServiceDefinitionBuilder.addMethod(
-        submitMethodDescriptor,
-        ServerCalls.asyncUnaryCall(
-            (invokeRequest, streamObserver) ->
-                this.submit(
-                    ObjectContext.fromSyscalls(Syscalls.current()),
-                    invokeRequest,
-                    streamObserver)));
-    serverServiceDefinitionBuilder.addMethod(
-        internalStartMethodDescriptor,
-        ServerCalls.asyncUnaryCall(
-            (invokeRequest, streamObserver) ->
-                this.internalStart(
-                    ObjectContext.fromSyscalls(Syscalls.current()),
-                    invokeRequest,
-                    streamObserver)));
+  private void completeDurablePromise(ObjectContext context, CompleteDurablePromiseRequest request)
+      throws TerminalException {
+    // User can decide whether they want to allow overwriting the previously resolved value or not
+    StateKey<DurablePromiseCompletion> durablePromiseKey =
+        durablePromiseKey(request.getDurablePromiseKey());
+    Optional<DurablePromiseCompletion> val = context.get(durablePromiseKey);
+    if (val.isPresent()) {
+      throw new TerminalException("Can't complete an already completed durablePromise");
+    }
+    context.set(durablePromiseKey, request.getCompletion());
 
-    // Compute shared methods
-    for (var method : methods.entrySet()) {
-      @SuppressWarnings("unchecked")
-      MethodDescriptor<InvokeRequest, Value> desc =
-          (MethodDescriptor<InvokeRequest, Value>) methods.get(method.getKey());
-      ServerCallHandler<InvokeRequest, Value> handler =
-          ServerCalls.asyncUnaryCall(
-              (invokeRequest, streamObserver) ->
-                  this.invokeSharedMethod(
-                      method.getKey(),
-                      ObjectContext.fromSyscalls(Syscalls.current()),
-                      invokeRequest,
-                      streamObserver));
+    StateKey<Set<String>> listenersKey = durablePromiseListenersKey(request.getDurablePromiseKey());
+    Set<String> listeners = context.get(listenersKey).orElse(Collections.emptySet());
+    for (String listener : listeners) {
+      completeListener(context, listener, request.getCompletion());
+    }
+    context.clear(listenersKey);
+  }
 
-      serverServiceDefinitionBuilder.addMethod(desc, handler);
+  private WorkflowExecutionState tryStart(ObjectContext context) throws TerminalException {
+    Optional<WorkflowExecutionState> maybeResponse = context.get(WORKFLOW_EXECUTION_STATE_KEY);
+    if (maybeResponse.isPresent()) {
+      return maybeResponse.get();
     }
 
-    return serverServiceDefinitionBuilder.build();
+    context.set(WORKFLOW_EXECUTION_STATE_KEY, WorkflowExecutionState.ALREADY_STARTED);
+    return WorkflowExecutionState.STARTED;
+  }
+
+  private GetOutputResponse getOutput(ObjectContext context) throws TerminalException {
+    return context
+        .get(OUTPUT_KEY)
+        .map(
+            methodOutput ->
+                methodOutput.hasValue()
+                    ? GetOutputResponse.newBuilder().setValue(methodOutput.getValue()).build()
+                    : GetOutputResponse.newBuilder().setFailure(methodOutput.getFailure()).build())
+        .orElseGet(
+            () ->
+                GetOutputResponse.newBuilder().setNotCompleted(Empty.getDefaultInstance()).build());
+  }
+
+  private void setOutput(ObjectContext context, SetOutputRequest request) throws TerminalException {
+    context.set(OUTPUT_KEY, request.getOutput());
+    context.set(WORKFLOW_EXECUTION_STATE_KEY, WorkflowExecutionState.ALREADY_COMPLETED);
+  }
+
+  private void cleanup(ObjectContext context) throws TerminalException {
+    context.clearAll();
+  }
+
+  // --- Util methods for WorkflowManager
+
+  private StateKey<ByteString> stateKey(String key) {
+    return StateKey.of(
+        "_state_" + key,
+        new Serde<>() {
+          @Override
+          public byte[] serialize(@Nullable ByteString value) {
+            return value.toByteArray();
+          }
+
+          @Override
+          public ByteString serializeToByteString(@Nullable ByteString value) {
+            return value;
+          }
+
+          @Override
+          public ByteString deserialize(ByteString byteString) {
+            return byteString;
+          }
+
+          @Override
+          public ByteString deserialize(byte[] value) {
+            return UnsafeByteOperations.unsafeWrap(value);
+          }
+        });
+  }
+
+  private void completeListener(
+      ObjectContext context, String listener, DurablePromiseCompletion completion) {
+    if (completion.hasValue()) {
+      context
+          .awakeableHandle(listener)
+          .resolve(CoreSerdes.RAW, completion.getValue().toByteArray());
+    } else {
+      context.awakeableHandle(listener).reject(completion.getFailure().getMessage());
+    }
+  }
+
+  private StateKey<DurablePromiseCompletion> durablePromiseKey(String key) {
+    return StateKey.of("_durablePromise_" + key, DURABLE_PROMISE_COMPLETION_SERDE);
+  }
+
+  private StateKey<Set<String>> durablePromiseListenersKey(String key) {
+    return StateKey.of("_durablePromise_listeners_" + key, DURABLEPROMISE_LISTENER_SERDE);
+  }
+
+  static String workflowManagerObjectName(String workflowName) {
+    return workflowName + "_Manager";
+  }
+
+  private Target workflowManagerTarget(String key, String handler) {
+    return Target.virtualObject(workflowManagerObjectName(name), key, handler);
+  }
+
+  private Target workflowTarget(String handler) {
+    return Target.service(name, handler);
+  }
+
+  // --- Components definition
+
+  @Override
+  public List<ComponentDefinition> definitions() {
+    // Prepare workflow service
+    Component.ServiceBuilder workflowBuilder =
+        Component.service(name)
+            .with(
+                HandlerSignature.of("submit", INVOKE_REQUEST_SERDE, WORKFLOW_EXECUTION_STATE_SERDE),
+                this::submit)
+            .with(
+                HandlerSignature.of("_start", INVOKE_REQUEST_SERDE, CoreSerdes.VOID),
+                (context, invokeRequest) -> {
+                  this.internalStart(context, invokeRequest);
+                  return null;
+                });
+
+    // Append shared methods
+    for (var sharedMethod : sharedHandlers.values()) {
+      workflowBuilder.with(
+          HandlerSignature.of(
+              sharedMethod.getHandlerSignature().getName(), INVOKE_REQUEST_SERDE, CoreSerdes.RAW),
+          (context, invokeRequest) ->
+              this.invokeSharedMethod(
+                  sharedMethod.getHandlerSignature().getName(), context, invokeRequest));
+    }
+
+    // Prepare workflow manager service
+    Component workflowManager =
+        Component.virtualObject(workflowManagerObjectName(name))
+            .with(
+                HandlerSignature.of("getState", CoreSerdes.JSON_STRING, GET_STATE_RESPONSE_SERDE),
+                this::getState)
+            .with(
+                HandlerSignature.of("setState", SET_STATE_REQUEST_SERDE, CoreSerdes.VOID),
+                (context, setStateRequest) -> {
+                  this.setState(context, setStateRequest);
+                  return null;
+                })
+            .with(
+                HandlerSignature.of("clearState", CoreSerdes.JSON_STRING, CoreSerdes.VOID),
+                (context, s) -> {
+                  this.clearState(context, s);
+                  return null;
+                })
+            .with(
+                HandlerSignature.of(
+                    "waitDurablePromiseCompletion",
+                    WAIT_DURABLE_PROMISE_COMPLETION_REQUEST_SERDE,
+                    CoreSerdes.VOID),
+                (context, waitDurablePromiseCompletionRequest) -> {
+                  this.waitDurablePromiseCompletion(context, waitDurablePromiseCompletionRequest);
+                  return null;
+                })
+            .with(
+                HandlerSignature.of(
+                    "getDurablePromiseCompletion",
+                    CoreSerdes.JSON_STRING,
+                    MAYBE_DURABLE_PROMISE_COMPLETION_SERDE),
+                this::getDurablePromiseCompletion)
+            .with(
+                HandlerSignature.of(
+                    "completeDurablePromise",
+                    COMPLETE_DURABLE_PROMISE_REQUEST_SERDE,
+                    CoreSerdes.VOID),
+                (context, completeDurablePromiseRequest) -> {
+                  this.completeDurablePromise(context, completeDurablePromiseRequest);
+                  return null;
+                })
+            .with(
+                HandlerSignature.of("tryStart", CoreSerdes.VOID, WORKFLOW_EXECUTION_STATE_SERDE),
+                (context, unused) -> this.tryStart(context))
+            .with(
+                HandlerSignature.of("getOutput", CoreSerdes.VOID, GET_OUTPUT_RESPONSE_SERDE),
+                (context, unused) -> this.getOutput(context))
+            .with(
+                HandlerSignature.of("setOutput", SET_OUTPUT_REQUEST_SERDE, CoreSerdes.VOID),
+                (context, setOutputRequest) -> {
+                  this.setOutput(context, setOutputRequest);
+                  return null;
+                })
+            .with(
+                HandlerSignature.of("cleanup", CoreSerdes.VOID, CoreSerdes.VOID),
+                (context, unused) -> {
+                  this.cleanup(context);
+                  return null;
+                })
+            .build();
+
+    return List.of(
+        workflowBuilder.build().definitions().get(0), workflowManager.definitions().get(0));
   }
 }

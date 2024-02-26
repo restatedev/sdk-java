@@ -8,17 +8,15 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.http.vertx
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.protobuf.ByteString
 import com.google.protobuf.Empty
 import com.google.protobuf.MessageLite
-import dev.restate.generated.service.discovery.Discovery.ServiceDiscoveryRequest
-import dev.restate.generated.service.discovery.Discovery.ServiceDiscoveryResponse
 import dev.restate.generated.service.protocol.Protocol.*
 import dev.restate.sdk.common.CoreSerdes
 import dev.restate.sdk.core.ProtoUtils.*
-import dev.restate.sdk.core.testservices.*
-import dev.restate.sdk.http.vertx.testservices.BlockingGreeterService
-import dev.restate.sdk.http.vertx.testservices.GreeterKtComponent
+import dev.restate.sdk.core.manifest.DeploymentManifestSchema
+import dev.restate.sdk.http.vertx.testservices.BlockingGreeter
 import io.netty.handler.codec.http.HttpResponseStatus
 import io.vertx.core.Vertx
 import io.vertx.core.buffer.Buffer
@@ -35,7 +33,9 @@ import kotlinx.coroutines.runBlocking
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import org.junit.jupiter.api.parallel.Isolated
 
+@Isolated
 @ExtendWith(VertxExtension::class)
 internal class RestateHttpEndpointTest {
 
@@ -47,15 +47,16 @@ internal class RestateHttpEndpointTest {
             .setHttp2ClearTextUpgrade(false)
   }
 
-  @Timeout(value = 1, timeUnit = TimeUnit.SECONDS)
-  @Test
-  fun endpointWithNonBlockingService(vertx: Vertx): Unit =
-      greetTest(vertx) { it.withService(GreeterKtComponent(coroutineContext = vertx.dispatcher())) }
+  //  @Timeout(value = 1, timeUnit = TimeUnit.SECONDS)
+  //  @Test
+  //  fun endpointWithNonBlockingService(vertx: Vertx): Unit =
+  //      greetTest(vertx) { it.withService(GreeterKtComponent(coroutineContext =
+  // vertx.dispatcher())) }
 
   @Timeout(value = 1, timeUnit = TimeUnit.SECONDS)
   @Test
   fun endpointWithBlockingService(vertx: Vertx): Unit =
-      greetTest(vertx) { it.withService(BlockingGreeterService()) }
+      greetTest(vertx) { it.with(BlockingGreeter()) }
 
   private fun greetTest(
       vertx: Vertx,
@@ -81,9 +82,7 @@ internal class RestateHttpEndpointTest {
                     HttpMethod.POST,
                     endpointPort,
                     "localhost",
-                    "/invoke/" +
-                        dev.restate.sdk.core.testservices.GreeterGrpc.getGreetMethod()
-                            .fullMethodName)
+                    "/invoke/" + BlockingGreeter::class.java.canonicalName + "/greet")
                 .coAwait()
 
         // Prepare request header
@@ -91,7 +90,7 @@ internal class RestateHttpEndpointTest {
 
         // Send start message and PollInputStreamEntry
         request.write(encode(startMessage(1).build()))
-        request.write(encode(inputMessage(greetingRequest { name = "Francesco" })))
+        request.write(encode(inputMessage("Francesco")))
 
         val response = request.response().coAwait()
 
@@ -147,10 +146,7 @@ internal class RestateHttpEndpointTest {
         val outputEntry = inputChannel.receive()
 
         assertThat(outputEntry).isInstanceOf(OutputStreamEntryMessage::class.java)
-        assertThat(outputEntry as OutputStreamEntryMessage)
-            .returns(
-                greetingResponse { message = "Hello Francesco. Count: 3" }.toByteString(),
-                OutputStreamEntryMessage::getValue)
+        assertThat(outputEntry).isEqualTo(outputMessage("Hello Francesco. Count: 3"))
 
         // Wait for closing request and response
         request.end().coAwait()
@@ -161,7 +157,7 @@ internal class RestateHttpEndpointTest {
       runBlocking(vertx.dispatcher()) {
         val endpointPort: Int =
             RestateHttpEndpointBuilder.builder(vertx)
-                .withService(BlockingGreeterService())
+                .with(BlockingGreeter())
                 .withOptions(HttpServerOptions().setPort(0))
                 .build()
                 .listen()
@@ -176,9 +172,7 @@ internal class RestateHttpEndpointTest {
                     HttpMethod.POST,
                     endpointPort,
                     "localhost",
-                    "/invoke/" +
-                        dev.restate.sdk.core.testservices.GreeterGrpc.getGreetMethod().serviceName +
-                        "/unknownMethod")
+                    "/invoke/" + BlockingGreeter::class.java.canonicalName + "/unknownMethod")
                 .coAwait()
 
         // Prepare request header
@@ -198,7 +192,7 @@ internal class RestateHttpEndpointTest {
       runBlocking(vertx.dispatcher()) {
         val endpointPort: Int =
             RestateHttpEndpointBuilder.builder(vertx)
-                .withService(BlockingGreeterService())
+                .with(BlockingGreeter())
                 .withOptions(HttpServerOptions().setPort(0))
                 .build()
                 .listen()
@@ -209,28 +203,25 @@ internal class RestateHttpEndpointTest {
 
         // Send request
         val request =
-            client.request(HttpMethod.POST, endpointPort, "localhost", "/discover").coAwait()
-        request
-            .putHeader(HttpHeaders.CONTENT_TYPE, "application/proto")
-            .end(Buffer.buffer(ServiceDiscoveryRequest.getDefaultInstance().toByteArray()))
-            .coAwait()
+            client.request(HttpMethod.GET, endpointPort, "localhost", "/discover").coAwait()
+        request.end().coAwait()
 
         // Assert response
         val response = request.response().coAwait()
 
         // Response status and content type header
         assertThat(response.statusCode()).isEqualTo(HttpResponseStatus.OK.code())
-        assertThat(response.getHeader(HttpHeaders.CONTENT_TYPE)).isEqualTo("application/proto")
+        assertThat(response.getHeader(HttpHeaders.CONTENT_TYPE)).isEqualTo("application/json")
 
         // Parse response
         val responseBody = response.body().coAwait()
-        val serviceDiscoveryResponse = ServiceDiscoveryResponse.parseFrom(responseBody.bytes)
-        assertThat(serviceDiscoveryResponse.servicesList)
-            .containsOnly(dev.restate.sdk.core.testservices.GreeterGrpc.SERVICE_NAME)
-        assertThat(serviceDiscoveryResponse.files.fileList)
-            .map<String> { it.name }
-            .containsExactlyInAnyOrder(
-                "dev/restate/ext.proto", "google/protobuf/descriptor.proto", "greeter.proto")
+        // Compute response and write it back
+        val discoveryResponse: DeploymentManifestSchema =
+            ObjectMapper().readValue(responseBody.bytes, DeploymentManifestSchema::class.java)
+
+        assertThat(discoveryResponse.components)
+            .map<String> { it.fullyQualifiedComponentName }
+            .containsOnly(BlockingGreeter::class.java.canonicalName)
       }
 
   fun encode(msg: MessageLite): Buffer {

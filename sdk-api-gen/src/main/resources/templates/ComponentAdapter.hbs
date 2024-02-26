@@ -5,17 +5,17 @@ public class {{generatedClassSimpleName}} implements dev.restate.sdk.common.Comp
     public static final String COMPONENT_NAME = "{{componentName}}";
 
     @java.lang.Override
-    public dev.restate.sdk.common.ComponentBundle adapt({{originalClassFqcn}} component) {
-        return dev.restate.sdk.dynrpc.JavaComponent.{{#if isObject}}virtualObject{{else}}service{{/if}}(COMPONENT_NAME)
+    public dev.restate.sdk.common.BindableComponent adapt({{originalClassFqcn}} bindableComponent) {
+        return dev.restate.sdk.Component.{{#if isObject}}virtualObject{{else}}service{{/if}}(COMPONENT_NAME)
             {{#methods}}
             .with(
-            dev.restate.sdk.dynrpc.JavaComponent.HandlerSignature.of("{{name}}", {{{inputSerdeDecl}}}, {{{outputSerdeDecl}}}),
+            dev.restate.sdk.Component.HandlerSignature.of("{{name}}", {{{inputSerdeDecl}}}, {{{outputSerdeDecl}}}),
             (ctx, req) -> {
                 {{#if outputEmpty}}
-                {{#if inputEmpty}}component.{{name}}(ctx){{else}}component.{{name}}(ctx, req){{/if}};
+                {{#if inputEmpty}}bindableComponent.{{name}}(ctx){{else}}bindableComponent.{{name}}(ctx, req){{/if}};
                 return null;
                 {{else}}
-                return {{#if inputEmpty}}component.{{name}}(ctx){{else}}component.{{name}}(ctx, req){{/if}};
+                return {{#if inputEmpty}}bindableComponent.{{name}}(ctx){{else}}bindableComponent.{{name}}(ctx, req){{/if}};
                 {{/if}}
             })
             {{/methods}}

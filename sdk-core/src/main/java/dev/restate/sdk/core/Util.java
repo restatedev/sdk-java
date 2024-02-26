@@ -13,15 +13,12 @@ import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.common.AbortedExecutionException;
 import dev.restate.sdk.common.TerminalException;
-import io.grpc.Status;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
 
 public final class Util {
   private Util() {}
-
-  static Status SUSPENDED_STATUS = Status.INTERNAL.withCause(AbortedExecutionException.INSTANCE);
 
   @SuppressWarnings("unchecked")
   static <E extends Throwable> void sneakyThrow(Throwable e) throws E {

@@ -17,77 +17,67 @@ import static org.assertj.core.api.InstanceOfAssertFactories.type;
 import com.google.protobuf.Empty;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.core.testservices.GreeterGrpc;
-import dev.restate.sdk.core.testservices.GreetingRequest;
-import io.grpc.BindableService;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 public abstract class DeferredTestSuite implements TestSuite {
 
-  protected abstract BindableService reverseAwaitOrder();
+  protected abstract TestInvocationBuilder reverseAwaitOrder();
 
-  protected abstract BindableService awaitTwiceTheSameAwaitable();
+  protected abstract TestInvocationBuilder awaitTwiceTheSameAwaitable();
 
-  protected abstract BindableService awaitAll();
+  protected abstract TestInvocationBuilder awaitAll();
 
-  protected abstract BindableService awaitAny();
+  protected abstract TestInvocationBuilder awaitAny();
 
-  protected abstract BindableService combineAnyWithAll();
+  protected abstract TestInvocationBuilder combineAnyWithAll();
 
-  protected abstract BindableService awaitAnyIndex();
+  protected abstract TestInvocationBuilder awaitAnyIndex();
 
-  protected abstract BindableService awaitOnAlreadyResolvedAwaitables();
+  protected abstract TestInvocationBuilder awaitOnAlreadyResolvedAwaitables();
 
-  protected abstract BindableService awaitWithTimeout();
+  protected abstract TestInvocationBuilder awaitWithTimeout();
 
-  protected Stream<TestDefinition> anyTestDefinitions(Supplier<BindableService> svcSupplier) {
+  protected Stream<TestDefinition> anyTestDefinitions(
+      Supplier<TestInvocationBuilder> testInvocation) {
     return Stream.of(
-        testInvocation(svcSupplier, GreeterGrpc.getGreetMethod())
-            .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder()))
+        testInvocation
+            .get()
+            .withInput(startMessage(1), ProtoUtils.inputMessage())
             .expectingOutput(
-                invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
-                invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
+                invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
+                invokeMessage(GREETER_SERVICE_TARGET, "Till"),
                 suspensionMessage(1, 2))
             .named("No completions will suspend"),
-        testInvocation(svcSupplier, GreeterGrpc.getGreetMethod())
+        testInvocation
+            .get()
             .withInput(
                 startMessage(3),
-                inputMessage(GreetingRequest.newBuilder()),
-                invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
-                invokeMessage(
-                    GreeterGrpc.getGreetMethod(),
-                    greetingRequest("Till"),
-                    greetingResponse("TILL")))
-            .expectingOutput(
-                combinatorsMessage(2), outputMessage(greetingResponse("TILL")), END_MESSAGE)
+                ProtoUtils.inputMessage(),
+                invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
+                invokeMessage(GREETER_SERVICE_TARGET, "Till", "TILL"))
+            .expectingOutput(combinatorsMessage(2), outputMessage("TILL"), END_MESSAGE)
             .named("Only one completion will generate the combinators message"),
-        testInvocation(svcSupplier, GreeterGrpc.getGreetMethod())
+        testInvocation
+            .get()
             .withInput(
                 startMessage(3),
-                inputMessage(GreetingRequest.newBuilder()),
-                invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
-                invokeMessage(
-                    GreeterGrpc.getGreetMethod(),
-                    greetingRequest("Till"),
-                    new IllegalStateException("My error")))
+                ProtoUtils.inputMessage(),
+                invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
+                invokeMessage(GREETER_SERVICE_TARGET, "Till")
+                    .setFailure(Util.toProtocolFailure(new IllegalStateException("My error"))))
             .expectingOutput(
                 combinatorsMessage(2),
                 outputMessage(new IllegalStateException("My error")),
                 END_MESSAGE)
             .named("Only one failure will generate the combinators message"),
-        testInvocation(svcSupplier, GreeterGrpc.getGreetMethod())
+        testInvocation
+            .get()
             .withInput(
                 startMessage(3),
-                inputMessage(GreetingRequest.newBuilder()),
-                invokeMessage(
-                    GreeterGrpc.getGreetMethod(),
-                    greetingRequest("Francesco"),
-                    greetingResponse("FRANCESCO")),
-                invokeMessage(
-                    GreeterGrpc.getGreetMethod(),
-                    greetingRequest("Till"),
-                    greetingResponse("TILL")))
+                ProtoUtils.inputMessage(),
+                invokeMessage(GREETER_SERVICE_TARGET, "Francesco", "FRANCESCO"),
+                invokeMessage(GREETER_SERVICE_TARGET, "Till", "TILL"))
             .assertingOutput(
                 msgs -> {
                   assertThat(msgs).hasSize(3);
@@ -103,38 +93,30 @@ public abstract class DeferredTestSuite implements TestSuite {
 
                   assertThat(msgs)
                       .element(1)
-                      .isIn(
-                          outputMessage(greetingResponse("FRANCESCO")),
-                          outputMessage(greetingResponse("TILL")));
+                      .isIn(outputMessage("FRANCESCO"), outputMessage("TILL"));
                   assertThat(msgs).element(2).isEqualTo(END_MESSAGE);
                 })
             .named("Everything completed will generate the combinators message"),
-        testInvocation(svcSupplier, GreeterGrpc.getGreetMethod())
+        testInvocation
+            .get()
             .withInput(
                 startMessage(4),
-                inputMessage(GreetingRequest.newBuilder()),
-                invokeMessage(
-                    GreeterGrpc.getGreetMethod(),
-                    greetingRequest("Francesco"),
-                    greetingResponse("FRANCESCO")),
-                invokeMessage(
-                    GreeterGrpc.getGreetMethod(),
-                    greetingRequest("Till"),
-                    greetingResponse("TILL")),
+                ProtoUtils.inputMessage(),
+                invokeMessage(GREETER_SERVICE_TARGET, "Francesco", "FRANCESCO"),
+                invokeMessage(GREETER_SERVICE_TARGET, "Till", "TILL"),
                 combinatorsMessage(2))
-            .expectingOutput(outputMessage(greetingResponse("TILL")), END_MESSAGE)
+            .expectingOutput(outputMessage("TILL"), END_MESSAGE)
             .named("Replay the combinator"),
-        testInvocation(svcSupplier, GreeterGrpc.getGreetMethod())
+        testInvocation
+            .get()
             .withInput(
-                startMessage(1),
-                inputMessage(GreetingRequest.newBuilder()),
-                completionMessage(1, greetingResponse("FRANCESCO")))
+                startMessage(1), ProtoUtils.inputMessage(), completionMessage(1, "FRANCESCO"))
             .onlyUnbuffered()
             .expectingOutput(
-                invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
-                invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
+                invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
+                invokeMessage(GREETER_SERVICE_TARGET, "Till"),
                 combinatorsMessage(1),
-                outputMessage(greetingResponse("FRANCESCO")),
+                outputMessage("FRANCESCO"),
                 END_MESSAGE)
             .named("Complete any asynchronously"));
   }
@@ -146,108 +128,92 @@ public abstract class DeferredTestSuite implements TestSuite {
         anyTestDefinitions(this::awaitAny),
         Stream.of(
             // --- Reverse await order
-            testInvocation(this::reverseAwaitOrder, GreeterGrpc.getGreetMethod())
-                .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder()))
+            this.reverseAwaitOrder()
+                .withInput(startMessage(1), ProtoUtils.inputMessage())
                 .expectingOutput(
-                    invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
-                    invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
+                    invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
+                    invokeMessage(GREETER_SERVICE_TARGET, "Till"),
                     suspensionMessage(2))
                 .named("None completed"),
-            testInvocation(this::reverseAwaitOrder, GreeterGrpc.getGreetMethod())
+            this.reverseAwaitOrder()
                 .withInput(
                     startMessage(1),
-                    inputMessage(GreetingRequest.newBuilder()),
-                    completionMessage(1, greetingResponse("FRANCESCO")),
-                    completionMessage(2, greetingResponse("TILL")))
+                    ProtoUtils.inputMessage(),
+                    completionMessage(1, "FRANCESCO"),
+                    completionMessage(2, "TILL"))
                 .onlyUnbuffered()
                 .expectingOutput(
-                    invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
-                    invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
+                    invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
+                    invokeMessage(GREETER_SERVICE_TARGET, "Till"),
                     setStateMessage("A2", "TILL"),
-                    outputMessage(greetingResponse("FRANCESCO-TILL")),
+                    outputMessage("FRANCESCO-TILL"),
                     END_MESSAGE)
                 .named("A1 and A2 completed later"),
-            testInvocation(this::reverseAwaitOrder, GreeterGrpc.getGreetMethod())
+            this.reverseAwaitOrder()
                 .withInput(
                     startMessage(1),
-                    inputMessage(GreetingRequest.newBuilder()),
-                    completionMessage(2, greetingResponse("TILL")),
-                    completionMessage(1, greetingResponse("FRANCESCO")))
+                    ProtoUtils.inputMessage(),
+                    completionMessage(2, "TILL"),
+                    completionMessage(1, "FRANCESCO"))
                 .onlyUnbuffered()
                 .expectingOutput(
-                    invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
-                    invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
+                    invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
+                    invokeMessage(GREETER_SERVICE_TARGET, "Till"),
                     setStateMessage("A2", "TILL"),
-                    outputMessage(greetingResponse("FRANCESCO-TILL")),
+                    outputMessage("FRANCESCO-TILL"),
                     END_MESSAGE)
                 .named("A2 and A1 completed later"),
-            testInvocation(this::reverseAwaitOrder, GreeterGrpc.getGreetMethod())
-                .withInput(
-                    startMessage(1),
-                    inputMessage(GreetingRequest.newBuilder()),
-                    completionMessage(2, greetingResponse("TILL")))
+            this.reverseAwaitOrder()
+                .withInput(startMessage(1), ProtoUtils.inputMessage(), completionMessage(2, "TILL"))
                 .onlyUnbuffered()
                 .expectingOutput(
-                    invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
-                    invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
+                    invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
+                    invokeMessage(GREETER_SERVICE_TARGET, "Till"),
                     setStateMessage("A2", "TILL"),
                     suspensionMessage(1))
                 .named("Only A2 completed"),
-            testInvocation(this::reverseAwaitOrder, GreeterGrpc.getGreetMethod())
+            this.reverseAwaitOrder()
                 .withInput(
-                    startMessage(1),
-                    inputMessage(GreetingRequest.newBuilder()),
-                    completionMessage(1, greetingResponse("FRANCESCO")))
+                    startMessage(1), ProtoUtils.inputMessage(), completionMessage(1, "FRANCESCO"))
                 .onlyUnbuffered()
                 .expectingOutput(
-                    invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
-                    invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
+                    invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
+                    invokeMessage(GREETER_SERVICE_TARGET, "Till"),
                     suspensionMessage(2))
                 .named("Only A1 completed"),
 
             // --- Await twice the same executable
-            testInvocation(this::awaitTwiceTheSameAwaitable, GreeterGrpc.getGreetMethod())
+            this.awaitTwiceTheSameAwaitable()
                 .withInput(
-                    startMessage(1),
-                    inputMessage(GreetingRequest.newBuilder()),
-                    completionMessage(1, greetingResponse("FRANCESCO")))
+                    startMessage(1), ProtoUtils.inputMessage(), completionMessage(1, "FRANCESCO"))
                 .onlyUnbuffered()
                 .expectingOutput(
-                    invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
-                    outputMessage(greetingResponse("FRANCESCO-FRANCESCO")),
+                    invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
+                    outputMessage("FRANCESCO-FRANCESCO"),
                     END_MESSAGE),
 
             // --- All combinator
-            testInvocation(this::awaitAll, GreeterGrpc.getGreetMethod())
-                .withInput(startMessage(1), inputMessage(GreetingRequest.newBuilder()))
+            this.awaitAll()
+                .withInput(startMessage(1), ProtoUtils.inputMessage())
                 .expectingOutput(
-                    invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
-                    invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
+                    invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
+                    invokeMessage(GREETER_SERVICE_TARGET, "Till"),
                     suspensionMessage(1, 2))
                 .named("No completions will suspend"),
-            testInvocation(this::awaitAll, GreeterGrpc.getGreetMethod())
+            this.awaitAll()
                 .withInput(
                     startMessage(3),
-                    inputMessage(GreetingRequest.newBuilder()),
-                    invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
-                    invokeMessage(
-                        GreeterGrpc.getGreetMethod(),
-                        greetingRequest("Till"),
-                        greetingResponse("TILL")))
+                    ProtoUtils.inputMessage(),
+                    invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
+                    invokeMessage(GREETER_SERVICE_TARGET, "Till", "TILL"))
                 .expectingOutput(suspensionMessage(1))
                 .named("Only one completion will suspend"),
-            testInvocation(this::awaitAll, GreeterGrpc.getGreetMethod())
+            this.awaitAll()
                 .withInput(
                     startMessage(3),
-                    inputMessage(GreetingRequest.newBuilder()),
-                    invokeMessage(
-                        GreeterGrpc.getGreetMethod(),
-                        greetingRequest("Francesco"),
-                        greetingResponse("FRANCESCO")),
-                    invokeMessage(
-                        GreeterGrpc.getGreetMethod(),
-                        greetingRequest("Till"),
-                        greetingResponse("TILL")))
+                    ProtoUtils.inputMessage(),
+                    invokeMessage(GREETER_SERVICE_TARGET, "Francesco", "FRANCESCO"),
+                    invokeMessage(GREETER_SERVICE_TARGET, "Till", "TILL"))
                 .assertingOutput(
                     msgs -> {
                       assertThat(msgs).hasSize(3);
@@ -259,122 +225,111 @@ public abstract class DeferredTestSuite implements TestSuite {
                               list(Integer.class))
                           .containsExactlyInAnyOrder(1, 2);
 
-                      assertThat(msgs)
-                          .element(1)
-                          .isEqualTo(outputMessage(greetingResponse("FRANCESCO-TILL")));
+                      assertThat(msgs).element(1).isEqualTo(outputMessage("FRANCESCO-TILL"));
                       assertThat(msgs).element(2).isEqualTo(END_MESSAGE);
                     })
                 .named("Everything completed will generate the combinators message"),
-            testInvocation(this::awaitAll, GreeterGrpc.getGreetMethod())
+            this.awaitAll()
                 .withInput(
                     startMessage(4),
-                    inputMessage(GreetingRequest.newBuilder()),
-                    invokeMessage(
-                        GreeterGrpc.getGreetMethod(),
-                        greetingRequest("Francesco"),
-                        greetingResponse("FRANCESCO")),
-                    invokeMessage(
-                        GreeterGrpc.getGreetMethod(),
-                        greetingRequest("Till"),
-                        greetingResponse("TILL")),
+                    ProtoUtils.inputMessage(),
+                    invokeMessage(GREETER_SERVICE_TARGET, "Francesco", "FRANCESCO"),
+                    invokeMessage(GREETER_SERVICE_TARGET, "Till", "TILL"),
                     combinatorsMessage(1, 2))
-                .expectingOutput(outputMessage(greetingResponse("FRANCESCO-TILL")), END_MESSAGE)
+                .expectingOutput(outputMessage("FRANCESCO-TILL"), END_MESSAGE)
                 .named("Replay the combinator"),
-            testInvocation(this::awaitAll, GreeterGrpc.getGreetMethod())
+            this.awaitAll()
                 .withInput(
                     startMessage(1),
-                    inputMessage(GreetingRequest.newBuilder()),
-                    completionMessage(1, greetingResponse("FRANCESCO")),
-                    completionMessage(2, greetingResponse("TILL")))
+                    ProtoUtils.inputMessage(),
+                    completionMessage(1, "FRANCESCO"),
+                    completionMessage(2, "TILL"))
                 .onlyUnbuffered()
                 .expectingOutput(
-                    invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
-                    invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
+                    invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
+                    invokeMessage(GREETER_SERVICE_TARGET, "Till"),
                     combinatorsMessage(1, 2),
-                    outputMessage(greetingResponse("FRANCESCO-TILL")),
+                    outputMessage("FRANCESCO-TILL"),
                     END_MESSAGE)
                 .named("Complete all asynchronously"),
-            testInvocation(this::awaitAll, GreeterGrpc.getGreetMethod())
+            this.awaitAll()
                 .withInput(
                     startMessage(1),
-                    inputMessage(GreetingRequest.newBuilder()),
+                    ProtoUtils.inputMessage(),
                     completionMessage(1, new IllegalStateException("My error")))
                 .onlyUnbuffered()
                 .expectingOutput(
-                    invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
-                    invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
+                    invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
+                    invokeMessage(GREETER_SERVICE_TARGET, "Till"),
                     combinatorsMessage(1),
                     outputMessage(new IllegalStateException("My error")),
                     END_MESSAGE)
                 .named("All fails on first failure"),
-            testInvocation(this::awaitAll, GreeterGrpc.getGreetMethod())
+            this.awaitAll()
                 .withInput(
                     startMessage(1),
-                    inputMessage(GreetingRequest.newBuilder()),
-                    completionMessage(1, greetingResponse("FRANCESCO")),
+                    ProtoUtils.inputMessage(),
+                    completionMessage(1, "FRANCESCO"),
                     completionMessage(2, new IllegalStateException("My error")))
                 .onlyUnbuffered()
                 .expectingOutput(
-                    invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco")),
-                    invokeMessage(GreeterGrpc.getGreetMethod(), greetingRequest("Till")),
+                    invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
+                    invokeMessage(GREETER_SERVICE_TARGET, "Till"),
                     combinatorsMessage(1, 2),
                     outputMessage(new IllegalStateException("My error")),
                     END_MESSAGE)
                 .named("All fails on second failure"),
 
             // --- Compose any with all
-            testInvocation(this::combineAnyWithAll, GreeterGrpc.getGreetMethod())
+            this.combineAnyWithAll()
                 .withInput(
                     startMessage(6),
-                    inputMessage(GreetingRequest.newBuilder()),
+                    ProtoUtils.inputMessage(),
                     awakeable("1"),
                     awakeable("2"),
                     awakeable("3"),
                     awakeable("4"),
                     combinatorsMessage(2, 3))
-                .expectingOutput(outputMessage(greetingResponse("223")), END_MESSAGE),
-            testInvocation(this::combineAnyWithAll, GreeterGrpc.getGreetMethod())
+                .expectingOutput(outputMessage("223"), END_MESSAGE),
+            this.combineAnyWithAll()
                 .withInput(
                     startMessage(6),
-                    inputMessage(GreetingRequest.newBuilder()),
+                    ProtoUtils.inputMessage(),
                     awakeable("1"),
                     awakeable("2"),
                     awakeable("3"),
                     awakeable("4"),
                     combinatorsMessage(3, 2))
-                .expectingOutput(outputMessage(greetingResponse("233")), END_MESSAGE)
+                .expectingOutput(outputMessage("233"), END_MESSAGE)
                 .named("Inverted order"),
 
             // --- Await Any with index
-            testInvocation(this::awaitAnyIndex, GreeterGrpc.getGreetMethod())
+            this.awaitAnyIndex()
                 .withInput(
                     startMessage(6),
-                    inputMessage(GreetingRequest.newBuilder()),
+                    ProtoUtils.inputMessage(),
                     awakeable("1"),
                     awakeable("2"),
                     awakeable("3"),
                     awakeable("4"),
                     combinatorsMessage(1))
-                .expectingOutput(outputMessage(greetingResponse("0")), END_MESSAGE),
-            testInvocation(this::awaitAnyIndex, GreeterGrpc.getGreetMethod())
+                .expectingOutput(outputMessage("0"), END_MESSAGE),
+            this.awaitAnyIndex()
                 .withInput(
                     startMessage(6),
-                    inputMessage(GreetingRequest.newBuilder()),
+                    ProtoUtils.inputMessage(),
                     awakeable("1"),
                     awakeable("2"),
                     awakeable("3"),
                     awakeable("4"),
                     combinatorsMessage(3, 2))
-                .expectingOutput(outputMessage(greetingResponse("1")), END_MESSAGE)
+                .expectingOutput(outputMessage("1"), END_MESSAGE)
                 .named("Complete all"),
 
             // --- Compose nested and resolved all should work
-            testInvocation(this::awaitOnAlreadyResolvedAwaitables, GreeterGrpc.getGreetMethod())
+            this.awaitOnAlreadyResolvedAwaitables()
                 .withInput(
-                    startMessage(3),
-                    inputMessage(GreetingRequest.newBuilder()),
-                    awakeable("1"),
-                    awakeable("2"))
+                    startMessage(3), ProtoUtils.inputMessage(), awakeable("1"), awakeable("2"))
                 .assertingOutput(
                     msgs -> {
                       assertThat(msgs).hasSize(4);
@@ -387,39 +342,32 @@ public abstract class DeferredTestSuite implements TestSuite {
                           .containsExactlyInAnyOrder(1, 2);
 
                       assertThat(msgs).element(1).isEqualTo(combinatorsMessage());
-                      assertThat(msgs).element(2).isEqualTo(outputMessage(greetingResponse("12")));
+                      assertThat(msgs).element(2).isEqualTo(outputMessage("12"));
                       assertThat(msgs).element(3).isEqualTo(END_MESSAGE);
                     }),
 
             // --- Await with timeout
-            testInvocation(this::awaitWithTimeout, GreeterGrpc.getGreetMethod())
+            this.awaitWithTimeout()
                 .withInput(
-                    startMessage(1),
-                    inputMessage(GreetingRequest.newBuilder()),
-                    completionMessage(1, greetingResponse("FRANCESCO")))
+                    startMessage(1), ProtoUtils.inputMessage(), completionMessage(1, "FRANCESCO"))
                 .onlyUnbuffered()
                 .assertingOutput(
                     messages -> {
                       assertThat(messages).hasSize(5);
                       assertThat(messages)
                           .element(0)
-                          .isEqualTo(
-                              invokeMessage(
-                                      GreeterGrpc.getGreetMethod(), greetingRequest("Francesco"))
-                                  .build());
+                          .isEqualTo(invokeMessage(GREETER_SERVICE_TARGET, "Francesco").build());
                       assertThat(messages)
                           .element(1)
                           .isInstanceOf(Protocol.SleepEntryMessage.class);
                       assertThat(messages).element(2).isEqualTo(combinatorsMessage(1));
-                      assertThat(messages)
-                          .element(3)
-                          .isEqualTo(outputMessage(greetingResponse("FRANCESCO")));
+                      assertThat(messages).element(3).isEqualTo(outputMessage("FRANCESCO"));
                       assertThat(messages).element(4).isEqualTo(END_MESSAGE);
                     }),
-            testInvocation(this::awaitWithTimeout, GreeterGrpc.getGreetMethod())
+            this.awaitWithTimeout()
                 .withInput(
                     startMessage(1),
-                    inputMessage(GreetingRequest.newBuilder()),
+                    ProtoUtils.inputMessage(),
                     Protocol.CompletionMessage.newBuilder()
                         .setEntryIndex(2)
                         .setEmpty(Empty.getDefaultInstance()))
@@ -429,17 +377,12 @@ public abstract class DeferredTestSuite implements TestSuite {
                       assertThat(messages).hasSize(5);
                       assertThat(messages)
                           .element(0)
-                          .isEqualTo(
-                              invokeMessage(
-                                      GreeterGrpc.getGreetMethod(), greetingRequest("Francesco"))
-                                  .build());
+                          .isEqualTo(invokeMessage(GREETER_SERVICE_TARGET, "Francesco").build());
                       assertThat(messages)
                           .element(1)
                           .isInstanceOf(Protocol.SleepEntryMessage.class);
                       assertThat(messages).element(2).isEqualTo(combinatorsMessage(2));
-                      assertThat(messages)
-                          .element(3)
-                          .isEqualTo(outputMessage(greetingResponse("timeout")));
+                      assertThat(messages).element(3).isEqualTo(outputMessage("timeout"));
                       assertThat(messages).element(4).isEqualTo(END_MESSAGE);
                     })
                 .named("Fires timeout")));

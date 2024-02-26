@@ -11,9 +11,10 @@ package dev.restate.sdk.core;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.protobuf.MessageLite;
-import dev.restate.generated.service.discovery.Discovery;
-import io.grpc.ServerServiceDefinition;
+import dev.restate.sdk.common.syscalls.ComponentDefinition;
+import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import org.apache.logging.log4j.ThreadContext;
@@ -37,17 +38,20 @@ public final class MockMultiThreaded implements TestDefinitions.TestExecutor {
     // Output subscriber buffers all the output messages and provides a completion future
     FlowUtils.FutureSubscriber<MessageLite> outputSubscriber = new FlowUtils.FutureSubscriber<>();
 
-    ServerServiceDefinition svc = definition.getService().bindService();
+    // This test infra supports only components returning one component definition
+    List<ComponentDefinition> componentDefinition = definition.getComponent().definitions();
+    assertThat(componentDefinition).size().isEqualTo(1);
 
     // Prepare server
     RestateEndpoint.Builder builder =
-        RestateEndpoint.newBuilder(Discovery.ProtocolMode.BIDI_STREAM).withService(svc);
+        RestateEndpoint.newBuilder(DeploymentManifestSchema.ProtocolMode.BIDI_STREAM)
+            .with(componentDefinition.get(0));
     RestateEndpoint server = builder.build();
 
     // Start invocation
-    InvocationHandler handler =
+    ResolvedEndpointHandler handler =
         server.resolve(
-            svc.getServiceDescriptor().getName(),
+            componentDefinition.get(0).getFullyQualifiedServiceName(),
             definition.getMethod(),
             io.opentelemetry.context.Context.current(),
             RestateEndpoint.LoggingContextSetter.THREAD_LOCAL_INSTANCE,

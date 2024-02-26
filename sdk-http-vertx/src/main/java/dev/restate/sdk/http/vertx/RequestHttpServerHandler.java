@@ -9,15 +9,16 @@
 package dev.restate.sdk.http.vertx;
 
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;
+import static io.netty.handler.codec.http.HttpHeaderValues.APPLICATION_JSON;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 
-import com.google.protobuf.InvalidProtocolBufferException;
-import dev.restate.generated.service.discovery.Discovery;
-import dev.restate.sdk.core.InvocationHandler;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.ProtocolException;
+import dev.restate.sdk.core.ResolvedEndpointHandler;
 import dev.restate.sdk.core.RestateEndpoint;
-import io.grpc.Status;
-import io.netty.buffer.Unpooled;
+import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
 import io.netty.util.AsciiString;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.context.propagation.TextMapGetter;
@@ -26,7 +27,6 @@ import io.vertx.core.Context;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.http.impl.HttpServerRequestInternal;
@@ -34,16 +34,16 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.concurrent.Executor;
 import java.util.regex.Pattern;
-import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jspecify.annotations.Nullable;
 
 class RequestHttpServerHandler implements Handler<HttpServerRequest> {
 
   private static final Logger LOG = LogManager.getLogger(RequestHttpServerHandler.class);
 
   private static final AsciiString APPLICATION_RESTATE = AsciiString.cached("application/restate");
-  private static final String APPLICATION_PROTO = "application/proto";
+  private static final ObjectMapper MANIFEST_OBJECT_MAPPER = new ObjectMapper();
 
   private static final Pattern SLASH = Pattern.compile(Pattern.quote("/"));
 
@@ -114,7 +114,7 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
 
     Context vertxCurrentContext = ((HttpServerRequestInternal) request).context();
 
-    InvocationHandler handler;
+    ResolvedEndpointHandler handler;
     try {
       handler =
           restateEndpoint.resolve(
@@ -147,7 +147,7 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
       request
           .response()
           .setStatusCode(
-              e.getFailureCode() == Status.Code.NOT_FOUND.value()
+              e.getFailureCode() == TerminalException.Code.NOT_FOUND.value()
                   ? NOT_FOUND.code()
                   : INTERNAL_SERVER_ERROR.code())
           .end();
@@ -182,51 +182,21 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
   }
 
   private void handleDiscoveryRequest(HttpServerRequest request) {
-    // Request validation
-    if (!request.method().equals(HttpMethod.POST)) {
-      request.response().setStatusCode(METHOD_NOT_ALLOWED.code()).end();
-      return;
-    }
-    if (!request.getHeader(CONTENT_TYPE).equalsIgnoreCase(APPLICATION_PROTO)) {
-      request.response().setStatusCode(BAD_REQUEST.code()).end();
+    // Compute response and write it back
+    DeploymentManifestSchema response = this.restateEndpoint.handleDiscoveryRequest();
+    Buffer responseBuffer;
+    try {
+      responseBuffer = Buffer.buffer(MANIFEST_OBJECT_MAPPER.writeValueAsBytes(response));
+    } catch (JsonProcessingException e) {
+      LOG.warn("Error when writing out the manifest POJO", e);
+      request.response().setStatusCode(INTERNAL_SERVER_ERROR.code()).end();
       return;
     }
 
-    // Wait for the request body
     request
-        .body()
-        .andThen(
-            asyncResult -> {
-              if (asyncResult.failed()) {
-                LOG.warn(
-                    "Error when reading the request body of discovery request",
-                    asyncResult.cause());
-                request.response().setStatusCode(INTERNAL_SERVER_ERROR.code()).end();
-                return;
-              }
-
-              // Parse request body
-              Discovery.ServiceDiscoveryRequest discoveryRequest;
-              try {
-                discoveryRequest =
-                    Discovery.ServiceDiscoveryRequest.parseFrom(
-                        asyncResult.result().getByteBuf().nioBuffer());
-              } catch (InvalidProtocolBufferException e) {
-                LOG.warn("Cannot parse discovery request", e);
-                request.response().setStatusCode(BAD_REQUEST.code()).end();
-                return;
-              }
-
-              // Compute response and write it back
-              Discovery.ServiceDiscoveryResponse response =
-                  this.restateEndpoint.handleDiscoveryRequest(discoveryRequest);
-              request
-                  .response()
-                  .setStatusCode(OK.code())
-                  .putHeader(CONTENT_TYPE, APPLICATION_PROTO)
-                  .end(
-                      Buffer.buffer(
-                          Unpooled.wrappedBuffer(response.toByteString().asReadOnlyByteBuffer())));
-            });
+        .response()
+        .setStatusCode(OK.code())
+        .putHeader(CONTENT_TYPE, APPLICATION_JSON)
+        .end(responseBuffer);
   }
 }

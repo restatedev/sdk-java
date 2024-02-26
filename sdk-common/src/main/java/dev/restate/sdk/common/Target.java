@@ -22,16 +22,12 @@ public final class Target {
     this.key = key;
   }
 
-  public static Target virtualObject(String name, String handler, String key) {
+  public static Target virtualObject(String name, String key, String handler) {
     return new Target(name, handler, key);
   }
 
   public static Target service(String name, String handler) {
     return new Target(name, handler, null);
-  }
-
-  public static Target workflow(String name, String handler, String key) {
-    return new Target(name, handler, key);
   }
 
   public String getComponent() {

@@ -1,26 +1,23 @@
-import com.google.protobuf.gradle.id
-import com.google.protobuf.gradle.protobuf
-
 plugins {
   `java-library`
   `library-publishing-conventions`
+  alias(pluginLibs.plugins.protobuf)
 }
 
 description = "Restate SDK Workflow APIs"
 
 dependencies {
+  compileOnly(coreLibs.jspecify)
+
   api(project(":sdk-common"))
   api(project(":sdk-api"))
 
-  // For the gRPC Ingress client
-  protobuf(project(":sdk-common"))
-
-  compileOnly(coreLibs.javax.annotation.api)
   implementation(coreLibs.protobuf.java)
-  implementation(coreLibs.protobuf.util)
-  implementation(coreLibs.grpc.stub)
-  implementation(coreLibs.grpc.protobuf)
   implementation(coreLibs.log4j.core)
+
+  implementation(platform(jacksonLibs.jackson.bom))
+  implementation(jacksonLibs.jackson.annotations)
+  implementation(jacksonLibs.jackson.jsr310)
   implementation(project(":sdk-serde-jackson"))
 
   testImplementation(testingLibs.junit.jupiter)
@@ -28,35 +25,19 @@ dependencies {
 
   // Import test suites from sdk-core
   testImplementation(project(":sdk-core", "testArchive"))
-  testProtobuf(project(":sdk-core", "testArchive"))
-  testCompileOnly(coreLibs.javax.annotation.api)
 }
 
-val pluginJar =
-    file(
-        "${project.rootProject.rootDir}/protoc-gen-restate/build/libs/protoc-gen-restate-${project.version}-all.jar")
+// Configure protobuf
 
-protobuf {
-  plugins {
-    id("grpc") { artifact = "io.grpc:protoc-gen-grpc-java:${coreLibs.versions.grpc.get()}" }
-    id("restate") {
-      // NOTE: This is not needed in a regular project configuration, you should rather use:
-      // artifact = "dev.restate.sdk:protoc-gen-restate-java-blocking:1.0-SNAPSHOT:all@jar"
-      path = pluginJar.path
-    }
-  }
+val protobufVersion = coreLibs.versions.protobuf.get()
 
-  generateProtoTasks {
-    all().forEach {
-      // Make sure we depend on shadowJar from protoc-gen-restate
-      it.dependsOn(":protoc-gen-restate:shadowJar")
+protobuf { protoc { artifact = "com.google.protobuf:protoc:$protobufVersion" } }
 
-      it.plugins {
-        id("grpc")
-        id("restate")
-      }
-    }
-  }
+// Make sure task dependencies are correct
+
+tasks {
+  withType<JavaCompile> { dependsOn(generateProto) }
+  withType<Jar> { dependsOn(generateProto) }
 }
 
 // Generate test jar

@@ -12,14 +12,11 @@ import com.google.protobuf.ByteString;
 import dev.restate.sdk.common.InvocationId;
 import dev.restate.sdk.common.Target;
 import dev.restate.sdk.common.TerminalException;
-import io.grpc.Context;
-import io.grpc.MethodDescriptor;
 import java.time.Duration;
 import java.util.*;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Internal interface to access Restate functionalities. Users can use the ad-hoc RestateContext
@@ -30,19 +27,9 @@ import javax.annotation.Nullable;
  */
 public interface Syscalls {
 
-  Context.Key<Syscalls> SYSCALLS_KEY = Context.key("restate.dev/syscalls");
-
-  /** Retrieves the current context. */
-  static Syscalls current() {
-    return Objects.requireNonNull(
-        SYSCALLS_KEY.get(),
-        "Syscalls MUST be non-null. "
-            + "Make sure you're creating the RestateContext within the same thread/executor where the method handler is executed. "
-            + "Current thread: "
-            + Thread.currentThread().getName());
-  }
-
   InvocationId invocationId();
+
+  String objectKey();
 
   /**
    * @return true if it's inside a side effect block.
@@ -77,18 +64,9 @@ public interface Syscalls {
 
   void call(Target target, ByteString parameter, SyscallCallback<Deferred<ByteString>> callback);
 
-  <T, R> void call(
-      MethodDescriptor<T, R> methodDescriptor, T parameter, SyscallCallback<Deferred<R>> callback);
-
   void send(
       Target target,
       ByteString parameter,
-      @Nullable Duration delay,
-      SyscallCallback<Void> requestCallback);
-
-  <T> void send(
-      MethodDescriptor<T, ?> methodDescriptor,
-      T parameter,
       @Nullable Duration delay,
       SyscallCallback<Void> requestCallback);
 

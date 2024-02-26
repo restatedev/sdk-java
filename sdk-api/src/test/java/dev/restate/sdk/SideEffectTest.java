@@ -8,113 +8,71 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import static dev.restate.sdk.core.ProtoUtils.greetingRequest;
+import static dev.restate.sdk.JavaBlockingTests.testDefinitionForService;
+import static dev.restate.sdk.core.ProtoUtils.GREETER_SERVICE_TARGET;
 
 import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.core.SideEffectTestSuite;
-import dev.restate.sdk.core.testservices.GreeterGrpc;
-import dev.restate.sdk.core.testservices.GreetingRequest;
-import dev.restate.sdk.core.testservices.GreetingResponse;
-import io.grpc.BindableService;
-import io.grpc.stub.StreamObserver;
+import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import java.util.Objects;
 
 public class SideEffectTest extends SideEffectTestSuite {
 
-  private static class SideEffect extends GreeterGrpc.GreeterImplBase implements Component {
-
-    private final String sideEffectOutput;
-
-    SideEffect(String sideEffectOutput) {
-      this.sideEffectOutput = sideEffectOutput;
-    }
-
-    @Override
-    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      ObjectContext ctx = ObjectContext.current();
-
-      String result = ctx.sideEffect(CoreSerdes.JSON_STRING, () -> this.sideEffectOutput);
-
-      responseObserver.onNext(GreetingResponse.newBuilder().setMessage("Hello " + result).build());
-      responseObserver.onCompleted();
-    }
+  protected TestInvocationBuilder sideEffect(String sideEffectOutput) {
+    return testDefinitionForService(
+        "SideEffect",
+        CoreSerdes.VOID,
+        CoreSerdes.JSON_STRING,
+        (ctx, unused) -> {
+          String result = ctx.sideEffect(CoreSerdes.JSON_STRING, () -> sideEffectOutput);
+          return "Hello " + result;
+        });
   }
 
-  @Override
-  protected BindableService sideEffect(String sideEffectOutput) {
-    return new SideEffect(sideEffectOutput);
+  protected TestInvocationBuilder consecutiveSideEffect(String sideEffectOutput) {
+    return testDefinitionForService(
+        "ConsecutiveSideEffect",
+        CoreSerdes.VOID,
+        CoreSerdes.JSON_STRING,
+        (ctx, unused) -> {
+          String firstResult = ctx.sideEffect(CoreSerdes.JSON_STRING, () -> sideEffectOutput);
+          String secondResult = ctx.sideEffect(CoreSerdes.JSON_STRING, firstResult::toUpperCase);
+
+          return "Hello " + secondResult;
+        });
   }
 
-  private static class ConsecutiveSideEffect extends GreeterGrpc.GreeterImplBase
-      implements Component {
+  protected TestInvocationBuilder checkContextSwitching() {
+    return testDefinitionForService(
+        "CheckContextSwitching",
+        CoreSerdes.VOID,
+        CoreSerdes.JSON_STRING,
+        (ctx, unused) -> {
+          String currentThread = Thread.currentThread().getName();
 
-    private final String sideEffectOutput;
+          String sideEffectThread =
+              ctx.sideEffect(CoreSerdes.JSON_STRING, () -> Thread.currentThread().getName());
 
-    ConsecutiveSideEffect(String sideEffectOutput) {
-      this.sideEffectOutput = sideEffectOutput;
-    }
+          if (!Objects.equals(currentThread, sideEffectThread)) {
+            throw new IllegalStateException(
+                "Current thread and side effect thread do not match: "
+                    + currentThread
+                    + " != "
+                    + sideEffectThread);
+          }
 
-    @Override
-    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      ObjectContext ctx = ObjectContext.current();
-
-      String firstResult = ctx.sideEffect(CoreSerdes.JSON_STRING, () -> this.sideEffectOutput);
-      String secondResult = ctx.sideEffect(CoreSerdes.JSON_STRING, firstResult::toUpperCase);
-
-      responseObserver.onNext(
-          GreetingResponse.newBuilder().setMessage("Hello " + secondResult).build());
-      responseObserver.onCompleted();
-    }
+          return "Hello";
+        });
   }
 
-  @Override
-  protected BindableService consecutiveSideEffect(String sideEffectOutput) {
-    return new ConsecutiveSideEffect(sideEffectOutput);
-  }
-
-  private static class CheckContextSwitching extends GreeterGrpc.GreeterImplBase
-      implements Component {
-
-    @Override
-    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      String currentThread = Thread.currentThread().getName();
-
-      String sideEffectThread =
-          ObjectContext.current()
-              .sideEffect(CoreSerdes.JSON_STRING, () -> Thread.currentThread().getName());
-
-      if (!Objects.equals(currentThread, sideEffectThread)) {
-        throw new IllegalStateException(
-            "Current thread and side effect thread do not match: "
-                + currentThread
-                + " != "
-                + sideEffectThread);
-      }
-
-      responseObserver.onNext(GreetingResponse.newBuilder().setMessage("Hello").build());
-      responseObserver.onCompleted();
-    }
-  }
-
-  @Override
-  protected BindableService checkContextSwitching() {
-    return new CheckContextSwitching();
-  }
-
-  private static class SideEffectGuard extends GreeterGrpc.GreeterImplBase implements Component {
-
-    @Override
-    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      ObjectContext ctx = ObjectContext.current();
-      ctx.sideEffect(
-          () -> ctx.oneWayCall(GreeterGrpc.getGreetMethod(), greetingRequest("something")));
-
-      throw new IllegalStateException("This point should not be reached");
-    }
-  }
-
-  @Override
-  protected BindableService sideEffectGuard() {
-    return new SideEffectGuard();
+  protected TestInvocationBuilder sideEffectGuard() {
+    return testDefinitionForService(
+        "SideEffectGuard",
+        CoreSerdes.VOID,
+        CoreSerdes.JSON_STRING,
+        (ctx, unused) -> {
+          ctx.sideEffect(() -> ctx.send(GREETER_SERVICE_TARGET, new byte[] {}));
+          throw new IllegalStateException("This point should not be reached");
+        });
   }
 }

@@ -8,14 +8,12 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.http.vertx;
 
-import dev.restate.generated.service.discovery.Discovery;
-import dev.restate.sdk.common.BlockingComponent;
+import dev.restate.sdk.common.BindableComponent;
 import dev.restate.sdk.common.ComponentAdapter;
-import dev.restate.sdk.common.NonBlockingComponent;
+import dev.restate.sdk.common.syscalls.ComponentDefinition;
+import dev.restate.sdk.common.syscalls.ExecutorType;
 import dev.restate.sdk.core.RestateEndpoint;
-import io.grpc.ServerInterceptor;
-import io.grpc.ServerInterceptors;
-import io.grpc.ServerServiceDefinition;
+import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
 import io.opentelemetry.api.OpenTelemetry;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Vertx;
@@ -28,16 +26,16 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 /**
- * Endpoint builder for a Restate HTTP Endpoint using Vert.x, to serve Restate service.
+ * Endpoint builder for a Restate HTTP Endpoint using Vert.x, to serve Restate components.
  *
- * <p>This endpoint supports the Restate HTTP/2 Streaming Service Protocol.
+ * <p>This endpoint supports the Restate HTTP/2 Streaming component Protocol.
  *
  * <p>Example usage:
  *
  * <pre>
  * public static void main(String[] args) {
  *   RestateHttpEndpointBuilder.builder()
- *           .withService(new CounterService())
+ *           .with(new Counter())
  *           .buildAndListen();
  * }
  * </pre>
@@ -47,10 +45,10 @@ public class RestateHttpEndpointBuilder {
   private static final Logger LOG = LogManager.getLogger(RestateHttpEndpointBuilder.class);
 
   private final Vertx vertx;
-  private final RestateEndpoint.Builder restateGrpcServerBuilder =
-      RestateEndpoint.newBuilder(Discovery.ProtocolMode.BIDI_STREAM);
+  private final RestateEndpoint.Builder endpointBuilder =
+      RestateEndpoint.newBuilder(DeploymentManifestSchema.ProtocolMode.BIDI_STREAM);
   private final Executor defaultExecutor = Executors.newCachedThreadPool();
-  private final HashMap<String, Executor> blockingServices = new HashMap<>();
+  private final HashMap<String, Executor> blockingComponents = new HashMap<>();
   private OpenTelemetry openTelemetry = OpenTelemetry.noop();
   private HttpServerOptions options =
       new HttpServerOptions()
@@ -77,85 +75,61 @@ public class RestateHttpEndpointBuilder {
   }
 
   /**
-   * Add a {@link BlockingComponent} to the endpoint.
-   *
-   * <p>NOTE: The service code will run within the Vert.x worker thread pool. For more details,
-   * check the <a href="https://vertx.io/docs/vertx-core/java/#blocking_code">Vert.x
-   * documentation</a>.
-   */
-  public RestateHttpEndpointBuilder withService(
-      BlockingComponent service, ServerInterceptor... interceptors) {
-    return this.withService(service, defaultExecutor, interceptors);
-  }
-
-  /**
-   * Add a {@link BlockingComponent} to the endpoint, specifying the {@code executor} where to run
-   * the service code.
-   *
-   * <p>You can run on virtual threads by using the executor {@code
-   * Executors.newVirtualThreadPerTaskExecutor()}.
-   */
-  public RestateHttpEndpointBuilder withService(
-      BlockingComponent service, Executor executor, ServerInterceptor... interceptors) {
-    ServerServiceDefinition definition =
-        ServerInterceptors.intercept(service, Arrays.asList(interceptors));
-    this.restateGrpcServerBuilder.withService(definition);
-    this.blockingServices.put(definition.getServiceDescriptor().getName(), executor);
-    return this;
-  }
-
-  /**
-   * Add a {@link NonBlockingComponent} to the endpoint.
-   *
-   * <p>NOTE: The service code will run within the same Vert.x event loop thread handling the HTTP
-   * stream, hence the code should never block the thread. For more details, check the <a
-   * href="https://vertx.io/docs/vertx-core/java/#golden_rule">Vert.x documentation</a>.
-   */
-  public RestateHttpEndpointBuilder withService(
-      NonBlockingComponent service, ServerInterceptor... interceptors) {
-    this.restateGrpcServerBuilder.withService(
-        ServerInterceptors.intercept(service, Arrays.asList(interceptors)));
-    return this;
-  }
-
-  /**
-   * Add a Restate service to the endpoint. This will automatically discover the adapter based on
+   * Add a Restate component to the endpoint. This will automatically discover the adapter based on
    * the class name. You can provide the adapter manually using {@link #with(Object,
    * ComponentAdapter)}
    */
-  public RestateHttpEndpointBuilder with(Object service) {
-    return this.with(service, defaultExecutor);
+  public RestateHttpEndpointBuilder with(Object component) {
+    return this.with(component, defaultExecutor);
   }
 
   /**
-   * Add a Restate service to the endpoint, specifying the {@code executor} where to run the service
-   * code. This will automatically discover the adapter based on the class name. You can provide the
-   * adapter manually using {@link #with(Object, ComponentAdapter, Executor)}
+   * Add a Restate component to the endpoint, specifying the {@code executor} where to run the
+   * component code. This will automatically discover the adapter based on the class name. You can
+   * provide the adapter manually using {@link #with(Object, ComponentAdapter, Executor)}
    *
    * <p>You can run on virtual threads by using the executor {@code
    * Executors.newVirtualThreadPerTaskExecutor()}.
    */
-  public RestateHttpEndpointBuilder with(Object service, Executor executor) {
-    return this.with(service, RestateEndpoint.discoverAdapter(service), executor);
+  public RestateHttpEndpointBuilder with(Object component, Executor executor) {
+    return this.with(component, RestateEndpoint.discoverAdapter(component), executor);
   }
 
-  /** Add a Restate service to the endpoint, specifying an adapter. */
-  public <T> RestateHttpEndpointBuilder with(T service, ComponentAdapter<T> adapter) {
-    return this.with(service, adapter, defaultExecutor);
+  /** Add a Restate component to the endpoint, specifying an adapter. */
+  public <T> RestateHttpEndpointBuilder with(T component, ComponentAdapter<T> adapter) {
+    return this.with(component, adapter, defaultExecutor);
   }
 
   /**
-   * Add a Restate service to the endpoint, specifying the {@code executor} where to run the service
-   * code.
+   * Add a Restate component to the endpoint, specifying the {@code executor} where to run the
+   * component code.
    *
    * <p>You can run on virtual threads by using the executor {@code
    * Executors.newVirtualThreadPerTaskExecutor()}.
    */
   public <T> RestateHttpEndpointBuilder with(
-      T service, ComponentAdapter<T> adapter, Executor executor) {
-    List<BlockingComponent> services = adapter.adapt(service).components();
-    for (BlockingComponent svc : services) {
-      this.withService(svc, executor);
+      T component, ComponentAdapter<T> adapter, Executor executor) {
+    return this.with(adapter.adapt(component), executor);
+  }
+
+  /** Add a Restate bindable component to the endpoint. */
+  public RestateHttpEndpointBuilder with(BindableComponent component) {
+    return this.with(component, defaultExecutor);
+  }
+
+  /**
+   * Add a Restate bindable component to the endpoint, specifying the {@code executor} where to run
+   * the component code.
+   *
+   * <p>You can run on virtual threads by using the executor {@code
+   * Executors.newVirtualThreadPerTaskExecutor()}.
+   */
+  public RestateHttpEndpointBuilder with(BindableComponent component, Executor executor) {
+    for (ComponentDefinition componentDefinition : component.definitions()) {
+      this.endpointBuilder.with(componentDefinition);
+      if (componentDefinition.getExecutorType() == ExecutorType.BLOCKING) {
+        this.blockingComponents.put(componentDefinition.getFullyQualifiedServiceName(), executor);
+      }
     }
 
     return this;
@@ -184,16 +158,15 @@ public class RestateHttpEndpointBuilder {
     build().listen().onComplete(RestateHttpEndpointBuilder::handleStart);
   }
 
-  /** Build the {@link HttpServer} serving the Restate service endpoint. */
+  /** Build the {@link HttpServer} serving the Restate component endpoint. */
   public HttpServer build() {
     HttpServer server = vertx.createHttpServer(options);
 
-    this.restateGrpcServerBuilder.withTracer(
-        this.openTelemetry.getTracer("restate-java-sdk-vertx"));
+    this.endpointBuilder.withTracer(this.openTelemetry.getTracer("restate-java-sdk-vertx"));
 
     server.requestHandler(
         new RequestHttpServerHandler(
-            this.restateGrpcServerBuilder.build(), blockingServices, openTelemetry));
+            this.endpointBuilder.build(), blockingComponents, openTelemetry));
 
     return server;
   }

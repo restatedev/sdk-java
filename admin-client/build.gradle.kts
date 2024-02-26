@@ -17,7 +17,7 @@ dependencies {
   implementation("org.openapitools:jackson-databind-nullable:0.2.6")
 
   // Required for the annotations
-  compileOnly(coreLibs.javax.annotation.api)
+  compileOnly("org.apache.tomcat:annotations-api:6.0.53")
   compileOnly("com.google.code.findbugs:jsr305:3.0.2")
 }
 

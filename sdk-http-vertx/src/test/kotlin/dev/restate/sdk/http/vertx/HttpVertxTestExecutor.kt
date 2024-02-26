@@ -9,8 +9,6 @@
 package dev.restate.sdk.http.vertx
 
 import com.google.protobuf.MessageLite
-import dev.restate.sdk.common.BlockingComponent
-import dev.restate.sdk.common.NonBlockingComponent
 import dev.restate.sdk.core.TestDefinitions.TestDefinition
 import dev.restate.sdk.core.TestDefinitions.TestExecutor
 import io.vertx.core.Vertx
@@ -26,6 +24,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
+import org.assertj.core.api.Assertions
 
 class HttpVertxTestExecutor(private val vertx: Vertx) : TestExecutor {
   override fun buffered(): Boolean {
@@ -34,21 +33,16 @@ class HttpVertxTestExecutor(private val vertx: Vertx) : TestExecutor {
 
   override fun executeTest(definition: TestDefinition) {
     runBlocking(vertx.dispatcher()) {
+      // This test infra supports only components returning one component definition
+      val componentDefinition = definition.component.definitions()
+      Assertions.assertThat(componentDefinition).size().isEqualTo(1)
+
       // Build server
-      val builder =
-          RestateHttpEndpointBuilder.builder(vertx).withOptions(HttpServerOptions().setPort(0))
-      when (definition.service) {
-        is BlockingComponent -> {
-          builder.withService(definition.service as BlockingComponent)
-        }
-        is NonBlockingComponent -> {
-          builder.withService(definition.service as NonBlockingComponent)
-        }
-        else -> {
-          throw IllegalStateException("Unexpected service class " + definition.service)
-        }
-      }
-      val server = builder.build()
+      val server =
+          RestateHttpEndpointBuilder.builder(vertx)
+              .withOptions(HttpServerOptions().setPort(0))
+              .with(definition.component)
+              .build()
       server.listen().coAwait()
 
       val client = vertx.createHttpClient(RestateHttpEndpointTest.HTTP_CLIENT_OPTIONS)
@@ -59,7 +53,7 @@ class HttpVertxTestExecutor(private val vertx: Vertx) : TestExecutor {
                   HttpMethod.POST,
                   server.actualPort(),
                   "localhost",
-                  "/invoke/${definition.service.bindService().serviceDescriptor.name}/${definition.method}")
+                  "/invoke/${componentDefinition.get(0).fullyQualifiedServiceName}/${definition.method}")
               .coAwait()
 
       // Prepare request header and send them

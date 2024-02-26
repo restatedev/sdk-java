@@ -15,7 +15,6 @@ import dev.restate.sdk.common.syscalls.SyscallCallback;
 import dev.restate.sdk.common.syscalls.Syscalls;
 import dev.restate.sdk.core.DeferredResults.DeferredInternal;
 import java.util.List;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 interface SyscallsInternal extends Syscalls {
@@ -33,17 +32,14 @@ interface SyscallsInternal extends Syscalls {
   }
 
   // -- Helper for pollInput
-
-  default <T> void pollInputAndResolve(
-      Function<ByteString, T> mapper, SyscallCallback<Result<T>> callback) {
+  default void pollInputAndResolve(SyscallCallback<Result<ByteString>> callback) {
     this.pollInput(
         SyscallCallback.of(
             deferredValue ->
                 this.resolveDeferred(
                     deferredValue,
                     SyscallCallback.ofVoid(
-                        () -> callback.onSuccess(deferredValue.toResult().mapSuccess(mapper)),
-                        callback::onCancel)),
+                        () -> callback.onSuccess(deferredValue.toResult()), callback::onCancel)),
             callback::onCancel));
   }
 

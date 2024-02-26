@@ -10,10 +10,14 @@ package dev.restate.sdk.core;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.google.protobuf.DescriptorProtos;
-import dev.restate.generated.service.discovery.Discovery;
-import dev.restate.sdk.core.testservices.CounterGrpc;
-import dev.restate.sdk.core.testservices.GreeterGrpc;
+import dev.restate.sdk.common.ComponentType;
+import dev.restate.sdk.common.syscalls.ComponentDefinition;
+import dev.restate.sdk.common.syscalls.ExecutorType;
+import dev.restate.sdk.common.syscalls.HandlerDefinition;
+import dev.restate.sdk.core.manifest.Component;
+import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
+import dev.restate.sdk.core.manifest.DeploymentManifestSchema.ProtocolMode;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -21,27 +25,22 @@ class ComponentDiscoveryHandlerTest {
 
   @Test
   void handleWithMultipleServices() {
-    ServiceDiscoveryHandler handler =
-        new ServiceDiscoveryHandler(
-            Discovery.ProtocolMode.REQUEST_RESPONSE,
+    DeploymentManifest deploymentManifest =
+        new DeploymentManifest(
+            ProtocolMode.REQUEST_RESPONSE,
             Map.of(
-                GreeterGrpc.SERVICE_NAME, new GreeterGrpc.GreeterImplBase() {}.bindService(),
-                CounterGrpc.SERVICE_NAME, new CounterGrpc.CounterImplBase() {}.bindService()));
+                "MyGreeter",
+                new ComponentDefinition(
+                    "MyGreeter",
+                    ExecutorType.BLOCKING,
+                    ComponentType.SERVICE,
+                    List.of(new HandlerDefinition("greet", null, null, null)))));
 
-    Discovery.ServiceDiscoveryResponse response =
-        handler.handle(Discovery.ServiceDiscoveryRequest.getDefaultInstance());
+    DeploymentManifestSchema manifest = deploymentManifest.manifest();
 
-    assertThat(response.getServicesList())
-        .containsExactlyInAnyOrder(GreeterGrpc.SERVICE_NAME, CounterGrpc.SERVICE_NAME);
-    assertThat(response.getFiles().getFileList())
-        .map(DescriptorProtos.FileDescriptorProto::getName)
-        .containsExactlyInAnyOrder(
-            "dev/restate/ext.proto",
-            "google/protobuf/descriptor.proto",
-            "google/protobuf/empty.proto",
-            "counter.proto",
-            "common.proto",
-            "greeter.proto");
-    assertThat(response.getProtocolMode()).isEqualTo(Discovery.ProtocolMode.REQUEST_RESPONSE);
+    assertThat(manifest.getComponents())
+        .extracting(Component::getFullyQualifiedComponentName)
+        .containsOnly("MyGreeter");
+    assertThat(manifest.getProtocolMode()).isEqualTo(ProtocolMode.REQUEST_RESPONSE);
   }
 }

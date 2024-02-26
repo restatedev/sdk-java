@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.common.syscalls;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Interface to define interaction with deferred results.
@@ -25,6 +25,5 @@ public interface Deferred<T> {
   /**
    * @return {@code null} if {@link #isCompleted()} is false.
    */
-  @Nullable
-  Result<T> toResult();
+  @Nullable Result<T> toResult();
 }

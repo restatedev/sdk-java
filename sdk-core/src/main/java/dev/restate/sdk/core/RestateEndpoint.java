@@ -8,9 +8,11 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.sdk.common.ComponentAdapter;
-import io.grpc.*;
+import dev.restate.sdk.common.syscalls.ComponentDefinition;
+import dev.restate.sdk.common.syscalls.HandlerDefinition;
+import dev.restate.sdk.core.manifest.Component;
+import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanKind;
@@ -20,48 +22,47 @@ import java.util.*;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.ThreadContext;
+import org.jspecify.annotations.Nullable;
 
 public class RestateEndpoint {
 
   private static final Logger LOG = LogManager.getLogger(RestateEndpoint.class);
 
-  private final Map<String, ServerServiceDefinition> services;
+  private final Map<String, ComponentDefinition> components;
   private final Tracer tracer;
-  private final ServiceDiscoveryHandler serviceDiscoveryHandler;
+  private final DeploymentManifest deploymentManifest;
 
   private RestateEndpoint(
-      Discovery.ProtocolMode protocolMode,
-      Map<String, ServerServiceDefinition> services,
+      DeploymentManifestSchema.ProtocolMode protocolMode,
+      Map<String, ComponentDefinition> components,
       Tracer tracer) {
-    this.services = services;
+    this.components = components;
     this.tracer = tracer;
-    this.serviceDiscoveryHandler = new ServiceDiscoveryHandler(protocolMode, services);
+    this.deploymentManifest = new DeploymentManifest(protocolMode, components);
 
     this.logCreation();
   }
 
-  @SuppressWarnings("unchecked")
-  public InvocationHandler resolve(
-      String serviceName,
-      String methodName,
+  public ResolvedEndpointHandler resolve(
+      String componentName,
+      String handlerName,
       io.opentelemetry.context.Context otelContext,
       LoggingContextSetter loggingContextSetter,
       @Nullable Executor syscallExecutor,
       @Nullable Executor userCodeExecutor)
       throws ProtocolException {
     // Resolve the service method definition
-    ServerServiceDefinition svc = this.services.get(serviceName);
+    ComponentDefinition svc = this.components.get(componentName);
     if (svc == null) {
-      throw ProtocolException.methodNotFound(serviceName, methodName);
+      throw ProtocolException.methodNotFound(componentName, handlerName);
     }
-    String fullyQualifiedServiceMethod = serviceName + "/" + methodName;
-    ServerMethodDefinition<?, ?> method = svc.getMethod(fullyQualifiedServiceMethod);
-    if (method == null) {
-      throw ProtocolException.methodNotFound(serviceName, methodName);
+    String fullyQualifiedServiceMethod = componentName + "/" + handlerName;
+    HandlerDefinition handler = svc.getHandler(handlerName);
+    if (handler == null) {
+      throw ProtocolException.methodNotFound(componentName, handlerName);
     }
 
     // Generate the span
@@ -71,8 +72,8 @@ public class RestateEndpoint {
             .setSpanKind(SpanKind.SERVER)
             .setParent(otelContext)
             .setAttribute(SemanticAttributes.RPC_SYSTEM, "restate")
-            .setAttribute(SemanticAttributes.RPC_SERVICE, serviceName)
-            .setAttribute(SemanticAttributes.RPC_METHOD, methodName)
+            .setAttribute(SemanticAttributes.RPC_SERVICE, componentName)
+            .setAttribute(SemanticAttributes.RPC_METHOD, handlerName)
             .startSpan();
 
     // Setup logging context
@@ -81,7 +82,7 @@ public class RestateEndpoint {
     // Instantiate state machine, syscall and grpc bridge
     InvocationStateMachine stateMachine =
         new InvocationStateMachine(
-            serviceName,
+            componentName,
             fullyQualifiedServiceMethod,
             span,
             s -> loggingContextSetter.setInvocationStatus(s.toString()));
@@ -90,75 +91,42 @@ public class RestateEndpoint {
             ? new ExecutorSwitchingSyscalls(new SyscallsImpl(stateMachine), syscallExecutor)
             : new SyscallsImpl(stateMachine);
 
-    return new InvocationHandler() {
-
-      @Override
-      public InvocationFlow.InvocationInputSubscriber input() {
-        return new ExceptionCatchingInvocationInputSubscriber(stateMachine);
-      }
-
-      @Override
-      public InvocationFlow.InvocationOutputPublisher output() {
-        return stateMachine;
-      }
-
-      @Override
-      public void start() {
-        LOG.info("Start processing invocation");
-        stateMachine.start(
-            invocationId -> {
-              // Set invocation id in logging context
-              loggingContextSetter.setInvocationId(invocationId.toString());
-
-              // Prepare RpcHandler
-              RpcHandler m = new GrpcUnaryRpcHandler(method, syscalls, userCodeExecutor);
-
-              // Wire up "close" notification
-              stateMachine.registerCloseCallback(c -> m.notifyClosed());
-
-              // Start RpcHandler
-              m.start();
-            });
-      }
-    };
+    return new ResolvedEndpointHandlerImpl(
+        stateMachine, loggingContextSetter, syscalls, handler.getHandler(), userCodeExecutor);
   }
 
-  public Discovery.ServiceDiscoveryResponse handleDiscoveryRequest(
-      Discovery.ServiceDiscoveryRequest request) {
-    Discovery.ServiceDiscoveryResponse response = this.serviceDiscoveryHandler.handle(request);
+  public DeploymentManifestSchema handleDiscoveryRequest() {
+    DeploymentManifestSchema response = this.deploymentManifest.manifest();
     LOG.info(
         "Replying to service discovery request with services [{}]",
-        String.join(",", response.getServicesList()));
+        response.getComponents().stream()
+            .map(Component::getFullyQualifiedComponentName)
+            .collect(Collectors.joining(",")));
     return response;
   }
 
   private void logCreation() {
-    LOG.info("Registered services: {}", this.services.keySet());
+    LOG.info("Registered services: {}", this.components.keySet());
   }
 
   // -- Builder
 
-  public static Builder newBuilder(Discovery.ProtocolMode protocolMode) {
+  public static Builder newBuilder(DeploymentManifestSchema.ProtocolMode protocolMode) {
     return new Builder(protocolMode);
   }
 
   public static class Builder {
 
-    private final List<ServerServiceDefinition> services = new ArrayList<>();
-    private final Discovery.ProtocolMode protocolMode;
+    private final List<ComponentDefinition> components = new ArrayList<>();
+    private final DeploymentManifestSchema.ProtocolMode protocolMode;
     private Tracer tracer = OpenTelemetry.noop().getTracer("NOOP");
 
-    public Builder(Discovery.ProtocolMode protocolMode) {
+    public Builder(DeploymentManifestSchema.ProtocolMode protocolMode) {
       this.protocolMode = protocolMode;
     }
 
-    public Builder withService(BindableService service) {
-      this.services.add(service.bindService());
-      return this;
-    }
-
-    public Builder withService(ServerServiceDefinition service) {
-      this.services.add(service);
+    public Builder with(ComponentDefinition component) {
+      this.components.add(component);
       return this;
     }
 
@@ -170,10 +138,10 @@ public class RestateEndpoint {
     public RestateEndpoint build() {
       return new RestateEndpoint(
           this.protocolMode,
-          this.services.stream()
+          this.components.stream()
               .collect(
                   Collectors.toMap(
-                      svc -> svc.getServiceDescriptor().getName(), Function.identity())),
+                      ComponentDefinition::getFullyQualifiedServiceName, Function.identity())),
           tracer);
     }
   }

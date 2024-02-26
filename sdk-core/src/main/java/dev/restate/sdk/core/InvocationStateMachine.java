@@ -10,11 +10,11 @@ package dev.restate.sdk.core;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
-import com.google.rpc.Code;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.common.AbortedExecutionException;
 import dev.restate.sdk.common.InvocationId;
+import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.common.syscalls.*;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
@@ -43,6 +43,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   // Obtained after WAITING_START
   private ByteString id;
   private InvocationIdImpl invocationId;
+  private String key;
   private int entriesToReplay;
   private UserStateStore userStateStore;
 
@@ -90,6 +91,10 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   public InvocationId invocationId() {
     return this.invocationId;
+  }
+
+  public String objectKey() {
+    return key;
   }
 
   public InvocationState getInvocationState() {
@@ -178,6 +183,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     Protocol.StartMessage startMessage = (Protocol.StartMessage) msg;
     this.id = startMessage.getId();
     this.invocationId = new InvocationIdImpl(startMessage.getDebugId());
+    this.key = startMessage.getKey();
     this.entriesToReplay = startMessage.getKnownEntries();
 
     // Set up the state cache
@@ -235,7 +241,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     } else {
       msg =
           Protocol.ErrorMessage.newBuilder()
-              .setCode(Code.UNKNOWN_VALUE)
+              .setCode(TerminalException.Code.UNKNOWN.value())
               .setMessage(cause.toString())
               .build();
     }

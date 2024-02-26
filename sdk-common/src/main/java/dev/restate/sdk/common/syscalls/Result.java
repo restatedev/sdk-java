@@ -10,7 +10,7 @@ package dev.restate.sdk.common.syscalls;
 
 import dev.restate.sdk.common.TerminalException;
 import java.util.function.Function;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Result can be 3 valued:

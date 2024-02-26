@@ -8,21 +8,19 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import static dev.restate.sdk.core.ProtoUtils.*;
-import static dev.restate.sdk.core.TestDefinitions.testInvocation;
+import static dev.restate.sdk.core.ProtoUtils.END_MESSAGE;
+import static dev.restate.sdk.core.ProtoUtils.outputMessage;
 
 import com.google.protobuf.ByteString;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.TestDefinitions.TestDefinition;
+import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
-import dev.restate.sdk.core.testservices.GreeterGrpc;
-import dev.restate.sdk.core.testservices.GreetingRequest;
-import io.grpc.BindableService;
 import java.util.stream.Stream;
 
 public abstract class InvocationIdTestSuite implements TestSuite {
 
-  protected abstract BindableService returnInvocationId();
+  protected abstract TestInvocationBuilder returnInvocationId();
 
   @Override
   public Stream<TestDefinition> definitions() {
@@ -30,11 +28,11 @@ public abstract class InvocationIdTestSuite implements TestSuite {
     ByteString id = ByteString.copyFromUtf8(debugId);
 
     return Stream.of(
-        testInvocation(this::returnInvocationId, GreeterGrpc.getGreetMethod())
+        returnInvocationId()
             .withInput(
                 Protocol.StartMessage.newBuilder().setDebugId(debugId).setId(id).setKnownEntries(1),
-                inputMessage(GreetingRequest.getDefaultInstance()))
+                ProtoUtils.inputMessage())
             .onlyUnbuffered()
-            .expectingOutput(outputMessage(greetingResponse(debugId)), END_MESSAGE));
+            .expectingOutput(outputMessage(debugId), END_MESSAGE));
   }
 }

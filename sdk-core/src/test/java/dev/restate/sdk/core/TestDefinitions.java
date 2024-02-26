@@ -14,23 +14,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.MessageLiteOrBuilder;
 import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.common.BlockingComponent;
-import io.grpc.BindableService;
-import io.grpc.MethodDescriptor;
+import dev.restate.sdk.common.BindableComponent;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.annotation.Nullable;
-import org.junit.platform.commons.util.Preconditions;
+import org.jspecify.annotations.Nullable;
 
 public final class TestDefinitions {
 
   private TestDefinitions() {}
 
   public interface TestDefinition {
-    BindableService getService();
+    BindableComponent getComponent();
 
     String getMethod();
 
@@ -46,8 +43,7 @@ public final class TestDefinitions {
       return this.getInvalidReason() == null;
     }
 
-    @Nullable
-    String getInvalidReason();
+    @Nullable String getInvalidReason();
   }
 
   public interface TestSuite {
@@ -60,55 +56,42 @@ public final class TestDefinitions {
     void executeTest(TestDefinition definition);
   }
 
-  public static TestInvocationBuilder testInvocation(
-      BindableService svc, MethodDescriptor<?, ?> method) {
-    return testInvocation(svc, method.getBareMethodName());
-  }
-
-  public static TestInvocationBuilder testInvocation(
-      Supplier<BindableService> svc, MethodDescriptor<?, ?> method) {
-    return testInvocation(svc::get, method.getBareMethodName());
-  }
-
-  public static TestInvocationBuilder testInvocation(Supplier<Object> svcSupplier, String method) {
-    Object svc;
+  public static TestInvocationBuilder testInvocation(Supplier<Object> svcSupplier, String handler) {
+    Object component;
     try {
-      svc = svcSupplier.get();
+      component = svcSupplier.get();
     } catch (UnsupportedOperationException e) {
       return new TestInvocationBuilder(Objects.requireNonNull(e.getMessage()));
     }
-
-    // If we're testing a gRPC service
-    if (svc instanceof BindableService) {
-      return new TestInvocationBuilder((BindableService) svc, method);
-    }
-
-    // For handler API service
-    List<BlockingComponent> bundle = RestateEndpoint.discoverAdapter(svc).adapt(svc).components();
-    Preconditions.condition(
-        bundle.size() == 1, "This test infra supports only 1 service, was " + bundle.size());
-    return new TestInvocationBuilder(bundle.get(0), method);
+    return testInvocation(component, handler);
   }
 
-  private static TestInvocationBuilder testInvocation(BindableService svc, String method) {
-    return new TestInvocationBuilder(svc, method);
+  public static TestInvocationBuilder testInvocation(Object component, String handler) {
+    if (component instanceof BindableComponent) {
+      return new TestInvocationBuilder((BindableComponent) component, handler);
+    }
+
+    // In case it's code generated, discover the adapter
+    BindableComponent bindableComponent =
+        RestateEndpoint.discoverAdapter(component).adapt(component);
+    return new TestInvocationBuilder(bindableComponent, handler);
   }
 
   public static class TestInvocationBuilder {
-    protected final @Nullable BindableService svc;
-    protected final @Nullable String method;
+    protected final @Nullable BindableComponent component;
+    protected final @Nullable String handler;
     protected final @Nullable String invalidReason;
 
-    TestInvocationBuilder(BindableService svc, String method) {
-      this.svc = svc;
-      this.method = method;
+    TestInvocationBuilder(BindableComponent component, String handler) {
+      this.component = component;
+      this.handler = handler;
 
       this.invalidReason = null;
     }
 
     TestInvocationBuilder(String invalidReason) {
-      this.svc = null;
-      this.method = null;
+      this.component = null;
+      this.handler = null;
 
       this.invalidReason = invalidReason;
     }
@@ -119,8 +102,8 @@ public final class TestDefinitions {
       }
 
       return new WithInputBuilder(
-          svc,
-          method,
+          component,
+          handler,
           Arrays.stream(messages)
               .map(
                   msgOrBuilder -> {
@@ -141,8 +124,8 @@ public final class TestDefinitions {
     }
 
     WithInputBuilder(
-        BindableService svc, String method, List<InvocationFlow.InvocationInput> input) {
-      super(svc, method);
+        BindableComponent component, String method, List<InvocationFlow.InvocationInput> input) {
+      super(component, method);
       this.input = new ArrayList<>(input);
     }
 
@@ -174,12 +157,12 @@ public final class TestDefinitions {
 
     public ExpectingOutputMessages assertingOutput(Consumer<List<MessageLite>> messages) {
       return new ExpectingOutputMessages(
-          svc, invalidReason, method, input, onlyUnbuffered, messages);
+          component, invalidReason, handler, input, onlyUnbuffered, messages);
     }
   }
 
   public abstract static class BaseTestDefinition implements TestDefinition {
-    protected final @Nullable BindableService svc;
+    protected final @Nullable BindableComponent component;
     protected final @Nullable String invalidReason;
     protected final String method;
     protected final List<InvocationFlow.InvocationInput> input;
@@ -187,13 +170,13 @@ public final class TestDefinitions {
     protected final String named;
 
     private BaseTestDefinition(
-        @Nullable BindableService svc,
+        @Nullable BindableComponent component,
         @Nullable String invalidReason,
         String method,
         List<InvocationFlow.InvocationInput> input,
         boolean onlyUnbuffered,
         String named) {
-      this.svc = svc;
+      this.component = component;
       this.invalidReason = invalidReason;
       this.method = method;
       this.input = input;
@@ -202,8 +185,8 @@ public final class TestDefinitions {
     }
 
     @Override
-    public BindableService getService() {
-      return Objects.requireNonNull(svc);
+    public BindableComponent getComponent() {
+      return Objects.requireNonNull(component);
     }
 
     @Override
@@ -237,37 +220,39 @@ public final class TestDefinitions {
     private final Consumer<List<MessageLite>> messagesAssert;
 
     private ExpectingOutputMessages(
-        @Nullable BindableService svc,
+        @Nullable BindableComponent component,
         @Nullable String invalidReason,
         String method,
         List<InvocationFlow.InvocationInput> input,
         boolean onlyUnbuffered,
         Consumer<List<MessageLite>> messagesAssert) {
       super(
-          svc,
+          component,
           invalidReason,
           method,
           input,
           onlyUnbuffered,
-          svc != null ? svc.getClass().getSimpleName() : "Unknown");
+          component != null
+              ? component.definitions().get(0).getFullyQualifiedServiceName()
+              : "Unknown");
       this.messagesAssert = messagesAssert;
     }
 
     ExpectingOutputMessages(
-        @Nullable BindableService svc,
+        @Nullable BindableComponent component,
         @Nullable String invalidReason,
         String method,
         List<InvocationFlow.InvocationInput> input,
         boolean onlyUnbuffered,
         Consumer<List<MessageLite>> messagesAssert,
         String named) {
-      super(svc, invalidReason, method, input, onlyUnbuffered, named);
+      super(component, invalidReason, method, input, onlyUnbuffered, named);
       this.messagesAssert = messagesAssert;
     }
 
     public ExpectingOutputMessages named(String name) {
       return new ExpectingOutputMessages(
-          svc,
+          component,
           invalidReason,
           method,
           input,

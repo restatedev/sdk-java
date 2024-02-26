@@ -1,6 +1,4 @@
 import net.ltgt.gradle.errorprone.errorprone
-import org.gradle.api.tasks.testing.logging.TestExceptionFormat
-import org.gradle.api.tasks.testing.logging.TestLogEvent
 
 plugins {
   java
@@ -12,7 +10,6 @@ plugins {
   id("io.github.gradle-nexus.publish-plugin") version "1.3.0"
 
   alias(pluginLibs.plugins.spotless)
-  alias(pluginLibs.plugins.protobuf)
 }
 
 val protobufVersion = coreLibs.versions.protobuf.get()
@@ -88,7 +85,6 @@ allprojects {
 subprojects {
   apply(plugin = "java")
   apply(plugin = "net.ltgt.errorprone")
-  apply(plugin = "com.google.protobuf")
 
   dependencies { errorprone("com.google.errorprone:error_prone_core:2.13.1") }
 
@@ -99,8 +95,6 @@ subprojects {
     withJavadocJar()
     withSourcesJar()
   }
-
-  protobuf { protoc { artifact = "com.google.protobuf:protoc:$protobufVersion" } }
 
   tasks.withType<JavaCompile>().configureEach {
     options.errorprone.disableWarningsInGeneratedCode.set(true)
@@ -114,26 +108,7 @@ subprojects {
     options.errorprone.excludedPaths.set(".*/build/generated/.*")
   }
 
-  val testReport =
-      tasks.register<TestReport>("testReport") {
-        destinationDirectory.set(layout.buildDirectory.dir("reports/tests/test"))
-        testResults.setFrom(subprojects.mapNotNull { it.tasks.findByPath("test") })
-      }
-
-  // Test platform and reporting
-  tasks.withType<Test> {
-    useJUnitPlatform()
-    finalizedBy(testReport)
-    testLogging {
-      events(
-          TestLogEvent.PASSED,
-          TestLogEvent.SKIPPED,
-          TestLogEvent.FAILED,
-          TestLogEvent.STANDARD_ERROR,
-          TestLogEvent.STANDARD_OUT)
-      exceptionFormat = TestExceptionFormat.FULL
-    }
-  }
+  tasks.withType<Test> { useJUnitPlatform() }
 }
 
 nexusPublishing {
