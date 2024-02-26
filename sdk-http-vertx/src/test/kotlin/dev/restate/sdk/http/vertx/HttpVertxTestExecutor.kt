@@ -18,7 +18,7 @@ import io.vertx.core.buffer.Buffer
 import io.vertx.core.http.HttpHeaders
 import io.vertx.core.http.HttpMethod
 import io.vertx.core.http.HttpServerOptions
-import io.vertx.kotlin.coroutines.await
+import io.vertx.kotlin.coroutines.coAwait
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -49,7 +49,7 @@ class HttpVertxTestExecutor(private val vertx: Vertx) : TestExecutor {
         }
       }
       val server = builder.build()
-      server.listen().await()
+      server.listen().coAwait()
 
       val client = vertx.createHttpClient(RestateHttpEndpointTest.HTTP_CLIENT_OPTIONS)
 
@@ -60,25 +60,25 @@ class HttpVertxTestExecutor(private val vertx: Vertx) : TestExecutor {
                   server.actualPort(),
                   "localhost",
                   "/invoke/${definition.service.bindService().serviceDescriptor.name}/${definition.method}")
-              .await()
+              .coAwait()
 
       // Prepare request header and send them
       request.setChunked(true).putHeader(HttpHeaders.CONTENT_TYPE, "application/restate")
-      request.sendHead().await()
+      request.sendHead().coAwait()
 
       launch {
         for (msg in definition.input) {
           val buffer = Buffer.buffer(MessageEncoder.encodeLength(msg.message()))
           buffer.appendLong(msg.header().encode())
           buffer.appendBytes(msg.message().toByteArray())
-          request.write(buffer).await()
+          request.write(buffer).coAwait()
           yield()
         }
 
-        request.end().await()
+        request.end().coAwait()
       }
 
-      val response = request.response().await()
+      val response = request.response().coAwait()
 
       // Start the coroutine to send input messages
 
@@ -100,7 +100,7 @@ class HttpVertxTestExecutor(private val vertx: Vertx) : TestExecutor {
       definition.outputAssert.accept(messages)
 
       // Close the server
-      server.close().await()
+      server.close().coAwait()
     }
   }
 }

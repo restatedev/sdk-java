@@ -18,7 +18,6 @@ import dev.restate.sdk.core.testservices.GreeterGrpc
 import dev.restate.sdk.core.testservices.GreetingRequest
 import dev.restate.sdk.core.testservices.GreetingResponse
 import dev.restate.sdk.kotlin.KotlinCoroutinesTests
-import dev.restate.sdk.kotlin.ObjectContext
 import dev.restate.sdk.kotlin.RestateKtComponent
 import io.grpc.stub.StreamObserver
 import io.vertx.core.Vertx
@@ -52,7 +51,9 @@ class HttpVertxTests : dev.restate.sdk.core.TestRunner() {
         RestateKtComponent {
       override suspend fun greet(request: GreetingRequest): GreetingResponse {
         check(Vertx.currentContext().isEventLoopContext)
-        ObjectContext.current().sideEffect { check(Vertx.currentContext().isEventLoopContext) }
+        dev.restate.sdk.kotlin.ObjectContext.current().sideEffect {
+          check(Vertx.currentContext().isEventLoopContext)
+        }
         check(Vertx.currentContext().isEventLoopContext)
         return GreetingResponse.getDefaultInstance()
       }
@@ -66,7 +67,7 @@ class HttpVertxTests : dev.restate.sdk.core.TestRunner() {
       ) {
         val id = Thread.currentThread().id
         check(Vertx.currentContext() == null)
-        ObjectContext.current().sideEffect {
+        dev.restate.sdk.ObjectContext.current().sideEffect {
           check(Thread.currentThread().id == id)
           check(Vertx.currentContext() == null)
         }

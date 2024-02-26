@@ -25,7 +25,7 @@ import io.vertx.core.buffer.Buffer
 import io.vertx.core.http.*
 import io.vertx.junit5.Timeout
 import io.vertx.junit5.VertxExtension
-import io.vertx.kotlin.coroutines.await
+import io.vertx.kotlin.coroutines.coAwait
 import io.vertx.kotlin.coroutines.dispatcher
 import io.vertx.kotlin.coroutines.receiveChannelHandler
 import java.util.concurrent.*
@@ -70,7 +70,7 @@ internal class RestateHttpEndpointTest {
                 .withOptions(HttpServerOptions().setPort(0))
                 .build()
                 .listen()
-                .await()
+                .coAwait()
                 .actualPort()
 
         val client = vertx.createHttpClient(HTTP_CLIENT_OPTIONS)
@@ -84,7 +84,7 @@ internal class RestateHttpEndpointTest {
                     "/invoke/" +
                         dev.restate.sdk.core.testservices.GreeterGrpc.getGreetMethod()
                             .fullMethodName)
-                .await()
+                .coAwait()
 
         // Prepare request header
         request.setChunked(true).putHeader(HttpHeaders.CONTENT_TYPE, "application/restate")
@@ -93,7 +93,7 @@ internal class RestateHttpEndpointTest {
         request.write(encode(startMessage(1).build()))
         request.write(encode(inputMessage(greetingRequest { name = "Francesco" })))
 
-        val response = request.response().await()
+        val response = request.response().coAwait()
 
         // Start the input decoder
         val inputChannel = vertx.receiveChannelHandler<MessageLite>()
@@ -153,7 +153,7 @@ internal class RestateHttpEndpointTest {
                 OutputStreamEntryMessage::getValue)
 
         // Wait for closing request and response
-        request.end().await()
+        request.end().coAwait()
       }
 
   @Test
@@ -179,18 +179,18 @@ internal class RestateHttpEndpointTest {
                     "/invoke/" +
                         dev.restate.sdk.core.testservices.GreeterGrpc.getGreetMethod().serviceName +
                         "/unknownMethod")
-                .await()
+                .coAwait()
 
         // Prepare request header
         request.setChunked(true).putHeader(HttpHeaders.CONTENT_TYPE, "application/restate")
         request.write(encode(startMessage(0).build()))
 
-        val response = request.response().await()
+        val response = request.response().coAwait()
 
         // Response status should be 404
         assertThat(response.statusCode()).isEqualTo(HttpResponseStatus.NOT_FOUND.code())
 
-        response.end().await()
+        response.end().coAwait()
       }
 
   @Test
@@ -209,21 +209,21 @@ internal class RestateHttpEndpointTest {
 
         // Send request
         val request =
-            client.request(HttpMethod.POST, endpointPort, "localhost", "/discover").await()
+            client.request(HttpMethod.POST, endpointPort, "localhost", "/discover").coAwait()
         request
             .putHeader(HttpHeaders.CONTENT_TYPE, "application/proto")
             .end(Buffer.buffer(ServiceDiscoveryRequest.getDefaultInstance().toByteArray()))
-            .await()
+            .coAwait()
 
         // Assert response
-        val response = request.response().await()
+        val response = request.response().coAwait()
 
         // Response status and content type header
         assertThat(response.statusCode()).isEqualTo(HttpResponseStatus.OK.code())
         assertThat(response.getHeader(HttpHeaders.CONTENT_TYPE)).isEqualTo("application/proto")
 
         // Parse response
-        val responseBody = response.body().await()
+        val responseBody = response.body().coAwait()
         val serviceDiscoveryResponse = ServiceDiscoveryResponse.parseFrom(responseBody.bytes)
         assertThat(serviceDiscoveryResponse.servicesList)
             .containsOnly(dev.restate.sdk.core.testservices.GreeterGrpc.SERVICE_NAME)
