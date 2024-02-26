@@ -8,16 +8,28 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.lambda.testservices
 
+import dev.restate.sdk.common.Serde
+import dev.restate.sdk.common.StateKey
 import dev.restate.sdk.kotlin.ObjectContext
 import dev.restate.sdk.kotlin.RestateKtComponent
+import java.nio.charset.StandardCharsets
 import kotlinx.coroutines.Dispatchers
 
 class KotlinCounterComponent :
     KotlinCounterGrpcKt.KotlinCounterCoroutineImplBase(coroutineContext = Dispatchers.Unconfined),
     RestateKtComponent {
 
+  companion object {
+    private val COUNTER: StateKey<Long> =
+        StateKey.of(
+            "counter",
+            Serde.using(
+                { l: Long -> l.toString().toByteArray(StandardCharsets.UTF_8) },
+                { v: ByteArray? -> String(v!!, StandardCharsets.UTF_8).toLong() }))
+  }
+
   override suspend fun get(request: CounterRequest): GetResponse {
-    (ObjectContext.current().get(JavaCounterService.COUNTER) ?: 0) + 1
+    (ObjectContext.current().get(COUNTER) ?: 0) + 1
 
     throw IllegalStateException("We shouldn't reach this point")
   }

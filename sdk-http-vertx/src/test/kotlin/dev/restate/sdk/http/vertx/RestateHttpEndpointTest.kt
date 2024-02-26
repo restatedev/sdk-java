@@ -165,7 +165,7 @@ internal class RestateHttpEndpointTest {
                 .withOptions(HttpServerOptions().setPort(0))
                 .build()
                 .listen()
-                .await()
+                .coAwait()
                 .actualPort()
 
         val client = vertx.createHttpClient(HTTP_CLIENT_OPTIONS)
@@ -202,7 +202,7 @@ internal class RestateHttpEndpointTest {
                 .withOptions(HttpServerOptions().setPort(0))
                 .build()
                 .listen()
-                .await()
+                .coAwait()
                 .actualPort()
 
         val client = vertx.createHttpClient(HTTP_CLIENT_OPTIONS)
