@@ -15,7 +15,7 @@ import dev.restate.sdk.kotlin.RestateKtComponent
 import java.nio.charset.StandardCharsets
 import kotlinx.coroutines.Dispatchers
 
-class KotlinCounterComponent :
+class KotlinCounterService :
     KotlinCounterGrpcKt.KotlinCounterCoroutineImplBase(coroutineContext = Dispatchers.Unconfined),
     RestateKtComponent {
 

@@ -8,15 +8,14 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.lambda.testservices;
 
-import dev.restate.sdk.KeyedContext;
-import dev.restate.sdk.RestateService;
+import dev.restate.sdk.Component;
+import dev.restate.sdk.ObjectContext;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.StateKey;
 import io.grpc.stub.StreamObserver;
 import java.nio.charset.StandardCharsets;
 
-public class JavaCounterService extends JavaCounterGrpc.JavaCounterImplBase
-    implements RestateService {
+public class JavaCounterService extends JavaCounterGrpc.JavaCounterImplBase implements Component {
 
   public static final StateKey<Long> COUNTER =
       StateKey.of(
@@ -27,7 +26,7 @@ public class JavaCounterService extends JavaCounterGrpc.JavaCounterImplBase
 
   @Override
   public void get(CounterRequest request, StreamObserver<GetResponse> responseObserver) {
-    KeyedContext.current().get(COUNTER);
+    ObjectContext.current().get(COUNTER);
 
     throw new IllegalStateException("We shouldn't reach this point");
   }
