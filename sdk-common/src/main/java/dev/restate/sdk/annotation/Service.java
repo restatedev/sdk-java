@@ -15,4 +15,9 @@ import java.lang.annotation.Target;
 
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.SOURCE)
-public @interface Service {}
+public @interface Service {
+  /**
+   * Name of the Service for Restate. If not provided, it will be the FQCN of the annotated element.
+   */
+  String name() default "";
+}

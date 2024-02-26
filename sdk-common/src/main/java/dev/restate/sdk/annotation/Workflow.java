@@ -15,4 +15,10 @@ import java.lang.annotation.Target;
 
 @Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.SOURCE)
-public @interface Workflow {}
+public @interface Workflow {
+  /**
+   * Name of the Workflow for Restate. If not provided, it will be the FQCN of the annotated
+   * element.
+   */
+  String name() default "";
+}

@@ -24,48 +24,47 @@ import javax.tools.Diagnostic;
 
 public class Service {
 
-  private final CharSequence pkg;
-  private final CharSequence fqcn;
-  private final CharSequence fqsn;
-  private final CharSequence generatedClassSimpleName;
+  private final CharSequence targetPkg;
+  private final CharSequence targetFqcn;
+  private final String componentName;
   private final ComponentType componentType;
   private final List<Method> methods;
 
-  Service(CharSequence pkg, CharSequence fqcn, ComponentType componentType, List<Method> methods) {
-    this.pkg = pkg;
-    this.fqcn = fqcn;
-
-    // Service name flattens subclasses!
-    this.generatedClassSimpleName =
-        fqcn.toString().substring(pkg.length()).replaceAll(Pattern.quote("."), "");
-    this.fqsn =
-        this.pkg.length() > 0
-            ? this.pkg + "." + this.generatedClassSimpleName
-            : this.generatedClassSimpleName;
+  Service(
+      CharSequence targetPkg,
+      CharSequence targetFqcn,
+      String componentName,
+      ComponentType componentType,
+      List<Method> methods) {
+    this.targetPkg = targetPkg;
+    this.targetFqcn = targetFqcn;
+    this.componentName = componentName;
 
     this.componentType = componentType;
     this.methods = methods;
   }
 
-  public CharSequence getPkg() {
-    return pkg;
+  public CharSequence getTargetPkg() {
+    return this.targetPkg;
   }
 
-  public CharSequence getOriginalClassFqcn() {
-    return this.fqcn;
+  public CharSequence getTargetFqcn() {
+    return this.targetFqcn;
   }
 
-  public CharSequence getFqsn() {
-    return fqsn;
+  public String getFullyQualifiedComponentName() {
+    return this.componentName;
   }
 
-  public CharSequence getGeneratedClassSimpleNamePrefix() {
-    return this.generatedClassSimpleName;
+  public String getSimpleComponentName() {
+    return this.componentName.substring(this.componentName.lastIndexOf('.') + 1);
   }
 
   public CharSequence getGeneratedClassFqcnPrefix() {
-    // This might be different if the package name of the service can be modified
-    return fqsn;
+    if (this.targetPkg == null || this.targetPkg.length() == 0) {
+      return getSimpleComponentName();
+    }
+    return this.targetPkg + "." + getSimpleComponentName();
   }
 
   public ComponentType getComponentType() {
@@ -80,12 +79,15 @@ public class Service {
       TypeElement element, Messager messager, Elements elements, Types types) {
     validateType(element, messager);
 
-    boolean isAnnotatedWithService =
-        element.getAnnotation(dev.restate.sdk.annotation.Service.class) != null;
-    boolean isAnnotatedWithVirtualObject =
-        element.getAnnotation(dev.restate.sdk.annotation.VirtualObject.class) != null;
-    boolean isAnnotatedWithWorkflow =
-        element.getAnnotation(dev.restate.sdk.annotation.Workflow.class) != null;
+    dev.restate.sdk.annotation.Service serviceAnnotation =
+        element.getAnnotation(dev.restate.sdk.annotation.Service.class);
+    dev.restate.sdk.annotation.VirtualObject virtualObjectAnnotation =
+        element.getAnnotation(dev.restate.sdk.annotation.VirtualObject.class);
+    dev.restate.sdk.annotation.Workflow workflowAnnotation =
+        element.getAnnotation(dev.restate.sdk.annotation.Workflow.class);
+    boolean isAnnotatedWithService = serviceAnnotation != null;
+    boolean isAnnotatedWithVirtualObject = virtualObjectAnnotation != null;
+    boolean isAnnotatedWithWorkflow = workflowAnnotation != null;
 
     // Should be guaranteed by the caller
     assert isAnnotatedWithWorkflow || isAnnotatedWithVirtualObject || isAnnotatedWithService;
@@ -105,6 +107,27 @@ public class Service {
             ? ComponentType.WORKFLOW
             : isAnnotatedWithService ? ComponentType.SERVICE : ComponentType.VIRTUAL_OBJECT;
 
+    // Infer names
+
+    CharSequence targetPkg = elements.getPackageOf(element).getQualifiedName();
+    CharSequence targetFqcn = element.getQualifiedName();
+
+    String componentName =
+        isAnnotatedWithService
+            ? serviceAnnotation.name()
+            : isAnnotatedWithVirtualObject
+                ? virtualObjectAnnotation.name()
+                : workflowAnnotation.name();
+    if (componentName.isEmpty()) {
+      // Use FQCN
+      // With this logic we make sure we flatten subclasses names
+      String simpleComponentName =
+          targetFqcn.toString().substring(targetPkg.length()).replaceAll(Pattern.quote("."), "");
+      componentName =
+          targetPkg.length() > 0 ? targetPkg + "." + simpleComponentName : simpleComponentName;
+    }
+
+    // Compute methods
     List<Method> methods =
         elements.getAllMembers(element).stream()
             .filter(e -> e instanceof ExecutableElement)
@@ -121,11 +144,7 @@ public class Service {
             .collect(Collectors.toList());
     validateMethods(type, methods, element, messager);
 
-    return new Service(
-        elements.getPackageOf(element).getQualifiedName(),
-        element.getQualifiedName(),
-        type,
-        methods);
+    return new Service(targetPkg, targetFqcn, componentName, type, methods);
   }
 
   private static void validateType(TypeElement element, Messager messager) {

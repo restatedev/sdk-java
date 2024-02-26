@@ -11,7 +11,7 @@ import java.time.Duration;
 
 public class {{generatedClassSimpleName}} {
 
-    public static final String COMPONENT_NAME = "{{fqsn}}";
+    public static final String COMPONENT_NAME = "{{componentName}}";
 
     {{#methods}}
     private static final io.grpc.MethodDescriptor<dev.restate.sdk.dynrpc.generated.{{#if isObject}}KeyedRpcRequest{{else}}RpcRequest{{/if}}, dev.restate.sdk.dynrpc.generated.RpcResponse> {{descFieldName}} = CodegenUtils.generateMethodDescriptor(dev.restate.sdk.dynrpc.template.generated.{{#if isObject}}KeyedServiceGrpc{{else}}ServiceGrpc{{/if}}.getTemplateMethod(), COMPONENT_NAME, "{{name}}");

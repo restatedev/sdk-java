@@ -85,8 +85,7 @@ public class HandlebarsCodegen {
     public final String originalClassFqcn;
     public final String generatedClassSimpleNamePrefix;
     public final String generatedClassSimpleName;
-    public final String generatedClassFqcnPrefix;
-    public final String fqsn;
+    public final String componentName;
     public final String componentType;
     public final boolean isWorkflow;
     public final boolean isObject;
@@ -94,12 +93,11 @@ public class HandlebarsCodegen {
     public final List<MethodTemplateModel> methods;
 
     private EntityTemplateModel(Service inner, String baseTemplateName) {
-      this.originalClassPkg = inner.getPkg().toString();
-      this.originalClassFqcn = inner.getOriginalClassFqcn().toString();
-      this.generatedClassSimpleNamePrefix = inner.getGeneratedClassSimpleNamePrefix().toString();
+      this.originalClassPkg = inner.getTargetPkg().toString();
+      this.originalClassFqcn = inner.getTargetFqcn().toString();
+      this.generatedClassSimpleNamePrefix = inner.getSimpleComponentName();
       this.generatedClassSimpleName = this.generatedClassSimpleNamePrefix + baseTemplateName;
-      this.fqsn = inner.getFqsn().toString();
-      this.generatedClassFqcnPrefix = inner.getGeneratedClassFqcnPrefix().toString();
+      this.componentName = inner.getFullyQualifiedComponentName();
 
       this.componentType = inner.getComponentType().toString();
       this.isWorkflow = inner.getComponentType() == ComponentType.WORKFLOW;
