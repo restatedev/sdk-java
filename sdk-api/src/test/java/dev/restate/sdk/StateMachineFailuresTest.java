@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class StateMachineFailuresTest extends StateMachineFailuresTestSuite {
 
-  private static class GetState extends GreeterGrpc.GreeterImplBase implements RestateService {
+  private static class GetState extends GreeterGrpc.GreeterImplBase implements Component {
 
     private static final StateKey<Integer> STATE =
         StateKey.of(
@@ -43,7 +43,7 @@ public class StateMachineFailuresTest extends StateMachineFailuresTestSuite {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       try {
-        KeyedContext.current().get(STATE);
+        ObjectContext.current().get(STATE);
       } catch (Throwable e) {
         // A user should never catch Throwable!!!
         if (AbortedExecutionException.INSTANCE.equals(e)) {
@@ -65,8 +65,7 @@ public class StateMachineFailuresTest extends StateMachineFailuresTestSuite {
     return new GetState(nonTerminalExceptionsSeen);
   }
 
-  private static class SideEffectFailure extends GreeterGrpc.GreeterImplBase
-      implements RestateService {
+  private static class SideEffectFailure extends GreeterGrpc.GreeterImplBase implements Component {
     private final Serde<Integer> serde;
 
     private SideEffectFailure(Serde<Integer> serde) {
@@ -75,7 +74,7 @@ public class StateMachineFailuresTest extends StateMachineFailuresTestSuite {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      KeyedContext.current().sideEffect(serde, () -> 0);
+      ObjectContext.current().sideEffect(serde, () -> 0);
 
       responseObserver.onNext(greetingResponse("Francesco"));
       responseObserver.onCompleted();

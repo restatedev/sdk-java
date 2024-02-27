@@ -8,12 +8,10 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.workflow.impl;
 
-import static dev.restate.sdk.workflow.impl.DescriptorUtils.toMethodName;
-
 import dev.restate.sdk.Context;
-import dev.restate.sdk.common.BlockingService;
-import dev.restate.sdk.common.Serde;
-import dev.restate.sdk.common.ServicesBundle;
+import dev.restate.sdk.common.BlockingComponent;
+import dev.restate.sdk.common.ComponentBundle;
+import dev.restate.sdk.dynrpc.JavaComponent;
 import dev.restate.sdk.workflow.WorkflowContext;
 import dev.restate.sdk.workflow.WorkflowSharedContext;
 import java.util.HashMap;
@@ -22,15 +20,15 @@ import java.util.Set;
 import java.util.function.BiFunction;
 import javax.annotation.Nullable;
 
-public class WorkflowServicesBundle implements ServicesBundle {
+public class WorkflowComponentBundle implements ComponentBundle {
   private final String name;
-  private final MethodSignature<?, ?> sig;
+  private final JavaComponent.HandlerSignature<?, ?> sig;
   private final BiFunction<WorkflowContext, ?, ?> runner;
   private final HashMap<String, Method<?, ?>> sharedMethods;
 
-  public WorkflowServicesBundle(
+  public WorkflowComponentBundle(
       String name,
-      MethodSignature<?, ?> sig,
+      JavaComponent.HandlerSignature<?, ?> sig,
       BiFunction<WorkflowContext, ?, ?> runner,
       HashMap<String, Method<?, ?>> sharedMethods) {
     this.name = name;
@@ -39,7 +37,7 @@ public class WorkflowServicesBundle implements ServicesBundle {
     this.sharedMethods = sharedMethods;
   }
 
-  public MethodSignature<?, ?> getSig() {
+  public JavaComponent.HandlerSignature<?, ?> getSig() {
     return sig;
   }
 
@@ -72,7 +70,7 @@ public class WorkflowServicesBundle implements ServicesBundle {
   }
 
   @Override
-  public List<BlockingService> services() {
+  public List<BlockingComponent> components() {
     WorkflowMangledDescriptors workflowMangledDescriptors = WorkflowMangledDescriptors.mangle(this);
 
     return List.of(
@@ -84,18 +82,22 @@ public class WorkflowServicesBundle implements ServicesBundle {
   }
 
   public static <REQ, RES> Builder named(
-      String name, MethodSignature<REQ, RES> sig, BiFunction<WorkflowContext, REQ, RES> runner) {
+      String name,
+      JavaComponent.HandlerSignature<REQ, RES> sig,
+      BiFunction<WorkflowContext, REQ, RES> runner) {
     return new Builder(name, sig, runner);
   }
 
   public static class Builder {
     private final String name;
-    private final MethodSignature<?, ?> sig;
+    private final JavaComponent.HandlerSignature<?, ?> sig;
     private final BiFunction<WorkflowContext, ?, ?> runner;
     private final HashMap<String, Method<?, ?>> sharedMethods;
 
     <REQ, RES> Builder(
-        String name, MethodSignature<REQ, RES> sig, BiFunction<WorkflowContext, REQ, RES> runner) {
+        String name,
+        JavaComponent.HandlerSignature<REQ, RES> sig,
+        BiFunction<WorkflowContext, REQ, RES> runner) {
       this.name = name;
       this.sig = sig;
       this.runner = runner;
@@ -103,64 +105,36 @@ public class WorkflowServicesBundle implements ServicesBundle {
     }
 
     public <REQ, RES> Builder withShared(
-        MethodSignature<REQ, RES> sig, BiFunction<WorkflowSharedContext, REQ, RES> runner) {
+        JavaComponent.HandlerSignature<REQ, RES> sig,
+        BiFunction<WorkflowSharedContext, REQ, RES> runner) {
       this.sharedMethods.put(sig.getMethod(), new Method<>(sig, runner));
       return this;
     }
 
-    public WorkflowServicesBundle build() {
-      return new WorkflowServicesBundle(this.name, this.sig, this.runner, this.sharedMethods);
+    public WorkflowComponentBundle build() {
+      return new WorkflowComponentBundle(this.name, this.sig, this.runner, this.sharedMethods);
     }
   }
 
   @SuppressWarnings("unchecked")
   public static class Method<REQ, RES> {
-    private final MethodSignature<REQ, RES> methodSignature;
+    private final JavaComponent.HandlerSignature<REQ, RES> handlerSignature;
 
     private final BiFunction<Context, REQ, RES> runner;
 
     Method(
-        MethodSignature<REQ, RES> methodSignature, BiFunction<? extends Context, REQ, RES> runner) {
-      this.methodSignature = methodSignature;
+        JavaComponent.HandlerSignature<REQ, RES> handlerSignature,
+        BiFunction<? extends Context, REQ, RES> runner) {
+      this.handlerSignature = handlerSignature;
       this.runner = (BiFunction<Context, REQ, RES>) runner;
     }
 
-    public MethodSignature<REQ, RES> getMethodSignature() {
-      return methodSignature;
+    public JavaComponent.HandlerSignature<REQ, RES> getMethodSignature() {
+      return handlerSignature;
     }
 
     public RES run(Context ctx, REQ req) {
       return runner.apply(ctx, req);
-    }
-  }
-
-  public static class MethodSignature<REQ, RES> {
-
-    private final String method;
-    private final Serde<REQ> requestSerde;
-    private final Serde<RES> responseSerde;
-
-    MethodSignature(String method, Serde<REQ> requestSerde, Serde<RES> responseSerde) {
-      this.method = toMethodName(method);
-      this.requestSerde = requestSerde;
-      this.responseSerde = responseSerde;
-    }
-
-    public static <T, R> MethodSignature<T, R> of(
-        String method, Serde<T> requestSerde, Serde<R> responseSerde) {
-      return new MethodSignature<>(method, requestSerde, responseSerde);
-    }
-
-    public String getMethod() {
-      return method;
-    }
-
-    public Serde<REQ> getRequestSerde() {
-      return requestSerde;
-    }
-
-    public Serde<RES> getResponseSerde() {
-      return responseSerde;
     }
   }
 }

@@ -11,7 +11,7 @@ package dev.restate.sdk.workflow.impl;
 import com.google.protobuf.Empty;
 import dev.restate.sdk.Awaitable;
 import dev.restate.sdk.Awakeable;
-import dev.restate.sdk.KeyedContext;
+import dev.restate.sdk.ObjectContext;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.workflow.DurablePromise;
 import dev.restate.sdk.workflow.DurablePromiseKey;
@@ -22,7 +22,7 @@ import java.util.Optional;
 public final class DurablePromiseImpl<T> implements DurablePromise<T> {
 
   private final String workflowKey;
-  private final KeyedContext ctx;
+  private final ObjectContext ctx;
   private final DurablePromiseKey<T> key;
   private final Awaitable<T> awakeable;
 
@@ -31,7 +31,7 @@ public final class DurablePromiseImpl<T> implements DurablePromise<T> {
 
   private DurablePromiseImpl(
       String workflowKey,
-      KeyedContext ctx,
+      ObjectContext ctx,
       DurablePromiseKey<T> key,
       Awaitable<T> awakeable,
       MethodDescriptor<GetDurablePromiseCompletionRequest, MaybeDurablePromiseCompletion>
@@ -89,7 +89,7 @@ public final class DurablePromiseImpl<T> implements DurablePromise<T> {
 
   static <T> DurablePromise<T> prepare(
       String workflowKey,
-      KeyedContext ctx,
+      ObjectContext ctx,
       DurablePromiseKey<T> key,
       MethodDescriptor<WaitDurablePromiseCompletionRequest, Empty>
           workflowManagerWaitDurablePromiseCompletion,

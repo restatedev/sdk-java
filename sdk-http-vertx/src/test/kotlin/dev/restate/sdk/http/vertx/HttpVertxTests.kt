@@ -10,16 +10,15 @@ package dev.restate.sdk.http.vertx
 
 import com.google.protobuf.ByteString
 import dev.restate.generated.sdk.java.Java.SideEffectEntryMessage
+import dev.restate.sdk.Component
 import dev.restate.sdk.JavaBlockingTests
-import dev.restate.sdk.RestateService
 import dev.restate.sdk.core.ProtoUtils.*
 import dev.restate.sdk.core.TestDefinitions.*
 import dev.restate.sdk.core.testservices.GreeterGrpc
 import dev.restate.sdk.core.testservices.GreetingRequest
 import dev.restate.sdk.core.testservices.GreetingResponse
-import dev.restate.sdk.kotlin.KeyedContext
 import dev.restate.sdk.kotlin.KotlinCoroutinesTests
-import dev.restate.sdk.kotlin.RestateKtService
+import dev.restate.sdk.kotlin.RestateKtComponent
 import io.grpc.stub.StreamObserver
 import io.vertx.core.Vertx
 import java.util.stream.Stream
@@ -46,27 +45,29 @@ class HttpVertxTests : dev.restate.sdk.core.TestRunner() {
   }
 
   class VertxExecutorsTest : TestSuite {
-    private class CheckNonBlockingServiceTrampolineEventLoopContext :
+    private class CheckNonBlockingComponentTrampolineEventLoopContext :
         dev.restate.sdk.core.testservices.GreeterGrpcKt.GreeterCoroutineImplBase(
             Dispatchers.Unconfined),
-        RestateKtService {
+        RestateKtComponent {
       override suspend fun greet(request: GreetingRequest): GreetingResponse {
         check(Vertx.currentContext().isEventLoopContext)
-        KeyedContext.current().sideEffect { check(Vertx.currentContext().isEventLoopContext) }
+        dev.restate.sdk.kotlin.ObjectContext.current().sideEffect {
+          check(Vertx.currentContext().isEventLoopContext)
+        }
         check(Vertx.currentContext().isEventLoopContext)
         return GreetingResponse.getDefaultInstance()
       }
     }
 
-    private class CheckBlockingServiceTrampolineExecutor :
-        GreeterGrpc.GreeterImplBase(), RestateService {
+    private class CheckBlockingComponentTrampolineExecutor :
+        GreeterGrpc.GreeterImplBase(), Component {
       override fun greet(
           request: GreetingRequest,
           responseObserver: StreamObserver<GreetingResponse>
       ) {
         val id = Thread.currentThread().id
         check(Vertx.currentContext() == null)
-        dev.restate.sdk.KeyedContext.current().sideEffect {
+        dev.restate.sdk.ObjectContext.current().sideEffect {
           check(Thread.currentThread().id == id)
           check(Vertx.currentContext() == null)
         }
@@ -80,7 +81,8 @@ class HttpVertxTests : dev.restate.sdk.core.TestRunner() {
     override fun definitions(): Stream<TestDefinition> {
       return Stream.of(
           testInvocation(
-                  CheckNonBlockingServiceTrampolineEventLoopContext(), GreeterGrpc.getGreetMethod())
+                  CheckNonBlockingComponentTrampolineEventLoopContext(),
+                  GreeterGrpc.getGreetMethod())
               .withInput(
                   startMessage(1),
                   inputMessage(GreetingRequest.getDefaultInstance()),
@@ -90,7 +92,7 @@ class HttpVertxTests : dev.restate.sdk.core.TestRunner() {
                   SideEffectEntryMessage.newBuilder().setValue(ByteString.EMPTY),
                   outputMessage(GreetingResponse.getDefaultInstance()),
                   END_MESSAGE),
-          testInvocation(CheckBlockingServiceTrampolineExecutor(), GreeterGrpc.getGreetMethod())
+          testInvocation(CheckBlockingComponentTrampolineExecutor(), GreeterGrpc.getGreetMethod())
               .withInput(
                   startMessage(1),
                   inputMessage(GreetingRequest.getDefaultInstance()),

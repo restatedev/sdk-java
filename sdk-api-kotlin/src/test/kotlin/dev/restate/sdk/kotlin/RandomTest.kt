@@ -19,10 +19,10 @@ import kotlinx.coroutines.Dispatchers
 
 class RandomTest : RandomTestSuite() {
   private class RandomShouldBeDeterministic :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
 
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val number = KeyedContext.current().random().nextInt()
+      val number = ObjectContext.current().random().nextInt()
       return greetingResponse { message = number.toString() }
     }
   }
@@ -32,9 +32,9 @@ class RandomTest : RandomTestSuite() {
   }
 
   private class RandomInsideSideEffect :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx = KeyedContext.current()
+      val ctx = ObjectContext.current()
       ctx.sideEffect { ctx.random().nextInt() }
       throw IllegalStateException("This should not unreachable")
     }

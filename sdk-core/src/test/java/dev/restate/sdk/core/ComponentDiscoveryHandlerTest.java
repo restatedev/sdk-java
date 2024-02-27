@@ -17,7 +17,7 @@ import dev.restate.sdk.core.testservices.GreeterGrpc;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-class ServiceDiscoveryHandlerTest {
+class ComponentDiscoveryHandlerTest {
 
   @Test
   void handleWithMultipleServices() {

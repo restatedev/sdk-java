@@ -31,6 +31,13 @@ public interface Serde<T> {
   }
 
   /**
+   * @return the schema of this object.
+   */
+  default @Nullable Object schema() {
+    return null;
+  }
+
+  /**
    * Create a {@link Serde} from {@code serializer}/{@code deserializer} lambdas. Before invoking
    * the serializer, we check that {@code value} is non-null.
    */

@@ -12,6 +12,7 @@ import com.google.protobuf.Empty;
 import dev.restate.sdk.*;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.StateKey;
+import dev.restate.sdk.common.Target;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.common.function.ThrowingRunnable;
 import dev.restate.sdk.common.function.ThrowingSupplier;
@@ -25,7 +26,7 @@ import javax.annotation.Nonnull;
 
 class WorkflowContextImpl implements WorkflowContext {
 
-  private final KeyedContext ctx;
+  private final ObjectContext ctx;
   private final String workflowKey;
   private final boolean isExclusive;
 
@@ -40,7 +41,7 @@ class WorkflowContextImpl implements WorkflowContext {
       workflowManagerCompleteSignal;
 
   WorkflowContextImpl(
-      String workflowFqsn, KeyedContext ctx, String workflowKey, boolean isExclusive) {
+      String workflowFqsn, ObjectContext ctx, String workflowKey, boolean isExclusive) {
     this.ctx = ctx;
     this.workflowKey = workflowKey;
     this.isExclusive = isExclusive;
@@ -151,8 +152,24 @@ class WorkflowContextImpl implements WorkflowContext {
   }
 
   @Override
+  public <T, R> Awaitable<R> call(
+      Target target, Serde<T> inputSerde, Serde<R> outputSerde, T parameter) {
+    return ctx.call(target, inputSerde, outputSerde, parameter);
+  }
+
+  @Override
+  public <T> void oneWayCall(Target target, Serde<T> inputSerde, T parameter) {
+    ctx.oneWayCall(target, inputSerde, parameter);
+  }
+
+  @Override
   public <T> void oneWayCall(MethodDescriptor<T, ?> methodDescriptor, T parameter) {
     ctx.oneWayCall(methodDescriptor, parameter);
+  }
+
+  @Override
+  public <T> void delayedCall(Target target, Serde<T> inputSerde, T parameter, Duration delay) {
+    ctx.delayedCall(target, inputSerde, parameter, delay);
   }
 
   @Override

@@ -20,7 +20,7 @@ public class RandomTest extends RandomTestSuite {
 
   private static class RandomShouldBeDeterministic extends GreeterRestate.GreeterRestateImplBase {
     @Override
-    public GreetingResponse greet(KeyedContext context, GreetingRequest request)
+    public GreetingResponse greet(ObjectContext context, GreetingRequest request)
         throws TerminalException {
       return GreetingResponse.newBuilder()
           .setMessage(Integer.toString(context.random().nextInt()))
@@ -35,7 +35,7 @@ public class RandomTest extends RandomTestSuite {
 
   private static class RandomInsideSideEffect extends GreeterRestate.GreeterRestateImplBase {
     @Override
-    public GreetingResponse greet(KeyedContext context, GreetingRequest request)
+    public GreetingResponse greet(ObjectContext context, GreetingRequest request)
         throws TerminalException {
       context.sideEffect(() -> context.random().nextInt());
       throw new IllegalStateException("This should not unreachable");

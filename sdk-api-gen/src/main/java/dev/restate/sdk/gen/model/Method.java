@@ -8,15 +8,16 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.gen.model;
 
-import dev.restate.sdk.annotation.Shared;
-import dev.restate.sdk.annotation.Workflow;
+import dev.restate.sdk.Context;
+import dev.restate.sdk.ObjectContext;
+import dev.restate.sdk.annotation.*;
+import dev.restate.sdk.common.ComponentType;
 import dev.restate.sdk.workflow.WorkflowContext;
 import dev.restate.sdk.workflow.WorkflowSharedContext;
 import javax.annotation.Nullable;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Modifier;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
@@ -60,7 +61,11 @@ public class Method {
   }
 
   public static Method fromExecutableElement(
-      ExecutableElement element, Messager messager, Elements elements, Types types) {
+      ComponentType componentType,
+      ExecutableElement element,
+      Messager messager,
+      Elements elements,
+      Types types) {
     if (!element.getTypeParameters().isEmpty()) {
       messager.printMessage(
           Diagnostic.Kind.ERROR,
@@ -69,60 +74,124 @@ public class Method {
     }
     if (element.getKind().equals(ElementKind.CONSTRUCTOR)) {
       messager.printMessage(
-          Diagnostic.Kind.ERROR, "You cannot annotate a constructor as @Workflow and @Shared");
+          Diagnostic.Kind.ERROR, "You cannot annotate a constructor as Restate method");
     }
     if (element.getKind().equals(ElementKind.STATIC_INIT)) {
       messager.printMessage(
-          Diagnostic.Kind.ERROR, "You cannot annotate a static init as @Workflow and @Shared");
+          Diagnostic.Kind.ERROR, "You cannot annotate a static init as Restate method");
     }
 
     boolean isAnnotatedWithShared = element.getAnnotation(Shared.class) != null;
+    boolean isAnnotatedWithExclusive = element.getAnnotation(Exclusive.class) != null;
     boolean isAnnotatedWithWorkflow = element.getAnnotation(Workflow.class) != null;
 
-    if (isAnnotatedWithShared && isAnnotatedWithWorkflow) {
-      messager.printMessage(
-          Diagnostic.Kind.ERROR, "You cannot annotate a method both as @Workflow and @Shared");
-    }
-    if (!isAnnotatedWithWorkflow && !isAnnotatedWithShared) {
-      messager.printMessage(
-          Diagnostic.Kind.ERROR, "The method should be annotated either with @Workflow or @Shared");
-    }
-    if (element.getParameters().isEmpty()) {
-      messager.printMessage(
-          Diagnostic.Kind.ERROR, "The method signature must have at least one parameter");
-    }
-
-    boolean firstParameterIsExclusiveContext =
-        types.isSameType(
-            element.getParameters().get(0).asType(),
-            elements.getTypeElement(WorkflowContext.class.getCanonicalName()).asType());
-    boolean firstParameterIsSharedContext =
-        types.isSameType(
-            element.getParameters().get(0).asType(),
-            elements.getTypeElement(WorkflowSharedContext.class.getCanonicalName()).asType());
-
-    if (isAnnotatedWithShared && !firstParameterIsSharedContext) {
+    // Check there's no more than one annotation
+    boolean hasAnyAnnotation =
+        isAnnotatedWithExclusive || isAnnotatedWithShared || isAnnotatedWithWorkflow;
+    boolean hasExactlyOneAnnotation =
+        Boolean.logicalXor(
+            isAnnotatedWithShared,
+            Boolean.logicalXor(isAnnotatedWithWorkflow, isAnnotatedWithExclusive));
+    if (!(!hasAnyAnnotation || hasExactlyOneAnnotation)) {
       messager.printMessage(
           Diagnostic.Kind.ERROR,
-          "The method signature must have WorkflowSharedContext as first parameter");
-    }
-    if (isAnnotatedWithWorkflow && !firstParameterIsExclusiveContext) {
-      messager.printMessage(
-          Diagnostic.Kind.ERROR,
-          "The method signature must have WorkflowContext as first parameter");
-    }
-
-    if (element.getModifiers().contains(Modifier.PRIVATE)) {
-      messager.printMessage(
-          Diagnostic.Kind.ERROR,
-          "The annotated method is private. The method must be at least package-private to be accessible from the code-generated classes",
+          "You can have only one annotation between @Shared, @Exclusive and @Workflow to a method",
           element);
     }
 
+    MethodType methodType =
+        isAnnotatedWithWorkflow
+            ? MethodType.WORKFLOW
+            : isAnnotatedWithShared
+                ? MethodType.SHARED
+                : isAnnotatedWithExclusive
+                    ? MethodType.EXCLUSIVE
+                    : defaultMethodType(componentType, element, messager);
+
+    validateMethodSignature(componentType, methodType, element, messager, elements, types);
+
     return new Method(
         element.getSimpleName(),
-        isAnnotatedWithShared ? MethodType.SHARED : MethodType.WORKFLOW,
+        methodType,
         element.getParameters().size() > 1 ? element.getParameters().get(1).asType() : null,
         !element.getReturnType().getKind().equals(TypeKind.VOID) ? element.getReturnType() : null);
+  }
+
+  private static MethodType defaultMethodType(
+      ComponentType componentType, ExecutableElement element, Messager messager) {
+    switch (componentType) {
+      case SERVICE:
+        return MethodType.STATELESS;
+      case VIRTUAL_OBJECT:
+        return MethodType.EXCLUSIVE;
+      case WORKFLOW:
+        messager.printMessage(
+            Diagnostic.Kind.ERROR,
+            "Workflow methods MUST be annotated with either @Shared or @Workflow",
+            element);
+    }
+    throw new IllegalStateException(
+        "Workflow methods MUST be annotated with either @Shared or @Workflow");
+  }
+
+  private static void validateMethodSignature(
+      ComponentType componentType,
+      MethodType methodType,
+      ExecutableElement element,
+      Messager messager,
+      Elements elements,
+      Types types) {
+    switch (methodType) {
+      case SHARED:
+        if (componentType == ComponentType.WORKFLOW) {
+          validateFirstParameterType(
+              WorkflowSharedContext.class, element, messager, elements, types);
+        } else {
+          messager.printMessage(
+              Diagnostic.Kind.ERROR,
+              "The annotation @Shared is not supported by the service type " + componentType,
+              element);
+        }
+        break;
+      case EXCLUSIVE:
+        if (componentType == ComponentType.VIRTUAL_OBJECT) {
+          validateFirstParameterType(ObjectContext.class, element, messager, elements, types);
+        } else {
+          messager.printMessage(
+              Diagnostic.Kind.ERROR,
+              "The annotation @Exclusive is not supported by the service type " + componentType,
+              element);
+        }
+        break;
+      case STATELESS:
+        validateFirstParameterType(Context.class, element, messager, elements, types);
+        break;
+      case WORKFLOW:
+        if (componentType == ComponentType.WORKFLOW) {
+          validateFirstParameterType(WorkflowContext.class, element, messager, elements, types);
+        } else {
+          messager.printMessage(
+              Diagnostic.Kind.ERROR,
+              "The annotation @Shared is not supported by the service type " + componentType,
+              element);
+        }
+        break;
+    }
+  }
+
+  private static void validateFirstParameterType(
+      Class<?> clazz,
+      ExecutableElement element,
+      Messager messager,
+      Elements elements,
+      Types types) {
+    if (!types.isSameType(
+        element.getParameters().get(0).asType(),
+        elements.getTypeElement(clazz.getCanonicalName()).asType())) {
+      messager.printMessage(
+          Diagnostic.Kind.ERROR,
+          "The method signature must have " + clazz.getCanonicalName() + " as first parameter",
+          element);
+    }
   }
 }

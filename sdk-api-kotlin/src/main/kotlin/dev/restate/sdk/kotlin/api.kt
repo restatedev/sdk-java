@@ -9,7 +9,7 @@
 package dev.restate.sdk.kotlin
 
 import dev.restate.sdk.common.CoreSerdes
-import dev.restate.sdk.common.NonBlockingService
+import dev.restate.sdk.common.NonBlockingComponent
 import dev.restate.sdk.common.Serde
 import dev.restate.sdk.common.StateKey
 import dev.restate.sdk.common.syscalls.Syscalls
@@ -23,8 +23,8 @@ import kotlin.time.Duration
  * interact with other Restate services, record side effects, execute timers and synchronize with
  * external systems.
  *
- * To use it within your Restate service, implement [RestateKtService] and get an instance with
- * [RestateKtService.restateContext].
+ * To use it within your Restate service, implement [RestateKtComponent] and get an instance with
+ * [RestateKtComponent.restateContext].
  *
  * All methods of this interface, and related interfaces, throws either [TerminalException] or
  * cancels the coroutine. [TerminalException] can be caught and acted upon.
@@ -207,9 +207,10 @@ sealed interface Context {
 }
 
 /**
- * This interface extends [Context] adding access to the service instance key-value state storage.
+ * This interface extends [Context] adding access to the virtual object instance key-value state
+ * storage.
  */
-sealed interface KeyedContext : Context {
+sealed interface ObjectContext : Context {
 
   /**
    * Gets the state stored under key, deserializing the raw value using the [StateKey.serde].
@@ -221,7 +222,7 @@ sealed interface KeyedContext : Context {
   suspend fun <T : Any> get(key: StateKey<T>): T?
 
   /**
-   * Gets all the known state keys for this service instance.
+   * Gets all the known state keys for this virtual object instance.
    *
    * @return the immutable collection of known state keys.
    */
@@ -242,22 +243,22 @@ sealed interface KeyedContext : Context {
    */
   suspend fun clear(key: StateKey<*>)
 
-  /** Clears all the state of this service instance key-value state storage */
+  /** Clears all the state of this virtual object instance key-value state storage */
   suspend fun clearAll()
 
   companion object {
 
     /**
-     * Create a [KeyedContext]. This will look up the thread-local/async-context storage for the
+     * Create a [ObjectContext]. This will look up the thread-local/async-context storage for the
      * underlying context implementation, so make sure to call it always from the same context where
      * the service is executed.
      */
-    fun current(): KeyedContext {
+    fun current(): ObjectContext {
       return fromSyscalls(Syscalls.current())
     }
 
     /** Build a context from the underlying [Syscalls] object. */
-    fun fromSyscalls(syscalls: Syscalls): KeyedContext {
+    fun fromSyscalls(syscalls: Syscalls): ObjectContext {
       return ContextImpl(syscalls)
     }
   }
@@ -415,4 +416,4 @@ sealed interface AwakeableHandle {
  * * When throwing any other type of exception, the failure is considered "non-terminal" and the
  *   runtime will retry it, according to its configuration
  */
-interface RestateKtService : NonBlockingService
+interface RestateKtComponent : NonBlockingComponent

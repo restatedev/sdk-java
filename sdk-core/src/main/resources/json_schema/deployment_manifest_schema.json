@@ -1,0 +1,59 @@
+{
+  "$id": "https://restate.dev/deployment.manifest.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "title": "Deployment",
+  "description": "Restate deployment manifest",
+  "properties": {
+    "protocolMode": {
+      "title": "ProtocolMode",
+      "enum": ["BIDI_STREAM", "REQUEST_RESPONSE"]
+    },
+    "minProtocolVersion": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "maxProtocolVersion": {
+      "type": "integer",
+      "maximum": 0
+    },
+    "services": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "title": "Service",
+        "properties": {
+          "fullyQualifiedServiceName": {
+            "type": "string",
+            "pattern": "^[a-zA-Z]+[a-zA-Z0-9._-]*$"
+          },
+          "serviceType": {
+            "title": "ServiceType",
+            "enum": ["UNKEYED", "KEYED", "WORKFLOW"]
+          },
+          "methods": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "title": "Method",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z]+[a-zA-Z0-9_-]*$"
+                },
+                "inputSchema": {},
+                "outputSchema": {}
+              },
+              "required": [ "name" ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [ "fullyQualifiedServiceName","serviceType", "methods" ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [ "minProtocolVersion", "maxProtocolVersion", "services" ],
+  "additionalProperties": false
+}

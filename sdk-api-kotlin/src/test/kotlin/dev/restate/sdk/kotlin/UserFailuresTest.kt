@@ -20,7 +20,7 @@ import kotlinx.coroutines.Dispatchers
 
 class UserFailuresTest : UserFailuresTestSuite() {
   private class ThrowIllegalStateException :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       throw IllegalStateException("Whatever")
     }
@@ -32,10 +32,10 @@ class UserFailuresTest : UserFailuresTestSuite() {
 
   private class SideEffectThrowIllegalStateException(
       private val nonTerminalExceptionsSeen: AtomicInteger
-  ) : GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
+  ) : GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       try {
-        KeyedContext.current().sideEffect { throw IllegalStateException("Whatever") }
+        ObjectContext.current().sideEffect { throw IllegalStateException("Whatever") }
       } catch (e: Throwable) {
         if (e !is CancellationException && e !is TerminalException) {
           nonTerminalExceptionsSeen.addAndGet(1)
@@ -56,7 +56,7 @@ class UserFailuresTest : UserFailuresTestSuite() {
   private class ThrowTerminalException(
       private val code: TerminalException.Code,
       private val message: String
-  ) : GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
+  ) : GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       throw TerminalException(code, message)
     }
@@ -72,9 +72,9 @@ class UserFailuresTest : UserFailuresTestSuite() {
   private class SideEffectThrowTerminalException(
       private val code: TerminalException.Code,
       private val message: String
-  ) : GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
+  ) : GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      KeyedContext.current().sideEffect { throw TerminalException(code, message) }
+      ObjectContext.current().sideEffect { throw TerminalException(code, message) }
       throw IllegalStateException("Not expected to reach this point")
     }
   }

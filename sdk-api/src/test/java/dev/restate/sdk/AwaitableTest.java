@@ -24,11 +24,10 @@ import java.util.concurrent.TimeoutException;
 
 public class AwaitableTest extends DeferredTestSuite {
 
-  private static class ReverseAwaitOrder extends GreeterGrpc.GreeterImplBase
-      implements RestateService {
+  private static class ReverseAwaitOrder extends GreeterGrpc.GreeterImplBase implements Component {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      KeyedContext ctx = KeyedContext.current();
+      ObjectContext ctx = ObjectContext.current();
 
       Awaitable<GreetingResponse> a1 =
           ctx.call(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco"));
@@ -51,10 +50,10 @@ public class AwaitableTest extends DeferredTestSuite {
   }
 
   private static class AwaitTwiceTheSameAwaitable extends GreeterGrpc.GreeterImplBase
-      implements RestateService {
+      implements Component {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      KeyedContext ctx = KeyedContext.current();
+      ObjectContext ctx = ObjectContext.current();
 
       Awaitable<GreetingResponse> a =
           ctx.call(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco"));
@@ -70,10 +69,10 @@ public class AwaitableTest extends DeferredTestSuite {
     return new AwaitTwiceTheSameAwaitable();
   }
 
-  private static class AwaitAll extends GreeterGrpc.GreeterImplBase implements RestateService {
+  private static class AwaitAll extends GreeterGrpc.GreeterImplBase implements Component {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      KeyedContext ctx = KeyedContext.current();
+      ObjectContext ctx = ObjectContext.current();
 
       Awaitable<GreetingResponse> a1 =
           ctx.call(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco"));
@@ -93,10 +92,10 @@ public class AwaitableTest extends DeferredTestSuite {
     return new AwaitAll();
   }
 
-  private static class AwaitAny extends GreeterGrpc.GreeterImplBase implements RestateService {
+  private static class AwaitAny extends GreeterGrpc.GreeterImplBase implements Component {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      KeyedContext ctx = KeyedContext.current();
+      ObjectContext ctx = ObjectContext.current();
 
       Awaitable<GreetingResponse> a1 =
           ctx.call(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco"));
@@ -115,11 +114,10 @@ public class AwaitableTest extends DeferredTestSuite {
     return new AwaitAny();
   }
 
-  private static class CombineAnyWithAll extends GreeterGrpc.GreeterImplBase
-      implements RestateService {
+  private static class CombineAnyWithAll extends GreeterGrpc.GreeterImplBase implements Component {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      KeyedContext ctx = KeyedContext.current();
+      ObjectContext ctx = ObjectContext.current();
 
       Awaitable<String> a1 = ctx.awakeable(CoreSerdes.JSON_STRING);
       Awaitable<String> a2 = ctx.awakeable(CoreSerdes.JSON_STRING);
@@ -141,10 +139,10 @@ public class AwaitableTest extends DeferredTestSuite {
     return new CombineAnyWithAll();
   }
 
-  private static class AwaitAnyIndex extends GreeterGrpc.GreeterImplBase implements RestateService {
+  private static class AwaitAnyIndex extends GreeterGrpc.GreeterImplBase implements Component {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      KeyedContext ctx = KeyedContext.current();
+      ObjectContext ctx = ObjectContext.current();
 
       Awaitable<String> a1 = ctx.awakeable(CoreSerdes.JSON_STRING);
       Awaitable<String> a2 = ctx.awakeable(CoreSerdes.JSON_STRING);
@@ -164,10 +162,10 @@ public class AwaitableTest extends DeferredTestSuite {
   }
 
   private static class AwaitOnAlreadyResolvedAwaitables extends GreeterGrpc.GreeterImplBase
-      implements RestateService {
+      implements Component {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      KeyedContext ctx = KeyedContext.current();
+      ObjectContext ctx = ObjectContext.current();
 
       Awaitable<String> a1 = ctx.awakeable(CoreSerdes.JSON_STRING);
       Awaitable<String> a2 = ctx.awakeable(CoreSerdes.JSON_STRING);
@@ -189,11 +187,10 @@ public class AwaitableTest extends DeferredTestSuite {
     return new AwaitOnAlreadyResolvedAwaitables();
   }
 
-  private static class AwaitWithTimeout extends GreeterGrpc.GreeterImplBase
-      implements RestateService {
+  private static class AwaitWithTimeout extends GreeterGrpc.GreeterImplBase implements Component {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      KeyedContext ctx = KeyedContext.current();
+      ObjectContext ctx = ObjectContext.current();
 
       Awaitable<GreetingResponse> call =
           ctx.call(GreeterGrpc.getGreetMethod(), greetingRequest("Francesco"));

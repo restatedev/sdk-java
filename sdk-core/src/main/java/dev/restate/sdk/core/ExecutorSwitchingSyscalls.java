@@ -10,6 +10,7 @@ package dev.restate.sdk.core;
 
 import com.google.protobuf.ByteString;
 import dev.restate.sdk.common.InvocationId;
+import dev.restate.sdk.common.Target;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.common.syscalls.Deferred;
 import dev.restate.sdk.common.syscalls.EnterSideEffectSyscallCallback;
@@ -20,6 +21,7 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.Executor;
+import javax.annotation.Nullable;
 
 class ExecutorSwitchingSyscalls implements SyscallsInternal {
 
@@ -83,13 +85,28 @@ class ExecutorSwitchingSyscalls implements SyscallsInternal {
   }
 
   @Override
-  public <T> void backgroundCall(
+  public void call(
+      Target target, ByteString parameter, SyscallCallback<Deferred<ByteString>> callback) {
+    syscallsExecutor.execute(() -> syscalls.call(target, parameter, callback));
+  }
+
+  @Override
+  public void send(
+      Target target,
+      ByteString parameter,
+      @Nullable Duration delay,
+      SyscallCallback<Void> requestCallback) {
+    syscallsExecutor.execute(() -> syscalls.send(target, parameter, delay, requestCallback));
+  }
+
+  @Override
+  public <T> void send(
       MethodDescriptor<T, ?> methodDescriptor,
       T parameter,
       Duration delay,
       SyscallCallback<Void> requestCallback) {
     syscallsExecutor.execute(
-        () -> syscalls.backgroundCall(methodDescriptor, parameter, delay, requestCallback));
+        () -> syscalls.send(methodDescriptor, parameter, delay, requestCallback));
   }
 
   @Override

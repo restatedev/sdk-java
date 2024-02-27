@@ -9,8 +9,8 @@
 package dev.restate.sdk.http.vertx
 
 import com.google.protobuf.MessageLite
-import dev.restate.sdk.common.BlockingService
-import dev.restate.sdk.common.NonBlockingService
+import dev.restate.sdk.common.BlockingComponent
+import dev.restate.sdk.common.NonBlockingComponent
 import dev.restate.sdk.core.TestDefinitions.TestDefinition
 import dev.restate.sdk.core.TestDefinitions.TestExecutor
 import io.vertx.core.Vertx
@@ -18,7 +18,7 @@ import io.vertx.core.buffer.Buffer
 import io.vertx.core.http.HttpHeaders
 import io.vertx.core.http.HttpMethod
 import io.vertx.core.http.HttpServerOptions
-import io.vertx.kotlin.coroutines.await
+import io.vertx.kotlin.coroutines.coAwait
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -38,18 +38,18 @@ class HttpVertxTestExecutor(private val vertx: Vertx) : TestExecutor {
       val builder =
           RestateHttpEndpointBuilder.builder(vertx).withOptions(HttpServerOptions().setPort(0))
       when (definition.service) {
-        is BlockingService -> {
-          builder.withService(definition.service as BlockingService)
+        is BlockingComponent -> {
+          builder.withService(definition.service as BlockingComponent)
         }
-        is NonBlockingService -> {
-          builder.withService(definition.service as NonBlockingService)
+        is NonBlockingComponent -> {
+          builder.withService(definition.service as NonBlockingComponent)
         }
         else -> {
           throw IllegalStateException("Unexpected service class " + definition.service)
         }
       }
       val server = builder.build()
-      server.listen().await()
+      server.listen().coAwait()
 
       val client = vertx.createHttpClient(RestateHttpEndpointTest.HTTP_CLIENT_OPTIONS)
 
@@ -60,25 +60,25 @@ class HttpVertxTestExecutor(private val vertx: Vertx) : TestExecutor {
                   server.actualPort(),
                   "localhost",
                   "/invoke/${definition.service.bindService().serviceDescriptor.name}/${definition.method}")
-              .await()
+              .coAwait()
 
       // Prepare request header and send them
       request.setChunked(true).putHeader(HttpHeaders.CONTENT_TYPE, "application/restate")
-      request.sendHead().await()
+      request.sendHead().coAwait()
 
       launch {
         for (msg in definition.input) {
           val buffer = Buffer.buffer(MessageEncoder.encodeLength(msg.message()))
           buffer.appendLong(msg.header().encode())
           buffer.appendBytes(msg.message().toByteArray())
-          request.write(buffer).await()
+          request.write(buffer).coAwait()
           yield()
         }
 
-        request.end().await()
+        request.end().coAwait()
       }
 
-      val response = request.response().await()
+      val response = request.response().coAwait()
 
       // Start the coroutine to send input messages
 
@@ -100,7 +100,7 @@ class HttpVertxTestExecutor(private val vertx: Vertx) : TestExecutor {
       definition.outputAssert.accept(messages)
 
       // Close the server
-      server.close().await()
+      server.close().coAwait()
     }
   }
 }

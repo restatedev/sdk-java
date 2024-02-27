@@ -15,7 +15,10 @@ import java.lang.annotation.Target;
 
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.SOURCE)
-public @interface Service {
-
-  ServiceType value();
+public @interface VirtualObject {
+  /**
+   * Name of the VirtualObject for Restate. If not provided, it will be the FQCN of the annotated
+   * element.
+   */
+  String name() default "";
 }

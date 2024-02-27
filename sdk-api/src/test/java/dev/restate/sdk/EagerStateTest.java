@@ -23,10 +23,10 @@ import io.grpc.stub.StreamObserver;
 
 public class EagerStateTest extends EagerStateTestSuite {
 
-  private static class GetEmpty extends GreeterGrpc.GreeterImplBase implements RestateService {
+  private static class GetEmpty extends GreeterGrpc.GreeterImplBase implements Component {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      KeyedContext ctx = KeyedContext.current();
+      ObjectContext ctx = ObjectContext.current();
 
       boolean stateIsEmpty = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).isEmpty();
 
@@ -41,10 +41,10 @@ public class EagerStateTest extends EagerStateTestSuite {
     return new GetEmpty();
   }
 
-  private static class Get extends GreeterGrpc.GreeterImplBase implements RestateService {
+  private static class Get extends GreeterGrpc.GreeterImplBase implements Component {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      KeyedContext ctx = KeyedContext.current();
+      ObjectContext ctx = ObjectContext.current();
 
       String state = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
 
@@ -58,11 +58,10 @@ public class EagerStateTest extends EagerStateTestSuite {
     return new Get();
   }
 
-  private static class GetAppendAndGet extends GreeterGrpc.GreeterImplBase
-      implements RestateService {
+  private static class GetAppendAndGet extends GreeterGrpc.GreeterImplBase implements Component {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      KeyedContext ctx = KeyedContext.current();
+      ObjectContext ctx = ObjectContext.current();
 
       String oldState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
       ctx.set(StateKey.of("STATE", CoreSerdes.JSON_STRING), oldState + request.getName());
@@ -79,11 +78,10 @@ public class EagerStateTest extends EagerStateTestSuite {
     return new GetAppendAndGet();
   }
 
-  private static class GetClearAndGet extends GreeterGrpc.GreeterImplBase
-      implements RestateService {
+  private static class GetClearAndGet extends GreeterGrpc.GreeterImplBase implements Component {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      KeyedContext ctx = KeyedContext.current();
+      ObjectContext ctx = ObjectContext.current();
 
       String oldState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
 
@@ -100,11 +98,10 @@ public class EagerStateTest extends EagerStateTestSuite {
     return new GetClearAndGet();
   }
 
-  private static class GetClearAllAndGet extends GreeterGrpc.GreeterImplBase
-      implements RestateService {
+  private static class GetClearAllAndGet extends GreeterGrpc.GreeterImplBase implements Component {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      KeyedContext ctx = KeyedContext.current();
+      ObjectContext ctx = ObjectContext.current();
 
       String oldState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
 
@@ -124,7 +121,7 @@ public class EagerStateTest extends EagerStateTestSuite {
 
   private static class ListKeys extends GreeterRestate.GreeterRestateImplBase {
     @Override
-    public GreetingResponse greet(KeyedContext context, GreetingRequest request)
+    public GreetingResponse greet(ObjectContext context, GreetingRequest request)
         throws TerminalException {
       return GreetingResponse.newBuilder()
           .setMessage(String.join(",", context.stateKeys()))

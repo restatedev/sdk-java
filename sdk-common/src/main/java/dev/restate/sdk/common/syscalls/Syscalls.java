@@ -10,6 +10,7 @@ package dev.restate.sdk.common.syscalls;
 
 import com.google.protobuf.ByteString;
 import dev.restate.sdk.common.InvocationId;
+import dev.restate.sdk.common.Target;
 import dev.restate.sdk.common.TerminalException;
 import io.grpc.Context;
 import io.grpc.MethodDescriptor;
@@ -74,10 +75,18 @@ public interface Syscalls {
 
   void sleep(Duration duration, SyscallCallback<Deferred<Void>> callback);
 
+  void call(Target target, ByteString parameter, SyscallCallback<Deferred<ByteString>> callback);
+
   <T, R> void call(
       MethodDescriptor<T, R> methodDescriptor, T parameter, SyscallCallback<Deferred<R>> callback);
 
-  <T> void backgroundCall(
+  void send(
+      Target target,
+      ByteString parameter,
+      @Nullable Duration delay,
+      SyscallCallback<Void> requestCallback);
+
+  <T> void send(
       MethodDescriptor<T, ?> methodDescriptor,
       T parameter,
       @Nullable Duration delay,

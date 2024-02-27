@@ -24,10 +24,10 @@ import java.util.stream.Stream;
 public class GrpcChannelAdapterTest implements TestSuite {
 
   private static class InvokeUsingGeneratedClient extends GreeterGrpc.GreeterImplBase
-      implements RestateService {
+      implements Component {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      KeyedContext ctx = KeyedContext.current();
+      ObjectContext ctx = ObjectContext.current();
       GreeterGrpc.GreeterBlockingStub client = GreeterGrpc.newBlockingStub(ctx.grpcChannel());
       String response =
           client.greet(GreetingRequest.newBuilder().setName("Francesco").build()).getMessage();
@@ -38,10 +38,10 @@ public class GrpcChannelAdapterTest implements TestSuite {
   }
 
   private static class InvokeUsingGeneratedFutureClient extends GreeterGrpc.GreeterImplBase
-      implements RestateService {
+      implements Component {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      KeyedContext ctx = KeyedContext.current();
+      ObjectContext ctx = ObjectContext.current();
       GreeterGrpc.GreeterFutureStub client = GreeterGrpc.newFutureStub(ctx.grpcChannel());
       String response;
       try {

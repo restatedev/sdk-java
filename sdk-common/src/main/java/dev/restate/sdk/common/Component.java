@@ -8,9 +8,12 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.common;
 
-/**
- * Marker interface for non-blocking services. This is used by some service endpoint implementations
- * (like http-vertx) to select on which executor/context the service code should be executed. Refer
- * to the *EndpointBuilder javadocs for more details.
- */
-public interface NonBlockingService extends Service {}
+import dev.restate.sdk.common.syscalls.ComponentDefinition;
+import io.grpc.BindableService;
+
+/** Marker interface for a Restate component. */
+public interface Component extends BindableService {
+  default ComponentDefinition definition() {
+    return null;
+  }
+}

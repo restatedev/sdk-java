@@ -9,7 +9,7 @@
 package dev.restate.sdk.workflow.impl;
 
 import com.google.protobuf.Empty;
-import dev.restate.sdk.KeyedContext;
+import dev.restate.sdk.ObjectContext;
 import dev.restate.sdk.workflow.DurablePromiseHandle;
 import dev.restate.sdk.workflow.DurablePromiseKey;
 import dev.restate.sdk.workflow.generated.CompleteDurablePromiseRequest;
@@ -22,12 +22,12 @@ public final class DurablePromiseHandleImpl<T> implements DurablePromiseHandle<T
   private final String workflowKey;
   private final MethodDescriptor<CompleteDurablePromiseRequest, Empty>
       workflowManagerCompleteDurablePromise;
-  private final KeyedContext ctx;
+  private final ObjectContext ctx;
   private final DurablePromiseKey<T> key;
 
   DurablePromiseHandleImpl(
       String workflowKey,
-      KeyedContext ctx,
+      ObjectContext ctx,
       MethodDescriptor<CompleteDurablePromiseRequest, Empty> workflowManagerCompleteDurablePromise,
       DurablePromiseKey<T> key) {
     this.workflowKey = workflowKey;

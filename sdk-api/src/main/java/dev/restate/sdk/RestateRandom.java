@@ -21,9 +21,9 @@ import java.util.UUID;
  *
  * <p>This instance is useful to generate identifiers, idempotency keys, and for uniform sampling
  * from a set of options. If a cryptographically secure value is needed, please generate that
- * externally using {@link KeyedContext#sideEffect(Serde, ThrowingSupplier)}.
+ * externally using {@link ObjectContext#sideEffect(Serde, ThrowingSupplier)}.
  *
- * <p>You MUST NOT use this object inside a {@link KeyedContext#sideEffect(Serde,
+ * <p>You MUST NOT use this object inside a {@link ObjectContext#sideEffect(Serde,
  * ThrowingSupplier)}.
  */
 public class RestateRandom extends Random {

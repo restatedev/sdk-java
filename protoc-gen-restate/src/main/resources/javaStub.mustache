@@ -3,7 +3,7 @@ package {{packageName}};
 {{/packageName}}
 
 import dev.restate.sdk.Context;
-import dev.restate.sdk.KeyedContext;
+import dev.restate.sdk.ObjectContext;
 import dev.restate.sdk.Awaitable;
 import dev.restate.sdk.common.syscalls.Syscalls;
 import java.time.Duration;
@@ -16,7 +16,7 @@ public class {{className}} {
     private {{className}}() {}
 
     /**
-     * Create a new client from the given {@link KeyedContext}.
+     * Create a new client from the given {@link ObjectContext}.
      */
     public static {{serviceName}}RestateClient newClient(Context ctx) {
         return new {{serviceName}}RestateClient(ctx);
@@ -87,7 +87,7 @@ public class {{className}} {
     }
 
 {{{apidoc}}}
-    public static abstract class {{serviceName}}RestateImplBase implements dev.restate.sdk.RestateService {
+    public static abstract class {{serviceName}}RestateImplBase implements dev.restate.sdk.Component {
 
         {{#methods}}
         {{#deprecated}}
@@ -114,34 +114,34 @@ public class {{className}} {
     private static final class HandlerAdapter<Req, Resp> implements
         io.grpc.stub.ServerCalls.UnaryMethod<Req, Resp> {
 
-        private final java.util.function.BiFunction<KeyedContext, Req, Resp> handler;
+        private final java.util.function.BiFunction<ObjectContext, Req, Resp> handler;
 
-        private HandlerAdapter(java.util.function.BiFunction<KeyedContext, Req, Resp> handler) {
+        private HandlerAdapter(java.util.function.BiFunction<ObjectContext, Req, Resp> handler) {
             this.handler = handler;
         }
 
         @Override
         public void invoke(Req request, io.grpc.stub.StreamObserver<Resp> responseObserver) {
-            responseObserver.onNext(handler.apply(KeyedContext.fromSyscalls(Syscalls.current()), request));
+            responseObserver.onNext(handler.apply(ObjectContext.fromSyscalls(Syscalls.current()), request));
             responseObserver.onCompleted();
         }
 
-        private static <Req, Resp> HandlerAdapter<Req, Resp> of(java.util.function.BiFunction<KeyedContext, Req, Resp> handler) {
+        private static <Req, Resp> HandlerAdapter<Req, Resp> of(java.util.function.BiFunction<ObjectContext, Req, Resp> handler) {
             return new HandlerAdapter<>(handler);
         }
 
-        private static <Resp> HandlerAdapter<com.google.protobuf.Empty, Resp> of(java.util.function.Function<KeyedContext, Resp> handler) {
+        private static <Resp> HandlerAdapter<com.google.protobuf.Empty, Resp> of(java.util.function.Function<ObjectContext, Resp> handler) {
             return new HandlerAdapter<>((ctx, e) -> handler.apply(ctx));
         }
 
-        private static <Req> HandlerAdapter<Req, com.google.protobuf.Empty> of(java.util.function.BiConsumer<KeyedContext, Req> handler) {
+        private static <Req> HandlerAdapter<Req, com.google.protobuf.Empty> of(java.util.function.BiConsumer<ObjectContext, Req> handler) {
             return new HandlerAdapter<>((ctx, req) -> {
                 handler.accept(ctx, req);
                 return com.google.protobuf.Empty.getDefaultInstance();
             });
         }
 
-        private static HandlerAdapter<com.google.protobuf.Empty, com.google.protobuf.Empty> of(java.util.function.Consumer<KeyedContext> handler) {
+        private static HandlerAdapter<com.google.protobuf.Empty, com.google.protobuf.Empty> of(java.util.function.Consumer<ObjectContext> handler) {
             return new HandlerAdapter<>((ctx, req) -> {
                 handler.accept(ctx);
                 return com.google.protobuf.Empty.getDefaultInstance();

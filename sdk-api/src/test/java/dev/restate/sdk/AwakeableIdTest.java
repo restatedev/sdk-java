@@ -20,12 +20,11 @@ import io.grpc.stub.StreamObserver;
 
 public class AwakeableIdTest extends AwakeableIdTestSuite {
 
-  private static class ReturnAwakeableId extends GreeterGrpc.GreeterImplBase
-      implements RestateService {
+  private static class ReturnAwakeableId extends GreeterGrpc.GreeterImplBase implements Component {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      String id = KeyedContext.current().awakeable(CoreSerdes.JSON_STRING).id();
+      String id = ObjectContext.current().awakeable(CoreSerdes.JSON_STRING).id();
       responseObserver.onNext(greetingResponse(id));
       responseObserver.onCompleted();
     }

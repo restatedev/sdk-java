@@ -14,6 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.MessageLiteOrBuilder;
 import dev.restate.generated.service.protocol.Protocol;
+import dev.restate.sdk.common.BlockingComponent;
 import io.grpc.BindableService;
 import io.grpc.MethodDescriptor;
 import java.util.*;
@@ -22,6 +23,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
+import org.junit.platform.commons.util.Preconditions;
 
 public final class TestDefinitions {
 
@@ -58,10 +60,6 @@ public final class TestDefinitions {
     void executeTest(TestDefinition definition);
   }
 
-  public static TestInvocationBuilder testInvocation(BindableService svc, String method) {
-    return new TestInvocationBuilder(svc, method);
-  }
-
   public static TestInvocationBuilder testInvocation(
       BindableService svc, MethodDescriptor<?, ?> method) {
     return testInvocation(svc, method.getBareMethodName());
@@ -69,11 +67,31 @@ public final class TestDefinitions {
 
   public static TestInvocationBuilder testInvocation(
       Supplier<BindableService> svc, MethodDescriptor<?, ?> method) {
+    return testInvocation(svc::get, method.getBareMethodName());
+  }
+
+  public static TestInvocationBuilder testInvocation(Supplier<Object> svcSupplier, String method) {
+    Object svc;
     try {
-      return testInvocation(svc.get(), method.getBareMethodName());
+      svc = svcSupplier.get();
     } catch (UnsupportedOperationException e) {
       return new TestInvocationBuilder(Objects.requireNonNull(e.getMessage()));
     }
+
+    // If we're testing a gRPC service
+    if (svc instanceof BindableService) {
+      return new TestInvocationBuilder((BindableService) svc, method);
+    }
+
+    // For handler API service
+    List<BlockingComponent> bundle = RestateEndpoint.discoverAdapter(svc).adapt(svc).components();
+    Preconditions.condition(
+        bundle.size() == 1, "This test infra supports only 1 service, was " + bundle.size());
+    return new TestInvocationBuilder(bundle.get(0), method);
+  }
+
+  private static TestInvocationBuilder testInvocation(BindableService svc, String method) {
+    return new TestInvocationBuilder(svc, method);
   }
 
   public static class TestInvocationBuilder {

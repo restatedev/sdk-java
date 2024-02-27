@@ -6,7 +6,7 @@ For a sample project configuration and more elaborated examples, check out the t
 
 Available examples:
 
-* [`Counter`](src/main/java/dev/restate/sdk/examples/Counter.java): Shows a simple service using state primitives.
+* [`Counter`](src/main/java/dev/restate/sdk/examples/Counter.java): Shows a simple virtual object using state primitives.
 * [`VanillaGrpcCounter`](src/main/java/dev/restate/sdk/examples/VanillaGrpcCounter.java): Same as `Counter` but using the vanilla gRPC code generator output.
 * [`CounterKt`](src/main/kotlin/dev/restate/sdk/examples/CounterKt.kt): Same as `Counter` but using Kotlin.
 
@@ -22,11 +22,11 @@ You'll find the shadowed jar in the `build` directory.
 
 The class to configure in Lambda is `dev.restate.sdk.examples.LambdaHandler`.
 
-By default, the [`dev.restate.sdk.examples.Counter`](src/main/java/dev/restate/sdk/examples/Counter.java) service is deployed. Set the env variable `LAMBDA_FACTORY_SERVICE_CLASS` to one of the available example classes to change the deployed class.
+By default, the [`dev.restate.sdk.examples.Counter`](src/main/java/dev/restate/sdk/examples/Counter.java) component is deployed. Set the env variable `LAMBDA_FACTORY_SERVICE_CLASS` to one of the available example classes to change the deployed class.
 
 ## Running the examples (HTTP)
 
-You can run the Java counter service via:
+You can run the Java counter component via:
 
 ```shell
 ./gradlew :examples:run
@@ -38,9 +38,9 @@ You can modify the class to run setting `-PmainClass=<FQCN>`, for example, in or
 ./gradlew :examples:run -PmainClass=dev.restate.sdk.examples.CounterKt
 ```
 
-## Invoking the counter service
+## Invoking the counter component
 
-If you want to invoke the counter service via [grpcurl](https://github.com/fullstorydev/grpcurl):
+If you want to invoke the counter component via [grpcurl](https://github.com/fullstorydev/grpcurl):
 
 ```shell
 grpcurl -plaintext -d '{"counter_name": "my_counter"}' localhost:9090 counter.Counter/Get

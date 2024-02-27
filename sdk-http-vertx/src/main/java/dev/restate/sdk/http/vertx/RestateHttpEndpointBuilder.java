@@ -9,9 +9,9 @@
 package dev.restate.sdk.http.vertx;
 
 import dev.restate.generated.service.discovery.Discovery;
-import dev.restate.sdk.common.BlockingService;
-import dev.restate.sdk.common.NonBlockingService;
-import dev.restate.sdk.common.ServiceAdapter;
+import dev.restate.sdk.common.BlockingComponent;
+import dev.restate.sdk.common.ComponentAdapter;
+import dev.restate.sdk.common.NonBlockingComponent;
 import dev.restate.sdk.core.RestateEndpoint;
 import io.grpc.ServerInterceptor;
 import io.grpc.ServerInterceptors;
@@ -77,26 +77,26 @@ public class RestateHttpEndpointBuilder {
   }
 
   /**
-   * Add a {@link BlockingService} to the endpoint.
+   * Add a {@link BlockingComponent} to the endpoint.
    *
    * <p>NOTE: The service code will run within the Vert.x worker thread pool. For more details,
    * check the <a href="https://vertx.io/docs/vertx-core/java/#blocking_code">Vert.x
    * documentation</a>.
    */
   public RestateHttpEndpointBuilder withService(
-      BlockingService service, ServerInterceptor... interceptors) {
+      BlockingComponent service, ServerInterceptor... interceptors) {
     return this.withService(service, defaultExecutor, interceptors);
   }
 
   /**
-   * Add a {@link BlockingService} to the endpoint, specifying the {@code executor} where to run the
-   * service code.
+   * Add a {@link BlockingComponent} to the endpoint, specifying the {@code executor} where to run
+   * the service code.
    *
    * <p>You can run on virtual threads by using the executor {@code
    * Executors.newVirtualThreadPerTaskExecutor()}.
    */
   public RestateHttpEndpointBuilder withService(
-      BlockingService service, Executor executor, ServerInterceptor... interceptors) {
+      BlockingComponent service, Executor executor, ServerInterceptor... interceptors) {
     ServerServiceDefinition definition =
         ServerInterceptors.intercept(service, Arrays.asList(interceptors));
     this.restateGrpcServerBuilder.withService(definition);
@@ -105,14 +105,14 @@ public class RestateHttpEndpointBuilder {
   }
 
   /**
-   * Add a {@link NonBlockingService} to the endpoint.
+   * Add a {@link NonBlockingComponent} to the endpoint.
    *
    * <p>NOTE: The service code will run within the same Vert.x event loop thread handling the HTTP
    * stream, hence the code should never block the thread. For more details, check the <a
    * href="https://vertx.io/docs/vertx-core/java/#golden_rule">Vert.x documentation</a>.
    */
   public RestateHttpEndpointBuilder withService(
-      NonBlockingService service, ServerInterceptor... interceptors) {
+      NonBlockingComponent service, ServerInterceptor... interceptors) {
     this.restateGrpcServerBuilder.withService(
         ServerInterceptors.intercept(service, Arrays.asList(interceptors)));
     return this;
@@ -121,7 +121,7 @@ public class RestateHttpEndpointBuilder {
   /**
    * Add a Restate service to the endpoint. This will automatically discover the adapter based on
    * the class name. You can provide the adapter manually using {@link #with(Object,
-   * ServiceAdapter)}
+   * ComponentAdapter)}
    */
   public RestateHttpEndpointBuilder with(Object service) {
     return this.with(service, defaultExecutor);
@@ -130,7 +130,7 @@ public class RestateHttpEndpointBuilder {
   /**
    * Add a Restate service to the endpoint, specifying the {@code executor} where to run the service
    * code. This will automatically discover the adapter based on the class name. You can provide the
-   * adapter manually using {@link #with(Object, ServiceAdapter, Executor)}
+   * adapter manually using {@link #with(Object, ComponentAdapter, Executor)}
    *
    * <p>You can run on virtual threads by using the executor {@code
    * Executors.newVirtualThreadPerTaskExecutor()}.
@@ -140,7 +140,7 @@ public class RestateHttpEndpointBuilder {
   }
 
   /** Add a Restate service to the endpoint, specifying an adapter. */
-  public <T> RestateHttpEndpointBuilder with(T service, ServiceAdapter<T> adapter) {
+  public <T> RestateHttpEndpointBuilder with(T service, ComponentAdapter<T> adapter) {
     return this.with(service, adapter, defaultExecutor);
   }
 
@@ -152,9 +152,9 @@ public class RestateHttpEndpointBuilder {
    * Executors.newVirtualThreadPerTaskExecutor()}.
    */
   public <T> RestateHttpEndpointBuilder with(
-      T service, ServiceAdapter<T> adapter, Executor executor) {
-    List<BlockingService> services = adapter.adapt(service).services();
-    for (BlockingService svc : services) {
+      T service, ComponentAdapter<T> adapter, Executor executor) {
+    List<BlockingComponent> services = adapter.adapt(service).components();
+    for (BlockingComponent svc : services) {
       this.withService(svc, executor);
     }
 

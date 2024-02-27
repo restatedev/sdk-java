@@ -1,4 +1,5 @@
 import com.google.protobuf.gradle.id
+import com.google.protobuf.gradle.protobuf
 
 plugins {
   `java-library`
@@ -10,15 +11,20 @@ description = "Restate SDK APIs"
 dependencies {
   api(project(":sdk-common"))
 
-  testCompileOnly(coreLibs.javax.annotation.api)
+  // For the gRPC Ingress client
+  protobuf(project(":sdk-common"))
+
+  implementation(coreLibs.protobuf.util)
+  implementation(coreLibs.grpc.stub)
+  implementation(coreLibs.grpc.protobuf)
+  compileOnly(coreLibs.javax.annotation.api)
 
   testImplementation(project(":sdk-core"))
   testImplementation(testingLibs.junit.jupiter)
   testImplementation(testingLibs.assertj)
   testImplementation(coreLibs.protobuf.java)
-  testImplementation(coreLibs.grpc.stub)
-  testImplementation(coreLibs.grpc.protobuf)
   testImplementation(coreLibs.log4j.core)
+  testCompileOnly(coreLibs.javax.annotation.api)
 
   // Import test suites from sdk-core
   testImplementation(project(":sdk-core", "testArchive"))
@@ -40,6 +46,10 @@ protobuf {
   }
 
   generateProtoTasks {
+    ofSourceSet("main").forEach {
+      it.builtins { java }
+      it.plugins { id("grpc") }
+    }
     ofSourceSet("test").forEach {
       // Make sure we depend on shadowJar from protoc-gen-restate
       it.dependsOn(":protoc-gen-restate:shadowJar")

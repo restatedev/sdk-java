@@ -26,10 +26,10 @@ import kotlinx.serialization.json.Json
 
 class StateTest : StateTestSuite() {
   private class GetState :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
       val state: String =
-          KeyedContext.current().get(StateKey.of("STATE", CoreSerdes.JSON_STRING)) ?: "Unknown"
+          ObjectContext.current().get(StateKey.of("STATE", CoreSerdes.JSON_STRING)) ?: "Unknown"
       return greetingResponse { message = "Hello $state" }
     }
   }
@@ -39,9 +39,9 @@ class StateTest : StateTestSuite() {
   }
 
   private class GetAndSetState :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx = KeyedContext.current()
+      val ctx = ObjectContext.current()
 
       val state = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))!!
       ctx.set(StateKey.of("STATE", CoreSerdes.JSON_STRING), request.getName())
@@ -68,7 +68,7 @@ class StateTest : StateTestSuite() {
       val DATA: StateKey<Data> = StateKey.of("STATE", KtSerdes.json())
     }
 
-    override suspend fun greet(context: KeyedContext, request: GreetingRequest): GreetingResponse {
+    override suspend fun greet(context: ObjectContext, request: GreetingRequest): GreetingResponse {
       val state = context.get(DATA)!!
       state.a += 1
       context.set(DATA, state)

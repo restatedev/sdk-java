@@ -14,6 +14,7 @@ import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.generated.service.protocol.Protocol.PollInputStreamEntryMessage;
 import dev.restate.sdk.common.InvocationId;
+import dev.restate.sdk.common.Target;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.common.syscalls.*;
 import dev.restate.sdk.core.DeferredResults.SingleDeferredInternal;
@@ -175,6 +176,56 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
+  public void call(
+      Target target, ByteString parameter, SyscallCallback<Deferred<ByteString>> callback) {
+    wrapAndPropagateExceptions(
+        () -> {
+          LOG.trace("call {}", target);
+
+          Protocol.InvokeEntryMessage.Builder builder =
+              Protocol.InvokeEntryMessage.newBuilder()
+                  .setServiceName(target.getComponent())
+                  .setMethodName(target.getHandler())
+                  .setParameter(parameter);
+          if (target.getKey() != null) {
+            // TODO add key!
+          }
+
+          this.stateMachine.processCompletableJournalEntry(
+              builder.build(), new InvokeEntry<>(Result::success), callback);
+        },
+        callback);
+  }
+
+  @Override
+  public void send(
+      Target target,
+      ByteString parameter,
+      @Nullable Duration delay,
+      SyscallCallback<Void> callback) {
+    wrapAndPropagateExceptions(
+        () -> {
+          LOG.trace("backgroundCall {}", target);
+
+          Protocol.BackgroundInvokeEntryMessage.Builder builder =
+              Protocol.BackgroundInvokeEntryMessage.newBuilder()
+                  .setServiceName(target.getComponent())
+                  .setMethodName(target.getHandler())
+                  .setParameter(parameter);
+          if (target.getKey() != null) {
+            // TODO add key!
+          }
+          if (delay != null) {
+            builder.setInvokeTime(Instant.now().toEpochMilli() + delay.toMillis());
+          }
+
+          this.stateMachine.processJournalEntry(
+              builder.build(), BackgroundInvokeEntry.INSTANCE, callback);
+        },
+        callback);
+  }
+
+  @Override
   public <T, R> void call(
       MethodDescriptor<T, R> methodDescriptor, T parameter, SyscallCallback<Deferred<R>> callback) {
     wrapAndPropagateExceptions(
@@ -197,7 +248,7 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public <T> void backgroundCall(
+  public <T> void send(
       MethodDescriptor<T, ?> methodDescriptor,
       T parameter,
       @Nullable Duration delay,

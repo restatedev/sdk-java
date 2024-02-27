@@ -1,0 +1,31 @@
+// Copyright (c) 2023 - Restate Software, Inc., Restate GmbH
+//
+// This file is part of the Restate Java SDK,
+// which is released under the MIT license.
+//
+// You can find a copy of the license in file LICENSE in the root
+// directory of this repository or package, or at
+// https://github.com/restatedev/sdk-java/blob/main/LICENSE
+syntax = "proto3";
+
+package dev.restate.sdk.dynrpc;
+
+import "google/protobuf/struct.proto";
+import "dev/restate/ext.proto";
+
+option java_multiple_files = true;
+option java_package = "dev.restate.sdk.dynrpc.generated";
+option java_outer_classname = "DynRpcProto";
+
+message RpcRequest {
+  google.protobuf.Value request = 1;
+}
+
+message KeyedRpcRequest {
+  string key = 1 [(dev.restate.ext.field) = KEY];
+  google.protobuf.Value request = 2;
+}
+
+message RpcResponse {
+  google.protobuf.Value response = 1;
+}

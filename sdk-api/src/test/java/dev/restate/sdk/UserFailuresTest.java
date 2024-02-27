@@ -27,7 +27,7 @@ import java.util.stream.Stream;
 public class UserFailuresTest extends UserFailuresTestSuite {
 
   private static class ThrowIllegalStateException extends GreeterGrpc.GreeterImplBase
-      implements RestateService {
+      implements Component {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       throw new IllegalStateException("Whatever");
@@ -40,7 +40,7 @@ public class UserFailuresTest extends UserFailuresTestSuite {
   }
 
   private static class SideEffectThrowIllegalStateException extends GreeterGrpc.GreeterImplBase
-      implements RestateService {
+      implements Component {
 
     private final AtomicInteger nonTerminalExceptionsSeen;
 
@@ -51,7 +51,7 @@ public class UserFailuresTest extends UserFailuresTestSuite {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       try {
-        KeyedContext.current()
+        ObjectContext.current()
             .sideEffect(
                 () -> {
                   throw new IllegalStateException("Whatever");
@@ -76,7 +76,7 @@ public class UserFailuresTest extends UserFailuresTestSuite {
   }
 
   private static class ThrowTerminalException extends GreeterGrpc.GreeterImplBase
-      implements RestateService {
+      implements Component {
 
     private final TerminalException.Code code;
     private final String message;
@@ -98,7 +98,7 @@ public class UserFailuresTest extends UserFailuresTestSuite {
   }
 
   private static class SideEffectThrowTerminalException extends GreeterGrpc.GreeterImplBase
-      implements RestateService {
+      implements Component {
 
     private final TerminalException.Code code;
     private final String message;
@@ -110,7 +110,7 @@ public class UserFailuresTest extends UserFailuresTestSuite {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      KeyedContext.current()
+      ObjectContext.current()
           .sideEffect(
               () -> {
                 throw new TerminalException(code, message);
@@ -127,7 +127,7 @@ public class UserFailuresTest extends UserFailuresTestSuite {
   // -- Response observer is something specific to the sdk-java interface
 
   private static class ResponseObserverOnErrorTerminalException extends GreeterGrpc.GreeterImplBase
-      implements RestateService {
+      implements Component {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       responseObserver.onError(new TerminalException(TerminalException.Code.INTERNAL, MY_ERROR));
@@ -135,7 +135,7 @@ public class UserFailuresTest extends UserFailuresTestSuite {
   }
 
   private static class ResponseObserverOnErrorIllegalStateException
-      extends GreeterGrpc.GreeterImplBase implements RestateService {
+      extends GreeterGrpc.GreeterImplBase implements Component {
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
       responseObserver.onError(new IllegalStateException("Whatever"));

@@ -6,8 +6,11 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-package dev.restate.sdk.annotation;
+package dev.restate.sdk.common.syscalls;
 
-public enum ServiceType {
-  WORKFLOW
+import com.google.protobuf.ByteString;
+
+public interface InvocationHandler {
+
+  void handle(Syscalls syscalls, ByteString input, SyscallCallback<ByteString> callback);
 }

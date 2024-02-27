@@ -20,11 +20,11 @@ import java.util.List;
 
 public class SleepTest extends SleepTestSuite {
 
-  private static class SleepGreeter extends GreeterGrpc.GreeterImplBase implements RestateService {
+  private static class SleepGreeter extends GreeterGrpc.GreeterImplBase implements Component {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      KeyedContext ctx = KeyedContext.current();
+      ObjectContext ctx = ObjectContext.current();
 
       ctx.sleep(Duration.ofSeconds(1));
 
@@ -38,11 +38,11 @@ public class SleepTest extends SleepTestSuite {
     return new SleepGreeter();
   }
 
-  private static class ManySleeps extends GreeterGrpc.GreeterImplBase implements RestateService {
+  private static class ManySleeps extends GreeterGrpc.GreeterImplBase implements Component {
 
     @Override
     public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      KeyedContext ctx = KeyedContext.current();
+      ObjectContext ctx = ObjectContext.current();
       List<Awaitable<?>> collectedAwaitables = new ArrayList<>();
 
       for (int i = 0; i < 10; i++) {

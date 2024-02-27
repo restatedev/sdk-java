@@ -19,9 +19,9 @@ import kotlinx.coroutines.Dispatchers
 
 class SleepTest : SleepTestSuite() {
   private class SleepGreeter :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx = KeyedContext.current()
+      val ctx = ObjectContext.current()
       ctx.sleep(1000.milliseconds)
       return greetingResponse { message = "Hello" }
     }
@@ -32,9 +32,9 @@ class SleepTest : SleepTestSuite() {
   }
 
   private class ManySleeps :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtService {
+      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
     override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx = KeyedContext.current()
+      val ctx = ObjectContext.current()
       val awaitables = mutableListOf<Awaitable<Unit>>()
       for (i in 0..9) {
         awaitables.add(ctx.timer(1000.milliseconds))

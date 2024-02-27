@@ -1,0 +1,42 @@
+{{#if originalClassPkg}}package {{originalClassPkg}};{{/if}}
+
+public class {{generatedClassSimpleName}} implements dev.restate.sdk.common.ComponentAdapter<{{originalClassFqcn}}> {
+
+    public static final String SERVICE_NAME = "{{componentName}}";
+
+    @java.lang.Override
+    public dev.restate.sdk.workflow.impl.WorkflowComponentBundle adapt({{originalClassFqcn}} component) {
+        return dev.restate.sdk.workflow.impl.WorkflowComponentBundle.named(
+            SERVICE_NAME,
+            {{#methods}}{{#if isWorkflow}}
+            dev.restate.sdk.dynrpc.JavaComponent.HandlerSignature.of("{{name}}", {{{inputSerdeDecl}}}, {{{outputSerdeDecl}}}),
+            (ctx, req) -> {
+            {{#if outputEmpty}}
+                {{#if inputEmpty}}component.{{name}}(ctx){{else}}component.{{name}}(ctx, req){{/if}};
+                return null;
+            {{else}}
+                return {{#if inputEmpty}}component.{{name}}(ctx){{else}}component.{{name}}(ctx, req){{/if}};
+            {{/if}}
+            }
+            {{/if}}{{/methods}})
+            {{#methods}}{{#if isShared}}
+            .with{{capitalizeFirst (lower methodType)}}(
+            dev.restate.sdk.dynrpc.JavaComponent.HandlerSignature.of("{{name}}", {{{inputSerdeDecl}}}, {{{outputSerdeDecl}}}),
+            (ctx, req) -> {
+                {{#if outputEmpty}}
+                {{#if inputEmpty}}component.{{name}}(ctx){{else}}component.{{name}}(ctx, req){{/if}};
+                return null;
+                {{else}}
+                return {{#if inputEmpty}}component.{{name}}(ctx){{else}}component.{{name}}(ctx, req){{/if}};
+                {{/if}}
+            })
+            {{/if}}{{/methods}}
+            .build();
+    }
+
+    @java.lang.Override
+    public boolean supportsObject(Object serviceObject) {
+        return serviceObject instanceof {{originalClassFqcn}};
+    }
+
+}

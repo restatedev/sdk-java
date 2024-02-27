@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.examples;
 
-import dev.restate.sdk.KeyedContext;
+import dev.restate.sdk.ObjectContext;
 import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.common.StateKey;
 import dev.restate.sdk.examples.generated.*;
@@ -23,26 +23,26 @@ public class Counter extends CounterRestate.CounterRestateImplBase {
   private static final StateKey<Long> TOTAL = StateKey.of("total", CoreSerdes.JSON_LONG);
 
   @Override
-  public void reset(KeyedContext ctx, CounterRequest request) {
+  public void reset(ObjectContext ctx, CounterRequest request) {
     ctx.clear(TOTAL);
   }
 
   @Override
-  public void add(KeyedContext ctx, CounterAddRequest request) {
+  public void add(ObjectContext ctx, CounterAddRequest request) {
     long currentValue = ctx.get(TOTAL).orElse(0L);
     long newValue = currentValue + request.getValue();
     ctx.set(TOTAL, newValue);
   }
 
   @Override
-  public GetResponse get(KeyedContext ctx, CounterRequest request) {
+  public GetResponse get(ObjectContext ctx, CounterRequest request) {
     long currentValue = ctx.get(TOTAL).orElse(0L);
 
     return GetResponse.newBuilder().setValue(currentValue).build();
   }
 
   @Override
-  public CounterUpdateResult getAndAdd(KeyedContext ctx, CounterAddRequest request) {
+  public CounterUpdateResult getAndAdd(ObjectContext ctx, CounterAddRequest request) {
     LOG.info("Invoked get and add with " + request.getValue());
 
     long currentValue = ctx.get(TOTAL).orElse(0L);

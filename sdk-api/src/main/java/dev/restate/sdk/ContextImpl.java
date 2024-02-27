@@ -24,7 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-class ContextImpl implements KeyedContext {
+class ContextImpl implements ObjectContext {
 
   private final Syscalls syscalls;
 
@@ -86,15 +86,35 @@ class ContextImpl implements KeyedContext {
   }
 
   @Override
+  public <T, R> Awaitable<R> call(
+      Target target, Serde<T> inputSerde, Serde<R> outputSerde, T parameter) {
+    ByteString input = Util.serializeWrappingException(syscalls, inputSerde, parameter);
+    Deferred<ByteString> result = Util.blockOnSyscall(cb -> syscalls.call(target, input, cb));
+    return Awaitable.single(syscalls, result)
+        .map(bs -> Util.deserializeWrappingException(syscalls, outputSerde, bs));
+  }
+
+  @Override
+  public <T> void oneWayCall(Target target, Serde<T> inputSerde, T parameter) {
+    ByteString input = Util.serializeWrappingException(syscalls, inputSerde, parameter);
+    Util.<Void>blockOnSyscall(cb -> syscalls.send(target, input, null, cb));
+  }
+
+  @Override
   public <T> void oneWayCall(MethodDescriptor<T, ?> methodDescriptor, T parameter) {
-    Util.<Void>blockOnSyscall(cb -> syscalls.backgroundCall(methodDescriptor, parameter, null, cb));
+    Util.<Void>blockOnSyscall(cb -> syscalls.send(methodDescriptor, parameter, null, cb));
+  }
+
+  @Override
+  public <T> void delayedCall(Target target, Serde<T> inputSerde, T parameter, Duration delay) {
+    ByteString input = Util.serializeWrappingException(syscalls, inputSerde, parameter);
+    Util.<Void>blockOnSyscall(cb -> syscalls.send(target, input, delay, cb));
   }
 
   @Override
   public <T> void delayedCall(
       MethodDescriptor<T, ?> methodDescriptor, T parameter, Duration delay) {
-    Util.<Void>blockOnSyscall(
-        cb -> syscalls.backgroundCall(methodDescriptor, parameter, delay, cb));
+    Util.<Void>blockOnSyscall(cb -> syscalls.send(methodDescriptor, parameter, delay, cb));
   }
 
   @Override

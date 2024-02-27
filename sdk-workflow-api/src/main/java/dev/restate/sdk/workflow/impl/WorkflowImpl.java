@@ -11,11 +11,12 @@ package dev.restate.sdk.workflow.impl;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.Empty;
 import com.google.protobuf.Value;
-import dev.restate.sdk.KeyedContext;
-import dev.restate.sdk.RestateService;
+import dev.restate.sdk.Component;
+import dev.restate.sdk.ObjectContext;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.common.syscalls.Syscalls;
+import dev.restate.sdk.dynrpc.CodegenUtils;
 import dev.restate.sdk.workflow.WorkflowContext;
 import dev.restate.sdk.workflow.generated.*;
 import dev.restate.sdk.workflow.template.generated.WorkflowGrpc;
@@ -32,16 +33,16 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
 
-class WorkflowImpl implements RestateService {
+class WorkflowImpl implements Component {
 
-  private final WorkflowServicesBundle workflowServicesBundle;
+  private final WorkflowComponentBundle workflowServicesBundle;
   private final ServerServiceDefinition serverServiceDefinition;
   private final MethodDescriptor<StartRequest, StartResponse> workflowManagerTryStart;
   private final MethodDescriptor<SetOutputRequest, Empty> workflowManagerSetOutput;
   private final MethodDescriptor<InvokeRequest, Empty> workflowInternalStart;
 
   WorkflowImpl(
-      WorkflowServicesBundle workflowServicesBundle,
+      WorkflowComponentBundle workflowServicesBundle,
       WorkflowMangledDescriptors mangledDescriptors) {
     this.workflowServicesBundle = workflowServicesBundle;
 
@@ -69,26 +70,26 @@ class WorkflowImpl implements RestateService {
   }
 
   private void submit(
-      KeyedContext keyedContext,
+      ObjectContext objectContext,
       InvokeRequest invokeRequest,
       StreamObserver<SubmitResponse> streamObserver) {
     // Try start
     var response =
-        keyedContext
+        objectContext
             .call(
                 workflowManagerTryStart,
                 StartRequest.newBuilder().setKey(invokeRequest.getKey()).build())
             .await();
     if (response.getState().equals(WorkflowExecutionState.STARTED)) {
       // Schedule start
-      keyedContext.oneWayCall(this.workflowInternalStart, invokeRequest);
+      objectContext.oneWayCall(this.workflowInternalStart, invokeRequest);
     }
 
     replySuccess(SubmitResponse.newBuilder().setState(response.getState()).build(), streamObserver);
   }
 
   private void internalStart(
-      KeyedContext keyedContext,
+      ObjectContext objectContext,
       InvokeRequest invokeRequest,
       StreamObserver<Empty> streamObserver) {
     // We can start now!
@@ -96,13 +97,13 @@ class WorkflowImpl implements RestateService {
     try {
       // Convert input
       Object input =
-          WorkflowCodegenUtil.valueToT(
+          CodegenUtils.valueToT(
               workflowServicesBundle.getSig().getRequestSerde(), invokeRequest.getPayload());
 
       // Invoke method
       WorkflowContext ctx =
           new WorkflowContextImpl(
-              workflowServicesBundle.getName(), keyedContext, invokeRequest.getKey(), true);
+              workflowServicesBundle.getName(), objectContext, invokeRequest.getKey(), true);
       @SuppressWarnings("unchecked")
       Object output =
           ((BiFunction<WorkflowContext, Object, Object>) workflowServicesBundle.getRunner())
@@ -110,11 +111,11 @@ class WorkflowImpl implements RestateService {
 
       //noinspection unchecked
       valueOutput =
-          WorkflowCodegenUtil.tToValue(
+          CodegenUtils.tToValue(
               (Serde<? super Object>) workflowServicesBundle.getSig().getResponseSerde(), output);
     } catch (TerminalException e) {
       // Intercept TerminalException to record it
-      keyedContext.oneWayCall(
+      objectContext.oneWayCall(
           workflowManagerSetOutput,
           SetOutputRequest.newBuilder()
               .setKey(invokeRequest.getKey())
@@ -129,7 +130,7 @@ class WorkflowImpl implements RestateService {
     }
 
     // Record output
-    keyedContext.oneWayCall(
+    objectContext.oneWayCall(
         workflowManagerSetOutput,
         SetOutputRequest.newBuilder()
             .setKey(invokeRequest.getKey())
@@ -141,13 +142,13 @@ class WorkflowImpl implements RestateService {
 
   private void invokeSharedMethod(
       String methodName,
-      KeyedContext context,
+      ObjectContext context,
       InvokeRequest request,
       StreamObserver<Value> streamObserver) {
     // Lookup the method
     @SuppressWarnings("unchecked")
-    WorkflowServicesBundle.Method<Object, Object> method =
-        (WorkflowServicesBundle.Method<Object, Object>)
+    WorkflowComponentBundle.Method<Object, Object> method =
+        (WorkflowComponentBundle.Method<Object, Object>)
             workflowServicesBundle.getSharedMethod(methodName);
     if (method == null) {
       throw new TerminalException(
@@ -156,8 +157,7 @@ class WorkflowImpl implements RestateService {
 
     // Convert input
     Object input =
-        WorkflowCodegenUtil.valueToT(
-            method.getMethodSignature().getRequestSerde(), request.getPayload());
+        CodegenUtils.valueToT(method.getMethodSignature().getRequestSerde(), request.getPayload());
 
     // Invoke method
     WorkflowContext ctx =
@@ -166,7 +166,7 @@ class WorkflowImpl implements RestateService {
     Object output = method.run(ctx, input);
 
     replySuccess(
-        WorkflowCodegenUtil.tToValue(method.getMethodSignature().getResponseSerde(), output),
+        CodegenUtils.tToValue(method.getMethodSignature().getResponseSerde(), output),
         streamObserver);
   }
 
@@ -244,13 +244,17 @@ class WorkflowImpl implements RestateService {
         ServerCalls.asyncUnaryCall(
             (invokeRequest, streamObserver) ->
                 this.submit(
-                    KeyedContext.fromSyscalls(Syscalls.current()), invokeRequest, streamObserver)));
+                    ObjectContext.fromSyscalls(Syscalls.current()),
+                    invokeRequest,
+                    streamObserver)));
     serverServiceDefinitionBuilder.addMethod(
         internalStartMethodDescriptor,
         ServerCalls.asyncUnaryCall(
             (invokeRequest, streamObserver) ->
                 this.internalStart(
-                    KeyedContext.fromSyscalls(Syscalls.current()), invokeRequest, streamObserver)));
+                    ObjectContext.fromSyscalls(Syscalls.current()),
+                    invokeRequest,
+                    streamObserver)));
 
     // Compute shared methods
     for (var method : methods.entrySet()) {
@@ -262,7 +266,7 @@ class WorkflowImpl implements RestateService {
               (invokeRequest, streamObserver) ->
                   this.invokeSharedMethod(
                       method.getKey(),
-                      KeyedContext.fromSyscalls(Syscalls.current()),
+                      ObjectContext.fromSyscalls(Syscalls.current()),
                       invokeRequest,
                       streamObserver));
 

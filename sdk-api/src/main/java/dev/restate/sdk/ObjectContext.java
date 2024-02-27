@@ -16,13 +16,13 @@ import javax.annotation.Nonnull;
 import javax.annotation.concurrent.NotThreadSafe;
 
 /**
- * This interface extends {@link Context} adding access to the service instance key-value state
- * storage
+ * This interface extends {@link Context} adding access to the virtual object instance key-value
+ * state storage
  *
  * @see Context
  */
 @NotThreadSafe
-public interface KeyedContext extends Context {
+public interface ObjectContext extends Context {
 
   /**
    * Gets the state stored under key, deserializing the raw value using the {@link Serde} in the
@@ -36,7 +36,7 @@ public interface KeyedContext extends Context {
   <T> Optional<T> get(StateKey<T> key);
 
   /**
-   * Gets all the known state keys for this service instance.
+   * Gets all the known state keys for this virtual object instance.
    *
    * @return the immutable collection of known state keys.
    */
@@ -49,7 +49,7 @@ public interface KeyedContext extends Context {
    */
   void clear(StateKey<?> key);
 
-  /** Clears all the state of this service instance key-value state storage */
+  /** Clears all the state of this virtual object instance key-value state storage */
   void clearAll();
 
   /**
@@ -62,16 +62,16 @@ public interface KeyedContext extends Context {
   <T> void set(StateKey<T> key, @Nonnull T value);
 
   /**
-   * Create a {@link KeyedContext}. This will look up the thread-local/async-context storage for the
-   * underlying context implementation, so make sure to call it always from the same context where
-   * the service is executed.
+   * Create a {@link ObjectContext}. This will look up the thread-local/async-context storage for
+   * the underlying context implementation, so make sure to call it always from the same context
+   * where the service is executed.
    */
-  static KeyedContext current() {
+  static ObjectContext current() {
     return fromSyscalls(Syscalls.current());
   }
 
   /** Build a RestateContext from the underlying {@link Syscalls} object. */
-  static KeyedContext fromSyscalls(Syscalls syscalls) {
+  static ObjectContext fromSyscalls(Syscalls syscalls) {
     return new ContextImpl(syscalls);
   }
 }

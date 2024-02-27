@@ -8,8 +8,10 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.common;
 
-@FunctionalInterface
-public interface ServiceAdapter<T> {
+import java.util.List;
 
-  ServicesBundle adapt(T entity);
+/** Bundle of different Restate components. */
+public interface ComponentBundle {
+
+  List<BlockingComponent> components();
 }

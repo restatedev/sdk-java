@@ -8,10 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.common;
 
-import java.util.List;
-
-/** Bundle of different Restate services. */
-public interface ServicesBundle {
-
-  List<BlockingService> services();
+public enum ComponentType {
+  SERVICE,
+  VIRTUAL_OBJECT,
+  WORKFLOW
 }

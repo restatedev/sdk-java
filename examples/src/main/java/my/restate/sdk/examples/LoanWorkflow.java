@@ -11,8 +11,6 @@ package my.restate.sdk.examples;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import dev.restate.sdk.Context;
-import dev.restate.sdk.annotation.Service;
-import dev.restate.sdk.annotation.ServiceType;
 import dev.restate.sdk.annotation.Shared;
 import dev.restate.sdk.annotation.Workflow;
 import dev.restate.sdk.common.CoreSerdes;
@@ -36,7 +34,7 @@ import my.restate.sdk.examples.generated.bank.TransferResult;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-@Service(ServiceType.WORKFLOW)
+@Workflow
 public class LoanWorkflow {
 
   // --- Data types used by the Loan Worfklow
@@ -176,7 +174,8 @@ public class LoanWorkflow {
     // To invoke the workflow:
     Channel restateChannel =
         NettyChannelBuilder.forAddress("127.0.0.1", 8080).usePlaintext().build();
-    LoanWorkflowExternalClient client = new LoanWorkflowExternalClient(restateChannel, "my-loan");
+    LoanWorkflowClient.IngressClient client =
+        LoanWorkflowClient.fromIngress(restateChannel, "my-loan");
 
     WorkflowExecutionState state =
         client.submit(

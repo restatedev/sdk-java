@@ -8,8 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.http.vertx.testservices;
 
-import dev.restate.sdk.KeyedContext;
-import dev.restate.sdk.RestateService;
+import dev.restate.sdk.Component;
+import dev.restate.sdk.ObjectContext;
 import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.common.StateKey;
 import dev.restate.sdk.core.testservices.GreeterGrpc;
@@ -20,7 +20,7 @@ import java.time.Duration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public class BlockingGreeterService extends GreeterGrpc.GreeterImplBase implements RestateService {
+public class BlockingGreeterService extends GreeterGrpc.GreeterImplBase implements Component {
 
   private static final Logger LOG = LogManager.getLogger(BlockingGreeterService.class);
   public static final StateKey<Long> COUNTER = StateKey.of("counter", CoreSerdes.JSON_LONG);
@@ -31,10 +31,10 @@ public class BlockingGreeterService extends GreeterGrpc.GreeterImplBase implemen
 
     LOG.info("Greet invoked!");
 
-    var count = KeyedContext.current().get(COUNTER).orElse(0L) + 1;
-    KeyedContext.current().set(COUNTER, count);
+    var count = ObjectContext.current().get(COUNTER).orElse(0L) + 1;
+    ObjectContext.current().set(COUNTER, count);
 
-    KeyedContext.current().sleep(Duration.ofSeconds(1));
+    ObjectContext.current().sleep(Duration.ofSeconds(1));
 
     responseObserver.onNext(
         GreetingResponse.newBuilder()
