@@ -2,7 +2,7 @@
 
 This directory contains different examples of the SDK features.
 
-For a sample project configuration and more elaborated examples, check out the templates in https://github.com/restatedev/examples/tree/main/jvm.
+For a sample project configuration and more elaborated examples, check out the [examples repo](https://github.com/restatedev/examples).
 
 Available examples:
 
