@@ -30,7 +30,7 @@ This SDK features:
 
 ### tl;dr Use project templates
 
-To get started, check out a template project in https://github.com/restatedev/examples/tree/main/java.
+To get started, follow the [Java quickstart](https://docs.restate.dev/quickstart/?sdk=jvm).
 
 ### Setup a project (Java)
 
