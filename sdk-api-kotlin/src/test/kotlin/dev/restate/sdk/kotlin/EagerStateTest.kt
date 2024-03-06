@@ -11,93 +11,50 @@ package dev.restate.sdk.kotlin
 import dev.restate.sdk.common.CoreSerdes
 import dev.restate.sdk.common.StateKey
 import dev.restate.sdk.core.EagerStateTestSuite
-import dev.restate.sdk.core.testservices.*
-import io.grpc.BindableService
-import kotlinx.coroutines.Dispatchers
+import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder
+import dev.restate.sdk.kotlin.KotlinCoroutinesTests.Companion.testDefinitionForVirtualObject
 import org.assertj.core.api.AssertionsForClassTypes.assertThat
 
 class EagerStateTest : EagerStateTestSuite() {
-  private class GetEmpty :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
-    override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx = ObjectContext.current()
-      val stateIsEmpty = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)) == null
-      return greetingResponse { message = stateIsEmpty.toString() }
-    }
-  }
-
-  override fun getEmpty(): BindableService {
-    return GetEmpty()
-  }
-
-  private class Get :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
-    override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      return greetingResponse {
-        message = ObjectContext.current().get(StateKey.of("STATE", CoreSerdes.JSON_STRING))!!
+  override fun getEmpty(): TestInvocationBuilder =
+      testDefinitionForVirtualObject("GetEmpty") { ctx, _: Unit ->
+        val stateIsEmpty = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)) == null
+        stateIsEmpty.toString()
       }
-    }
-  }
 
-  override fun get(): BindableService {
-    return Get()
-  }
+  override fun get(): TestInvocationBuilder =
+      testDefinitionForVirtualObject("GetEmpty") { ctx, _: Unit ->
+        ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))!!
+      }
 
-  private class GetAppendAndGet :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
-    override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx = ObjectContext.current()
-      val oldState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))!!
-      ctx.set(StateKey.of("STATE", CoreSerdes.JSON_STRING), oldState + request.getName())
-      val newState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))!!
-      return greetingResponse { message = newState }
-    }
-  }
+  override fun getAppendAndGet(): TestInvocationBuilder =
+      testDefinitionForVirtualObject("GetAppendAndGet") { ctx, name: String ->
+        val oldState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))!!
+        ctx.set(StateKey.of("STATE", CoreSerdes.JSON_STRING), oldState + name)
+        ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))!!
+      }
 
-  override fun getAppendAndGet(): BindableService {
-    return GetAppendAndGet()
-  }
+  override fun getClearAndGet(): TestInvocationBuilder =
+      testDefinitionForVirtualObject("GetClearAndGet") { ctx, _: Unit ->
+        val oldState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))!!
+        ctx.clear(StateKey.of("STATE", CoreSerdes.JSON_STRING))
+        assertThat(ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))).isNull()
+        oldState
+      }
 
-  private class GetClearAndGet :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
-    override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx = ObjectContext.current()
-      val oldState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))!!
-      ctx.clear(StateKey.of("STATE", CoreSerdes.JSON_STRING))
-      assertThat(ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))).isNull()
-      return greetingResponse { message = oldState }
-    }
-  }
+  override fun getClearAllAndGet(): TestInvocationBuilder =
+      testDefinitionForVirtualObject("GetClearAllAndGet") { ctx, _: Unit ->
+        val oldState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))!!
 
-  override fun getClearAndGet(): BindableService {
-    return GetClearAndGet()
-  }
+        ctx.clearAll()
 
-  private class GetClearAllAndGet : GreeterRestateKt.GreeterRestateKtImplBase() {
-    override suspend fun greet(context: ObjectContext, request: GreetingRequest): GreetingResponse {
-      val ctx = ObjectContext.current()
-      val oldState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))!!
+        assertThat(ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))).isNull()
+        assertThat(ctx.get(StateKey.of("ANOTHER_STATE", CoreSerdes.JSON_STRING))).isNull()
+        oldState
+      }
 
-      ctx.clearAll()
-
-      assertThat(ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))).isNull()
-      assertThat(ctx.get(StateKey.of("ANOTHER_STATE", CoreSerdes.JSON_STRING))).isNull()
-
-      return greetingResponse { message = oldState }
-    }
-  }
-
-  override fun getClearAllAndGet(): BindableService {
-    return GetClearAllAndGet()
-  }
-
-  private class ListKeys : GreeterRestateKt.GreeterRestateKtImplBase() {
-    override suspend fun greet(context: ObjectContext, request: GreetingRequest): GreetingResponse {
-      return greetingResponse { message = context.stateKeys().joinToString(separator = ",") }
-    }
-  }
-
-  override fun listKeys(): BindableService {
-    return ListKeys()
-  }
+  override fun listKeys(): TestInvocationBuilder =
+      testDefinitionForVirtualObject("ListKeys") { ctx, _: Unit ->
+        ctx.stateKeys().joinToString(separator = ",")
+      }
 }

@@ -23,8 +23,8 @@ public class LambdaHandler extends BaseRestateLambdaHandler {
             .split(Pattern.quote(","))) {
       if (Counter.class.getCanonicalName().equals(serviceClass)) {
         builder.with(new Counter());
-        //      } else if (CounterKt.class.getCanonicalName().equals(serviceClass)) {
-        //        builder.withService(new CounterKt());
+      } else if (CounterKt.class.getCanonicalName().equals(serviceClass)) {
+        builder.with(CounterKt.getCounter());
       } else {
         throw new IllegalArgumentException(
             "Bad \"LAMBDA_FACTORY_SERVICE_CLASS\" env: " + serviceClass);

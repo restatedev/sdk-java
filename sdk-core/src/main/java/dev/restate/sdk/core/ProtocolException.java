@@ -84,9 +84,9 @@ public class ProtocolException extends RuntimeException {
         "MessageType " + Integer.toHexString(type) + " unknown", PROTOCOL_VIOLATION);
   }
 
-  static ProtocolException methodNotFound(String svcName, String methodName) {
+  static ProtocolException methodNotFound(String componentName, String handlerName) {
     return new ProtocolException(
-        "Cannot find method '" + svcName + "/" + methodName + "'",
+        "Cannot find handler '" + componentName + "/" + handlerName + "'",
         TerminalException.Code.NOT_FOUND.value());
   }
 

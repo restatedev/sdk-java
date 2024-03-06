@@ -10,24 +10,14 @@ package dev.restate.sdk.kotlin
 
 import dev.restate.sdk.common.CoreSerdes
 import dev.restate.sdk.core.AwakeableIdTestSuite
-import dev.restate.sdk.core.testservices.GreeterGrpcKt
-import dev.restate.sdk.core.testservices.GreetingRequest
-import dev.restate.sdk.core.testservices.GreetingResponse
-import dev.restate.sdk.core.testservices.greetingResponse
-import io.grpc.BindableService
-import kotlinx.coroutines.Dispatchers
+import dev.restate.sdk.core.TestDefinitions
+import dev.restate.sdk.kotlin.KotlinCoroutinesTests.Companion.testDefinitionForService
 
 class AwakeableIdTest : AwakeableIdTestSuite() {
-  private class ReturnAwakeableId :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
 
-    override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val id: String = ObjectContext.current().awakeable(CoreSerdes.JSON_STRING).id
-      return greetingResponse { message = id }
-    }
-  }
-
-  override fun returnAwakeableId(): BindableService {
-    return ReturnAwakeableId()
-  }
+  override fun returnAwakeableId(): TestDefinitions.TestInvocationBuilder =
+      testDefinitionForService("ReturnAwakeableId") { ctx, _: Unit ->
+        val awakeable = ctx.awakeable(CoreSerdes.JSON_STRING)
+        awakeable.id
+      }
 }

@@ -143,9 +143,15 @@ public final class RestateLambdaEndpoint {
     // Start
     handler.start();
 
-    // Because everything runs in the same thread, handler.start() should execute the whole
-    // computation. Hence, we should have a result available at this point.
-    byte[] responseBody = subscriber.getResult();
+    // Await the result
+    byte[] responseBody;
+    try {
+      responseBody = subscriber.getResult();
+    } catch (Error | RuntimeException e) {
+      throw e;
+    } catch (Throwable e) {
+      throw new RuntimeException(e);
+    }
 
     // Clear logging
     ThreadContext.clearAll();

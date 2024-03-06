@@ -67,15 +67,15 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
       };
 
   private final RestateEndpoint restateEndpoint;
-  private final HashMap<String, Executor> blockingServices;
+  private final HashMap<String, Executor> blockingComponents;
   private final OpenTelemetry openTelemetry;
 
   RequestHttpServerHandler(
       RestateEndpoint restateEndpoint,
-      HashMap<String, Executor> blockingServices,
+      HashMap<String, Executor> blockingComponents,
       OpenTelemetry openTelemetry) {
     this.restateEndpoint = restateEndpoint;
-    this.blockingServices = blockingServices;
+    this.blockingComponents = blockingComponents;
     this.openTelemetry = openTelemetry;
   }
 
@@ -93,14 +93,14 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
     String[] pathSegments = SLASH.split(uri.getPath());
     if (pathSegments.length < 3) {
       LOG.warn(
-          "Path doesn't match the pattern /invoke/SvcName/MethodName nor /discover: '{}'",
+          "Path doesn't match the pattern /invoke/ComponentName/HandlerName nor /discover: '{}'",
           request.path());
       request.response().setStatusCode(NOT_FOUND.code()).end();
       return;
     }
-    String serviceName = pathSegments[pathSegments.length - 2];
-    String methodName = pathSegments[pathSegments.length - 1];
-    boolean isBlockingService = blockingServices.containsKey(serviceName);
+    String componentName = pathSegments[pathSegments.length - 2];
+    String handlerName = pathSegments[pathSegments.length - 1];
+    boolean isBlockingComponent = blockingComponents.containsKey(componentName);
 
     // Parse OTEL context and generate span
     final io.opentelemetry.context.Context otelContext =
@@ -118,14 +118,14 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
     try {
       handler =
           restateEndpoint.resolve(
-              serviceName,
-              methodName,
+              componentName,
+              handlerName,
               otelContext,
               new RestateEndpoint.LoggingContextSetter() {
                 @Override
                 public void setServiceMethod(String serviceMethod) {
                   ContextualData.put(
-                      RestateEndpoint.LoggingContextSetter.SERVICE_METHOD_KEY, serviceMethod);
+                      RestateEndpoint.LoggingContextSetter.COMPONENT_HANDLER_KEY, serviceMethod);
                 }
 
                 @Override
@@ -136,14 +136,13 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
                 @Override
                 public void setInvocationStatus(String invocationStatus) {
                   ContextualData.put(
-                      RestateEndpoint.LoggingContextSetter.SERVICE_INVOCATION_STATUS_KEY,
-                      invocationStatus);
+                      RestateEndpoint.LoggingContextSetter.INVOCATION_STATUS_KEY, invocationStatus);
                 }
               },
-              isBlockingService ? currentContextExecutor(vertxCurrentContext) : null,
-              isBlockingService ? blockingExecutor(serviceName) : null);
+              currentContextExecutor(vertxCurrentContext),
+              isBlockingComponent ? blockingExecutor(componentName) : null);
     } catch (ProtocolException e) {
-      LOG.warn("Error when resolving the grpc handler", e);
+      LOG.warn("Error when resolving the handler", e);
       request
           .response()
           .setStatusCode(
@@ -154,7 +153,7 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
       return;
     }
 
-    LOG.debug("Handling request to " + serviceName + "/" + methodName);
+    LOG.debug("Handling request to " + componentName + "/" + handlerName);
 
     // Prepare the header frame to send in the response.
     // Vert.x will send them as soon as we send the first write
@@ -178,7 +177,7 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
   }
 
   private Executor blockingExecutor(String serviceName) {
-    return this.blockingServices.get(serviceName);
+    return this.blockingComponents.get(serviceName);
   }
 
   private void handleDiscoveryRequest(HttpServerRequest request) {

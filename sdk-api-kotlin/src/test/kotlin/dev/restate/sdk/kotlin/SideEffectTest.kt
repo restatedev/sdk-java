@@ -9,73 +9,53 @@
 package dev.restate.sdk.kotlin
 
 import dev.restate.sdk.common.CoreSerdes
+import dev.restate.sdk.core.ProtoUtils.GREETER_SERVICE_TARGET
 import dev.restate.sdk.core.SideEffectTestSuite
-import dev.restate.sdk.core.testservices.*
-import io.grpc.BindableService
+import dev.restate.sdk.core.TestDefinitions
+import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder
+import dev.restate.sdk.kotlin.KotlinCoroutinesTests.Companion.testDefinitionForService
 import java.util.*
+import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 
 class SideEffectTest : SideEffectTestSuite() {
-  private class SideEffect(private val sideEffectOutput: String) :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
-    override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx = ObjectContext.current()
-      val result = ctx.sideEffect(CoreSerdes.JSON_STRING) { sideEffectOutput }
-      return greetingResponse { message = "Hello $result" }
-    }
-  }
 
-  override fun sideEffect(sideEffectOutput: String): BindableService {
-    return SideEffect(sideEffectOutput)
-  }
-
-  private class ConsecutiveSideEffect(private val sideEffectOutput: String) :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
-    override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx = ObjectContext.current()
-      val firstResult = ctx.sideEffect(CoreSerdes.JSON_STRING) { sideEffectOutput }
-      val secondResult =
-          ctx.sideEffect(CoreSerdes.JSON_STRING) { firstResult.uppercase(Locale.getDefault()) }
-      return greetingResponse { message = "Hello $secondResult" }
-    }
-  }
-
-  override fun consecutiveSideEffect(sideEffectOutput: String): BindableService {
-    return ConsecutiveSideEffect(sideEffectOutput)
-  }
-
-  private class CheckContextSwitching :
-      GreeterGrpcKt.GreeterCoroutineImplBase(
-          Dispatchers.Unconfined + CoroutineName("CheckContextSwitchingTestCoroutine")),
-      RestateKtComponent {
-
-    override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val sideEffectThread =
-          ObjectContext.current().sideEffect(CoreSerdes.JSON_STRING) { Thread.currentThread().name }
-      check(sideEffectThread.contains("CheckContextSwitchingTestCoroutine")) {
-        "Side effect thread is not running within the same coroutine context of the handler method: $sideEffectThread"
+  override fun sideEffect(sideEffectOutput: String): TestInvocationBuilder =
+      testDefinitionForService("SideEffect") { ctx, _: Unit ->
+        val result = ctx.sideEffect(CoreSerdes.JSON_STRING) { sideEffectOutput }
+        "Hello $result"
       }
-      return greetingResponse { message = "Hello" }
-    }
-  }
 
-  override fun checkContextSwitching(): BindableService {
-    return CheckContextSwitching()
-  }
-
-  private class SideEffectGuard :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
-    override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx = ObjectContext.current()
-      ctx.sideEffect {
-        ctx.oneWayCall(GreeterGrpcKt.greetMethod, greetingRequest { name = "something" })
+  override fun consecutiveSideEffect(sideEffectOutput: String): TestInvocationBuilder =
+      testDefinitionForService("ConsecutiveSideEffect") { ctx, _: Unit ->
+        val firstResult = ctx.sideEffect(CoreSerdes.JSON_STRING) { sideEffectOutput }
+        val secondResult =
+            ctx.sideEffect(CoreSerdes.JSON_STRING) { firstResult.uppercase(Locale.getDefault()) }
+        "Hello $secondResult"
       }
-      throw IllegalStateException("This point should not be reached")
-    }
-  }
 
-  override fun sideEffectGuard(): BindableService {
-    return SideEffectGuard()
-  }
+  override fun checkContextSwitching(): TestInvocationBuilder =
+      TestDefinitions.testInvocation(
+          Component.service(
+              "CheckContextSwitching",
+              Dispatchers.Unconfined + CoroutineName("CheckContextSwitchingTestCoroutine")) {
+                handler("run") { ctx, _: Unit ->
+                  val sideEffectCoroutine =
+                      ctx.sideEffect(CoreSerdes.JSON_STRING) {
+                        coroutineContext[CoroutineName.Key]!!.name
+                      }
+                  check(sideEffectCoroutine == "CheckContextSwitchingTestCoroutine") {
+                    "Side effect thread is not running within the same coroutine context of the handler method: $sideEffectCoroutine"
+                  }
+                  "Hello"
+                }
+              },
+          "run")
+
+  override fun sideEffectGuard(): TestInvocationBuilder =
+      testDefinitionForService<Unit, String>("SideEffectGuard") { ctx, _: Unit ->
+        ctx.sideEffect { ctx.send(GREETER_SERVICE_TARGET, KtSerdes.json(), "something") }
+        throw IllegalStateException("This point should not be reached")
+      }
 }

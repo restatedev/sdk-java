@@ -68,7 +68,7 @@ public final class MockSingleThread implements TestExecutor {
 
     // Check completed
     assertThat(outputSubscriber.getFuture())
-        .succeedsWithin(Duration.ZERO)
+        .succeedsWithin(Duration.ofDays(1))
         .satisfies(definition.getOutputAssert());
     assertThat(inputPublisher.isSubscriptionCancelled()).isTrue();
 

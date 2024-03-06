@@ -9,22 +9,11 @@
 package dev.restate.sdk.kotlin
 
 import dev.restate.sdk.core.OnlyInputAndOutputTestSuite
-import dev.restate.sdk.core.testservices.GreeterGrpcKt
-import dev.restate.sdk.core.testservices.GreetingRequest
-import dev.restate.sdk.core.testservices.GreetingResponse
-import dev.restate.sdk.core.testservices.greetingResponse
-import io.grpc.BindableService
-import kotlinx.coroutines.Dispatchers
+import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder
+import dev.restate.sdk.kotlin.KotlinCoroutinesTests.Companion.testDefinitionForService
 
 class OnlyInputAndOutputTest : OnlyInputAndOutputTestSuite() {
-  private class NoSyscallsGreeter :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
-    override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      return greetingResponse { message = "Hello " + request.getName() }
-    }
-  }
 
-  override fun noSyscallsGreeter(): BindableService {
-    return NoSyscallsGreeter()
-  }
+  override fun noSyscallsGreeter(): TestInvocationBuilder =
+      testDefinitionForService("NoSyscallsGreeter") { _, name: String -> "Hello $name" }
 }

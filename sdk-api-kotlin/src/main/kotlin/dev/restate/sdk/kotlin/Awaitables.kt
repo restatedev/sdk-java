@@ -76,13 +76,25 @@ internal abstract class BaseSingleMappedAwaitableImpl<T : Any, U : Any>(
   }
 }
 
-// internal class SingleMappedAwaitableImpl<T: Any, U: Any>(inner: BaseAwaitableImpl<T>, private val
-// mapper: suspend (res: Result<T>) -> Result<U>) : BaseSingleMappedAwaitableImpl<T, U>(inner) {
-//  override suspend fun map(res: Result<T>): Result<U> {
-//    return mapper(res)
-//  }
-//
-// }
+internal open class SingleSerdeAwaitableImpl<T : Any>
+internal constructor(
+    syscalls: Syscalls,
+    deferred: Deferred<ByteString>,
+    private val serde: Serde<T>,
+) :
+    BaseSingleMappedAwaitableImpl<ByteString, T>(
+        SingleAwaitableImpl(syscalls, deferred),
+    ) {
+  @Suppress("UNCHECKED_CAST")
+  override suspend fun map(res: Result<ByteString>): Result<T> {
+    return if (res.isSuccess) {
+      // This propagates exceptions as non-terminal
+      Result.success(serde.deserializeWrappingException(syscalls, res.value!!))
+    } else {
+      res as Result<T>
+    }
+  }
+}
 
 internal class UnitAwakeableImpl(syscalls: Syscalls, deferred: Deferred<Void>) :
     BaseSingleMappedAwaitableImpl<Void, Unit>(SingleAwaitableImpl(syscalls, deferred)) {
@@ -140,23 +152,9 @@ internal class AwakeableImpl<T : Any>
 internal constructor(
     syscalls: Syscalls,
     deferred: Deferred<ByteString>,
-    private val serde: Serde<T>,
+    serde: Serde<T>,
     override val id: String
-) :
-    BaseSingleMappedAwaitableImpl<ByteString, T>(
-        SingleAwaitableImpl(syscalls, deferred),
-    ),
-    Awakeable<T> {
-
-  @Suppress("UNCHECKED_CAST")
-  override suspend fun map(res: Result<ByteString>): Result<T> {
-    return if (res.isSuccess) {
-      Result.success(serde.deserializeWrappingException(syscalls, res.value!!))
-    } else {
-      res as Result<T>
-    }
-  }
-}
+) : SingleSerdeAwaitableImpl<T>(syscalls, deferred, serde), Awakeable<T> {}
 
 internal class AwakeableHandleImpl(val syscalls: Syscalls, val id: String) : AwakeableHandle {
   override suspend fun <T : Any> resolve(serde: Serde<T>, payload: T) {

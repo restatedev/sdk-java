@@ -8,24 +8,14 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.common.InvocationId
 import dev.restate.sdk.core.InvocationIdTestSuite
-import dev.restate.sdk.core.testservices.GreeterGrpcKt
-import dev.restate.sdk.core.testservices.GreetingRequest
-import dev.restate.sdk.core.testservices.GreetingResponse
-import dev.restate.sdk.core.testservices.greetingResponse
-import io.grpc.BindableService
-import kotlinx.coroutines.Dispatchers
+import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder
+import dev.restate.sdk.kotlin.KotlinCoroutinesTests.Companion.testDefinitionForService
 
 class InvocationIdTest : InvocationIdTestSuite() {
-  private class ReturnInvocationId :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
-    override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      return greetingResponse { message = InvocationId.current().toString() }
-    }
-  }
 
-  override fun returnInvocationId(): BindableService {
-    return ReturnInvocationId()
-  }
+  override fun returnInvocationId(): TestInvocationBuilder =
+      testDefinitionForService("ReturnInvocationId") { ctx, _: Unit ->
+        ctx.invocationId().toString()
+      }
 }

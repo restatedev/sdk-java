@@ -98,7 +98,7 @@ public class RestateEndpoint {
   public DeploymentManifestSchema handleDiscoveryRequest() {
     DeploymentManifestSchema response = this.deploymentManifest.manifest();
     LOG.info(
-        "Replying to service discovery request with services [{}]",
+        "Replying to discovery request with components [{}]",
         response.getComponents().stream()
             .map(Component::getFullyQualifiedComponentName)
             .collect(Collectors.joining(",")));
@@ -106,7 +106,7 @@ public class RestateEndpoint {
   }
 
   private void logCreation() {
-    LOG.info("Registered services: {}", this.components.keySet());
+    LOG.info("Registered components: {}", this.components.keySet());
   }
 
   // -- Builder
@@ -156,14 +156,14 @@ public class RestateEndpoint {
   public interface LoggingContextSetter {
 
     String INVOCATION_ID_KEY = "restateInvocationId";
-    String SERVICE_METHOD_KEY = "restateServiceMethod";
-    String SERVICE_INVOCATION_STATUS_KEY = "restateInvocationStatus";
+    String COMPONENT_HANDLER_KEY = "restateComponentHandler";
+    String INVOCATION_STATUS_KEY = "restateInvocationStatus";
 
     LoggingContextSetter THREAD_LOCAL_INSTANCE =
         new LoggingContextSetter() {
           @Override
           public void setServiceMethod(String serviceMethod) {
-            ThreadContext.put(SERVICE_METHOD_KEY, serviceMethod);
+            ThreadContext.put(COMPONENT_HANDLER_KEY, serviceMethod);
           }
 
           @Override
@@ -173,7 +173,7 @@ public class RestateEndpoint {
 
           @Override
           public void setInvocationStatus(String invocationStatus) {
-            ThreadContext.put(SERVICE_INVOCATION_STATUS_KEY, invocationStatus);
+            ThreadContext.put(INVOCATION_STATUS_KEY, invocationStatus);
           }
         };
 
