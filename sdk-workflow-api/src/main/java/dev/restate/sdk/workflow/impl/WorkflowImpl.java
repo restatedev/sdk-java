@@ -56,6 +56,7 @@ public class WorkflowImpl implements BindableComponent {
 
   private static final StateKey<WorkflowExecutionState> WORKFLOW_EXECUTION_STATE_KEY =
       StateKey.of("_workflow_execution_state", WORKFLOW_EXECUTION_STATE_SERDE);
+  private static final String START_HANDLER = "_start";
 
   private final String name;
   private final Component.Handler<?, ?> workflowMethod;
@@ -84,7 +85,8 @@ public class WorkflowImpl implements BindableComponent {
             .await();
     if (response.equals(WorkflowExecutionState.STARTED)) {
       // Schedule start
-      objectContext.send(workflowTarget(name), INVOKE_REQUEST_SERDE, invokeRequest);
+      objectContext.send(
+          Target.service(name, WorkflowImpl.START_HANDLER), INVOKE_REQUEST_SERDE, invokeRequest);
     }
 
     return response;
@@ -316,10 +318,6 @@ public class WorkflowImpl implements BindableComponent {
     return Target.virtualObject(workflowManagerObjectName(name), key, handler);
   }
 
-  private Target workflowTarget(String handler) {
-    return Target.service(name, handler);
-  }
-
   // --- Components definition
 
   @Override
@@ -331,7 +329,7 @@ public class WorkflowImpl implements BindableComponent {
                 HandlerSignature.of("submit", INVOKE_REQUEST_SERDE, WORKFLOW_EXECUTION_STATE_SERDE),
                 this::submit)
             .with(
-                HandlerSignature.of("_start", INVOKE_REQUEST_SERDE, CoreSerdes.VOID),
+                HandlerSignature.of(START_HANDLER, INVOKE_REQUEST_SERDE, CoreSerdes.VOID),
                 (context, invokeRequest) -> {
                   this.internalStart(context, invokeRequest);
                   return null;
