@@ -9,22 +9,25 @@
 package dev.restate.sdk.kotlin
 
 import com.google.protobuf.ByteString
-import dev.restate.sdk.common.InvocationId
-import dev.restate.sdk.common.Serde
-import dev.restate.sdk.common.StateKey
-import dev.restate.sdk.common.TerminalException
+import dev.restate.sdk.common.*
+import dev.restate.sdk.common.Target
 import dev.restate.sdk.common.syscalls.Deferred
 import dev.restate.sdk.common.syscalls.EnterSideEffectSyscallCallback
 import dev.restate.sdk.common.syscalls.ExitSideEffectSyscallCallback
 import dev.restate.sdk.common.syscalls.Syscalls
-import io.grpc.MethodDescriptor
-import java.lang.Error
 import kotlin.coroutines.resume
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 internal class ContextImpl internal constructor(private val syscalls: Syscalls) : ObjectContext {
+  override fun key(): String {
+    return this.syscalls.objectKey()
+  }
+
   override suspend fun <T : Any> get(key: StateKey<T>): T? {
     val deferred: Deferred<ByteString> =
         suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<ByteString>> ->
@@ -85,6 +88,10 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
     }
   }
 
+  override fun invocationId(): InvocationId {
+    return this.syscalls.invocationId()
+  }
+
   override suspend fun timer(duration: Duration): Awaitable<Unit> {
     val deferred: Deferred<Void> =
         suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<Void>> ->
@@ -94,32 +101,40 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
     return UnitAwakeableImpl(syscalls, deferred)
   }
 
-  override suspend fun <T, R> callAsync(
-      methodDescriptor: MethodDescriptor<T, R>,
+  override suspend fun <T : Any, R : Any> callAsync(
+      target: Target,
+      inputSerde: Serde<T>,
+      outputSerde: Serde<R>,
       parameter: T
   ): Awaitable<R> {
-    val deferred: Deferred<R> =
-        suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<R>> ->
-          syscalls.call(methodDescriptor, parameter, completingContinuation(cont))
+    val input = inputSerde.serializeWrappingException(syscalls, parameter)
+
+    val deferred: Deferred<ByteString> =
+        suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<ByteString>> ->
+          syscalls.call(target, input, completingContinuation(cont))
         }
 
-    return SingleAwaitableImpl(syscalls, deferred)
+    return SingleSerdeAwaitableImpl(syscalls, deferred, outputSerde)
   }
 
-  override suspend fun <T, R> oneWayCall(methodDescriptor: MethodDescriptor<T, R>, parameter: T) {
+  override suspend fun <T : Any> send(target: Target, inputSerde: Serde<T>, parameter: T) {
+    val input = inputSerde.serializeWrappingException(syscalls, parameter)
+
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-      syscalls.send(methodDescriptor, parameter, null, completingUnitContinuation(cont))
+      syscalls.send(target, input, null, completingUnitContinuation(cont))
     }
   }
 
-  override suspend fun <T, R> delayedCall(
-      methodDescriptor: MethodDescriptor<T, R>,
+  override suspend fun <T : Any> sendDelayed(
+      target: Target,
+      inputSerde: Serde<T>,
       parameter: T,
       delay: Duration
   ) {
+    val input = inputSerde.serializeWrappingException(syscalls, parameter)
+
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-      syscalls.send(
-          methodDescriptor, parameter, delay.toJavaDuration(), completingUnitContinuation(cont))
+      syscalls.send(target, input, delay.toJavaDuration(), completingUnitContinuation(cont))
     }
   }
 
@@ -211,6 +226,6 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
   }
 
   override fun random(): RestateRandom {
-    return RestateRandom(InvocationId.current().toRandomSeed(), syscalls)
+    return RestateRandom(syscalls.invocationId().toRandomSeed(), syscalls)
   }
 }

@@ -59,7 +59,6 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   private Flow.Subscriber<? super MessageLite> outputSubscriber;
   private Flow.Subscription inputSubscription;
   private final CallbackHandle<Consumer<InvocationId>> afterStartCallback;
-  private final CallbackHandle<Consumer<Throwable>> closeCallback;
 
   InvocationStateMachine(
       String serviceName,
@@ -76,7 +75,6 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     this.sideEffectAckStateMachine = new SideEffectAckStateMachine();
 
     this.afterStartCallback = new CallbackHandle<>();
-    this.closeCallback = new CallbackHandle<>();
   }
 
   // --- Getters
@@ -215,10 +213,6 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   // --- Close state machine
 
-  void registerCloseCallback(Consumer<Throwable> c) {
-    this.closeCallback.set(c);
-  }
-
   void end() {
     LOG.info("End invocation");
     this.closeWithMessage(Protocol.EndMessage.getDefaultInstance(), ProtocolException.CLOSED);
@@ -267,9 +261,6 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       this.sideEffectAckStateMachine.abort(cause);
       this.incomingEntriesStateMachine.abort(cause);
       this.span.end();
-
-      // Invoke close callback if any
-      this.closeCallback.consume(cb -> cb.accept(cause));
     }
   }
 

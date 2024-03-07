@@ -174,17 +174,25 @@ public class ProtoUtils {
         .build();
   }
 
+  public static <T> Protocol.GetStateEntryMessage getStateMessage(
+      String key, Serde<T> serde, T value) {
+    return getStateMessage(key).setValue(serde.serializeToByteString(value)).build();
+  }
+
   public static Protocol.GetStateEntryMessage getStateMessage(String key, String value) {
-    return getStateMessage(key)
-        .setValue(CoreSerdes.JSON_STRING.serializeToByteString(value))
+    return getStateMessage(key, CoreSerdes.JSON_STRING, value);
+  }
+
+  public static <T> Protocol.SetStateEntryMessage setStateMessage(
+      String key, Serde<T> serde, T value) {
+    return Protocol.SetStateEntryMessage.newBuilder()
+        .setKey(ByteString.copyFromUtf8(key))
+        .setValue(serde.serializeToByteString(value))
         .build();
   }
 
   public static Protocol.SetStateEntryMessage setStateMessage(String key, String value) {
-    return Protocol.SetStateEntryMessage.newBuilder()
-        .setKey(ByteString.copyFromUtf8(key))
-        .setValue(CoreSerdes.JSON_STRING.serializeToByteString(value))
-        .build();
+    return setStateMessage(key, CoreSerdes.JSON_STRING, value);
   }
 
   public static Protocol.ClearStateEntryMessage clearStateMessage(String key) {

@@ -8,12 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.common.CoreSerdes
-import dev.restate.sdk.common.NonBlockingComponent
-import dev.restate.sdk.common.Serde
-import dev.restate.sdk.common.StateKey
+import dev.restate.sdk.common.*
+import dev.restate.sdk.common.Target
 import dev.restate.sdk.common.syscalls.Syscalls
-import io.grpc.MethodDescriptor
 import java.util.*
 import kotlin.random.Random
 import kotlin.time.Duration
@@ -33,6 +30,9 @@ import kotlin.time.Duration
  * of user actions, corrupting the execution of the invocation.
  */
 sealed interface Context {
+
+  /** @return this invocation id */
+  fun invocationId(): InvocationId
 
   /**
    * Causes the current execution of the function invocation to sleep for the given duration.
@@ -55,33 +55,45 @@ sealed interface Context {
    * Invoke another Restate service method and wait for the response. Same as
    * `call(methodDescriptor, parameter).await()`.
    *
-   * @param methodDescriptor The method descriptor of the method to invoke. This is found in the
-   *   generated `*Grpc` class.
+   * @param target the address of the callee
+   * @param inputSerde Input serde
+   * @param outputSerde Output serde
    * @param parameter the invocation request parameter.
    * @return the invocation response.
    */
-  suspend fun <T, R> call(methodDescriptor: MethodDescriptor<T, R>, parameter: T): R {
-    return callAsync(methodDescriptor, parameter).await()
+  suspend fun <T : Any, R : Any> call(
+      target: Target,
+      inputSerde: Serde<T>,
+      outputSerde: Serde<R>,
+      parameter: T
+  ): R {
+    return callAsync(target, inputSerde, outputSerde, parameter).await()
   }
 
   /**
    * Invoke another Restate service method.
    *
-   * @param methodDescriptor The method descriptor of the method to invoke. This is found in the
-   *   generated `*Grpc` class.
+   * @param target the address of the callee
+   * @param inputSerde Input serde
+   * @param outputSerde Output serde
    * @param parameter the invocation request parameter.
    * @return an [Awaitable] that wraps the Restate service method result.
    */
-  suspend fun <T, R> callAsync(methodDescriptor: MethodDescriptor<T, R>, parameter: T): Awaitable<R>
+  suspend fun <T : Any, R : Any> callAsync(
+      target: Target,
+      inputSerde: Serde<T>,
+      outputSerde: Serde<R>,
+      parameter: T
+  ): Awaitable<R>
 
   /**
    * Invoke another Restate service without waiting for the response.
    *
-   * @param methodDescriptor The method descriptor of the method to invoke. This is found in the
-   *   generated `*Grpc` class.
+   * @param target the address of the callee
+   * @param inputSerde Input serde
    * @param parameter the invocation request parameter.
    */
-  suspend fun <T, R> oneWayCall(methodDescriptor: MethodDescriptor<T, R>, parameter: T)
+  suspend fun <T : Any> send(target: Target, inputSerde: Serde<T>, parameter: T)
 
   /**
    * Invoke another Restate service without waiting for the response after the provided `delay` has
@@ -89,13 +101,14 @@ sealed interface Context {
    *
    * This method returns immediately, as the timer is executed and awaited on Restate.
    *
-   * @param methodDescriptor The method descriptor of the method to invoke. This is found in the
-   *   generated `*Grpc` class.
+   * @param target the address of the callee
+   * @param inputSerde Input serde
    * @param parameter the invocation request parameter.
    * @param delay time to wait before executing the call
    */
-  suspend fun <T, R> delayedCall(
-      methodDescriptor: MethodDescriptor<T, R>,
+  suspend fun <T : Any> sendDelayed(
+      target: Target,
+      inputSerde: Serde<T>,
       parameter: T,
       delay: Duration
   )
@@ -147,10 +160,7 @@ sealed interface Context {
 
   /** Like [sideEffect] without a return value. */
   suspend fun sideEffect(sideEffectAction: suspend () -> Unit) {
-    sideEffect(CoreSerdes.VOID) {
-      sideEffectAction()
-      null
-    }
+    sideEffect(KtSerdes.UNIT, sideEffectAction)
   }
 
   /**
@@ -187,23 +197,6 @@ sealed interface Context {
    * @return the [Random] instance.
    */
   fun random(): RestateRandom
-
-  companion object {
-
-    /**
-     * Create a [Context]. This will look up the thread-local/async-context storage for the
-     * underlying context implementation, so make sure to call it always from the same context where
-     * the service is executed.
-     */
-    fun current(): Context {
-      return fromSyscalls(Syscalls.current())
-    }
-
-    /** Build a context from the underlying [Syscalls] object. */
-    fun fromSyscalls(syscalls: Syscalls): Context {
-      return ContextImpl(syscalls)
-    }
-  }
 }
 
 /**
@@ -211,6 +204,9 @@ sealed interface Context {
  * storage.
  */
 sealed interface ObjectContext : Context {
+
+  /** @return the key of this object */
+  fun key(): String
 
   /**
    * Gets the state stored under key, deserializing the raw value using the [StateKey.serde].
@@ -245,23 +241,6 @@ sealed interface ObjectContext : Context {
 
   /** Clears all the state of this virtual object instance key-value state storage */
   suspend fun clearAll()
-
-  companion object {
-
-    /**
-     * Create a [ObjectContext]. This will look up the thread-local/async-context storage for the
-     * underlying context implementation, so make sure to call it always from the same context where
-     * the service is executed.
-     */
-    fun current(): ObjectContext {
-      return fromSyscalls(Syscalls.current())
-    }
-
-    /** Build a context from the underlying [Syscalls] object. */
-    fun fromSyscalls(syscalls: Syscalls): ObjectContext {
-      return ContextImpl(syscalls)
-    }
-  }
 }
 
 class RestateRandom(seed: Long, private val syscalls: Syscalls) : Random() {
@@ -404,16 +383,3 @@ sealed interface AwakeableHandle {
    */
   suspend fun reject(reason: String)
 }
-
-/**
- * Marker interface for Restate services.
- *
- * ## Error handling
- *
- * The error handling of Restate services works as follows:
- * * When throwing {@link TerminalException}, the failure will be used as invocation response error
- *   value
- * * When throwing any other type of exception, the failure is considered "non-terminal" and the
- *   runtime will retry it, according to its configuration
- */
-interface RestateKtComponent : NonBlockingComponent

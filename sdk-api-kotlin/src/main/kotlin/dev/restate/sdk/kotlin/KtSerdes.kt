@@ -8,8 +8,10 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
+import com.google.protobuf.ByteString
 import dev.restate.sdk.common.Serde
 import java.nio.charset.StandardCharsets
+import kotlin.reflect.typeOf
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.serializer
@@ -18,8 +20,31 @@ object KtSerdes {
 
   /** Creates a [Serde] implementation using the `kotlinx.serialization` json module. */
   inline fun <reified T> json(): Serde<T> {
-    return json(serializer())
+    @Suppress("UNCHECKED_CAST")
+    return when (typeOf<T>()) {
+      typeOf<Unit>() -> UNIT as Serde<T>
+      else -> json(serializer())
+    }
   }
+
+  val UNIT: Serde<Unit> =
+      object : Serde<Unit> {
+        override fun serialize(value: Unit?): ByteArray {
+          return ByteArray(0)
+        }
+
+        override fun serializeToByteString(value: Unit?): ByteString {
+          return ByteString.EMPTY
+        }
+
+        override fun deserialize(value: ByteArray) {
+          return
+        }
+
+        override fun deserialize(byteString: ByteString) {
+          return
+        }
+      }
 
   /** Creates a [Serde] implementation using the `kotlinx.serialization` json module. */
   fun <T> json(serializer: KSerializer<T>): Serde<T> {

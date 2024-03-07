@@ -17,6 +17,7 @@ import dev.restate.sdk.common.CoreSerdes
 import dev.restate.sdk.core.ProtoUtils.*
 import dev.restate.sdk.core.manifest.DeploymentManifestSchema
 import dev.restate.sdk.http.vertx.testservices.BlockingGreeter
+import dev.restate.sdk.http.vertx.testservices.greeter
 import io.netty.handler.codec.http.HttpResponseStatus
 import io.vertx.core.Vertx
 import io.vertx.core.buffer.Buffer
@@ -26,7 +27,7 @@ import io.vertx.junit5.VertxExtension
 import io.vertx.kotlin.coroutines.coAwait
 import io.vertx.kotlin.coroutines.dispatcher
 import io.vertx.kotlin.coroutines.receiveChannelHandler
-import java.util.concurrent.*
+import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -47,19 +48,19 @@ internal class RestateHttpEndpointTest {
             .setHttp2ClearTextUpgrade(false)
   }
 
-  //  @Timeout(value = 1, timeUnit = TimeUnit.SECONDS)
-  //  @Test
-  //  fun endpointWithNonBlockingService(vertx: Vertx): Unit =
-  //      greetTest(vertx) { it.withService(GreeterKtComponent(coroutineContext =
-  // vertx.dispatcher())) }
+  @Timeout(value = 1, timeUnit = TimeUnit.SECONDS)
+  @Test
+  fun endpointWithNonBlockingService(vertx: Vertx): Unit =
+      greetTest(vertx, "KtGreeter") { it.with(greeter()) }
 
   @Timeout(value = 1, timeUnit = TimeUnit.SECONDS)
   @Test
   fun endpointWithBlockingService(vertx: Vertx): Unit =
-      greetTest(vertx) { it.with(BlockingGreeter()) }
+      greetTest(vertx, BlockingGreeter::class.qualifiedName!!) { it.with(BlockingGreeter()) }
 
   private fun greetTest(
       vertx: Vertx,
+      componentName: String,
       consumeBuilderFn: (RestateHttpEndpointBuilder) -> RestateHttpEndpointBuilder
   ): Unit =
       runBlocking(vertx.dispatcher()) {
@@ -78,11 +79,7 @@ internal class RestateHttpEndpointTest {
 
         val request =
             client
-                .request(
-                    HttpMethod.POST,
-                    endpointPort,
-                    "localhost",
-                    "/invoke/" + BlockingGreeter::class.java.canonicalName + "/greet")
+                .request(HttpMethod.POST, endpointPort, "localhost", "/invoke/$componentName/greet")
                 .coAwait()
 
         // Prepare request header

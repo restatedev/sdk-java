@@ -8,12 +8,12 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.core.MockMultiThreaded
-import dev.restate.sdk.core.MockSingleThread
-import dev.restate.sdk.core.TestDefinitions
+import dev.restate.sdk.common.CoreSerdes
+import dev.restate.sdk.core.*
 import dev.restate.sdk.core.TestDefinitions.TestExecutor
-import dev.restate.sdk.core.TestRunner
+import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder
 import java.util.stream.Stream
+import kotlinx.coroutines.Dispatchers
 
 class KotlinCoroutinesTests : TestRunner() {
   override fun executors(): Stream<TestExecutor> {
@@ -23,7 +23,7 @@ class KotlinCoroutinesTests : TestRunner() {
   public override fun definitions(): Stream<TestDefinitions.TestSuite> {
     return Stream.of(
         AwakeableIdTest(),
-        AwaitableTest(),
+        DeferredTest(),
         EagerStateTest(),
         StateTest(),
         InvocationIdTest(),
@@ -32,7 +32,32 @@ class KotlinCoroutinesTests : TestRunner() {
         SleepTest(),
         StateMachineFailuresTest(),
         UserFailuresTest(),
-        RestateCodegenTest(),
         RandomTest())
+  }
+
+  companion object {
+    inline fun <reified REQ, reified RES> testDefinitionForService(
+        name: String,
+        noinline runner: suspend (Context, REQ) -> RES
+    ): TestInvocationBuilder {
+      return TestDefinitions.testInvocation(
+          Component.service(name, Dispatchers.Unconfined) { handler("run", runner) }, "run")
+    }
+
+    inline fun <reified REQ, reified RES> testDefinitionForVirtualObject(
+        name: String,
+        noinline runner: suspend (ObjectContext, REQ) -> RES
+    ): TestInvocationBuilder {
+      return TestDefinitions.testInvocation(
+          Component.virtualObject(name, Dispatchers.Unconfined) { handler("run", runner) }, "run")
+    }
+
+    suspend fun callGreeterGreetService(ctx: Context, parameter: String): Awaitable<String> {
+      return ctx.callAsync(
+          ProtoUtils.GREETER_SERVICE_TARGET,
+          CoreSerdes.JSON_STRING,
+          CoreSerdes.JSON_STRING,
+          parameter)
+    }
   }
 }

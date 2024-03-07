@@ -15,7 +15,7 @@ import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.StateKey;
 import java.nio.charset.StandardCharsets;
 
-@VirtualObject
+@VirtualObject(name = "JavaCounter")
 public class JavaCounterService {
 
   public static final StateKey<Long> COUNTER =

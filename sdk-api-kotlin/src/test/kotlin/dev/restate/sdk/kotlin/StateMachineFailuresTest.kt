@@ -12,57 +12,42 @@ import dev.restate.sdk.common.Serde
 import dev.restate.sdk.common.StateKey
 import dev.restate.sdk.common.TerminalException
 import dev.restate.sdk.core.StateMachineFailuresTestSuite
-import dev.restate.sdk.core.testservices.GreeterGrpcKt
-import dev.restate.sdk.core.testservices.GreetingRequest
-import dev.restate.sdk.core.testservices.GreetingResponse
-import dev.restate.sdk.core.testservices.greetingResponse
-import io.grpc.BindableService
+import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder
+import dev.restate.sdk.kotlin.KotlinCoroutinesTests.Companion.testDefinitionForService
+import dev.restate.sdk.kotlin.KotlinCoroutinesTests.Companion.testDefinitionForVirtualObject
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 
 class StateMachineFailuresTest : StateMachineFailuresTestSuite() {
-  private class GetState(private val nonTerminalExceptionsSeen: AtomicInteger) :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
-    override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      try {
-        ObjectContext.current().get(STATE)
-      } catch (e: Throwable) {
-        // A user should never catch Throwable!!!
-        if (e !is CancellationException && e !is TerminalException) {
-          nonTerminalExceptionsSeen.addAndGet(1)
-        } else {
-          throw e
+  companion object {
+    private val STATE =
+        StateKey.of(
+            "STATE",
+            Serde.using({ i: Int -> i.toString().toByteArray(StandardCharsets.UTF_8) }) {
+                b: ByteArray? ->
+              String(b!!, StandardCharsets.UTF_8).toInt()
+            })
+  }
+
+  override fun getState(nonTerminalExceptionsSeen: AtomicInteger): TestInvocationBuilder =
+      testDefinitionForVirtualObject("GetState") { ctx, _: Unit ->
+        try {
+          ctx.get(STATE)
+        } catch (e: Throwable) {
+          // A user should never catch Throwable!!!
+          if (e !is CancellationException && e !is TerminalException) {
+            nonTerminalExceptionsSeen.addAndGet(1)
+          } else {
+            throw e
+          }
         }
+        "Francesco"
       }
-      return greetingResponse { message = "Francesco" }
-    }
 
-    companion object {
-      private val STATE =
-          StateKey.of(
-              "STATE",
-              Serde.using({ i: Int -> i.toString().toByteArray(StandardCharsets.UTF_8) }) {
-                  b: ByteArray? ->
-                String(b!!, StandardCharsets.UTF_8).toInt()
-              })
-    }
-  }
-
-  override fun getState(nonTerminalExceptionsSeen: AtomicInteger): BindableService {
-    return GetState(nonTerminalExceptionsSeen)
-  }
-
-  private class SideEffectFailure(private val serde: Serde<Int>) :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
-    override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      ObjectContext.current().sideEffect(serde) { 0 }
-      return greetingResponse { message = "Francesco" }
-    }
-  }
-
-  override fun sideEffectFailure(serde: Serde<Int>): BindableService {
-    return SideEffectFailure(serde)
-  }
+  override fun sideEffectFailure(serde: Serde<Int>): TestInvocationBuilder =
+      testDefinitionForService("SideEffectFailure") { ctx, _: Unit ->
+        ctx.sideEffect(serde) { 0 }
+        "Francesco"
+      }
 }

@@ -1,6 +1,7 @@
 plugins {
   java
-  //  kotlin("jvm")
+  kotlin("jvm")
+  kotlin("plugin.serialization")
   application
   id("com.github.johnrengelman.shadow").version("7.1.2")
 }
@@ -11,7 +12,7 @@ dependencies {
   implementation(project(":sdk-api"))
   implementation(project(":sdk-lambda"))
   implementation(project(":sdk-http-vertx"))
-  //  implementation(project(":sdk-api-kotlin"))
+  implementation(project(":sdk-api-kotlin"))
   implementation(project(":sdk-serde-jackson"))
   implementation(project(":sdk-workflow-api"))
 
@@ -26,6 +27,8 @@ dependencies {
   implementation(vertxLibs.vertx.kotlin.coroutines)
 
   implementation(kotlinLibs.kotlinx.coroutines)
+  implementation(kotlinLibs.kotlinx.serialization.core)
+  implementation(kotlinLibs.kotlinx.serialization.json)
 
   implementation(coreLibs.log4j.core)
 }

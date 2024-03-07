@@ -14,7 +14,7 @@ plugins { id("org.gradle.toolchains.foojay-resolver-convention") version "0.7.0"
 include(
     "sdk-common",
     "sdk-api",
-    //    "sdk-api-kotlin",
+    "sdk-api-kotlin",
     "sdk-core",
     "sdk-serde-jackson",
     "sdk-http-vertx",

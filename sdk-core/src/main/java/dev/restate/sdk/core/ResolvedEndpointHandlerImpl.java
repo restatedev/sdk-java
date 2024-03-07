@@ -20,7 +20,7 @@ import org.jspecify.annotations.Nullable;
 
 final class ResolvedEndpointHandlerImpl implements ResolvedEndpointHandler {
 
-  private static final Logger LOG = LogManager.getLogger(RestateEndpoint.class);
+  private static final Logger LOG = LogManager.getLogger(ResolvedEndpointHandlerImpl.class);
 
   private final InvocationStateMachine stateMachine;
   private final RestateEndpoint.LoggingContextSetter loggingContextSetter;
@@ -116,7 +116,7 @@ final class ResolvedEndpointHandlerImpl implements ResolvedEndpointHandler {
     }
   }
 
-  private class InvocationHandlerWrapper implements InvocationHandler {
+  private static class InvocationHandlerWrapper implements InvocationHandler {
 
     private final InvocationHandler handler;
 
@@ -130,12 +130,12 @@ final class ResolvedEndpointHandlerImpl implements ResolvedEndpointHandler {
         this.handler.handle(syscalls, input, callback);
       } catch (Throwable e) {
         LOG.warn("Error when processing the invocation", e);
-        ResolvedEndpointHandlerImpl.this.end(e);
+        callback.onCancel(e);
       }
     }
   }
 
-  private class ExecutorSwitchingInvocationHandlerWrapper implements InvocationHandler {
+  private static class ExecutorSwitchingInvocationHandlerWrapper implements InvocationHandler {
     private final InvocationHandler handler;
     private final Executor userCodeExecutor;
 
@@ -153,7 +153,7 @@ final class ResolvedEndpointHandlerImpl implements ResolvedEndpointHandler {
               this.handler.handle(syscalls, input, callback);
             } catch (Throwable e) {
               LOG.warn("Error when processing the invocation", e);
-              ResolvedEndpointHandlerImpl.this.end(e);
+              callback.onCancel(e);
             }
           });
     }

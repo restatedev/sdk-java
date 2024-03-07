@@ -9,40 +9,21 @@
 package dev.restate.sdk.kotlin
 
 import dev.restate.sdk.core.RandomTestSuite
-import dev.restate.sdk.core.testservices.GreeterGrpcKt
-import dev.restate.sdk.core.testservices.GreetingRequest
-import dev.restate.sdk.core.testservices.GreetingResponse
-import dev.restate.sdk.core.testservices.greetingResponse
-import io.grpc.BindableService
+import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder
+import dev.restate.sdk.kotlin.KotlinCoroutinesTests.Companion.testDefinitionForService
 import kotlin.random.Random
-import kotlinx.coroutines.Dispatchers
 
 class RandomTest : RandomTestSuite() {
-  private class RandomShouldBeDeterministic :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
+  override fun randomShouldBeDeterministic(): TestInvocationBuilder =
+      testDefinitionForService("RandomShouldBeDeterministic") { ctx, _: Unit ->
+        ctx.random().nextInt()
+      }
 
-    override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val number = ObjectContext.current().random().nextInt()
-      return greetingResponse { message = number.toString() }
-    }
-  }
-
-  override fun randomShouldBeDeterministic(): BindableService {
-    return RandomShouldBeDeterministic()
-  }
-
-  private class RandomInsideSideEffect :
-      GreeterGrpcKt.GreeterCoroutineImplBase(Dispatchers.Unconfined), RestateKtComponent {
-    override suspend fun greet(request: GreetingRequest): GreetingResponse {
-      val ctx = ObjectContext.current()
-      ctx.sideEffect { ctx.random().nextInt() }
-      throw IllegalStateException("This should not unreachable")
-    }
-  }
-
-  override fun randomInsideSideEffect(): BindableService {
-    return RandomInsideSideEffect()
-  }
+  override fun randomInsideSideEffect(): TestInvocationBuilder =
+      testDefinitionForService<Unit, Int>("RandomInsideSideEffect") { ctx, _: Unit ->
+        ctx.sideEffect { ctx.random().nextInt() }
+        throw IllegalStateException("This should not unreachable")
+      }
 
   override fun getExpectedInt(seed: Long): Int {
     return Random(seed).nextInt()

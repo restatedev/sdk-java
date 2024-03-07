@@ -77,6 +77,10 @@ public final class TestDefinitions {
     return new TestInvocationBuilder(bindableComponent, handler);
   }
 
+  public static TestInvocationBuilder unsupported(String reason) {
+    return new TestInvocationBuilder(Objects.requireNonNull(reason));
+  }
+
   public static class TestInvocationBuilder {
     protected final @Nullable BindableComponent component;
     protected final @Nullable String handler;

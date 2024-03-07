@@ -23,8 +23,7 @@ import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.ProtoUtils;
 import dev.restate.sdk.core.manifest.Component;
 import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
-import dev.restate.sdk.lambda.testservices.JavaCounterService;
-import dev.restate.sdk.lambda.testservices.JavaCounterServiceClient;
+import dev.restate.sdk.lambda.testservices.JavaCounterClient;
 import dev.restate.sdk.lambda.testservices.MyServicesHandler;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -36,8 +35,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class LambdaHandlerTest {
 
-  //  @ValueSource(strings = {JavaCounterGrpc.SERVICE_NAME, KotlinCounterGrpc.SERVICE_NAME})
-  @ValueSource(strings = {JavaCounterServiceClient.COMPONENT_NAME})
+  @ValueSource(strings = {JavaCounterClient.COMPONENT_NAME, "KtCounter"})
   @ParameterizedTest
   public void testInvoke(String serviceName) throws IOException {
     MyServicesHandler handler = new MyServicesHandler();
@@ -101,7 +99,7 @@ class LambdaHandlerTest {
 
     assertThat(discoveryResponse.getComponents())
         .map(Component::getFullyQualifiedComponentName)
-        .containsOnly(JavaCounterService.class.getCanonicalName());
+        .containsOnly(JavaCounterClient.COMPONENT_NAME, "KtCounter");
   }
 
   private static byte[] serializeEntries(MessageLite... msgs) throws IOException {

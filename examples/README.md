@@ -7,7 +7,7 @@ For a sample project configuration and more elaborated examples, check out the [
 Available examples:
 
 * [`Counter`](src/main/java/my/restate/sdk/examples/Counter.java): Shows a simple virtual object using state primitives.
-* [`CounterKt`](src/main/kotlin/dev/restate/sdk/examples/CounterKt.kt): Same as `Counter` but using Kotlin.
+* [`Counter`](src/main/kotlin/my/restate/sdk/examples/Counter.kt): Same as `Counter` but using Kotlin.
 * [`LoanWorkflow`](src/main/java/my/restate/sdk/examples/LoanWorkflow.java): Shows a simple workflow example using the Workflow API.
 
 ## Package the examples for Lambda
@@ -35,7 +35,7 @@ You can run the Java Counter example via:
 You can modify the class to run setting `-PmainClass=<FQCN>`, for example, in order to run the Kotlin implementation:
 
 ```shell
-./gradlew :examples:run -PmainClass=dev.restate.sdk.examples.CounterKt
+./gradlew :examples:run -PmainClass=my.restate.sdk.examples.CounterKt
 ```
 
 ## Invoking the counter bindableComponent

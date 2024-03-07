@@ -1,6 +1,6 @@
 plugins {
   `java-library`
-  //  kotlin("jvm")
+  kotlin("jvm")
   `library-publishing-conventions`
 }
 
@@ -24,7 +24,7 @@ dependencies {
 
   testAnnotationProcessor(project(":sdk-api-gen"))
   testImplementation(project(":sdk-api"))
-  //  testImplementation(project(":sdk-api-kotlin"))
+  testImplementation(project(":sdk-api-kotlin"))
   testImplementation(project(":sdk-core", "testArchive"))
   testImplementation(project(":sdk-serde-jackson"))
   testImplementation(testingLibs.junit.jupiter)
