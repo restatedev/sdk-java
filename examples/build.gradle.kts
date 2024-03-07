@@ -32,6 +32,6 @@ dependencies {
 
 application {
   val mainClassValue: String =
-      project.findProperty("mainClass")?.toString() ?: "dev.restate.sdk.examples.Counter"
+      project.findProperty("mainClass")?.toString() ?: "my.restate.sdk.examples.Counter"
   mainClass.set(mainClassValue)
 }

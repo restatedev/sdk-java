@@ -17,7 +17,7 @@ import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-@VirtualObject
+@VirtualObject(name = "Counter")
 public class Counter {
 
   private static final Logger LOG = LogManager.getLogger(Counter.class);

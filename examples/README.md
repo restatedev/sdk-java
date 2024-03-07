@@ -6,9 +6,9 @@ For a sample project configuration and more elaborated examples, check out the [
 
 Available examples:
 
-* [`Counter`](src/main/java/dev/restate/sdk/examples/Counter.java): Shows a simple virtual object using state primitives.
-* [`VanillaGrpcCounter`](src/main/java/dev/restate/sdk/examples/VanillaGrpcCounter.java): Same as `Counter` but using the vanilla gRPC code generator output.
+* [`Counter`](src/main/java/my/restate/sdk/examples/Counter.java): Shows a simple virtual object using state primitives.
 * [`CounterKt`](src/main/kotlin/dev/restate/sdk/examples/CounterKt.kt): Same as `Counter` but using Kotlin.
+* [`LoanWorkflow`](src/main/java/my/restate/sdk/examples/LoanWorkflow.java): Shows a simple workflow example using the Workflow API.
 
 ## Package the examples for Lambda
 
@@ -22,11 +22,11 @@ You'll find the shadowed jar in the `build` directory.
 
 The class to configure in Lambda is `my.restate.sdk.examples.LambdaHandler`.
 
-By default, the [`dev.restate.sdk.examples.Counter`](src/main/java/dev/restate/sdk/examples/Counter.java) bindableComponent is deployed. Set the env variable `LAMBDA_FACTORY_SERVICE_CLASS` to one of the available example classes to change the deployed class.
+By default, the [`my.restate.sdk.examples.Counter`](src/main/java/my/restate/sdk/examples/Counter.java) virtual object is deployed. Set the env variable `LAMBDA_FACTORY_SERVICE_CLASS` to one of the available example classes to change the deployed class.
 
 ## Running the examples (HTTP)
 
-You can run the Java counter bindableComponent via:
+You can run the Java Counter example via:
 
 ```shell
 ./gradlew :examples:run
@@ -40,10 +40,13 @@ You can modify the class to run setting `-PmainClass=<FQCN>`, for example, in or
 
 ## Invoking the counter bindableComponent
 
-If you want to invoke the counter bindableComponent via [grpcurl](https://github.com/fullstorydev/grpcurl):
+If you want to invoke the counter virtual object via curl:
 
 ```shell
-grpcurl -plaintext -d '{"counter_name": "my_counter"}' localhost:9090 counter.Counter/Get
+# To add a new value to my-counter
+curl http://localhost:8080/Counter/my-counter/add --json "1"
+# To get my-counter value
+curl http://localhost:8080/Counter/my-counter/get
 ```
 
-The command assumes that the Restate runtime is reachable under `localhost:9090`.
+The command assumes that the Restate runtime is reachable under `localhost:8080`.
