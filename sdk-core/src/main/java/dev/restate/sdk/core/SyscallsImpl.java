@@ -9,7 +9,6 @@
 package dev.restate.sdk.core;
 
 import com.google.protobuf.ByteString;
-import com.google.rpc.Code;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.generated.service.protocol.Protocol.PollInputStreamEntryMessage;
@@ -19,16 +18,16 @@ import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.common.syscalls.*;
 import dev.restate.sdk.core.DeferredResults.SingleDeferredInternal;
 import dev.restate.sdk.core.Entries.*;
-import io.grpc.MethodDescriptor;
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.*;
-import java.util.function.Function;
-import javax.annotation.Nullable;
+import java.util.AbstractMap;
+import java.util.Base64;
+import java.util.Collection;
+import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jspecify.annotations.Nullable;
 
 public final class SyscallsImpl implements SyscallsInternal {
 
@@ -43,6 +42,11 @@ public final class SyscallsImpl implements SyscallsInternal {
   @Override
   public InvocationId invocationId() {
     return this.stateMachine.invocationId();
+  }
+
+  @Override
+  public String objectKey() {
+    return this.stateMachine.objectKey();
   }
 
   @Override
@@ -188,7 +192,7 @@ public final class SyscallsImpl implements SyscallsInternal {
                   .setMethodName(target.getHandler())
                   .setParameter(parameter);
           if (target.getKey() != null) {
-            // TODO add key!
+            builder.setKey(target.getKey());
           }
 
           this.stateMachine.processCompletableJournalEntry(
@@ -213,58 +217,8 @@ public final class SyscallsImpl implements SyscallsInternal {
                   .setMethodName(target.getHandler())
                   .setParameter(parameter);
           if (target.getKey() != null) {
-            // TODO add key!
+            builder.setKey(target.getKey());
           }
-          if (delay != null) {
-            builder.setInvokeTime(Instant.now().toEpochMilli() + delay.toMillis());
-          }
-
-          this.stateMachine.processJournalEntry(
-              builder.build(), BackgroundInvokeEntry.INSTANCE, callback);
-        },
-        callback);
-  }
-
-  @Override
-  public <T, R> void call(
-      MethodDescriptor<T, R> methodDescriptor, T parameter, SyscallCallback<Deferred<R>> callback) {
-    wrapAndPropagateExceptions(
-        () -> {
-          String serviceName = methodDescriptor.getServiceName();
-          String methodName = methodDescriptor.getBareMethodName();
-          LOG.trace("call {}/{}", serviceName, methodName);
-
-          this.stateMachine.processCompletableJournalEntry(
-              Protocol.InvokeEntryMessage.newBuilder()
-                  .setServiceName(serviceName)
-                  .setMethodName(methodName)
-                  .setParameter(serializeUsingMethodDescriptor(methodDescriptor, parameter))
-                  .build(),
-              new InvokeEntry<>(
-                  protoDeserializer(i -> methodDescriptor.parseResponse(i.newInput()))),
-              callback);
-        },
-        callback);
-  }
-
-  @Override
-  public <T> void send(
-      MethodDescriptor<T, ?> methodDescriptor,
-      T parameter,
-      @Nullable Duration delay,
-      SyscallCallback<Void> callback) {
-    wrapAndPropagateExceptions(
-        () -> {
-          String serviceName = methodDescriptor.getServiceName();
-          String methodName = methodDescriptor.getBareMethodName();
-          LOG.trace("backgroundCall {}/{}", serviceName, methodName);
-
-          var builder =
-              Protocol.BackgroundInvokeEntryMessage.newBuilder()
-                  .setServiceName(serviceName)
-                  .setMethodName(methodName)
-                  .setParameter(serializeUsingMethodDescriptor(methodDescriptor, parameter));
-
           if (delay != null) {
             builder.setInvokeTime(Instant.now().toEpochMilli() + delay.toMillis());
           }
@@ -366,7 +320,9 @@ public final class SyscallsImpl implements SyscallsInternal {
               serializedId,
               Protocol.CompleteAwakeableEntryMessage.newBuilder()
                   .setFailure(
-                      Protocol.Failure.newBuilder().setCode(Code.UNKNOWN_VALUE).setMessage(reason)),
+                      Protocol.Failure.newBuilder()
+                          .setCode(TerminalException.Code.UNKNOWN.value())
+                          .setMessage(reason)),
               callback);
         },
         callback);
@@ -420,20 +376,5 @@ public final class SyscallsImpl implements SyscallsInternal {
       this.fail(e);
       handler.onCancel(e);
     }
-  }
-
-  // --- Serde utils
-
-  private <T> ByteString serializeUsingMethodDescriptor(
-      MethodDescriptor<T, ?> methodDescriptor, T parameter) {
-    try {
-      return ByteString.readFrom(methodDescriptor.getRequestMarshaller().stream(parameter));
-    } catch (IOException e) {
-      throw new RuntimeException("Cannot serialize the input parameter of the call", e);
-    }
-  }
-
-  private <T> Function<ByteString, Result<T>> protoDeserializer(Function<ByteString, T> mapper) {
-    return value -> Result.success(mapper.apply(value));
   }
 }

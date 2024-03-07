@@ -12,7 +12,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.UnsafeByteOperations;
 import dev.restate.sdk.common.function.ThrowingFunction;
 import java.util.Objects;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /** Interface defining serialization and deserialization of concrete types. */
 public interface Serde<T> {
@@ -34,6 +34,10 @@ public interface Serde<T> {
    * @return the schema of this object.
    */
   default @Nullable Object schema() {
+    return null;
+  }
+
+  default @Nullable String contentType() {
     return null;
   }
 

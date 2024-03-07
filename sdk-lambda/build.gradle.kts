@@ -1,8 +1,6 @@
-import com.google.protobuf.gradle.id
-
 plugins {
   `java-library`
-  kotlin("jvm")
+  //  kotlin("jvm")
   `library-publishing-conventions`
 }
 
@@ -15,41 +13,26 @@ dependencies {
   api(lambdaLibs.core)
   api(lambdaLibs.events)
 
+  // Jackson (we need it for the manifest)
+  implementation(platform(jacksonLibs.jackson.bom))
+  implementation(jacksonLibs.jackson.databind)
+
   implementation(platform(coreLibs.opentelemetry.bom))
   implementation(coreLibs.opentelemetry.api)
 
   implementation(coreLibs.log4j.api)
+
+  testAnnotationProcessor(project(":sdk-api-gen"))
   testImplementation(project(":sdk-api"))
-  testImplementation(project(":sdk-api-kotlin"))
+  //  testImplementation(project(":sdk-api-kotlin"))
   testImplementation(project(":sdk-core", "testArchive"))
+  testImplementation(project(":sdk-serde-jackson"))
   testImplementation(testingLibs.junit.jupiter)
   testImplementation(testingLibs.assertj)
 
   testImplementation(coreLibs.protobuf.java)
   testImplementation(coreLibs.protobuf.kotlin)
-  testImplementation(coreLibs.grpc.stub)
-  testImplementation(coreLibs.grpc.protobuf)
-  testImplementation(coreLibs.grpc.kotlin.stub)
   testImplementation(coreLibs.log4j.core)
 
   testImplementation(kotlinLibs.kotlinx.coroutines)
-}
-
-protobuf {
-  plugins {
-    id("grpc") { artifact = "io.grpc:protoc-gen-grpc-java:${coreLibs.versions.grpc.get()}" }
-    id("grpckt") {
-      artifact = "io.grpc:protoc-gen-grpc-kotlin:${coreLibs.versions.grpckt.get()}:jdk8@jar"
-    }
-  }
-
-  generateProtoTasks {
-    ofSourceSet("test").forEach {
-      it.plugins {
-        id("grpc")
-        id("grpckt")
-      }
-      it.builtins { id("kotlin") }
-    }
-  }
 }

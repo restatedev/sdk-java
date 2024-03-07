@@ -16,12 +16,11 @@ import dev.restate.sdk.common.syscalls.Deferred;
 import dev.restate.sdk.common.syscalls.EnterSideEffectSyscallCallback;
 import dev.restate.sdk.common.syscalls.ExitSideEffectSyscallCallback;
 import dev.restate.sdk.common.syscalls.SyscallCallback;
-import io.grpc.MethodDescriptor;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.Executor;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 class ExecutorSwitchingSyscalls implements SyscallsInternal {
 
@@ -79,12 +78,6 @@ class ExecutorSwitchingSyscalls implements SyscallsInternal {
   }
 
   @Override
-  public <T, R> void call(
-      MethodDescriptor<T, R> methodDescriptor, T parameter, SyscallCallback<Deferred<R>> callback) {
-    syscallsExecutor.execute(() -> syscalls.call(methodDescriptor, parameter, callback));
-  }
-
-  @Override
   public void call(
       Target target, ByteString parameter, SyscallCallback<Deferred<ByteString>> callback) {
     syscallsExecutor.execute(() -> syscalls.call(target, parameter, callback));
@@ -97,16 +90,6 @@ class ExecutorSwitchingSyscalls implements SyscallsInternal {
       @Nullable Duration delay,
       SyscallCallback<Void> requestCallback) {
     syscallsExecutor.execute(() -> syscalls.send(target, parameter, delay, requestCallback));
-  }
-
-  @Override
-  public <T> void send(
-      MethodDescriptor<T, ?> methodDescriptor,
-      T parameter,
-      Duration delay,
-      SyscallCallback<Void> requestCallback) {
-    syscallsExecutor.execute(
-        () -> syscalls.send(methodDescriptor, parameter, delay, requestCallback));
   }
 
   @Override
@@ -163,6 +146,12 @@ class ExecutorSwitchingSyscalls implements SyscallsInternal {
   public InvocationId invocationId() {
     // This is immutable once set
     return syscalls.invocationId();
+  }
+
+  @Override
+  public String objectKey() {
+    // This is immutable once set
+    return syscalls.objectKey();
   }
 
   @Override

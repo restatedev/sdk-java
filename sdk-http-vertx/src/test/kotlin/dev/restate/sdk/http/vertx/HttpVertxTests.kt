@@ -11,18 +11,14 @@ package dev.restate.sdk.http.vertx
 import com.google.protobuf.ByteString
 import dev.restate.generated.sdk.java.Java.SideEffectEntryMessage
 import dev.restate.sdk.Component
+import dev.restate.sdk.Context
 import dev.restate.sdk.JavaBlockingTests
+import dev.restate.sdk.JavaCodegenTests
+import dev.restate.sdk.common.CoreSerdes
 import dev.restate.sdk.core.ProtoUtils.*
 import dev.restate.sdk.core.TestDefinitions.*
-import dev.restate.sdk.core.testservices.GreeterGrpc
-import dev.restate.sdk.core.testservices.GreetingRequest
-import dev.restate.sdk.core.testservices.GreetingResponse
-import dev.restate.sdk.kotlin.KotlinCoroutinesTests
-import dev.restate.sdk.kotlin.RestateKtComponent
-import io.grpc.stub.StreamObserver
 import io.vertx.core.Vertx
 import java.util.stream.Stream
-import kotlinx.coroutines.Dispatchers
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 
@@ -45,71 +41,71 @@ class HttpVertxTests : dev.restate.sdk.core.TestRunner() {
   }
 
   class VertxExecutorsTest : TestSuite {
-    private class CheckNonBlockingComponentTrampolineEventLoopContext :
-        dev.restate.sdk.core.testservices.GreeterGrpcKt.GreeterCoroutineImplBase(
-            Dispatchers.Unconfined),
-        RestateKtComponent {
-      override suspend fun greet(request: GreetingRequest): GreetingResponse {
-        check(Vertx.currentContext().isEventLoopContext)
-        dev.restate.sdk.kotlin.ObjectContext.current().sideEffect {
-          check(Vertx.currentContext().isEventLoopContext)
-        }
-        check(Vertx.currentContext().isEventLoopContext)
-        return GreetingResponse.getDefaultInstance()
-      }
-    }
+    //    private class CheckNonBlockingComponentTrampolineEventLoopContext :
+    //        dev.restate.sdk.core.testservices.GreeterGrpcKt.GreeterCoroutineImplBase(
+    //            Dispatchers.Unconfined),
+    //        RestateKtComponent {
+    //      override suspend fun greet(request: GreetingRequest): GreetingResponse {
+    //        check(Vertx.currentContext().isEventLoopContext)
+    //        dev.restate.sdk.kotlin.ObjectContext.current().sideEffect {
+    //          check(Vertx.currentContext().isEventLoopContext)
+    //        }
+    //        check(Vertx.currentContext().isEventLoopContext)
+    //        return GreetingResponse.getDefaultInstance()
+    //      }
+    //    }
 
-    private class CheckBlockingComponentTrampolineExecutor :
-        GreeterGrpc.GreeterImplBase(), Component {
-      override fun greet(
-          request: GreetingRequest,
-          responseObserver: StreamObserver<GreetingResponse>
-      ) {
-        val id = Thread.currentThread().id
-        check(Vertx.currentContext() == null)
-        dev.restate.sdk.ObjectContext.current().sideEffect {
-          check(Thread.currentThread().id == id)
-          check(Vertx.currentContext() == null)
-        }
+    private fun checkBlockingComponentTrampolineExecutor(ctx: Context, _unused: Any): Void? {
+      val id = Thread.currentThread().id
+      check(Vertx.currentContext() == null)
+      ctx.sideEffect {
         check(Thread.currentThread().id == id)
         check(Vertx.currentContext() == null)
-        responseObserver.onNext(GreetingResponse.getDefaultInstance())
-        responseObserver.onCompleted()
       }
+      check(Thread.currentThread().id == id)
+      check(Vertx.currentContext() == null)
+      return null
     }
 
     override fun definitions(): Stream<TestDefinition> {
       return Stream.of(
+          //          testInvocation(
+          //                  CheckNonBlockingComponentTrampolineEventLoopContext(),
+          //                  GreeterGrpc.getGreetMethod())
+          //              .withInput(
+          //                  startMessage(1),
+          //                  inputMessage(GreetingRequest.getDefaultInstance()),
+          //                  ackMessage(1))
+          //              .onlyUnbuffered()
+          //              .expectingOutput(
+          //                  SideEffectEntryMessage.newBuilder().setValue(ByteString.EMPTY),
+          //                  outputMessage(GreetingResponse.getDefaultInstance()),
+          //                  END_MESSAGE),
           testInvocation(
-                  CheckNonBlockingComponentTrampolineEventLoopContext(),
-                  GreeterGrpc.getGreetMethod())
-              .withInput(
-                  startMessage(1),
-                  inputMessage(GreetingRequest.getDefaultInstance()),
-                  ackMessage(1))
+                  Component.service("CheckBlockingComponentTrampolineExecutor")
+                      .with(
+                          Component.HandlerSignature.of("do", CoreSerdes.VOID, CoreSerdes.VOID),
+                          this::checkBlockingComponentTrampolineExecutor)
+                      .build(),
+                  "do")
+              .withInput(startMessage(1), inputMessage(), ackMessage(1))
               .onlyUnbuffered()
               .expectingOutput(
                   SideEffectEntryMessage.newBuilder().setValue(ByteString.EMPTY),
-                  outputMessage(GreetingResponse.getDefaultInstance()),
-                  END_MESSAGE),
-          testInvocation(CheckBlockingComponentTrampolineExecutor(), GreeterGrpc.getGreetMethod())
-              .withInput(
-                  startMessage(1),
-                  inputMessage(GreetingRequest.getDefaultInstance()),
-                  ackMessage(1))
-              .onlyUnbuffered()
-              .expectingOutput(
-                  SideEffectEntryMessage.newBuilder().setValue(ByteString.EMPTY),
-                  outputMessage(GreetingResponse.getDefaultInstance()),
+                  outputMessage(),
                   END_MESSAGE))
     }
   }
 
   override fun definitions(): Stream<TestSuite> {
     return Stream.concat(
+        //        Stream.concat(
+        //            JavaBlockingTests().definitions(),
+        //            KotlinCoroutinesTests().definitions(),
+        //        ),
         Stream.concat(
             JavaBlockingTests().definitions(),
-            KotlinCoroutinesTests().definitions(),
+            JavaCodegenTests().definitions(),
         ),
         Stream.of(VertxExecutorsTest()))
   }

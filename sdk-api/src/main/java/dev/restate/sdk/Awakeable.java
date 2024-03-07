@@ -13,7 +13,6 @@ import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.syscalls.Deferred;
 import dev.restate.sdk.common.syscalls.Result;
 import dev.restate.sdk.common.syscalls.Syscalls;
-import javax.annotation.concurrent.NotThreadSafe;
 
 /**
  * An {@link Awakeable} is a special type of {@link Awaitable} which can be arbitrarily completed by
@@ -25,8 +24,10 @@ import javax.annotation.concurrent.NotThreadSafe;
  * <p>For example, you can send a Kafka record including the {@link Awakeable#id()}, and then let
  * another service consume from Kafka the responses of given external system interaction by using
  * {@link ObjectContext#awakeableHandle(String)}.
+ *
+ * <p>NOTE: This interface MUST NOT be accessed concurrently since it can lead to different
+ * orderings of user actions, corrupting the execution of the invocation.
  */
-@NotThreadSafe
 public final class Awakeable<T> extends Awaitable.MappedAwaitable<ByteString, T> {
 
   private final String identifier;

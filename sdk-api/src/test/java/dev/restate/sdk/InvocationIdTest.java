@@ -8,29 +8,19 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import static dev.restate.sdk.core.ProtoUtils.greetingResponse;
+import static dev.restate.sdk.JavaBlockingTests.testDefinitionForService;
 
-import dev.restate.sdk.common.InvocationId;
+import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.core.InvocationIdTestSuite;
-import dev.restate.sdk.core.testservices.GreeterGrpc;
-import dev.restate.sdk.core.testservices.GreetingRequest;
-import dev.restate.sdk.core.testservices.GreetingResponse;
-import io.grpc.BindableService;
-import io.grpc.stub.StreamObserver;
+import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 
 public class InvocationIdTest extends InvocationIdTestSuite {
 
-  private static class ReturnInvocationId extends GreeterGrpc.GreeterImplBase implements Component {
-
-    @Override
-    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      responseObserver.onNext(greetingResponse(InvocationId.current().toString()));
-      responseObserver.onCompleted();
-    }
-  }
-
-  @Override
-  protected BindableService returnInvocationId() {
-    return new ReturnInvocationId();
+  protected TestInvocationBuilder returnInvocationId() {
+    return testDefinitionForService(
+        "ReturnInvocationId",
+        CoreSerdes.VOID,
+        CoreSerdes.JSON_STRING,
+        (ctx, unused) -> ctx.invocationId().toString());
   }
 }

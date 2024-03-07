@@ -13,7 +13,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.restate.sdk.common.Serde;
 import java.io.IOException;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * {@link Serde} implementations for Jackson.
@@ -73,6 +73,11 @@ public final class JacksonSerdes {
           throw new RuntimeException("Cannot deserialize value", e);
         }
       }
+
+      @Override
+      public String contentType() {
+        return "application/json";
+      }
     };
   }
 
@@ -100,6 +105,11 @@ public final class JacksonSerdes {
         } catch (IOException e) {
           throw new RuntimeException("Cannot deserialize value", e);
         }
+      }
+
+      @Override
+      public String contentType() {
+        return "application/json";
       }
     };
   }

@@ -9,7 +9,7 @@
 package dev.restate.sdk.core;
 
 import dev.restate.sdk.common.AbortedExecutionException;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 class InputPublisherState {
 

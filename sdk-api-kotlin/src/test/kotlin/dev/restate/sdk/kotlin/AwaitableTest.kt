@@ -11,6 +11,7 @@ package dev.restate.sdk.kotlin
 import dev.restate.sdk.common.CoreSerdes
 import dev.restate.sdk.common.StateKey
 import dev.restate.sdk.core.DeferredTestSuite
+import dev.restate.sdk.core.TestDefinitions
 import dev.restate.sdk.core.TestDefinitions.TestDefinition
 import dev.restate.sdk.core.testservices.*
 import io.grpc.BindableService
@@ -31,7 +32,7 @@ class AwaitableTest : DeferredTestSuite() {
     }
   }
 
-  override fun reverseAwaitOrder(): BindableService {
+  override fun reverseAwaitOrder(): TestDefinitions.TestInvocationBuilder? {
     return ReverseAwaitOrder()
   }
 
@@ -44,7 +45,7 @@ class AwaitableTest : DeferredTestSuite() {
     }
   }
 
-  override fun awaitTwiceTheSameAwaitable(): BindableService {
+  override fun awaitTwiceTheSameAwaitable(): TestDefinitions.TestInvocationBuilder? {
     return AwaitTwiceTheSameAwaitable()
   }
 

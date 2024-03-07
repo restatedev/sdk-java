@@ -11,11 +11,7 @@ package dev.restate.sdk;
 import dev.restate.sdk.common.*;
 import dev.restate.sdk.common.function.ThrowingRunnable;
 import dev.restate.sdk.common.function.ThrowingSupplier;
-import dev.restate.sdk.common.syscalls.Syscalls;
-import io.grpc.Channel;
-import io.grpc.MethodDescriptor;
 import java.time.Duration;
-import javax.annotation.concurrent.NotThreadSafe;
 
 /**
  * This interface exposes the Restate functionalities to Restate services. It can be used to
@@ -29,18 +25,12 @@ import javax.annotation.concurrent.NotThreadSafe;
  * <p>NOTE: This interface MUST NOT be accessed concurrently since it can lead to different
  * orderings of user actions, corrupting the execution of the invocation.
  */
-@NotThreadSafe
 public interface Context {
 
   /**
-   * Invoke another Restate service method.
-   *
-   * @param methodDescriptor The method descriptor of the method to invoke. This is found in the
-   *     generated `*Grpc` class.
-   * @param parameter the invocation request parameter.
-   * @return an {@link Awaitable} that wraps the Restate service method result.
+   * @return this invocation id
    */
-  <T, R> Awaitable<R> call(MethodDescriptor<T, R> methodDescriptor, T parameter);
+  InvocationId invocationId();
 
   /**
    * Invoke another Restate service method.
@@ -59,42 +49,18 @@ public interface Context {
   }
 
   /**
-   * Create a {@link Channel} to use with generated blocking stubs to invoke other Restate services.
-   *
-   * <p>The returned {@link Channel} will execute the requests using the {@link
-   * #call(MethodDescriptor, Object)} method.
-   *
-   * <p>Please note that errors will be propagated as {@link TerminalException} and not as {@link
-   * io.grpc.StatusRuntimeException}.
-   *
-   * @return a {@link Channel} to send requests through Restate.
-   */
-  default Channel grpcChannel() {
-    return new GrpcChannelAdapter(this);
-  }
-
-  /**
    * Invoke another Restate service without waiting for the response.
    *
    * @param target the address of the callee
    * @param inputSerde Input serde
    * @param parameter the invocation request parameter.
    */
-  <T> void oneWayCall(Target target, Serde<T> inputSerde, T parameter);
+  <T> void send(Target target, Serde<T> inputSerde, T parameter);
 
-  /** Like {@link #oneWayCall(Target, Serde, Object)} with raw input. */
-  default void oneWayCall(Target target, byte[] parameter) {
-    oneWayCall(target, CoreSerdes.RAW, parameter);
+  /** Like {@link #send(Target, Serde, Object)} with raw input. */
+  default void send(Target target, byte[] parameter) {
+    send(target, CoreSerdes.RAW, parameter);
   }
-
-  /**
-   * Invoke another Restate service without waiting for the response.
-   *
-   * @param methodDescriptor The method descriptor of the method to invoke. This is found in the
-   *     generated `*Grpc` class.
-   * @param parameter the invocation request parameter.
-   */
-  <T> void oneWayCall(MethodDescriptor<T, ?> methodDescriptor, T parameter);
 
   /**
    * Invoke another Restate service without waiting for the response after the provided {@code
@@ -107,25 +73,12 @@ public interface Context {
    * @param parameter the invocation request parameter.
    * @param delay time to wait before executing the call.
    */
-  <T> void delayedCall(Target target, Serde<T> inputSerde, T parameter, Duration delay);
+  <T> void sendDelayed(Target target, Serde<T> inputSerde, T parameter, Duration delay);
 
-  /** Like {@link #delayedCall(Target, Serde, Object, Duration)} with raw input. */
-  default void delayedCall(Target target, byte[] parameter, Duration delay) {
-    delayedCall(target, CoreSerdes.RAW, parameter, delay);
+  /** Like {@link #sendDelayed(Target, Serde, Object, Duration)} with raw input. */
+  default void sendDelayed(Target target, byte[] parameter, Duration delay) {
+    sendDelayed(target, CoreSerdes.RAW, parameter, delay);
   }
-
-  /**
-   * Invoke another Restate service without waiting for the response after the provided {@code
-   * delay} has elapsed.
-   *
-   * <p>This method returns immediately, as the timer is executed and awaited on Restate.
-   *
-   * @param methodDescriptor The method descriptor of the method to invoke. This is found in the
-   *     generated {@code *Grpc} class.
-   * @param parameter the invocation request parameter.
-   * @param delay time to wait before executing the call.
-   */
-  <T> void delayedCall(MethodDescriptor<T, ?> methodDescriptor, T parameter, Duration delay);
 
   /**
    * Causes the current execution of the function invocation to sleep for the given duration.
@@ -227,18 +180,4 @@ public interface Context {
    * @see RestateRandom
    */
   RestateRandom random();
-
-  /**
-   * Create a {@link ObjectContext}. This will look up the thread-local/async-context storage for
-   * the underlying context implementation, so make sure to call it always from the same context
-   * where the service is executed.
-   */
-  static Context current() {
-    return fromSyscalls(Syscalls.current());
-  }
-
-  /** Build a RestateContext from the underlying {@link Syscalls} object. */
-  static Context fromSyscalls(Syscalls syscalls) {
-    return new ContextImpl(syscalls);
-  }
 }

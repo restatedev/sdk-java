@@ -8,30 +8,19 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import static dev.restate.sdk.core.ProtoUtils.greetingResponse;
+import static dev.restate.sdk.JavaBlockingTests.testDefinitionForService;
 
 import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.core.AwakeableIdTestSuite;
-import dev.restate.sdk.core.testservices.GreeterGrpc;
-import dev.restate.sdk.core.testservices.GreetingRequest;
-import dev.restate.sdk.core.testservices.GreetingResponse;
-import io.grpc.BindableService;
-import io.grpc.stub.StreamObserver;
+import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 
 public class AwakeableIdTest extends AwakeableIdTestSuite {
 
-  private static class ReturnAwakeableId extends GreeterGrpc.GreeterImplBase implements Component {
-
-    @Override
-    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      String id = ObjectContext.current().awakeable(CoreSerdes.JSON_STRING).id();
-      responseObserver.onNext(greetingResponse(id));
-      responseObserver.onCompleted();
-    }
-  }
-
-  @Override
-  protected BindableService returnAwakeableId() {
-    return new ReturnAwakeableId();
+  protected TestInvocationBuilder returnAwakeableId() {
+    return testDefinitionForService(
+        "ReturnAwakeableId",
+        CoreSerdes.VOID,
+        CoreSerdes.JSON_STRING,
+        (context, unused) -> context.awakeable(CoreSerdes.JSON_STRING).id());
   }
 }

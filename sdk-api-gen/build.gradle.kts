@@ -7,6 +7,8 @@ plugins {
 description = "Restate SDK API Gen"
 
 dependencies {
+  compileOnly(coreLibs.jspecify)
+
   implementation(project(":sdk-common"))
   implementation(project(":sdk-api"))
   implementation(project(":sdk-workflow-api"))
@@ -20,11 +22,9 @@ dependencies {
   testImplementation(testingLibs.assertj)
   testImplementation(coreLibs.protobuf.java)
   testImplementation(coreLibs.log4j.core)
-  testCompileOnly(coreLibs.javax.annotation.api)
 
   // Import test suites from sdk-core
   testImplementation(project(":sdk-core", "testArchive"))
-  testProtobuf(project(":sdk-core", "testArchive"))
 }
 
 // Generate test jar

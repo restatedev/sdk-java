@@ -8,23 +8,19 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import static dev.restate.sdk.core.AssertUtils.*;
+import static dev.restate.sdk.core.AssertUtils.containsOnlyExactErrorMessage;
 import static dev.restate.sdk.core.ProtoUtils.*;
-import static dev.restate.sdk.core.TestDefinitions.testInvocation;
 
-import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.TestDefinitions.TestDefinition;
+import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
-import dev.restate.sdk.core.testservices.GreeterGrpc;
-import dev.restate.sdk.core.testservices.GreetingRequest;
-import io.grpc.BindableService;
 import java.util.stream.Stream;
 
 public abstract class RandomTestSuite implements TestSuite {
 
-  protected abstract BindableService randomShouldBeDeterministic();
+  protected abstract TestInvocationBuilder randomShouldBeDeterministic();
 
-  protected abstract BindableService randomInsideSideEffect();
+  protected abstract TestInvocationBuilder randomInsideSideEffect();
 
   protected abstract int getExpectedInt(long seed);
 
@@ -33,20 +29,13 @@ public abstract class RandomTestSuite implements TestSuite {
     String debugId = "my-id";
 
     return Stream.of(
-        testInvocation(this::randomShouldBeDeterministic, GreeterGrpc.getGreetMethod())
-            .withInput(
-                Protocol.StartMessage.newBuilder().setDebugId(debugId).setKnownEntries(1),
-                inputMessage(GreetingRequest.getDefaultInstance()))
+        this.randomShouldBeDeterministic()
+            .withInput(startMessage(1).setDebugId(debugId), ProtoUtils.inputMessage())
             .expectingOutput(
-                outputMessage(
-                    greetingResponse(
-                        Integer.toString(
-                            getExpectedInt(new InvocationIdImpl(debugId).toRandomSeed())))),
+                outputMessage(getExpectedInt(new InvocationIdImpl(debugId).toRandomSeed())),
                 END_MESSAGE),
-        testInvocation(this::randomInsideSideEffect, GreeterGrpc.getGreetMethod())
-            .withInput(
-                Protocol.StartMessage.newBuilder().setDebugId(debugId).setKnownEntries(1),
-                inputMessage(GreetingRequest.getDefaultInstance()))
+        this.randomInsideSideEffect()
+            .withInput(startMessage(1).setDebugId(debugId), ProtoUtils.inputMessage())
             .assertingOutput(
                 containsOnlyExactErrorMessage(
                     new IllegalStateException(

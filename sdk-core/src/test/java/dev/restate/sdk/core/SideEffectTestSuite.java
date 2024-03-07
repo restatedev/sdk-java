@@ -10,54 +10,51 @@ package dev.restate.sdk.core;
 
 import static dev.restate.sdk.core.AssertUtils.containsOnlyExactErrorMessage;
 import static dev.restate.sdk.core.ProtoUtils.*;
-import static dev.restate.sdk.core.TestDefinitions.*;
+import static dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.sdk.common.CoreSerdes;
-import dev.restate.sdk.core.testservices.GreeterGrpc;
-import dev.restate.sdk.core.testservices.GreetingRequest;
-import io.grpc.BindableService;
 import java.util.stream.Stream;
 
 public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
 
-  protected abstract BindableService sideEffect(String sideEffectOutput);
+  protected abstract TestInvocationBuilder sideEffect(String sideEffectOutput);
 
-  protected abstract BindableService consecutiveSideEffect(String sideEffectOutput);
+  protected abstract TestInvocationBuilder consecutiveSideEffect(String sideEffectOutput);
 
-  protected abstract BindableService checkContextSwitching();
+  protected abstract TestInvocationBuilder checkContextSwitching();
 
-  protected abstract BindableService sideEffectGuard();
+  protected abstract TestInvocationBuilder sideEffectGuard();
 
   @Override
   public Stream<TestDefinitions.TestDefinition> definitions() {
     return Stream.of(
-        testInvocation(() -> this.sideEffect("Francesco"), GreeterGrpc.getGreetMethod())
-            .withInput(startMessage(1), inputMessage(greetingRequest("Till")))
+        this.sideEffect("Francesco")
+            .withInput(startMessage(1), inputMessage("Till"))
             .expectingOutput(
                 Java.SideEffectEntryMessage.newBuilder()
                     .setValue(CoreSerdes.JSON_STRING.serializeToByteString("Francesco")),
                 suspensionMessage(1))
             .named("Without optimization suspends"),
-        testInvocation(() -> this.sideEffect("Francesco"), GreeterGrpc.getGreetMethod())
-            .withInput(startMessage(1), inputMessage(greetingRequest("Till")), ackMessage(1))
+        this.sideEffect("Francesco")
+            .withInput(startMessage(1), inputMessage("Till"), ackMessage(1))
             .expectingOutput(
                 Java.SideEffectEntryMessage.newBuilder()
                     .setValue(CoreSerdes.JSON_STRING.serializeToByteString("Francesco")),
-                outputMessage(greetingResponse("Hello Francesco")),
+                outputMessage("Hello Francesco"),
                 END_MESSAGE)
             .named("Without optimization and with acks returns"),
-        testInvocation(() -> this.consecutiveSideEffect("Francesco"), GreeterGrpc.getGreetMethod())
-            .withInput(startMessage(1), inputMessage(greetingRequest("Till")))
+        this.consecutiveSideEffect("Francesco")
+            .withInput(startMessage(1), inputMessage("Till"))
             .expectingOutput(
                 Java.SideEffectEntryMessage.newBuilder()
                     .setValue(CoreSerdes.JSON_STRING.serializeToByteString("Francesco")),
                 suspensionMessage(1))
             .named("With optimization and without ack on first side effect will suspend"),
-        testInvocation(() -> this.consecutiveSideEffect("Francesco"), GreeterGrpc.getGreetMethod())
-            .withInput(startMessage(1), inputMessage(greetingRequest("Till")), ackMessage(1))
+        this.consecutiveSideEffect("Francesco")
+            .withInput(startMessage(1), inputMessage("Till"), ackMessage(1))
             .onlyUnbuffered()
             .expectingOutput(
                 Java.SideEffectEntryMessage.newBuilder()
@@ -66,26 +63,21 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
                     .setValue(CoreSerdes.JSON_STRING.serializeToByteString("FRANCESCO")),
                 suspensionMessage(2))
             .named("With optimization and ack on first side effect will suspend"),
-        testInvocation(() -> this.consecutiveSideEffect("Francesco"), GreeterGrpc.getGreetMethod())
-            .withInput(
-                startMessage(1),
-                inputMessage(greetingRequest("Till")),
-                ackMessage(1),
-                ackMessage(2))
+        this.consecutiveSideEffect("Francesco")
+            .withInput(startMessage(1), inputMessage("Till"), ackMessage(1), ackMessage(2))
             .onlyUnbuffered()
             .expectingOutput(
                 Java.SideEffectEntryMessage.newBuilder()
                     .setValue(CoreSerdes.JSON_STRING.serializeToByteString("Francesco")),
                 Java.SideEffectEntryMessage.newBuilder()
                     .setValue(CoreSerdes.JSON_STRING.serializeToByteString("FRANCESCO")),
-                outputMessage(greetingResponse("Hello FRANCESCO")),
+                outputMessage("Hello FRANCESCO"),
                 END_MESSAGE)
             .named("With optimization and ack on first and second side effect will resume"),
 
         // --- Other tests
-        testInvocation(this::checkContextSwitching, GreeterGrpc.getGreetMethod())
-            .withInput(
-                startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()), ackMessage(1))
+        this.checkContextSwitching()
+            .withInput(startMessage(1), inputMessage(), ackMessage(1))
             .onlyUnbuffered()
             .assertingOutput(
                 actualOutputMessages -> {
@@ -94,13 +86,11 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
                       .element(0)
                       .asInstanceOf(type(Java.SideEffectEntryMessage.class))
                       .returns(true, Java.SideEffectEntryMessage::hasValue);
-                  assertThat(actualOutputMessages)
-                      .element(1)
-                      .isEqualTo(outputMessage(greetingResponse("Hello")));
+                  assertThat(actualOutputMessages).element(1).isEqualTo(outputMessage("Hello"));
                   assertThat(actualOutputMessages).element(2).isEqualTo(END_MESSAGE);
                 }),
-        testInvocation(this::sideEffectGuard, GreeterGrpc.getGreetMethod())
-            .withInput(startMessage(1), inputMessage(greetingRequest("Till")))
+        this.sideEffectGuard()
+            .withInput(startMessage(1), inputMessage("Till"))
             .assertingOutput(
                 containsOnlyExactErrorMessage(ProtocolException.invalidSideEffectCall())));
   }

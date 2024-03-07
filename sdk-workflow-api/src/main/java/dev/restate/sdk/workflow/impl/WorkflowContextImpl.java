@@ -8,63 +8,33 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.workflow.impl;
 
-import com.google.protobuf.Empty;
+import static dev.restate.sdk.workflow.impl.WorkflowImpl.workflowManagerObjectName;
+
 import dev.restate.sdk.*;
-import dev.restate.sdk.common.Serde;
-import dev.restate.sdk.common.StateKey;
-import dev.restate.sdk.common.Target;
-import dev.restate.sdk.common.TerminalException;
+import dev.restate.sdk.common.*;
 import dev.restate.sdk.common.function.ThrowingRunnable;
 import dev.restate.sdk.common.function.ThrowingSupplier;
-import dev.restate.sdk.workflow.*;
+import dev.restate.sdk.workflow.DurablePromise;
+import dev.restate.sdk.workflow.DurablePromiseHandle;
+import dev.restate.sdk.workflow.DurablePromiseKey;
+import dev.restate.sdk.workflow.WorkflowContext;
 import dev.restate.sdk.workflow.generated.*;
-import dev.restate.sdk.workflow.template.generated.WorkflowManagerGrpc;
-import io.grpc.MethodDescriptor;
 import java.time.Duration;
 import java.util.Optional;
-import javax.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 class WorkflowContextImpl implements WorkflowContext {
 
-  private final ObjectContext ctx;
+  private final Context ctx;
+  private final String workflowFsqn;
   private final String workflowKey;
   private final boolean isExclusive;
 
-  private final MethodDescriptor<StateRequest, GetStateResponse> workflowManagerGetState;
-  private final MethodDescriptor<SetStateRequest, Empty> workflowManagerSetState;
-  private final MethodDescriptor<StateRequest, Empty> workflowManagerClearState;
-  private final MethodDescriptor<WaitDurablePromiseCompletionRequest, Empty>
-      workflowManagerWaitDurablePromiseCompletion;
-  private final MethodDescriptor<GetDurablePromiseCompletionRequest, MaybeDurablePromiseCompletion>
-      workflowManagerGetDurablePromiseCompletion;
-  private final MethodDescriptor<CompleteDurablePromiseRequest, Empty>
-      workflowManagerCompleteSignal;
-
-  WorkflowContextImpl(
-      String workflowFqsn, ObjectContext ctx, String workflowKey, boolean isExclusive) {
+  WorkflowContextImpl(Context ctx, String workflowFqsn, String workflowKey, boolean isExclusive) {
     this.ctx = ctx;
+    this.workflowFsqn = workflowFqsn;
     this.workflowKey = workflowKey;
     this.isExclusive = isExclusive;
-
-    // Descriptors for methods we invoke
-    this.workflowManagerGetState =
-        WorkflowCodegenUtil.generateMethodDescriptorForWorkflowManager(
-            WorkflowManagerGrpc.getGetStateMethod(), workflowFqsn);
-    this.workflowManagerSetState =
-        WorkflowCodegenUtil.generateMethodDescriptorForWorkflowManager(
-            WorkflowManagerGrpc.getSetStateMethod(), workflowFqsn);
-    this.workflowManagerClearState =
-        WorkflowCodegenUtil.generateMethodDescriptorForWorkflowManager(
-            WorkflowManagerGrpc.getClearStateMethod(), workflowFqsn);
-    this.workflowManagerWaitDurablePromiseCompletion =
-        WorkflowCodegenUtil.generateMethodDescriptorForWorkflowManager(
-            WorkflowManagerGrpc.getWaitDurablePromiseCompletionMethod(), workflowFqsn);
-    this.workflowManagerGetDurablePromiseCompletion =
-        WorkflowCodegenUtil.generateMethodDescriptorForWorkflowManager(
-            WorkflowManagerGrpc.getGetDurablePromiseCompletionMethod(), workflowFqsn);
-    this.workflowManagerCompleteSignal =
-        WorkflowCodegenUtil.generateMethodDescriptorForWorkflowManager(
-            WorkflowManagerGrpc.getCompleteDurablePromiseMethod(), workflowFqsn);
   }
 
   @Override
@@ -79,8 +49,10 @@ class WorkflowContextImpl implements WorkflowContext {
     GetStateResponse response =
         this.ctx
             .call(
-                this.workflowManagerGetState,
-                StateRequest.newBuilder().setKey(this.workflowKey).setStateKey(key.name()).build())
+                workflowManagerTarget("getState"),
+                CoreSerdes.JSON_STRING,
+                WorkflowImpl.GET_STATE_RESPONSE_SERDE,
+                key.name())
             .await();
 
     switch (response.getResultCase()) {
@@ -97,20 +69,18 @@ class WorkflowContextImpl implements WorkflowContext {
     if (!isExclusive) {
       throw new UnsupportedOperationException("Can't perform a state update on a SharedContext");
     }
-    this.ctx.oneWayCall(
-        this.workflowManagerClearState,
-        StateRequest.newBuilder().setKey(this.workflowKey).setStateKey(key.name()).build());
+    this.ctx.send(workflowManagerTarget("clearState"), CoreSerdes.JSON_STRING, key.name());
   }
 
   @Override
-  public <T> void set(StateKey<T> key, @Nonnull T value) {
+  public <T> void set(StateKey<T> key, @NonNull T value) {
     if (!isExclusive) {
       throw new UnsupportedOperationException("Can't perform a state update on a SharedContext");
     }
-    this.ctx.oneWayCall(
-        this.workflowManagerSetState,
+    this.ctx.send(
+        workflowManagerTarget("setState"),
+        WorkflowImpl.SET_STATE_REQUEST_SERDE,
         SetStateRequest.newBuilder()
-            .setKey(this.workflowKey)
             .setStateKey(key.name())
             .setStateValue(key.serde().serializeToByteString(value))
             .build());
@@ -120,18 +90,90 @@ class WorkflowContextImpl implements WorkflowContext {
 
   @Override
   public <T> DurablePromise<T> durablePromise(DurablePromiseKey<T> key) {
-    return DurablePromiseImpl.prepare(
-        workflowKey,
-        ctx,
-        key,
-        workflowManagerWaitDurablePromiseCompletion,
-        workflowManagerGetDurablePromiseCompletion);
+    Awakeable<T> awakeable = ctx.awakeable(key.serde());
+
+    // Register durablePromise
+    ctx.send(
+        workflowManagerTarget("waitDurablePromiseCompletion"),
+        WorkflowImpl.WAIT_DURABLE_PROMISE_COMPLETION_REQUEST_SERDE,
+        WaitDurablePromiseCompletionRequest.newBuilder()
+            .setDurablePromiseKey(key.name())
+            .setAwakeableId(awakeable.id())
+            .build());
+
+    return new DurablePromise<>() {
+      @Override
+      public Awaitable<T> awaitable() {
+        return awakeable;
+      }
+
+      @Override
+      public Optional<T> peek() {
+        MaybeDurablePromiseCompletion maybeDurablePromiseCompletion =
+            ctx.call(
+                    workflowManagerTarget("getDurablePromiseCompletion"),
+                    CoreSerdes.JSON_STRING,
+                    WorkflowImpl.MAYBE_DURABLE_PROMISE_COMPLETION_SERDE,
+                    key.name())
+                .await();
+
+        switch (maybeDurablePromiseCompletion.getResultCase()) {
+          case VALUE:
+            return Optional.of(key.serde().deserialize(maybeDurablePromiseCompletion.getValue()));
+          case FAILURE:
+            throw new TerminalException(
+                TerminalException.Code.fromValue(
+                    maybeDurablePromiseCompletion.getFailure().getCode()),
+                maybeDurablePromiseCompletion.getFailure().getMessage());
+          case NOT_COMPLETED:
+            return Optional.empty();
+        }
+        throw new IllegalStateException("Unexpected response from WorkflowManager");
+      }
+
+      @Override
+      public boolean isCompleted() {
+        MaybeDurablePromiseCompletion maybeDurablePromiseCompletion =
+            ctx.call(
+                    workflowManagerTarget("getDurablePromiseCompletion"),
+                    CoreSerdes.JSON_STRING,
+                    WorkflowImpl.MAYBE_DURABLE_PROMISE_COMPLETION_SERDE,
+                    key.name())
+                .await();
+        return !maybeDurablePromiseCompletion.hasNotCompleted();
+      }
+    };
   }
 
   @Override
   public <T> DurablePromiseHandle<T> durablePromiseHandle(DurablePromiseKey<T> key) {
-    return new DurablePromiseHandleImpl<>(
-        workflowKey, ctx, this.workflowManagerCompleteSignal, key);
+    return new DurablePromiseHandle<>() {
+      @Override
+      public void resolve(T payload) throws IllegalStateException {
+        ctx.send(
+            workflowManagerTarget("completeDurablePromise"),
+            WorkflowImpl.COMPLETE_DURABLE_PROMISE_REQUEST_SERDE,
+            CompleteDurablePromiseRequest.newBuilder()
+                .setDurablePromiseKey(key.name())
+                .setCompletion(
+                    DurablePromiseCompletion.newBuilder()
+                        .setValue(key.serde().serializeToByteString(payload)))
+                .build());
+      }
+
+      @Override
+      public void reject(String reason) throws IllegalStateException {
+        ctx.send(
+            workflowManagerTarget("completeDurablePromise"),
+            WorkflowImpl.COMPLETE_DURABLE_PROMISE_REQUEST_SERDE,
+            CompleteDurablePromiseRequest.newBuilder()
+                .setDurablePromiseKey(key.name())
+                .setCompletion(
+                    DurablePromiseCompletion.newBuilder()
+                        .setFailure(Failure.newBuilder().setCode(2).setMessage(reason)))
+                .build());
+      }
+    };
   }
 
   // -- Delegates to RestateContext
@@ -147,8 +189,8 @@ class WorkflowContextImpl implements WorkflowContext {
   }
 
   @Override
-  public <T, R> Awaitable<R> call(MethodDescriptor<T, R> methodDescriptor, T parameter) {
-    return ctx.call(methodDescriptor, parameter);
+  public InvocationId invocationId() {
+    return this.ctx.invocationId();
   }
 
   @Override
@@ -158,24 +200,13 @@ class WorkflowContextImpl implements WorkflowContext {
   }
 
   @Override
-  public <T> void oneWayCall(Target target, Serde<T> inputSerde, T parameter) {
-    ctx.oneWayCall(target, inputSerde, parameter);
+  public <T> void send(Target target, Serde<T> inputSerde, T parameter) {
+    ctx.send(target, inputSerde, parameter);
   }
 
   @Override
-  public <T> void oneWayCall(MethodDescriptor<T, ?> methodDescriptor, T parameter) {
-    ctx.oneWayCall(methodDescriptor, parameter);
-  }
-
-  @Override
-  public <T> void delayedCall(Target target, Serde<T> inputSerde, T parameter, Duration delay) {
-    ctx.delayedCall(target, inputSerde, parameter, delay);
-  }
-
-  @Override
-  public <T> void delayedCall(
-      MethodDescriptor<T, ?> methodDescriptor, T parameter, Duration delay) {
-    ctx.delayedCall(methodDescriptor, parameter, delay);
+  public <T> void sendDelayed(Target target, Serde<T> inputSerde, T parameter, Duration delay) {
+    ctx.sendDelayed(target, inputSerde, parameter, delay);
   }
 
   @Override
@@ -201,5 +232,10 @@ class WorkflowContextImpl implements WorkflowContext {
   @Override
   public RestateRandom random() {
     return ctx.random();
+  }
+
+  private Target workflowManagerTarget(String handler) {
+    return Target.virtualObject(
+        workflowManagerObjectName(this.workflowFsqn), this.workflowKey, handler);
   }
 }

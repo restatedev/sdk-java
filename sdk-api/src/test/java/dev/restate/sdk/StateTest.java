@@ -8,62 +8,49 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import static dev.restate.sdk.core.ProtoUtils.greetingResponse;
+import static dev.restate.sdk.JavaBlockingTests.testDefinitionForVirtualObject;
 
 import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.StateKey;
 import dev.restate.sdk.core.StateTestSuite;
-import dev.restate.sdk.core.testservices.GreeterGrpc;
-import dev.restate.sdk.core.testservices.GreetingRequest;
-import dev.restate.sdk.core.testservices.GreetingResponse;
-import io.grpc.BindableService;
-import io.grpc.stub.StreamObserver;
+import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 
 public class StateTest extends StateTestSuite {
 
-  private static class GetState extends GreeterGrpc.GreeterImplBase implements Component {
-    @Override
-    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      String state =
-          ObjectContext.current()
-              .get(StateKey.of("STATE", CoreSerdes.JSON_STRING))
-              .orElse("Unknown");
+  protected TestInvocationBuilder getState() {
+    return testDefinitionForVirtualObject(
+        "GetState",
+        CoreSerdes.VOID,
+        CoreSerdes.JSON_STRING,
+        (ctx, unused) -> {
+          String state = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).orElse("Unknown");
 
-      responseObserver.onNext(GreetingResponse.newBuilder().setMessage("Hello " + state).build());
-      responseObserver.onCompleted();
-    }
+          return "Hello " + state;
+        });
   }
 
-  @Override
-  protected BindableService getState() {
-    return new GetState();
+  protected TestInvocationBuilder getAndSetState() {
+    return testDefinitionForVirtualObject(
+        "GetState",
+        CoreSerdes.JSON_STRING,
+        CoreSerdes.JSON_STRING,
+        (ctx, input) -> {
+          String state = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
+
+          ctx.set(StateKey.of("STATE", CoreSerdes.JSON_STRING), input);
+
+          return "Hello " + state;
+        });
   }
 
-  private static class GetAndSetState extends GreeterGrpc.GreeterImplBase implements Component {
-    @Override
-    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      ObjectContext ctx = ObjectContext.current();
-
-      String state = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
-
-      ctx.set(StateKey.of("STATE", CoreSerdes.JSON_STRING), request.getName());
-
-      responseObserver.onNext(GreetingResponse.newBuilder().setMessage("Hello " + state).build());
-      responseObserver.onCompleted();
-    }
-  }
-
-  @Override
-  protected BindableService getAndSetState() {
-    return new GetAndSetState();
-  }
-
-  private static class SetNullState extends GreeterGrpc.GreeterImplBase implements Component {
-    @Override
-    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      ObjectContext.current()
-          .set(
+  protected TestInvocationBuilder setNullState() {
+    return testDefinitionForVirtualObject(
+        "GetState",
+        CoreSerdes.VOID,
+        CoreSerdes.JSON_STRING,
+        (ctx, unused) -> {
+          ctx.set(
               StateKey.of(
                   "STATE",
                   Serde.<String>using(
@@ -75,13 +62,7 @@ public class StateTest extends StateTestSuite {
                       })),
               null);
 
-      responseObserver.onNext(greetingResponse(""));
-      responseObserver.onCompleted();
-    }
-  }
-
-  @Override
-  protected BindableService setNullState() {
-    return new SetNullState();
+          throw new IllegalStateException("set did not fail");
+        });
   }
 }

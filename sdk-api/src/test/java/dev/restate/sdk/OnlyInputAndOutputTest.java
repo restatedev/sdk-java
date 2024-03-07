@@ -8,26 +8,19 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
+import static dev.restate.sdk.JavaBlockingTests.testDefinitionForService;
+
+import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.core.OnlyInputAndOutputTestSuite;
-import dev.restate.sdk.core.testservices.GreeterGrpc;
-import dev.restate.sdk.core.testservices.GreetingRequest;
-import dev.restate.sdk.core.testservices.GreetingResponse;
-import io.grpc.BindableService;
-import io.grpc.stub.StreamObserver;
+import dev.restate.sdk.core.TestDefinitions;
 
 public class OnlyInputAndOutputTest extends OnlyInputAndOutputTestSuite {
 
-  private static class NoSyscallsGreeter extends GreeterGrpc.GreeterImplBase implements Component {
-    @Override
-    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      responseObserver.onNext(
-          GreetingResponse.newBuilder().setMessage("Hello " + request.getName()).build());
-      responseObserver.onCompleted();
-    }
-  }
-
-  @Override
-  protected BindableService noSyscallsGreeter() {
-    return new NoSyscallsGreeter();
+  protected TestDefinitions.TestInvocationBuilder noSyscallsGreeter() {
+    return testDefinitionForService(
+        "NoSyscallsGreeter",
+        CoreSerdes.JSON_STRING,
+        CoreSerdes.JSON_STRING,
+        (ctx, input) -> "Hello " + input);
   }
 }

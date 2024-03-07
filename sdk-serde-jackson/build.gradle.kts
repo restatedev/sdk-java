@@ -6,8 +6,10 @@ plugins {
 description = "Restate SDK Jackson integration"
 
 dependencies {
+  compileOnly(coreLibs.jspecify)
+
+  api(platform(jacksonLibs.jackson.bom))
   api(jacksonLibs.jackson.databind)
-  implementation(platform(jacksonLibs.jackson.bom))
   implementation(jacksonLibs.jackson.core)
 
   testImplementation(testingLibs.junit.jupiter)

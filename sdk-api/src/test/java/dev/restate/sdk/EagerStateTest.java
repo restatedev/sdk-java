@@ -8,129 +8,81 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
+import static dev.restate.sdk.JavaBlockingTests.testDefinitionForVirtualObject;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.common.StateKey;
-import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.EagerStateTestSuite;
-import dev.restate.sdk.core.testservices.GreeterGrpc;
-import dev.restate.sdk.core.testservices.GreeterRestate;
-import dev.restate.sdk.core.testservices.GreetingRequest;
-import dev.restate.sdk.core.testservices.GreetingResponse;
-import io.grpc.BindableService;
-import io.grpc.stub.StreamObserver;
+import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 
 public class EagerStateTest extends EagerStateTestSuite {
 
-  private static class GetEmpty extends GreeterGrpc.GreeterImplBase implements Component {
-    @Override
-    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      ObjectContext ctx = ObjectContext.current();
-
-      boolean stateIsEmpty = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).isEmpty();
-
-      responseObserver.onNext(
-          GreetingResponse.newBuilder().setMessage(String.valueOf(stateIsEmpty)).build());
-      responseObserver.onCompleted();
-    }
+  protected TestInvocationBuilder getEmpty() {
+    return testDefinitionForVirtualObject(
+        "GetEmpty",
+        CoreSerdes.VOID,
+        CoreSerdes.JSON_STRING,
+        (ctx, unused) ->
+            String.valueOf(ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).isEmpty()));
   }
 
-  @Override
-  protected BindableService getEmpty() {
-    return new GetEmpty();
+  protected TestInvocationBuilder get() {
+    return testDefinitionForVirtualObject(
+        "GetEmpty",
+        CoreSerdes.VOID,
+        CoreSerdes.JSON_STRING,
+        (ctx, unused) -> ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get());
   }
 
-  private static class Get extends GreeterGrpc.GreeterImplBase implements Component {
-    @Override
-    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      ObjectContext ctx = ObjectContext.current();
+  protected TestInvocationBuilder getAppendAndGet() {
+    return testDefinitionForVirtualObject(
+        "GetAppendAndGet",
+        CoreSerdes.JSON_STRING,
+        CoreSerdes.JSON_STRING,
+        (ctx, input) -> {
+          String oldState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
+          ctx.set(StateKey.of("STATE", CoreSerdes.JSON_STRING), oldState + input);
 
-      String state = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
-
-      responseObserver.onNext(GreetingResponse.newBuilder().setMessage(state).build());
-      responseObserver.onCompleted();
-    }
+          return ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
+        });
   }
 
-  @Override
-  protected BindableService get() {
-    return new Get();
+  protected TestInvocationBuilder getClearAndGet() {
+    return testDefinitionForVirtualObject(
+        "GetClearAndGet",
+        CoreSerdes.VOID,
+        CoreSerdes.JSON_STRING,
+        (ctx, input) -> {
+          String oldState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
+
+          ctx.clear(StateKey.of("STATE", CoreSerdes.JSON_STRING));
+          assertThat(ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))).isEmpty();
+          return oldState;
+        });
   }
 
-  private static class GetAppendAndGet extends GreeterGrpc.GreeterImplBase implements Component {
-    @Override
-    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      ObjectContext ctx = ObjectContext.current();
+  protected TestInvocationBuilder getClearAllAndGet() {
+    return testDefinitionForVirtualObject(
+        "GetClearAllAndGet",
+        CoreSerdes.VOID,
+        CoreSerdes.JSON_STRING,
+        (ctx, input) -> {
+          String oldState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
 
-      String oldState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
-      ctx.set(StateKey.of("STATE", CoreSerdes.JSON_STRING), oldState + request.getName());
+          ctx.clearAll();
+          assertThat(ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))).isEmpty();
+          assertThat(ctx.get(StateKey.of("ANOTHER_STATE", CoreSerdes.JSON_STRING))).isEmpty();
 
-      String newState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
-
-      responseObserver.onNext(GreetingResponse.newBuilder().setMessage(newState).build());
-      responseObserver.onCompleted();
-    }
+          return oldState;
+        });
   }
 
-  @Override
-  protected BindableService getAppendAndGet() {
-    return new GetAppendAndGet();
-  }
-
-  private static class GetClearAndGet extends GreeterGrpc.GreeterImplBase implements Component {
-    @Override
-    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      ObjectContext ctx = ObjectContext.current();
-
-      String oldState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
-
-      ctx.clear(StateKey.of("STATE", CoreSerdes.JSON_STRING));
-      assertThat(ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))).isEmpty();
-
-      responseObserver.onNext(GreetingResponse.newBuilder().setMessage(oldState).build());
-      responseObserver.onCompleted();
-    }
-  }
-
-  @Override
-  protected BindableService getClearAndGet() {
-    return new GetClearAndGet();
-  }
-
-  private static class GetClearAllAndGet extends GreeterGrpc.GreeterImplBase implements Component {
-    @Override
-    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      ObjectContext ctx = ObjectContext.current();
-
-      String oldState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
-
-      ctx.clearAll();
-      assertThat(ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))).isEmpty();
-      assertThat(ctx.get(StateKey.of("ANOTHER_STATE", CoreSerdes.JSON_STRING))).isEmpty();
-
-      responseObserver.onNext(GreetingResponse.newBuilder().setMessage(oldState).build());
-      responseObserver.onCompleted();
-    }
-  }
-
-  @Override
-  protected BindableService getClearAllAndGet() {
-    return new GetClearAllAndGet();
-  }
-
-  private static class ListKeys extends GreeterRestate.GreeterRestateImplBase {
-    @Override
-    public GreetingResponse greet(ObjectContext context, GreetingRequest request)
-        throws TerminalException {
-      return GreetingResponse.newBuilder()
-          .setMessage(String.join(",", context.stateKeys()))
-          .build();
-    }
-  }
-
-  @Override
-  protected BindableService listKeys() {
-    return new ListKeys();
+  protected TestInvocationBuilder listKeys() {
+    return testDefinitionForVirtualObject(
+        "ListKeys",
+        CoreSerdes.VOID,
+        CoreSerdes.JSON_STRING,
+        (ctx, input) -> String.join(",", ctx.stateKeys()));
   }
 }

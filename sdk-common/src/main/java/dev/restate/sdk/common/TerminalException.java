@@ -11,9 +11,6 @@ package dev.restate.sdk.common;
 /** When thrown in a Restate service method, it will complete the invocation with an error. */
 public class TerminalException extends RuntimeException {
 
-  /**
-   * @see io.grpc.Status.Code
-   */
   public enum Code {
     OK(0),
     CANCELLED(1),

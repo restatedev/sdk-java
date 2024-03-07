@@ -13,8 +13,8 @@ import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 import com.google.protobuf.MessageLite;
-import com.google.rpc.Code;
 import dev.restate.generated.service.protocol.Protocol;
+import dev.restate.sdk.common.TerminalException;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -39,7 +39,7 @@ public class AssertUtils {
         msg ->
             assertThat(msg)
                 .returns(e.toString(), Protocol.ErrorMessage::getMessage)
-                .returns(Code.UNKNOWN_VALUE, Protocol.ErrorMessage::getCode));
+                .returns(TerminalException.Code.UNKNOWN.value(), Protocol.ErrorMessage::getCode));
   }
 
   public static Consumer<? super MessageLite> errorMessageStartingWith(String str) {

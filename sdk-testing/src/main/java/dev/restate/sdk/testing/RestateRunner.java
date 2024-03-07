@@ -27,7 +27,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  * <p>This extension is scoped per test class, meaning that the restate runner will be shared among
  * test methods.
  *
- * <p>Use the annotations {@link RestateGrpcChannel}, {@link RestateURL} and {@link
+ * <p>Use the annotations {@link RestateIngressClient}, {@link RestateURL} and {@link
  * RestateAdminClient} to interact with the deployed runtime:
  *
  * <pre>{@code

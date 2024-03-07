@@ -8,60 +8,49 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
+import static dev.restate.sdk.JavaBlockingTests.testDefinitionForService;
+
+import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.core.SleepTestSuite;
-import dev.restate.sdk.core.testservices.GreeterGrpc;
-import dev.restate.sdk.core.testservices.GreetingRequest;
-import dev.restate.sdk.core.testservices.GreetingResponse;
-import io.grpc.BindableService;
-import io.grpc.stub.StreamObserver;
+import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
 public class SleepTest extends SleepTestSuite {
 
-  private static class SleepGreeter extends GreeterGrpc.GreeterImplBase implements Component {
-
-    @Override
-    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      ObjectContext ctx = ObjectContext.current();
-
-      ctx.sleep(Duration.ofSeconds(1));
-
-      responseObserver.onNext(GreetingResponse.newBuilder().setMessage("Hello").build());
-      responseObserver.onCompleted();
-    }
+  protected TestInvocationBuilder sleepGreeter() {
+    return testDefinitionForService(
+        "SleepGreeter",
+        CoreSerdes.VOID,
+        CoreSerdes.JSON_STRING,
+        (ctx, unused) -> {
+          ctx.sleep(Duration.ofSeconds(1));
+          return "Hello";
+        });
   }
 
-  @Override
-  protected BindableService sleepGreeter() {
-    return new SleepGreeter();
-  }
+  protected TestInvocationBuilder manySleeps() {
+    return testDefinitionForService(
+        "ManySleeps",
+        CoreSerdes.VOID,
+        CoreSerdes.VOID,
+        (ctx, unused) -> {
+          List<Awaitable<?>> collectedAwaitables = new ArrayList<>();
 
-  private static class ManySleeps extends GreeterGrpc.GreeterImplBase implements Component {
+          for (int i = 0; i < 10; i++) {
+            collectedAwaitables.add(ctx.timer(Duration.ofSeconds(1)));
+          }
 
-    @Override
-    public void greet(GreetingRequest request, StreamObserver<GreetingResponse> responseObserver) {
-      ObjectContext ctx = ObjectContext.current();
-      List<Awaitable<?>> collectedAwaitables = new ArrayList<>();
+          Awaitable.all(
+                  collectedAwaitables.get(0),
+                  collectedAwaitables.get(1),
+                  collectedAwaitables
+                      .subList(2, collectedAwaitables.size())
+                      .toArray(Awaitable[]::new))
+              .await();
 
-      for (int i = 0; i < 10; i++) {
-        collectedAwaitables.add(ctx.timer(Duration.ofSeconds(1)));
-      }
-
-      Awaitable.all(
-              collectedAwaitables.get(0),
-              collectedAwaitables.get(1),
-              collectedAwaitables.subList(2, collectedAwaitables.size()).toArray(Awaitable[]::new))
-          .await();
-
-      responseObserver.onNext(GreetingResponse.newBuilder().build());
-      responseObserver.onCompleted();
-    }
-  }
-
-  @Override
-  protected BindableService manySleeps() {
-    return new ManySleeps();
+          return null;
+        });
   }
 }

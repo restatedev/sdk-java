@@ -59,16 +59,14 @@ public class ManualRestateRunner
         // These envs should not be overriden by additionalEnv
         .withEnv("RESTATE_META__REST_ADDRESS", "0.0.0.0:" + RESTATE_ADMIN_ENDPOINT_PORT)
         .withEnv(
-            "RESTATE_WORKER__INGRESS_GRPC__BIND_ADDRESS",
-            "0.0.0.0:" + RESTATE_INGRESS_ENDPOINT_PORT)
+            "RESTATE_WORKER__INGRESS__BIND_ADDRESS", "0.0.0.0:" + RESTATE_INGRESS_ENDPOINT_PORT)
         .withNetworkAliases(RESTATE_RUNTIME)
         // Configure wait strategy on health paths
         .setWaitStrategy(
             new WaitAllStrategy()
                 .withStrategy(Wait.forHttp("/health").forPort(RESTATE_ADMIN_ENDPOINT_PORT))
                 .withStrategy(
-                    Wait.forHttp("/grpc.health.v1.Health/Check")
-                        .forPort(RESTATE_INGRESS_ENDPOINT_PORT)));
+                    Wait.forHttp("/restate/health").forPort(RESTATE_INGRESS_ENDPOINT_PORT)));
 
     if (configFile != null) {
       this.runtimeContainer.withCopyToContainer(Transferable.of(configFile), "/config.yaml");
@@ -104,9 +102,9 @@ public class ManualRestateRunner
                       new RegisterDeploymentRequestAnyOf()
                           .uri("http://host.testcontainers.internal:" + serviceEndpointPort)));
       LOG.debug(
-          "Registered services {}",
-          response.getServices().stream()
-              .map(dev.restate.admin.model.ServiceMetadata::getName)
+          "Registered components {}",
+          response.getComponents().stream()
+              .map(dev.restate.admin.model.ComponentMetadata::getName)
               .collect(Collectors.toList()));
     } catch (ApiException e) {
       throw new RuntimeException(e);

@@ -9,11 +9,11 @@
 package dev.restate.sdk.workflow;
 
 import dev.restate.sdk.common.StateKey;
-import javax.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 public interface WorkflowContext extends WorkflowSharedContext {
 
   void clear(StateKey<?> key);
 
-  <T> void set(StateKey<T> key, @Nonnull T value);
+  <T> void set(StateKey<T> key, @NonNull T value);
 }

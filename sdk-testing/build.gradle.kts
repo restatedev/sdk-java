@@ -1,5 +1,3 @@
-import com.google.protobuf.gradle.id
-
 plugins {
   `java-library`
   `library-publishing-conventions`
@@ -17,23 +15,11 @@ dependencies {
   implementation(coreLibs.log4j.api)
   implementation(platform(vertxLibs.vertx.bom))
   implementation(vertxLibs.vertx.core)
-  implementation(coreLibs.grpc.netty)
 
-  testCompileOnly(coreLibs.javax.annotation.api)
   testImplementation(project(":sdk-api"))
+  testAnnotationProcessor(project(":sdk-api-gen"))
+  testImplementation(project(":sdk-serde-jackson"))
   testImplementation(testingLibs.assertj)
   testImplementation(testingLibs.junit.jupiter)
-  testImplementation(coreLibs.grpc.stub)
-  testImplementation(coreLibs.grpc.protobuf)
   testImplementation(coreLibs.log4j.core)
-}
-
-// Protobuf codegen for tests
-
-protobuf {
-  plugins {
-    id("grpc") { artifact = "io.grpc:protoc-gen-grpc-java:${coreLibs.versions.grpc.get()}" }
-  }
-
-  generateProtoTasks { ofSourceSet("test").forEach { it.plugins { id("grpc") } } }
 }

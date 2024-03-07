@@ -4,8 +4,7 @@ import dev.restate.sdk.Awaitable;
 import dev.restate.sdk.Context;
 import dev.restate.sdk.common.StateKey;
 import dev.restate.sdk.common.Serde;
-import dev.restate.sdk.dynrpc.CodegenUtils;
-import io.grpc.Channel;
+import dev.restate.sdk.common.Target;
 import java.util.Optional;
 import java.time.Duration;
 
@@ -14,17 +13,20 @@ public class {{generatedClassSimpleName}} {
     public static final String COMPONENT_NAME = "{{componentName}}";
 
     {{#methods}}
-    private static final io.grpc.MethodDescriptor<dev.restate.sdk.dynrpc.generated.{{#if isObject}}KeyedRpcRequest{{else}}RpcRequest{{/if}}, dev.restate.sdk.dynrpc.generated.RpcResponse> {{descFieldName}} = CodegenUtils.generateMethodDescriptor(dev.restate.sdk.dynrpc.template.generated.{{#if isObject}}KeyedServiceGrpc{{else}}ServiceGrpc{{/if}}.getTemplateMethod(), COMPONENT_NAME, "{{name}}");
-    {{^inputEmpty}}private static final Serde<{{{boxedInputFqcn}}}> {{inputSerdeFieldName}} = {{{inputSerdeDecl}}};{{/inputEmpty}}
-    {{^outputEmpty}}private static final Serde<{{{boxedOutputFqcn}}}> {{outputSerdeFieldName}} = {{{outputSerdeDecl}}};{{/outputEmpty}}
+    private static final Serde<{{{boxedInputFqcn}}}> {{inputSerdeFieldName}} = {{{inputSerdeDecl}}};
+    private static final Serde<{{{boxedOutputFqcn}}}> {{outputSerdeFieldName}} = {{{outputSerdeDecl}}};
     {{/methods}}
 
     public static ContextClient fromContext(Context ctx{{#isObject}}, String key{{/isObject}}) {
         return new ContextClient(ctx{{#isObject}}, key{{/isObject}});
     }
 
-    public static IngressClient fromIngress(Channel restateChannel{{#isObject}}, String key{{/isObject}}) {
-        return new IngressClient(restateChannel{{#isObject}}, key{{/isObject}});
+    public static IngressClient fromIngress(dev.restate.sdk.client.IngressClient ingressClient{{#isObject}}, String key{{/isObject}}) {
+        return new IngressClient(ingressClient{{#isObject}}, key{{/isObject}});
+    }
+
+    public static IngressClient fromIngress(String baseUri{{#isObject}}, String key{{/isObject}}) {
+        return new IngressClient(dev.restate.sdk.client.IngressClient.defaultClient(baseUri){{#isObject}}, key{{/isObject}});
     }
 
     public static class ContextClient {
@@ -39,12 +41,11 @@ public class {{generatedClassSimpleName}} {
 
         {{#methods}}
         public Awaitable<{{{boxedOutputFqcn}}}> {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-            Awaitable<com.google.protobuf.Value> response = CodegenUtils.RestateClient.{{#if isObject}}invokeKeyed{{else}}invoke{{/if}}(this.ctx, {{descFieldName}}{{#isObject}}, this.key{{/isObject}}, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}});
-        {{#if outputEmpty}}
-            return response.map(v -> { return null; });
-        {{else}}
-            return response.map(v -> CodegenUtils.valueToT({{outputSerdeFieldName}}, v));
-        {{/if}}
+            return this.ctx.call(
+                {{#if isObject}}Target.virtualObject(COMPONENT_NAME, this.key, "{{name}}"){{else}}Target.service(COMPONENT_NAME, "{{name}}"){{/if}},
+                {{inputSerdeFieldName}},
+                {{outputSerdeFieldName}},
+                {{#if inputEmpty}}null{{else}}req{{/if}});
         }{{/methods}}
 
         public Send send() {
@@ -58,7 +59,10 @@ public class {{generatedClassSimpleName}} {
         public class Send {
             {{#methods}}
             public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-                CodegenUtils.RestateClient.{{#if isObject}}invokeKeyed{{else}}invoke{{/if}}OneWay(ContextClient.this.ctx, {{descFieldName}}{{#isObject}}, ContextClient.this.key{{/isObject}}, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}});
+                ContextClient.this.ctx.send(
+                    {{#if isObject}}Target.virtualObject(COMPONENT_NAME, ContextClient.this.key, "{{name}}"){{else}}Target.service(COMPONENT_NAME, "{{name}}"){{/if}},
+                    {{inputSerdeFieldName}},
+                    {{#if inputEmpty}}null{{else}}req{{/if}});
             }{{/methods}}
         }
 
@@ -72,27 +76,32 @@ public class {{generatedClassSimpleName}} {
 
             {{#methods}}
             public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-                CodegenUtils.RestateClient.{{#if isObject}}invokeKeyed{{else}}invoke{{/if}}Delayed(ContextClient.this.ctx, {{descFieldName}}{{#isObject}}, ContextClient.this.key{{/isObject}}, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}}, delay);
+                ContextClient.this.ctx.sendDelayed(
+                    {{#if isObject}}Target.virtualObject(COMPONENT_NAME, ContextClient.this.key, "{{name}}"){{else}}Target.service(COMPONENT_NAME, "{{name}}"){{/if}},
+                    {{inputSerdeFieldName}},
+                    {{#if inputEmpty}}null{{else}}req{{/if}},
+                    this.delay);
             }{{/methods}}
         }
     }
 
     public static class IngressClient {
 
-        private final Channel restateChannel;
+        private final dev.restate.sdk.client.IngressClient ingressClient;
         {{#isObject}}private final String key;{{/isObject}}
 
-        public IngressClient(Channel restateChannel{{#isObject}}, String key{{/isObject}}) {
-            this.restateChannel = restateChannel;
+        public IngressClient(dev.restate.sdk.client.IngressClient ingressClient{{#isObject}}, String key{{/isObject}}) {
+            this.ingressClient = ingressClient;
             {{#isObject}}this.key = key;{{/isObject}}
         }
 
         {{#methods}}
         public {{#if outputEmpty}}void{{else}}{{{outputFqcn}}}{{/if}} {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-            com.google.protobuf.Value response = CodegenUtils.ExternalClient.{{#if isObject}}invokeKeyed{{else}}invoke{{/if}}(this.restateChannel, {{descFieldName}}{{#isObject}}, this.key{{/isObject}}, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}});
-            {{^outputEmpty}}
-            return CodegenUtils.valueToT({{outputSerdeFieldName}}, response);
-            {{/outputEmpty}}
+            {{^outputEmpty}}return {{/outputEmpty}}this.ingressClient.call(
+                {{#if isObject}}Target.virtualObject(COMPONENT_NAME, this.key, "{{name}}"){{else}}Target.service(COMPONENT_NAME, "{{name}}"){{/if}},
+                {{inputSerdeFieldName}},
+                {{outputSerdeFieldName}},
+                {{#if inputEmpty}}null{{else}}req{{/if}});
         }{{/methods}}
 
         public Send send() {
@@ -101,8 +110,11 @@ public class {{generatedClassSimpleName}} {
 
         public class Send {
             {{#methods}}
-            public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-                CodegenUtils.ExternalClient.{{#if isObject}}invokeKeyed{{else}}invoke{{/if}}OneWay(IngressClient.this.restateChannel, {{descFieldName}}{{#isObject}}, IngressClient.this.key{{/isObject}}, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}});
+            public String {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
+                return IngressClient.this.ingressClient.send(
+                    {{#if isObject}}Target.virtualObject(COMPONENT_NAME, IngressClient.this.key, "{{name}}"){{else}}Target.service(COMPONENT_NAME, "{{name}}"){{/if}},
+                    {{inputSerdeFieldName}},
+                    {{#if inputEmpty}}null{{else}}req{{/if}});
             }{{/methods}}
         }
     }

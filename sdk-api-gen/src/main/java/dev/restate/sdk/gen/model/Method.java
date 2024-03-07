@@ -14,7 +14,6 @@ import dev.restate.sdk.annotation.*;
 import dev.restate.sdk.common.ComponentType;
 import dev.restate.sdk.workflow.WorkflowContext;
 import dev.restate.sdk.workflow.WorkflowSharedContext;
-import javax.annotation.Nullable;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -23,6 +22,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
+import org.jspecify.annotations.Nullable;
 
 public class Method {
 

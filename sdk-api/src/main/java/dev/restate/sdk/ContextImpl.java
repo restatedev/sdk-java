@@ -15,14 +15,13 @@ import dev.restate.sdk.common.syscalls.Deferred;
 import dev.restate.sdk.common.syscalls.EnterSideEffectSyscallCallback;
 import dev.restate.sdk.common.syscalls.ExitSideEffectSyscallCallback;
 import dev.restate.sdk.common.syscalls.Syscalls;
-import io.grpc.MethodDescriptor;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 class ContextImpl implements ObjectContext {
 
@@ -30,6 +29,16 @@ class ContextImpl implements ObjectContext {
 
   ContextImpl(Syscalls syscalls) {
     this.syscalls = syscalls;
+  }
+
+  @Override
+  public String key() {
+    return syscalls.objectKey();
+  }
+
+  @Override
+  public InvocationId invocationId() {
+    return syscalls.invocationId();
   }
 
   @Override
@@ -66,7 +75,7 @@ class ContextImpl implements ObjectContext {
   }
 
   @Override
-  public <T> void set(StateKey<T> key, @Nonnull T value) {
+  public <T> void set(StateKey<T> key, @NonNull T value) {
     Util.<Void>blockOnSyscall(
         cb ->
             syscalls.set(
@@ -80,12 +89,6 @@ class ContextImpl implements ObjectContext {
   }
 
   @Override
-  public <T, R> Awaitable<R> call(MethodDescriptor<T, R> methodDescriptor, T parameter) {
-    Deferred<R> result = Util.blockOnSyscall(cb -> syscalls.call(methodDescriptor, parameter, cb));
-    return Awaitable.single(syscalls, result);
-  }
-
-  @Override
   public <T, R> Awaitable<R> call(
       Target target, Serde<T> inputSerde, Serde<R> outputSerde, T parameter) {
     ByteString input = Util.serializeWrappingException(syscalls, inputSerde, parameter);
@@ -95,26 +98,15 @@ class ContextImpl implements ObjectContext {
   }
 
   @Override
-  public <T> void oneWayCall(Target target, Serde<T> inputSerde, T parameter) {
+  public <T> void send(Target target, Serde<T> inputSerde, T parameter) {
     ByteString input = Util.serializeWrappingException(syscalls, inputSerde, parameter);
     Util.<Void>blockOnSyscall(cb -> syscalls.send(target, input, null, cb));
   }
 
   @Override
-  public <T> void oneWayCall(MethodDescriptor<T, ?> methodDescriptor, T parameter) {
-    Util.<Void>blockOnSyscall(cb -> syscalls.send(methodDescriptor, parameter, null, cb));
-  }
-
-  @Override
-  public <T> void delayedCall(Target target, Serde<T> inputSerde, T parameter, Duration delay) {
+  public <T> void sendDelayed(Target target, Serde<T> inputSerde, T parameter, Duration delay) {
     ByteString input = Util.serializeWrappingException(syscalls, inputSerde, parameter);
     Util.<Void>blockOnSyscall(cb -> syscalls.send(target, input, delay, cb));
-  }
-
-  @Override
-  public <T> void delayedCall(
-      MethodDescriptor<T, ?> methodDescriptor, T parameter, Duration delay) {
-    Util.<Void>blockOnSyscall(cb -> syscalls.send(methodDescriptor, parameter, delay, cb));
   }
 
   @Override
@@ -204,7 +196,7 @@ class ContextImpl implements ObjectContext {
   public AwakeableHandle awakeableHandle(String id) {
     return new AwakeableHandle() {
       @Override
-      public <T> void resolve(Serde<T> serde, @Nonnull T payload) {
+      public <T> void resolve(Serde<T> serde, @NonNull T payload) {
         Util.<Void>blockOnSyscall(
             cb ->
                 syscalls.resolveAwakeable(
@@ -220,6 +212,6 @@ class ContextImpl implements ObjectContext {
 
   @Override
   public RestateRandom random() {
-    return new RestateRandom(InvocationId.current().toRandomSeed(), this.syscalls);
+    return new RestateRandom(this.invocationId().toRandomSeed(), this.syscalls);
   }
 }

@@ -10,10 +10,7 @@ package dev.restate.sdk.testing;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.restate.sdk.examples.generated.CounterGrpc;
-import dev.restate.sdk.examples.generated.CounterRequest;
-import dev.restate.sdk.examples.generated.GetResponse;
-import io.grpc.ManagedChannel;
+import dev.restate.sdk.client.IngressClient;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
@@ -24,14 +21,14 @@ class CounterTest {
       RestateRunnerBuilder.create()
           .withRestateContainerImage(
               "ghcr.io/restatedev/restate:main") // test against the latest main Restate image
-          .withService(new Counter())
+          .with(new Counter())
           .buildRunner();
 
   @Test
-  void testGreet(@RestateGrpcChannel ManagedChannel channel) {
-    CounterGrpc.CounterBlockingStub client = CounterGrpc.newBlockingStub(channel);
-    GetResponse response = client.get(CounterRequest.getDefaultInstance());
+  void testGreet(@RestateIngressClient IngressClient ingressClient) {
+    var client = CounterClient.fromIngress(ingressClient, "my-counter");
+    long response = client.get();
 
-    assertThat(response.getValue()).isEqualTo(0);
+    assertThat(response).isEqualTo(0L);
   }
 }

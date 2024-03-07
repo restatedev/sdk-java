@@ -8,46 +8,34 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.common.TerminalException;
+import static dev.restate.sdk.JavaBlockingTests.testDefinitionForService;
+
+import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.core.RandomTestSuite;
-import dev.restate.sdk.core.testservices.GreeterRestate;
-import dev.restate.sdk.core.testservices.GreetingRequest;
-import dev.restate.sdk.core.testservices.GreetingResponse;
-import io.grpc.BindableService;
+import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import java.util.Random;
 
 public class RandomTest extends RandomTestSuite {
 
-  private static class RandomShouldBeDeterministic extends GreeterRestate.GreeterRestateImplBase {
-    @Override
-    public GreetingResponse greet(ObjectContext context, GreetingRequest request)
-        throws TerminalException {
-      return GreetingResponse.newBuilder()
-          .setMessage(Integer.toString(context.random().nextInt()))
-          .build();
-    }
+  protected TestInvocationBuilder randomShouldBeDeterministic() {
+    return testDefinitionForService(
+        "RandomShouldBeDeterministic",
+        CoreSerdes.VOID,
+        CoreSerdes.JSON_INT,
+        (ctx, unused) -> ctx.random().nextInt());
   }
 
-  @Override
-  protected BindableService randomShouldBeDeterministic() {
-    return new RandomShouldBeDeterministic();
+  protected TestInvocationBuilder randomInsideSideEffect() {
+    return testDefinitionForService(
+        "RandomInsideSideEffect",
+        CoreSerdes.VOID,
+        CoreSerdes.JSON_INT,
+        (ctx, unused) -> {
+          ctx.sideEffect(() -> ctx.random().nextInt());
+          throw new IllegalStateException("This should not unreachable");
+        });
   }
 
-  private static class RandomInsideSideEffect extends GreeterRestate.GreeterRestateImplBase {
-    @Override
-    public GreetingResponse greet(ObjectContext context, GreetingRequest request)
-        throws TerminalException {
-      context.sideEffect(() -> context.random().nextInt());
-      throw new IllegalStateException("This should not unreachable");
-    }
-  }
-
-  @Override
-  protected BindableService randomInsideSideEffect() {
-    return new RandomInsideSideEffect();
-  }
-
-  @Override
   protected int getExpectedInt(long seed) {
     return new Random(seed).nextInt();
   }

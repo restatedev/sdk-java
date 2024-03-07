@@ -10,9 +10,9 @@ package dev.restate.sdk.core;
 
 import dev.restate.sdk.common.ComponentType;
 import dev.restate.sdk.common.syscalls.ComponentDefinition;
+import dev.restate.sdk.core.manifest.Component;
 import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
-import dev.restate.sdk.core.manifest.Method;
-import dev.restate.sdk.core.manifest.Service;
+import dev.restate.sdk.core.manifest.Handler;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -22,24 +22,24 @@ final class DeploymentManifest {
 
   public DeploymentManifest(
       DeploymentManifestSchema.ProtocolMode protocolMode,
-      Map<String, ComponentDefinition> services) {
+      Map<String, ComponentDefinition> components) {
     this.manifest =
         new DeploymentManifestSchema()
             .withMinProtocolVersion(1)
             .withMaxProtocolVersion(1)
             .withProtocolMode(protocolMode)
-            .withServices(
-                services.values().stream()
+            .withComponents(
+                components.values().stream()
                     .map(
                         svc ->
-                            new Service()
-                                .withFullyQualifiedServiceName(svc.getFullyQualifiedServiceName())
-                                .withServiceType(convertServiceType(svc.getServiceType()))
-                                .withMethods(
-                                    svc.getMethods().stream()
+                            new Component()
+                                .withFullyQualifiedComponentName(svc.getFullyQualifiedServiceName())
+                                .withComponentType(convertComponentType(svc.getComponentType()))
+                                .withHandlers(
+                                    svc.getHandlers().stream()
                                         .map(
                                             method ->
-                                                new Method()
+                                                new Handler()
                                                     .withName(method.getName())
                                                     .withInputSchema(method.getInputSchema())
                                                     .withOutputSchema(method.getOutputSchema()))
@@ -51,14 +51,13 @@ final class DeploymentManifest {
     return this.manifest;
   }
 
-  private static Service.ServiceType convertServiceType(ComponentType componentType) {
+  private static Component.ComponentType convertComponentType(ComponentType componentType) {
     switch (componentType) {
       case WORKFLOW:
-        return Service.ServiceType.WORKFLOW;
-      case VIRTUAL_OBJECT:
-        return Service.ServiceType.KEYED;
       case SERVICE:
-        return Service.ServiceType.UNKEYED;
+        return Component.ComponentType.SERVICE;
+      case VIRTUAL_OBJECT:
+        return Component.ComponentType.VIRTUAL_OBJECT;
     }
     throw new IllegalStateException();
   }

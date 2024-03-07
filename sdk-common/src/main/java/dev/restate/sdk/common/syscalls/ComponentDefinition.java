@@ -9,77 +9,28 @@
 package dev.restate.sdk.common.syscalls;
 
 import dev.restate.sdk.common.ComponentType;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public final class ComponentDefinition {
-
-  public enum ExecutorType {
-    BLOCKING,
-    NON_BLOCKING
-  }
-
-  public static final class HandlerDefinition {
-    private final String name;
-    private final Object inputSchema;
-    private final Object outputSchema;
-    private final InvocationHandler handler;
-
-    public HandlerDefinition(
-        String name, Object inputSchema, Object outputSchema, InvocationHandler handler) {
-      this.name = name;
-      this.inputSchema = inputSchema;
-      this.outputSchema = outputSchema;
-      this.handler = handler;
-    }
-
-    public String getName() {
-      return name;
-    }
-
-    public Object getInputSchema() {
-      return inputSchema;
-    }
-
-    public Object getOutputSchema() {
-      return outputSchema;
-    }
-
-    public InvocationHandler getHandler() {
-      return handler;
-    }
-
-    @Override
-    public boolean equals(Object object) {
-      if (this == object) return true;
-      if (object == null || getClass() != object.getClass()) return false;
-      HandlerDefinition that = (HandlerDefinition) object;
-      return Objects.equals(name, that.name)
-          && Objects.equals(inputSchema, that.inputSchema)
-          && Objects.equals(outputSchema, that.outputSchema)
-          && Objects.equals(handler, that.handler);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(name, inputSchema, outputSchema, handler);
-    }
-  }
 
   private final String fullyQualifiedServiceName;
   private final ExecutorType executorType;
   private final ComponentType componentType;
-  private final List<HandlerDefinition> methods;
+  private final Map<String, HandlerDefinition> handlers;
 
   public ComponentDefinition(
       String fullyQualifiedServiceName,
       ExecutorType executorType,
       ComponentType componentType,
-      List<HandlerDefinition> methods) {
+      Collection<HandlerDefinition> handlers) {
     this.fullyQualifiedServiceName = fullyQualifiedServiceName;
     this.executorType = executorType;
     this.componentType = componentType;
-    this.methods = methods;
+    this.handlers =
+        handlers.stream()
+            .collect(Collectors.toMap(HandlerDefinition::getName, Function.identity()));
   }
 
   public String getFullyQualifiedServiceName() {
@@ -90,12 +41,16 @@ public final class ComponentDefinition {
     return executorType;
   }
 
-  public ComponentType getServiceType() {
+  public ComponentType getComponentType() {
     return componentType;
   }
 
-  public List<HandlerDefinition> getMethods() {
-    return methods;
+  public Collection<HandlerDefinition> getHandlers() {
+    return handlers.values();
+  }
+
+  public HandlerDefinition getHandler(String name) {
+    return handlers.get(name);
   }
 
   @Override
@@ -106,11 +61,11 @@ public final class ComponentDefinition {
     return Objects.equals(fullyQualifiedServiceName, that.fullyQualifiedServiceName)
         && executorType == that.executorType
         && componentType == that.componentType
-        && Objects.equals(methods, that.methods);
+        && Objects.equals(handlers, that.handlers);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(fullyQualifiedServiceName, executorType, componentType, methods);
+    return Objects.hash(fullyQualifiedServiceName, executorType, componentType, handlers);
   }
 }

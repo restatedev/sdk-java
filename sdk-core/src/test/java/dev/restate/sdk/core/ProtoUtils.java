@@ -16,10 +16,9 @@ import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.generated.service.protocol.Protocol.StartMessage.StateEntry;
 import dev.restate.sdk.common.CoreSerdes;
+import dev.restate.sdk.common.Serde;
+import dev.restate.sdk.common.Target;
 import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.core.testservices.GreetingRequest;
-import dev.restate.sdk.core.testservices.GreetingResponse;
-import io.grpc.MethodDescriptor;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -51,10 +50,19 @@ public class ProtoUtils {
         .setPartialState(true);
   }
 
+  public static Protocol.StartMessage.Builder startMessage(int entries, String key) {
+    return Protocol.StartMessage.newBuilder()
+        .setId(ByteString.copyFromUtf8("abc"))
+        .setDebugId("abc")
+        .setKnownEntries(entries)
+        .setKey(key)
+        .setPartialState(true);
+  }
+
   @SafeVarargs
   public static Protocol.StartMessage.Builder startMessage(
-      int entries, Map.Entry<String, String>... stateEntries) {
-    return startMessage(entries)
+      int entries, String key, Map.Entry<String, String>... stateEntries) {
+    return startMessage(entries, key)
         .addAllStateMap(
             Arrays.stream(stateEntries)
                 .map(
@@ -70,10 +78,13 @@ public class ProtoUtils {
     return Protocol.CompletionMessage.newBuilder().setEntryIndex(index);
   }
 
+  public static <T> Protocol.CompletionMessage completionMessage(
+      int index, Serde<T> serde, T value) {
+    return completionMessage(index).setValue(serde.serializeToByteString(value)).build();
+  }
+
   public static Protocol.CompletionMessage completionMessage(int index, String value) {
-    return completionMessage(index)
-        .setValue(CoreSerdes.JSON_STRING.serializeToByteString(value))
-        .build();
+    return completionMessage(index, CoreSerdes.JSON_STRING, value);
   }
 
   public static Protocol.CompletionMessage completionMessage(
@@ -93,10 +104,22 @@ public class ProtoUtils {
     return Protocol.SuspensionMessage.newBuilder().addAllEntryIndexes(List.of(indexes)).build();
   }
 
-  public static Protocol.PollInputStreamEntryMessage inputMessage(MessageLiteOrBuilder value) {
+  public static Protocol.PollInputStreamEntryMessage inputMessage() {
+    return Protocol.PollInputStreamEntryMessage.newBuilder().setValue(ByteString.EMPTY).build();
+  }
+
+  public static <T> Protocol.PollInputStreamEntryMessage inputMessage(Serde<T> serde, T value) {
     return Protocol.PollInputStreamEntryMessage.newBuilder()
-        .setValue(build(value).toByteString())
+        .setValue(serde.serializeToByteString(value))
         .build();
+  }
+
+  public static Protocol.PollInputStreamEntryMessage inputMessage(String value) {
+    return inputMessage(CoreSerdes.JSON_STRING, value);
+  }
+
+  public static Protocol.PollInputStreamEntryMessage inputMessage(int value) {
+    return inputMessage(CoreSerdes.JSON_INT, value);
   }
 
   public static Protocol.PollInputStreamEntryMessage inputMessage(Throwable error) {
@@ -105,10 +128,22 @@ public class ProtoUtils {
         .build();
   }
 
-  public static Protocol.OutputStreamEntryMessage outputMessage(MessageLiteOrBuilder value) {
+  public static <T> Protocol.OutputStreamEntryMessage outputMessage(Serde<T> serde, T value) {
     return Protocol.OutputStreamEntryMessage.newBuilder()
-        .setValue(build(value).toByteString())
+        .setValue(serde.serializeToByteString(value))
         .build();
+  }
+
+  public static Protocol.OutputStreamEntryMessage outputMessage(String value) {
+    return outputMessage(CoreSerdes.JSON_STRING, value);
+  }
+
+  public static Protocol.OutputStreamEntryMessage outputMessage(int value) {
+    return outputMessage(CoreSerdes.JSON_INT, value);
+  }
+
+  public static Protocol.OutputStreamEntryMessage outputMessage() {
+    return Protocol.OutputStreamEntryMessage.newBuilder().setValue(ByteString.EMPTY).build();
   }
 
   public static Protocol.OutputStreamEntryMessage outputMessage(
@@ -158,34 +193,37 @@ public class ProtoUtils {
         .build();
   }
 
-  public static <T extends MessageLite, R extends MessageLite>
-      Protocol.InvokeEntryMessage.Builder invokeMessage(
-          MethodDescriptor<T, R> methodDescriptor, T parameter) {
-    return Protocol.InvokeEntryMessage.newBuilder()
-        .setServiceName(methodDescriptor.getServiceName())
-        .setMethodName(methodDescriptor.getBareMethodName())
-        .setParameter(parameter.toByteString());
+  public static Protocol.InvokeEntryMessage.Builder invokeMessage(Target target) {
+    Protocol.InvokeEntryMessage.Builder builder =
+        Protocol.InvokeEntryMessage.newBuilder()
+            .setServiceName(target.getComponent())
+            .setMethodName(target.getHandler());
+    if (target.getKey() != null) {
+      builder.setKey(target.getKey());
+    }
+
+    return builder;
   }
 
-  public static <T extends MessageLite, R extends MessageLite>
-      Protocol.InvokeEntryMessage invokeMessage(
-          MethodDescriptor<T, R> methodDescriptor, T parameter, R result) {
-    return invokeMessage(methodDescriptor, parameter).setValue(result.toByteString()).build();
+  public static <T> Protocol.InvokeEntryMessage.Builder invokeMessage(
+      Target target, Serde<T> reqSerde, T parameter) {
+    return invokeMessage(target).setParameter(reqSerde.serializeToByteString(parameter));
   }
 
-  public static <T extends MessageLite, R extends MessageLite>
-      Protocol.InvokeEntryMessage invokeMessage(
-          MethodDescriptor<T, R> methodDescriptor, T parameter, Throwable e) {
-    return invokeMessage(methodDescriptor, parameter).setFailure(Util.toProtocolFailure(e)).build();
+  public static <T, R> Protocol.InvokeEntryMessage invokeMessage(
+      Target target, Serde<T> reqSerde, T parameter, Serde<R> resSerde, R result) {
+    return invokeMessage(target, reqSerde, parameter)
+        .setValue(resSerde.serializeToByteString(result))
+        .build();
   }
 
-  public static <T extends MessageLite>
-      Protocol.BackgroundInvokeEntryMessage.Builder backgroundInvokeMessage(
-          MethodDescriptor<T, ?> methodDescriptor, T parameter) {
-    return Protocol.BackgroundInvokeEntryMessage.newBuilder()
-        .setServiceName(methodDescriptor.getServiceName())
-        .setMethodName(methodDescriptor.getBareMethodName())
-        .setParameter(parameter.toByteString());
+  public static Protocol.InvokeEntryMessage.Builder invokeMessage(Target target, String parameter) {
+    return invokeMessage(target, CoreSerdes.JSON_STRING, parameter);
+  }
+
+  public static Protocol.InvokeEntryMessage invokeMessage(
+      Target target, String parameter, String result) {
+    return invokeMessage(target, CoreSerdes.JSON_STRING, parameter, CoreSerdes.JSON_STRING, result);
   }
 
   public static Protocol.AwakeableEntryMessage.Builder awakeable() {
@@ -196,14 +234,6 @@ public class ProtoUtils {
     return awakeable().setValue(CoreSerdes.JSON_STRING.serializeToByteString(value)).build();
   }
 
-  public static GreetingRequest greetingRequest(String name) {
-    return GreetingRequest.newBuilder().setName(name).build();
-  }
-
-  public static GreetingResponse greetingResponse(String message) {
-    return GreetingResponse.newBuilder().setMessage(message).build();
-  }
-
   public static Java.CombinatorAwaitableEntryMessage combinatorsMessage(Integer... order) {
     return Java.CombinatorAwaitableEntryMessage.newBuilder()
         .addAllEntryIndex(Arrays.asList(order))
@@ -211,6 +241,10 @@ public class ProtoUtils {
   }
 
   public static Protocol.EndMessage END_MESSAGE = Protocol.EndMessage.getDefaultInstance();
+
+  public static Target GREETER_SERVICE_TARGET = Target.service("Greeter", "greeter");
+  public static Target GREETER_VIRTUAL_OBJECT_TARGET =
+      Target.virtualObject("Greeter", "Francesco", "greeter");
 
   public static Protocol.GetStateKeysEntryMessage.StateKeys.Builder stateKeys(String... keys) {
     return Protocol.GetStateKeysEntryMessage.StateKeys.newBuilder()

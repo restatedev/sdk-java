@@ -13,24 +13,26 @@ import static dev.restate.sdk.lambda.LambdaFlowAdapters.*;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
-import com.google.protobuf.InvalidProtocolBufferException;
-import dev.restate.generated.service.discovery.Discovery;
-import dev.restate.sdk.core.InvocationHandler;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.ProtocolException;
+import dev.restate.sdk.core.ResolvedEndpointHandler;
 import dev.restate.sdk.core.RestateEndpoint;
-import io.grpc.Status;
+import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.context.propagation.TextMapGetter;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.regex.Pattern;
-import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.ThreadContext;
 
 /** Restate Lambda Endpoint. */
 public final class RestateLambdaEndpoint {
+
+  private static final ObjectMapper MANIFEST_OBJECT_MAPPER = new ObjectMapper();
 
   private static final Logger LOG = LogManager.getLogger(RestateLambdaEndpoint.class);
 
@@ -40,7 +42,7 @@ public final class RestateLambdaEndpoint {
   private static final Map<String, String> INVOKE_RESPONSE_HEADERS =
       Map.of("content-type", "application/restate");
   private static final Map<String, String> DISCOVER_RESPONSE_HEADERS =
-      Map.of("content-type", "application/proto");
+      Map.of("content-type", "application/json");
 
   private static TextMapGetter<Map<String, String>> OTEL_HEADERS_GETTER =
       new TextMapGetter<>() {
@@ -49,9 +51,8 @@ public final class RestateLambdaEndpoint {
           return carrier.keySet();
         }
 
-        @Nullable
         @Override
-        public String get(@Nullable Map<String, String> carrier, String key) {
+        public String get(Map<String, String> carrier, String key) {
           if (carrier == null) {
             return null;
           }
@@ -82,7 +83,7 @@ public final class RestateLambdaEndpoint {
             : input.getPath();
 
     if (path.endsWith(DISCOVER_PATH)) {
-      return this.handleDiscovery(input);
+      return this.handleDiscovery();
     }
 
     return this.handleInvoke(input);
@@ -98,8 +99,8 @@ public final class RestateLambdaEndpoint {
       LOG.warn("Path doesn't match the pattern /invoke/SvcName/MethodName: '{}'", input.getPath());
       return new APIGatewayProxyResponseEvent().withStatusCode(404);
     }
-    String service = pathSegments[pathSegments.length - 2];
-    String method = pathSegments[pathSegments.length - 1];
+    String componentName = pathSegments[pathSegments.length - 2];
+    String handlerName = pathSegments[pathSegments.length - 1];
 
     // Parse OTEL context and generate span
     final io.opentelemetry.context.Context otelContext =
@@ -115,12 +116,12 @@ public final class RestateLambdaEndpoint {
     final ByteBuffer requestBody = parseInputBody(input);
 
     // Resolve handler
-    InvocationHandler handler;
+    ResolvedEndpointHandler handler;
     try {
       handler =
           this.restateEndpoint.resolve(
-              service,
-              method,
+              componentName,
+              handlerName,
               otelContext,
               RestateEndpoint.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
               null,
@@ -128,7 +129,8 @@ public final class RestateLambdaEndpoint {
     } catch (ProtocolException e) {
       LOG.warn("Error when resolving the grpc handler", e);
       return new APIGatewayProxyResponseEvent()
-          .withStatusCode(e.getFailureCode() == Status.Code.NOT_FOUND.value() ? 404 : 500);
+          .withStatusCode(
+              e.getFailureCode() == TerminalException.Code.NOT_FOUND.value() ? 404 : 500);
     }
 
     BufferedPublisher publisher = new BufferedPublisher(requestBody);
@@ -158,24 +160,25 @@ public final class RestateLambdaEndpoint {
 
   // --- Service discovery
 
-  private APIGatewayProxyResponseEvent handleDiscovery(APIGatewayProxyRequestEvent input) {
-    final ByteBuffer requestBody = parseInputBody(input);
-
-    Discovery.ServiceDiscoveryRequest discoveryRequest;
+  private APIGatewayProxyResponseEvent handleDiscovery() {
+    // Compute response and write it back
+    DeploymentManifestSchema responseManifest = this.restateEndpoint.handleDiscoveryRequest();
+    byte[] serializedManifest;
     try {
-      discoveryRequest = Discovery.ServiceDiscoveryRequest.parseFrom(requestBody);
-    } catch (InvalidProtocolBufferException e) {
-      throw new RuntimeException("Cannot decode discovery request", e);
+      serializedManifest = MANIFEST_OBJECT_MAPPER.writeValueAsBytes(responseManifest);
+    } catch (JsonProcessingException e) {
+      LOG.warn("Error when writing out the manifest POJO", e);
+      final APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent();
+      response.setStatusCode(500);
+      response.setBody(e.getMessage());
+      return response;
     }
-
-    final Discovery.ServiceDiscoveryResponse discoveryResponse =
-        this.restateEndpoint.handleDiscoveryRequest(discoveryRequest);
 
     final APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent();
     response.setHeaders(DISCOVER_RESPONSE_HEADERS);
     response.setIsBase64Encoded(true);
     response.setStatusCode(200);
-    response.setBody(Base64.getEncoder().encodeToString(discoveryResponse.toByteArray()));
+    response.setBody(Base64.getEncoder().encodeToString(serializedManifest));
     return response;
   }
 

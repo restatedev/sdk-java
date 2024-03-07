@@ -14,11 +14,10 @@ plugins { id("org.gradle.toolchains.foojay-resolver-convention") version "0.7.0"
 include(
     "sdk-common",
     "sdk-api",
-    "sdk-api-kotlin",
+    //    "sdk-api-kotlin",
     "sdk-core",
     "sdk-serde-jackson",
     "sdk-http-vertx",
-    "protoc-gen-restate",
     "sdk-lambda",
     "sdk-testing",
     "examples",
@@ -33,22 +32,12 @@ dependencyResolutionManagement {
   versionCatalogs {
     create("coreLibs") {
       version("protobuf", "3.24.3")
-      version("grpc", "1.58.0")
-      version("grpckt", "1.4.0")
       version("log4j", "2.22.0")
       version("opentelemetry", "1.30.1")
 
       library("protoc", "com.google.protobuf", "protoc").versionRef("protobuf")
       library("protobuf-java", "com.google.protobuf", "protobuf-java").versionRef("protobuf")
-      library("protobuf-util", "com.google.protobuf", "protobuf-java-util").versionRef("protobuf")
       library("protobuf-kotlin", "com.google.protobuf", "protobuf-kotlin").versionRef("protobuf")
-
-      library("grpc-core", "io.grpc", "grpc-core").versionRef("grpc")
-      library("grpc-stub", "io.grpc", "grpc-stub").versionRef("grpc")
-      library("grpc-protobuf", "io.grpc", "grpc-protobuf").versionRef("grpc")
-      library("grpc-netty", "io.grpc", "grpc-netty-shaded").versionRef("grpc")
-      library("grpc-api", "io.grpc", "grpc-api").versionRef("grpc")
-      library("grpc-kotlin-stub", "io.grpc", "grpc-kotlin-stub").versionRef("grpckt")
 
       library("log4j-api", "org.apache.logging.log4j", "log4j-api").versionRef("log4j")
       library("log4j-core", "org.apache.logging.log4j", "log4j-core").versionRef("log4j")
@@ -58,13 +47,11 @@ dependencyResolutionManagement {
       library("opentelemetry-api", "io.opentelemetry", "opentelemetry-api").withoutVersion()
       library("opentelemetry-semconv", "io.opentelemetry:opentelemetry-semconv:1.19.0-alpha")
 
-      library("javax-annotation-api", "org.apache.tomcat", "annotations-api").version("6.0.53")
+      library("jspecify", "org.jspecify", "jspecify").version("0.3.0")
     }
     create("vertxLibs") {
       library("vertx-bom", "io.vertx:vertx-stack-depchain:4.5.1")
       library("vertx-core", "io.vertx", "vertx-core").withoutVersion()
-      library("vertx-grpc-context-storage", "io.vertx", "vertx-grpc-context-storage")
-          .withoutVersion()
       library("vertx-kotlin-coroutines", "io.vertx", "vertx-lang-kotlin-coroutines")
           .withoutVersion()
       library("vertx-junit5", "io.vertx", "vertx-junit5").withoutVersion()
@@ -77,10 +64,13 @@ dependencyResolutionManagement {
       version("jackson", "2.16.1")
 
       library("jackson-bom", "com.fasterxml.jackson", "jackson-bom").versionRef("jackson")
+      library("jackson-annotations", "com.fasterxml.jackson.core", "jackson-annotations")
+          .withoutVersion()
       library("jackson-core", "com.fasterxml.jackson.core", "jackson-core").withoutVersion()
-      library("jackson-databind", "com.fasterxml.jackson.core", "jackson-databind")
-          .versionRef("jackson")
+      library("jackson-databind", "com.fasterxml.jackson.core", "jackson-databind").withoutVersion()
       library("jackson-jsr310", "com.fasterxml.jackson.datatype", "jackson-datatype-jsr310")
+          .withoutVersion()
+      library("jackson-jdk8", "com.fasterxml.jackson.datatype", "jackson-datatype-jdk8")
           .withoutVersion()
     }
     create("kotlinLibs") {

@@ -8,23 +8,172 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.common.BlockingComponent;
-import dev.restate.sdk.common.TerminalException;
+import com.google.protobuf.ByteString;
+import dev.restate.sdk.common.*;
+import dev.restate.sdk.common.ComponentType;
+import dev.restate.sdk.common.syscalls.*;
+import java.util.*;
+import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 
-/**
- * Marker interface for Restate components.
- *
- * <p>
- *
- * <h2>Error handling</h2>
- *
- * The error handling of Restate services works as follows:
- *
- * <ul>
- *   <li>When throwing {@link TerminalException}, the failure will be used as invocation response
- *       error value
- *   <li>When throwing any other type of exception, the failure is considered "non-terminal" and the
- *       runtime will retry it, according to its configuration
- * </ul>
- */
-public interface Component extends BlockingComponent {}
+public final class Component implements BindableComponent {
+  private final ComponentDefinition componentDefinition;
+
+  private Component(String fqsn, boolean isKeyed, HashMap<String, Handler<?, ?>> handlers) {
+    this.componentDefinition =
+        new ComponentDefinition(
+            fqsn,
+            ExecutorType.BLOCKING,
+            isKeyed ? ComponentType.VIRTUAL_OBJECT : ComponentType.SERVICE,
+            handlers.values().stream()
+                .map(Handler::toHandlerDefinition)
+                .collect(Collectors.toList()));
+  }
+
+  public static ServiceBuilder service(String name) {
+    return new ServiceBuilder(name);
+  }
+
+  public static VirtualObjectBuilder virtualObject(String name) {
+    return new VirtualObjectBuilder(name);
+  }
+
+  @Override
+  public List<ComponentDefinition> definitions() {
+    return List.of(this.componentDefinition);
+  }
+
+  public static class VirtualObjectBuilder {
+    private final String name;
+    private final HashMap<String, Handler<?, ?>> handlers;
+
+    VirtualObjectBuilder(String name) {
+      this.name = name;
+      this.handlers = new HashMap<>();
+    }
+
+    public <REQ, RES> VirtualObjectBuilder with(
+        HandlerSignature<REQ, RES> sig, BiFunction<ObjectContext, REQ, RES> runner) {
+      this.handlers.put(sig.getName(), new Handler<>(sig, runner));
+      return this;
+    }
+
+    public Component build() {
+      return new Component(this.name, true, this.handlers);
+    }
+  }
+
+  public static class ServiceBuilder {
+    private final String name;
+    private final HashMap<String, Handler<?, ?>> methods;
+
+    ServiceBuilder(String name) {
+      this.name = name;
+      this.methods = new HashMap<>();
+    }
+
+    public <REQ, RES> ServiceBuilder with(
+        HandlerSignature<REQ, RES> sig, BiFunction<Context, REQ, RES> runner) {
+      this.methods.put(sig.getName(), new Handler<>(sig, runner));
+      return this;
+    }
+
+    public Component build() {
+      return new Component(this.name, false, this.methods);
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  public static class Handler<REQ, RES> implements InvocationHandler {
+    private final HandlerSignature<REQ, RES> handlerSignature;
+
+    private final BiFunction<Context, REQ, RES> runner;
+
+    public Handler(
+        HandlerSignature<REQ, RES> handlerSignature,
+        BiFunction<? extends Context, REQ, RES> runner) {
+      this.handlerSignature = handlerSignature;
+      this.runner = (BiFunction<Context, REQ, RES>) runner;
+    }
+
+    public HandlerSignature<REQ, RES> getHandlerSignature() {
+      return handlerSignature;
+    }
+
+    public BiFunction<Context, REQ, RES> getRunner() {
+      return runner;
+    }
+
+    public HandlerDefinition toHandlerDefinition() {
+      return new HandlerDefinition(
+          this.handlerSignature.name,
+          this.handlerSignature.requestSerde.schema(),
+          this.handlerSignature.responseSerde.schema(),
+          this);
+    }
+
+    @Override
+    public void handle(Syscalls syscalls, ByteString input, SyscallCallback<ByteString> callback) {
+      // Any context switching, if necessary, will be done by ResolvedEndpointHandler
+      Context ctx = new ContextImpl(syscalls);
+
+      // Parse input
+      REQ req;
+      try {
+        req = this.handlerSignature.requestSerde.deserialize(input);
+      } catch (Error e) {
+        throw e;
+      } catch (Throwable e) {
+        throw new TerminalException(
+            TerminalException.Code.INVALID_ARGUMENT, "Cannot deserialize input: " + e.getMessage());
+      }
+
+      // Execute user code
+      RES res = this.runner.apply(ctx, req);
+
+      // Serialize output
+      ByteString serializedResult;
+      try {
+        serializedResult = this.handlerSignature.responseSerde.serializeToByteString(res);
+      } catch (Error e) {
+        throw e;
+      } catch (Throwable e) {
+        throw new TerminalException(
+            TerminalException.Code.INVALID_ARGUMENT, "Cannot serialize output: " + e.getMessage());
+      }
+
+      // Complete callback
+      callback.onSuccess(serializedResult);
+    }
+  }
+
+  public static class HandlerSignature<REQ, RES> {
+
+    private final String name;
+    private final Serde<REQ> requestSerde;
+    private final Serde<RES> responseSerde;
+
+    HandlerSignature(String name, Serde<REQ> requestSerde, Serde<RES> responseSerde) {
+      this.name = name;
+      this.requestSerde = requestSerde;
+      this.responseSerde = responseSerde;
+    }
+
+    public static <T, R> HandlerSignature<T, R> of(
+        String method, Serde<T> requestSerde, Serde<R> responseSerde) {
+      return new HandlerSignature<>(method, requestSerde, responseSerde);
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public Serde<REQ> getRequestSerde() {
+      return requestSerde;
+    }
+
+    public Serde<RES> getResponseSerde() {
+      return responseSerde;
+    }
+  }
+}

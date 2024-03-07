@@ -5,30 +5,28 @@ import dev.restate.sdk.Context;
 import dev.restate.sdk.common.StateKey;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.workflow.impl.WorkflowCodegenUtil;
-import dev.restate.sdk.dynrpc.CodegenUtils;
-import io.grpc.Channel;
 import java.util.Optional;
 import java.time.Duration;
 
 public class {{generatedClassSimpleName}} {
 
     public static final String WORKFLOW_NAME = "{{componentName}}";
-    private static final io.grpc.MethodDescriptor<dev.restate.sdk.workflow.generated.StateRequest, dev.restate.sdk.workflow.generated.GetStateResponse> WF_MANAGER_GET_STATE_METHOD_DESC = WorkflowCodegenUtil.generateMethodDescriptorForWorkflowManager(dev.restate.sdk.workflow.template.generated.WorkflowManagerGrpc.getGetStateMethod(), WORKFLOW_NAME);
-    private static final io.grpc.MethodDescriptor<dev.restate.sdk.workflow.generated.OutputRequest, dev.restate.sdk.workflow.generated.GetOutputResponse> WF_MANAGER_GET_OUTPUT_METHOD_DESC = WorkflowCodegenUtil.generateMethodDescriptorForWorkflowManager(dev.restate.sdk.workflow.template.generated.WorkflowManagerGrpc.getGetOutputMethod(), WORKFLOW_NAME);
-    private static final io.grpc.MethodDescriptor<dev.restate.sdk.workflow.generated.InvokeRequest, dev.restate.sdk.workflow.generated.SubmitResponse> WF_SUBMIT_METHOD_DESC = WorkflowCodegenUtil.generateMethodDescriptorForWorkflowSubmit(WORKFLOW_NAME);
 
     {{#methods}}
-    private static final io.grpc.MethodDescriptor<dev.restate.sdk.workflow.generated.InvokeRequest, com.google.protobuf.Value> {{descFieldName}} = WorkflowCodegenUtil.generateMethodDescriptorForWorkflow(dev.restate.sdk.workflow.template.generated.WorkflowGrpc.getInvokeTemplateMethod(), WORKFLOW_NAME, "{{name}}");
-    {{^inputEmpty}}private static final Serde<{{{boxedInputFqcn}}}> {{inputSerdeFieldName}} = {{{inputSerdeDecl}}};{{/inputEmpty}}
-    {{^outputEmpty}}private static final Serde<{{{boxedInputFqcn}}}> {{outputSerdeFieldName}} = {{{outputSerdeDecl}}};{{/outputEmpty}}
+    private static final Serde<{{{boxedInputFqcn}}}> {{inputSerdeFieldName}} = {{{inputSerdeDecl}}};
+    private static final Serde<{{{boxedOutputFqcn}}}> {{outputSerdeFieldName}} = {{{outputSerdeDecl}}};
     {{/methods}}
 
     public static ContextClient fromContext(Context ctx, String key) {
         return new ContextClient(ctx, key);
     }
 
-    public static IngressClient fromIngress(Channel restateChannel, String key) {
-        return new IngressClient(restateChannel, key);
+    public static IngressClient fromIngress(dev.restate.sdk.client.IngressClient ingressClient, String key) {
+        return new IngressClient(ingressClient, key);
+    }
+
+    public static IngressClient fromIngress(String baseUri, String key) {
+        return new IngressClient(dev.restate.sdk.client.IngressClient.defaultClient(baseUri), key);
     }
 
     public static class ContextClient {
@@ -42,32 +40,27 @@ public class {{generatedClassSimpleName}} {
         }
 
         {{#methods}}{{#if isWorkflow}}
-        public Awaitable<dev.restate.sdk.workflow.generated.WorkflowExecutionState> submit({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-            return WorkflowCodegenUtil.RestateClient.submit(ctx, WF_SUBMIT_METHOD_DESC, workflowKey, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}});
+        public Awaitable<dev.restate.sdk.workflow.WorkflowExecutionState> submit({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
+            return WorkflowCodegenUtil.RestateClient.submit(ctx, WORKFLOW_NAME, workflowKey, {{#if inputEmpty}}null{{else}}req{{/if}});
         }
 
         public Awaitable<Boolean> isCompleted() {
-            return WorkflowCodegenUtil.RestateClient.isCompleted(ctx, WF_MANAGER_GET_OUTPUT_METHOD_DESC, workflowKey);
+            return WorkflowCodegenUtil.RestateClient.isCompleted(ctx, WORKFLOW_NAME, workflowKey);
         }
 
         {{^outputEmpty}}
         public Awaitable<Optional<{{{outputFqcn}}}>> getOutput() {
-            return WorkflowCodegenUtil.RestateClient.getOutput(ctx, WF_MANAGER_GET_OUTPUT_METHOD_DESC, workflowKey, {{outputSerdeFieldName}});
+            return WorkflowCodegenUtil.RestateClient.getOutput(ctx, WORKFLOW_NAME, workflowKey, {{outputSerdeFieldName}});
         }{{/outputEmpty}}
         {{/if}}{{/methods}}
 
         public <T> Awaitable<Optional<T>> getState(StateKey<T> key) {
-            return WorkflowCodegenUtil.RestateClient.getState(ctx, WF_MANAGER_GET_STATE_METHOD_DESC, workflowKey, key);
+            return WorkflowCodegenUtil.RestateClient.getState(ctx, WORKFLOW_NAME, workflowKey, key);
         }
 
         {{#methods}}{{#if isShared}}
         public Awaitable<{{{boxedOutputFqcn}}}> {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-            Awaitable<com.google.protobuf.Value> response = WorkflowCodegenUtil.RestateClient.invokeShared(ctx, {{descFieldName}}, workflowKey, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}});
-            {{#if outputEmpty}}
-                return response.map(v -> { return null; });
-            {{else}}
-                return response.map(v -> CodegenUtils.valueToT({{outputSerdeFieldName}}, v));
-            {{/if}}
+            return WorkflowCodegenUtil.RestateClient.invokeShared(ctx, WORKFLOW_NAME, "{{name}}", workflowKey, {{#if inputEmpty}}null{{else}}req{{/if}}, {{outputSerdeFieldName}});
         }
         {{/if}}{{/methods}}
 
@@ -83,7 +76,7 @@ public class {{generatedClassSimpleName}} {
 
             {{#methods}}{{#if isShared}}
             public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-                WorkflowCodegenUtil.RestateClient.invokeSharedOneWay(ContextClient.this.ctx, {{descFieldName}}, ContextClient.this.workflowKey, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}});
+                WorkflowCodegenUtil.RestateClient.invokeSharedSend(ContextClient.this.ctx, WORKFLOW_NAME, "{{name}}", ContextClient.this.workflowKey, {{#if inputEmpty}}null{{else}}req{{/if}});
             }{{/if}}{{/methods}}
 
         }
@@ -98,47 +91,43 @@ public class {{generatedClassSimpleName}} {
 
             {{#methods}}{{#if isShared}}
             public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-                WorkflowCodegenUtil.RestateClient.invokeSharedDelayed(ContextClient.this.ctx, {{descFieldName}}, ContextClient.this.workflowKey, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}}, delay);
+                WorkflowCodegenUtil.RestateClient.invokeSharedSendDelayed(ContextClient.this.ctx, WORKFLOW_NAME, "{{name}}", ContextClient.this.workflowKey, {{#if inputEmpty}}null{{else}}req{{/if}}, delay);
             }{{/if}}{{/methods}}
-
         }
     }
 
     public static class IngressClient {
 
-        private final Channel restateChannel;
+        private final dev.restate.sdk.client.IngressClient ingressClient;
         private final String workflowKey;
 
-        public IngressClient(Channel restateChannel, String workflowKey) {
-            this.restateChannel = restateChannel;
+        public IngressClient(dev.restate.sdk.client.IngressClient ingressClient, String workflowKey) {
+            this.ingressClient = ingressClient;
             this.workflowKey = workflowKey;
         }
 
         {{#methods}}{{#if isWorkflow}}
-        public dev.restate.sdk.workflow.generated.WorkflowExecutionState submit({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-            return WorkflowCodegenUtil.ExternalClient.submit(restateChannel, WF_SUBMIT_METHOD_DESC, workflowKey, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}});
+        public dev.restate.sdk.workflow.WorkflowExecutionState submit({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
+            return WorkflowCodegenUtil.ExternalClient.submit(ingressClient, WORKFLOW_NAME, workflowKey, {{#if inputEmpty}}null{{else}}req{{/if}});
         }
 
         public boolean isCompleted() {
-            return WorkflowCodegenUtil.ExternalClient.isCompleted(restateChannel, WF_MANAGER_GET_OUTPUT_METHOD_DESC, workflowKey);
+            return WorkflowCodegenUtil.ExternalClient.isCompleted(ingressClient, WORKFLOW_NAME, workflowKey);
         }
 
         {{^outputEmpty}}
         public Optional<{{{outputFqcn}}}> getOutput() {
-            return WorkflowCodegenUtil.ExternalClient.getOutput(restateChannel, WF_MANAGER_GET_OUTPUT_METHOD_DESC, workflowKey, {{outputSerdeFieldName}});
+            return WorkflowCodegenUtil.ExternalClient.getOutput(ingressClient, WORKFLOW_NAME, workflowKey, {{outputSerdeFieldName}});
         }{{/outputEmpty}}
         {{/if}}{{/methods}}
 
         public <T> Optional<T> getState(StateKey<T> key) {
-            return WorkflowCodegenUtil.ExternalClient.getState(restateChannel, WF_MANAGER_GET_STATE_METHOD_DESC, workflowKey, key);
+            return WorkflowCodegenUtil.ExternalClient.getState(ingressClient, WORKFLOW_NAME, workflowKey, key);
         }
 
         {{#methods}}{{#if isShared}}
         public {{#if outputEmpty}}void{{else}}{{{outputFqcn}}}{{/if}} {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-            com.google.protobuf.Value response = WorkflowCodegenUtil.ExternalClient.invokeShared(IngressClient.this.restateChannel, {{descFieldName}}, IngressClient.this.workflowKey, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}});
-            {{^outputEmpty}}
-            return CodegenUtils.valueToT({{outputSerdeFieldName}}, response);
-            {{/outputEmpty}}
+            {{^outputEmpty}}return {{/outputEmpty}}WorkflowCodegenUtil.ExternalClient.invokeShared(IngressClient.this.ingressClient, WORKFLOW_NAME, "{{name}}", IngressClient.this.workflowKey, {{#if inputEmpty}}null{{else}}req{{/if}}, {{outputSerdeFieldName}});
         }
         {{/if}}{{/methods}}
 
@@ -150,7 +139,7 @@ public class {{generatedClassSimpleName}} {
 
             {{#methods}}{{#if isShared}}
             public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-                WorkflowCodegenUtil.ExternalClient.invokeSharedOneWay(IngressClient.this.restateChannel, {{descFieldName}}, IngressClient.this.workflowKey, {{#if inputEmpty}}null{{else}}CodegenUtils.tToValue({{inputSerdeFieldName}}, req){{/if}});
+                WorkflowCodegenUtil.ExternalClient.invokeSharedSend(IngressClient.this.ingressClient, WORKFLOW_NAME, "{{name}}", IngressClient.this.workflowKey, {{#if inputEmpty}}null{{else}}req{{/if}});
             }
             {{/if}}{{/methods}}
 

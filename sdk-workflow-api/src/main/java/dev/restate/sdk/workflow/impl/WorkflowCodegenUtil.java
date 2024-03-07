@@ -8,29 +8,21 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.workflow.impl;
 
-import static io.grpc.stub.ClientCalls.blockingUnaryCall;
+import static dev.restate.sdk.workflow.impl.WorkflowImpl.workflowManagerObjectName;
 
-import com.google.protobuf.Empty;
-import com.google.protobuf.Value;
-import dev.restate.generated.IngressGrpc;
 import dev.restate.sdk.Awaitable;
 import dev.restate.sdk.Context;
-import dev.restate.sdk.common.Serde;
-import dev.restate.sdk.common.StateKey;
-import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.dynrpc.CodegenUtils;
-import dev.restate.sdk.workflow.generated.*;
-import dev.restate.sdk.workflow.template.generated.WorkflowGrpc;
-import io.grpc.CallOptions;
-import io.grpc.Channel;
-import io.grpc.MethodDescriptor;
+import dev.restate.sdk.client.IngressClient;
+import dev.restate.sdk.common.*;
+import dev.restate.sdk.workflow.WorkflowExecutionState;
+import dev.restate.sdk.workflow.generated.GetOutputResponse;
+import dev.restate.sdk.workflow.generated.GetStateResponse;
 import java.time.Duration;
-import java.util.Objects;
 import java.util.Optional;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 // Methods invoked from code-generated classes
-public class WorkflowCodegenUtil {
+public final class WorkflowCodegenUtil {
 
   private WorkflowCodegenUtil() {}
 
@@ -40,23 +32,22 @@ public class WorkflowCodegenUtil {
     private RestateClient() {}
 
     public static Awaitable<WorkflowExecutionState> submit(
-        Context ctx,
-        MethodDescriptor<InvokeRequest, SubmitResponse> submitMethodDesc,
-        String workflowKey,
-        @Nullable Value payload) {
-      InvokeRequest.Builder reqBuilder = InvokeRequest.newBuilder().setKey(workflowKey);
-      if (payload != null) {
-        reqBuilder.setPayload(payload);
-      }
-      return ctx.call(submitMethodDesc, reqBuilder.build()).map(SubmitResponse::getState);
+        Context ctx, String workflowName, String workflowKey, @Nullable Object payload) {
+      return ctx.call(
+          Target.service(workflowName, "submit"),
+          WorkflowImpl.INVOKE_REQUEST_SERDE,
+          WorkflowImpl.WORKFLOW_EXECUTION_STATE_SERDE,
+          InvokeRequest.fromAny(workflowKey, payload));
     }
 
     public static <T> Awaitable<Optional<T>> getOutput(
-        Context ctx,
-        MethodDescriptor<OutputRequest, GetOutputResponse> getOutputMethodDesc,
-        String workflowKey,
-        Serde<T> serde) {
-      return ctx.call(getOutputMethodDesc, OutputRequest.newBuilder().setKey(workflowKey).build())
+        Context ctx, String workflowName, String workflowKey, Serde<T> serde) {
+      return ctx.call(
+              Target.virtualObject(
+                  workflowManagerObjectName(workflowName), workflowKey, "getOutput"),
+              CoreSerdes.VOID,
+              WorkflowImpl.GET_OUTPUT_RESPONSE_SERDE,
+              null)
           .map(
               response -> {
                 if (response.hasNotCompleted()) {
@@ -67,15 +58,18 @@ public class WorkflowCodegenUtil {
                       TerminalException.Code.fromValue(response.getFailure().getCode()),
                       response.getFailure().getMessage());
                 }
-                return Optional.ofNullable(CodegenUtils.valueToT(serde, response.getValue()));
+                return Optional.ofNullable(serde.deserialize(response.getValue()));
               });
     }
 
     public static Awaitable<Boolean> isCompleted(
-        Context ctx,
-        MethodDescriptor<OutputRequest, GetOutputResponse> getOutputMethodDesc,
-        String workflowKey) {
-      return ctx.call(getOutputMethodDesc, OutputRequest.newBuilder().setKey(workflowKey).build())
+        Context ctx, String workflowName, String workflowKey) {
+      return ctx.call(
+              Target.virtualObject(
+                  workflowManagerObjectName(workflowName), workflowKey, "getOutput"),
+              CoreSerdes.VOID,
+              WorkflowImpl.GET_OUTPUT_RESPONSE_SERDE,
+              null)
           .map(
               response -> {
                 if (response.hasFailure()) {
@@ -87,54 +81,54 @@ public class WorkflowCodegenUtil {
               });
     }
 
-    public static Awaitable<Value> invokeShared(
+    public static <T> Awaitable<T> invokeShared(
         Context ctx,
-        MethodDescriptor<InvokeRequest, Value> invokeMethodDesc,
+        String workflowName,
+        String handlerName,
         String workflowKey,
-        @Nullable Value payload) {
-      InvokeRequest.Builder reqBuilder = InvokeRequest.newBuilder().setKey(workflowKey);
-      if (payload != null) {
-        reqBuilder.setPayload(payload);
-      }
-
-      return ctx.call(invokeMethodDesc, reqBuilder.build());
+        @Nullable Object payload,
+        Serde<T> resSerde) {
+      return ctx.call(
+          Target.service(workflowName, handlerName),
+          WorkflowImpl.INVOKE_REQUEST_SERDE,
+          resSerde,
+          InvokeRequest.fromAny(workflowKey, payload));
     }
 
-    public static void invokeSharedOneWay(
+    public static void invokeSharedSend(
         Context ctx,
-        MethodDescriptor<InvokeRequest, Value> invokeMethodDesc,
+        String workflowName,
+        String handlerName,
         String workflowKey,
-        @Nullable Value payload) {
-      InvokeRequest.Builder reqBuilder = InvokeRequest.newBuilder().setKey(workflowKey);
-      if (payload != null) {
-        reqBuilder.setPayload(payload);
-      }
-
-      ctx.oneWayCall(invokeMethodDesc, reqBuilder.build());
+        @Nullable Object payload) {
+      ctx.send(
+          Target.service(workflowName, handlerName),
+          WorkflowImpl.INVOKE_REQUEST_SERDE,
+          InvokeRequest.fromAny(workflowKey, payload));
     }
 
-    public static void invokeSharedDelayed(
+    public static void invokeSharedSendDelayed(
         Context ctx,
-        MethodDescriptor<InvokeRequest, Value> invokeMethodDesc,
+        String workflowName,
+        String handlerName,
         String workflowKey,
-        @Nullable Value payload,
+        @Nullable Object payload,
         Duration delay) {
-      InvokeRequest.Builder reqBuilder = InvokeRequest.newBuilder().setKey(workflowKey);
-      if (payload != null) {
-        reqBuilder.setPayload(payload);
-      }
-
-      ctx.delayedCall(invokeMethodDesc, reqBuilder.build(), delay);
+      ctx.sendDelayed(
+          Target.service(workflowName, handlerName),
+          WorkflowImpl.INVOKE_REQUEST_SERDE,
+          InvokeRequest.fromAny(workflowKey, payload),
+          delay);
     }
 
     public static <T> Awaitable<Optional<T>> getState(
-        Context ctx,
-        MethodDescriptor<StateRequest, GetStateResponse> getStateMethodDesc,
-        String workflowKey,
-        StateKey<T> key) {
+        Context ctx, String workflowName, String workflowKey, StateKey<T> key) {
       return ctx.call(
-              getStateMethodDesc,
-              StateRequest.newBuilder().setStateKey(key.name()).setKey(workflowKey).build())
+              Target.virtualObject(
+                  workflowManagerObjectName(workflowName), workflowKey, "getState"),
+              CoreSerdes.JSON_STRING,
+              WorkflowImpl.GET_STATE_RESPONSE_SERDE,
+              key.name())
           .map(
               response -> {
                 if (response.hasEmpty()) {
@@ -151,30 +145,26 @@ public class WorkflowCodegenUtil {
     private ExternalClient() {}
 
     public static WorkflowExecutionState submit(
-        Channel channel,
-        MethodDescriptor<InvokeRequest, SubmitResponse> submitMethodDesc,
+        IngressClient ingressClient,
+        String workflowName,
         String workflowKey,
-        @Nullable Value payload) {
-      InvokeRequest.Builder reqBuilder = InvokeRequest.newBuilder().setKey(workflowKey);
-      if (payload != null) {
-        reqBuilder.setPayload(payload);
-      }
-
-      return blockingUnaryCall(channel, submitMethodDesc, CallOptions.DEFAULT, reqBuilder.build())
-          .getState();
+        @Nullable Object payload) {
+      return ingressClient.call(
+          Target.service(workflowName, "submit"),
+          WorkflowImpl.INVOKE_REQUEST_SERDE,
+          WorkflowImpl.WORKFLOW_EXECUTION_STATE_SERDE,
+          InvokeRequest.fromAny(workflowKey, payload));
     }
 
     public static <T> Optional<T> getOutput(
-        Channel channel,
-        MethodDescriptor<OutputRequest, GetOutputResponse> getOutputMethodDesc,
-        String workflowKey,
-        Serde<T> serde) {
+        IngressClient ingressClient, String workflowName, String workflowKey, Serde<T> serde) {
       GetOutputResponse response =
-          blockingUnaryCall(
-              channel,
-              getOutputMethodDesc,
-              CallOptions.DEFAULT,
-              OutputRequest.newBuilder().setKey(workflowKey).build());
+          ingressClient.call(
+              Target.virtualObject(
+                  workflowManagerObjectName(workflowName), workflowKey, "getOutput"),
+              CoreSerdes.VOID,
+              WorkflowImpl.GET_OUTPUT_RESPONSE_SERDE,
+              null);
       if (response.hasNotCompleted()) {
         return Optional.empty();
       }
@@ -183,19 +173,18 @@ public class WorkflowCodegenUtil {
             TerminalException.Code.fromValue(response.getFailure().getCode()),
             response.getFailure().getMessage());
       }
-      return Optional.ofNullable(CodegenUtils.valueToT(serde, response.getValue()));
+      return Optional.ofNullable(serde.deserialize(response.getValue()));
     }
 
     public static boolean isCompleted(
-        Channel channel,
-        MethodDescriptor<OutputRequest, GetOutputResponse> getOutputMethodDesc,
-        String workflowKey) {
+        IngressClient ingressClient, String workflowName, String workflowKey) {
       GetOutputResponse response =
-          blockingUnaryCall(
-              channel,
-              getOutputMethodDesc,
-              CallOptions.DEFAULT,
-              OutputRequest.newBuilder().setKey(workflowKey).build());
+          ingressClient.call(
+              Target.virtualObject(
+                  workflowManagerObjectName(workflowName), workflowKey, "getOutput"),
+              CoreSerdes.VOID,
+              WorkflowImpl.GET_OUTPUT_RESPONSE_SERDE,
+              null);
       if (response.hasFailure()) {
         throw new TerminalException(
             TerminalException.Code.fromValue(response.getFailure().getCode()),
@@ -204,90 +193,45 @@ public class WorkflowCodegenUtil {
       return !response.hasNotCompleted();
     }
 
-    public static Value invokeShared(
-        Channel channel,
-        MethodDescriptor<InvokeRequest, Value> invokeMethodDesc,
+    public static <T> T invokeShared(
+        IngressClient ingressClient,
+        String workflowName,
+        String handlerName,
         String workflowKey,
-        @Nullable Value payload) {
-      InvokeRequest.Builder reqBuilder = InvokeRequest.newBuilder().setKey(workflowKey);
-      if (payload != null) {
-        reqBuilder.setPayload(payload);
-      }
-
-      return blockingUnaryCall(channel, invokeMethodDesc, CallOptions.DEFAULT, reqBuilder.build());
+        @Nullable Object payload,
+        Serde<T> resSerde) {
+      return ingressClient.call(
+          Target.service(workflowName, handlerName),
+          WorkflowImpl.INVOKE_REQUEST_SERDE,
+          resSerde,
+          InvokeRequest.fromAny(workflowKey, payload));
     }
 
-    public static void invokeSharedOneWay(
-        Channel channel,
-        MethodDescriptor<InvokeRequest, Value> invokeMethodDesc,
+    public static void invokeSharedSend(
+        IngressClient ingressClient,
+        String workflowName,
+        String handlerName,
         String workflowKey,
-        @Nullable Value payload) {
-      InvokeRequest.Builder reqBuilder = InvokeRequest.newBuilder().setKey(workflowKey);
-      if (payload != null) {
-        reqBuilder.setPayload(payload);
-      }
-
-      var ingressClient = IngressGrpc.newBlockingStub(channel);
-      ingressClient.invoke(
-          dev.restate.generated.InvokeRequest.newBuilder()
-              .setService(invokeMethodDesc.getServiceName())
-              .setMethod(invokeMethodDesc.getBareMethodName())
-              .setPb(reqBuilder.build().toByteString())
-              .build());
+        @Nullable Object payload) {
+      ingressClient.send(
+          Target.service(workflowName, handlerName),
+          WorkflowImpl.INVOKE_REQUEST_SERDE,
+          InvokeRequest.fromAny(workflowKey, payload));
     }
 
     public static <T> Optional<T> getState(
-        Channel channel,
-        MethodDescriptor<StateRequest, GetStateResponse> getStateMethodDesc,
-        String workflowKey,
-        StateKey<T> key) {
+        IngressClient ingressClient, String workflowName, String workflowKey, StateKey<T> key) {
       GetStateResponse response =
-          blockingUnaryCall(
-              channel,
-              getStateMethodDesc,
-              CallOptions.DEFAULT,
-              StateRequest.newBuilder().setStateKey(key.name()).setKey(workflowKey).build());
+          ingressClient.call(
+              Target.virtualObject(
+                  workflowManagerObjectName(workflowName), workflowKey, "getState"),
+              CoreSerdes.JSON_STRING,
+              WorkflowImpl.GET_STATE_RESPONSE_SERDE,
+              key.name());
       if (response.hasEmpty()) {
         return Optional.empty();
       }
       return Optional.of(key.serde().deserialize(response.getValue()));
     }
-  }
-
-  // --- Method descriptors manglers
-
-  public static <Req, Res> MethodDescriptor<Req, Res> generateMethodDescriptorForWorkflowManager(
-      MethodDescriptor<Req, Res> original, String workflowFqsn) {
-    String workflowServiceFqsn = workflowFqsn + WorkflowMangledDescriptors.MANAGER_SERVICE_SUFFIX;
-    return original.toBuilder()
-        .setFullMethodName(
-            MethodDescriptor.generateFullMethodName(
-                workflowServiceFqsn, Objects.requireNonNull(original.getBareMethodName())))
-        .build();
-  }
-
-  public static <Req, Res> MethodDescriptor<Req, Res> generateMethodDescriptorForWorkflow(
-      MethodDescriptor<Req, Res> original, String workflowFqsn, String methodName) {
-    return original.toBuilder()
-        .setFullMethodName(MethodDescriptor.generateFullMethodName(workflowFqsn, methodName))
-        .build();
-  }
-
-  public static MethodDescriptor<InvokeRequest, SubmitResponse>
-      generateMethodDescriptorForWorkflowSubmit(String workflowFqsn) {
-    return WorkflowGrpc.getSubmitMethod().toBuilder()
-        .setFullMethodName(
-            MethodDescriptor.generateFullMethodName(
-                workflowFqsn, WorkflowGrpc.getSubmitMethod().getBareMethodName()))
-        .build();
-  }
-
-  public static MethodDescriptor<InvokeRequest, Empty>
-      generateMethodDescriptorForWorkflowInternalStart(String workflowFqsn) {
-    return WorkflowGrpc.getInternalStartMethod().toBuilder()
-        .setFullMethodName(
-            MethodDescriptor.generateFullMethodName(
-                workflowFqsn, WorkflowGrpc.getInternalStartMethod().getBareMethodName()))
-        .build();
   }
 }

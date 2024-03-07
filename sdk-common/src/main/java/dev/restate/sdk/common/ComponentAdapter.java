@@ -10,7 +10,7 @@ package dev.restate.sdk.common;
 
 public interface ComponentAdapter<T> {
 
-  ComponentBundle adapt(T componentObject);
+  BindableComponent adapt(T componentObject);
 
   boolean supportsObject(Object componentObject);
 }

@@ -12,22 +12,10 @@ package dev.restate.sdk.workflow;
 
 import "google/protobuf/empty.proto";
 import "google/protobuf/struct.proto";
-import "dev/restate/ext.proto";
 
 option java_multiple_files = true;
 option java_package = "dev.restate.sdk.workflow.generated";
 option java_outer_classname = "WorkflowProto";
-
-message InvokeRequest {
-  string key = 1;
-  google.protobuf.Value payload = 2;
-}
-
-message StateRequest {
-  string key = 1 [(dev.restate.ext.field) = KEY];
-
-  string state_key = 2;
-}
 
 message GetStateResponse {
   oneof result {
@@ -37,55 +25,23 @@ message GetStateResponse {
 }
 
 message SetStateRequest {
-  string key = 1 [(dev.restate.ext.field) = KEY];
-
   string state_key = 2;
   bytes state_value = 3;
 }
 
-message StartRequest {
-  string key = 1 [(dev.restate.ext.field) = KEY];
-}
-
-message StartResponse {
-  WorkflowExecutionState state = 1;
-}
-
-message SubmitResponse {
-  WorkflowExecutionState state = 1;
-}
-
-enum WorkflowExecutionState {
-  STARTED = 0;
-  ALREADY_STARTED = 1;
-  ALREADY_COMPLETED = 2;
-}
-
-message OutputRequest {
-  string key = 1 [(dev.restate.ext.field) = KEY];
-}
-
 message GetOutputResponse {
   oneof result {
-    google.protobuf.Value value = 1;
+    bytes value = 1;
     Failure failure = 2;
     google.protobuf.Empty not_completed = 3;
   };
 }
 
 message SetOutputRequest {
-  string key = 1 [(dev.restate.ext.field) = KEY];
-
   MethodOutput output = 2;
 }
 
-message WorkflowManagerRequest {
-  string key = 1 [(dev.restate.ext.field) = KEY];
-}
-
 message WaitDurablePromiseCompletionRequest {
-  string key = 1 [(dev.restate.ext.field) = KEY];
-
   string durable_promise_key = 2;
   string awakeable_id = 3;
 }
@@ -97,12 +53,6 @@ message DurablePromiseCompletion {
   };
 }
 
-message GetDurablePromiseCompletionRequest {
-  string key = 1 [(dev.restate.ext.field) = KEY];
-
-  string durable_promise_key = 2;
-}
-
 message MaybeDurablePromiseCompletion {
   oneof result {
     bytes value = 1;
@@ -112,15 +62,13 @@ message MaybeDurablePromiseCompletion {
 }
 
 message CompleteDurablePromiseRequest {
-  string key = 1 [(dev.restate.ext.field) = KEY];
-
   string durable_promise_key = 2;
   DurablePromiseCompletion completion = 3;
 }
 
 message MethodOutput {
   oneof result {
-    google.protobuf.Value value = 1;
+    bytes value = 1;
     Failure failure = 2;
   }
 }

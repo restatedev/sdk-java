@@ -8,16 +8,14 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import static dev.restate.sdk.core.AssertUtils.*;
+import static dev.restate.sdk.core.AssertUtils.containsOnlyExactErrorMessage;
+import static dev.restate.sdk.core.AssertUtils.exactErrorMessage;
 import static dev.restate.sdk.core.ProtoUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.core.testservices.GreeterGrpc;
-import dev.restate.sdk.core.testservices.GreetingRequest;
-import io.grpc.BindableService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
@@ -27,15 +25,15 @@ public abstract class UserFailuresTestSuite implements TestSuite {
 
   public static final String WHATEVER = "Whatever";
 
-  protected abstract BindableService throwIllegalStateException();
+  protected abstract TestInvocationBuilder throwIllegalStateException();
 
-  protected abstract BindableService sideEffectThrowIllegalStateException(
+  protected abstract TestInvocationBuilder sideEffectThrowIllegalStateException(
       AtomicInteger nonTerminalExceptionsSeen);
 
-  protected abstract BindableService throwTerminalException(
+  protected abstract TestInvocationBuilder throwTerminalException(
       TerminalException.Code code, String message);
 
-  protected abstract BindableService sideEffectThrowTerminalException(
+  protected abstract TestInvocationBuilder sideEffectThrowTerminalException(
       TerminalException.Code code, String message);
 
   @Override
@@ -44,13 +42,11 @@ public abstract class UserFailuresTestSuite implements TestSuite {
 
     return Stream.of(
         // Cases returning ErrorMessage
-        testInvocation(this::throwIllegalStateException, GreeterGrpc.getGreetMethod())
-            .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
+        this.throwIllegalStateException()
+            .withInput(startMessage(1), inputMessage())
             .assertingOutput(containsOnlyExactErrorMessage(new IllegalStateException("Whatever"))),
-        testInvocation(
-                () -> this.sideEffectThrowIllegalStateException(nonTerminalExceptionsSeen),
-                GreeterGrpc.getGreetMethod())
-            .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
+        this.sideEffectThrowIllegalStateException(nonTerminalExceptionsSeen)
+            .withInput(startMessage(1), inputMessage())
             .assertingOutput(
                 msgs -> {
                   assertThat(msgs)
@@ -61,37 +57,24 @@ public abstract class UserFailuresTestSuite implements TestSuite {
                 }),
 
         // Cases completing the invocation with OutputStreamEntry.failure
-        testInvocation(
-                () -> this.throwTerminalException(TerminalException.Code.INTERNAL, MY_ERROR),
-                GreeterGrpc.getGreetMethod())
-            .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
+        this.throwTerminalException(TerminalException.Code.INTERNAL, MY_ERROR)
+            .withInput(startMessage(1), inputMessage())
             .expectingOutput(outputMessage(TerminalException.Code.INTERNAL, MY_ERROR), END_MESSAGE)
             .named("With internal error"),
-        testInvocation(
-                () -> this.throwTerminalException(TerminalException.Code.UNKNOWN, WHATEVER),
-                GreeterGrpc.getGreetMethod())
-            .withInput(startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()))
+        this.throwTerminalException(TerminalException.Code.UNKNOWN, WHATEVER)
+            .withInput(startMessage(1), inputMessage())
             .expectingOutput(outputMessage(TerminalException.Code.UNKNOWN, WHATEVER), END_MESSAGE)
             .named("With unknown error"),
-        testInvocation(
-                () ->
-                    this.sideEffectThrowTerminalException(
-                        TerminalException.Code.INTERNAL, MY_ERROR),
-                GreeterGrpc.getGreetMethod())
-            .withInput(
-                startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()), ackMessage(1))
+        this.sideEffectThrowTerminalException(TerminalException.Code.INTERNAL, MY_ERROR)
+            .withInput(startMessage(1), inputMessage(), ackMessage(1))
             .expectingOutput(
                 Java.SideEffectEntryMessage.newBuilder()
                     .setFailure(Util.toProtocolFailure(TerminalException.Code.INTERNAL, MY_ERROR)),
                 outputMessage(TerminalException.Code.INTERNAL, MY_ERROR),
                 END_MESSAGE)
             .named("With internal error"),
-        testInvocation(
-                () ->
-                    this.sideEffectThrowTerminalException(TerminalException.Code.UNKNOWN, WHATEVER),
-                GreeterGrpc.getGreetMethod())
-            .withInput(
-                startMessage(1), inputMessage(GreetingRequest.getDefaultInstance()), ackMessage(1))
+        this.sideEffectThrowTerminalException(TerminalException.Code.UNKNOWN, WHATEVER)
+            .withInput(startMessage(1), inputMessage(), ackMessage(1))
             .expectingOutput(
                 Java.SideEffectEntryMessage.newBuilder()
                     .setFailure(Util.toProtocolFailure(TerminalException.Code.UNKNOWN, WHATEVER)),

@@ -10,7 +10,7 @@ package dev.restate.sdk.core;
 
 import com.google.protobuf.MessageLite;
 import dev.restate.generated.service.protocol.Protocol;
-import io.grpc.Status;
+import dev.restate.sdk.common.TerminalException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 
@@ -25,7 +25,7 @@ public class ProtocolException extends RuntimeException {
   private final int failureCode;
 
   private ProtocolException(String message) {
-    this(message, Status.Code.INTERNAL.value());
+    this(message, TerminalException.Code.INTERNAL.value());
   }
 
   private ProtocolException(String message, int failureCode) {
@@ -86,13 +86,14 @@ public class ProtocolException extends RuntimeException {
 
   static ProtocolException methodNotFound(String svcName, String methodName) {
     return new ProtocolException(
-        "Cannot find method '" + svcName + "/" + methodName + "'", Status.Code.NOT_FOUND.value());
+        "Cannot find method '" + svcName + "/" + methodName + "'",
+        TerminalException.Code.NOT_FOUND.value());
   }
 
   static ProtocolException invalidSideEffectCall() {
     return new ProtocolException(
         "A syscall was invoked from within a side effect closure.",
         null,
-        Status.Code.UNKNOWN.value());
+        TerminalException.Code.UNKNOWN.value());
   }
 }
