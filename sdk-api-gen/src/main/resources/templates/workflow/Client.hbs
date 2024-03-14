@@ -12,10 +12,10 @@ public class {{generatedClassSimpleName}} {
 
     public static final String WORKFLOW_NAME = "{{componentName}}";
 
-    {{#methods}}
+    {{#handlers}}
     private static final Serde<{{{boxedInputFqcn}}}> {{inputSerdeFieldName}} = {{{inputSerdeDecl}}};
     private static final Serde<{{{boxedOutputFqcn}}}> {{outputSerdeFieldName}} = {{{outputSerdeDecl}}};
-    {{/methods}}
+    {{/handlers}}
 
     public static ContextClient fromContext(Context ctx, String key) {
         return new ContextClient(ctx, key);
@@ -39,7 +39,7 @@ public class {{generatedClassSimpleName}} {
             this.workflowKey = workflowKey;
         }
 
-        {{#methods}}{{#if isWorkflow}}
+        {{#handlers}}{{#if isWorkflow}}
         public Awaitable<dev.restate.sdk.workflow.WorkflowExecutionState> submit({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
             return WorkflowCodegenUtil.RestateClient.submit(ctx, WORKFLOW_NAME, workflowKey, {{#if inputEmpty}}null{{else}}req{{/if}});
         }
@@ -52,17 +52,17 @@ public class {{generatedClassSimpleName}} {
         public Awaitable<Optional<{{{outputFqcn}}}>> getOutput() {
             return WorkflowCodegenUtil.RestateClient.getOutput(ctx, WORKFLOW_NAME, workflowKey, {{outputSerdeFieldName}});
         }{{/outputEmpty}}
-        {{/if}}{{/methods}}
+        {{/if}}{{/handlers}}
 
         public <T> Awaitable<Optional<T>> getState(StateKey<T> key) {
             return WorkflowCodegenUtil.RestateClient.getState(ctx, WORKFLOW_NAME, workflowKey, key);
         }
 
-        {{#methods}}{{#if isShared}}
+        {{#handlers}}{{#if isShared}}
         public Awaitable<{{{boxedOutputFqcn}}}> {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
             return WorkflowCodegenUtil.RestateClient.invokeShared(ctx, WORKFLOW_NAME, "{{name}}", workflowKey, {{#if inputEmpty}}null{{else}}req{{/if}}, {{outputSerdeFieldName}});
         }
-        {{/if}}{{/methods}}
+        {{/if}}{{/handlers}}
 
         public Send send() {
             return new Send();
@@ -74,10 +74,10 @@ public class {{generatedClassSimpleName}} {
 
         public class Send {
 
-            {{#methods}}{{#if isShared}}
+            {{#handlers}}{{#if isShared}}
             public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
                 WorkflowCodegenUtil.RestateClient.invokeSharedSend(ContextClient.this.ctx, WORKFLOW_NAME, "{{name}}", ContextClient.this.workflowKey, {{#if inputEmpty}}null{{else}}req{{/if}});
-            }{{/if}}{{/methods}}
+            }{{/if}}{{/handlers}}
 
         }
 
@@ -89,10 +89,10 @@ public class {{generatedClassSimpleName}} {
                 this.delay = delay;
             }
 
-            {{#methods}}{{#if isShared}}
+            {{#handlers}}{{#if isShared}}
             public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
                 WorkflowCodegenUtil.RestateClient.invokeSharedSendDelayed(ContextClient.this.ctx, WORKFLOW_NAME, "{{name}}", ContextClient.this.workflowKey, {{#if inputEmpty}}null{{else}}req{{/if}}, delay);
-            }{{/if}}{{/methods}}
+            }{{/if}}{{/handlers}}
         }
     }
 
@@ -106,7 +106,7 @@ public class {{generatedClassSimpleName}} {
             this.workflowKey = workflowKey;
         }
 
-        {{#methods}}{{#if isWorkflow}}
+        {{#handlers}}{{#if isWorkflow}}
         public dev.restate.sdk.workflow.WorkflowExecutionState submit({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
             return WorkflowCodegenUtil.ExternalClient.submit(ingressClient, WORKFLOW_NAME, workflowKey, {{#if inputEmpty}}null{{else}}req{{/if}});
         }
@@ -119,17 +119,17 @@ public class {{generatedClassSimpleName}} {
         public Optional<{{{outputFqcn}}}> getOutput() {
             return WorkflowCodegenUtil.ExternalClient.getOutput(ingressClient, WORKFLOW_NAME, workflowKey, {{outputSerdeFieldName}});
         }{{/outputEmpty}}
-        {{/if}}{{/methods}}
+        {{/if}}{{/handlers}}
 
         public <T> Optional<T> getState(StateKey<T> key) {
             return WorkflowCodegenUtil.ExternalClient.getState(ingressClient, WORKFLOW_NAME, workflowKey, key);
         }
 
-        {{#methods}}{{#if isShared}}
+        {{#handlers}}{{#if isShared}}
         public {{#if outputEmpty}}void{{else}}{{{outputFqcn}}}{{/if}} {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
             {{^outputEmpty}}return {{/outputEmpty}}WorkflowCodegenUtil.ExternalClient.invokeShared(IngressClient.this.ingressClient, WORKFLOW_NAME, "{{name}}", IngressClient.this.workflowKey, {{#if inputEmpty}}null{{else}}req{{/if}}, {{outputSerdeFieldName}});
         }
-        {{/if}}{{/methods}}
+        {{/if}}{{/handlers}}
 
         public Send send() {
             return new Send();
@@ -137,11 +137,11 @@ public class {{generatedClassSimpleName}} {
 
         public class Send {
 
-            {{#methods}}{{#if isShared}}
+            {{#handlers}}{{#if isShared}}
             public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
                 WorkflowCodegenUtil.ExternalClient.invokeSharedSend(IngressClient.this.ingressClient, WORKFLOW_NAME, "{{name}}", IngressClient.this.workflowKey, {{#if inputEmpty}}null{{else}}req{{/if}});
             }
-            {{/if}}{{/methods}}
+            {{/if}}{{/handlers}}
 
         }
     }

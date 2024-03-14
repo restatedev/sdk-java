@@ -7,7 +7,7 @@ public class {{generatedClassSimpleName}} implements dev.restate.sdk.common.Comp
     @java.lang.Override
     public dev.restate.sdk.common.BindableComponent adapt({{originalClassFqcn}} bindableComponent) {
         return dev.restate.sdk.Component.{{#if isObject}}virtualObject{{else}}service{{/if}}(COMPONENT_NAME)
-            {{#methods}}
+            {{#handlers}}
             .with(
             dev.restate.sdk.Component.HandlerSignature.of("{{name}}", {{{inputSerdeDecl}}}, {{{outputSerdeDecl}}}),
             (ctx, req) -> {
@@ -18,7 +18,7 @@ public class {{generatedClassSimpleName}} implements dev.restate.sdk.common.Comp
                 return {{#if inputEmpty}}bindableComponent.{{name}}(ctx){{else}}bindableComponent.{{name}}(ctx, req){{/if}};
                 {{/if}}
             })
-            {{/methods}}
+            {{/handlers}}
             .build();
     }
 

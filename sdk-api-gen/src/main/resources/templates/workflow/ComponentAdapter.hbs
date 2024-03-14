@@ -8,7 +8,7 @@ public class {{generatedClassSimpleName}} implements dev.restate.sdk.common.Comp
     public dev.restate.sdk.common.BindableComponent adapt({{originalClassFqcn}} bindableComponent) {
         return dev.restate.sdk.workflow.WorkflowBuilder.named(
             COMPONENT_NAME,
-            {{#methods}}{{#if isWorkflow}}
+            {{#handlers}}{{#if isWorkflow}}
             dev.restate.sdk.Component.HandlerSignature.of("{{name}}", {{{inputSerdeDecl}}}, {{{outputSerdeDecl}}}),
             (ctx, req) -> {
             {{#if outputEmpty}}
@@ -18,9 +18,9 @@ public class {{generatedClassSimpleName}} implements dev.restate.sdk.common.Comp
                 return {{#if inputEmpty}}bindableComponent.{{name}}(ctx){{else}}bindableComponent.{{name}}(ctx, req){{/if}};
             {{/if}}
             }
-            {{/if}}{{/methods}})
-            {{#methods}}{{#if isShared}}
-            .with{{capitalizeFirst (lower methodType)}}(
+            {{/if}}{{/handlers}})
+            {{#handlers}}{{#if isShared}}
+            .with{{capitalizeFirst (lower handlerType)}}(
             dev.restate.sdk.Component.HandlerSignature.of("{{name}}", {{{inputSerdeDecl}}}, {{{outputSerdeDecl}}}),
             (ctx, req) -> {
                 {{#if outputEmpty}}
@@ -30,7 +30,7 @@ public class {{generatedClassSimpleName}} implements dev.restate.sdk.common.Comp
                 return {{#if inputEmpty}}bindableComponent.{{name}}(ctx){{else}}bindableComponent.{{name}}(ctx, req){{/if}};
                 {{/if}}
             })
-            {{/if}}{{/methods}}
+            {{/if}}{{/handlers}}
             .build();
     }
 

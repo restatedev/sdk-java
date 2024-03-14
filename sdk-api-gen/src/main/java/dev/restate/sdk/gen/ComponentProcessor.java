@@ -10,7 +10,9 @@ package dev.restate.sdk.gen;
 
 import dev.restate.sdk.common.ComponentAdapter;
 import dev.restate.sdk.common.ComponentType;
-import dev.restate.sdk.gen.model.Service;
+import dev.restate.sdk.common.function.ThrowingFunction;
+import dev.restate.sdk.gen.model.Component;
+import dev.restate.sdk.gen.template.HandlebarsTemplateEngine;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -20,6 +22,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 import javax.tools.FileObject;
 import javax.tools.StandardLocation;
@@ -32,59 +35,65 @@ import javax.tools.StandardLocation;
 @SupportedSourceVersion(SourceVersion.RELEASE_11)
 public class ComponentProcessor extends AbstractProcessor {
 
-  private HandlebarsCodegen serviceAdapterCodegen;
-  private HandlebarsCodegen clientCodegen;
+  private HandlebarsTemplateEngine serviceAdapterCodegen;
+  private HandlebarsTemplateEngine clientCodegen;
 
   @Override
   public synchronized void init(ProcessingEnvironment processingEnv) {
     super.init(processingEnv);
 
+    FilerTemplateLoader filerTemplateLoader = new FilerTemplateLoader(processingEnv.getFiler());
+
     this.serviceAdapterCodegen =
-        new HandlebarsCodegen(
-            processingEnv.getFiler(),
+        new HandlebarsTemplateEngine(
             "ComponentAdapter",
+            filerTemplateLoader,
             Map.of(
                 ComponentType.WORKFLOW,
-                "templates.workflow",
+                "templates/workflow/ComponentAdapter.hbs",
                 ComponentType.SERVICE,
-                "templates",
+                "templates/ComponentAdapter.hbs",
                 ComponentType.VIRTUAL_OBJECT,
-                "templates"));
+                "templates/ComponentAdapter.hbs"));
     this.clientCodegen =
-        new HandlebarsCodegen(
-            processingEnv.getFiler(),
+        new HandlebarsTemplateEngine(
             "Client",
+            filerTemplateLoader,
             Map.of(
                 ComponentType.WORKFLOW,
-                "templates.workflow",
+                "templates/workflow/Client.hbs",
                 ComponentType.SERVICE,
-                "templates",
+                "templates/Client.hbs",
                 ComponentType.VIRTUAL_OBJECT,
-                "templates"));
+                "templates/Client.hbs"));
   }
 
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+    ElementConverter converter =
+        new ElementConverter(
+            processingEnv.getMessager(),
+            processingEnv.getElementUtils(),
+            processingEnv.getTypeUtils());
+
     // Parsing phase
-    List<Service> parsedServices =
+    List<Map.Entry<Element, Component>> parsedServices =
         annotations.stream()
             .flatMap(annotation -> roundEnv.getElementsAnnotatedWith(annotation).stream())
             .filter(e -> e.getKind().isClass() || e.getKind().isInterface())
-            .map(
-                e ->
-                    Service.fromTypeElement(
-                        (TypeElement) e,
-                        processingEnv.getMessager(),
-                        processingEnv.getElementUtils(),
-                        processingEnv.getTypeUtils()))
+            .map(e -> Map.entry((Element) e, converter.fromTypeElement((TypeElement) e)))
             .collect(Collectors.toList());
 
+    Filer filer = processingEnv.getFiler();
+
     // Run code generation
-    for (Service e : parsedServices) {
+    for (Map.Entry<Element, Component> e : parsedServices) {
       try {
-        this.serviceAdapterCodegen.generate(e);
-        this.clientCodegen.generate(e);
-      } catch (IOException ex) {
+        ThrowingFunction<String, Writer> fileCreator =
+            name -> filer.createSourceFile(name, e.getKey()).openWriter();
+        this.serviceAdapterCodegen.generate(fileCreator, e.getValue());
+        this.clientCodegen.generate(fileCreator, e.getValue());
+      } catch (Throwable ex) {
         throw new RuntimeException(ex);
       }
     }
@@ -108,8 +117,8 @@ public class ComponentProcessor extends AbstractProcessor {
             StandardOpenOption.WRITE,
             StandardOpenOption.CREATE,
             StandardOpenOption.APPEND)) {
-      for (Service svc : parsedServices) {
-        writer.write(svc.getGeneratedClassFqcnPrefix() + "ComponentAdapter");
+      for (Map.Entry<Element, Component> e : parsedServices) {
+        writer.write(e.getValue().getGeneratedClassFqcnPrefix() + "ComponentAdapter");
         writer.write('\n');
       }
     } catch (IOException e) {

@@ -22,6 +22,7 @@ include(
     "sdk-testing",
     "examples",
     "admin-client",
+    "sdk-api-gen-common",
     "sdk-api-gen",
     "sdk-workflow-api",
 )

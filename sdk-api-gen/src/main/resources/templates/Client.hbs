@@ -12,10 +12,10 @@ public class {{generatedClassSimpleName}} {
 
     public static final String COMPONENT_NAME = "{{componentName}}";
 
-    {{#methods}}
+    {{#handlers}}
     private static final Serde<{{{boxedInputFqcn}}}> {{inputSerdeFieldName}} = {{{inputSerdeDecl}}};
     private static final Serde<{{{boxedOutputFqcn}}}> {{outputSerdeFieldName}} = {{{outputSerdeDecl}}};
-    {{/methods}}
+    {{/handlers}}
 
     public static ContextClient fromContext(Context ctx{{#isObject}}, String key{{/isObject}}) {
         return new ContextClient(ctx{{#isObject}}, key{{/isObject}});
@@ -39,14 +39,14 @@ public class {{generatedClassSimpleName}} {
             {{#isObject}}this.key = key;{{/isObject}}
         }
 
-        {{#methods}}
+        {{#handlers}}
         public Awaitable<{{{boxedOutputFqcn}}}> {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
             return this.ctx.call(
                 {{#if isObject}}Target.virtualObject(COMPONENT_NAME, this.key, "{{name}}"){{else}}Target.service(COMPONENT_NAME, "{{name}}"){{/if}},
                 {{inputSerdeFieldName}},
                 {{outputSerdeFieldName}},
                 {{#if inputEmpty}}null{{else}}req{{/if}});
-        }{{/methods}}
+        }{{/handlers}}
 
         public Send send() {
             return new Send();
@@ -57,13 +57,13 @@ public class {{generatedClassSimpleName}} {
         }
 
         public class Send {
-            {{#methods}}
+            {{#handlers}}
             public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
                 ContextClient.this.ctx.send(
                     {{#if isObject}}Target.virtualObject(COMPONENT_NAME, ContextClient.this.key, "{{name}}"){{else}}Target.service(COMPONENT_NAME, "{{name}}"){{/if}},
                     {{inputSerdeFieldName}},
                     {{#if inputEmpty}}null{{else}}req{{/if}});
-            }{{/methods}}
+            }{{/handlers}}
         }
 
         public class SendDelayed {
@@ -74,14 +74,14 @@ public class {{generatedClassSimpleName}} {
                 this.delay = delay;
             }
 
-            {{#methods}}
+            {{#handlers}}
             public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
                 ContextClient.this.ctx.sendDelayed(
                     {{#if isObject}}Target.virtualObject(COMPONENT_NAME, ContextClient.this.key, "{{name}}"){{else}}Target.service(COMPONENT_NAME, "{{name}}"){{/if}},
                     {{inputSerdeFieldName}},
                     {{#if inputEmpty}}null{{else}}req{{/if}},
                     this.delay);
-            }{{/methods}}
+            }{{/handlers}}
         }
     }
 
@@ -95,27 +95,27 @@ public class {{generatedClassSimpleName}} {
             {{#isObject}}this.key = key;{{/isObject}}
         }
 
-        {{#methods}}
+        {{#handlers}}
         public {{#if outputEmpty}}void{{else}}{{{outputFqcn}}}{{/if}} {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
             {{^outputEmpty}}return {{/outputEmpty}}this.ingressClient.call(
                 {{#if isObject}}Target.virtualObject(COMPONENT_NAME, this.key, "{{name}}"){{else}}Target.service(COMPONENT_NAME, "{{name}}"){{/if}},
                 {{inputSerdeFieldName}},
                 {{outputSerdeFieldName}},
                 {{#if inputEmpty}}null{{else}}req{{/if}});
-        }{{/methods}}
+        }{{/handlers}}
 
         public Send send() {
             return new Send();
         }
 
         public class Send {
-            {{#methods}}
+            {{#handlers}}
             public String {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
                 return IngressClient.this.ingressClient.send(
                     {{#if isObject}}Target.virtualObject(COMPONENT_NAME, IngressClient.this.key, "{{name}}"){{else}}Target.service(COMPONENT_NAME, "{{name}}"){{/if}},
                     {{inputSerdeFieldName}},
                     {{#if inputEmpty}}null{{else}}req{{/if}});
-            }{{/methods}}
+            }{{/handlers}}
         }
     }
 }
