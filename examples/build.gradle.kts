@@ -1,13 +1,18 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import com.github.jengelman.gradle.plugins.shadow.transformers.ServiceFileTransformer
+
 plugins {
   java
   kotlin("jvm")
   kotlin("plugin.serialization")
+  id("com.google.devtools.ksp") version "1.9.22-1.0.17"
   application
-  id("com.github.johnrengelman.shadow").version("7.1.2")
+  id("com.github.johnrengelman.shadow").version("8.1.1")
 }
 
 dependencies {
   annotationProcessor(project(":sdk-api-gen"))
+  ksp(project(":sdk-api-kotlin-gen"))
 
   implementation(project(":sdk-api"))
   implementation(project(":sdk-lambda"))
@@ -18,13 +23,6 @@ dependencies {
 
   implementation(platform(jacksonLibs.jackson.bom))
   implementation(jacksonLibs.jackson.jsr310)
-
-  implementation(coreLibs.protobuf.java)
-  implementation(coreLibs.protobuf.kotlin)
-
-  implementation(platform(vertxLibs.vertx.bom))
-  implementation(vertxLibs.vertx.core)
-  implementation(vertxLibs.vertx.kotlin.coroutines)
 
   implementation(kotlinLibs.kotlinx.coroutines)
   implementation(kotlinLibs.kotlinx.serialization.core)
@@ -38,3 +36,8 @@ application {
       project.findProperty("mainClass")?.toString() ?: "my.restate.sdk.examples.Counter"
   mainClass.set(mainClassValue)
 }
+
+tasks.withType<Jar> {
+  this.metaInf.duplicatesStrategy = DuplicatesStrategy.INCLUDE
+}
+tasks.withType<ShadowJar> { transform(ServiceFileTransformer::class.java) }

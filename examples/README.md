@@ -7,7 +7,7 @@ For a sample project configuration and more elaborated examples, check out the [
 Available examples:
 
 * [`Counter`](src/main/java/my/restate/sdk/examples/Counter.java): Shows a simple virtual object using state primitives.
-* [`Counter`](src/main/kotlin/my/restate/sdk/examples/Counter.kt): Same as `Counter` but using Kotlin.
+* [`CounterKt`](src/main/kotlin/my/restate/sdk/examples/CounterKt.kt): Same as `Counter` but using Kotlin.
 * [`LoanWorkflow`](src/main/java/my/restate/sdk/examples/LoanWorkflow.java): Shows a simple workflow example using the Workflow API.
 
 ## Package the examples for Lambda
