@@ -24,7 +24,7 @@ public class LambdaHandler extends BaseRestateLambdaHandler {
       if (Counter.class.getCanonicalName().equals(serviceClass)) {
         builder.with(new Counter());
       } else if (CounterKt.class.getCanonicalName().equals(serviceClass)) {
-        builder.with(CounterKt.getCounter());
+        builder.with(new CounterKt());
       } else {
         throw new IllegalArgumentException(
             "Bad \"LAMBDA_FACTORY_SERVICE_CLASS\" env: " + serviceClass);

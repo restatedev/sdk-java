@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.gen.model;
 
-public enum MethodType {
+public enum HandlerType {
   SHARED,
   EXCLUSIVE,
   STATELESS,

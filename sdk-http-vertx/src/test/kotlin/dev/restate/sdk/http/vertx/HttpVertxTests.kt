@@ -13,6 +13,7 @@ import dev.restate.sdk.JavaCodegenTests
 import dev.restate.sdk.core.TestDefinitions.TestExecutor
 import dev.restate.sdk.core.TestDefinitions.TestSuite
 import dev.restate.sdk.kotlin.KotlinCoroutinesTests
+import dev.restate.sdk.kotlin.KtCodegenTests
 import io.vertx.core.Vertx
 import java.util.stream.Stream
 import org.junit.jupiter.api.AfterAll
@@ -40,8 +41,7 @@ class HttpVertxTests : dev.restate.sdk.core.TestRunner() {
     return Stream.concat(
         Stream.concat(
             Stream.concat(JavaBlockingTests().definitions(), JavaCodegenTests().definitions()),
-            KotlinCoroutinesTests().definitions(),
-        ),
+            Stream.concat(KotlinCoroutinesTests().definitions(), KtCodegenTests().definitions())),
         Stream.of(VertxExecutorsTest()))
   }
 }

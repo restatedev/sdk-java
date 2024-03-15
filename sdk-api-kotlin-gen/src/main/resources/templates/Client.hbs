@@ -1,0 +1,97 @@
+{{#if originalClassPkg}}package {{originalClassPkg}};{{/if}}
+
+import dev.restate.sdk.kotlin.Awaitable
+import dev.restate.sdk.kotlin.Context
+import dev.restate.sdk.common.StateKey
+import dev.restate.sdk.common.Serde
+import dev.restate.sdk.common.Target
+import kotlin.time.Duration
+
+object {{generatedClassSimpleName}} {
+
+    const val COMPONENT_NAME: String = "{{componentName}}"
+
+    {{#handlers}}
+    private val {{inputSerdeFieldName}}: Serde<{{{boxedInputFqcn}}}> = {{{inputSerdeDecl}}}
+    private val {{outputSerdeFieldName}}: Serde<{{{boxedOutputFqcn}}}> = {{{outputSerdeDecl}}}
+    {{/handlers}}
+
+    fun fromContext(ctx: Context{{#isObject}}, key: String{{/isObject}}): ContextClient {
+        return ContextClient(ctx{{#isObject}}, key{{/isObject}})
+    }
+
+    fun fromIngress(ingressClient: dev.restate.sdk.client.IngressClient{{#isObject}}, key: String{{/isObject}}): IngressClient {
+        return IngressClient(ingressClient{{#isObject}}, key{{/isObject}});
+    }
+
+    fun fromIngress(baseUri: String{{#isObject}}, key: String{{/isObject}}): IngressClient {
+        return IngressClient(dev.restate.sdk.client.IngressClient.defaultClient(baseUri){{#isObject}}, key{{/isObject}});
+    }
+
+    class ContextClient(private val ctx: Context{{#isObject}}, private val key: String{{/isObject}}){
+        {{#handlers}}
+        suspend fun {{name}}({{^inputEmpty}}req: {{{inputFqcn}}}{{/inputEmpty}}): Awaitable<{{{boxedOutputFqcn}}}> {
+            return this.ctx.callAsync(
+                {{#if isObject}}Target.virtualObject(COMPONENT_NAME, this.key, "{{name}}"){{else}}Target.service(COMPONENT_NAME, "{{name}}"){{/if}},
+                {{inputSerdeFieldName}},
+                {{outputSerdeFieldName}},
+                {{#if inputEmpty}}Unit{{else}}req{{/if}})
+        }{{/handlers}}
+
+        fun send(): Send {
+            return Send()
+        }
+
+        fun sendDelayed(delay: Duration): SendDelayed {
+            return SendDelayed(delay)
+        }
+
+        inner class Send {
+            {{#handlers}}
+            suspend fun {{name}}({{^inputEmpty}}req: {{{inputFqcn}}}{{/inputEmpty}}) {
+                this@ContextClient.ctx.send(
+                    {{#if isObject}}Target.virtualObject(COMPONENT_NAME, this@ContextClient.key, "{{name}}"){{else}}Target.service(COMPONENT_NAME, "{{name}}"){{/if}},
+                    {{inputSerdeFieldName}},
+                    {{#if inputEmpty}}Unit{{else}}req{{/if}});
+            }{{/handlers}}
+        }
+
+        inner class SendDelayed(private val delay: Duration) {
+
+            {{#handlers}}
+            suspend fun {{name}}({{^inputEmpty}}req: {{{inputFqcn}}}{{/inputEmpty}}) {
+                this@ContextClient.ctx.sendDelayed(
+                    {{#if isObject}}Target.virtualObject(COMPONENT_NAME, this@ContextClient.key, "{{name}}"){{else}}Target.service(COMPONENT_NAME, "{{name}}"){{/if}},
+                    {{inputSerdeFieldName}},
+                    {{#if inputEmpty}}Unit{{else}}req{{/if}},
+                    this.delay);
+            }{{/handlers}}
+        }
+    }
+
+    class IngressClient(private val ingressClient: dev.restate.sdk.client.IngressClient{{#isObject}}, private val key: String{{/isObject}}) {
+
+        {{#handlers}}
+        suspend fun {{name}}({{^inputEmpty}}req: {{{inputFqcn}}}{{/inputEmpty}}): {{{boxedOutputFqcn}}} {
+            return this.ingressClient.call(
+                {{#if isObject}}Target.virtualObject(COMPONENT_NAME, this.key, "{{name}}"){{else}}Target.service(COMPONENT_NAME, "{{name}}"){{/if}},
+                {{inputSerdeFieldName}},
+                {{outputSerdeFieldName}},
+                {{#if inputEmpty}}null{{else}}req{{/if}});
+        }{{/handlers}}
+
+        fun send(): Send {
+            return Send()
+        }
+
+        inner class Send {
+            {{#handlers}}
+            suspend fun {{name}}({{^inputEmpty}}req: {{{inputFqcn}}}{{/inputEmpty}}): String {
+                return this@IngressClient.ingressClient.send(
+                    {{#if isObject}}Target.virtualObject(COMPONENT_NAME, this@IngressClient.key, "{{name}}"){{else}}Target.service(COMPONENT_NAME, "{{name}}"){{/if}},
+                    {{inputSerdeFieldName}},
+                    {{#if inputEmpty}}null{{else}}req{{/if}});
+            }{{/handlers}}
+        }
+    }
+}

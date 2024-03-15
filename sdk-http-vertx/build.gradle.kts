@@ -35,6 +35,7 @@ dependencies {
   testImplementation(project(":sdk-api", "testArchive"))
   testImplementation(project(":sdk-api-gen", "testArchive"))
   testImplementation(project(":sdk-api-kotlin", "testArchive"))
+  testImplementation(project(":sdk-api-kotlin-gen", "testArchive"))
   testImplementation(testingLibs.junit.jupiter)
   testImplementation(testingLibs.assertj)
   testImplementation(vertxLibs.vertx.junit5)
