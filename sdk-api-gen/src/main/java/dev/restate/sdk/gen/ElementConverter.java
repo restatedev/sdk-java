@@ -90,12 +90,9 @@ public class ElementConverter {
                 ? virtualObjectAnnotation.name()
                 : workflowAnnotation.name();
     if (componentName.isEmpty()) {
-      // Use FQCN
-      // With this logic we make sure we flatten subclasses names
-      String simpleComponentName =
-          targetFqcn.toString().substring(targetPkg.length()).replaceAll(Pattern.quote("."), "");
+      // Use simple class name, flattening subclasses names
       componentName =
-          targetPkg.length() > 0 ? targetPkg + "." + simpleComponentName : simpleComponentName;
+          targetFqcn.toString().substring(targetPkg.length()).replaceAll(Pattern.quote("."), "");
     }
 
     // Compute handlers
