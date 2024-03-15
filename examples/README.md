@@ -35,7 +35,7 @@ You can run the Java Counter example via:
 You can modify the class to run setting `-PmainClass=<FQCN>`, for example, in order to run the Kotlin implementation:
 
 ```shell
-./gradlew :examples:run -PmainClass=my.restate.sdk.examples.CounterKt
+./gradlew :examples:run -PmainClass=my.restate.sdk.examples.CounterKtKt
 ```
 
 ## Invoking the counter bindableComponent

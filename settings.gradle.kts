@@ -12,6 +12,7 @@ rootProject.name = "sdk-java"
 plugins { id("org.gradle.toolchains.foojay-resolver-convention") version "0.7.0" }
 
 include(
+    "admin-client",
     "sdk-common",
     "sdk-api",
     "sdk-api-kotlin",
@@ -20,12 +21,11 @@ include(
     "sdk-http-vertx",
     "sdk-lambda",
     "sdk-testing",
-    "examples",
-    "admin-client",
     "sdk-api-gen-common",
     "sdk-api-gen",
     "sdk-api-kotlin-gen",
     "sdk-workflow-api",
+    "examples",
 )
 
 dependencyResolutionManagement {
@@ -82,6 +82,11 @@ dependencyResolutionManagement {
           .version("1.6.2")
       library("kotlinx-serialization-json", "org.jetbrains.kotlinx", "kotlinx-serialization-json")
           .version("1.6.2")
+
+      version("ksp", "1.9.22-1.0.18")
+      library("symbol-processing-api", "com.google.devtools.ksp", "symbol-processing-api")
+          .versionRef("ksp")
+      plugin("ksp", "com.google.devtools.ksp").versionRef("ksp")
     }
     create("testingLibs") {
       version("junit-jupiter", "5.9.1")

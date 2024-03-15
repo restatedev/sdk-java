@@ -1,9 +1,8 @@
 plugins {
-  id("com.google.devtools.ksp") version "1.9.22-1.0.17"
-
   java
   kotlin("jvm")
   `library-publishing-conventions`
+  alias(kotlinLibs.plugins.ksp)
 }
 
 description = "Restate SDK API Kotlin Gen"
@@ -11,7 +10,7 @@ description = "Restate SDK API Kotlin Gen"
 dependencies {
   compileOnly(coreLibs.jspecify)
 
-  implementation("com.google.devtools.ksp:symbol-processing-api:1.9.22-1.0.17")
+  implementation(kotlinLibs.symbol.processing.api)
   implementation(project(":sdk-api-gen-common"))
 
   implementation(project(":sdk-api-kotlin"))

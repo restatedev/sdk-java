@@ -5,14 +5,14 @@ plugins {
   java
   kotlin("jvm")
   kotlin("plugin.serialization")
-  id("com.google.devtools.ksp") version "1.9.22-1.0.17"
   application
+  alias(kotlinLibs.plugins.ksp)
   id("com.github.johnrengelman.shadow").version("8.1.1")
 }
 
 dependencies {
-  annotationProcessor(project(":sdk-api-gen"))
   ksp(project(":sdk-api-kotlin-gen"))
+  annotationProcessor(project(":sdk-api-gen"))
 
   implementation(project(":sdk-api"))
   implementation(project(":sdk-lambda"))
@@ -37,7 +37,6 @@ application {
   mainClass.set(mainClassValue)
 }
 
-tasks.withType<Jar> {
-  this.metaInf.duplicatesStrategy = DuplicatesStrategy.INCLUDE
-}
+tasks.withType<Jar> { this.enabled = false }
+
 tasks.withType<ShadowJar> { transform(ServiceFileTransformer::class.java) }

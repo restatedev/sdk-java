@@ -6,133 +6,25 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-import com.github.jknack.handlebars.io.ClassPathTemplateLoader
-import com.google.devtools.ksp.*
-import com.google.devtools.ksp.processing.*
+package dev.restate.sdk.kotlin.gen
+
+import com.google.devtools.ksp.KspExperimental
+import com.google.devtools.ksp.getAnnotationsByType
+import com.google.devtools.ksp.getVisibility
+import com.google.devtools.ksp.isAnnotationPresent
+import com.google.devtools.ksp.processing.KSBuiltIns
+import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.*
 import com.google.devtools.ksp.visitor.KSDefaultVisitor
-import dev.restate.sdk.common.ComponentAdapter
 import dev.restate.sdk.common.ComponentType
 import dev.restate.sdk.gen.model.Component
 import dev.restate.sdk.gen.model.Handler
 import dev.restate.sdk.gen.model.HandlerType
 import dev.restate.sdk.gen.model.PayloadType
-import dev.restate.sdk.gen.template.HandlebarsTemplateEngine
 import dev.restate.sdk.kotlin.Context
 import dev.restate.sdk.kotlin.ObjectContext
-import java.io.BufferedWriter
-import java.io.IOException
-import java.io.Writer
-import java.nio.charset.Charset
 import java.util.regex.Pattern
 import kotlin.reflect.KClass
-
-class ComponentProcessorProvider : SymbolProcessorProvider {
-
-  override fun create(environment: SymbolProcessorEnvironment): SymbolProcessor {
-    return ComponentProcessor(
-        logger = environment.logger, codeGenerator = environment.codeGenerator)
-  }
-}
-
-class ComponentProcessor(private val logger: KSPLogger, private val codeGenerator: CodeGenerator) :
-    SymbolProcessor {
-
-  private val serviceAdapterCodegen: HandlebarsTemplateEngine =
-      HandlebarsTemplateEngine(
-          "ComponentAdapter",
-          ClassPathTemplateLoader(),
-          mapOf(
-              ComponentType.SERVICE to "templates/ComponentAdapter",
-              ComponentType.VIRTUAL_OBJECT to "templates/ComponentAdapter"))
-  private val clientCodegen: HandlebarsTemplateEngine =
-      HandlebarsTemplateEngine(
-          "Client",
-          ClassPathTemplateLoader(),
-          mapOf(
-              ComponentType.SERVICE to "templates/Client",
-              ComponentType.VIRTUAL_OBJECT to "templates/Client"))
-
-  override fun process(resolver: Resolver): List<KSAnnotated> {
-    val converter = KElementConverter(logger, resolver.builtIns)
-
-    val resolved =
-        resolver
-            .getSymbolsWithAnnotation(dev.restate.sdk.annotation.Service::class.qualifiedName!!)
-            .toSet() +
-            resolver
-                .getSymbolsWithAnnotation(
-                    dev.restate.sdk.annotation.VirtualObject::class.qualifiedName!!)
-                .toSet() +
-            resolver
-                .getSymbolsWithAnnotation(
-                    dev.restate.sdk.annotation.Workflow::class.qualifiedName!!)
-                .toSet()
-
-    val components =
-        resolved
-            .filter { it.containingFile!!.origin == Origin.KOTLIN }
-            .map {
-              val componentBuilder = Component.builder()
-              converter.visitAnnotated(it, componentBuilder)
-              (it to componentBuilder.build()!!)
-            }
-            .toList()
-
-    // Run code generation
-    for (component in components) {
-      try {
-        val fileCreator: (String) -> Writer = { name: String ->
-          codeGenerator
-              .createNewFile(
-                  Dependencies(false, component.first.containingFile!!),
-                  component.second.targetPkg.toString(),
-                  name)
-              .writer(Charset.defaultCharset())
-        }
-        this.serviceAdapterCodegen.generate(fileCreator, component.second)
-        this.clientCodegen.generate(fileCreator, component.second)
-      } catch (ex: Throwable) {
-        throw RuntimeException(ex)
-      }
-    }
-
-    // META-INF
-    if (components.isNotEmpty()) {
-      generateMetaINF(components)
-    }
-
-    return emptyList()
-  }
-
-  private fun generateMetaINF(components: List<Pair<KSAnnotated, Component>>) {
-    val resourceFile = "META-INF/services/${ComponentAdapter::class.java.canonicalName}"
-    val dependencies =
-        Dependencies(true, *(components.map { it.first.containingFile!! }.toTypedArray()))
-
-    val writer: BufferedWriter =
-        try {
-          codeGenerator.createNewFileByPath(dependencies, resourceFile, "").bufferedWriter()
-        } catch (e: FileSystemException) {
-          val existingFile = e.file
-          val currentValues = existingFile.readText()
-          val newWriter = e.file.bufferedWriter()
-          newWriter.write(currentValues)
-          newWriter
-        }
-
-    try {
-      writer.use {
-        for (component in components) {
-          it.write("${component.second.generatedClassFqcnPrefix}ComponentAdapter")
-          it.newLine()
-        }
-      }
-    } catch (e: IOException) {
-      logger.error("Unable to create $resourceFile: $e")
-    }
-  }
-}
 
 class KElementConverter(private val logger: KSPLogger, private val builtIns: KSBuiltIns) :
     KSDefaultVisitor<Component.Builder, Unit>() {
