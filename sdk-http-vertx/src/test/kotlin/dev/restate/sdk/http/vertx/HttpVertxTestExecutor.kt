@@ -53,7 +53,7 @@ class HttpVertxTestExecutor(private val vertx: Vertx) : TestExecutor {
                   HttpMethod.POST,
                   server.actualPort(),
                   "localhost",
-                  "/invoke/${componentDefinition.get(0).fullyQualifiedServiceName}/${definition.method}")
+                  "/invoke/${componentDefinition.get(0).fullyQualifiedComponentName}/${definition.method}")
               .coAwait()
 
       // Prepare request header and send them

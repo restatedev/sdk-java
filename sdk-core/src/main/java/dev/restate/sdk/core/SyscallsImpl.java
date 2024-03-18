@@ -11,8 +11,7 @@ package dev.restate.sdk.core;
 import com.google.protobuf.ByteString;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.generated.service.protocol.Protocol.PollInputStreamEntryMessage;
-import dev.restate.sdk.common.InvocationId;
+import dev.restate.sdk.common.Request;
 import dev.restate.sdk.common.Target;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.common.syscalls.*;
@@ -33,15 +32,12 @@ public final class SyscallsImpl implements SyscallsInternal {
 
   private static final Logger LOG = LogManager.getLogger(SyscallsImpl.class);
 
+  private final Request request;
   private final InvocationStateMachine stateMachine;
 
-  SyscallsImpl(InvocationStateMachine stateMachine) {
+  SyscallsImpl(Request request, InvocationStateMachine stateMachine) {
+    this.request = request;
     this.stateMachine = stateMachine;
-  }
-
-  @Override
-  public InvocationId invocationId() {
-    return this.stateMachine.invocationId();
   }
 
   @Override
@@ -50,14 +46,8 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public void pollInput(SyscallCallback<Deferred<ByteString>> callback) {
-    wrapAndPropagateExceptions(
-        () -> {
-          LOG.trace("pollInput");
-          this.stateMachine.processCompletableJournalEntry(
-              PollInputStreamEntryMessage.getDefaultInstance(), PollInputEntry.INSTANCE, callback);
-        },
-        callback);
+  public Request request() {
+    return this.request;
   }
 
   @Override
@@ -66,7 +56,7 @@ public final class SyscallsImpl implements SyscallsInternal {
         () -> {
           LOG.trace("writeOutput success");
           this.writeOutput(
-              Protocol.OutputStreamEntryMessage.newBuilder().setValue(value).build(), callback);
+              Protocol.OutputEntryMessage.newBuilder().setValue(value).build(), callback);
         },
         callback);
   }
@@ -77,7 +67,7 @@ public final class SyscallsImpl implements SyscallsInternal {
         () -> {
           LOG.trace("writeOutput failure");
           this.writeOutput(
-              Protocol.OutputStreamEntryMessage.newBuilder()
+              Protocol.OutputEntryMessage.newBuilder()
                   .setFailure(Util.toProtocolFailure(throwable))
                   .build(),
               callback);
@@ -85,10 +75,9 @@ public final class SyscallsImpl implements SyscallsInternal {
         callback);
   }
 
-  private void writeOutput(
-      Protocol.OutputStreamEntryMessage entry, SyscallCallback<Void> callback) {
+  private void writeOutput(Protocol.OutputEntryMessage entry, SyscallCallback<Void> callback) {
     wrapAndPropagateExceptions(
-        () -> this.stateMachine.processJournalEntry(entry, OutputStreamEntry.INSTANCE, callback),
+        () -> this.stateMachine.processJournalEntry(entry, OutputEntry.INSTANCE, callback),
         callback);
   }
 
@@ -344,7 +333,7 @@ public final class SyscallsImpl implements SyscallsInternal {
 
   @Override
   public String getFullyQualifiedMethodName() {
-    return this.stateMachine.getFullyQualifiedMethodName();
+    return this.stateMachine.getFullyQualifiedHandlerName();
   }
 
   @Override

@@ -124,7 +124,6 @@ public final class RestateLambdaEndpoint {
               handlerName,
               otelContext,
               RestateEndpoint.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
-              null,
               null);
     } catch (ProtocolException e) {
       LOG.warn("Error when resolving the grpc handler", e);

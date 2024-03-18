@@ -39,11 +39,12 @@ class SideEffectTest : SideEffectTestSuite() {
       TestDefinitions.testInvocation(
           Component.service(
               "CheckContextSwitching",
-              Dispatchers.Unconfined + CoroutineName("CheckContextSwitchingTestCoroutine")) {
+              Component.Options(
+                  Dispatchers.Unconfined + CoroutineName("CheckContextSwitchingTestCoroutine"))) {
                 handler("run") { ctx, _: Unit ->
                   val sideEffectCoroutine =
                       ctx.sideEffect(CoreSerdes.JSON_STRING) {
-                        coroutineContext[CoroutineName.Key]!!.name
+                        coroutineContext[CoroutineName]!!.name
                       }
                   check(sideEffectCoroutine == "CheckContextSwitchingTestCoroutine") {
                     "Side effect thread is not running within the same coroutine context of the handler method: $sideEffectCoroutine"

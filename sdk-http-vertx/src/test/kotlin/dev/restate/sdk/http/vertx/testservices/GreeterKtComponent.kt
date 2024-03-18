@@ -17,7 +17,7 @@ import org.apache.logging.log4j.LogManager
 private val LOG = LogManager.getLogger()
 private val COUNTER: StateKey<Long> = BlockingGreeter.COUNTER
 
-fun greeter(): BindableComponent =
+fun greeter(): BindableComponent<*> =
     Component.virtualObject("KtGreeter") {
       handler("greet") { ctx, request: String ->
         LOG.info("Greet invoked!")

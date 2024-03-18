@@ -13,7 +13,7 @@ import com.google.devtools.ksp.containingFile
 import com.google.devtools.ksp.processing.*
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.Origin
-import dev.restate.sdk.common.ComponentAdapter
+import dev.restate.sdk.common.BindableComponentFactory
 import dev.restate.sdk.common.ComponentType
 import dev.restate.sdk.gen.model.Component
 import dev.restate.sdk.gen.template.HandlebarsTemplateEngine
@@ -25,13 +25,20 @@ import java.nio.charset.Charset
 class ComponentProcessor(private val logger: KSPLogger, private val codeGenerator: CodeGenerator) :
     SymbolProcessor {
 
-  private val serviceAdapterCodegen: HandlebarsTemplateEngine =
+  private val bindableComponentFactoryCodegen: HandlebarsTemplateEngine =
       HandlebarsTemplateEngine(
-          "ComponentAdapter",
+          "BindableComponentFactory",
           ClassPathTemplateLoader(),
           mapOf(
-              ComponentType.SERVICE to "templates/ComponentAdapter",
-              ComponentType.VIRTUAL_OBJECT to "templates/ComponentAdapter"))
+              ComponentType.SERVICE to "templates/BindableComponentFactory",
+              ComponentType.VIRTUAL_OBJECT to "templates/BindableComponentFactory"))
+  private val bindableComponentCodegen: HandlebarsTemplateEngine =
+      HandlebarsTemplateEngine(
+          "BindableComponent",
+          ClassPathTemplateLoader(),
+          mapOf(
+              ComponentType.SERVICE to "templates/BindableComponent",
+              ComponentType.VIRTUAL_OBJECT to "templates/BindableComponent"))
   private val clientCodegen: HandlebarsTemplateEngine =
       HandlebarsTemplateEngine(
           "Client",
@@ -77,7 +84,8 @@ class ComponentProcessor(private val logger: KSPLogger, private val codeGenerato
                   name)
               .writer(Charset.defaultCharset())
         }
-        this.serviceAdapterCodegen.generate(fileCreator, component.second)
+        this.bindableComponentFactoryCodegen.generate(fileCreator, component.second)
+        this.bindableComponentCodegen.generate(fileCreator, component.second)
         this.clientCodegen.generate(fileCreator, component.second)
       } catch (ex: Throwable) {
         throw RuntimeException(ex)
@@ -93,7 +101,7 @@ class ComponentProcessor(private val logger: KSPLogger, private val codeGenerato
   }
 
   private fun generateMetaINF(components: List<Pair<KSAnnotated, Component>>) {
-    val resourceFile = "META-INF/services/${ComponentAdapter::class.java.canonicalName}"
+    val resourceFile = "META-INF/services/${BindableComponentFactory::class.java.canonicalName}"
     val dependencies =
         Dependencies(true, *(components.map { it.first.containingFile!! }.toTypedArray()))
 
@@ -111,7 +119,7 @@ class ComponentProcessor(private val logger: KSPLogger, private val codeGenerato
     try {
       writer.use {
         for (component in components) {
-          it.write("${component.second.generatedClassFqcnPrefix}ComponentAdapter")
+          it.write("${component.second.generatedClassFqcnPrefix}BindableComponentFactory")
           it.newLine()
         }
       }

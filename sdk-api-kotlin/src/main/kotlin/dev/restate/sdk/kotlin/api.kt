@@ -31,8 +31,7 @@ import kotlin.time.Duration
  */
 sealed interface Context {
 
-  /** @return this invocation id */
-  fun invocationId(): InvocationId
+  fun request(): Request
 
   /**
    * Causes the current execution of the function invocation to sleep for the given duration.

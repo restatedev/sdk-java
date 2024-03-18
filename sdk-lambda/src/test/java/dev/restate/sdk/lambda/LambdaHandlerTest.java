@@ -56,9 +56,7 @@ class LambdaHandlerTest {
                         .setKnownEntries(1)
                         .setPartialState(true)
                         .build(),
-                    Protocol.PollInputStreamEntryMessage.newBuilder()
-                        .setValue(ByteString.EMPTY)
-                        .build())));
+                    Protocol.InputEntryMessage.newBuilder().setValue(ByteString.EMPTY).build())));
 
     // Send request
     APIGatewayProxyResponseEvent response = handler.handleRequest(request, mockContext());

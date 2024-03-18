@@ -21,7 +21,7 @@ private val COUNTER: StateKey<Long> =
             { l: Long -> l.toString().toByteArray(StandardCharsets.UTF_8) },
             { v: ByteArray? -> String(v!!, StandardCharsets.UTF_8).toLong() }))
 
-fun counter(): BindableComponent =
+fun counter(): BindableComponent<*> =
     Component.virtualObject("KtCounter") {
       handler("get") { ctx, _: Unit -> ctx.get(COUNTER) ?: -1 }
     }

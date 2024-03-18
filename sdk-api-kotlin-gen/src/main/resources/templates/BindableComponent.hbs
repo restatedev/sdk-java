@@ -1,0 +1,27 @@
+{{#if originalClassPkg}}package {{originalClassPkg}}{{/if}}
+
+class {{generatedClassSimpleName}}(
+    bindableComponent: {{originalClassFqcn}},
+    options: dev.restate.sdk.kotlin.Component.Options = dev.restate.sdk.kotlin.Component.Options.DEFAULT
+): dev.restate.sdk.common.BindableComponent<dev.restate.sdk.kotlin.Component.Options> {
+
+    companion object {
+        const val COMPONENT_NAME: String = "{{componentName}}";
+    }
+
+    val component: dev.restate.sdk.kotlin.Component = dev.restate.sdk.kotlin.Component.{{#if isObject}}virtualObject{{else}}service{{/if}}(COMPONENT_NAME) {
+        {{#handlers}}
+            handler(dev.restate.sdk.kotlin.Component.HandlerSignature("{{name}}", {{{inputSerdeDecl}}}, {{{outputSerdeDecl}}})) { ctx, req ->
+            {{#if inputEmpty}}bindableComponent.{{name}}(ctx){{else}}bindableComponent.{{name}}(ctx, req){{/if}}
+            }
+        {{/handlers}}
+        }
+
+    override fun options(): dev.restate.sdk.kotlin.Component.Options {
+        return component.options()
+    }
+
+    override fun definitions(): List<dev.restate.sdk.common.syscalls.ComponentDefinition<dev.restate.sdk.kotlin.Component.Options>> {
+        return component.definitions()
+    }
+}

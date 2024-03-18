@@ -25,7 +25,7 @@ import java.util.*;
 import java.util.function.BiFunction;
 import org.jspecify.annotations.Nullable;
 
-public class WorkflowImpl implements BindableComponent {
+public class WorkflowImpl implements BindableComponent<Component.Options> {
 
   public static final Serde<InvokeRequest> INVOKE_REQUEST_SERDE =
       JacksonSerdes.of(InvokeRequest.class);
@@ -59,14 +59,17 @@ public class WorkflowImpl implements BindableComponent {
   private static final String START_HANDLER = "_start";
 
   private final String name;
+  private final Component.Options options;
   private final Component.Handler<?, ?> workflowMethod;
   private final HashMap<String, Component.Handler<?, ?>> sharedHandlers;
 
   public WorkflowImpl(
       String name,
+      Component.Options options,
       Component.Handler<?, ?> workflowMethod,
       HashMap<String, Component.Handler<?, ?>> sharedHandlers) {
     this.name = name;
+    this.options = options;
     this.workflowMethod = workflowMethod;
     this.sharedHandlers = sharedHandlers;
   }
@@ -321,7 +324,12 @@ public class WorkflowImpl implements BindableComponent {
   // --- Components definition
 
   @Override
-  public List<ComponentDefinition> definitions() {
+  public Component.Options options() {
+    return options;
+  }
+
+  @Override
+  public List<ComponentDefinition<Component.Options>> definitions() {
     // Prepare workflow service
     Component.ServiceBuilder workflowBuilder =
         Component.service(name)
@@ -405,9 +413,9 @@ public class WorkflowImpl implements BindableComponent {
                   this.cleanup(context);
                   return null;
                 })
-            .build();
+            .build(options);
 
     return List.of(
-        workflowBuilder.build().definitions().get(0), workflowManager.definitions().get(0));
+        workflowBuilder.build(options).definitions().get(0), workflowManager.definitions().get(0));
   }
 }

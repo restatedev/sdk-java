@@ -9,11 +9,9 @@
 package dev.restate.sdk.testing;
 
 import dev.restate.sdk.common.BindableComponent;
-import dev.restate.sdk.common.ComponentAdapter;
 import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Executor;
 
 /** Builder for {@link RestateRunner}. See {@link RestateRunner} for more details. */
 public class RestateRunnerBuilder {
@@ -47,9 +45,11 @@ public class RestateRunnerBuilder {
   }
 
   /**
-   * Add a Restate component to the endpoint. This will automatically discover the adapter based on
-   * the class name. You can provide the adapter manually using {@link #with(Object,
-   * ComponentAdapter)}
+   * Add a Restate component to the endpoint. This will automatically discover the generated factory
+   * based on the class name.
+   *
+   * <p>You can also manually instantiate the {@link BindableComponent} using {@link
+   * #with(BindableComponent)}.
    */
   public RestateRunnerBuilder with(Object component) {
     endpointBuilder.with(component);
@@ -57,52 +57,18 @@ public class RestateRunnerBuilder {
   }
 
   /**
-   * Add a Restate component to the endpoint, specifying the {@code executor} where to run the
-   * component code. This will automatically discover the adapter based on the class name. You can
-   * provide the adapter manually using {@link #with(Object, ComponentAdapter, Executor)}
+   * Add a Restate bindable component to the endpoint.
    *
-   * <p>You can run on virtual threads by using the executor {@code
-   * Executors.newVirtualThreadPerTaskExecutor()}.
+   * <p>To override the options, use {@link #with(BindableComponent, Object)}.
    */
-  public RestateRunnerBuilder with(Object component, Executor executor) {
-    endpointBuilder.with(component, executor);
-    return this;
-  }
-
-  /** Add a Restate component to the endpoint, specifying an adapter. */
-  public <T> RestateRunnerBuilder with(T component, ComponentAdapter<T> adapter) {
-    endpointBuilder.with(component, adapter);
-    return this;
-  }
-
-  /**
-   * Add a Restate component to the endpoint, specifying the {@code executor} where to run the
-   * component code.
-   *
-   * <p>You can run on virtual threads by using the executor {@code
-   * Executors.newVirtualThreadPerTaskExecutor()}.
-   */
-  public <T> RestateRunnerBuilder with(
-      T component, ComponentAdapter<T> adapter, Executor executor) {
-    endpointBuilder.with(component, adapter, executor);
-    return this;
-  }
-
-  /** Add a Restate bindable component to the endpoint. */
-  public RestateRunnerBuilder with(BindableComponent component) {
+  public RestateRunnerBuilder with(BindableComponent<?> component) {
     endpointBuilder.with(component);
     return this;
   }
 
-  /**
-   * Add a Restate bindable component to the endpoint, specifying the {@code executor} where to run
-   * the component code.
-   *
-   * <p>You can run on virtual threads by using the executor {@code
-   * Executors.newVirtualThreadPerTaskExecutor()}.
-   */
-  public RestateRunnerBuilder with(BindableComponent component, Executor executor) {
-    endpointBuilder.with(component, executor);
+  /** Add a Restate bindable component to the endpoint, overriding the options. */
+  public <O> RestateRunnerBuilder with(BindableComponent<O> component, O options) {
+    endpointBuilder.with(component, options);
     return this;
   }
 

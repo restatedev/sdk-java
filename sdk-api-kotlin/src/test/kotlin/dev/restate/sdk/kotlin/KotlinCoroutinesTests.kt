@@ -41,7 +41,10 @@ class KotlinCoroutinesTests : TestRunner() {
         noinline runner: suspend (Context, REQ) -> RES
     ): TestInvocationBuilder {
       return TestDefinitions.testInvocation(
-          Component.service(name, Dispatchers.Unconfined) { handler("run", runner) }, "run")
+          Component.service(name, Component.Options(Dispatchers.Unconfined)) {
+            handler("run", runner)
+          },
+          "run")
     }
 
     inline fun <reified REQ, reified RES> testDefinitionForVirtualObject(
@@ -49,7 +52,10 @@ class KotlinCoroutinesTests : TestRunner() {
         noinline runner: suspend (ObjectContext, REQ) -> RES
     ): TestInvocationBuilder {
       return TestDefinitions.testInvocation(
-          Component.virtualObject(name, Dispatchers.Unconfined) { handler("run", runner) }, "run")
+          Component.virtualObject(name, Component.Options(Dispatchers.Unconfined)) {
+            handler("run", runner)
+          },
+          "run")
     }
 
     suspend fun callGreeterGreetService(ctx: Context, parameter: String): Awaitable<String> {

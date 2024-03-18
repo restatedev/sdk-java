@@ -22,8 +22,8 @@ public enum MessageType {
   EntryAckMessage,
 
   // IO
-  PollInputStreamEntryMessage,
-  OutputStreamEntryMessage,
+  InputEntryMessage,
+  OutputEntryMessage,
 
   // State access
   GetStateEntryMessage,
@@ -49,8 +49,8 @@ public enum MessageType {
   public static final short ERROR_MESSAGE_TYPE = 0x0003;
   public static final short ENTRY_ACK_MESSAGE_TYPE = 0x0004;
   public static final short END_MESSAGE_TYPE = 0x0005;
-  public static final short POLL_INPUT_STREAM_ENTRY_MESSAGE_TYPE = 0x0400;
-  public static final short OUTPUT_STREAM_ENTRY_MESSAGE_TYPE = 0x0401;
+  public static final short INPUT_ENTRY_MESSAGE_TYPE = 0x0400;
+  public static final short OUTPUT_ENTRY_MESSAGE_TYPE = 0x0401;
   public static final short GET_STATE_ENTRY_MESSAGE_TYPE = 0x0800;
   public static final short SET_STATE_ENTRY_MESSAGE_TYPE = 0x0801;
   public static final short CLEAR_STATE_ENTRY_MESSAGE_TYPE = 0x0802;
@@ -78,10 +78,10 @@ public enum MessageType {
         return Protocol.ErrorMessage.parser();
       case EntryAckMessage:
         return Protocol.EntryAckMessage.parser();
-      case PollInputStreamEntryMessage:
-        return Protocol.PollInputStreamEntryMessage.parser();
-      case OutputStreamEntryMessage:
-        return Protocol.OutputStreamEntryMessage.parser();
+      case InputEntryMessage:
+        return Protocol.InputEntryMessage.parser();
+      case OutputEntryMessage:
+        return Protocol.OutputEntryMessage.parser();
       case GetStateEntryMessage:
         return Protocol.GetStateEntryMessage.parser();
       case SetStateEntryMessage:
@@ -124,10 +124,10 @@ public enum MessageType {
         return ERROR_MESSAGE_TYPE;
       case EntryAckMessage:
         return ENTRY_ACK_MESSAGE_TYPE;
-      case PollInputStreamEntryMessage:
-        return POLL_INPUT_STREAM_ENTRY_MESSAGE_TYPE;
-      case OutputStreamEntryMessage:
-        return OUTPUT_STREAM_ENTRY_MESSAGE_TYPE;
+      case InputEntryMessage:
+        return INPUT_ENTRY_MESSAGE_TYPE;
+      case OutputEntryMessage:
+        return OUTPUT_ENTRY_MESSAGE_TYPE;
       case GetStateEntryMessage:
         return GET_STATE_ENTRY_MESSAGE_TYPE;
       case SetStateEntryMessage:
@@ -170,10 +170,10 @@ public enum MessageType {
         return ErrorMessage;
       case ENTRY_ACK_MESSAGE_TYPE:
         return EntryAckMessage;
-      case POLL_INPUT_STREAM_ENTRY_MESSAGE_TYPE:
-        return PollInputStreamEntryMessage;
-      case OUTPUT_STREAM_ENTRY_MESSAGE_TYPE:
-        return OutputStreamEntryMessage;
+      case INPUT_ENTRY_MESSAGE_TYPE:
+        return InputEntryMessage;
+      case OUTPUT_ENTRY_MESSAGE_TYPE:
+        return OutputEntryMessage;
       case GET_STATE_ENTRY_MESSAGE_TYPE:
         return GetStateEntryMessage;
       case SET_STATE_ENTRY_MESSAGE_TYPE:

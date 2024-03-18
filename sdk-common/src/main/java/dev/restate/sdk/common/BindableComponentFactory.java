@@ -6,9 +6,11 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-package dev.restate.sdk.common.syscalls;
+package dev.restate.sdk.common;
 
-public enum ExecutorType {
-  BLOCKING,
-  NON_BLOCKING
+public interface BindableComponentFactory<T, O> {
+
+  BindableComponent<O> create(T componentObject);
+
+  boolean supports(Object componentObject);
 }

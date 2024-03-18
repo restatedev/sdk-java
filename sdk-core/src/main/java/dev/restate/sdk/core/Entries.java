@@ -52,54 +52,15 @@ final class Entries {
         E expected, CompletionMessage actual, UserStateStore userStateStore) {}
   }
 
-  static final class PollInputEntry
-      extends CompletableJournalEntry<PollInputStreamEntryMessage, ByteString> {
+  static final class OutputEntry extends JournalEntry<OutputEntryMessage> {
 
-    static final PollInputEntry INSTANCE = new PollInputEntry();
+    static final OutputEntry INSTANCE = new OutputEntry();
 
-    private PollInputEntry() {}
-
-    @Override
-    public void trace(PollInputStreamEntryMessage expected, Span span) {
-      span.addEvent("PollInputStream");
-    }
+    private OutputEntry() {}
 
     @Override
-    public boolean hasResult(PollInputStreamEntryMessage actual) {
-      return actual.getResultCase() != PollInputStreamEntryMessage.ResultCase.RESULT_NOT_SET;
-    }
-
-    @Override
-    public Result<ByteString> parseEntryResult(PollInputStreamEntryMessage actual) {
-      if (actual.getResultCase() == PollInputStreamEntryMessage.ResultCase.VALUE) {
-        return Result.success(actual.getValue());
-      } else if (actual.getResultCase() == PollInputStreamEntryMessage.ResultCase.FAILURE) {
-        return Result.failure(Util.toRestateException(actual.getFailure()));
-      } else {
-        throw new IllegalStateException("PollInputEntry has not been completed.");
-      }
-    }
-
-    @Override
-    public Result<ByteString> parseCompletionResult(CompletionMessage actual) {
-      if (actual.getResultCase() == CompletionMessage.ResultCase.VALUE) {
-        return Result.success(actual.getValue());
-      } else if (actual.getResultCase() == CompletionMessage.ResultCase.FAILURE) {
-        return Result.failure(Util.toRestateException(actual.getFailure()));
-      }
-      return super.parseCompletionResult(actual);
-    }
-  }
-
-  static final class OutputStreamEntry extends JournalEntry<OutputStreamEntryMessage> {
-
-    static final OutputStreamEntry INSTANCE = new OutputStreamEntry();
-
-    private OutputStreamEntry() {}
-
-    @Override
-    public void trace(OutputStreamEntryMessage expected, Span span) {
-      span.addEvent("OutputStream");
+    public void trace(OutputEntryMessage expected, Span span) {
+      span.addEvent("Output");
     }
   }
 

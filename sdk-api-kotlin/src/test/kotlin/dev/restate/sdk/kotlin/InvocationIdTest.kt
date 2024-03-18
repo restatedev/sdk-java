@@ -16,6 +16,6 @@ class InvocationIdTest : InvocationIdTestSuite() {
 
   override fun returnInvocationId(): TestInvocationBuilder =
       testDefinitionForService("ReturnInvocationId") { ctx, _: Unit ->
-        ctx.invocationId().toString()
+        ctx.request().invocationId().toString()
       }
 }

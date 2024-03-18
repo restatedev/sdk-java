@@ -9,7 +9,7 @@
 package dev.restate.sdk.core;
 
 import com.google.protobuf.ByteString;
-import dev.restate.sdk.common.InvocationId;
+import dev.restate.sdk.common.Request;
 import dev.restate.sdk.common.Target;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.common.syscalls.Deferred;
@@ -30,11 +30,6 @@ class ExecutorSwitchingSyscalls implements SyscallsInternal {
   ExecutorSwitchingSyscalls(SyscallsInternal syscalls, Executor syscallsExecutor) {
     this.syscalls = syscalls;
     this.syscallsExecutor = syscallsExecutor;
-  }
-
-  @Override
-  public void pollInput(SyscallCallback<Deferred<ByteString>> callback) {
-    syscallsExecutor.execute(() -> syscalls.pollInput(callback));
   }
 
   @Override
@@ -143,15 +138,15 @@ class ExecutorSwitchingSyscalls implements SyscallsInternal {
   }
 
   @Override
-  public InvocationId invocationId() {
-    // This is immutable once set
-    return syscalls.invocationId();
-  }
-
-  @Override
   public String objectKey() {
     // This is immutable once set
     return syscalls.objectKey();
+  }
+
+  @Override
+  public Request request() {
+    // This is immutable once set
+    return syscalls.request();
   }
 
   @Override

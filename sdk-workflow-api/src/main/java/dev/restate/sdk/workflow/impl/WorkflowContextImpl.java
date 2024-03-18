@@ -42,6 +42,11 @@ class WorkflowContextImpl implements WorkflowContext {
     return this.workflowKey;
   }
 
+  @Override
+  public Request request() {
+    return ctx.request();
+  }
+
   // --- State ops
 
   @Override
@@ -186,11 +191,6 @@ class WorkflowContextImpl implements WorkflowContext {
   @Override
   public Awaitable<Void> timer(Duration duration) {
     return ctx.timer(duration);
-  }
-
-  @Override
-  public InvocationId invocationId() {
-    return this.ctx.invocationId();
   }
 
   @Override

@@ -50,7 +50,7 @@ public class JavaBlockingTests extends TestRunner {
     return TestDefinitions.testInvocation(
         Component.service(name)
             .with(Component.HandlerSignature.of("run", reqSerde, resSerde), runner)
-            .build(),
+            .build(Component.Options.DEFAULT),
         "run");
   }
 
@@ -59,7 +59,7 @@ public class JavaBlockingTests extends TestRunner {
     return TestDefinitions.testInvocation(
         Component.virtualObject(name)
             .with(Component.HandlerSignature.of("run", reqSerde, resSerde), runner)
-            .build(),
+            .build(Component.Options.DEFAULT),
         "run");
   }
 

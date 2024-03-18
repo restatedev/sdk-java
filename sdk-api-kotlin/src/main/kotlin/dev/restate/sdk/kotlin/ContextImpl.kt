@@ -28,6 +28,10 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
     return this.syscalls.objectKey()
   }
 
+  override fun request(): Request {
+    return this.syscalls.request()
+  }
+
   override suspend fun <T : Any> get(key: StateKey<T>): T? {
     val deferred: Deferred<ByteString> =
         suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<ByteString>> ->
@@ -86,10 +90,6 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
       syscalls.clearAll(completingUnitContinuation(cont))
     }
-  }
-
-  override fun invocationId(): InvocationId {
-    return this.syscalls.invocationId()
   }
 
   override suspend fun timer(duration: Duration): Awaitable<Unit> {
@@ -226,6 +226,6 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
   }
 
   override fun random(): RestateRandom {
-    return RestateRandom(syscalls.invocationId().toRandomSeed(), syscalls)
+    return RestateRandom(syscalls.request().invocationId().toRandomSeed(), syscalls)
   }
 }

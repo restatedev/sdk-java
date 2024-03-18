@@ -27,10 +27,7 @@ import java.time.Duration;
  */
 public interface Context {
 
-  /**
-   * @return this invocation id
-   */
-  InvocationId invocationId();
+  Request request();
 
   /**
    * Invoke another Restate service method.

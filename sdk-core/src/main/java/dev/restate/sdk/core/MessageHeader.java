@@ -63,16 +63,10 @@ public class MessageHeader {
       return new MessageHeader(MessageType.EndMessage, 0, msg.getSerializedSize());
     } else if (msg instanceof Protocol.EntryAckMessage) {
       return new MessageHeader(MessageType.EntryAckMessage, 0, msg.getSerializedSize());
-    } else if (msg instanceof Protocol.PollInputStreamEntryMessage) {
-      return new MessageHeader(
-          MessageType.PollInputStreamEntryMessage,
-          ((Protocol.PollInputStreamEntryMessage) msg).getResultCase()
-                  != Protocol.PollInputStreamEntryMessage.ResultCase.RESULT_NOT_SET
-              ? DONE_FLAG
-              : 0,
-          msg.getSerializedSize());
-    } else if (msg instanceof Protocol.OutputStreamEntryMessage) {
-      return new MessageHeader(MessageType.OutputStreamEntryMessage, 0, msg.getSerializedSize());
+    } else if (msg instanceof Protocol.InputEntryMessage) {
+      return new MessageHeader(MessageType.InputEntryMessage, 0, msg.getSerializedSize());
+    } else if (msg instanceof Protocol.OutputEntryMessage) {
+      return new MessageHeader(MessageType.OutputEntryMessage, 0, msg.getSerializedSize());
     } else if (msg instanceof Protocol.GetStateEntryMessage) {
       return new MessageHeader(
           MessageType.GetStateEntryMessage,
