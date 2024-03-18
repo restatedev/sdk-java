@@ -56,7 +56,7 @@ internal class RestateHttpEndpointTest {
   @Timeout(value = 1, timeUnit = TimeUnit.SECONDS)
   @Test
   fun endpointWithBlockingService(vertx: Vertx): Unit =
-      greetTest(vertx, BlockingGreeter::class.qualifiedName!!) { it.with(BlockingGreeter()) }
+      greetTest(vertx, BlockingGreeter::class.simpleName!!) { it.with(BlockingGreeter()) }
 
   private fun greetTest(
       vertx: Vertx,
@@ -169,7 +169,7 @@ internal class RestateHttpEndpointTest {
                     HttpMethod.POST,
                     endpointPort,
                     "localhost",
-                    "/invoke/" + BlockingGreeter::class.java.canonicalName + "/unknownMethod")
+                    "/invoke/" + BlockingGreeter::class.java.simpleName + "/unknownMethod")
                 .coAwait()
 
         // Prepare request header
@@ -218,7 +218,7 @@ internal class RestateHttpEndpointTest {
 
         assertThat(discoveryResponse.components)
             .map<String> { it.fullyQualifiedComponentName }
-            .containsOnly(BlockingGreeter::class.java.canonicalName)
+            .containsOnly(BlockingGreeter::class.java.simpleName)
       }
 
   fun encode(msg: MessageLite): Buffer {
