@@ -9,7 +9,6 @@
 package dev.restate.sdk.lambda;
 
 import dev.restate.sdk.common.BindableComponent;
-import dev.restate.sdk.common.ComponentAdapter;
 import dev.restate.sdk.common.syscalls.ComponentDefinition;
 import dev.restate.sdk.core.RestateEndpoint;
 import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
@@ -27,17 +26,15 @@ public final class RestateLambdaEndpointBuilder {
    * code.
    */
   public RestateLambdaEndpointBuilder with(Object service) {
-    return this.with(service, RestateEndpoint.discoverAdapter(service));
-  }
-
-  public <T> RestateLambdaEndpointBuilder with(T service, ComponentAdapter<T> adapter) {
-    return this.with(adapter.adapt(service));
+    return this.with(RestateEndpoint.discoverBindableComponentFactory(service).create(service));
   }
 
   /** Add a Restate bindable component to the endpoint. */
-  public RestateLambdaEndpointBuilder with(BindableComponent component) {
-    for (ComponentDefinition componentDefinition : component.definitions()) {
-      this.restateEndpoint.with(componentDefinition);
+  public RestateLambdaEndpointBuilder with(BindableComponent<?> component) {
+    for (ComponentDefinition<?> componentDefinition : component.definitions()) {
+      //noinspection unchecked
+      this.restateEndpoint.with(
+          (ComponentDefinition<Object>) componentDefinition, component.options());
     }
 
     return this;

@@ -31,7 +31,6 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.http.impl.HttpServerRequestInternal;
 import java.net.URI;
-import java.util.HashMap;
 import java.util.concurrent.Executor;
 import java.util.regex.Pattern;
 import org.apache.logging.log4j.LogManager;
@@ -67,15 +66,10 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
       };
 
   private final RestateEndpoint restateEndpoint;
-  private final HashMap<String, Executor> blockingComponents;
   private final OpenTelemetry openTelemetry;
 
-  RequestHttpServerHandler(
-      RestateEndpoint restateEndpoint,
-      HashMap<String, Executor> blockingComponents,
-      OpenTelemetry openTelemetry) {
+  RequestHttpServerHandler(RestateEndpoint restateEndpoint, OpenTelemetry openTelemetry) {
     this.restateEndpoint = restateEndpoint;
-    this.blockingComponents = blockingComponents;
     this.openTelemetry = openTelemetry;
   }
 
@@ -100,7 +94,6 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
     }
     String componentName = pathSegments[pathSegments.length - 2];
     String handlerName = pathSegments[pathSegments.length - 1];
-    boolean isBlockingComponent = blockingComponents.containsKey(componentName);
 
     // Parse OTEL context and generate span
     final io.opentelemetry.context.Context otelContext =
@@ -139,8 +132,7 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
                       RestateEndpoint.LoggingContextSetter.INVOCATION_STATUS_KEY, invocationStatus);
                 }
               },
-              currentContextExecutor(vertxCurrentContext),
-              isBlockingComponent ? blockingExecutor(componentName) : null);
+              currentContextExecutor(vertxCurrentContext));
     } catch (ProtocolException e) {
       LOG.warn("Error when resolving the handler", e);
       request
@@ -174,10 +166,6 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
 
   private Executor currentContextExecutor(Context currentContext) {
     return runnable -> currentContext.runOnContext(v -> runnable.run());
-  }
-
-  private Executor blockingExecutor(String serviceName) {
-    return this.blockingComponents.get(serviceName);
   }
 
   private void handleDiscoveryRequest(HttpServerRequest request) {

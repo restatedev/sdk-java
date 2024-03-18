@@ -10,14 +10,14 @@ package dev.restate.sdk.common.syscalls;
 
 import java.util.Objects;
 
-public final class HandlerDefinition {
+public final class HandlerDefinition<O> {
   private final String name;
   private final Object inputSchema;
   private final Object outputSchema;
-  private final InvocationHandler handler;
+  private final InvocationHandler<O> handler;
 
   public HandlerDefinition(
-      String name, Object inputSchema, Object outputSchema, InvocationHandler handler) {
+      String name, Object inputSchema, Object outputSchema, InvocationHandler<O> handler) {
     this.name = name;
     this.inputSchema = inputSchema;
     this.outputSchema = outputSchema;
@@ -36,7 +36,7 @@ public final class HandlerDefinition {
     return outputSchema;
   }
 
-  public InvocationHandler getHandler() {
+  public InvocationHandler<O> getHandler() {
     return handler;
   }
 
@@ -44,7 +44,7 @@ public final class HandlerDefinition {
   public boolean equals(Object object) {
     if (this == object) return true;
     if (object == null || getClass() != object.getClass()) return false;
-    HandlerDefinition that = (HandlerDefinition) object;
+    HandlerDefinition<?> that = (HandlerDefinition<?>) object;
     return Objects.equals(name, that.name)
         && Objects.equals(inputSchema, that.inputSchema)
         && Objects.equals(outputSchema, that.outputSchema)

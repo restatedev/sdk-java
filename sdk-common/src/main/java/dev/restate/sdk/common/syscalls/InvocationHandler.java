@@ -10,7 +10,7 @@ package dev.restate.sdk.common.syscalls;
 
 import com.google.protobuf.ByteString;
 
-public interface InvocationHandler {
+public interface InvocationHandler<O> {
 
-  void handle(Syscalls syscalls, ByteString input, SyscallCallback<ByteString> callback);
+  void handle(Syscalls syscalls, O options, SyscallCallback<ByteString> callback);
 }

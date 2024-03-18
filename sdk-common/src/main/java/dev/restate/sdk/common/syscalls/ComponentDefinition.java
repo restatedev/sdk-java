@@ -13,43 +13,36 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public final class ComponentDefinition {
+public final class ComponentDefinition<O> {
 
-  private final String fullyQualifiedServiceName;
-  private final ExecutorType executorType;
+  private final String fullyQualifiedComponentName;
   private final ComponentType componentType;
-  private final Map<String, HandlerDefinition> handlers;
+  private final Map<String, HandlerDefinition<O>> handlers;
 
   public ComponentDefinition(
-      String fullyQualifiedServiceName,
-      ExecutorType executorType,
+      String fullyQualifiedComponentName,
       ComponentType componentType,
-      Collection<HandlerDefinition> handlers) {
-    this.fullyQualifiedServiceName = fullyQualifiedServiceName;
-    this.executorType = executorType;
+      Collection<HandlerDefinition<O>> handlers) {
+    this.fullyQualifiedComponentName = fullyQualifiedComponentName;
     this.componentType = componentType;
     this.handlers =
         handlers.stream()
             .collect(Collectors.toMap(HandlerDefinition::getName, Function.identity()));
   }
 
-  public String getFullyQualifiedServiceName() {
-    return fullyQualifiedServiceName;
-  }
-
-  public ExecutorType getExecutorType() {
-    return executorType;
+  public String getFullyQualifiedComponentName() {
+    return fullyQualifiedComponentName;
   }
 
   public ComponentType getComponentType() {
     return componentType;
   }
 
-  public Collection<HandlerDefinition> getHandlers() {
+  public Collection<HandlerDefinition<O>> getHandlers() {
     return handlers.values();
   }
 
-  public HandlerDefinition getHandler(String name) {
+  public HandlerDefinition<O> getHandler(String name) {
     return handlers.get(name);
   }
 
@@ -57,15 +50,14 @@ public final class ComponentDefinition {
   public boolean equals(Object object) {
     if (this == object) return true;
     if (object == null || getClass() != object.getClass()) return false;
-    ComponentDefinition that = (ComponentDefinition) object;
-    return Objects.equals(fullyQualifiedServiceName, that.fullyQualifiedServiceName)
-        && executorType == that.executorType
+    ComponentDefinition<?> that = (ComponentDefinition<?>) object;
+    return Objects.equals(fullyQualifiedComponentName, that.fullyQualifiedComponentName)
         && componentType == that.componentType
         && Objects.equals(handlers, that.handlers);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(fullyQualifiedServiceName, executorType, componentType, handlers);
+    return Objects.hash(fullyQualifiedComponentName, componentType, handlers);
   }
 }

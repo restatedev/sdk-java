@@ -13,8 +13,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 import com.google.protobuf.ByteString;
+import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.generated.service.protocol.Protocol.AwakeableEntryMessage;
-import dev.restate.generated.service.protocol.Protocol.OutputStreamEntryMessage;
 import dev.restate.generated.service.protocol.Protocol.StartMessage;
 import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.core.TestDefinitions.TestDefinition;
@@ -55,7 +55,7 @@ public abstract class AwakeableIdTestSuite implements TestSuite {
                   assertThat(messages).element(0).isInstanceOf(AwakeableEntryMessage.class);
                   assertThat(messages)
                       .element(1)
-                      .asInstanceOf(type(OutputStreamEntryMessage.class))
+                      .asInstanceOf(type(Protocol.OutputEntryMessage.class))
                       .extracting(out -> CoreSerdes.JSON_STRING.deserialize(out.getValue()))
                       .isEqualTo(base64ExpectedAwakeableId);
                 }));

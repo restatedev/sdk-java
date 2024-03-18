@@ -8,10 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import com.google.protobuf.ByteString;
 import dev.restate.sdk.common.syscalls.Deferred;
-import dev.restate.sdk.common.syscalls.Result;
-import dev.restate.sdk.common.syscalls.SyscallCallback;
 import dev.restate.sdk.common.syscalls.Syscalls;
 import dev.restate.sdk.core.DeferredResults.DeferredInternal;
 import java.util.List;
@@ -29,18 +26,6 @@ interface SyscallsInternal extends Syscalls {
   default Deferred<Void> createAllDeferred(List<Deferred<?>> children) {
     return DeferredResults.all(
         children.stream().map(dr -> (DeferredInternal<?>) dr).collect(Collectors.toList()));
-  }
-
-  // -- Helper for pollInput
-  default void pollInputAndResolve(SyscallCallback<Result<ByteString>> callback) {
-    this.pollInput(
-        SyscallCallback.of(
-            deferredValue ->
-                this.resolveDeferred(
-                    deferredValue,
-                    SyscallCallback.ofVoid(
-                        () -> callback.onSuccess(deferredValue.toResult()), callback::onCancel)),
-            callback::onCancel));
   }
 
   // -- Lifecycle methods

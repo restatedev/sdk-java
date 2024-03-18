@@ -13,21 +13,35 @@ import dev.restate.sdk.common.*;
 import dev.restate.sdk.common.ComponentType;
 import dev.restate.sdk.common.syscalls.*;
 import java.util.*;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
-public final class Component implements BindableComponent {
-  private final ComponentDefinition componentDefinition;
+public final class Component implements BindableComponent<Component.Options> {
+  private final ComponentDefinition<Component.Options> componentDefinition;
+  private final Component.Options options;
 
-  private Component(String fqsn, boolean isKeyed, HashMap<String, Handler<?, ?>> handlers) {
+  private Component(
+      String fqsn, boolean isKeyed, HashMap<String, Handler<?, ?>> handlers, Options options) {
     this.componentDefinition =
-        new ComponentDefinition(
+        new ComponentDefinition<>(
             fqsn,
-            ExecutorType.BLOCKING,
             isKeyed ? ComponentType.VIRTUAL_OBJECT : ComponentType.SERVICE,
             handlers.values().stream()
                 .map(Handler::toHandlerDefinition)
                 .collect(Collectors.toList()));
+    this.options = options;
+  }
+
+  @Override
+  public Options options() {
+    return this.options;
+  }
+
+  @Override
+  public List<ComponentDefinition<Component.Options>> definitions() {
+    return List.of(this.componentDefinition);
   }
 
   public static ServiceBuilder service(String name) {
@@ -38,18 +52,21 @@ public final class Component implements BindableComponent {
     return new VirtualObjectBuilder(name);
   }
 
-  @Override
-  public List<ComponentDefinition> definitions() {
-    return List.of(this.componentDefinition);
-  }
+  public static class AbstractComponentBuilder {
 
-  public static class VirtualObjectBuilder {
-    private final String name;
-    private final HashMap<String, Handler<?, ?>> handlers;
+    protected final String name;
+    protected final HashMap<String, Handler<?, ?>> handlers;
 
-    VirtualObjectBuilder(String name) {
+    public AbstractComponentBuilder(String name) {
       this.name = name;
       this.handlers = new HashMap<>();
+    }
+  }
+
+  public static class VirtualObjectBuilder extends AbstractComponentBuilder {
+
+    VirtualObjectBuilder(String name) {
+      super(name);
     }
 
     public <REQ, RES> VirtualObjectBuilder with(
@@ -58,35 +75,31 @@ public final class Component implements BindableComponent {
       return this;
     }
 
-    public Component build() {
-      return new Component(this.name, true, this.handlers);
+    public Component build(Component.Options options) {
+      return new Component(this.name, true, this.handlers, options);
     }
   }
 
-  public static class ServiceBuilder {
-    private final String name;
-    private final HashMap<String, Handler<?, ?>> methods;
+  public static class ServiceBuilder extends AbstractComponentBuilder {
 
     ServiceBuilder(String name) {
-      this.name = name;
-      this.methods = new HashMap<>();
+      super(name);
     }
 
     public <REQ, RES> ServiceBuilder with(
         HandlerSignature<REQ, RES> sig, BiFunction<Context, REQ, RES> runner) {
-      this.methods.put(sig.getName(), new Handler<>(sig, runner));
+      this.handlers.put(sig.getName(), new Handler<>(sig, runner));
       return this;
     }
 
-    public Component build() {
-      return new Component(this.name, false, this.methods);
+    public Component build(Component.Options options) {
+      return new Component(this.name, false, this.handlers, options);
     }
   }
 
   @SuppressWarnings("unchecked")
-  public static class Handler<REQ, RES> implements InvocationHandler {
+  public static class Handler<REQ, RES> implements InvocationHandler<Component.Options> {
     private final HandlerSignature<REQ, RES> handlerSignature;
-
     private final BiFunction<Context, REQ, RES> runner;
 
     public Handler(
@@ -104,8 +117,8 @@ public final class Component implements BindableComponent {
       return runner;
     }
 
-    public HandlerDefinition toHandlerDefinition() {
-      return new HandlerDefinition(
+    public HandlerDefinition<Component.Options> toHandlerDefinition() {
+      return new HandlerDefinition<>(
           this.handlerSignature.name,
           this.handlerSignature.requestSerde.schema(),
           this.handlerSignature.responseSerde.schema(),
@@ -113,37 +126,55 @@ public final class Component implements BindableComponent {
     }
 
     @Override
-    public void handle(Syscalls syscalls, ByteString input, SyscallCallback<ByteString> callback) {
-      // Any context switching, if necessary, will be done by ResolvedEndpointHandler
-      Context ctx = new ContextImpl(syscalls);
+    public void handle(
+        Syscalls syscalls, Component.Options options, SyscallCallback<ByteString> callback) {
+      options.executor.execute(
+          () -> {
+            // Any context switching, if necessary, will be done by ResolvedEndpointHandler
+            Context ctx = new ContextImpl(syscalls);
 
-      // Parse input
-      REQ req;
-      try {
-        req = this.handlerSignature.requestSerde.deserialize(input);
-      } catch (Error e) {
-        throw e;
-      } catch (Throwable e) {
-        throw new TerminalException(
-            TerminalException.Code.INVALID_ARGUMENT, "Cannot deserialize input: " + e.getMessage());
-      }
+            // Parse input
+            REQ req;
+            try {
+              req = this.handlerSignature.requestSerde.deserialize(syscalls.request().bodyBuffer());
+            } catch (Error e) {
+              throw e;
+            } catch (Throwable e) {
+              callback.onCancel(
+                  new TerminalException(
+                      TerminalException.Code.INVALID_ARGUMENT,
+                      "Cannot deserialize input: " + e.getMessage()));
+              return;
+            }
 
-      // Execute user code
-      RES res = this.runner.apply(ctx, req);
+            // Execute user code
+            RES res;
+            try {
+              res = this.runner.apply(ctx, req);
+            } catch (Error e) {
+              throw e;
+            } catch (Throwable e) {
+              callback.onCancel(e);
+              return;
+            }
 
-      // Serialize output
-      ByteString serializedResult;
-      try {
-        serializedResult = this.handlerSignature.responseSerde.serializeToByteString(res);
-      } catch (Error e) {
-        throw e;
-      } catch (Throwable e) {
-        throw new TerminalException(
-            TerminalException.Code.INVALID_ARGUMENT, "Cannot serialize output: " + e.getMessage());
-      }
+            // Serialize output
+            ByteString serializedResult;
+            try {
+              serializedResult = this.handlerSignature.responseSerde.serializeToByteString(res);
+            } catch (Error e) {
+              throw e;
+            } catch (Throwable e) {
+              callback.onCancel(
+                  new TerminalException(
+                      TerminalException.Code.INVALID_ARGUMENT,
+                      "Cannot serialize output: " + e.getMessage()));
+              return;
+            }
 
-      // Complete callback
-      callback.onSuccess(serializedResult);
+            // Complete callback
+            callback.onSuccess(serializedResult);
+          });
     }
   }
 
@@ -174,6 +205,20 @@ public final class Component implements BindableComponent {
 
     public Serde<RES> getResponseSerde() {
       return responseSerde;
+    }
+  }
+
+  public static class Options {
+    public static final Options DEFAULT = new Options(Executors.newCachedThreadPool());
+
+    private final Executor executor;
+
+    /**
+     * You can run on virtual threads by using the executor {@code
+     * Executors.newVirtualThreadPerTaskExecutor()}.
+     */
+    public Options(Executor executor) {
+      this.executor = executor;
     }
   }
 }

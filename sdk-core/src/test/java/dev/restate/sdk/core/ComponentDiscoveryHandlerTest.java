@@ -12,13 +12,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.restate.sdk.common.ComponentType;
 import dev.restate.sdk.common.syscalls.ComponentDefinition;
-import dev.restate.sdk.common.syscalls.ExecutorType;
 import dev.restate.sdk.common.syscalls.HandlerDefinition;
 import dev.restate.sdk.core.manifest.Component;
 import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
 import dev.restate.sdk.core.manifest.DeploymentManifestSchema.ProtocolMode;
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 class ComponentDiscoveryHandlerTest {
@@ -28,13 +27,11 @@ class ComponentDiscoveryHandlerTest {
     DeploymentManifest deploymentManifest =
         new DeploymentManifest(
             ProtocolMode.REQUEST_RESPONSE,
-            Map.of(
-                "MyGreeter",
-                new ComponentDefinition(
+            Stream.of(
+                new ComponentDefinition<>(
                     "MyGreeter",
-                    ExecutorType.BLOCKING,
                     ComponentType.SERVICE,
-                    List.of(new HandlerDefinition("greet", null, null, null)))));
+                    List.of(new HandlerDefinition<>("greet", null, null, null)))));
 
     DeploymentManifestSchema manifest = deploymentManifest.manifest();
 

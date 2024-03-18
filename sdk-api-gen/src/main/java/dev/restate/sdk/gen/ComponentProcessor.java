@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.gen;
 
-import dev.restate.sdk.common.ComponentAdapter;
+import dev.restate.sdk.common.BindableComponentFactory;
 import dev.restate.sdk.common.ComponentType;
 import dev.restate.sdk.common.function.ThrowingFunction;
 import dev.restate.sdk.gen.model.Component;
@@ -35,7 +35,8 @@ import javax.tools.StandardLocation;
 @SupportedSourceVersion(SourceVersion.RELEASE_11)
 public class ComponentProcessor extends AbstractProcessor {
 
-  private HandlebarsTemplateEngine serviceAdapterCodegen;
+  private HandlebarsTemplateEngine bindableComponentFactoryCodegen;
+  private HandlebarsTemplateEngine bindableComponentCodegen;
   private HandlebarsTemplateEngine clientCodegen;
 
   @Override
@@ -44,17 +45,28 @@ public class ComponentProcessor extends AbstractProcessor {
 
     FilerTemplateLoader filerTemplateLoader = new FilerTemplateLoader(processingEnv.getFiler());
 
-    this.serviceAdapterCodegen =
+    this.bindableComponentFactoryCodegen =
         new HandlebarsTemplateEngine(
-            "ComponentAdapter",
+            "BindableComponentFactory",
             filerTemplateLoader,
             Map.of(
                 ComponentType.WORKFLOW,
-                "templates/workflow/ComponentAdapter.hbs",
+                "templates/BindableComponentFactory.hbs",
                 ComponentType.SERVICE,
-                "templates/ComponentAdapter.hbs",
+                "templates/BindableComponentFactory.hbs",
                 ComponentType.VIRTUAL_OBJECT,
-                "templates/ComponentAdapter.hbs"));
+                "templates/BindableComponentFactory.hbs"));
+    this.bindableComponentCodegen =
+        new HandlebarsTemplateEngine(
+            "BindableComponent",
+            filerTemplateLoader,
+            Map.of(
+                ComponentType.WORKFLOW,
+                "templates/workflow/BindableComponent.hbs",
+                ComponentType.SERVICE,
+                "templates/BindableComponent.hbs",
+                ComponentType.VIRTUAL_OBJECT,
+                "templates/BindableComponent.hbs"));
     this.clientCodegen =
         new HandlebarsTemplateEngine(
             "Client",
@@ -91,7 +103,8 @@ public class ComponentProcessor extends AbstractProcessor {
       try {
         ThrowingFunction<String, Writer> fileCreator =
             name -> filer.createSourceFile(name, e.getKey()).openWriter();
-        this.serviceAdapterCodegen.generate(fileCreator, e.getValue());
+        this.bindableComponentFactoryCodegen.generate(fileCreator, e.getValue());
+        this.bindableComponentCodegen.generate(fileCreator, e.getValue());
         this.clientCodegen.generate(fileCreator, e.getValue());
       } catch (Throwable ex) {
         throw new RuntimeException(ex);
@@ -104,7 +117,7 @@ public class ComponentProcessor extends AbstractProcessor {
       resourceFilePath =
           readOrCreateResource(
               processingEnv.getFiler(),
-              "META-INF/services/" + ComponentAdapter.class.getCanonicalName());
+              "META-INF/services/" + BindableComponentFactory.class.getCanonicalName());
       Files.createDirectories(resourceFilePath.getParent());
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -118,7 +131,7 @@ public class ComponentProcessor extends AbstractProcessor {
             StandardOpenOption.CREATE,
             StandardOpenOption.APPEND)) {
       for (Map.Entry<Element, Component> e : parsedServices) {
-        writer.write(e.getValue().getGeneratedClassFqcnPrefix() + "ComponentAdapter");
+        writer.write(e.getValue().getGeneratedClassFqcnPrefix() + "BindableComponentFactory");
         writer.write('\n');
       }
     } catch (IOException e) {

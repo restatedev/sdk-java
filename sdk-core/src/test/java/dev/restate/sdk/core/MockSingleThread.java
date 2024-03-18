@@ -11,6 +11,7 @@ package dev.restate.sdk.core;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.protobuf.MessageLite;
+import dev.restate.sdk.common.BindableComponent;
 import dev.restate.sdk.common.syscalls.ComponentDefinition;
 import dev.restate.sdk.core.TestDefinitions.TestDefinition;
 import dev.restate.sdk.core.TestDefinitions.TestExecutor;
@@ -36,23 +37,25 @@ public final class MockSingleThread implements TestExecutor {
     FlowUtils.FutureSubscriber<MessageLite> outputSubscriber = new FlowUtils.FutureSubscriber<>();
 
     // This test infra supports only components returning one component definition
-    List<ComponentDefinition> componentDefinition = definition.getComponent().definitions();
+    @SuppressWarnings("unchecked")
+    BindableComponent<Object> bindableComponent =
+        (BindableComponent<Object>) definition.getComponent();
+    List<ComponentDefinition<Object>> componentDefinition = bindableComponent.definitions();
     assertThat(componentDefinition).size().isEqualTo(1);
 
     // Prepare server
     RestateEndpoint.Builder builder =
         RestateEndpoint.newBuilder(DeploymentManifestSchema.ProtocolMode.BIDI_STREAM)
-            .with(componentDefinition.get(0));
+            .with(componentDefinition.get(0), bindableComponent.options());
     RestateEndpoint server = builder.build();
 
     // Start invocation
     ResolvedEndpointHandler handler =
         server.resolve(
-            componentDefinition.get(0).getFullyQualifiedServiceName(),
+            componentDefinition.get(0).getFullyQualifiedComponentName(),
             definition.getMethod(),
             io.opentelemetry.context.Context.current(),
             RestateEndpoint.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
-            null,
             null);
 
     // Create publisher
@@ -68,7 +71,7 @@ public final class MockSingleThread implements TestExecutor {
 
     // Check completed
     assertThat(outputSubscriber.getFuture())
-        .succeedsWithin(Duration.ofDays(1))
+        .succeedsWithin(Duration.ofSeconds(1))
         .satisfies(definition.getOutputAssert());
     assertThat(inputPublisher.isSubscriptionCancelled()).isTrue();
 

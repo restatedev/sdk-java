@@ -21,6 +21,6 @@ public class InvocationIdTest extends InvocationIdTestSuite {
         "ReturnInvocationId",
         CoreSerdes.VOID,
         CoreSerdes.JSON_STRING,
-        (ctx, unused) -> ctx.invocationId().toString());
+        (ctx, unused) -> ctx.request().invocationId().toString());
   }
 }

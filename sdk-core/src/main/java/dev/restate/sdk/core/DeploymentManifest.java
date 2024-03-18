@@ -15,6 +15,7 @@ import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
 import dev.restate.sdk.core.manifest.Handler;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 final class DeploymentManifest {
 
@@ -22,18 +23,19 @@ final class DeploymentManifest {
 
   public DeploymentManifest(
       DeploymentManifestSchema.ProtocolMode protocolMode,
-      Map<String, ComponentDefinition> components) {
+      Stream<ComponentDefinition<?>> components) {
     this.manifest =
         new DeploymentManifestSchema()
             .withMinProtocolVersion(1)
             .withMaxProtocolVersion(1)
             .withProtocolMode(protocolMode)
             .withComponents(
-                components.values().stream()
+                components
                     .map(
                         svc ->
                             new Component()
-                                .withFullyQualifiedComponentName(svc.getFullyQualifiedServiceName())
+                                .withFullyQualifiedComponentName(
+                                    svc.getFullyQualifiedComponentName())
                                 .withComponentType(convertComponentType(svc.getComponentType()))
                                 .withHandlers(
                                     svc.getHandlers().stream()

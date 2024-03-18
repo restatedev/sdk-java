@@ -21,48 +21,54 @@ import kotlinx.coroutines.launch
 import org.apache.logging.log4j.LogManager
 
 class Component
-private constructor(fqsn: String, isKeyed: Boolean, handlers: Map<String, Handler<*, *, *>>) :
-    BindableComponent {
+private constructor(
+    fqsn: String,
+    isKeyed: Boolean,
+    handlers: Map<String, Handler<*, *, *>>,
+    private val options: Options
+) : BindableComponent<Component.Options> {
   private val componentDefinition =
       ComponentDefinition(
           fqsn,
-          ExecutorType.NON_BLOCKING,
           if (isKeyed) ComponentType.VIRTUAL_OBJECT else ComponentType.SERVICE,
           handlers.values.map { obj: Handler<*, *, *> -> obj.toHandlerDefinition() })
+
+  override fun options(): Options {
+    return this.options
+  }
 
   override fun definitions() = listOf(this.componentDefinition)
 
   companion object {
     fun service(
         name: String,
-        coroutineContext: CoroutineContext = Dispatchers.Default,
+        options: Options = Options.DEFAULT,
         init: ServiceBuilder.() -> Unit
     ): Component {
-      val builder = ServiceBuilder(name, coroutineContext)
+      val builder = ServiceBuilder(name)
       builder.init()
-      return builder.build()
+      return builder.build(options)
     }
 
     fun virtualObject(
         name: String,
-        coroutineContext: CoroutineContext = Dispatchers.Default,
+        options: Options = Options.DEFAULT,
         init: VirtualObjectBuilder.() -> Unit
     ): Component {
-      val builder = VirtualObjectBuilder(name, coroutineContext)
+      val builder = VirtualObjectBuilder(name)
       builder.init()
-      return builder.build()
+      return builder.build(options)
     }
   }
 
-  class VirtualObjectBuilder
-  internal constructor(private val name: String, private val coroutineContext: CoroutineContext) {
+  class VirtualObjectBuilder internal constructor(private val name: String) {
     private val handlers: MutableMap<String, Handler<*, *, ObjectContext>> = mutableMapOf()
 
     fun <REQ, RES> handler(
         sig: HandlerSignature<REQ, RES>,
         runner: suspend (ObjectContext, REQ) -> RES
     ): VirtualObjectBuilder {
-      handlers[sig.name] = Handler(sig, runner, coroutineContext)
+      handlers[sig.name] = Handler(sig, runner)
       return this
     }
 
@@ -71,18 +77,17 @@ private constructor(fqsn: String, isKeyed: Boolean, handlers: Map<String, Handle
         noinline runner: suspend (ObjectContext, REQ) -> RES
     ) = this.handler(HandlerSignature(name, KtSerdes.json(), KtSerdes.json()), runner)
 
-    fun build() = Component(this.name, true, this.handlers)
+    fun build(options: Options) = Component(this.name, true, this.handlers, options)
   }
 
-  class ServiceBuilder
-  internal constructor(private val name: String, private val coroutineContext: CoroutineContext) {
+  class ServiceBuilder internal constructor(private val name: String) {
     private val handlers: MutableMap<String, Handler<*, *, Context>> = mutableMapOf()
 
     fun <REQ, RES> handler(
         sig: HandlerSignature<REQ, RES>,
         runner: suspend (Context, REQ) -> RES
     ): ServiceBuilder {
-      handlers[sig.name] = Handler(sig, runner, coroutineContext)
+      handlers[sig.name] = Handler(sig, runner)
       return this
     }
 
@@ -91,14 +96,13 @@ private constructor(fqsn: String, isKeyed: Boolean, handlers: Map<String, Handle
         noinline runner: suspend (Context, REQ) -> RES
     ) = this.handler(HandlerSignature(name, KtSerdes.json(), KtSerdes.json()), runner)
 
-    fun build() = Component(this.name, false, this.handlers)
+    fun build(options: Options) = Component(this.name, false, this.handlers, options)
   }
 
   class Handler<REQ, RES, CTX : Context>(
       private val handlerSignature: HandlerSignature<REQ, RES>,
       private val runner: suspend (CTX, REQ) -> RES,
-      private val coroutineContext: CoroutineContext
-  ) : InvocationHandler {
+  ) : InvocationHandler<Options> {
 
     companion object {
       private val LOG = LogManager.getLogger()
@@ -113,12 +117,12 @@ private constructor(fqsn: String, isKeyed: Boolean, handlers: Map<String, Handle
 
     override fun handle(
         syscalls: Syscalls,
-        input: ByteString,
+        options: Options,
         callback: SyscallCallback<ByteString>
     ) {
       val ctx: Context = ContextImpl(syscalls)
 
-      val scope = CoroutineScope(coroutineContext)
+      val scope = CoroutineScope(options.coroutineContext)
       scope.launch {
         val serializedResult: ByteString
 
@@ -126,7 +130,7 @@ private constructor(fqsn: String, isKeyed: Boolean, handlers: Map<String, Handle
           // Parse input
           val req: REQ
           try {
-            req = handlerSignature.requestSerde.deserialize(input)
+            req = handlerSignature.requestSerde.deserialize(syscalls.request().bodyBuffer())
           } catch (e: Error) {
             throw e
           } catch (e: Throwable) {
@@ -164,4 +168,10 @@ private constructor(fqsn: String, isKeyed: Boolean, handlers: Map<String, Handle
       val requestSerde: Serde<REQ>,
       val responseSerde: Serde<RES>
   )
+
+  class Options(val coroutineContext: CoroutineContext) {
+    companion object {
+      val DEFAULT: Options = Options(Dispatchers.Default)
+    }
+  }
 }

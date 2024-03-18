@@ -142,7 +142,7 @@ internal class RestateHttpEndpointTest {
         // Now wait for response
         val outputEntry = inputChannel.receive()
 
-        assertThat(outputEntry).isInstanceOf(OutputStreamEntryMessage::class.java)
+        assertThat(outputEntry).isInstanceOf(OutputEntryMessage::class.java)
         assertThat(outputEntry).isEqualTo(outputMessage("Hello Francesco. Count: 3"))
 
         // Wait for closing request and response

@@ -27,7 +27,7 @@ public final class TestDefinitions {
   private TestDefinitions() {}
 
   public interface TestDefinition {
-    BindableComponent getComponent();
+    BindableComponent<?> getComponent();
 
     String getMethod();
 
@@ -68,12 +68,12 @@ public final class TestDefinitions {
 
   public static TestInvocationBuilder testInvocation(Object component, String handler) {
     if (component instanceof BindableComponent) {
-      return new TestInvocationBuilder((BindableComponent) component, handler);
+      return new TestInvocationBuilder((BindableComponent<?>) component, handler);
     }
 
     // In case it's code generated, discover the adapter
-    BindableComponent bindableComponent =
-        RestateEndpoint.discoverAdapter(component).adapt(component);
+    BindableComponent<?> bindableComponent =
+        RestateEndpoint.discoverBindableComponentFactory(component).create(component);
     return new TestInvocationBuilder(bindableComponent, handler);
   }
 
@@ -82,11 +82,11 @@ public final class TestDefinitions {
   }
 
   public static class TestInvocationBuilder {
-    protected final @Nullable BindableComponent component;
+    protected final @Nullable BindableComponent<?> component;
     protected final @Nullable String handler;
     protected final @Nullable String invalidReason;
 
-    TestInvocationBuilder(BindableComponent component, String handler) {
+    TestInvocationBuilder(BindableComponent<?> component, String handler) {
       this.component = component;
       this.handler = handler;
 
@@ -128,7 +128,7 @@ public final class TestDefinitions {
     }
 
     WithInputBuilder(
-        BindableComponent component, String method, List<InvocationFlow.InvocationInput> input) {
+        BindableComponent<?> component, String method, List<InvocationFlow.InvocationInput> input) {
       super(component, method);
       this.input = new ArrayList<>(input);
     }
@@ -166,7 +166,7 @@ public final class TestDefinitions {
   }
 
   public abstract static class BaseTestDefinition implements TestDefinition {
-    protected final @Nullable BindableComponent component;
+    protected final @Nullable BindableComponent<?> component;
     protected final @Nullable String invalidReason;
     protected final String method;
     protected final List<InvocationFlow.InvocationInput> input;
@@ -174,7 +174,7 @@ public final class TestDefinitions {
     protected final String named;
 
     private BaseTestDefinition(
-        @Nullable BindableComponent component,
+        @Nullable BindableComponent<?> component,
         @Nullable String invalidReason,
         String method,
         List<InvocationFlow.InvocationInput> input,
@@ -189,7 +189,7 @@ public final class TestDefinitions {
     }
 
     @Override
-    public BindableComponent getComponent() {
+    public BindableComponent<?> getComponent() {
       return Objects.requireNonNull(component);
     }
 
@@ -224,7 +224,7 @@ public final class TestDefinitions {
     private final Consumer<List<MessageLite>> messagesAssert;
 
     private ExpectingOutputMessages(
-        @Nullable BindableComponent component,
+        @Nullable BindableComponent<?> component,
         @Nullable String invalidReason,
         String method,
         List<InvocationFlow.InvocationInput> input,
@@ -237,13 +237,13 @@ public final class TestDefinitions {
           input,
           onlyUnbuffered,
           component != null
-              ? component.definitions().get(0).getFullyQualifiedServiceName()
+              ? component.definitions().get(0).getFullyQualifiedComponentName()
               : "Unknown");
       this.messagesAssert = messagesAssert;
     }
 
     ExpectingOutputMessages(
-        @Nullable BindableComponent component,
+        @Nullable BindableComponent<?> component,
         @Nullable String invalidReason,
         String method,
         List<InvocationFlow.InvocationInput> input,

@@ -9,7 +9,7 @@
 package dev.restate.sdk.common.syscalls;
 
 import com.google.protobuf.ByteString;
-import dev.restate.sdk.common.InvocationId;
+import dev.restate.sdk.common.Request;
 import dev.restate.sdk.common.Target;
 import dev.restate.sdk.common.TerminalException;
 import java.time.Duration;
@@ -27,9 +27,9 @@ import org.jspecify.annotations.Nullable;
  */
 public interface Syscalls {
 
-  InvocationId invocationId();
-
   String objectKey();
+
+  Request request();
 
   /**
    * @return true if it's inside a side effect block.
@@ -39,8 +39,6 @@ public interface Syscalls {
   // ----- IO
   // Note: These are not supposed to be exposed to RestateContext, but they should be used through
   // gRPC APIs.
-
-  void pollInput(SyscallCallback<Deferred<ByteString>> callback);
 
   void writeOutput(ByteString value, SyscallCallback<Void> callback);
 

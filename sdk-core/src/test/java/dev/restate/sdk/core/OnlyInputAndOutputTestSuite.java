@@ -11,7 +11,6 @@ package dev.restate.sdk.core;
 import static dev.restate.sdk.core.ProtoUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.TestDefinition;
 
-import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
 import java.util.stream.Stream;
@@ -25,13 +24,6 @@ public abstract class OnlyInputAndOutputTestSuite implements TestSuite {
     return Stream.of(
         this.noSyscallsGreeter()
             .withInput(startMessage(1), inputMessage("Francesco"))
-            .expectingOutput(outputMessage("Hello Francesco"), END_MESSAGE),
-        this.noSyscallsGreeter()
-            .withInput(
-                startMessage(1),
-                inputMessage(new TerminalException(TerminalException.Code.CANCELLED)))
-            .expectingOutput(
-                outputMessage(new TerminalException(TerminalException.Code.CANCELLED)),
-                END_MESSAGE));
+            .expectingOutput(outputMessage("Hello Francesco"), END_MESSAGE));
   }
 }

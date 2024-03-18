@@ -24,22 +24,21 @@ final class ResolvedEndpointHandlerImpl implements ResolvedEndpointHandler {
 
   private final InvocationStateMachine stateMachine;
   private final RestateEndpoint.LoggingContextSetter loggingContextSetter;
-  private final SyscallsInternal syscalls;
-  private final InvocationHandler wrappedHandler;
+  private final InvocationHandler<Object> wrappedHandler;
+  private final Object componentOptions;
+  private final @Nullable Executor syscallsExecutor;
 
   public ResolvedEndpointHandlerImpl(
       InvocationStateMachine stateMachine,
       RestateEndpoint.LoggingContextSetter loggingContextSetter,
-      SyscallsInternal syscalls,
-      InvocationHandler handler,
-      @Nullable Executor userCodeExecutor) {
+      InvocationHandler<Object> handler,
+      Object componentOptions,
+      @Nullable Executor syscallExecutor) {
     this.stateMachine = stateMachine;
     this.loggingContextSetter = loggingContextSetter;
-    this.syscalls = syscalls;
-    this.wrappedHandler =
-        userCodeExecutor == null
-            ? new InvocationHandlerWrapper(handler)
-            : new ExecutorSwitchingInvocationHandlerWrapper(handler, userCodeExecutor);
+    this.wrappedHandler = new InvocationHandlerWrapper<>(handler);
+    this.componentOptions = componentOptions;
+    this.syscallsExecutor = syscallExecutor;
   }
 
   @Override
@@ -55,52 +54,45 @@ final class ResolvedEndpointHandlerImpl implements ResolvedEndpointHandler {
   @Override
   public void start() {
     LOG.info("Start processing invocation");
-    stateMachine.start(
-        invocationId -> {
-          // Set invocation id in logging context
-          loggingContextSetter.setInvocationId(invocationId.toString());
+    stateMachine.startAndConsumeInput(
+        SyscallCallback.of(
+            request -> {
+              // Set invocation id in logging context
+              loggingContextSetter.setInvocationId(request.invocationId().toString());
 
-          // pollInput then invoke the wrappedHandler
-          syscalls.pollInputAndResolve(
-              SyscallCallback.of(
-                  pollInputReadyResult -> {
-                    if (pollInputReadyResult.isSuccess()) {
-                      final Object message = pollInputReadyResult.getValue();
-                      LOG.trace("Read input message:\n{}", message);
+              // Prepare Syscalls object
+              SyscallsInternal syscalls =
+                  this.syscallsExecutor != null
+                      ? new ExecutorSwitchingSyscalls(
+                          new SyscallsImpl(request, stateMachine), this.syscallsExecutor)
+                      : new SyscallsImpl(request, stateMachine);
 
-                      wrappedHandler.handle(
-                          syscalls,
-                          pollInputReadyResult.getValue(),
-                          SyscallCallback.of(this::writeOutputAndEnd, this::end));
-                    } else {
-                      // PollInputStream failed.
-                      // This is probably a cancellation.
-                      this.end(pollInputReadyResult.getFailure());
-                    }
-                  },
-                  syscalls::fail));
-        });
+              // pollInput then invoke the wrappedHandler
+              wrappedHandler.handle(
+                  syscalls,
+                  componentOptions,
+                  SyscallCallback.of(
+                      o -> this.writeOutputAndEnd(syscalls, o), t -> this.end(syscalls, t)));
+            },
+            t -> {}));
   }
 
-  private void writeOutputAndEnd(ByteString output) {
+  private void writeOutputAndEnd(SyscallsInternal syscalls, ByteString output) {
     syscalls.writeOutput(
         output,
         SyscallCallback.ofVoid(
             () -> {
               LOG.trace("Wrote output message:\n{}", output);
-              this.end();
+              this.end(syscalls, null);
             },
             syscalls::fail));
   }
 
-  private void end() {
-    this.end(null);
-  }
-
-  private void end(@Nullable Throwable exception) {
+  private void end(SyscallsInternal syscalls, @Nullable Throwable exception) {
     if (exception == null || Util.containsSuspendedException(exception)) {
       syscalls.close();
     } else {
+      LOG.warn("Error when processing the invocation", exception);
       if (Util.isTerminalException(exception)) {
         syscalls.writeOutput(
             (TerminalException) exception,
@@ -116,46 +108,21 @@ final class ResolvedEndpointHandlerImpl implements ResolvedEndpointHandler {
     }
   }
 
-  private static class InvocationHandlerWrapper implements InvocationHandler {
+  private static class InvocationHandlerWrapper<O> implements InvocationHandler<O> {
 
-    private final InvocationHandler handler;
+    private final InvocationHandler<O> handler;
 
-    private InvocationHandlerWrapper(InvocationHandler handler) {
+    private InvocationHandlerWrapper(InvocationHandler<O> handler) {
       this.handler = handler;
     }
 
     @Override
-    public void handle(Syscalls syscalls, ByteString input, SyscallCallback<ByteString> callback) {
+    public void handle(Syscalls syscalls, O options, SyscallCallback<ByteString> callback) {
       try {
-        this.handler.handle(syscalls, input, callback);
+        this.handler.handle(syscalls, options, callback);
       } catch (Throwable e) {
-        LOG.warn("Error when processing the invocation", e);
         callback.onCancel(e);
       }
-    }
-  }
-
-  private static class ExecutorSwitchingInvocationHandlerWrapper implements InvocationHandler {
-    private final InvocationHandler handler;
-    private final Executor userCodeExecutor;
-
-    private ExecutorSwitchingInvocationHandlerWrapper(
-        InvocationHandler handler, Executor userCodeExecutor) {
-      this.handler = handler;
-      this.userCodeExecutor = userCodeExecutor;
-    }
-
-    @Override
-    public void handle(Syscalls syscalls, ByteString input, SyscallCallback<ByteString> callback) {
-      userCodeExecutor.execute(
-          () -> {
-            try {
-              this.handler.handle(syscalls, input, callback);
-            } catch (Throwable e) {
-              LOG.warn("Error when processing the invocation", e);
-              callback.onCancel(e);
-            }
-          });
     }
   }
 }

@@ -104,59 +104,51 @@ public class ProtoUtils {
     return Protocol.SuspensionMessage.newBuilder().addAllEntryIndexes(List.of(indexes)).build();
   }
 
-  public static Protocol.PollInputStreamEntryMessage inputMessage() {
-    return Protocol.PollInputStreamEntryMessage.newBuilder().setValue(ByteString.EMPTY).build();
+  public static Protocol.InputEntryMessage inputMessage() {
+    return Protocol.InputEntryMessage.newBuilder().setValue(ByteString.EMPTY).build();
   }
 
-  public static <T> Protocol.PollInputStreamEntryMessage inputMessage(Serde<T> serde, T value) {
-    return Protocol.PollInputStreamEntryMessage.newBuilder()
+  public static <T> Protocol.InputEntryMessage inputMessage(Serde<T> serde, T value) {
+    return Protocol.InputEntryMessage.newBuilder()
         .setValue(serde.serializeToByteString(value))
         .build();
   }
 
-  public static Protocol.PollInputStreamEntryMessage inputMessage(String value) {
+  public static Protocol.InputEntryMessage inputMessage(String value) {
     return inputMessage(CoreSerdes.JSON_STRING, value);
   }
 
-  public static Protocol.PollInputStreamEntryMessage inputMessage(int value) {
+  public static Protocol.InputEntryMessage inputMessage(int value) {
     return inputMessage(CoreSerdes.JSON_INT, value);
   }
 
-  public static Protocol.PollInputStreamEntryMessage inputMessage(Throwable error) {
-    return Protocol.PollInputStreamEntryMessage.newBuilder()
-        .setFailure(Util.toProtocolFailure(error))
-        .build();
-  }
-
-  public static <T> Protocol.OutputStreamEntryMessage outputMessage(Serde<T> serde, T value) {
-    return Protocol.OutputStreamEntryMessage.newBuilder()
+  public static <T> Protocol.OutputEntryMessage outputMessage(Serde<T> serde, T value) {
+    return Protocol.OutputEntryMessage.newBuilder()
         .setValue(serde.serializeToByteString(value))
         .build();
   }
 
-  public static Protocol.OutputStreamEntryMessage outputMessage(String value) {
+  public static Protocol.OutputEntryMessage outputMessage(String value) {
     return outputMessage(CoreSerdes.JSON_STRING, value);
   }
 
-  public static Protocol.OutputStreamEntryMessage outputMessage(int value) {
+  public static Protocol.OutputEntryMessage outputMessage(int value) {
     return outputMessage(CoreSerdes.JSON_INT, value);
   }
 
-  public static Protocol.OutputStreamEntryMessage outputMessage() {
-    return Protocol.OutputStreamEntryMessage.newBuilder().setValue(ByteString.EMPTY).build();
+  public static Protocol.OutputEntryMessage outputMessage() {
+    return Protocol.OutputEntryMessage.newBuilder().setValue(ByteString.EMPTY).build();
   }
 
-  public static Protocol.OutputStreamEntryMessage outputMessage(
+  public static Protocol.OutputEntryMessage outputMessage(
       TerminalException.Code code, String message) {
-    return Protocol.OutputStreamEntryMessage.newBuilder()
+    return Protocol.OutputEntryMessage.newBuilder()
         .setFailure(Util.toProtocolFailure(code, message))
         .build();
   }
 
-  public static Protocol.OutputStreamEntryMessage outputMessage(Throwable e) {
-    return Protocol.OutputStreamEntryMessage.newBuilder()
-        .setFailure(Util.toProtocolFailure(e))
-        .build();
+  public static Protocol.OutputEntryMessage outputMessage(Throwable e) {
+    return Protocol.OutputEntryMessage.newBuilder().setFailure(Util.toProtocolFailure(e)).build();
   }
 
   public static Protocol.GetStateEntryMessage.Builder getStateMessage(String key) {

@@ -14,6 +14,7 @@ import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.common.AbortedExecutionException;
 import dev.restate.sdk.common.InvocationId;
+import dev.restate.sdk.common.Request;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.common.syscalls.*;
 import io.opentelemetry.api.common.Attributes;
@@ -30,8 +31,8 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   private static final Logger LOG = LogManager.getLogger(InvocationStateMachine.class);
 
-  private final String serviceName;
-  private final String fullyQualifiedMethodName;
+  private final String componentName;
+  private final String fullyQualifiedHandlerName;
   private final Span span;
   private final Consumer<InvocationState> transitionStateObserver;
 
@@ -42,7 +43,6 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   // Obtained after WAITING_START
   private ByteString id;
-  private InvocationIdImpl invocationId;
   private String key;
   private int entriesToReplay;
   private UserStateStore userStateStore;
@@ -58,15 +58,15 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   // Flow sub/pub
   private Flow.Subscriber<? super MessageLite> outputSubscriber;
   private Flow.Subscription inputSubscription;
-  private final CallbackHandle<Consumer<InvocationId>> afterStartCallback;
+  private final CallbackHandle<SyscallCallback<Request>> afterStartCallback;
 
   InvocationStateMachine(
-      String serviceName,
-      String fullyQualifiedMethodName,
+      String componentName,
+      String fullyQualifiedHandlerName,
       Span span,
       Consumer<InvocationState> transitionStateObserver) {
-    this.serviceName = serviceName;
-    this.fullyQualifiedMethodName = fullyQualifiedMethodName;
+    this.componentName = componentName;
+    this.fullyQualifiedHandlerName = fullyQualifiedHandlerName;
     this.span = span;
     this.transitionStateObserver = transitionStateObserver;
 
@@ -79,16 +79,12 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   // --- Getters
 
-  public String getServiceName() {
-    return serviceName;
+  public String getComponentName() {
+    return componentName;
   }
 
   public ByteString id() {
     return id;
-  }
-
-  public InvocationId invocationId() {
-    return this.invocationId;
   }
 
   public String objectKey() {
@@ -103,8 +99,8 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     return this.insideSideEffect;
   }
 
-  public String getFullyQualifiedMethodName() {
-    return this.fullyQualifiedMethodName;
+  public String getFullyQualifiedHandlerName() {
+    return this.fullyQualifiedHandlerName;
   }
 
   // --- Output Publisher impl
@@ -137,7 +133,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     LOG.trace("Received input message {} {}", msg.getClass(), msg);
     if (this.invocationState == InvocationState.WAITING_START) {
       MessageHeader.checkProtocolVersion(invocationInput.header());
-      this.onStart(msg);
+      this.onStartMessage(msg);
     } else if (msg instanceof Protocol.CompletionMessage) {
       // We check the instance rather than the state, because the user code might still be
       // replaying, but the network layer is already past it and is receiving completions from the
@@ -166,12 +162,12 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   // --- Init routine to wait for the start message
 
-  void start(Consumer<InvocationId> afterStartCallback) {
+  void startAndConsumeInput(SyscallCallback<Request> afterStartCallback) {
     this.afterStartCallback.set(afterStartCallback);
     this.inputSubscription.request(1);
   }
 
-  void onStart(MessageLite msg) {
+  void onStartMessage(MessageLite msg) {
     if (!(msg instanceof Protocol.StartMessage)) {
       this.fail(ProtocolException.unexpectedMessage(Protocol.StartMessage.class, msg));
       return;
@@ -180,7 +176,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     // Unpack the StartMessage
     Protocol.StartMessage startMessage = (Protocol.StartMessage) msg;
     this.id = startMessage.getId();
-    this.invocationId = new InvocationIdImpl(startMessage.getDebugId());
+    InvocationId invocationId = new InvocationIdImpl(startMessage.getDebugId());
     this.key = startMessage.getKey();
     this.entriesToReplay = startMessage.getKnownEntries();
 
@@ -202,13 +198,36 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     // Execute state transition
     this.transitionState(InvocationState.REPLAYING);
     if (this.entriesToReplay == 0) {
-      this.transitionState(InvocationState.PROCESSING);
+      this.fail(
+          new ProtocolException(
+              "Expected at least one entry with Input, got " + this.entriesToReplay + " entries",
+              null,
+              TerminalException.Code.INTERNAL.value()));
+      return;
     }
 
     this.inputSubscription.request(Long.MAX_VALUE);
 
-    // Now execute the callback after start
-    this.afterStartCallback.consume(cb -> cb.accept(this.invocationId));
+    // Now wait input entry
+    this.readEntry(
+        (i, inputMsg) -> {
+          if (!(inputMsg instanceof Protocol.InputEntryMessage)) {
+            throw ProtocolException.unexpectedMessage(Protocol.InputEntryMessage.class, inputMsg);
+          }
+          Protocol.InputEntryMessage inputEntry = (Protocol.InputEntryMessage) inputMsg;
+
+          Request request =
+              new Request(
+                  invocationId,
+                  inputEntry.getValue(),
+                  inputEntry.getHeadersList().stream()
+                      .collect(
+                          Collectors.toUnmodifiableMap(
+                              Protocol.Header::getKey, Protocol.Header::getValue)));
+
+          this.afterStartCallback.consume(cb -> cb.onSuccess(request));
+        },
+        this::fail);
   }
 
   // --- Close state machine
@@ -257,6 +276,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       }
 
       // Unblock any eventual waiting callbacks
+      this.afterStartCallback.consume(cb -> cb.onCancel(cause));
       this.readyResultStateMachine.abort(cause);
       this.sideEffectAckStateMachine.abort(cause);
       this.incomingEntriesStateMachine.abort(cause);
@@ -718,14 +738,6 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   @Override
   public String toString() {
-    return "InvocationStateMachine{"
-        + "serviceName='"
-        + serviceName
-        + '\''
-        + ", invocationState="
-        + invocationState
-        + ", id="
-        + invocationId
-        + '}';
+    return "InvocationStateMachine{id=" + id + '}';
   }
 }

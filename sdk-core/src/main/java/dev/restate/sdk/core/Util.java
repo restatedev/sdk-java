@@ -104,8 +104,8 @@ public final class Util {
   }
 
   static boolean isEntry(MessageLite msg) {
-    return msg instanceof Protocol.PollInputStreamEntryMessage
-        || msg instanceof Protocol.OutputStreamEntryMessage
+    return msg instanceof Protocol.InputEntryMessage
+        || msg instanceof Protocol.OutputEntryMessage
         || msg instanceof Protocol.GetStateEntryMessage
         || msg instanceof Protocol.GetStateKeysEntryMessage
         || msg instanceof Protocol.SetStateEntryMessage

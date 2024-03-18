@@ -9,9 +9,7 @@
 package dev.restate.sdk.http.vertx;
 
 import dev.restate.sdk.common.BindableComponent;
-import dev.restate.sdk.common.ComponentAdapter;
 import dev.restate.sdk.common.syscalls.ComponentDefinition;
-import dev.restate.sdk.common.syscalls.ExecutorType;
 import dev.restate.sdk.core.RestateEndpoint;
 import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
 import io.opentelemetry.api.OpenTelemetry;
@@ -20,8 +18,6 @@ import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import java.util.*;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -47,8 +43,6 @@ public class RestateHttpEndpointBuilder {
   private final Vertx vertx;
   private final RestateEndpoint.Builder endpointBuilder =
       RestateEndpoint.newBuilder(DeploymentManifestSchema.ProtocolMode.BIDI_STREAM);
-  private final Executor defaultExecutor = Executors.newCachedThreadPool();
-  private final HashMap<String, Executor> blockingComponents = new HashMap<>();
   private OpenTelemetry openTelemetry = OpenTelemetry.noop();
   private HttpServerOptions options =
       new HttpServerOptions()
@@ -75,61 +69,35 @@ public class RestateHttpEndpointBuilder {
   }
 
   /**
-   * Add a Restate component to the endpoint. This will automatically discover the adapter based on
-   * the class name. You can provide the adapter manually using {@link #with(Object,
-   * ComponentAdapter)}
+   * Add a Restate component to the endpoint. This will automatically discover the generated factory
+   * based on the class name.
+   *
+   * <p>You can also manually instantiate the {@link BindableComponent} using {@link
+   * #with(BindableComponent)}.
    */
   public RestateHttpEndpointBuilder with(Object component) {
-    return this.with(component, defaultExecutor);
+    return this.with(RestateEndpoint.discoverBindableComponentFactory(component).create(component));
   }
 
   /**
-   * Add a Restate component to the endpoint, specifying the {@code executor} where to run the
-   * component code. This will automatically discover the adapter based on the class name. You can
-   * provide the adapter manually using {@link #with(Object, ComponentAdapter, Executor)}
+   * Add a Restate bindable component to the endpoint.
    *
-   * <p>You can run on virtual threads by using the executor {@code
-   * Executors.newVirtualThreadPerTaskExecutor()}.
+   * <p>To override the options, use {@link #with(BindableComponent, Object)}.
    */
-  public RestateHttpEndpointBuilder with(Object component, Executor executor) {
-    return this.with(component, RestateEndpoint.discoverAdapter(component), executor);
+  public RestateHttpEndpointBuilder with(BindableComponent<?> component) {
+    for (ComponentDefinition<?> componentDefinition : component.definitions()) {
+      //noinspection unchecked
+      this.endpointBuilder.with(
+          (ComponentDefinition<Object>) componentDefinition, component.options());
+    }
+
+    return this;
   }
 
-  /** Add a Restate component to the endpoint, specifying an adapter. */
-  public <T> RestateHttpEndpointBuilder with(T component, ComponentAdapter<T> adapter) {
-    return this.with(component, adapter, defaultExecutor);
-  }
-
-  /**
-   * Add a Restate component to the endpoint, specifying the {@code executor} where to run the
-   * component code.
-   *
-   * <p>You can run on virtual threads by using the executor {@code
-   * Executors.newVirtualThreadPerTaskExecutor()}.
-   */
-  public <T> RestateHttpEndpointBuilder with(
-      T component, ComponentAdapter<T> adapter, Executor executor) {
-    return this.with(adapter.adapt(component), executor);
-  }
-
-  /** Add a Restate bindable component to the endpoint. */
-  public RestateHttpEndpointBuilder with(BindableComponent component) {
-    return this.with(component, defaultExecutor);
-  }
-
-  /**
-   * Add a Restate bindable component to the endpoint, specifying the {@code executor} where to run
-   * the component code.
-   *
-   * <p>You can run on virtual threads by using the executor {@code
-   * Executors.newVirtualThreadPerTaskExecutor()}.
-   */
-  public RestateHttpEndpointBuilder with(BindableComponent component, Executor executor) {
-    for (ComponentDefinition componentDefinition : component.definitions()) {
-      this.endpointBuilder.with(componentDefinition);
-      if (componentDefinition.getExecutorType() == ExecutorType.BLOCKING) {
-        this.blockingComponents.put(componentDefinition.getFullyQualifiedServiceName(), executor);
-      }
+  /** Add a Restate bindable component to the endpoint, overriding the options. */
+  public <O> RestateHttpEndpointBuilder with(BindableComponent<O> component, O options) {
+    for (ComponentDefinition<O> componentDefinition : component.definitions()) {
+      this.endpointBuilder.with(componentDefinition, options);
     }
 
     return this;
@@ -165,8 +133,7 @@ public class RestateHttpEndpointBuilder {
     this.endpointBuilder.withTracer(this.openTelemetry.getTracer("restate-java-sdk-vertx"));
 
     server.requestHandler(
-        new RequestHttpServerHandler(
-            this.endpointBuilder.build(), blockingComponents, openTelemetry));
+        new RequestHttpServerHandler(this.endpointBuilder.build(), openTelemetry));
 
     return server;
   }

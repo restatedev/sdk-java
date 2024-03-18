@@ -1,0 +1,18 @@
+{{#if originalClassPkg}}package {{originalClassPkg}}{{/if}}
+
+import dev.restate.sdk.kotlin.Component.Options
+
+class {{generatedClassSimpleName}}: dev.restate.sdk.common.BindableComponentFactory<{{originalClassFqcn}}, Options> {
+
+    companion object {
+        const val COMPONENT_NAME: String = "{{componentName}}";
+    }
+
+    override fun create(bindableComponent: {{originalClassFqcn}}): dev.restate.sdk.common.BindableComponent<dev.restate.sdk.kotlin.Component.Options> {
+        return {{generatedClassSimpleNamePrefix}}BindableComponent(bindableComponent);
+    }
+
+    override fun supports(serviceObject: Any?): Boolean {
+        return serviceObject is {{originalClassFqcn}};
+    }
+}

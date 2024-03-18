@@ -33,8 +33,8 @@ public final class WorkflowBuilder {
     return this;
   }
 
-  public BindableComponent build() {
-    return new WorkflowImpl(name, workflowMethod, sharedMethods);
+  public BindableComponent<Component.Options> build(Component.Options options) {
+    return new WorkflowImpl(name, options, workflowMethod, sharedMethods);
   }
 
   public static <REQ, RES> WorkflowBuilder named(

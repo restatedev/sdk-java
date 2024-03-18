@@ -37,8 +37,8 @@ class ContextImpl implements ObjectContext {
   }
 
   @Override
-  public InvocationId invocationId() {
-    return syscalls.invocationId();
+  public Request request() {
+    return syscalls.request();
   }
 
   @Override
@@ -212,6 +212,6 @@ class ContextImpl implements ObjectContext {
 
   @Override
   public RestateRandom random() {
-    return new RestateRandom(this.invocationId().toRandomSeed(), this.syscalls);
+    return new RestateRandom(this.request().invocationId().toRandomSeed(), this.syscalls);
   }
 }
