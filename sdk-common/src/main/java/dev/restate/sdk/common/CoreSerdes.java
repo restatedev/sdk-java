@@ -13,9 +13,6 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.MessageLite;
-import com.google.protobuf.Parser;
 import dev.restate.sdk.common.function.ThrowingBiConsumer;
 import dev.restate.sdk.common.function.ThrowingFunction;
 import java.io.ByteArrayInputStream;
@@ -145,39 +142,6 @@ public abstract class CoreSerdes {
             p.nextToken();
             return p.getDoubleValue();
           });
-
-  public static <T extends MessageLite> Serde<T> ofProtobuf(Parser<T> parser) {
-    return new Serde<>() {
-      @Override
-      public byte[] serialize(@Nullable T value) {
-        return Objects.requireNonNull(value).toByteArray();
-      }
-
-      @Override
-      public T deserialize(byte[] value) {
-        try {
-          return parser.parseFrom(value);
-        } catch (InvalidProtocolBufferException e) {
-          throw new RuntimeException("Cannot deserialize Protobuf object", e);
-        }
-      }
-
-      // -- We reimplement the ByteString variants here as it might be more efficient to use them.
-      @Override
-      public ByteString serializeToByteString(@Nullable T value) {
-        return Objects.requireNonNull(value).toByteString();
-      }
-
-      @Override
-      public T deserialize(ByteString byteString) {
-        try {
-          return parser.parseFrom(byteString);
-        } catch (InvalidProtocolBufferException e) {
-          throw new RuntimeException("Cannot deserialize Protobuf object", e);
-        }
-      }
-    };
-  }
 
   // --- Helpers for jackson-core
 

@@ -19,6 +19,7 @@ dependencies {
   implementation(jacksonLibs.jackson.annotations)
   implementation(jacksonLibs.jackson.jsr310)
   implementation(project(":sdk-serde-jackson"))
+  implementation(project(":sdk-serde-protobuf"))
 
   testImplementation(testingLibs.junit.jupiter)
   testImplementation(testingLibs.assertj)
