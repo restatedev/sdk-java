@@ -12,6 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.restate.sdk.client.IngressClient;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 class CounterTest {
@@ -25,6 +26,7 @@ class CounterTest {
           .buildRunner();
 
   @Test
+  @Timeout(value = 10)
   void testGreet(@RestateIngressClient IngressClient ingressClient) {
     var client = CounterClient.fromIngress(ingressClient, "my-counter");
     long response = client.get();
