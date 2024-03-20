@@ -61,8 +61,8 @@ public final class Util {
     return findCause(throwable, t -> t == AbortedExecutionException.INSTANCE).isPresent();
   }
 
-  static Protocol.Failure toProtocolFailure(TerminalException.Code code, String message) {
-    Protocol.Failure.Builder builder = Protocol.Failure.newBuilder().setCode(code.value());
+  static Protocol.Failure toProtocolFailure(int code, String message) {
+    Protocol.Failure.Builder builder = Protocol.Failure.newBuilder().setCode(code);
     if (message != null) {
       builder.setMessage(message);
     }
@@ -73,12 +73,11 @@ public final class Util {
     if (throwable instanceof TerminalException) {
       return toProtocolFailure(((TerminalException) throwable).getCode(), throwable.getMessage());
     }
-    return toProtocolFailure(TerminalException.Code.UNKNOWN, throwable.toString());
+    return toProtocolFailure(TerminalException.INTERNAL_SERVER_ERROR_CODE, throwable.toString());
   }
 
   static TerminalException toRestateException(Protocol.Failure failure) {
-    return new TerminalException(
-        TerminalException.Code.fromValue(failure.getCode()), failure.getMessage());
+    return new TerminalException(failure.getCode(), failure.getMessage());
   }
 
   static boolean isTerminalException(Throwable throwable) {

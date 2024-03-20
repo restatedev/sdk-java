@@ -15,7 +15,6 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.ResolvedEndpointHandler;
 import dev.restate.sdk.core.RestateEndpoint;
@@ -127,9 +126,7 @@ public final class RestateLambdaEndpoint {
               null);
     } catch (ProtocolException e) {
       LOG.warn("Error when resolving the grpc handler", e);
-      return new APIGatewayProxyResponseEvent()
-          .withStatusCode(
-              e.getFailureCode() == TerminalException.Code.NOT_FOUND.value() ? 404 : 500);
+      return new APIGatewayProxyResponseEvent().withStatusCode(e.getCode());
     }
 
     BufferedPublisher publisher = new BufferedPublisher(requestBody);

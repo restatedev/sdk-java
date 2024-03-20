@@ -194,7 +194,9 @@ final class Entries {
           stateKeys = GetStateKeysEntryMessage.StateKeys.parseFrom(actual.getValue());
         } catch (InvalidProtocolBufferException e) {
           throw new ProtocolException(
-              "Cannot parse get state keys completion", e, ProtocolException.PROTOCOL_VIOLATION);
+              "Cannot parse get state keys completion",
+              e,
+              ProtocolException.PROTOCOL_VIOLATION_CODE);
         }
         return Result.success(
             stateKeys.getKeysList().stream()

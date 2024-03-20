@@ -142,7 +142,7 @@ public final class Component implements BindableComponent<Component.Options> {
             } catch (Throwable e) {
               callback.onCancel(
                   new TerminalException(
-                      TerminalException.Code.INVALID_ARGUMENT,
+                      TerminalException.BAD_REQUEST_CODE,
                       "Cannot deserialize input: " + e.getMessage()));
               return;
             }
@@ -167,7 +167,7 @@ public final class Component implements BindableComponent<Component.Options> {
             } catch (Throwable e) {
               callback.onCancel(
                   new TerminalException(
-                      TerminalException.Code.INVALID_ARGUMENT,
+                      TerminalException.BAD_REQUEST_CODE,
                       "Cannot serialize output: " + e.getMessage()));
               return;
             }

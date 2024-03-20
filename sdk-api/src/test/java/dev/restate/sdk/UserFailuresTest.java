@@ -56,8 +56,7 @@ public class UserFailuresTest extends UserFailuresTestSuite {
         });
   }
 
-  protected TestInvocationBuilder throwTerminalException(
-      TerminalException.Code code, String message) {
+  protected TestInvocationBuilder throwTerminalException(int code, String message) {
     return testDefinitionForService(
         "ThrowTerminalException",
         CoreSerdes.VOID,
@@ -67,8 +66,7 @@ public class UserFailuresTest extends UserFailuresTestSuite {
         });
   }
 
-  protected TestInvocationBuilder sideEffectThrowTerminalException(
-      TerminalException.Code code, String message) {
+  protected TestInvocationBuilder sideEffectThrowTerminalException(int code, String message) {
     return testDefinitionForService(
         "SideEffectThrowTerminalException",
         CoreSerdes.VOID,

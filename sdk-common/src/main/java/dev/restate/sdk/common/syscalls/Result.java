@@ -62,7 +62,7 @@ public abstract class Result<T> {
         return Result.failure(e);
       } catch (Exception e) {
         return Result.failure(
-            new TerminalException(TerminalException.Code.UNKNOWN, e.getMessage()));
+            new TerminalException(TerminalException.INTERNAL_SERVER_ERROR_CODE, e.getMessage()));
       }
     }
     //noinspection unchecked

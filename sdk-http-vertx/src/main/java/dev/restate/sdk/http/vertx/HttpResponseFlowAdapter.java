@@ -9,7 +9,6 @@
 package dev.restate.sdk.http.vertx;
 
 import com.google.protobuf.MessageLite;
-import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.InvocationFlow;
 import dev.restate.sdk.core.Util;
 import io.vertx.core.buffer.Buffer;
@@ -81,10 +80,7 @@ class HttpResponseFlowAdapter implements InvocationFlow.InvocationOutputSubscrib
       // Try to write the failure in the head
       Util.findProtocolException(e)
           .ifPresentOrElse(
-              pe ->
-                  // TODO which status codes we need to map here?
-                  httpServerResponse.setStatusCode(
-                      pe.getFailureCode() == TerminalException.Code.NOT_FOUND.value() ? 404 : 500),
+              pe -> httpServerResponse.setStatusCode(pe.getCode()),
               () -> httpServerResponse.setStatusCode(500));
     }
     LOG.warn("Error from publisher", e);

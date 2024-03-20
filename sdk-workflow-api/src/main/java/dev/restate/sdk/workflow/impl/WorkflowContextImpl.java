@@ -127,8 +127,7 @@ class WorkflowContextImpl implements WorkflowContext {
             return Optional.of(key.serde().deserialize(maybeDurablePromiseCompletion.getValue()));
           case FAILURE:
             throw new TerminalException(
-                TerminalException.Code.fromValue(
-                    maybeDurablePromiseCompletion.getFailure().getCode()),
+                maybeDurablePromiseCompletion.getFailure().getCode(),
                 maybeDurablePromiseCompletion.getFailure().getMessage());
           case NOT_COMPLETED:
             return Optional.empty();

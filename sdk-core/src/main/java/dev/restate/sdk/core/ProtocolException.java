@@ -16,29 +16,30 @@ import java.io.StringWriter;
 
 public class ProtocolException extends RuntimeException {
 
-  static final int JOURNAL_MISMATCH_CODE = 32;
-  static final int PROTOCOL_VIOLATION = 33;
+  static final int NOT_FOUND_CODE = 404;
+  static final int JOURNAL_MISMATCH_CODE = 570;
+  static final int PROTOCOL_VIOLATION_CODE = 571;
 
   @SuppressWarnings("StaticAssignmentOfThrowable")
   static final ProtocolException CLOSED = new ProtocolException("Invocation closed");
 
-  private final int failureCode;
+  private final int code;
 
   private ProtocolException(String message) {
-    this(message, TerminalException.Code.INTERNAL.value());
+    this(message, TerminalException.INTERNAL_SERVER_ERROR_CODE);
   }
 
-  private ProtocolException(String message, int failureCode) {
-    this(message, null, failureCode);
+  private ProtocolException(String message, int code) {
+    this(message, null, code);
   }
 
-  public ProtocolException(String message, Throwable cause, int failureCode) {
+  public ProtocolException(String message, Throwable cause, int code) {
     super(message, cause);
-    this.failureCode = failureCode;
+    this.code = code;
   }
 
-  public int getFailureCode() {
-    return failureCode;
+  public int getCode() {
+    return code;
   }
 
   public Protocol.ErrorMessage toErrorMessage() {
@@ -49,7 +50,7 @@ public class ProtocolException extends RuntimeException {
     this.printStackTrace(pw);
 
     return Protocol.ErrorMessage.newBuilder()
-        .setCode(failureCode)
+        .setCode(code)
         .setMessage(this.toString())
         .setDescription(sw.toString())
         .build();
@@ -63,7 +64,7 @@ public class ProtocolException extends RuntimeException {
             + "', Actual: '"
             + actual.getClass().getCanonicalName()
             + "'",
-        PROTOCOL_VIOLATION);
+        PROTOCOL_VIOLATION_CODE);
   }
 
   static ProtocolException entryDoesNotMatch(MessageLite expected, MessageLite actual) {
@@ -81,19 +82,18 @@ public class ProtocolException extends RuntimeException {
 
   static ProtocolException unknownMessageType(short type) {
     return new ProtocolException(
-        "MessageType " + Integer.toHexString(type) + " unknown", PROTOCOL_VIOLATION);
+        "MessageType " + Integer.toHexString(type) + " unknown", PROTOCOL_VIOLATION_CODE);
   }
 
   static ProtocolException methodNotFound(String componentName, String handlerName) {
     return new ProtocolException(
-        "Cannot find handler '" + componentName + "/" + handlerName + "'",
-        TerminalException.Code.NOT_FOUND.value());
+        "Cannot find handler '" + componentName + "/" + handlerName + "'", NOT_FOUND_CODE);
   }
 
   static ProtocolException invalidSideEffectCall() {
     return new ProtocolException(
         "A syscall was invoked from within a side effect closure.",
         null,
-        TerminalException.Code.UNKNOWN.value());
+        TerminalException.INTERNAL_SERVER_ERROR_CODE);
   }
 }

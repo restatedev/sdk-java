@@ -37,18 +37,12 @@ class UserFailuresTest : UserFailuresTestSuite() {
         throw IllegalStateException("Not expected to reach this point")
       }
 
-  override fun throwTerminalException(
-      code: TerminalException.Code,
-      message: String
-  ): TestInvocationBuilder =
+  override fun throwTerminalException(code: Int, message: String): TestInvocationBuilder =
       testDefinitionForService<Unit, Unit>("ThrowTerminalException") { _, _: Unit ->
         throw TerminalException(code, message)
       }
 
-  override fun sideEffectThrowTerminalException(
-      code: TerminalException.Code,
-      message: String
-  ): TestInvocationBuilder =
+  override fun sideEffectThrowTerminalException(code: Int, message: String): TestInvocationBuilder =
       testDefinitionForService<Unit, Unit>("SideEffectThrowTerminalException") { ctx, _: Unit ->
         ctx.sideEffect { throw TerminalException(code, message) }
         throw IllegalStateException("Not expected to reach this point")

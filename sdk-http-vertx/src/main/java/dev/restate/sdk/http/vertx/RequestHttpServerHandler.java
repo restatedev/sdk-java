@@ -14,7 +14,6 @@ import static io.netty.handler.codec.http.HttpResponseStatus.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.ResolvedEndpointHandler;
 import dev.restate.sdk.core.RestateEndpoint;
@@ -135,13 +134,7 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
               currentContextExecutor(vertxCurrentContext));
     } catch (ProtocolException e) {
       LOG.warn("Error when resolving the handler", e);
-      request
-          .response()
-          .setStatusCode(
-              e.getFailureCode() == TerminalException.Code.NOT_FOUND.value()
-                  ? NOT_FOUND.code()
-                  : INTERNAL_SERVER_ERROR.code())
-          .end();
+      request.response().setStatusCode(e.getCode()).end();
       return;
     }
 
