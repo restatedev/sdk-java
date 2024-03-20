@@ -6,6 +6,7 @@ import dev.restate.sdk.common.StateKey
 import dev.restate.sdk.common.Serde
 import dev.restate.sdk.common.Target
 import kotlin.time.Duration
+import kotlinx.coroutines.future.await
 
 object {{generatedClassSimpleName}} {
 
@@ -73,12 +74,12 @@ object {{generatedClassSimpleName}} {
 
         {{#handlers}}
         suspend fun {{name}}({{^inputEmpty}}req: {{{inputFqcn}}}, {{/inputEmpty}}requestOptions: dev.restate.sdk.client.RequestOptions = dev.restate.sdk.client.RequestOptions.DEFAULT): {{{boxedOutputFqcn}}} {
-            return this.ingressClient.call(
+            return this.ingressClient.callAsync(
                 {{#if isObject}}Target.virtualObject(COMPONENT_NAME, this.key, "{{name}}"){{else}}Target.service(COMPONENT_NAME, "{{name}}"){{/if}},
                 {{inputSerdeFieldName}},
                 {{outputSerdeFieldName}},
                 {{#if inputEmpty}}null{{else}}req{{/if}},
-                requestOptions);
+                requestOptions).await();
         }{{/handlers}}
 
         fun send(): Send {
@@ -88,11 +89,11 @@ object {{generatedClassSimpleName}} {
         inner class Send {
             {{#handlers}}
             suspend fun {{name}}({{^inputEmpty}}req: {{{inputFqcn}}}, {{/inputEmpty}}requestOptions: dev.restate.sdk.client.RequestOptions = dev.restate.sdk.client.RequestOptions.DEFAULT): String {
-                return this@IngressClient.ingressClient.send(
+                return this@IngressClient.ingressClient.sendAsync(
                     {{#if isObject}}Target.virtualObject(COMPONENT_NAME, this@IngressClient.key, "{{name}}"){{else}}Target.service(COMPONENT_NAME, "{{name}}"){{/if}},
                     {{inputSerdeFieldName}},
                     {{#if inputEmpty}}null{{else}}req{{/if}},
-                    requestOptions);
+                    requestOptions).await();
             }{{/handlers}}
         }
     }

@@ -21,6 +21,7 @@ dependencies {
   testImplementation(testingLibs.assertj)
   testImplementation(coreLibs.protobuf.java)
   testImplementation(coreLibs.log4j.core)
+  testImplementation(kotlinLibs.kotlinx.coroutines)
 
   // Import test suites from sdk-core
   testImplementation(project(":sdk-core", "testArchive"))
