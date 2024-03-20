@@ -97,11 +97,18 @@ public class {{generatedClassSimpleName}} {
 
         {{#handlers}}
         public {{#if outputEmpty}}void{{else}}{{{outputFqcn}}}{{/if}} {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
+            {{^outputEmpty}}return {{/outputEmpty}}this.{{name}}(
+                {{^inputEmpty}}req, {{/inputEmpty}}
+                dev.restate.sdk.client.RequestOptions.DEFAULT);
+        }
+
+        public {{#if outputEmpty}}void{{else}}{{{outputFqcn}}}{{/if}} {{name}}({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.sdk.client.RequestOptions requestOptions) {
             {{^outputEmpty}}return {{/outputEmpty}}this.ingressClient.call(
                 {{#if isObject}}Target.virtualObject(COMPONENT_NAME, this.key, "{{name}}"){{else}}Target.service(COMPONENT_NAME, "{{name}}"){{/if}},
                 {{inputSerdeFieldName}},
                 {{outputSerdeFieldName}},
-                {{#if inputEmpty}}null{{else}}req{{/if}});
+                {{#if inputEmpty}}null{{else}}req{{/if}},
+                requestOptions);
         }{{/handlers}}
 
         public Send send() {
@@ -111,10 +118,17 @@ public class {{generatedClassSimpleName}} {
         public class Send {
             {{#handlers}}
             public String {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
+                return this.{{name}}(
+                    {{^inputEmpty}}req, {{/inputEmpty}}
+                    dev.restate.sdk.client.RequestOptions.DEFAULT);
+            }
+
+            public String {{name}}({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.sdk.client.RequestOptions requestOptions) {
                 return IngressClient.this.ingressClient.send(
                     {{#if isObject}}Target.virtualObject(COMPONENT_NAME, IngressClient.this.key, "{{name}}"){{else}}Target.service(COMPONENT_NAME, "{{name}}"){{/if}},
                     {{inputSerdeFieldName}},
-                    {{#if inputEmpty}}null{{else}}req{{/if}});
+                    {{#if inputEmpty}}null{{else}}req{{/if}},
+                    requestOptions);
             }{{/handlers}}
         }
     }
