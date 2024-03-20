@@ -13,18 +13,57 @@ import dev.restate.sdk.common.Target;
 import java.net.http.HttpClient;
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 public interface IngressClient {
-  <Req, Res> Res call(
+
+  <Req, Res> CompletableFuture<Res> callAsync(
       Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req, RequestOptions options);
 
-  default <Req, Res> Res call(Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req) {
+  default <Req, Res> CompletableFuture<Res> callAsync(
+      Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req) {
+    return callAsync(target, reqSerde, resSerde, req, RequestOptions.DEFAULT);
+  }
+
+  default <Req, Res> Res call(
+      Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req, RequestOptions options)
+      throws IngressException {
+    try {
+      return callAsync(target, reqSerde, resSerde, req, options).join();
+    } catch (CompletionException e) {
+      if (e.getCause() instanceof RuntimeException) {
+        throw (RuntimeException) e.getCause();
+      }
+      throw new RuntimeException(e.getCause());
+    }
+  }
+
+  default <Req, Res> Res call(Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req)
+      throws IngressException {
     return call(target, reqSerde, resSerde, req, RequestOptions.DEFAULT);
   }
 
-  <Req> String send(Target target, Serde<Req> reqSerde, Req req, RequestOptions options);
+  <Req> CompletableFuture<String> sendAsync(
+      Target target, Serde<Req> reqSerde, Req req, RequestOptions options);
 
-  default <Req> String send(Target target, Serde<Req> reqSerde, Req req) {
+  default <Req> CompletableFuture<String> sendAsync(Target target, Serde<Req> reqSerde, Req req) {
+    return sendAsync(target, reqSerde, req, RequestOptions.DEFAULT);
+  }
+
+  default <Req> String send(Target target, Serde<Req> reqSerde, Req req, RequestOptions options)
+      throws IngressException {
+    try {
+      return sendAsync(target, reqSerde, req, options).join();
+    } catch (CompletionException e) {
+      if (e.getCause() instanceof RuntimeException) {
+        throw (RuntimeException) e.getCause();
+      }
+      throw new RuntimeException(e.getCause());
+    }
+  }
+
+  default <Req> String send(Target target, Serde<Req> reqSerde, Req req) throws IngressException {
     return send(target, reqSerde, req, RequestOptions.DEFAULT);
   }
 

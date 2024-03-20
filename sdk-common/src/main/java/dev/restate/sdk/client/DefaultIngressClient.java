@@ -13,14 +13,15 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.Target;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 public class DefaultIngressClient implements IngressClient {
 
@@ -37,53 +38,58 @@ public class DefaultIngressClient implements IngressClient {
   }
 
   @Override
-  public <Req, Res> Res call(
+  public <Req, Res> CompletableFuture<Res> callAsync(
       Target target,
       Serde<Req> reqSerde,
       Serde<Res> resSerde,
       Req req,
       RequestOptions requestOptions) {
     HttpRequest request = prepareHttpRequest(target, false, reqSerde, req, requestOptions);
-    HttpResponse<byte[]> response;
-    try {
-      response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
-    } catch (IOException | InterruptedException e) {
-      throw new RuntimeException("Error when executing the request", e);
-    }
+    return httpClient
+        .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
+        .handle(
+            (response, throwable) -> {
+              if (throwable != null) {
+                throw new IngressException("Error when executing the request", throwable);
+              }
 
-    if (response.statusCode() != 200) {
-      // Try to parse as string
-      String error = new String(response.body(), StandardCharsets.UTF_8);
-      throw new RuntimeException(
-          "Received non OK status code: " + response.statusCode() + ". Body: " + error);
-    }
+              if (response.statusCode() >= 300) {
+                handleNonSuccessResponse(response);
+              }
 
-    return resSerde.deserialize(response.body());
+              try {
+                return resSerde.deserialize(response.body());
+              } catch (Exception e) {
+                throw new IngressException(
+                    "Cannot deserialize the response", response.statusCode(), response.body(), e);
+              }
+            });
   }
 
   @Override
-  public <Req> String send(Target target, Serde<Req> reqSerde, Req req, RequestOptions options) {
+  public <Req> CompletableFuture<String> sendAsync(
+      Target target, Serde<Req> reqSerde, Req req, RequestOptions options) {
     HttpRequest request = prepareHttpRequest(target, true, reqSerde, req, options);
-    HttpResponse<InputStream> response;
-    try {
-      response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
-    } catch (IOException | InterruptedException e) {
-      throw new RuntimeException("Error when executing the request", e);
-    }
+    return httpClient
+        .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
+        .handle(
+            (response, throwable) -> {
+              if (throwable != null) {
+                throw new IngressException("Error when executing the request", throwable);
+              }
 
-    try (InputStream in = response.body()) {
-      if (response.statusCode() >= 300) {
-        // Try to parse as string
-        String error = new String(in.readAllBytes(), StandardCharsets.UTF_8);
-        throw new RuntimeException(
-            "Received non OK status code: " + response.statusCode() + ". Body: " + error);
-      }
-      return deserializeInvocationId(in);
-    } catch (IOException e) {
-      throw new RuntimeException(
-          "Error when trying to read the response, when status code was " + response.statusCode(),
-          e);
-    }
+              if (response.statusCode() >= 300) {
+                handleNonSuccessResponse(response);
+              }
+
+              try {
+                return findStringFieldInJsonObject(
+                    new ByteArrayInputStream(response.body()), "invocationId");
+              } catch (Exception e) {
+                throw new IngressException(
+                    "Cannot deserialize the response", response.statusCode(), response.body(), e);
+              }
+            });
   }
 
   private URI toRequestURI(Target target, boolean isSend) {
@@ -128,23 +134,43 @@ public class DefaultIngressClient implements IngressClient {
     return reqBuilder.POST(HttpRequest.BodyPublishers.ofByteArray(reqSerde.serialize(req))).build();
   }
 
-  private static String deserializeInvocationId(InputStream body) throws IOException {
+  private void handleNonSuccessResponse(HttpResponse<byte[]> response) {
+    if (response.headers().firstValue("content-type").orElse("").contains("application/json")) {
+      String errorMessage;
+      // Let's try to parse the message field
+      try {
+        errorMessage =
+            findStringFieldInJsonObject(new ByteArrayInputStream(response.body()), "message");
+      } catch (Exception e) {
+        throw new IngressException(
+            "Can't decode error response from ingress", response.statusCode(), response.body(), e);
+      }
+      throw new IngressException(errorMessage, response.statusCode(), response.body());
+    }
+
+    // Fallback error
+    throw new IngressException(
+        "Received non success status code", response.statusCode(), response.body());
+  }
+
+  private static String findStringFieldInJsonObject(InputStream body, String fieldName)
+      throws IOException {
     try (JsonParser parser = JSON_FACTORY.createParser(body)) {
       if (parser.nextToken() != JsonToken.START_OBJECT) {
         throw new IllegalStateException(
             "Expecting token " + JsonToken.START_OBJECT + ", got " + parser.getCurrentToken());
       }
-      String fieldName = parser.nextFieldName();
-      if (fieldName == null || !fieldName.equalsIgnoreCase("invocationid")) {
-        throw new IllegalStateException(
-            "Expecting token \"invocationId\", got " + parser.getCurrentToken());
+      for (String actualFieldName = parser.nextFieldName();
+          actualFieldName != null;
+          actualFieldName = parser.nextFieldName()) {
+        if (actualFieldName.equalsIgnoreCase(fieldName)) {
+          return parser.nextTextValue();
+        } else {
+          parser.nextValue();
+        }
       }
-      String invocationId = parser.nextTextValue();
-      if (invocationId == null) {
-        throw new IllegalStateException(
-            "Expecting token " + JsonToken.VALUE_STRING + ", got " + parser.getCurrentToken());
-      }
-      return invocationId;
+      throw new IllegalStateException(
+          "Expecting field name \"" + fieldName + "\", got " + parser.getCurrentToken());
     }
   }
 }
