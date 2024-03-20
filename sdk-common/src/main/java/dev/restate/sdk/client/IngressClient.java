@@ -11,13 +11,28 @@ package dev.restate.sdk.client;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.Target;
 import java.net.http.HttpClient;
+import java.util.Collections;
+import java.util.Map;
 
 public interface IngressClient {
-  <Req, Res> Res call(Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req);
+  <Req, Res> Res call(
+      Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req, RequestOptions options);
 
-  <Req> String send(Target target, Serde<Req> reqSerde, Req req);
+  default <Req, Res> Res call(Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req) {
+    return call(target, reqSerde, resSerde, req, RequestOptions.DEFAULT);
+  }
+
+  <Req> String send(Target target, Serde<Req> reqSerde, Req req, RequestOptions options);
+
+  default <Req> String send(Target target, Serde<Req> reqSerde, Req req) {
+    return send(target, reqSerde, req, RequestOptions.DEFAULT);
+  }
 
   static IngressClient defaultClient(String baseUri) {
-    return new DefaultIngressClient(HttpClient.newHttpClient(), baseUri);
+    return defaultClient(baseUri, Collections.emptyMap());
+  }
+
+  static IngressClient defaultClient(String baseUri, Map<String, String> headers) {
+    return new DefaultIngressClient(HttpClient.newHttpClient(), baseUri, headers);
   }
 }

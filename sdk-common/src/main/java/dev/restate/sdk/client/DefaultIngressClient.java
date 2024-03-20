@@ -20,6 +20,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 public class DefaultIngressClient implements IngressClient {
 
@@ -27,15 +28,22 @@ public class DefaultIngressClient implements IngressClient {
 
   private final HttpClient httpClient;
   private final URI baseUri;
+  private final Map<String, String> headers;
 
-  public DefaultIngressClient(HttpClient httpClient, String baseUri) {
+  public DefaultIngressClient(HttpClient httpClient, String baseUri, Map<String, String> headers) {
     this.httpClient = httpClient;
     this.baseUri = URI.create(baseUri);
+    this.headers = headers;
   }
 
   @Override
-  public <Req, Res> Res call(Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req) {
-    HttpRequest request = prepareHttpRequest(target, false, reqSerde, req);
+  public <Req, Res> Res call(
+      Target target,
+      Serde<Req> reqSerde,
+      Serde<Res> resSerde,
+      Req req,
+      RequestOptions requestOptions) {
+    HttpRequest request = prepareHttpRequest(target, false, reqSerde, req, requestOptions);
     HttpResponse<byte[]> response;
     try {
       response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
@@ -54,8 +62,8 @@ public class DefaultIngressClient implements IngressClient {
   }
 
   @Override
-  public <Req> String send(Target target, Serde<Req> reqSerde, Req req) {
-    HttpRequest request = prepareHttpRequest(target, true, reqSerde, req);
+  public <Req> String send(Target target, Serde<Req> reqSerde, Req req, RequestOptions options) {
+    HttpRequest request = prepareHttpRequest(target, true, reqSerde, req, options);
     HttpResponse<InputStream> response;
     try {
       response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
@@ -93,11 +101,30 @@ public class DefaultIngressClient implements IngressClient {
   }
 
   private <Req> HttpRequest prepareHttpRequest(
-      Target target, boolean isSend, Serde<Req> reqSerde, Req req) {
+      Target target, boolean isSend, Serde<Req> reqSerde, Req req, RequestOptions options) {
     var reqBuilder = HttpRequest.newBuilder().uri(toRequestURI(target, isSend));
+
+    // Add content-type
     if (reqSerde.contentType() != null) {
       reqBuilder.header("content-type", reqSerde.contentType());
     }
+
+    // Add headers
+    this.headers.forEach(reqBuilder::header);
+
+    // Add idempotency key and period
+    if (options.getIdempotencyKey() != null) {
+      reqBuilder.header("idempotency-key", options.getIdempotencyKey());
+    }
+    if (options.getIdempotencyRetainPeriod() != null) {
+      reqBuilder.header(
+          "idempotency-retention-period",
+          String.valueOf(options.getIdempotencyRetainPeriod().toSeconds()));
+    }
+
+    // Add additional headers
+    options.getAdditionalHeaders().forEach(reqBuilder::header);
+
     return reqBuilder.POST(HttpRequest.BodyPublishers.ofByteArray(reqSerde.serialize(req))).build();
   }
 

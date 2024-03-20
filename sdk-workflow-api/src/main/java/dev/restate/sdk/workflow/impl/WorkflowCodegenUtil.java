@@ -13,6 +13,7 @@ import static dev.restate.sdk.workflow.impl.WorkflowImpl.workflowManagerObjectNa
 import dev.restate.sdk.Awaitable;
 import dev.restate.sdk.Context;
 import dev.restate.sdk.client.IngressClient;
+import dev.restate.sdk.client.RequestOptions;
 import dev.restate.sdk.common.*;
 import dev.restate.sdk.workflow.WorkflowExecutionState;
 import dev.restate.sdk.workflow.generated.GetOutputResponse;
@@ -151,7 +152,8 @@ public final class WorkflowCodegenUtil {
           Target.service(workflowName, "submit"),
           WorkflowImpl.INVOKE_REQUEST_SERDE,
           WorkflowImpl.WORKFLOW_EXECUTION_STATE_SERDE,
-          InvokeRequest.fromAny(workflowKey, payload));
+          InvokeRequest.fromAny(workflowKey, payload),
+          RequestOptions.DEFAULT);
     }
 
     public static <T> Optional<T> getOutput(
@@ -162,7 +164,8 @@ public final class WorkflowCodegenUtil {
                   workflowManagerObjectName(workflowName), workflowKey, "getOutput"),
               CoreSerdes.VOID,
               WorkflowImpl.GET_OUTPUT_RESPONSE_SERDE,
-              null);
+              null,
+              RequestOptions.DEFAULT);
       if (response.hasNotCompleted()) {
         return Optional.empty();
       }
@@ -181,7 +184,8 @@ public final class WorkflowCodegenUtil {
                   workflowManagerObjectName(workflowName), workflowKey, "getOutput"),
               CoreSerdes.VOID,
               WorkflowImpl.GET_OUTPUT_RESPONSE_SERDE,
-              null);
+              null,
+              RequestOptions.DEFAULT);
       if (response.hasFailure()) {
         throw new TerminalException(
             response.getFailure().getCode(), response.getFailure().getMessage());
@@ -200,7 +204,8 @@ public final class WorkflowCodegenUtil {
           Target.service(workflowName, handlerName),
           WorkflowImpl.INVOKE_REQUEST_SERDE,
           resSerde,
-          InvokeRequest.fromAny(workflowKey, payload));
+          InvokeRequest.fromAny(workflowKey, payload),
+          RequestOptions.DEFAULT);
     }
 
     public static void invokeSharedSend(
@@ -212,7 +217,8 @@ public final class WorkflowCodegenUtil {
       ingressClient.send(
           Target.service(workflowName, handlerName),
           WorkflowImpl.INVOKE_REQUEST_SERDE,
-          InvokeRequest.fromAny(workflowKey, payload));
+          InvokeRequest.fromAny(workflowKey, payload),
+          RequestOptions.DEFAULT);
     }
 
     public static <T> Optional<T> getState(
@@ -223,7 +229,8 @@ public final class WorkflowCodegenUtil {
                   workflowManagerObjectName(workflowName), workflowKey, "getState"),
               CoreSerdes.JSON_STRING,
               WorkflowImpl.GET_STATE_RESPONSE_SERDE,
-              key.name());
+              key.name(),
+              RequestOptions.DEFAULT);
       if (response.hasEmpty()) {
         return Optional.empty();
       }
