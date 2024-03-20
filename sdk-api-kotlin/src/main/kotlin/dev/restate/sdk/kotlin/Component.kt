@@ -136,7 +136,7 @@ private constructor(
           } catch (e: Throwable) {
             LOG.warn("Error when deserializing input", e)
             throw TerminalException(
-                TerminalException.Code.INVALID_ARGUMENT, "Cannot deserialize input: " + e.message)
+                TerminalException.BAD_REQUEST_CODE, "Cannot deserialize input: " + e.message)
           }
 
           // Execute user code
@@ -150,7 +150,7 @@ private constructor(
           } catch (e: Throwable) {
             LOG.warn("Error when serializing input", e)
             throw TerminalException(
-                TerminalException.Code.INVALID_ARGUMENT, "Cannot serialize output: $e")
+                TerminalException.BAD_REQUEST_CODE, "Cannot serialize output: $e")
           }
         } catch (e: Throwable) {
           callback.onCancel(e)

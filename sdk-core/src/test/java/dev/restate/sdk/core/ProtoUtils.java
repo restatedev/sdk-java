@@ -18,7 +18,6 @@ import dev.restate.generated.service.protocol.Protocol.StartMessage.StateEntry;
 import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.Target;
-import dev.restate.sdk.common.TerminalException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -140,8 +139,7 @@ public class ProtoUtils {
     return Protocol.OutputEntryMessage.newBuilder().setValue(ByteString.EMPTY).build();
   }
 
-  public static Protocol.OutputEntryMessage outputMessage(
-      TerminalException.Code code, String message) {
+  public static Protocol.OutputEntryMessage outputMessage(int code, String message) {
     return Protocol.OutputEntryMessage.newBuilder()
         .setFailure(Util.toProtocolFailure(code, message))
         .build();

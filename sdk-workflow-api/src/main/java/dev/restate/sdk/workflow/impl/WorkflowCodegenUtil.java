@@ -55,8 +55,7 @@ public final class WorkflowCodegenUtil {
                 }
                 if (response.hasFailure()) {
                   throw new TerminalException(
-                      TerminalException.Code.fromValue(response.getFailure().getCode()),
-                      response.getFailure().getMessage());
+                      response.getFailure().getCode(), response.getFailure().getMessage());
                 }
                 return Optional.ofNullable(serde.deserialize(response.getValue()));
               });
@@ -74,8 +73,7 @@ public final class WorkflowCodegenUtil {
               response -> {
                 if (response.hasFailure()) {
                   throw new TerminalException(
-                      TerminalException.Code.fromValue(response.getFailure().getCode()),
-                      response.getFailure().getMessage());
+                      response.getFailure().getCode(), response.getFailure().getMessage());
                 }
                 return !response.hasNotCompleted();
               });
@@ -170,8 +168,7 @@ public final class WorkflowCodegenUtil {
       }
       if (response.hasFailure()) {
         throw new TerminalException(
-            TerminalException.Code.fromValue(response.getFailure().getCode()),
-            response.getFailure().getMessage());
+            response.getFailure().getCode(), response.getFailure().getMessage());
       }
       return Optional.ofNullable(serde.deserialize(response.getValue()));
     }
@@ -187,8 +184,7 @@ public final class WorkflowCodegenUtil {
               null);
       if (response.hasFailure()) {
         throw new TerminalException(
-            TerminalException.Code.fromValue(response.getFailure().getCode()),
-            response.getFailure().getMessage());
+            response.getFailure().getCode(), response.getFailure().getMessage());
       }
       return !response.hasNotCompleted();
     }

@@ -310,7 +310,7 @@ public final class SyscallsImpl implements SyscallsInternal {
               Protocol.CompleteAwakeableEntryMessage.newBuilder()
                   .setFailure(
                       Protocol.Failure.newBuilder()
-                          .setCode(TerminalException.Code.UNKNOWN.value())
+                          .setCode(TerminalException.INTERNAL_SERVER_ERROR_CODE)
                           .setMessage(reason)),
               callback);
         },

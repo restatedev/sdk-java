@@ -202,7 +202,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
           new ProtocolException(
               "Expected at least one entry with Input, got " + this.entriesToReplay + " entries",
               null,
-              TerminalException.Code.INTERNAL.value()));
+              TerminalException.INTERNAL_SERVER_ERROR_CODE));
       return;
     }
 
@@ -254,7 +254,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     } else {
       msg =
           Protocol.ErrorMessage.newBuilder()
-              .setCode(TerminalException.Code.UNKNOWN.value())
+              .setCode(TerminalException.INTERNAL_SERVER_ERROR_CODE)
               .setMessage(cause.toString())
               .build();
     }

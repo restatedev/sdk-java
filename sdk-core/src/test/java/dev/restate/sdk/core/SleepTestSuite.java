@@ -92,26 +92,21 @@ public abstract class SleepTestSuite implements TestDefinitions.TestSuite {
                 inputMessage("Till"),
                 Protocol.SleepEntryMessage.newBuilder()
                     .setWakeUpTime(Instant.now().toEpochMilli())
-                    .setFailure(
-                        Util.toProtocolFailure(TerminalException.Code.CANCELLED, "canceled"))
+                    .setFailure(Util.toProtocolFailure(409, "canceled"))
                     .build())
-            .expectingOutput(
-                outputMessage(TerminalException.Code.CANCELLED, "canceled"), END_MESSAGE)
+            .expectingOutput(outputMessage(409, "canceled"), END_MESSAGE)
             .named("Failed sleep"),
         this.sleepGreeter()
             .withInput(
                 startMessage(1),
                 inputMessage("Till"),
-                completionMessage(
-                    1, new TerminalException(TerminalException.Code.CANCELLED, "canceled")))
+                completionMessage(1, new TerminalException(409, "canceled")))
             .assertingOutput(
                 messageLites -> {
                   assertThat(messageLites)
                       .element(0)
                       .isInstanceOf(Protocol.SleepEntryMessage.class);
-                  assertThat(messageLites)
-                      .element(1)
-                      .isEqualTo(outputMessage(TerminalException.Code.CANCELLED, "canceled"));
+                  assertThat(messageLites).element(1).isEqualTo(outputMessage(409, "canceled"));
                   assertThat(messageLites).element(2).isEqualTo(END_MESSAGE);
                 })
             .named("Failing sleep"));

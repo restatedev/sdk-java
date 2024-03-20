@@ -39,7 +39,8 @@ public class AssertUtils {
         msg ->
             assertThat(msg)
                 .returns(e.toString(), Protocol.ErrorMessage::getMessage)
-                .returns(TerminalException.Code.UNKNOWN.value(), Protocol.ErrorMessage::getCode));
+                .returns(
+                    TerminalException.INTERNAL_SERVER_ERROR_CODE, Protocol.ErrorMessage::getCode));
   }
 
   public static Consumer<? super MessageLite> errorMessageStartingWith(String str) {

@@ -67,15 +67,14 @@ public abstract class StateTestSuite implements TestDefinitions.TestSuite {
             .withInput(
                 startMessage(2),
                 inputMessage("Till"),
-                getStateMessage("STATE", new TerminalException(TerminalException.Code.CANCELLED)))
-            .expectingOutput(
-                outputMessage(new TerminalException(TerminalException.Code.CANCELLED)), END_MESSAGE)
+                getStateMessage("STATE", new TerminalException(409)))
+            .expectingOutput(outputMessage(new TerminalException(409)), END_MESSAGE)
             .named("Failed GetStateEntry"),
         this.getState()
             .withInput(
                 startMessage(1),
                 inputMessage("Till"),
-                completionMessage(1, new TerminalException(TerminalException.Code.CANCELLED)))
+                completionMessage(1, new TerminalException(409)))
             .assertingOutput(
                 messageLites -> {
                   assertThat(messageLites)
@@ -83,8 +82,7 @@ public abstract class StateTestSuite implements TestDefinitions.TestSuite {
                       .isInstanceOf(Protocol.GetStateEntryMessage.class);
                   assertThat(messageLites)
                       .element(1)
-                      .isEqualTo(
-                          outputMessage(new TerminalException(TerminalException.Code.CANCELLED)));
+                      .isEqualTo(outputMessage(new TerminalException(409)));
                   assertThat(messageLites).element(2).isEqualTo(END_MESSAGE);
                 })
             .named("Failing GetStateEntry"),

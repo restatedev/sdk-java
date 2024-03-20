@@ -30,11 +30,10 @@ public abstract class UserFailuresTestSuite implements TestSuite {
   protected abstract TestInvocationBuilder sideEffectThrowIllegalStateException(
       AtomicInteger nonTerminalExceptionsSeen);
 
-  protected abstract TestInvocationBuilder throwTerminalException(
-      TerminalException.Code code, String message);
+  protected abstract TestInvocationBuilder throwTerminalException(int code, String message);
 
   protected abstract TestInvocationBuilder sideEffectThrowTerminalException(
-      TerminalException.Code code, String message);
+      int code, String message);
 
   @Override
   public Stream<TestDefinition> definitions() {
@@ -57,28 +56,32 @@ public abstract class UserFailuresTestSuite implements TestSuite {
                 }),
 
         // Cases completing the invocation with OutputStreamEntry.failure
-        this.throwTerminalException(TerminalException.Code.INTERNAL, MY_ERROR)
+        this.throwTerminalException(TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR)
             .withInput(startMessage(1), inputMessage())
-            .expectingOutput(outputMessage(TerminalException.Code.INTERNAL, MY_ERROR), END_MESSAGE)
+            .expectingOutput(
+                outputMessage(TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR), END_MESSAGE)
             .named("With internal error"),
-        this.throwTerminalException(TerminalException.Code.UNKNOWN, WHATEVER)
+        this.throwTerminalException(501, WHATEVER)
             .withInput(startMessage(1), inputMessage())
-            .expectingOutput(outputMessage(TerminalException.Code.UNKNOWN, WHATEVER), END_MESSAGE)
+            .expectingOutput(outputMessage(501, WHATEVER), END_MESSAGE)
             .named("With unknown error"),
-        this.sideEffectThrowTerminalException(TerminalException.Code.INTERNAL, MY_ERROR)
+        this.sideEffectThrowTerminalException(
+                TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR)
             .withInput(startMessage(1), inputMessage(), ackMessage(1))
             .expectingOutput(
                 Java.SideEffectEntryMessage.newBuilder()
-                    .setFailure(Util.toProtocolFailure(TerminalException.Code.INTERNAL, MY_ERROR)),
-                outputMessage(TerminalException.Code.INTERNAL, MY_ERROR),
+                    .setFailure(
+                        Util.toProtocolFailure(
+                            TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR)),
+                outputMessage(TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR),
                 END_MESSAGE)
             .named("With internal error"),
-        this.sideEffectThrowTerminalException(TerminalException.Code.UNKNOWN, WHATEVER)
+        this.sideEffectThrowTerminalException(501, WHATEVER)
             .withInput(startMessage(1), inputMessage(), ackMessage(1))
             .expectingOutput(
                 Java.SideEffectEntryMessage.newBuilder()
-                    .setFailure(Util.toProtocolFailure(TerminalException.Code.UNKNOWN, WHATEVER)),
-                outputMessage(TerminalException.Code.UNKNOWN, WHATEVER),
+                    .setFailure(Util.toProtocolFailure(501, WHATEVER)),
+                outputMessage(501, WHATEVER),
                 END_MESSAGE)
             .named("With unknown error"));
   }

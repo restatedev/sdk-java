@@ -125,9 +125,7 @@ public class WorkflowImpl implements BindableComponent<Component.Options> {
               .setOutput(
                   MethodOutput.newBuilder()
                       .setFailure(
-                          Failure.newBuilder()
-                              .setCode(e.getCode().value())
-                              .setMessage(e.getMessage())))
+                          Failure.newBuilder().setCode(e.getCode()).setMessage(e.getMessage())))
               .build());
       throw e;
     }
@@ -148,8 +146,7 @@ public class WorkflowImpl implements BindableComponent<Component.Options> {
     Component.Handler<Object, Object> method =
         (Component.Handler<Object, Object>) sharedHandlers.get(handlerName);
     if (method == null) {
-      throw new TerminalException(
-          TerminalException.Code.NOT_FOUND, "Method " + handlerName + " not found");
+      throw new TerminalException(404, "Method " + handlerName + " not found");
     }
 
     // Convert input
