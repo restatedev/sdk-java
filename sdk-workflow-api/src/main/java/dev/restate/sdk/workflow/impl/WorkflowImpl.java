@@ -17,6 +17,7 @@ import dev.restate.sdk.ObjectContext;
 import dev.restate.sdk.common.*;
 import dev.restate.sdk.common.syscalls.ComponentDefinition;
 import dev.restate.sdk.serde.jackson.JacksonSerdes;
+import dev.restate.sdk.serde.protobuf.ProtobufSerdes;
 import dev.restate.sdk.workflow.WorkflowContext;
 import dev.restate.sdk.workflow.WorkflowExecutionState;
 import dev.restate.sdk.workflow.generated.*;
@@ -32,27 +33,27 @@ public class WorkflowImpl implements BindableComponent<Component.Options> {
   static final Serde<WorkflowExecutionState> WORKFLOW_EXECUTION_STATE_SERDE =
       JacksonSerdes.of(WorkflowExecutionState.class);
   static final Serde<GetStateResponse> GET_STATE_RESPONSE_SERDE =
-      CoreSerdes.ofProtobuf(GetStateResponse.parser());
+      ProtobufSerdes.of(GetStateResponse.parser());
   static final Serde<SetStateRequest> SET_STATE_REQUEST_SERDE =
-      CoreSerdes.ofProtobuf(SetStateRequest.parser());
+      ProtobufSerdes.of(SetStateRequest.parser());
   static final Serde<WaitDurablePromiseCompletionRequest>
       WAIT_DURABLE_PROMISE_COMPLETION_REQUEST_SERDE =
-          CoreSerdes.ofProtobuf(WaitDurablePromiseCompletionRequest.parser());
+          ProtobufSerdes.of(WaitDurablePromiseCompletionRequest.parser());
   static final Serde<MaybeDurablePromiseCompletion> MAYBE_DURABLE_PROMISE_COMPLETION_SERDE =
-      CoreSerdes.ofProtobuf(MaybeDurablePromiseCompletion.parser());
+      ProtobufSerdes.of(MaybeDurablePromiseCompletion.parser());
   static final Serde<CompleteDurablePromiseRequest> COMPLETE_DURABLE_PROMISE_REQUEST_SERDE =
-      CoreSerdes.ofProtobuf(CompleteDurablePromiseRequest.parser());
+      ProtobufSerdes.of(CompleteDurablePromiseRequest.parser());
   static final Serde<GetOutputResponse> GET_OUTPUT_RESPONSE_SERDE =
-      CoreSerdes.ofProtobuf(GetOutputResponse.parser());
+      ProtobufSerdes.of(GetOutputResponse.parser());
   private static final Serde<SetOutputRequest> SET_OUTPUT_REQUEST_SERDE =
-      CoreSerdes.ofProtobuf(SetOutputRequest.parser());
+      ProtobufSerdes.of(SetOutputRequest.parser());
   private static final Serde<DurablePromiseCompletion> DURABLE_PROMISE_COMPLETION_SERDE =
-      CoreSerdes.ofProtobuf(DurablePromiseCompletion.parser());
+      ProtobufSerdes.of(DurablePromiseCompletion.parser());
 
   private static final Serde<Set<String>> DURABLEPROMISE_LISTENER_SERDE =
       JacksonSerdes.of(new TypeReference<>() {});
   private static final StateKey<MethodOutput> OUTPUT_KEY =
-      StateKey.of("_output", CoreSerdes.ofProtobuf(MethodOutput.parser()));
+      StateKey.of("_output", ProtobufSerdes.of(MethodOutput.parser()));
 
   private static final StateKey<WorkflowExecutionState> WORKFLOW_EXECUTION_STATE_KEY =
       StateKey.of("_workflow_execution_state", WORKFLOW_EXECUTION_STATE_SERDE);

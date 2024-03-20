@@ -18,6 +18,7 @@ include(
     "sdk-api-kotlin",
     "sdk-core",
     "sdk-serde-jackson",
+    "sdk-serde-protobuf",
     "sdk-http-vertx",
     "sdk-lambda",
     "sdk-testing",
