@@ -22,7 +22,7 @@ import org.apache.logging.log4j.CloseableThreadContext;
  *
  * <p>Restate can invoke Lambda functions directly or through AWS API gateway. For both cases, it
  * will invoke the Lambda using the same envelope of an API Gateway request/response. See <a
- * href="https://docs.restate.dev/services/deployment/lambda">Restate Lambda documentation</a> for
+ * href="https://docs.restate.dev/deploy/lambda/lambda-java">Restate Lambda documentation</a> for
  * more details.
  */
 public abstract class BaseRestateLambdaHandler
