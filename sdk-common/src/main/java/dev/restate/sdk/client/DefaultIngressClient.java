@@ -22,6 +22,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import org.jspecify.annotations.NonNull;
 
 public class DefaultIngressClient implements IngressClient {
 
@@ -90,6 +91,75 @@ public class DefaultIngressClient implements IngressClient {
                     "Cannot deserialize the response", response.statusCode(), response.body(), e);
               }
             });
+  }
+
+  @Override
+  public AwakeableHandle awakeableHandle(String id) {
+    return new AwakeableHandle() {
+      @Override
+      public <T> CompletableFuture<Void> resolve(Serde<T> serde, @NonNull T payload) {
+        // Prepare request
+        var reqBuilder =
+            HttpRequest.newBuilder().uri(URI.create("/restate/awakeables/" + id + "/resolve"));
+
+        // Add content-type
+        if (serde.contentType() != null) {
+          reqBuilder.header("content-type", serde.contentType());
+        }
+
+        // Add headers
+        headers.forEach(reqBuilder::header);
+
+        // Build and Send request
+        HttpRequest request =
+            reqBuilder
+                .POST(HttpRequest.BodyPublishers.ofByteArray(serde.serialize(payload)))
+                .build();
+        return httpClient
+            .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
+            .handle(
+                (response, throwable) -> {
+                  if (throwable != null) {
+                    throw new IngressException("Error when executing the request", throwable);
+                  }
+
+                  if (response.statusCode() >= 300) {
+                    handleNonSuccessResponse(response);
+                  }
+
+                  return null;
+                });
+      }
+
+      @Override
+      public CompletableFuture<Void> reject(String reason) {
+        // Prepare request
+        var reqBuilder =
+            HttpRequest.newBuilder()
+                .uri(URI.create("/restate/awakeables/" + id + "/reject"))
+                .header("content-type", "text-plain");
+
+        // Add headers
+        headers.forEach(reqBuilder::header);
+
+        // Build and Send request
+        HttpRequest request = reqBuilder.POST(HttpRequest.BodyPublishers.ofString(reason)).build();
+        return httpClient
+            .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
+            .handle(
+                (response, throwable) -> {
+                  if (throwable != null) {
+                    throw new IngressException("Error when executing the request", throwable);
+                  }
+
+                  if (response.statusCode() >= 300) {
+                    handleNonSuccessResponse(response);
+                  }
+
+                  return null;
+                });
+      }
+    };
   }
 
   private URI toRequestURI(Target target, boolean isSend) {
