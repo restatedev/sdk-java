@@ -167,7 +167,7 @@ public final class Component implements BindableComponent<Component.Options> {
             } catch (Throwable e) {
               callback.onCancel(
                   new TerminalException(
-                      TerminalException.BAD_REQUEST_CODE,
+                      TerminalException.INTERNAL_SERVER_ERROR_CODE,
                       "Cannot serialize output: " + e.getMessage()));
               return;
             }

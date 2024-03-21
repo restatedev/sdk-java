@@ -13,7 +13,7 @@ public class TerminalException extends RuntimeException {
 
   public static final int ABORTED_CODE = 409;
   public static final int CANCELLED_CODE = ABORTED_CODE;
-  public static final int BAD_REQUEST_CODE = 500;
+  public static final int BAD_REQUEST_CODE = 400;
   public static final int INTERNAL_SERVER_ERROR_CODE = 500;
 
   private final int code;

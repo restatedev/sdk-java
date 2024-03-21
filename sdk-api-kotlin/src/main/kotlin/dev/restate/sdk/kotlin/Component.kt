@@ -150,7 +150,7 @@ private constructor(
           } catch (e: Throwable) {
             LOG.warn("Error when serializing input", e)
             throw TerminalException(
-                TerminalException.BAD_REQUEST_CODE, "Cannot serialize output: $e")
+                TerminalException.INTERNAL_SERVER_ERROR_CODE, "Cannot serialize output: $e")
           }
         } catch (e: Throwable) {
           callback.onCancel(e)
