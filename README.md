@@ -30,7 +30,7 @@ This SDK features:
 
 ### tl;dr Use project templates
 
-To get started, follow the [Java quickstart](https://docs.restate.dev/quickstart/?sdk=jvm).
+To get started, follow the [Java quickstart](https://docs.restate.dev/get_started/quickstart).
 
 ### Setup a project (Java)
 
@@ -368,12 +368,12 @@ rootLogger.appenderRef.stdout.ref = consoleLogger
 The SDK injects the following additional metadata to the logging context that can be used for filtering as well:
 
 * `restateServiceMethod`: service and method, e.g. `counter.Counter/Add`.
-* `restateInvocationId`: Invocation identifier, to be used in Restate observability tools. See https://docs.restate.dev/services/invocation#invocation-identifier.
+* `restateInvocationId`: Invocation identifier, to be used in Restate observability tools. See https://docs.restate.dev/operate/invocation#invocation-identifier.
 * `restateInvocationStatus`: Invocation status, can be `WAITING_START`, `REPLAYING`, `PROCESSING`, `CLOSED`.
 
 #### Tracing with OpenTelemetry
 
-The SDK can generate additional tracing information on top of what Restate already publishes. See https://docs.restate.dev/restate/tracing to configure Restate tracing.
+The SDK can generate additional tracing information on top of what Restate already publishes. See https://docs.restate.dev/operate/monitoring/tracing to configure Restate tracing.
 
 You can the additional SDK tracing information by configuring the `OpenTelemetry` in the `RestateHttpEndpointBuilder`/`LambdaRestateServer`.
 
