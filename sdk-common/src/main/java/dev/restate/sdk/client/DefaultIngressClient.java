@@ -97,10 +97,10 @@ public class DefaultIngressClient implements IngressClient {
   public AwakeableHandle awakeableHandle(String id) {
     return new AwakeableHandle() {
       @Override
-      public <T> CompletableFuture<Void> resolve(Serde<T> serde, @NonNull T payload) {
+      public <T> CompletableFuture<Void> resolveAsync(Serde<T> serde, @NonNull T payload) {
         // Prepare request
         var reqBuilder =
-            HttpRequest.newBuilder().uri(URI.create("/restate/awakeables/" + id + "/resolve"));
+            HttpRequest.newBuilder().uri(baseUri.resolve("/restate/awakeables/" + id + "/resolve"));
 
         // Add content-type
         if (serde.contentType() != null) {
@@ -132,11 +132,11 @@ public class DefaultIngressClient implements IngressClient {
       }
 
       @Override
-      public CompletableFuture<Void> reject(String reason) {
+      public CompletableFuture<Void> rejectAsync(String reason) {
         // Prepare request
         var reqBuilder =
             HttpRequest.newBuilder()
-                .uri(URI.create("/restate/awakeables/" + id + "/reject"))
+                .uri(baseUri.resolve("/restate/awakeables/" + id + "/reject"))
                 .header("content-type", "text-plain");
 
         // Add headers

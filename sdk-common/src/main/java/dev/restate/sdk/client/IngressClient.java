@@ -80,20 +80,44 @@ public interface IngressClient {
    * ingress
    */
   interface AwakeableHandle {
+    /** Same as {@link #resolve(Serde, Object)} but async. */
+    <T> CompletableFuture<Void> resolveAsync(Serde<T> serde, @NonNull T payload);
+
     /**
      * Complete with success the Awakeable.
      *
      * @param serde used to serialize the Awakeable result payload.
      * @param payload the result payload. MUST NOT be null.
      */
-    <T> CompletableFuture<Void> resolve(Serde<T> serde, @NonNull T payload);
+    default <T> void resolve(Serde<T> serde, @NonNull T payload) {
+      try {
+        resolveAsync(serde, payload).join();
+      } catch (CompletionException e) {
+        if (e.getCause() instanceof RuntimeException) {
+          throw (RuntimeException) e.getCause();
+        }
+        throw new RuntimeException(e.getCause());
+      }
+    }
+
+    /** Same as {@link #reject(String)} but async. */
+    CompletableFuture<Void> rejectAsync(String reason);
 
     /**
      * Complete with failure the Awakeable.
      *
      * @param reason the rejection reason. MUST NOT be null.
      */
-    CompletableFuture<Void> reject(String reason);
+    default void reject(String reason) {
+      try {
+        rejectAsync(reason).join();
+      } catch (CompletionException e) {
+        if (e.getCause() instanceof RuntimeException) {
+          throw (RuntimeException) e.getCause();
+        }
+        throw new RuntimeException(e.getCause());
+      }
+    }
   }
 
   static IngressClient defaultClient(String baseUri) {
