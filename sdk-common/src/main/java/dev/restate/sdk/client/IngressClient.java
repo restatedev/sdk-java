@@ -15,6 +15,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import org.jspecify.annotations.NonNull;
 
 public interface IngressClient {
 
@@ -65,6 +66,34 @@ public interface IngressClient {
 
   default <Req> String send(Target target, Serde<Req> reqSerde, Req req) throws IngressException {
     return send(target, reqSerde, req, RequestOptions.DEFAULT);
+  }
+
+  /**
+   * Create a new {@link AwakeableHandle} for the provided identifier. You can use it to {@link
+   * AwakeableHandle#resolve(Serde, Object)} or {@link AwakeableHandle#reject(String)} an Awakeable
+   * from the ingress.
+   */
+  AwakeableHandle awakeableHandle(String id);
+
+  /**
+   * This class represents a handle to an Awakeable. It can be used to complete awakeables from the
+   * ingress
+   */
+  interface AwakeableHandle {
+    /**
+     * Complete with success the Awakeable.
+     *
+     * @param serde used to serialize the Awakeable result payload.
+     * @param payload the result payload. MUST NOT be null.
+     */
+    <T> CompletableFuture<Void> resolve(Serde<T> serde, @NonNull T payload);
+
+    /**
+     * Complete with failure the Awakeable.
+     *
+     * @param reason the rejection reason. MUST NOT be null.
+     */
+    CompletableFuture<Void> reject(String reason);
   }
 
   static IngressClient defaultClient(String baseUri) {
