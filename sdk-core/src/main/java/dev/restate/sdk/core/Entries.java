@@ -9,7 +9,6 @@
 package dev.restate.sdk.core;
 
 import com.google.protobuf.ByteString;
-import com.google.protobuf.Empty;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageLite;
 import dev.restate.generated.service.protocol.Protocol;

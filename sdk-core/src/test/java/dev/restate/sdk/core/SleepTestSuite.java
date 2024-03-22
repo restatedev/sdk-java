@@ -14,7 +14,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.LONG;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
-import com.google.protobuf.Empty;
 import com.google.protobuf.MessageLiteOrBuilder;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.common.TerminalException;
@@ -55,7 +54,7 @@ public abstract class SleepTestSuite implements TestDefinitions.TestSuite {
                 inputMessage("Till"),
                 Protocol.SleepEntryMessage.newBuilder()
                     .setWakeUpTime(Instant.now().toEpochMilli())
-                    .setEmpty(Empty.getDefaultInstance())
+                    .setEmpty(Protocol.Empty.getDefaultInstance())
                     .build())
             .expectingOutput(outputMessage("Hello"), END_MESSAGE)
             .named("Sleep 1000 ms sleep completed"),
@@ -78,7 +77,7 @@ public abstract class SleepTestSuite implements TestDefinitions.TestSuite {
                                     (i % 3 == 0)
                                         ? Protocol.SleepEntryMessage.newBuilder()
                                             .setWakeUpTime(Instant.now().toEpochMilli())
-                                            .setEmpty(Empty.getDefaultInstance())
+                                            .setEmpty(Protocol.Empty.getDefaultInstance())
                                             .build()
                                         : Protocol.SleepEntryMessage.newBuilder()
                                             .setWakeUpTime(Instant.now().toEpochMilli())

@@ -9,7 +9,6 @@
 package dev.restate.sdk.core;
 
 import com.google.protobuf.ByteString;
-import com.google.protobuf.Empty;
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.MessageLiteOrBuilder;
 import dev.restate.generated.sdk.java.Java;
@@ -160,7 +159,7 @@ public class ProtoUtils {
   public static Protocol.GetStateEntryMessage getStateEmptyMessage(String key) {
     return Protocol.GetStateEntryMessage.newBuilder()
         .setKey(ByteString.copyFromUtf8(key))
-        .setEmpty(Empty.getDefaultInstance())
+        .setEmpty(Protocol.Empty.getDefaultInstance())
         .build();
   }
 

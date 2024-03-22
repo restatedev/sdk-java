@@ -12,7 +12,6 @@ import static dev.restate.sdk.core.AssertUtils.containsOnlyExactErrorMessage;
 import static dev.restate.sdk.core.ProtoUtils.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.google.protobuf.Empty;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
@@ -37,7 +36,7 @@ public abstract class StateTestSuite implements TestDefinitions.TestSuite {
             .withInput(
                 startMessage(2),
                 inputMessage("Till"),
-                getStateMessage("STATE").setEmpty(Empty.getDefaultInstance()))
+                getStateMessage("STATE").setEmpty(Protocol.Empty.getDefaultInstance()))
             .expectingOutput(outputMessage("Hello Unknown"), END_MESSAGE)
             .named("With GetStateEntry already completed empty"),
         this.getState()
