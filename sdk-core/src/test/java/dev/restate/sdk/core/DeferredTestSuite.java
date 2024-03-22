@@ -14,7 +14,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.list;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
-import com.google.protobuf.Empty;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import java.util.function.Supplier;
@@ -370,7 +369,7 @@ public abstract class DeferredTestSuite implements TestSuite {
                     ProtoUtils.inputMessage(),
                     Protocol.CompletionMessage.newBuilder()
                         .setEntryIndex(2)
-                        .setEmpty(Empty.getDefaultInstance()))
+                        .setEmpty(Protocol.Empty.getDefaultInstance()))
                 .onlyUnbuffered()
                 .assertingOutput(
                     messages -> {

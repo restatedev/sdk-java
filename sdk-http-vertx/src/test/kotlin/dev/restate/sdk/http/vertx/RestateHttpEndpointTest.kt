@@ -10,7 +10,6 @@ package dev.restate.sdk.http.vertx
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.protobuf.ByteString
-import com.google.protobuf.Empty
 import com.google.protobuf.MessageLite
 import dev.restate.generated.service.protocol.Protocol.*
 import dev.restate.sdk.common.CoreSerdes

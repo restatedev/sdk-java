@@ -39,12 +39,7 @@ final class DeploymentManifest {
                                 .withComponentType(convertComponentType(svc.getComponentType()))
                                 .withHandlers(
                                     svc.getHandlers().stream()
-                                        .map(
-                                            method ->
-                                                new Handler()
-                                                    .withName(method.getName())
-                                                    .withInputSchema(method.getInputSchema())
-                                                    .withOutputSchema(method.getOutputSchema()))
+                                        .map(method -> new Handler().withName(method.getName()))
                                         .collect(Collectors.toList())))
                     .collect(Collectors.toList()));
   }
