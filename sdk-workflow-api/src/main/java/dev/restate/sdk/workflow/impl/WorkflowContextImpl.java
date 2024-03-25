@@ -204,8 +204,8 @@ class WorkflowContextImpl implements WorkflowContext {
   }
 
   @Override
-  public <T> void sendDelayed(Target target, Serde<T> inputSerde, T parameter, Duration delay) {
-    ctx.sendDelayed(target, inputSerde, parameter, delay);
+  public <T> void send(Target target, Serde<T> inputSerde, T parameter, Duration delay) {
+    ctx.send(target, inputSerde, parameter, delay);
   }
 
   @Override

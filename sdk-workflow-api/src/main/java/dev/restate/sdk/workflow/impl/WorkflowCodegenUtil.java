@@ -113,7 +113,7 @@ public final class WorkflowCodegenUtil {
         String workflowKey,
         @Nullable Object payload,
         Duration delay) {
-      ctx.sendDelayed(
+      ctx.send(
           Target.service(workflowName, handlerName),
           WorkflowImpl.INVOKE_REQUEST_SERDE,
           InvokeRequest.fromAny(workflowKey, payload),

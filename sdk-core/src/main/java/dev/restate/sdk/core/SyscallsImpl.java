@@ -208,7 +208,7 @@ public final class SyscallsImpl implements SyscallsInternal {
           if (target.getKey() != null) {
             builder.setKey(target.getKey());
           }
-          if (delay != null) {
+          if (delay != null && !delay.isZero()) {
             builder.setInvokeTime(Instant.now().toEpochMilli() + delay.toMillis());
           }
 
