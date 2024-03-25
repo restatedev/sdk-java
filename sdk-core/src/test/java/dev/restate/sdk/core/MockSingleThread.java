@@ -46,7 +46,7 @@ public final class MockSingleThread implements TestExecutor {
     // Prepare server
     RestateEndpoint.Builder builder =
         RestateEndpoint.newBuilder(DeploymentManifestSchema.ProtocolMode.BIDI_STREAM)
-            .with(componentDefinition.get(0), bindableComponent.options());
+            .bind(componentDefinition.get(0), bindableComponent.options());
     RestateEndpoint server = builder.build();
 
     // Start invocation

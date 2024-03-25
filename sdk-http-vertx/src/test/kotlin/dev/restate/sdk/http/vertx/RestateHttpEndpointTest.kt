@@ -50,12 +50,12 @@ internal class RestateHttpEndpointTest {
   @Timeout(value = 1, timeUnit = TimeUnit.SECONDS)
   @Test
   fun endpointWithNonBlockingService(vertx: Vertx): Unit =
-      greetTest(vertx, "KtGreeter") { it.with(greeter()) }
+      greetTest(vertx, "KtGreeter") { it.bind(greeter()) }
 
   @Timeout(value = 1, timeUnit = TimeUnit.SECONDS)
   @Test
   fun endpointWithBlockingService(vertx: Vertx): Unit =
-      greetTest(vertx, BlockingGreeter::class.simpleName!!) { it.with(BlockingGreeter()) }
+      greetTest(vertx, BlockingGreeter::class.simpleName!!) { it.bind(BlockingGreeter()) }
 
   private fun greetTest(
       vertx: Vertx,
@@ -153,7 +153,7 @@ internal class RestateHttpEndpointTest {
       runBlocking(vertx.dispatcher()) {
         val endpointPort: Int =
             RestateHttpEndpointBuilder.builder(vertx)
-                .with(BlockingGreeter())
+                .bind(BlockingGreeter())
                 .withOptions(HttpServerOptions().setPort(0))
                 .build()
                 .listen()
@@ -188,7 +188,7 @@ internal class RestateHttpEndpointTest {
       runBlocking(vertx.dispatcher()) {
         val endpointPort: Int =
             RestateHttpEndpointBuilder.builder(vertx)
-                .with(BlockingGreeter())
+                .bind(BlockingGreeter())
                 .withOptions(HttpServerOptions().setPort(0))
                 .build()
                 .listen()

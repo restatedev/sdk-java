@@ -31,7 +31,7 @@ import org.apache.logging.log4j.Logger;
  * <pre>
  * public static void main(String[] args) {
  *   RestateHttpEndpointBuilder.builder()
- *           .with(new Counter())
+ *           .bind(new Counter())
  *           .buildAndListen();
  * }
  * </pre>
@@ -73,21 +73,21 @@ public class RestateHttpEndpointBuilder {
    * based on the class name.
    *
    * <p>You can also manually instantiate the {@link BindableComponent} using {@link
-   * #with(BindableComponent)}.
+   * #bind(BindableComponent)}.
    */
-  public RestateHttpEndpointBuilder with(Object component) {
-    return this.with(RestateEndpoint.discoverBindableComponentFactory(component).create(component));
+  public RestateHttpEndpointBuilder bind(Object component) {
+    return this.bind(RestateEndpoint.discoverBindableComponentFactory(component).create(component));
   }
 
   /**
    * Add a Restate bindable component to the endpoint.
    *
-   * <p>To override the options, use {@link #with(BindableComponent, Object)}.
+   * <p>To override the options, use {@link #bind(BindableComponent, Object)}.
    */
-  public RestateHttpEndpointBuilder with(BindableComponent<?> component) {
+  public RestateHttpEndpointBuilder bind(BindableComponent<?> component) {
     for (ComponentDefinition<?> componentDefinition : component.definitions()) {
       //noinspection unchecked
-      this.endpointBuilder.with(
+      this.endpointBuilder.bind(
           (ComponentDefinition<Object>) componentDefinition, component.options());
     }
 
@@ -95,9 +95,9 @@ public class RestateHttpEndpointBuilder {
   }
 
   /** Add a Restate bindable component to the endpoint, overriding the options. */
-  public <O> RestateHttpEndpointBuilder with(BindableComponent<O> component, O options) {
+  public <O> RestateHttpEndpointBuilder bind(BindableComponent<O> component, O options) {
     for (ComponentDefinition<O> componentDefinition : component.definitions()) {
-      this.endpointBuilder.with(componentDefinition, options);
+      this.endpointBuilder.bind(componentDefinition, options);
     }
 
     return this;

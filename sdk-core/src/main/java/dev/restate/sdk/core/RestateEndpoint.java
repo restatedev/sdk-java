@@ -123,7 +123,7 @@ public class RestateEndpoint {
       this.protocolMode = protocolMode;
     }
 
-    public <O> Builder with(ComponentDefinition<O> component, O options) {
+    public <O> Builder bind(ComponentDefinition<O> component, O options) {
       this.components.add(new ComponentAndOptions<>(component, options));
       return this;
     }
