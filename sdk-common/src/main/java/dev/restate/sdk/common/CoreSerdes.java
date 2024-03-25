@@ -171,6 +171,11 @@ public abstract class CoreSerdes {
           throw new RuntimeException("Cannot create JsonGenerator", e);
         }
       }
+
+      @Override
+      public String contentType() {
+        return "application/json";
+      }
     };
   }
 }
