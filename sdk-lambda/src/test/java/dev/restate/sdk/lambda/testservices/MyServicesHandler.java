@@ -14,6 +14,6 @@ import dev.restate.sdk.lambda.RestateLambdaEndpointBuilder;
 public class MyServicesHandler extends BaseRestateLambdaHandler {
   @Override
   public void register(RestateLambdaEndpointBuilder builder) {
-    builder.with(new JavaCounterService()).with(KotlinCounterServiceKt.counter());
+    builder.bind(new JavaCounterService()).bind(KotlinCounterServiceKt.counter());
   }
 }

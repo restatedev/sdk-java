@@ -41,7 +41,7 @@ class HttpVertxTestExecutor(private val vertx: Vertx) : TestExecutor {
       val server =
           RestateHttpEndpointBuilder.builder(vertx)
               .withOptions(HttpServerOptions().setPort(0))
-              .with(definition.component)
+              .bind(definition.component)
               .build()
       server.listen().coAwait()
 

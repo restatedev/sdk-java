@@ -153,8 +153,8 @@ public class LoanWorkflow {
 
   public static void main(String[] args) {
     RestateHttpEndpointBuilder.builder()
-        .with(new LoanWorkflow())
-        .with(new MockBank())
+        .bind(new LoanWorkflow())
+        .bind(new MockBank())
         .buildAndListen();
 
     // Register the service in the meantime!

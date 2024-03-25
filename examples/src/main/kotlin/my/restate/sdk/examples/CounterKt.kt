@@ -52,5 +52,5 @@ class CounterKt {
 }
 
 fun main() {
-  RestateHttpEndpointBuilder.builder().with(CounterKt()).buildAndListen()
+  RestateHttpEndpointBuilder.builder().bind(CounterKt()).buildAndListen()
 }

@@ -52,7 +52,7 @@ public class RestateRunnerBuilder {
    * #with(BindableComponent)}.
    */
   public RestateRunnerBuilder with(Object component) {
-    endpointBuilder.with(component);
+    endpointBuilder.bind(component);
     return this;
   }
 
@@ -62,13 +62,13 @@ public class RestateRunnerBuilder {
    * <p>To override the options, use {@link #with(BindableComponent, Object)}.
    */
   public RestateRunnerBuilder with(BindableComponent<?> component) {
-    endpointBuilder.with(component);
+    endpointBuilder.bind(component);
     return this;
   }
 
   /** Add a Restate bindable component to the endpoint, overriding the options. */
   public <O> RestateRunnerBuilder with(BindableComponent<O> component, O options) {
-    endpointBuilder.with(component, options);
+    endpointBuilder.bind(component, options);
     return this;
   }
 

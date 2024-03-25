@@ -25,15 +25,15 @@ public final class RestateLambdaEndpointBuilder {
    * Add a Restate entity to the endpoint, specifying the {@code executor} where to run the entity
    * code.
    */
-  public RestateLambdaEndpointBuilder with(Object service) {
-    return this.with(RestateEndpoint.discoverBindableComponentFactory(service).create(service));
+  public RestateLambdaEndpointBuilder bind(Object service) {
+    return this.bind(RestateEndpoint.discoverBindableComponentFactory(service).create(service));
   }
 
   /** Add a Restate bindable component to the endpoint. */
-  public RestateLambdaEndpointBuilder with(BindableComponent<?> component) {
+  public RestateLambdaEndpointBuilder bind(BindableComponent<?> component) {
     for (ComponentDefinition<?> componentDefinition : component.definitions()) {
       //noinspection unchecked
-      this.restateEndpoint.with(
+      this.restateEndpoint.bind(
           (ComponentDefinition<Object>) componentDefinition, component.options());
     }
 

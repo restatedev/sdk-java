@@ -53,7 +53,7 @@ public class Counter {
   }
 
   public static void main(String[] args) {
-    RestateHttpEndpointBuilder.builder().with(new Counter()).buildAndListen();
+    RestateHttpEndpointBuilder.builder().bind(new Counter()).buildAndListen();
   }
 
   public static class CounterUpdateResult {
