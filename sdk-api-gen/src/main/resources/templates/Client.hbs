@@ -49,38 +49,28 @@ public class {{generatedClassSimpleName}} {
         }{{/handlers}}
 
         public Send send() {
-            return new Send();
+            return new Send(null);
         }
 
-        public SendDelayed sendDelayed(Duration delay) {
-            return new SendDelayed(delay);
+        public Send send(Duration delay) {
+            return new Send(delay);
         }
 
         public class Send {
-            {{#handlers}}
-            public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-                ContextClient.this.ctx.send(
-                    {{#if isObject}}Target.virtualObject(COMPONENT_NAME, ContextClient.this.key, "{{name}}"){{else}}Target.service(COMPONENT_NAME, "{{name}}"){{/if}},
-                    {{inputSerdeFieldName}},
-                    {{#if inputEmpty}}null{{else}}req{{/if}});
-            }{{/handlers}}
-        }
-
-        public class SendDelayed {
 
             private final Duration delay;
 
-            SendDelayed(Duration delay) {
+            Send(Duration delay) {
                 this.delay = delay;
             }
 
             {{#handlers}}
             public void {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-                ContextClient.this.ctx.sendDelayed(
+                ContextClient.this.ctx.send(
                     {{#if isObject}}Target.virtualObject(COMPONENT_NAME, ContextClient.this.key, "{{name}}"){{else}}Target.service(COMPONENT_NAME, "{{name}}"){{/if}},
                     {{inputSerdeFieldName}},
                     {{#if inputEmpty}}null{{else}}req{{/if}},
-                    this.delay);
+                    delay);
             }{{/handlers}}
         }
     }

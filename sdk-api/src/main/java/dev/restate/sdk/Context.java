@@ -70,11 +70,11 @@ public interface Context {
    * @param parameter the invocation request parameter.
    * @param delay time to wait before executing the call.
    */
-  <T> void sendDelayed(Target target, Serde<T> inputSerde, T parameter, Duration delay);
+  <T> void send(Target target, Serde<T> inputSerde, T parameter, Duration delay);
 
-  /** Like {@link #sendDelayed(Target, Serde, Object, Duration)} with raw input. */
-  default void sendDelayed(Target target, byte[] parameter, Duration delay) {
-    sendDelayed(target, CoreSerdes.RAW, parameter, delay);
+  /** Like {@link #send(Target, Serde, Object, Duration)} with raw input. */
+  default void send(Target target, byte[] parameter, Duration delay) {
+    send(target, CoreSerdes.RAW, parameter, delay);
   }
 
   /**

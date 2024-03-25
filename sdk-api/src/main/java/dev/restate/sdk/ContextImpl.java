@@ -104,7 +104,7 @@ class ContextImpl implements ObjectContext {
   }
 
   @Override
-  public <T> void sendDelayed(Target target, Serde<T> inputSerde, T parameter, Duration delay) {
+  public <T> void send(Target target, Serde<T> inputSerde, T parameter, Duration delay) {
     ByteString input = Util.serializeWrappingException(syscalls, inputSerde, parameter);
     Util.<Void>blockOnSyscall(cb -> syscalls.send(target, input, delay, cb));
   }

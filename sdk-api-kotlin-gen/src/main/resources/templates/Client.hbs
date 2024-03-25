@@ -39,33 +39,18 @@ object {{generatedClassSimpleName}} {
                 {{#if inputEmpty}}Unit{{else}}req{{/if}})
         }{{/handlers}}
 
-        fun send(): Send {
-            return Send()
+        fun send(delay: Duration = Duration.ZERO): Send {
+            return Send(delay)
         }
 
-        fun sendDelayed(delay: Duration): SendDelayed {
-            return SendDelayed(delay)
-        }
-
-        inner class Send {
+        inner class Send(private val delay: Duration) {
             {{#handlers}}
             suspend fun {{name}}({{^inputEmpty}}req: {{{inputFqcn}}}{{/inputEmpty}}) {
                 this@ContextClient.ctx.send(
                     {{#if isObject}}Target.virtualObject(COMPONENT_NAME, this@ContextClient.key, "{{name}}"){{else}}Target.service(COMPONENT_NAME, "{{name}}"){{/if}},
                     {{inputSerdeFieldName}},
-                    {{#if inputEmpty}}Unit{{else}}req{{/if}});
-            }{{/handlers}}
-        }
-
-        inner class SendDelayed(private val delay: Duration) {
-
-            {{#handlers}}
-            suspend fun {{name}}({{^inputEmpty}}req: {{{inputFqcn}}}{{/inputEmpty}}) {
-                this@ContextClient.ctx.sendDelayed(
-                    {{#if isObject}}Target.virtualObject(COMPONENT_NAME, this@ContextClient.key, "{{name}}"){{else}}Target.service(COMPONENT_NAME, "{{name}}"){{/if}},
-                    {{inputSerdeFieldName}},
                     {{#if inputEmpty}}Unit{{else}}req{{/if}},
-                    this.delay);
+                    delay);
             }{{/handlers}}
         }
     }

@@ -117,15 +117,7 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
     return SingleSerdeAwaitableImpl(syscalls, deferred, outputSerde)
   }
 
-  override suspend fun <T : Any> send(target: Target, inputSerde: Serde<T>, parameter: T) {
-    val input = inputSerde.serializeWrappingException(syscalls, parameter)
-
-    return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-      syscalls.send(target, input, null, completingUnitContinuation(cont))
-    }
-  }
-
-  override suspend fun <T : Any> sendDelayed(
+  override suspend fun <T : Any> send(
       target: Target,
       inputSerde: Serde<T>,
       parameter: T,

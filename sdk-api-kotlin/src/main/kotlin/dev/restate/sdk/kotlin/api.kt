@@ -91,25 +91,13 @@ sealed interface Context {
    * @param target the address of the callee
    * @param inputSerde Input serde
    * @param parameter the invocation request parameter.
-   */
-  suspend fun <T : Any> send(target: Target, inputSerde: Serde<T>, parameter: T)
-
-  /**
-   * Invoke another Restate service without waiting for the response after the provided `delay` has
-   * elapsed.
-   *
-   * This method returns immediately, as the timer is executed and awaited on Restate.
-   *
-   * @param target the address of the callee
-   * @param inputSerde Input serde
-   * @param parameter the invocation request parameter.
    * @param delay time to wait before executing the call
    */
-  suspend fun <T : Any> sendDelayed(
+  suspend fun <T : Any> send(
       target: Target,
       inputSerde: Serde<T>,
       parameter: T,
-      delay: Duration
+      delay: Duration = Duration.ZERO
   )
 
   /**
