@@ -113,24 +113,7 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
               componentName,
               handlerName,
               otelContext,
-              new RestateEndpoint.LoggingContextSetter() {
-                @Override
-                public void setServiceMethod(String serviceMethod) {
-                  ContextualData.put(
-                      RestateEndpoint.LoggingContextSetter.COMPONENT_HANDLER_KEY, serviceMethod);
-                }
-
-                @Override
-                public void setInvocationId(String id) {
-                  ContextualData.put(RestateEndpoint.LoggingContextSetter.INVOCATION_ID_KEY, id);
-                }
-
-                @Override
-                public void setInvocationStatus(String invocationStatus) {
-                  ContextualData.put(
-                      RestateEndpoint.LoggingContextSetter.INVOCATION_STATUS_KEY, invocationStatus);
-                }
-              },
+              ContextualData::put,
               currentContextExecutor(vertxCurrentContext));
     } catch (ProtocolException e) {
       LOG.warn("Error when resolving the handler", e);

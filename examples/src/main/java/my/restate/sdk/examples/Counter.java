@@ -43,7 +43,7 @@ public class Counter {
 
   @Handler
   public CounterUpdateResult getAndAdd(ObjectContext ctx, Long request) {
-    LOG.info("Invoked get and add with " + request);
+    LOG.info("Invoked get and add with {}", request);
 
     long currentValue = ctx.get(TOTAL).orElse(0L);
     long newValue = currentValue + request;

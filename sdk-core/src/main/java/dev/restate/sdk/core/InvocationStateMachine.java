@@ -34,7 +34,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   private final String componentName;
   private final String fullyQualifiedHandlerName;
   private final Span span;
-  private final Consumer<InvocationState> transitionStateObserver;
+  private final RestateEndpoint.LoggingContextSetter loggingContextSetter;
 
   private volatile InvocationState invocationState = InvocationState.WAITING_START;
 
@@ -64,11 +64,11 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       String componentName,
       String fullyQualifiedHandlerName,
       Span span,
-      Consumer<InvocationState> transitionStateObserver) {
+      RestateEndpoint.LoggingContextSetter loggingContextSetter) {
     this.componentName = componentName;
     this.fullyQualifiedHandlerName = fullyQualifiedHandlerName;
     this.span = span;
-    this.transitionStateObserver = transitionStateObserver;
+    this.loggingContextSetter = loggingContextSetter;
 
     this.incomingEntriesStateMachine = new IncomingEntriesStateMachine();
     this.readyResultStateMachine = new ReadyResultStateMachine();
@@ -190,6 +190,9 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
                         Protocol.StartMessage.StateEntry::getKey,
                         Protocol.StartMessage.StateEntry::getValue)));
 
+    // Tracing and logging setup
+    this.loggingContextSetter.set(
+        RestateEndpoint.LoggingContextSetter.INVOCATION_ID_KEY, startMessage.getDebugId());
     if (this.span.isRecording()) {
       span.addEvent(
           "Start", Attributes.of(Tracing.RESTATE_INVOCATION_ID, startMessage.getDebugId()));
@@ -687,7 +690,8 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     }
     LOG.debug("Transitioning {} to {}", this, newInvocationState);
     this.invocationState = newInvocationState;
-    this.transitionStateObserver.accept(newInvocationState);
+    this.loggingContextSetter.set(
+        RestateEndpoint.LoggingContextSetter.INVOCATION_STATUS_KEY, newInvocationState.toString());
   }
 
   private void incrementCurrentIndex() {

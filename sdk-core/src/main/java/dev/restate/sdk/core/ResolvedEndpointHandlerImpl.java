@@ -57,9 +57,6 @@ final class ResolvedEndpointHandlerImpl implements ResolvedEndpointHandler {
     stateMachine.startAndConsumeInput(
         SyscallCallback.of(
             request -> {
-              // Set invocation id in logging context
-              loggingContextSetter.setInvocationId(request.invocationId().toString());
-
               // Prepare Syscalls object
               SyscallsInternal syscalls =
                   this.syscallsExecutor != null

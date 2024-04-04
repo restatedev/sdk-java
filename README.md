@@ -344,7 +344,7 @@ status = warn
 appender.console.type = Console
 appender.console.name = consoleLogger
 appender.console.layout.type = PatternLayout
-appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss} %-5p %notEmpty{[%X{restateServiceMethod}]}%notEmpty{[%X{restateInvocationId}]} %c - %m%n
+appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss} %-5p %notEmpty{[%X{restateInvocationTarget}]}%notEmpty{[%X{restateInvocationId}]} %c - %m%n
 
 # Filter out logging during replay
 appender.console.filter.replay.type = ContextMapFilter
@@ -367,9 +367,11 @@ rootLogger.appenderRef.stdout.ref = consoleLogger
 
 The SDK injects the following additional metadata to the logging context that can be used for filtering as well:
 
-* `restateServiceMethod`: service and method, e.g. `counter.Counter/Add`.
+* `restateInvocationTarget`: invocation target, e.g. `counter.Counter/Add`.
 * `restateInvocationId`: Invocation identifier, to be used in Restate observability tools. See https://docs.restate.dev/operate/invocation#invocation-identifier.
 * `restateInvocationStatus`: Invocation status, can be `WAITING_START`, `REPLAYING`, `PROCESSING`, `CLOSED`.
+
+When assembling fat-jars, make sure to enable merging META-INF/services files. For more info, see https://github.com/apache/logging-log4j2/issues/2099.
 
 #### Tracing with OpenTelemetry
 
