@@ -15,6 +15,8 @@ import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder
 import dev.restate.sdk.kotlin.KtSerdes
 import dev.restate.sdk.kotlin.ObjectContext
 import kotlinx.serialization.Serializable
+import org.apache.logging.log4j.LogManager
+import org.apache.logging.log4j.Logger
 
 @Serializable data class CounterUpdate(var oldValue: Long, val newValue: Long)
 
@@ -23,6 +25,7 @@ class CounterKt {
 
   companion object {
     private val TOTAL = StateKey.of<Long>("total", KtSerdes.json())
+    private val LOG: Logger = LogManager.getLogger(CounterKt::class.java)
   }
 
   @Handler
@@ -44,6 +47,7 @@ class CounterKt {
 
   @Handler
   suspend fun getAndAdd(ctx: ObjectContext, value: Long): CounterUpdate {
+    LOG.info("Invoked get and add with $value")
     val currentValue = ctx.get(TOTAL) ?: 0L
     val newValue = currentValue + value
     ctx.set(TOTAL, newValue)

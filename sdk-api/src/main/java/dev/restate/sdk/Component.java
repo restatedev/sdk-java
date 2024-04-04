@@ -128,7 +128,19 @@ public final class Component implements BindableComponent<Component.Options> {
     @Override
     public void handle(
         Syscalls syscalls, Component.Options options, SyscallCallback<ByteString> callback) {
-      options.executor.execute(
+      // Wrap the executor for setting/unsetting the thread local
+      Executor wrapped =
+          runnable ->
+              options.executor.execute(
+                  () -> {
+                    SYSCALLS_THREAD_LOCAL.set(syscalls);
+                    try {
+                      runnable.run();
+                    } finally {
+                      SYSCALLS_THREAD_LOCAL.remove();
+                    }
+                  });
+      wrapped.execute(
           () -> {
             // Any context switching, if necessary, will be done by ResolvedEndpointHandler
             Context ctx = new ContextImpl(syscalls);

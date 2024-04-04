@@ -17,6 +17,7 @@ import dev.restate.sdk.common.syscalls.*
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asContextElement
 import kotlinx.coroutines.launch
 import org.apache.logging.log4j.LogManager
 
@@ -122,7 +123,10 @@ private constructor(
     ) {
       val ctx: Context = ContextImpl(syscalls)
 
-      val scope = CoroutineScope(options.coroutineContext)
+      val scope =
+          CoroutineScope(
+              options.coroutineContext +
+                  InvocationHandler.SYSCALLS_THREAD_LOCAL.asContextElement(syscalls))
       scope.launch {
         val serializedResult: ByteString
 

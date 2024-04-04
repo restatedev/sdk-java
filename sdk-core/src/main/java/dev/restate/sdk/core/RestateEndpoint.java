@@ -79,15 +79,13 @@ public class RestateEndpoint {
             .startSpan();
 
     // Setup logging context
-    loggingContextSetter.setServiceMethod(fullyQualifiedServiceMethod);
+    loggingContextSetter.set(
+        LoggingContextSetter.INVOCATION_TARGET_KEY, fullyQualifiedServiceMethod);
 
     // Instantiate state machine, syscall and grpc bridge
     InvocationStateMachine stateMachine =
         new InvocationStateMachine(
-            componentName,
-            fullyQualifiedServiceMethod,
-            span,
-            s -> loggingContextSetter.setInvocationStatus(s.toString()));
+            componentName, fullyQualifiedServiceMethod, span, loggingContextSetter);
 
     return new ResolvedEndpointHandlerImpl(
         stateMachine, loggingContextSetter, handler.getHandler(), svc.options, syscallExecutor);
@@ -151,35 +149,16 @@ public class RestateEndpoint {
    * LoggingContextSetter#THREAD_LOCAL_INSTANCE}, though the caller of {@link RestateEndpoint} must
    * take care of the cleanup of the thread local map.
    */
+  @FunctionalInterface
   public interface LoggingContextSetter {
 
     String INVOCATION_ID_KEY = "restateInvocationId";
-    String COMPONENT_HANDLER_KEY = "restateComponentHandler";
+    String INVOCATION_TARGET_KEY = "restateInvocationTarget";
     String INVOCATION_STATUS_KEY = "restateInvocationStatus";
 
-    LoggingContextSetter THREAD_LOCAL_INSTANCE =
-        new LoggingContextSetter() {
-          @Override
-          public void setServiceMethod(String serviceMethod) {
-            ThreadContext.put(COMPONENT_HANDLER_KEY, serviceMethod);
-          }
+    LoggingContextSetter THREAD_LOCAL_INSTANCE = ThreadContext::put;
 
-          @Override
-          public void setInvocationId(String id) {
-            ThreadContext.put(INVOCATION_ID_KEY, id);
-          }
-
-          @Override
-          public void setInvocationStatus(String invocationStatus) {
-            ThreadContext.put(INVOCATION_STATUS_KEY, invocationStatus);
-          }
-        };
-
-    void setServiceMethod(String serviceMethod);
-
-    void setInvocationId(String id);
-
-    void setInvocationStatus(String invocationStatus);
+    void set(String key, String value);
   }
 
   private static class ComponentAdapterSingleton {
