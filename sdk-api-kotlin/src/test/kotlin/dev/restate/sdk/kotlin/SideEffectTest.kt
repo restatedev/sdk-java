@@ -23,15 +23,15 @@ class SideEffectTest : SideEffectTestSuite() {
 
   override fun sideEffect(sideEffectOutput: String): TestInvocationBuilder =
       testDefinitionForService("SideEffect") { ctx, _: Unit ->
-        val result = ctx.sideEffect(CoreSerdes.JSON_STRING) { sideEffectOutput }
+        val result = ctx.run(CoreSerdes.JSON_STRING) { sideEffectOutput }
         "Hello $result"
       }
 
   override fun consecutiveSideEffect(sideEffectOutput: String): TestInvocationBuilder =
       testDefinitionForService("ConsecutiveSideEffect") { ctx, _: Unit ->
-        val firstResult = ctx.sideEffect(CoreSerdes.JSON_STRING) { sideEffectOutput }
+        val firstResult = ctx.run(CoreSerdes.JSON_STRING) { sideEffectOutput }
         val secondResult =
-            ctx.sideEffect(CoreSerdes.JSON_STRING) { firstResult.uppercase(Locale.getDefault()) }
+            ctx.run(CoreSerdes.JSON_STRING) { firstResult.uppercase(Locale.getDefault()) }
         "Hello $secondResult"
       }
 
@@ -43,9 +43,7 @@ class SideEffectTest : SideEffectTestSuite() {
                   Dispatchers.Unconfined + CoroutineName("CheckContextSwitchingTestCoroutine"))) {
                 handler("run") { ctx, _: Unit ->
                   val sideEffectCoroutine =
-                      ctx.sideEffect(CoreSerdes.JSON_STRING) {
-                        coroutineContext[CoroutineName]!!.name
-                      }
+                      ctx.run(CoreSerdes.JSON_STRING) { coroutineContext[CoroutineName]!!.name }
                   check(sideEffectCoroutine == "CheckContextSwitchingTestCoroutine") {
                     "Side effect thread is not running within the same coroutine context of the handler method: $sideEffectCoroutine"
                   }
@@ -56,7 +54,7 @@ class SideEffectTest : SideEffectTestSuite() {
 
   override fun sideEffectGuard(): TestInvocationBuilder =
       testDefinitionForService<Unit, String>("SideEffectGuard") { ctx, _: Unit ->
-        ctx.sideEffect { ctx.send(GREETER_SERVICE_TARGET, KtSerdes.json(), "something") }
+        ctx.run { ctx.send(GREETER_SERVICE_TARGET, KtSerdes.json(), "something") }
         throw IllegalStateException("This point should not be reached")
       }
 }

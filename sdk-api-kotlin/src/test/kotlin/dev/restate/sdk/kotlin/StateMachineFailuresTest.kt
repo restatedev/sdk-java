@@ -47,7 +47,7 @@ class StateMachineFailuresTest : StateMachineFailuresTestSuite() {
 
   override fun sideEffectFailure(serde: Serde<Int>): TestInvocationBuilder =
       testDefinitionForService("SideEffectFailure") { ctx, _: Unit ->
-        ctx.sideEffect(serde) { 0 }
+        ctx.run(serde) { 0 }
         "Francesco"
       }
 }

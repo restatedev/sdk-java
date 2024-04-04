@@ -15,8 +15,8 @@ import java.time.Duration;
 
 /**
  * This interface exposes the Restate functionalities to Restate services. It can be used to
- * interact with other Restate services, record side effects, execute timers and synchronize with
- * external systems.
+ * interact with other Restate services, record non-deterministic closures, execute timers and
+ * synchronize with external systems.
  *
  * <p>All methods of this interface, and related interfaces, throws either {@link TerminalException}
  * or {@link AbortedExecutionException}, where the former can be caught and acted upon, while the
@@ -109,9 +109,9 @@ public interface Context {
    * TerminalException}. Consider the following code:
    *
    * <pre>{@code
-   * // Bad usage of try-catch outside the side effect
+   * // Bad usage of try-catch outside the run
    * try {
-   *     ctx.sideEffect(() -> {
+   *     ctx.run(() -> {
    *         throw new IllegalStateException();
    *     });
    * } catch (IllegalStateException e) {
@@ -120,9 +120,9 @@ public interface Context {
    *     // following the invocation retry policy.
    * }
    *
-   * // Good usage of try-catch outside the side effect
+   * // Good usage of try-catch outside the run
    * try {
-   *     ctx.sideEffect(() -> {
+   *     ctx.run(() -> {
    *         throw new TerminalException("my error");
    *     });
    * } catch (TerminalException e) {
@@ -130,19 +130,19 @@ public interface Context {
    * }
    * }</pre>
    *
-   * To propagate side effects failures to the side effect call-site, make sure to wrap them in
-   * {@link TerminalException}.
+   * To propagate run failures to the call-site, make sure to wrap them in {@link
+   * TerminalException}.
    *
    * @param serde the type tag of the return value, used to serialize/deserialize it.
-   * @param action to execute for its side effects.
+   * @param action closure to execute.
    * @param <T> type of the return value.
-   * @return value of the side effect operation.
+   * @return value of the run operation.
    */
-  <T> T sideEffect(Serde<T> serde, ThrowingSupplier<T> action) throws TerminalException;
+  <T> T run(Serde<T> serde, ThrowingSupplier<T> action) throws TerminalException;
 
-  /** Like {@link #sideEffect(Serde, ThrowingSupplier)}, but without returning a value. */
-  default void sideEffect(ThrowingRunnable runnable) throws TerminalException {
-    sideEffect(
+  /** Like {@link #run(Serde, ThrowingSupplier)}, but without returning a value. */
+  default void run(ThrowingRunnable runnable) throws TerminalException {
+    run(
         CoreSerdes.VOID,
         () -> {
           runnable.run();

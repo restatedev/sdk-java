@@ -38,7 +38,6 @@ public abstract class RandomTestSuite implements TestSuite {
             .withInput(startMessage(1).setDebugId(debugId), ProtoUtils.inputMessage())
             .assertingOutput(
                 containsOnlyExactErrorMessage(
-                    new IllegalStateException(
-                        "You can't use RestateRandom inside a side effect!"))));
+                    new IllegalStateException("You can't use RestateRandom inside ctx.run!"))));
   }
 }

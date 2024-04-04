@@ -21,10 +21,9 @@ import java.util.UUID;
  *
  * <p>This instance is useful to generate identifiers, idempotency keys, and for uniform sampling
  * from a set of options. If a cryptographically secure value is needed, please generate that
- * externally using {@link ObjectContext#sideEffect(Serde, ThrowingSupplier)}.
+ * externally using {@link ObjectContext#run(Serde, ThrowingSupplier)}.
  *
- * <p>You MUST NOT use this object inside a {@link ObjectContext#sideEffect(Serde,
- * ThrowingSupplier)}.
+ * <p>You MUST NOT use this object inside a {@link ObjectContext#run(Serde, ThrowingSupplier)}.
  */
 public class RestateRandom extends Random {
 
@@ -58,7 +57,7 @@ public class RestateRandom extends Random {
   @Override
   protected int next(int bits) {
     if (this.syscalls.isInsideSideEffect()) {
-      throw new IllegalStateException("You can't use RestateRandom inside a side effect!");
+      throw new IllegalStateException("You can't use RestateRandom inside ctx.run!");
     }
 
     return super.next(bits);
