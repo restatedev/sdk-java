@@ -192,11 +192,6 @@ public class DefaultIngressClient implements IngressClient {
     if (options.getIdempotencyKey() != null) {
       reqBuilder.header("idempotency-key", options.getIdempotencyKey());
     }
-    if (options.getIdempotencyRetainPeriod() != null) {
-      reqBuilder.header(
-          "idempotency-retention-period",
-          String.valueOf(options.getIdempotencyRetainPeriod().toSeconds()));
-    }
 
     // Add additional headers
     options.getAdditionalHeaders().forEach(reqBuilder::header);

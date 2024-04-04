@@ -8,7 +8,6 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.client;
 
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -18,17 +17,10 @@ public class RequestOptions {
   public static final RequestOptions DEFAULT = new RequestOptions();
 
   private String idempotencyKey;
-  private Duration idempotencyRetainPeriod;
   private final Map<String, String> additionalHeaders = new HashMap<>();
 
   public RequestOptions withIdempotency(String idempotencyKey) {
     this.idempotencyKey = idempotencyKey;
-    return this;
-  }
-
-  public RequestOptions withIdempotency(String idempotencyKey, Duration idempotencyRetainPeriod) {
-    this.idempotencyKey = idempotencyKey;
-    this.idempotencyRetainPeriod = idempotencyRetainPeriod;
     return this;
   }
 
@@ -46,10 +38,6 @@ public class RequestOptions {
     return idempotencyKey;
   }
 
-  public Duration getIdempotencyRetainPeriod() {
-    return idempotencyRetainPeriod;
-  }
-
   public Map<String, String> getAdditionalHeaders() {
     return additionalHeaders;
   }
@@ -62,16 +50,13 @@ public class RequestOptions {
     RequestOptions that = (RequestOptions) o;
 
     if (!Objects.equals(idempotencyKey, that.idempotencyKey)) return false;
-    if (!Objects.equals(idempotencyRetainPeriod, that.idempotencyRetainPeriod)) return false;
-    return Objects.equals(additionalHeaders, that.additionalHeaders);
+    return additionalHeaders.equals(that.additionalHeaders);
   }
 
   @Override
   public int hashCode() {
     int result = idempotencyKey != null ? idempotencyKey.hashCode() : 0;
-    result =
-        31 * result + (idempotencyRetainPeriod != null ? idempotencyRetainPeriod.hashCode() : 0);
-    result = 31 * result + (additionalHeaders != null ? additionalHeaders.hashCode() : 0);
+    result = 31 * result + additionalHeaders.hashCode();
     return result;
   }
 
@@ -81,8 +66,6 @@ public class RequestOptions {
         + "idempotencyKey='"
         + idempotencyKey
         + '\''
-        + ", idempotencyRetainPeriod="
-        + idempotencyRetainPeriod
         + ", additionalHeaders="
         + additionalHeaders
         + '}';
