@@ -24,7 +24,7 @@ public class SideEffectTest extends SideEffectTestSuite {
         CoreSerdes.VOID,
         CoreSerdes.JSON_STRING,
         (ctx, unused) -> {
-          String result = ctx.sideEffect(CoreSerdes.JSON_STRING, () -> sideEffectOutput);
+          String result = ctx.run(CoreSerdes.JSON_STRING, () -> sideEffectOutput);
           return "Hello " + result;
         });
   }
@@ -35,8 +35,8 @@ public class SideEffectTest extends SideEffectTestSuite {
         CoreSerdes.VOID,
         CoreSerdes.JSON_STRING,
         (ctx, unused) -> {
-          String firstResult = ctx.sideEffect(CoreSerdes.JSON_STRING, () -> sideEffectOutput);
-          String secondResult = ctx.sideEffect(CoreSerdes.JSON_STRING, firstResult::toUpperCase);
+          String firstResult = ctx.run(CoreSerdes.JSON_STRING, () -> sideEffectOutput);
+          String secondResult = ctx.run(CoreSerdes.JSON_STRING, firstResult::toUpperCase);
 
           return "Hello " + secondResult;
         });
@@ -51,7 +51,7 @@ public class SideEffectTest extends SideEffectTestSuite {
           String currentThread = Thread.currentThread().getName();
 
           String sideEffectThread =
-              ctx.sideEffect(CoreSerdes.JSON_STRING, () -> Thread.currentThread().getName());
+              ctx.run(CoreSerdes.JSON_STRING, () -> Thread.currentThread().getName());
 
           if (!Objects.equals(currentThread, sideEffectThread)) {
             throw new IllegalStateException(
@@ -71,7 +71,7 @@ public class SideEffectTest extends SideEffectTestSuite {
         CoreSerdes.VOID,
         CoreSerdes.JSON_STRING,
         (ctx, unused) -> {
-          ctx.sideEffect(() -> ctx.send(GREETER_SERVICE_TARGET, new byte[] {}));
+          ctx.run(() -> ctx.send(GREETER_SERVICE_TARGET, new byte[] {}));
           throw new IllegalStateException("This point should not be reached");
         });
   }

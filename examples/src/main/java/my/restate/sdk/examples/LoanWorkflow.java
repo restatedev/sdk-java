@@ -103,7 +103,7 @@ public class LoanWorkflow {
     LOG.info("Loan request submitted");
 
     // 2. Ask human approval
-    ctx.sideEffect(() -> askHumanApproval(ctx.workflowKey()));
+    ctx.run(() -> askHumanApproval(ctx.workflowKey()));
     ctx.set(STATUS, Status.WAITING_HUMAN_APPROVAL);
 
     // 3. Wait human approval

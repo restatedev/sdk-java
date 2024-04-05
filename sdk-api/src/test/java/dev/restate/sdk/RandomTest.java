@@ -31,7 +31,7 @@ public class RandomTest extends RandomTestSuite {
         CoreSerdes.VOID,
         CoreSerdes.JSON_INT,
         (ctx, unused) -> {
-          ctx.sideEffect(() -> ctx.random().nextInt());
+          ctx.run(() -> ctx.random().nextInt());
           throw new IllegalStateException("This should not unreachable");
         });
   }

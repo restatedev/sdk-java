@@ -55,7 +55,7 @@ public class StateMachineFailuresTest extends StateMachineFailuresTestSuite {
         CoreSerdes.VOID,
         CoreSerdes.JSON_STRING,
         (ctx, unused) -> {
-          ctx.sideEffect(serde, () -> 0);
+          ctx.run(serde, () -> 0);
           return "Francesco";
         });
   }

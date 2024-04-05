@@ -209,13 +209,13 @@ class WorkflowContextImpl implements WorkflowContext {
   }
 
   @Override
-  public <T> T sideEffect(Serde<T> serde, ThrowingSupplier<T> action) throws TerminalException {
-    return ctx.sideEffect(serde, action);
+  public <T> T run(Serde<T> serde, ThrowingSupplier<T> action) throws TerminalException {
+    return ctx.run(serde, action);
   }
 
   @Override
-  public void sideEffect(ThrowingRunnable runnable) throws TerminalException {
-    ctx.sideEffect(runnable);
+  public void run(ThrowingRunnable runnable) throws TerminalException {
+    ctx.run(runnable);
   }
 
   @Override

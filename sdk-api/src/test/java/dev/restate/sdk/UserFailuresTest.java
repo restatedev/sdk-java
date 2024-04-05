@@ -37,7 +37,7 @@ public class UserFailuresTest extends UserFailuresTestSuite {
         CoreSerdes.VOID,
         (ctx, unused) -> {
           try {
-            ctx.sideEffect(
+            ctx.run(
                 () -> {
                   throw new IllegalStateException("Whatever");
                 });
@@ -72,7 +72,7 @@ public class UserFailuresTest extends UserFailuresTestSuite {
         CoreSerdes.VOID,
         CoreSerdes.VOID,
         (ctx, unused) -> {
-          ctx.sideEffect(
+          ctx.run(
               () -> {
                 throw new TerminalException(code, message);
               });

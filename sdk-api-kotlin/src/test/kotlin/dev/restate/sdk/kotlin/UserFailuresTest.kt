@@ -26,7 +26,7 @@ class UserFailuresTest : UserFailuresTestSuite() {
   ): TestInvocationBuilder =
       testDefinitionForService<Unit, Unit>("SideEffectThrowIllegalStateException") { ctx, _: Unit ->
         try {
-          ctx.sideEffect { throw IllegalStateException("Whatever") }
+          ctx.run { throw IllegalStateException("Whatever") }
         } catch (e: Throwable) {
           if (e !is CancellationException && e !is TerminalException) {
             nonTerminalExceptionsSeen.addAndGet(1)
@@ -44,7 +44,7 @@ class UserFailuresTest : UserFailuresTestSuite() {
 
   override fun sideEffectThrowTerminalException(code: Int, message: String): TestInvocationBuilder =
       testDefinitionForService<Unit, Unit>("SideEffectThrowTerminalException") { ctx, _: Unit ->
-        ctx.sideEffect { throw TerminalException(code, message) }
+        ctx.run { throw TerminalException(code, message) }
         throw IllegalStateException("Not expected to reach this point")
       }
 }

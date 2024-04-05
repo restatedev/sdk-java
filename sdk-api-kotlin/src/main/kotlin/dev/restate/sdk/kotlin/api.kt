@@ -17,8 +17,8 @@ import kotlin.time.Duration
 
 /**
  * This interface exposes the Restate functionalities to Restate services. It can be used to
- * interact with other Restate services, record side effects, execute timers and synchronize with
- * external systems.
+ * interact with other Restate services, record non-deterministic closures, execute timers and
+ * synchronize with external systems.
  *
  * To use it within your Restate service, implement [RestateKtComponent] and get an instance with
  * [RestateKtComponent.restateContext].
@@ -114,9 +114,9 @@ sealed interface Context {
    * Errors occurring within this closure won't be propagated to the caller, unless they are
    * [TerminalException]. Consider the following code:
    * ```
-   * // Bad usage of try-catch outside the side effect
+   * // Bad usage of try-catch outside the run
    * try {
-   *     ctx.sideEffect {
+   *     ctx.run {
    *         throw IllegalStateException();
    *     };
    * } catch (e: IllegalStateException) {
@@ -125,9 +125,9 @@ sealed interface Context {
    *     // following the invocation retry policy.
    * }
    *
-   * // Good usage of try-catch outside the side effect
+   * // Good usage of try-catch outside the run
    * try {
-   *     ctx.sideEffect {
+   *     ctx.run {
    *         throw TerminalException("my error");
    *     };
    * } catch (e: TerminalException) {
@@ -135,19 +135,18 @@ sealed interface Context {
    * }
    * ```
    *
-   * To propagate side effects failures to the side effect call-site, make sure to wrap them in
-   * [TerminalException].
+   * To propagate failures to the run call-site, make sure to wrap them in [TerminalException].
    *
    * @param serde the type tag of the return value, used to serialize/deserialize it.
-   * @param action to execute for its side effects.
+   * @param action closure to execute.
    * @param T type of the return value.
-   * @return value of the side effect operation.
+   * @return value of the run operation.
    */
-  suspend fun <T : Any?> sideEffect(serde: Serde<T>, sideEffectAction: suspend () -> T): T
+  suspend fun <T : Any?> run(serde: Serde<T>, sideEffectAction: suspend () -> T): T
 
-  /** Like [sideEffect] without a return value. */
-  suspend fun sideEffect(sideEffectAction: suspend () -> Unit) {
-    sideEffect(KtSerdes.UNIT, sideEffectAction)
+  /** Like [run] without a return value. */
+  suspend fun run(sideEffectAction: suspend () -> Unit) {
+    run(KtSerdes.UNIT, sideEffectAction)
   }
 
   /**
@@ -177,9 +176,9 @@ sealed interface Context {
    *
    * This instance is useful to generate identifiers, idempotency keys, and for uniform sampling
    * from a set of options. If a cryptographically secure value is needed, please generate that
-   * externally using [sideEffect].
+   * externally using [run].
    *
-   * You MUST NOT use this [Random] instance inside a [sideEffect].
+   * You MUST NOT use this [Random] instance inside a [run].
    *
    * @return the [Random] instance.
    */
@@ -234,7 +233,7 @@ class RestateRandom(seed: Long, private val syscalls: Syscalls) : Random() {
   private val r = Random(seed)
 
   override fun nextBits(bitCount: Int): Int {
-    check(!syscalls.isInsideSideEffect) { "You can't use RestateRandom inside a side effect!" }
+    check(!syscalls.isInsideSideEffect) { "You can't use RestateRandom inside ctx.run!" }
     return r.nextBits(bitCount)
   }
 

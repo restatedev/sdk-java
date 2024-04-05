@@ -36,7 +36,7 @@ class VertxExecutorsTest : TestDefinitions.TestSuite {
     LOG.info("I am on the thread I am before executing side effect")
     check(Vertx.currentContext() == null)
     check(coroutineContext[CoroutineName] == nonBlockingCoroutineName)
-    ctx.sideEffect {
+    ctx.run {
       LOG.info("I am on the thread I am when executing side effect")
       check(coroutineContext[CoroutineName] == nonBlockingCoroutineName)
       check(Vertx.currentContext() == null)
@@ -52,7 +52,7 @@ class VertxExecutorsTest : TestDefinitions.TestSuite {
   ): Void? {
     val id = Thread.currentThread().id
     check(Vertx.currentContext() == null)
-    ctx.sideEffect {
+    ctx.run {
       check(Thread.currentThread().id == id)
       check(Vertx.currentContext() == null)
     }

@@ -110,7 +110,7 @@ class ContextImpl implements ObjectContext {
   }
 
   @Override
-  public <T> T sideEffect(Serde<T> serde, ThrowingSupplier<T> action) {
+  public <T> T run(Serde<T> serde, ThrowingSupplier<T> action) {
     CompletableFuture<CompletableFuture<ByteString>> enterFut = new CompletableFuture<>();
     syscalls.enterSideEffectBlock(
         new EnterSideEffectSyscallCallback() {
