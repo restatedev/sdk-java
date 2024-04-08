@@ -1,6 +1,7 @@
 plugins {
   java
   kotlin("jvm")
+  kotlin("plugin.serialization")
   `library-publishing-conventions`
   alias(kotlinLibs.plugins.ksp)
 }
@@ -22,6 +23,7 @@ dependencies {
   testImplementation(coreLibs.protobuf.java)
   testImplementation(coreLibs.log4j.core)
   testImplementation(kotlinLibs.kotlinx.coroutines)
+  testImplementation(kotlinLibs.kotlinx.serialization.core)
 
   // Import test suites from sdk-core
   testImplementation(project(":sdk-core", "testArchive"))

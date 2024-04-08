@@ -16,6 +16,7 @@ import dev.restate.sdk.core.ProtoUtils.*
 import dev.restate.sdk.core.TestDefinitions
 import dev.restate.sdk.core.TestDefinitions.TestDefinition
 import dev.restate.sdk.core.TestDefinitions.testInvocation
+import kotlinx.serialization.Serializable
 import dev.restate.sdk.core.TestSerdes
 import java.util.stream.Stream
 
@@ -39,6 +40,17 @@ class CodegenTest : TestDefinitions.TestSuite {
     @Shared
     suspend fun sharedGreet(context: SharedObjectContext, request: String): String {
       return request
+    }
+  }
+
+  @VirtualObject
+  class SerializableDataClassInputOutput {
+    @Serializable data class Input(val a: String)
+    @Serializable data class Output(val a: String)
+
+    @Exclusive
+    suspend fun greet(context: ObjectContext, request: Input): Output {
+      return Output(request.a)
     }
   }
 
@@ -194,6 +206,10 @@ class CodegenTest : TestDefinitions.TestSuite {
             .withInput(startMessage(1, "slinkydeveloper"), inputMessage("Francesco"))
             .onlyUnbuffered()
             .expectingOutput(outputMessage("Francesco"), END_MESSAGE),
+        testInvocation({ SerializableDataClassInputOutput() }, "greet")
+                .withInput(startMessage(1, "slinkydeveloper"), inputMessage(KtSerdes.json(), SerializableDataClassInputOutput.Input("123")))
+                .onlyUnbuffered()
+                .expectingOutput(outputMessage(KtSerdes.json(), SerializableDataClassInputOutput.Output("123")), END_MESSAGE),
         testInvocation({ ObjectGreeterImplementedFromInterface() }, "greet")
             .withInput(startMessage(1, "slinkydeveloper"), inputMessage("Francesco"))
             .onlyUnbuffered()
