@@ -9,7 +9,7 @@ class {{generatedClassSimpleName}}(
         const val COMPONENT_NAME: String = "{{componentName}}";
     }
 
-    val component: dev.restate.sdk.kotlin.Component = dev.restate.sdk.kotlin.Component.{{#if isObject}}virtualObject{{else}}service{{/if}}(COMPONENT_NAME) {
+    val component: dev.restate.sdk.kotlin.Component = dev.restate.sdk.kotlin.Component.{{#if isObject}}virtualObject{{else}}service{{/if}}(COMPONENT_NAME, options) {
         {{#handlers}}
             handler(dev.restate.sdk.kotlin.Component.HandlerSignature("{{name}}", {{{inputSerdeDecl}}}, {{{outputSerdeDecl}}})) { ctx, req ->
             {{#if inputEmpty}}bindableComponent.{{name}}(ctx){{else}}bindableComponent.{{name}}(ctx, req){{/if}}
