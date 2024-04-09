@@ -12,6 +12,8 @@ import dev.restate.sdk.client.IngressClient
 import dev.restate.sdk.client.RequestOptions
 import dev.restate.sdk.common.Serde
 import dev.restate.sdk.common.Target
+import kotlin.time.Duration
+import kotlin.time.toJavaDuration
 import kotlinx.coroutines.future.await
 
 // Extension methods for the IngressClient
@@ -30,9 +32,10 @@ suspend fun <Req> IngressClient.sendSuspend(
     target: Target,
     reqSerde: Serde<Req>,
     req: Req,
+    delay: Duration = Duration.ZERO,
     options: RequestOptions = RequestOptions.DEFAULT
 ): String {
-  return this.sendAsync(target, reqSerde, req, options).await()
+  return this.sendAsync(target, reqSerde, req, delay.toJavaDuration(), options).await()
 }
 
 suspend fun <T> IngressClient.AwakeableHandle.resolveSuspend(serde: Serde<T>, payload: T) {

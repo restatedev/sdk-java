@@ -68,17 +68,18 @@ object {{generatedClassSimpleName}} {
                 requestOptions);
         }{{/handlers}}
 
-        fun send(): Send {
-            return Send()
+        fun send(delay: Duration = Duration.ZERO): Send {
+            return Send(delay)
         }
 
-        inner class Send {
+        inner class Send(private val delay: Duration) {
             {{#handlers}}
             suspend fun {{name}}({{^inputEmpty}}req: {{{inputFqcn}}}, {{/inputEmpty}}requestOptions: dev.restate.sdk.client.RequestOptions = dev.restate.sdk.client.RequestOptions.DEFAULT): String {
                 return this@IngressClient.ingressClient.sendSuspend(
                     {{#if isObject}}Target.virtualObject(COMPONENT_NAME, this@IngressClient.key, "{{name}}"){{else}}Target.service(COMPONENT_NAME, "{{name}}"){{/if}},
                     {{inputSerdeFieldName}},
                     {{#if inputEmpty}}Unit{{else}}req{{/if}},
+                    delay,
                     requestOptions);
             }{{/handlers}}
         }

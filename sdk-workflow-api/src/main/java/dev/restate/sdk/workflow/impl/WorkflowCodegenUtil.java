@@ -218,6 +218,7 @@ public final class WorkflowCodegenUtil {
           Target.service(workflowName, handlerName),
           WorkflowImpl.INVOKE_REQUEST_SERDE,
           InvokeRequest.fromAny(workflowKey, payload),
+          null,
           RequestOptions.DEFAULT);
     }
 
