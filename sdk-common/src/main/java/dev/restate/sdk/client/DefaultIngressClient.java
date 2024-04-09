@@ -20,6 +20,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.jspecify.annotations.NonNull;
@@ -45,7 +46,7 @@ public class DefaultIngressClient implements IngressClient {
       Serde<Res> resSerde,
       Req req,
       RequestOptions requestOptions) {
-    HttpRequest request = prepareHttpRequest(target, false, reqSerde, req, requestOptions);
+    HttpRequest request = prepareHttpRequest(target, false, reqSerde, req, null, requestOptions);
     return httpClient
         .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
         .handle(
@@ -69,8 +70,8 @@ public class DefaultIngressClient implements IngressClient {
 
   @Override
   public <Req> CompletableFuture<String> sendAsync(
-      Target target, Serde<Req> reqSerde, Req req, RequestOptions options) {
-    HttpRequest request = prepareHttpRequest(target, true, reqSerde, req, options);
+      Target target, Serde<Req> reqSerde, Req req, Duration delay, RequestOptions options) {
+    HttpRequest request = prepareHttpRequest(target, true, reqSerde, req, delay, options);
     return httpClient
         .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
         .handle(
@@ -162,7 +163,7 @@ public class DefaultIngressClient implements IngressClient {
     };
   }
 
-  private URI toRequestURI(Target target, boolean isSend) {
+  private URI toRequestURI(Target target, boolean isSend, Duration delay) {
     StringBuilder builder = new StringBuilder();
     builder.append("/").append(target.getComponent());
     if (target.getKey() != null) {
@@ -172,13 +173,21 @@ public class DefaultIngressClient implements IngressClient {
     if (isSend) {
       builder.append("/send");
     }
+    if (delay != null && !delay.isZero() && !delay.isNegative()) {
+      builder.append("?delay=").append(delay);
+    }
 
     return this.baseUri.resolve(builder.toString());
   }
 
   private <Req> HttpRequest prepareHttpRequest(
-      Target target, boolean isSend, Serde<Req> reqSerde, Req req, RequestOptions options) {
-    var reqBuilder = HttpRequest.newBuilder().uri(toRequestURI(target, isSend));
+      Target target,
+      boolean isSend,
+      Serde<Req> reqSerde,
+      Req req,
+      Duration delay,
+      RequestOptions options) {
+    var reqBuilder = HttpRequest.newBuilder().uri(toRequestURI(target, isSend, delay));
 
     // Add content-type
     if (reqSerde.contentType() != null) {

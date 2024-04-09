@@ -117,10 +117,21 @@ public class {{generatedClassSimpleName}} {
         }{{/handlers}}
 
         public Send send() {
-            return new Send();
+            return new Send(null);
+        }
+
+        public Send send(Duration delay) {
+            return new Send(delay);
         }
 
         public class Send {
+
+            private final Duration delay;
+
+            Send(Duration delay) {
+                this.delay = delay;
+            }
+
             {{#handlers}}
             public String {{name}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
                 return this.{{name}}(
@@ -133,6 +144,7 @@ public class {{generatedClassSimpleName}} {
                     {{#if isObject}}Target.virtualObject(COMPONENT_NAME, IngressClient.this.key, "{{name}}"){{else}}Target.service(COMPONENT_NAME, "{{name}}"){{/if}},
                     {{inputSerdeFieldName}},
                     {{#if inputEmpty}}null{{else}}req{{/if}},
+                    this.delay,
                     requestOptions);
             }
 
@@ -147,6 +159,7 @@ public class {{generatedClassSimpleName}} {
                     {{#if isObject}}Target.virtualObject(COMPONENT_NAME, IngressClient.this.key, "{{name}}"){{else}}Target.service(COMPONENT_NAME, "{{name}}"){{/if}},
                     {{inputSerdeFieldName}},
                     {{#if inputEmpty}}null{{else}}req{{/if}},
+                    this.delay,
                     requestOptions);
             }{{/handlers}}
         }

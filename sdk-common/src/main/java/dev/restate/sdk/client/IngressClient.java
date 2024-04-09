@@ -11,11 +11,13 @@ package dev.restate.sdk.client;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.Target;
 import java.net.http.HttpClient;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 public interface IngressClient {
 
@@ -46,16 +48,26 @@ public interface IngressClient {
   }
 
   <Req> CompletableFuture<String> sendAsync(
-      Target target, Serde<Req> reqSerde, Req req, RequestOptions options);
+      Target target,
+      Serde<Req> reqSerde,
+      Req req,
+      @Nullable Duration delay,
+      RequestOptions options);
 
-  default <Req> CompletableFuture<String> sendAsync(Target target, Serde<Req> reqSerde, Req req) {
-    return sendAsync(target, reqSerde, req, RequestOptions.DEFAULT);
+  default <Req> CompletableFuture<String> sendAsync(
+      Target target, Serde<Req> reqSerde, Req req, @Nullable Duration delay) {
+    return sendAsync(target, reqSerde, req, delay, RequestOptions.DEFAULT);
   }
 
-  default <Req> String send(Target target, Serde<Req> reqSerde, Req req, RequestOptions options)
+  default <Req> CompletableFuture<String> sendAsync(Target target, Serde<Req> reqSerde, Req req) {
+    return sendAsync(target, reqSerde, req, null, RequestOptions.DEFAULT);
+  }
+
+  default <Req> String send(
+      Target target, Serde<Req> reqSerde, Req req, @Nullable Duration delay, RequestOptions options)
       throws IngressException {
     try {
-      return sendAsync(target, reqSerde, req, options).join();
+      return sendAsync(target, reqSerde, req, delay, options).join();
     } catch (CompletionException e) {
       if (e.getCause() instanceof RuntimeException) {
         throw (RuntimeException) e.getCause();
@@ -64,8 +76,13 @@ public interface IngressClient {
     }
   }
 
+  default <Req> String send(Target target, Serde<Req> reqSerde, Req req, @Nullable Duration delay)
+      throws IngressException {
+    return send(target, reqSerde, req, delay, RequestOptions.DEFAULT);
+  }
+
   default <Req> String send(Target target, Serde<Req> reqSerde, Req req) throws IngressException {
-    return send(target, reqSerde, req, RequestOptions.DEFAULT);
+    return send(target, reqSerde, req, null, RequestOptions.DEFAULT);
   }
 
   /**
