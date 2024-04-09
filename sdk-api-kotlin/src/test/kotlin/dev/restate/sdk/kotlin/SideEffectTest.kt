@@ -8,7 +8,6 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.common.CoreSerdes
 import dev.restate.sdk.core.ProtoUtils.GREETER_SERVICE_TARGET
 import dev.restate.sdk.core.SideEffectTestSuite
 import dev.restate.sdk.core.TestDefinitions
@@ -23,15 +22,14 @@ class SideEffectTest : SideEffectTestSuite() {
 
   override fun sideEffect(sideEffectOutput: String): TestInvocationBuilder =
       testDefinitionForService("SideEffect") { ctx, _: Unit ->
-        val result = ctx.run(CoreSerdes.JSON_STRING) { sideEffectOutput }
+        val result = ctx.runBlock { sideEffectOutput }
         "Hello $result"
       }
 
   override fun consecutiveSideEffect(sideEffectOutput: String): TestInvocationBuilder =
       testDefinitionForService("ConsecutiveSideEffect") { ctx, _: Unit ->
-        val firstResult = ctx.run(CoreSerdes.JSON_STRING) { sideEffectOutput }
-        val secondResult =
-            ctx.run(CoreSerdes.JSON_STRING) { firstResult.uppercase(Locale.getDefault()) }
+        val firstResult = ctx.runBlock { sideEffectOutput }
+        val secondResult = ctx.runBlock { firstResult.uppercase(Locale.getDefault()) }
         "Hello $secondResult"
       }
 
@@ -42,8 +40,7 @@ class SideEffectTest : SideEffectTestSuite() {
               Component.Options(
                   Dispatchers.Unconfined + CoroutineName("CheckContextSwitchingTestCoroutine"))) {
                 handler("run") { ctx, _: Unit ->
-                  val sideEffectCoroutine =
-                      ctx.run(CoreSerdes.JSON_STRING) { coroutineContext[CoroutineName]!!.name }
+                  val sideEffectCoroutine = ctx.runBlock { coroutineContext[CoroutineName]!!.name }
                   check(sideEffectCoroutine == "CheckContextSwitchingTestCoroutine") {
                     "Side effect thread is not running within the same coroutine context of the handler method: $sideEffectCoroutine"
                   }
@@ -54,7 +51,7 @@ class SideEffectTest : SideEffectTestSuite() {
 
   override fun sideEffectGuard(): TestInvocationBuilder =
       testDefinitionForService<Unit, String>("SideEffectGuard") { ctx, _: Unit ->
-        ctx.run { ctx.send(GREETER_SERVICE_TARGET, KtSerdes.json(), "something") }
+        ctx.runBlock { ctx.send(GREETER_SERVICE_TARGET, KtSerdes.json(), "something") }
         throw IllegalStateException("This point should not be reached")
       }
 }

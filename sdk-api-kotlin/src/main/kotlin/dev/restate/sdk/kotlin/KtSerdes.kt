@@ -10,11 +10,20 @@ package dev.restate.sdk.kotlin
 
 import com.google.protobuf.ByteString
 import dev.restate.sdk.common.Serde
+import dev.restate.sdk.common.StateKey
 import java.nio.charset.StandardCharsets
 import kotlin.reflect.typeOf
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.serializer
+
+object KtStateKey {
+
+  /** Creates a json [StateKey]. */
+  inline fun <reified T> json(name: String): StateKey<T> {
+    return StateKey.of(name, KtSerdes.json())
+  }
+}
 
 object KtSerdes {
 
