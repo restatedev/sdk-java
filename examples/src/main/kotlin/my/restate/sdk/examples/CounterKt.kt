@@ -10,9 +10,8 @@ package my.restate.sdk.examples
 
 import dev.restate.sdk.annotation.Handler
 import dev.restate.sdk.annotation.VirtualObject
-import dev.restate.sdk.common.StateKey
 import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder
-import dev.restate.sdk.kotlin.KtSerdes
+import dev.restate.sdk.kotlin.KtStateKey
 import dev.restate.sdk.kotlin.ObjectContext
 import kotlinx.serialization.Serializable
 import org.apache.logging.log4j.LogManager
@@ -24,7 +23,7 @@ import org.apache.logging.log4j.Logger
 class CounterKt {
 
   companion object {
-    private val TOTAL = StateKey.of<Long>("total", KtSerdes.json())
+    private val TOTAL = KtStateKey.json<Long>("total")
     private val LOG: Logger = LogManager.getLogger(CounterKt::class.java)
   }
 

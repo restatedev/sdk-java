@@ -21,7 +21,7 @@ class RandomTest : RandomTestSuite() {
 
   override fun randomInsideSideEffect(): TestInvocationBuilder =
       testDefinitionForService<Unit, Int>("RandomInsideSideEffect") { ctx, _: Unit ->
-        ctx.run { ctx.random().nextInt() }
+        ctx.runBlock { ctx.random().nextInt() }
         throw IllegalStateException("This should not unreachable")
       }
 

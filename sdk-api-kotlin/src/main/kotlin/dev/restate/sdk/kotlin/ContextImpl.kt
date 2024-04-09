@@ -130,7 +130,7 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
     }
   }
 
-  override suspend fun <T : Any?> run(serde: Serde<T>, sideEffectAction: suspend () -> T): T {
+  override suspend fun <T : Any?> runBlock(serde: Serde<T>, block: suspend () -> T): T {
     val exitResult =
         suspendCancellableCoroutine { cont: CancellableContinuation<CompletableDeferred<ByteString>>
           ->
@@ -165,7 +165,7 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
     var actionReturnValue: T? = null
     var actionFailure: TerminalException? = null
     try {
-      actionReturnValue = sideEffectAction()
+      actionReturnValue = block()
     } catch (e: TerminalException) {
       actionFailure = e
     } catch (e: Error) {

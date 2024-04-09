@@ -114,9 +114,9 @@ sealed interface Context {
    * Errors occurring within this closure won't be propagated to the caller, unless they are
    * [TerminalException]. Consider the following code:
    * ```
-   * // Bad usage of try-catch outside the run
+   * // Bad usage of try-catch outside the runBlock
    * try {
-   *     ctx.run {
+   *     ctx.runBlock {
    *         throw IllegalStateException();
    *     };
    * } catch (e: IllegalStateException) {
@@ -125,9 +125,9 @@ sealed interface Context {
    *     // following the invocation retry policy.
    * }
    *
-   * // Good usage of try-catch outside the run
+   * // Good usage of try-catch outside the runBlock
    * try {
-   *     ctx.run {
+   *     ctx.runBlock {
    *         throw TerminalException("my error");
    *     };
    * } catch (e: TerminalException) {
@@ -138,16 +138,11 @@ sealed interface Context {
    * To propagate failures to the run call-site, make sure to wrap them in [TerminalException].
    *
    * @param serde the type tag of the return value, used to serialize/deserialize it.
-   * @param action closure to execute.
+   * @param block closure to execute.
    * @param T type of the return value.
-   * @return value of the run operation.
+   * @return value of the runBlock operation.
    */
-  suspend fun <T : Any?> run(serde: Serde<T>, sideEffectAction: suspend () -> T): T
-
-  /** Like [run] without a return value. */
-  suspend fun run(sideEffectAction: suspend () -> Unit) {
-    run(KtSerdes.UNIT, sideEffectAction)
-  }
+  suspend fun <T : Any?> runBlock(serde: Serde<T>, block: suspend () -> T): T
 
   /**
    * Create an [Awakeable], addressable through [Awakeable.id].
@@ -176,13 +171,72 @@ sealed interface Context {
    *
    * This instance is useful to generate identifiers, idempotency keys, and for uniform sampling
    * from a set of options. If a cryptographically secure value is needed, please generate that
-   * externally using [run].
+   * externally using [runBlock].
    *
-   * You MUST NOT use this [Random] instance inside a [run].
+   * You MUST NOT use this [Random] instance inside a [runBlock].
    *
    * @return the [Random] instance.
    */
   fun random(): RestateRandom
+}
+
+/**
+ * Execute a non-deterministic closure, recording the result value in the journal using
+ * [KtSerdes.json]. The result value will be re-played in case of re-invocation (e.g. because of
+ * failure recovery or suspension point) without re-executing the closure. Use this feature if you
+ * want to perform <b>non-deterministic operations</b>.
+ *
+ * <p>The closure should tolerate retries, that is Restate might re-execute the closure multiple
+ * times until it records a result.
+ *
+ * <h2>Error handling</h2>
+ *
+ * Errors occurring within this closure won't be propagated to the caller, unless they are
+ * [TerminalException]. Consider the following code:
+ * ```
+ * // Bad usage of try-catch outside the runBlock
+ * try {
+ *     ctx.runBlock {
+ *         throw IllegalStateException();
+ *     };
+ * } catch (e: IllegalStateException) {
+ *     // This will never be executed,
+ *     // but the error will be retried by Restate,
+ *     // following the invocation retry policy.
+ * }
+ *
+ * // Good usage of try-catch outside the runBlock
+ * try {
+ *     ctx.runBlock {
+ *         throw TerminalException("my error");
+ *     };
+ * } catch (e: TerminalException) {
+ *     // This is invoked
+ * }
+ * ```
+ *
+ * To propagate failures to the run call-site, make sure to wrap them in [TerminalException].
+ *
+ * @param block closure to execute.
+ * @param T type of the return value.
+ * @return value of the runBlock operation.
+ */
+suspend inline fun <reified T : Any> Context.runBlock(noinline block: suspend () -> T): T {
+  return this.runBlock(KtSerdes.json(), block)
+}
+
+/**
+ * Create an [Awakeable] using [KtSerdes.json] deserializer, addressable through [Awakeable.id].
+ *
+ * You can use this feature to implement external asynchronous systems interactions, for example you
+ * can send a Kafka record including the [Awakeable.id], and then let another service consume from
+ * Kafka the responses of given external system interaction by using [awakeableHandle].
+ *
+ * @return the [Awakeable] to await on.
+ * @see Awakeable
+ */
+suspend inline fun <reified T : Any> Context.awakeable(): Awakeable<T> {
+  return this.awakeable(KtSerdes.json())
 }
 
 /**
@@ -233,7 +287,7 @@ class RestateRandom(seed: Long, private val syscalls: Syscalls) : Random() {
   private val r = Random(seed)
 
   override fun nextBits(bitCount: Int): Int {
-    check(!syscalls.isInsideSideEffect) { "You can't use RestateRandom inside ctx.run!" }
+    check(!syscalls.isInsideSideEffect) { "You can't use RestateRandom inside ctx.runBlock!" }
     return r.nextBits(bitCount)
   }
 
@@ -368,4 +422,14 @@ sealed interface AwakeableHandle {
    * @see Awakeable
    */
   suspend fun reject(reason: String)
+}
+
+/**
+ * Complete with success the [Awakeable] using [KtSerdes.json] serializer.
+ *
+ * @param payload the result payload.
+ * @see Awakeable
+ */
+suspend inline fun <reified T : Any> AwakeableHandle.resolve(payload: T) {
+  return this.resolve(KtSerdes.json(), payload)
 }

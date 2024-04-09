@@ -14,7 +14,7 @@ import dev.restate.sdk.common.CoreSerdes
 import dev.restate.sdk.core.ProtoUtils.*
 import dev.restate.sdk.core.TestDefinitions
 import dev.restate.sdk.core.TestDefinitions.testInvocation
-import dev.restate.sdk.kotlin.Component
+import dev.restate.sdk.kotlin.*
 import io.vertx.core.Vertx
 import java.util.stream.Stream
 import kotlin.coroutines.coroutineContext
@@ -36,7 +36,7 @@ class VertxExecutorsTest : TestDefinitions.TestSuite {
     LOG.info("I am on the thread I am before executing side effect")
     check(Vertx.currentContext() == null)
     check(coroutineContext[CoroutineName] == nonBlockingCoroutineName)
-    ctx.run {
+    ctx.runBlock {
       LOG.info("I am on the thread I am when executing side effect")
       check(coroutineContext[CoroutineName] == nonBlockingCoroutineName)
       check(Vertx.currentContext() == null)
@@ -65,7 +65,7 @@ class VertxExecutorsTest : TestDefinitions.TestSuite {
     return Stream.of(
         testInvocation(
                 dev.restate.sdk.kotlin.Component.service(
-                    "CheckBlockingComponentTrampolineExecutor",
+                    "CheckNonBlockingComponentTrampolineExecutor",
                     Component.Options(Dispatchers.Default + nonBlockingCoroutineName)) {
                       handler("do") { ctx, _: Unit ->
                         checkNonBlockingComponentTrampolineExecutor(ctx)

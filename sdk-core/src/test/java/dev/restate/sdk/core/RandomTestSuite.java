@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import static dev.restate.sdk.core.AssertUtils.containsOnlyExactErrorMessage;
+import static dev.restate.sdk.core.AssertUtils.*;
 import static dev.restate.sdk.core.ProtoUtils.*;
 
 import dev.restate.sdk.core.TestDefinitions.TestDefinition;
@@ -37,7 +37,7 @@ public abstract class RandomTestSuite implements TestSuite {
         this.randomInsideSideEffect()
             .withInput(startMessage(1).setDebugId(debugId), ProtoUtils.inputMessage())
             .assertingOutput(
-                containsOnlyExactErrorMessage(
-                    new IllegalStateException("You can't use RestateRandom inside ctx.run!"))));
+                containsOnly(
+                    errorMessageStartingWith(IllegalStateException.class.getCanonicalName()))));
   }
 }
