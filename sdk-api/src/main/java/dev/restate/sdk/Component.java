@@ -17,6 +17,8 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public final class Component implements BindableComponent<Component.Options> {
   private final ComponentDefinition<Component.Options> componentDefinition;
@@ -102,6 +104,8 @@ public final class Component implements BindableComponent<Component.Options> {
     private final HandlerSignature<REQ, RES> handlerSignature;
     private final BiFunction<Context, REQ, RES> runner;
 
+    private static final Logger LOG = LogManager.getLogger(Handler.class);
+
     public Handler(
         HandlerSignature<REQ, RES> handlerSignature,
         BiFunction<? extends Context, REQ, RES> runner) {
@@ -152,6 +156,7 @@ public final class Component implements BindableComponent<Component.Options> {
             } catch (Error e) {
               throw e;
             } catch (Throwable e) {
+              LOG.warn("Cannot deserialize input", e);
               callback.onCancel(
                   new TerminalException(
                       TerminalException.BAD_REQUEST_CODE,
@@ -177,6 +182,7 @@ public final class Component implements BindableComponent<Component.Options> {
             } catch (Error e) {
               throw e;
             } catch (Throwable e) {
+              LOG.warn("Cannot serialize output", e);
               callback.onCancel(
                   new TerminalException(
                       TerminalException.INTERNAL_SERVER_ERROR_CODE,

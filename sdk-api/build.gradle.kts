@@ -10,6 +10,8 @@ dependencies {
 
   api(project(":sdk-common"))
 
+  implementation(coreLibs.log4j.api)
+
   testImplementation(project(":sdk-core"))
   testImplementation(testingLibs.junit.jupiter)
   testImplementation(testingLibs.assertj)

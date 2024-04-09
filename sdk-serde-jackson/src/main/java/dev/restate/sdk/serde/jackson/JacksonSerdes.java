@@ -61,7 +61,8 @@ public final class JacksonSerdes {
         try {
           return mapper.writeValueAsBytes(value);
         } catch (JsonProcessingException e) {
-          throw new RuntimeException("Cannot serialize value", e);
+          sneakyThrow(e);
+          return null;
         }
       }
 
@@ -70,7 +71,8 @@ public final class JacksonSerdes {
         try {
           return mapper.readValue(value, clazz);
         } catch (IOException e) {
-          throw new RuntimeException("Cannot deserialize value", e);
+          sneakyThrow(e);
+          return null;
         }
       }
 
@@ -94,7 +96,8 @@ public final class JacksonSerdes {
         try {
           return mapper.writeValueAsBytes(value);
         } catch (JsonProcessingException e) {
-          throw new RuntimeException("Cannot serialize value", e);
+          sneakyThrow(e);
+          return null;
         }
       }
 
@@ -103,7 +106,8 @@ public final class JacksonSerdes {
         try {
           return mapper.readValue(value, typeReference);
         } catch (IOException e) {
-          throw new RuntimeException("Cannot deserialize value", e);
+          sneakyThrow(e);
+          return null;
         }
       }
 
@@ -112,5 +116,10 @@ public final class JacksonSerdes {
         return "application/json";
       }
     };
+  }
+
+  @SuppressWarnings("unchecked")
+  private static <E extends Throwable> void sneakyThrow(Object exception) throws E {
+    throw (E) exception;
   }
 }
