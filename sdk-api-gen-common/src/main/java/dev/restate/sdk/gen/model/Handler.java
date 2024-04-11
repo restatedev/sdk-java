@@ -87,7 +87,14 @@ public class Handler {
       return outputType;
     }
 
-    public Handler build() {
+    public Handler validateAndBuild() {
+      String handlerNameLowercase = name.toString().toLowerCase();
+      if (handlerNameLowercase.startsWith("restate")
+          || handlerNameLowercase.startsWith("openapi")) {
+        throw new IllegalArgumentException(
+            "A component name cannot start with `restate` or `openapi`");
+      }
+
       return new Handler(
           Objects.requireNonNull(name), Objects.requireNonNull(handlerType), inputType, outputType);
     }

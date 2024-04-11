@@ -69,7 +69,14 @@ class ComponentProcessor(private val logger: KSPLogger, private val codeGenerato
             .map {
               val componentBuilder = Component.builder()
               converter.visitAnnotated(it, componentBuilder)
-              (it to componentBuilder.build()!!)
+
+              var componentModel: Component? = null
+              try {
+                componentModel = componentBuilder.validateAndBuild()
+              } catch (e: Exception) {
+                logger.error("Unable to build component: $e", it)
+              }
+              (it to componentModel!!)
             }
             .toList()
 

@@ -128,7 +128,22 @@ public class Component {
       return handlers;
     }
 
-    public Component build() {
+    public Component validateAndBuild() {
+      String componentNameLowercase = componentName.toLowerCase();
+      if (componentNameLowercase.startsWith("restate")
+          || componentNameLowercase.startsWith("openapi")) {
+        throw new IllegalArgumentException(
+            "A component name cannot start with `restate` or `openapi`");
+      }
+
+      if (componentType.equals(ComponentType.WORKFLOW)) {
+        if (handlers.stream().filter(m -> m.getHandlerType().equals(HandlerType.WORKFLOW)).count()
+            != 1) {
+          throw new IllegalArgumentException(
+              "Workflow services must have exactly one method annotated as @Workflow");
+        }
+      }
+
       return new Component(
           Objects.requireNonNull(targetPkg),
           Objects.requireNonNull(targetFqcn),
