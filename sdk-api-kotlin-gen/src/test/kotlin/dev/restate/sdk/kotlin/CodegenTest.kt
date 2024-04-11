@@ -85,6 +85,15 @@ class CodegenTest : TestDefinitions.TestSuite {
     }
   }
 
+  @VirtualObject
+  class CornerCases {
+    @Exclusive
+    suspend fun send(context: ObjectContext, request: String): String {
+      // Just needs to compile
+      return CodegenTestCornerCasesClient.fromContext(context, request)._send("my_send").await()
+    }
+  }
+
   override fun definitions(): Stream<TestDefinition> {
     return Stream.of(
         testInvocation({ ServiceGreeter() }, "greet")

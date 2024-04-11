@@ -39,6 +39,8 @@ public class ComponentProcessor extends AbstractProcessor {
   private HandlebarsTemplateEngine bindableComponentCodegen;
   private HandlebarsTemplateEngine clientCodegen;
 
+  private static final Set<String> RESERVED_METHOD_NAMES = Set.of("send");
+
   @Override
   public synchronized void init(ProcessingEnvironment processingEnv) {
     super.init(processingEnv);
@@ -55,7 +57,8 @@ public class ComponentProcessor extends AbstractProcessor {
                 ComponentType.SERVICE,
                 "templates/BindableComponentFactory.hbs",
                 ComponentType.VIRTUAL_OBJECT,
-                "templates/BindableComponentFactory.hbs"));
+                "templates/BindableComponentFactory.hbs"),
+            RESERVED_METHOD_NAMES);
     this.bindableComponentCodegen =
         new HandlebarsTemplateEngine(
             "BindableComponent",
@@ -66,7 +69,8 @@ public class ComponentProcessor extends AbstractProcessor {
                 ComponentType.SERVICE,
                 "templates/BindableComponent.hbs",
                 ComponentType.VIRTUAL_OBJECT,
-                "templates/BindableComponent.hbs"));
+                "templates/BindableComponent.hbs"),
+            RESERVED_METHOD_NAMES);
     this.clientCodegen =
         new HandlebarsTemplateEngine(
             "Client",
@@ -77,7 +81,8 @@ public class ComponentProcessor extends AbstractProcessor {
                 ComponentType.SERVICE,
                 "templates/Client.hbs",
                 ComponentType.VIRTUAL_OBJECT,
-                "templates/Client.hbs"));
+                "templates/Client.hbs"),
+            RESERVED_METHOD_NAMES);
   }
 
   @Override
