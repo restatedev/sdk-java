@@ -93,6 +93,15 @@ public class CodegenTest implements TestSuite {
     }
   }
 
+  @VirtualObject
+  static class CornerCases {
+    @Exclusive
+    public String send(ObjectContext context, String request) {
+      // Just needs to compile
+      return CodegenTestCornerCasesClient.fromContext(context, request)._send("my_send").await();
+    }
+  }
+
   @Override
   public Stream<TestDefinitions.TestDefinition> definitions() {
     return Stream.of(

@@ -107,20 +107,27 @@ public class ElementConverter {
                         || e.getAnnotation(Shared.class) != null)
             .map(e -> fromExecutableElement(type, ((ExecutableElement) e)))
             .collect(Collectors.toList());
-    validateHandlers(type, handlers, element);
 
     if (handlers.isEmpty()) {
       messager.printMessage(
           Diagnostic.Kind.WARNING, "The component " + componentName + " has no handlers", element);
     }
 
-    return new Component.Builder()
-        .withTargetPkg(targetPkg)
-        .withTargetFqcn(targetFqcn)
-        .withComponentName(componentName)
-        .withComponentType(type)
-        .withHandlers(handlers)
-        .build();
+    try {
+      return new Component.Builder()
+          .withTargetPkg(targetPkg)
+          .withTargetFqcn(targetFqcn)
+          .withComponentName(componentName)
+          .withComponentType(type)
+          .withHandlers(handlers)
+          .validateAndBuild();
+    } catch (Exception e) {
+      messager.printMessage(
+          Diagnostic.Kind.ERROR,
+          "Can't build the component " + componentName + ": " + e.getMessage(),
+          element);
+      return null;
+    }
   }
 
   private void validateType(TypeElement element) {
@@ -137,20 +144,6 @@ public class ElementConverter {
 
     if (element.getModifiers().contains(Modifier.PRIVATE)) {
       messager.printMessage(Diagnostic.Kind.ERROR, "The annotated class is private", element);
-    }
-  }
-
-  private void validateHandlers(
-      ComponentType componentType, List<Handler> handlers, TypeElement element) {
-    // Additional validation for Workflow types
-    if (componentType.equals(ComponentType.WORKFLOW)) {
-      if (handlers.stream().filter(m -> m.getHandlerType().equals(HandlerType.WORKFLOW)).count()
-          != 1) {
-        messager.printMessage(
-            Diagnostic.Kind.ERROR,
-            "Workflow services must have exactly one method annotated as @Workflow",
-            element);
-      }
     }
   }
 
@@ -199,18 +192,24 @@ public class ElementConverter {
 
     validateMethodSignature(componentType, handlerType, element);
 
-    return new Handler.Builder()
-        .withName(element.getSimpleName())
-        .withHandlerType(handlerType)
-        .withInputType(
-            element.getParameters().size() > 1
-                ? payloadFromType(element.getParameters().get(1).asType())
-                : EMPTY_PAYLOAD)
-        .withOutputType(
-            !element.getReturnType().getKind().equals(TypeKind.VOID)
-                ? payloadFromType(element.getReturnType())
-                : EMPTY_PAYLOAD)
-        .build();
+    try {
+      return new Handler.Builder()
+          .withName(element.getSimpleName())
+          .withHandlerType(handlerType)
+          .withInputType(
+              element.getParameters().size() > 1
+                  ? payloadFromType(element.getParameters().get(1).asType())
+                  : EMPTY_PAYLOAD)
+          .withOutputType(
+              !element.getReturnType().getKind().equals(TypeKind.VOID)
+                  ? payloadFromType(element.getReturnType())
+                  : EMPTY_PAYLOAD)
+          .validateAndBuild();
+    } catch (Exception e) {
+      messager.printMessage(
+          Diagnostic.Kind.ERROR, "Error when building handler: " + e.getMessage(), element);
+      return null;
+    }
   }
 
   private HandlerType defaultHandlerType(ComponentType componentType, ExecutableElement element) {

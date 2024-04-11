@@ -25,27 +25,34 @@ import java.nio.charset.Charset
 class ComponentProcessor(private val logger: KSPLogger, private val codeGenerator: CodeGenerator) :
     SymbolProcessor {
 
+  companion object {
+    private val RESERVED_METHOD_NAMES: Set<String> = setOf("send")
+  }
+
   private val bindableComponentFactoryCodegen: HandlebarsTemplateEngine =
       HandlebarsTemplateEngine(
           "BindableComponentFactory",
           ClassPathTemplateLoader(),
           mapOf(
               ComponentType.SERVICE to "templates/BindableComponentFactory",
-              ComponentType.VIRTUAL_OBJECT to "templates/BindableComponentFactory"))
+              ComponentType.VIRTUAL_OBJECT to "templates/BindableComponentFactory"),
+          RESERVED_METHOD_NAMES)
   private val bindableComponentCodegen: HandlebarsTemplateEngine =
       HandlebarsTemplateEngine(
           "BindableComponent",
           ClassPathTemplateLoader(),
           mapOf(
               ComponentType.SERVICE to "templates/BindableComponent",
-              ComponentType.VIRTUAL_OBJECT to "templates/BindableComponent"))
+              ComponentType.VIRTUAL_OBJECT to "templates/BindableComponent"),
+          RESERVED_METHOD_NAMES)
   private val clientCodegen: HandlebarsTemplateEngine =
       HandlebarsTemplateEngine(
           "Client",
           ClassPathTemplateLoader(),
           mapOf(
               ComponentType.SERVICE to "templates/Client",
-              ComponentType.VIRTUAL_OBJECT to "templates/Client"))
+              ComponentType.VIRTUAL_OBJECT to "templates/Client"),
+          RESERVED_METHOD_NAMES)
 
   override fun process(resolver: Resolver): List<KSAnnotated> {
     val converter = KElementConverter(logger, resolver.builtIns)
@@ -69,7 +76,14 @@ class ComponentProcessor(private val logger: KSPLogger, private val codeGenerato
             .map {
               val componentBuilder = Component.builder()
               converter.visitAnnotated(it, componentBuilder)
-              (it to componentBuilder.build()!!)
+
+              var componentModel: Component? = null
+              try {
+                componentModel = componentBuilder.validateAndBuild()
+              } catch (e: Exception) {
+                logger.error("Unable to build component: $e", it)
+              }
+              (it to componentModel!!)
             }
             .toList()
 

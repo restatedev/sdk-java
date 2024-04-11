@@ -156,17 +156,21 @@ class KElementConverter(private val logger: KSPLogger, private val builtIns: KSB
 
     validateMethodSignature(data.componentType, handlerType, function)
 
-    data.withHandler(
-        handlerBuilder
-            .withName(function.simpleName.asString())
-            .withHandlerType(handlerType)
-            .withInputType(
-                if (function.parameters.size == 2) payloadFromType(function.parameters[1].type)
-                else EMPTY_PAYLOAD)
-            .withOutputType(
-                if (function.returnType != null) payloadFromType(function.returnType!!)
-                else EMPTY_PAYLOAD)
-            .build())
+    try {
+      data.withHandler(
+          handlerBuilder
+              .withName(function.simpleName.asString())
+              .withHandlerType(handlerType)
+              .withInputType(
+                  if (function.parameters.size == 2) payloadFromType(function.parameters[1].type)
+                  else EMPTY_PAYLOAD)
+              .withOutputType(
+                  if (function.returnType != null) payloadFromType(function.returnType!!)
+                  else EMPTY_PAYLOAD)
+              .validateAndBuild())
+    } catch (e: Exception) {
+      logger.error("Error when building handler: $e", function)
+    }
   }
 
   private fun defaultHandlerType(componentType: ComponentType, node: KSNode): HandlerType {

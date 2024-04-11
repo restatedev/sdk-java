@@ -23,18 +23,22 @@ import java.io.IOException;
 import java.io.Writer;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class HandlebarsTemplateEngine {
 
   private final String baseTemplateName;
   private final Map<ComponentType, Template> templates;
+  private final Set<String> handlerNamesToPrefix;
 
   public HandlebarsTemplateEngine(
       String baseTemplateName,
       TemplateLoader templateLoader,
-      Map<ComponentType, String> templates) {
+      Map<ComponentType, String> templates,
+      Set<String> handlerNamesToPrefix) {
     this.baseTemplateName = baseTemplateName;
+    this.handlerNamesToPrefix = handlerNamesToPrefix;
 
     Handlebars handlebars = new Handlebars(templateLoader);
     handlebars.registerHelpers(StringHelpers.class);
@@ -65,7 +69,9 @@ public class HandlebarsTemplateEngine {
       this.templates
           .get(component.getComponentType())
           .apply(
-              Context.newBuilder(new ComponentTemplateModel(component, this.baseTemplateName))
+              Context.newBuilder(
+                      new ComponentTemplateModel(
+                          component, this.baseTemplateName, this.handlerNamesToPrefix))
                   .resolver(FieldValueResolver.INSTANCE)
                   .build(),
               out);
@@ -86,7 +92,8 @@ public class HandlebarsTemplateEngine {
     public final boolean isService;
     public final List<HandlerTemplateModel> handlers;
 
-    private ComponentTemplateModel(Component inner, String baseTemplateName) {
+    private ComponentTemplateModel(
+        Component inner, String baseTemplateName, Set<String> handlerNamesToPrefix) {
       this.originalClassPkg = inner.getTargetPkg().toString();
       this.originalClassFqcn = inner.getTargetFqcn().toString();
       this.generatedClassSimpleNamePrefix = inner.getSimpleComponentName();
@@ -99,12 +106,15 @@ public class HandlebarsTemplateEngine {
       this.isService = inner.getComponentType() == ComponentType.SERVICE;
 
       this.handlers =
-          inner.getMethods().stream().map(HandlerTemplateModel::new).collect(Collectors.toList());
+          inner.getMethods().stream()
+              .map(h -> new HandlerTemplateModel(h, handlerNamesToPrefix))
+              .collect(Collectors.toList());
     }
   }
 
   static class HandlerTemplateModel {
     public final String name;
+    public final String methodName;
     public final String handlerType;
     public final boolean isWorkflow;
     public final boolean isShared;
@@ -123,8 +133,9 @@ public class HandlebarsTemplateEngine {
     public final String boxedOutputFqcn;
     public final String outputSerdeFieldName;
 
-    private HandlerTemplateModel(Handler inner) {
+    private HandlerTemplateModel(Handler inner, Set<String> handlerNamesToPrefix) {
       this.name = inner.getName().toString();
+      this.methodName = (handlerNamesToPrefix.contains(this.name) ? "_" : "") + this.name;
       this.handlerType = inner.getHandlerType().toString();
       this.isWorkflow = inner.getHandlerType() == HandlerType.WORKFLOW;
       this.isShared = inner.getHandlerType() == HandlerType.SHARED;
