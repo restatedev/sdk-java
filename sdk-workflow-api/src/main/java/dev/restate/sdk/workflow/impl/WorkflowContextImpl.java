@@ -12,7 +12,6 @@ import static dev.restate.sdk.workflow.impl.WorkflowImpl.workflowManagerObjectNa
 
 import dev.restate.sdk.*;
 import dev.restate.sdk.common.*;
-import dev.restate.sdk.common.function.ThrowingRunnable;
 import dev.restate.sdk.common.function.ThrowingSupplier;
 import dev.restate.sdk.workflow.DurablePromise;
 import dev.restate.sdk.workflow.DurablePromiseHandle;
@@ -212,11 +211,6 @@ class WorkflowContextImpl implements WorkflowContext {
   public <T> T run(String name, Serde<T> serde, ThrowingSupplier<T> action)
       throws TerminalException {
     return ctx.run(name, serde, action);
-  }
-
-  @Override
-  public void run(ThrowingRunnable runnable) throws TerminalException {
-    ctx.run(runnable);
   }
 
   @Override
