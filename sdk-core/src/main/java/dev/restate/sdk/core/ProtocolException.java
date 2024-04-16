@@ -11,8 +11,6 @@ package dev.restate.sdk.core;
 import com.google.protobuf.MessageLite;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.common.TerminalException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 
 public class ProtocolException extends RuntimeException {
 
@@ -40,20 +38,6 @@ public class ProtocolException extends RuntimeException {
 
   public int getCode() {
     return code;
-  }
-
-  public Protocol.ErrorMessage toErrorMessage() {
-    // Convert stacktrace to string
-    StringWriter sw = new StringWriter();
-    PrintWriter pw = new PrintWriter(sw);
-    pw.println("Stacktrace:");
-    this.printStackTrace(pw);
-
-    return Protocol.ErrorMessage.newBuilder()
-        .setCode(code)
-        .setMessage(this.toString())
-        .setDescription(sw.toString())
-        .build();
   }
 
   static ProtocolException unexpectedMessage(

@@ -88,8 +88,8 @@ class ExecutorSwitchingSyscalls implements SyscallsInternal {
   }
 
   @Override
-  public void enterSideEffectBlock(EnterSideEffectSyscallCallback callback) {
-    syscallsExecutor.execute(() -> syscalls.enterSideEffectBlock(callback));
+  public void enterSideEffectBlock(String name, EnterSideEffectSyscallCallback callback) {
+    syscallsExecutor.execute(() -> syscalls.enterSideEffectBlock(name, callback));
   }
 
   @Override

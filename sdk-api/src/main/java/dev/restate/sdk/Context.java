@@ -100,6 +100,9 @@ public interface Context {
    * suspension point) without re-executing the closure. Use this feature if you want to perform
    * <b>non-deterministic operations</b>.
    *
+   * <p>You can name this closure using the {@code name} parameter. This name will be available in
+   * the observability tools.
+   *
    * <p>The closure should tolerate retries, that is Restate might re-execute the closure multiple
    * times until it records a result.
    *
@@ -133,21 +136,33 @@ public interface Context {
    * To propagate run failures to the call-site, make sure to wrap them in {@link
    * TerminalException}.
    *
+   * @param name name of the side effect.
    * @param serde the type tag of the return value, used to serialize/deserialize it.
    * @param action closure to execute.
    * @param <T> type of the return value.
    * @return value of the run operation.
    */
-  <T> T run(Serde<T> serde, ThrowingSupplier<T> action) throws TerminalException;
+  <T> T run(String name, Serde<T> serde, ThrowingSupplier<T> action) throws TerminalException;
 
-  /** Like {@link #run(Serde, ThrowingSupplier)}, but without returning a value. */
-  default void run(ThrowingRunnable runnable) throws TerminalException {
+  /** Like {@link #run(String, Serde, ThrowingSupplier)}, but without returning a value. */
+  default void run(String name, ThrowingRunnable runnable) throws TerminalException {
     run(
+        name,
         CoreSerdes.VOID,
         () -> {
           runnable.run();
           return null;
         });
+  }
+
+  /** Like {@link #run(String, Serde, ThrowingSupplier)}, but without a name. */
+  default <T> T run(Serde<T> serde, ThrowingSupplier<T> action) throws TerminalException {
+    return run(null, serde, action);
+  }
+
+  /** Like {@link #run(String, ThrowingRunnable)}, but without a name. */
+  default void run(ThrowingRunnable runnable) throws TerminalException {
+    run(null, runnable);
   }
 
   /**

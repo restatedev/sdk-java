@@ -21,7 +21,6 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
 import java.util.*;
 import java.util.concurrent.Flow;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
@@ -43,12 +42,15 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   // Obtained after WAITING_START
   private ByteString id;
+  private String debugId;
   private String key;
   private int entriesToReplay;
   private UserStateStore userStateStore;
 
-  // Index tracking progress in the journal
-  private int currentJournalIndex;
+  // Those values track the progress in the journal
+  private int currentJournalEntryIndex = -1;
+  private String currentJournalEntryName = null;
+  private MessageType currentJournalEntryType = null;
 
   // Buffering of messages and completions
   private final IncomingEntriesStateMachine incomingEntriesStateMachine;
@@ -176,6 +178,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     // Unpack the StartMessage
     Protocol.StartMessage startMessage = (Protocol.StartMessage) msg;
     this.id = startMessage.getId();
+    this.debugId = startMessage.getDebugId();
     InvocationId invocationId = new InvocationIdImpl(startMessage.getDebugId());
     this.key = startMessage.getKey();
     this.entriesToReplay = startMessage.getKnownEntries();
@@ -212,8 +215,9 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     this.inputSubscription.request(Long.MAX_VALUE);
 
     // Now wait input entry
+    this.nextJournalEntry(null, MessageType.InputEntryMessage);
     this.readEntry(
-        (i, inputMsg) -> {
+        inputMsg -> {
           if (!(inputMsg instanceof Protocol.InputEntryMessage)) {
             throw ProtocolException.unexpectedMessage(Protocol.InputEntryMessage.class, inputMsg);
           }
@@ -251,17 +255,13 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   void fail(Throwable cause) {
     LOG.warn("Invocation failed", cause);
-    Protocol.ErrorMessage msg;
-    if (cause instanceof ProtocolException) {
-      msg = ((ProtocolException) cause).toErrorMessage();
-    } else {
-      msg =
-          Protocol.ErrorMessage.newBuilder()
-              .setCode(TerminalException.INTERNAL_SERVER_ERROR_CODE)
-              .setMessage(cause.toString())
-              .build();
-    }
-    this.closeWithMessage(msg, cause);
+    this.closeWithMessage(
+        Util.toErrorMessage(
+            cause,
+            this.currentJournalEntryIndex,
+            this.currentJournalEntryName,
+            this.currentJournalEntryType),
+        cause);
   }
 
   private void closeWithMessage(MessageLite closeMessage, Throwable cause) {
@@ -295,12 +295,15 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       Entries.CompletableJournalEntry<E, T> journalEntry,
       SyscallCallback<Deferred<T>> callback) {
     checkInsideSideEffectGuard();
+    this.nextJournalEntry(
+        journalEntry.getName(expectedEntryMessage), MessageType.fromMessage(expectedEntryMessage));
+
     if (this.invocationState == InvocationState.CLOSED) {
       callback.onCancel(AbortedExecutionException.INSTANCE);
     } else if (this.invocationState == InvocationState.REPLAYING) {
       // Retrieve the entry
       this.readEntry(
-          (entryIndex, actualEntryMessage) -> {
+          actualEntryMessage -> {
             journalEntry.checkEntryHeader(expectedEntryMessage, actualEntryMessage);
 
             if (journalEntry.hasResult((E) actualEntryMessage)) {
@@ -308,17 +311,19 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
               journalEntry.updateUserStateStoreWithEntry(
                   (E) actualEntryMessage, this.userStateStore);
               Result<T> readyResultInternal = journalEntry.parseEntryResult((E) actualEntryMessage);
-              callback.onSuccess(DeferredResults.completedSingle(entryIndex, readyResultInternal));
+              callback.onSuccess(
+                  DeferredResults.completedSingle(
+                      this.currentJournalEntryIndex, readyResultInternal));
             } else {
               // Entry is not completed yet
               this.readyResultStateMachine.offerCompletionParser(
-                  entryIndex,
+                  this.currentJournalEntryIndex,
                   completionMessage -> {
                     journalEntry.updateUserStateStorageWithCompletion(
                         (E) actualEntryMessage, completionMessage, this.userStateStore);
                     return journalEntry.parseCompletionResult(completionMessage);
                   });
-              callback.onSuccess(DeferredResults.single(entryIndex));
+              callback.onSuccess(DeferredResults.single(this.currentJournalEntryIndex));
             }
           },
           callback::onCancel);
@@ -331,9 +336,6 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
         journalEntry.trace(entryToWrite, span);
       }
 
-      // Retrieve the index
-      int entryIndex = this.currentJournalIndex;
-
       // Write out the input entry
       this.writeEntry(entryToWrite);
 
@@ -341,11 +343,11 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
         // Complete it with the result, as we already have it
         callback.onSuccess(
             DeferredResults.completedSingle(
-                entryIndex, journalEntry.parseEntryResult(entryToWrite)));
+                this.currentJournalEntryIndex, journalEntry.parseEntryResult(entryToWrite)));
       } else {
         // Register the completion parser
         this.readyResultStateMachine.offerCompletionParser(
-            entryIndex,
+            this.currentJournalEntryIndex,
             completionMessage -> {
               journalEntry.updateUserStateStorageWithCompletion(
                   entryToWrite, completionMessage, this.userStateStore);
@@ -353,7 +355,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
             });
 
         // Call the onSuccess
-        callback.onSuccess(DeferredResults.single(entryIndex));
+        callback.onSuccess(DeferredResults.single(this.currentJournalEntryIndex));
       }
     } else {
       throw new IllegalStateException(
@@ -367,12 +369,15 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       Entries.JournalEntry<E> journalEntry,
       SyscallCallback<Void> callback) {
     checkInsideSideEffectGuard();
+    this.nextJournalEntry(
+        journalEntry.getName(expectedEntryMessage), MessageType.fromMessage(expectedEntryMessage));
+
     if (this.invocationState == InvocationState.CLOSED) {
       callback.onCancel(AbortedExecutionException.INSTANCE);
     } else if (this.invocationState == InvocationState.REPLAYING) {
       // Retrieve the entry
       this.readEntry(
-          (entryIndex, actualEntryMessage) -> {
+          actualEntryMessage -> {
             journalEntry.checkEntryHeader(expectedEntryMessage, actualEntryMessage);
             journalEntry.updateUserStateStoreWithEntry((E) actualEntryMessage, this.userStateStore);
             callback.onSuccess(null);
@@ -397,14 +402,16 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     }
   }
 
-  void enterSideEffectBlock(EnterSideEffectSyscallCallback callback) {
+  void enterSideEffectBlock(String name, EnterSideEffectSyscallCallback callback) {
     checkInsideSideEffectGuard();
+    this.nextJournalEntry(name, MessageType.SideEffectEntryMessage);
+
     if (this.invocationState == InvocationState.CLOSED) {
       callback.onCancel(AbortedExecutionException.INSTANCE);
     } else if (this.invocationState == InvocationState.REPLAYING) {
       // Retrieve the entry
       this.readEntry(
-          (entryIndex, msg) -> {
+          msg -> {
             Util.assertEntryClass(Java.SideEffectEntryMessage.class, msg);
 
             // We have a result already, complete the callback
@@ -437,16 +444,22 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
         span.addEvent("Exit SideEffect");
       }
 
+      // For side effects, let's write out the name too, if available
+      if (this.currentJournalEntryName != null) {
+        sideEffectEntry = sideEffectEntry.toBuilder().setName(this.currentJournalEntryName).build();
+      }
+
       // Write new entry
-      this.sideEffectAckStateMachine.registerExecutedSideEffect(this.currentJournalIndex);
+      this.sideEffectAckStateMachine.registerExecutedSideEffect(this.currentJournalEntryIndex);
       this.writeEntry(sideEffectEntry);
 
       // Wait for entry to be acked
+      Java.SideEffectEntryMessage finalSideEffectEntry = sideEffectEntry;
       this.sideEffectAckStateMachine.waitLastSideEffectAck(
           new SideEffectAckStateMachine.SideEffectAckCallback() {
             @Override
             public void onLastSideEffectAck() {
-              completeSideEffectCallbackWithEntry(sideEffectEntry, callback);
+              completeSideEffectCallbackWithEntry(finalSideEffectEntry, callback);
             }
 
             @Override
@@ -570,10 +583,12 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     // Calling .await() on a combinator deferred within a side effect is not allowed
     //  as resolving it creates or read a journal entry.
     checkInsideSideEffectGuard();
+    this.nextJournalEntry(null, MessageType.CombinatorAwaitableEntryMessage);
+
     if (Objects.equals(this.invocationState, InvocationState.REPLAYING)) {
       // Retrieve the CombinatorAwaitableEntryMessage
       this.readEntry(
-          (entryIndex, actualMsg) -> {
+          actualMsg -> {
             Util.assertEntryClass(Java.CombinatorAwaitableEntryMessage.class, actualMsg);
 
             if (!rootDeferred.tryResolve(
@@ -688,16 +703,14 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       // Cannot move out of the closed state
       return;
     }
-    LOG.debug("Transitioning {} to {}", this, newInvocationState);
+    LOG.debug("Transitioning state machine to {}", newInvocationState);
     this.invocationState = newInvocationState;
     this.loggingContextSetter.set(
         RestateEndpoint.LoggingContextSetter.INVOCATION_STATUS_KEY, newInvocationState.toString());
   }
 
-  private void incrementCurrentIndex() {
-    this.currentJournalIndex++;
-
-    if (currentJournalIndex >= entriesToReplay
+  private void tryTransitionProcessing() {
+    if (currentJournalEntryIndex == entriesToReplay - 1
         && this.invocationState == InvocationState.REPLAYING) {
       if (!this.incomingEntriesStateMachine.isEmpty()) {
         throw new IllegalStateException("Entries queue should be empty at this point");
@@ -706,19 +719,31 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     }
   }
 
+  private void nextJournalEntry(String entryName, MessageType entryType) {
+    this.currentJournalEntryIndex++;
+    this.currentJournalEntryName = entryName;
+    this.currentJournalEntryType = entryType;
+
+    LOG.debug(
+        "Current journal entry [{}]({}): {}",
+        this.currentJournalEntryIndex,
+        this.currentJournalEntryName,
+        this.currentJournalEntryType);
+  }
+
   private void checkInsideSideEffectGuard() {
     if (this.insideSideEffect) {
       throw ProtocolException.invalidSideEffectCall();
     }
   }
 
-  void readEntry(BiConsumer<Integer, MessageLite> msgCallback, Consumer<Throwable> errorCallback) {
+  void readEntry(Consumer<MessageLite> msgCallback, Consumer<Throwable> errorCallback) {
     this.incomingEntriesStateMachine.read(
         new IncomingEntriesStateMachine.OnEntryCallback() {
           @Override
           public void onEntry(MessageLite msg) {
-            incrementCurrentIndex();
-            msgCallback.accept(currentJournalIndex - 1, msg);
+            tryTransitionProcessing();
+            msgCallback.accept(msg);
           }
 
           @Override
@@ -737,11 +762,10 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   private void writeEntry(MessageLite message) {
     LOG.trace("Writing to output message {} {}", message.getClass(), message);
     Objects.requireNonNull(this.outputSubscriber).onNext(message);
-    this.incrementCurrentIndex();
   }
 
   @Override
   public String toString() {
-    return "InvocationStateMachine{id=" + id + '}';
+    return "InvocationStateMachine[" + debugId + ']';
   }
 }

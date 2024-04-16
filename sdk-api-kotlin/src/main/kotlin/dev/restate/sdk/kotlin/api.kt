@@ -106,6 +106,9 @@ sealed interface Context {
    * suspension point) without re-executing the closure. Use this feature if you want to perform
    * <b>non-deterministic operations</b>.
    *
+   * You can name this closure using the `name` parameter. This name will be available in the
+   * observability tools.
+   *
    * <p>The closure should tolerate retries, that is Restate might re-execute the closure multiple
    * times until it records a result.
    *
@@ -138,11 +141,12 @@ sealed interface Context {
    * To propagate failures to the run call-site, make sure to wrap them in [TerminalException].
    *
    * @param serde the type tag of the return value, used to serialize/deserialize it.
+   * @param name the name of the side effect.
    * @param block closure to execute.
    * @param T type of the return value.
    * @return value of the runBlock operation.
    */
-  suspend fun <T : Any?> runBlock(serde: Serde<T>, block: suspend () -> T): T
+  suspend fun <T : Any?> runBlock(serde: Serde<T>, name: String = "", block: suspend () -> T): T
 
   /**
    * Create an [Awakeable], addressable through [Awakeable.id].
@@ -221,8 +225,11 @@ sealed interface Context {
  * @param T type of the return value.
  * @return value of the runBlock operation.
  */
-suspend inline fun <reified T : Any> Context.runBlock(noinline block: suspend () -> T): T {
-  return this.runBlock(KtSerdes.json(), block)
+suspend inline fun <reified T : Any> Context.runBlock(
+    name: String = "",
+    noinline block: suspend () -> T
+): T {
+  return this.runBlock(KtSerdes.json(), name, block)
 }
 
 /**

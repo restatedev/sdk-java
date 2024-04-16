@@ -8,25 +8,32 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import static dev.restate.sdk.core.AssertUtils.containsOnlyExactErrorMessage;
+import static dev.restate.sdk.core.AssertUtils.*;
 import static dev.restate.sdk.core.ProtoUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 import dev.restate.generated.sdk.java.Java;
+import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.common.CoreSerdes;
+import dev.restate.sdk.common.TerminalException;
 import java.util.stream.Stream;
 
 public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
 
   protected abstract TestInvocationBuilder sideEffect(String sideEffectOutput);
 
+  protected abstract TestInvocationBuilder namedSideEffect(String name, String sideEffectOutput);
+
   protected abstract TestInvocationBuilder consecutiveSideEffect(String sideEffectOutput);
 
   protected abstract TestInvocationBuilder checkContextSwitching();
 
   protected abstract TestInvocationBuilder sideEffectGuard();
+
+  protected abstract TestInvocationBuilder failingSideEffect(String name, String reason);
 
   @Override
   public Stream<TestDefinitions.TestDefinition> definitions() {
@@ -46,6 +53,13 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
                 outputMessage("Hello Francesco"),
                 END_MESSAGE)
             .named("Without optimization and with acks returns"),
+        this.namedSideEffect("get-my-name", "Francesco")
+            .withInput(startMessage(1), inputMessage("Till"))
+            .expectingOutput(
+                Java.SideEffectEntryMessage.newBuilder()
+                    .setName("get-my-name")
+                    .setValue(CoreSerdes.JSON_STRING.serializeToByteString("Francesco")),
+                suspensionMessage(1)),
         this.consecutiveSideEffect("Francesco")
             .withInput(startMessage(1), inputMessage("Till"))
             .expectingOutput(
@@ -74,6 +88,25 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
                 outputMessage("Hello FRANCESCO"),
                 END_MESSAGE)
             .named("With optimization and ack on first and second side effect will resume"),
+        this.failingSideEffect("my-side-effect", "some failure")
+            .withInput(startMessage(1), inputMessage())
+            .onlyUnbuffered()
+            .assertingOutput(
+                containsOnly(
+                    errorMessage(
+                        errorMessage ->
+                            assertThat(errorMessage)
+                                .returns(
+                                    TerminalException.INTERNAL_SERVER_ERROR_CODE,
+                                    Protocol.ErrorMessage::getCode)
+                                .returns(1, Protocol.ErrorMessage::getRelatedEntryIndex)
+                                .returns(
+                                    (int) MessageType.SideEffectEntryMessage.encode(),
+                                    Protocol.ErrorMessage::getRelatedEntryType)
+                                .returns(
+                                    "my-side-effect", Protocol.ErrorMessage::getRelatedEntryName)
+                                .extracting(Protocol.ErrorMessage::getMessage, STRING)
+                                .contains("some failure")))),
 
         // --- Other tests
         this.checkContextSwitching()

@@ -13,9 +13,12 @@ import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.common.AbortedExecutionException;
 import dev.restate.sdk.common.TerminalException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
+import org.jspecify.annotations.Nullable;
 
 public final class Util {
   private Util() {}
@@ -74,6 +77,41 @@ public final class Util {
       return toProtocolFailure(((TerminalException) throwable).getCode(), throwable.getMessage());
     }
     return toProtocolFailure(TerminalException.INTERNAL_SERVER_ERROR_CODE, throwable.toString());
+  }
+
+  static Protocol.ErrorMessage toErrorMessage(
+      Throwable throwable,
+      int currentJournalIndex,
+      @Nullable String currentJournalEntryName,
+      @Nullable MessageType currentJournalEntryType) {
+    Protocol.ErrorMessage.Builder msg =
+        Protocol.ErrorMessage.newBuilder().setMessage(throwable.toString());
+
+    if (throwable instanceof ProtocolException) {
+      msg.setCode(((ProtocolException) throwable).getCode());
+    } else {
+      msg.setCode(TerminalException.INTERNAL_SERVER_ERROR_CODE);
+    }
+
+    // Convert stacktrace to string
+    StringWriter sw = new StringWriter();
+    PrintWriter pw = new PrintWriter(sw);
+    pw.println("Stacktrace:");
+    throwable.printStackTrace(pw);
+    msg.setDescription(sw.toString());
+
+    // Add journal entry info
+    if (currentJournalIndex >= 0) {
+      msg.setRelatedEntryIndex(currentJournalIndex);
+    }
+    if (currentJournalEntryName != null) {
+      msg.setRelatedEntryName(currentJournalEntryName);
+    }
+    if (currentJournalEntryType != null) {
+      msg.setRelatedEntryType(currentJournalEntryType.encode());
+    }
+
+    return msg.build();
   }
 
   static TerminalException toRestateException(Protocol.Failure failure) {

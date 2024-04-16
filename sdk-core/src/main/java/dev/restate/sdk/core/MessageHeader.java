@@ -55,19 +55,7 @@ public class MessageHeader {
   }
 
   public static MessageHeader fromMessage(MessageLite msg) {
-    if (msg instanceof Protocol.SuspensionMessage) {
-      return new MessageHeader(MessageType.SuspensionMessage, 0, msg.getSerializedSize());
-    } else if (msg instanceof Protocol.ErrorMessage) {
-      return new MessageHeader(MessageType.ErrorMessage, 0, msg.getSerializedSize());
-    } else if (msg instanceof Protocol.EndMessage) {
-      return new MessageHeader(MessageType.EndMessage, 0, msg.getSerializedSize());
-    } else if (msg instanceof Protocol.EntryAckMessage) {
-      return new MessageHeader(MessageType.EntryAckMessage, 0, msg.getSerializedSize());
-    } else if (msg instanceof Protocol.InputEntryMessage) {
-      return new MessageHeader(MessageType.InputEntryMessage, 0, msg.getSerializedSize());
-    } else if (msg instanceof Protocol.OutputEntryMessage) {
-      return new MessageHeader(MessageType.OutputEntryMessage, 0, msg.getSerializedSize());
-    } else if (msg instanceof Protocol.GetStateEntryMessage) {
+    if (msg instanceof Protocol.GetStateEntryMessage) {
       return new MessageHeader(
           MessageType.GetStateEntryMessage,
           ((Protocol.GetStateEntryMessage) msg).getResultCase()
@@ -75,12 +63,6 @@ public class MessageHeader {
               ? DONE_FLAG
               : 0,
           msg.getSerializedSize());
-    } else if (msg instanceof Protocol.SetStateEntryMessage) {
-      return new MessageHeader(MessageType.SetStateEntryMessage, 0, msg.getSerializedSize());
-    } else if (msg instanceof Protocol.ClearStateEntryMessage) {
-      return new MessageHeader(MessageType.ClearStateEntryMessage, 0, msg.getSerializedSize());
-    } else if (msg instanceof Protocol.ClearAllStateEntryMessage) {
-      return new MessageHeader(MessageType.ClearAllStateEntryMessage, 0, msg.getSerializedSize());
     } else if (msg instanceof Protocol.GetStateKeysEntryMessage) {
       return new MessageHeader(
           MessageType.GetStateKeysEntryMessage,
@@ -105,9 +87,6 @@ public class MessageHeader {
               ? DONE_FLAG
               : 0,
           msg.getSerializedSize());
-    } else if (msg instanceof Protocol.BackgroundInvokeEntryMessage) {
-      return new MessageHeader(
-          MessageType.BackgroundInvokeEntryMessage, 0, msg.getSerializedSize());
     } else if (msg instanceof Protocol.AwakeableEntryMessage) {
       return new MessageHeader(
           MessageType.AwakeableEntryMessage,
@@ -116,19 +95,12 @@ public class MessageHeader {
               ? DONE_FLAG
               : 0,
           msg.getSerializedSize());
-    } else if (msg instanceof Protocol.CompleteAwakeableEntryMessage) {
-      return new MessageHeader(
-          MessageType.CompleteAwakeableEntryMessage, 0, msg.getSerializedSize());
-    } else if (msg instanceof Java.CombinatorAwaitableEntryMessage) {
-      return new MessageHeader(
-          MessageType.CombinatorAwaitableEntryMessage, 0, msg.getSerializedSize());
     } else if (msg instanceof Java.SideEffectEntryMessage) {
       return new MessageHeader(
           MessageType.SideEffectEntryMessage, REQUIRES_ACK_FLAG, msg.getSerializedSize());
-    } else if (msg instanceof Protocol.CompletionMessage) {
-      throw new IllegalArgumentException("SDK should never send a CompletionMessage");
     }
-    throw new IllegalStateException();
+    // Messages with no flags
+    return new MessageHeader(MessageType.fromMessage(msg), 0, msg.getSerializedSize());
   }
 
   public static void checkProtocolVersion(MessageHeader header) {

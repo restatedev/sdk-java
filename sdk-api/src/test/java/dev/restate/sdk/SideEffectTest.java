@@ -18,6 +18,7 @@ import java.util.Objects;
 
 public class SideEffectTest extends SideEffectTestSuite {
 
+  @Override
   protected TestInvocationBuilder sideEffect(String sideEffectOutput) {
     return testDefinitionForService(
         "SideEffect",
@@ -29,6 +30,19 @@ public class SideEffectTest extends SideEffectTestSuite {
         });
   }
 
+  @Override
+  protected TestInvocationBuilder namedSideEffect(String name, String sideEffectOutput) {
+    return testDefinitionForService(
+        "SideEffect",
+        CoreSerdes.VOID,
+        CoreSerdes.JSON_STRING,
+        (ctx, unused) -> {
+          String result = ctx.run(name, CoreSerdes.JSON_STRING, () -> sideEffectOutput);
+          return "Hello " + result;
+        });
+  }
+
+  @Override
   protected TestInvocationBuilder consecutiveSideEffect(String sideEffectOutput) {
     return testDefinitionForService(
         "ConsecutiveSideEffect",
@@ -42,6 +56,7 @@ public class SideEffectTest extends SideEffectTestSuite {
         });
   }
 
+  @Override
   protected TestInvocationBuilder checkContextSwitching() {
     return testDefinitionForService(
         "CheckContextSwitching",
@@ -65,6 +80,7 @@ public class SideEffectTest extends SideEffectTestSuite {
         });
   }
 
+  @Override
   protected TestInvocationBuilder sideEffectGuard() {
     return testDefinitionForService(
         "SideEffectGuard",
@@ -73,6 +89,22 @@ public class SideEffectTest extends SideEffectTestSuite {
         (ctx, unused) -> {
           ctx.run(() -> ctx.send(GREETER_SERVICE_TARGET, new byte[] {}));
           throw new IllegalStateException("This point should not be reached");
+        });
+  }
+
+  @Override
+  protected TestInvocationBuilder failingSideEffect(String name, String reason) {
+    return testDefinitionForService(
+        "FailingSideEffect",
+        CoreSerdes.VOID,
+        CoreSerdes.JSON_STRING,
+        (ctx, unused) -> {
+          ctx.run(
+              name,
+              () -> {
+                throw new IllegalStateException(reason);
+              });
+          return null;
         });
   }
 }

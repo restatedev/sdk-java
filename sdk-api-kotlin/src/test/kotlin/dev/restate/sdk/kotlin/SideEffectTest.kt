@@ -26,6 +26,12 @@ class SideEffectTest : SideEffectTestSuite() {
         "Hello $result"
       }
 
+  override fun namedSideEffect(name: String, sideEffectOutput: String): TestInvocationBuilder =
+      testDefinitionForService("SideEffect") { ctx, _: Unit ->
+        val result = ctx.runBlock(name) { sideEffectOutput }
+        "Hello $result"
+      }
+
   override fun consecutiveSideEffect(sideEffectOutput: String): TestInvocationBuilder =
       testDefinitionForService("ConsecutiveSideEffect") { ctx, _: Unit ->
         val firstResult = ctx.runBlock { sideEffectOutput }
@@ -53,5 +59,10 @@ class SideEffectTest : SideEffectTestSuite() {
       testDefinitionForService<Unit, String>("SideEffectGuard") { ctx, _: Unit ->
         ctx.runBlock { ctx.send(GREETER_SERVICE_TARGET, KtSerdes.json(), "something") }
         throw IllegalStateException("This point should not be reached")
+      }
+
+  override fun failingSideEffect(name: String, reason: String): TestInvocationBuilder =
+      testDefinitionForService<Unit, String>("FailingSideEffect") { ctx, _: Unit ->
+        ctx.runBlock(name) { throw IllegalStateException(reason) }
       }
 }

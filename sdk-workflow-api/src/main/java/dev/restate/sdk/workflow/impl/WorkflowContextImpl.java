@@ -209,8 +209,9 @@ class WorkflowContextImpl implements WorkflowContext {
   }
 
   @Override
-  public <T> T run(Serde<T> serde, ThrowingSupplier<T> action) throws TerminalException {
-    return ctx.run(serde, action);
+  public <T> T run(String name, Serde<T> serde, ThrowingSupplier<T> action)
+      throws TerminalException {
+    return ctx.run(name, serde, action);
   }
 
   @Override

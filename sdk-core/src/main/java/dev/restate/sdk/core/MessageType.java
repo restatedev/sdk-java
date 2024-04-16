@@ -201,4 +201,47 @@ public enum MessageType {
     }
     throw ProtocolException.unknownMessageType(value);
   }
+
+  public static MessageType fromMessage(MessageLite msg) {
+    if (msg instanceof Protocol.SuspensionMessage) {
+      return MessageType.SuspensionMessage;
+    } else if (msg instanceof Protocol.ErrorMessage) {
+      return MessageType.ErrorMessage;
+    } else if (msg instanceof Protocol.EndMessage) {
+      return MessageType.EndMessage;
+    } else if (msg instanceof Protocol.EntryAckMessage) {
+      return MessageType.EntryAckMessage;
+    } else if (msg instanceof Protocol.InputEntryMessage) {
+      return MessageType.InputEntryMessage;
+    } else if (msg instanceof Protocol.OutputEntryMessage) {
+      return MessageType.OutputEntryMessage;
+    } else if (msg instanceof Protocol.GetStateEntryMessage) {
+      return MessageType.GetStateEntryMessage;
+    } else if (msg instanceof Protocol.SetStateEntryMessage) {
+      return MessageType.SetStateEntryMessage;
+    } else if (msg instanceof Protocol.ClearStateEntryMessage) {
+      return MessageType.ClearStateEntryMessage;
+    } else if (msg instanceof Protocol.ClearAllStateEntryMessage) {
+      return MessageType.ClearAllStateEntryMessage;
+    } else if (msg instanceof Protocol.GetStateKeysEntryMessage) {
+      return MessageType.GetStateKeysEntryMessage;
+    } else if (msg instanceof Protocol.SleepEntryMessage) {
+      return MessageType.SleepEntryMessage;
+    } else if (msg instanceof Protocol.InvokeEntryMessage) {
+      return MessageType.InvokeEntryMessage;
+    } else if (msg instanceof Protocol.BackgroundInvokeEntryMessage) {
+      return MessageType.BackgroundInvokeEntryMessage;
+    } else if (msg instanceof Protocol.AwakeableEntryMessage) {
+      return MessageType.AwakeableEntryMessage;
+    } else if (msg instanceof Protocol.CompleteAwakeableEntryMessage) {
+      return MessageType.CompleteAwakeableEntryMessage;
+    } else if (msg instanceof Java.CombinatorAwaitableEntryMessage) {
+      return MessageType.CombinatorAwaitableEntryMessage;
+    } else if (msg instanceof Java.SideEffectEntryMessage) {
+      return MessageType.SideEffectEntryMessage;
+    } else if (msg instanceof Protocol.CompletionMessage) {
+      throw new IllegalArgumentException("SDK should never send a CompletionMessage");
+    }
+    throw new IllegalStateException();
+  }
 }

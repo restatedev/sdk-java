@@ -26,6 +26,8 @@ final class Entries {
   private Entries() {}
 
   abstract static class JournalEntry<E extends MessageLite> {
+    abstract String getName(E expected);
+
     void checkEntryHeader(E expected, MessageLite actual) throws ProtocolException {}
 
     abstract void trace(E expected, Span span);
@@ -58,6 +60,11 @@ final class Entries {
     private OutputEntry() {}
 
     @Override
+    String getName(OutputEntryMessage expected) {
+      return expected.getName();
+    }
+
+    @Override
     public void trace(OutputEntryMessage expected, Span span) {
       span.addEvent("Output");
     }
@@ -79,6 +86,11 @@ final class Entries {
     @Override
     public boolean hasResult(GetStateEntryMessage actual) {
       return actual.getResultCase() != GetStateEntryMessage.ResultCase.RESULT_NOT_SET;
+    }
+
+    @Override
+    String getName(GetStateEntryMessage expected) {
+      return expected.getName();
     }
 
     @Override
@@ -164,6 +176,11 @@ final class Entries {
     }
 
     @Override
+    String getName(GetStateKeysEntryMessage expected) {
+      return expected.getName();
+    }
+
+    @Override
     void checkEntryHeader(GetStateKeysEntryMessage expected, MessageLite actual)
         throws ProtocolException {
       if (!(actual instanceof GetStateKeysEntryMessage)) {
@@ -233,6 +250,11 @@ final class Entries {
     }
 
     @Override
+    String getName(ClearStateEntryMessage expected) {
+      return expected.getName();
+    }
+
+    @Override
     void checkEntryHeader(ClearStateEntryMessage expected, MessageLite actual)
         throws ProtocolException {
       Util.assertEntryEquals(expected, actual);
@@ -254,6 +276,11 @@ final class Entries {
     @Override
     public void trace(ClearAllStateEntryMessage expected, Span span) {
       span.addEvent("ClearAllState");
+    }
+
+    @Override
+    String getName(ClearAllStateEntryMessage expected) {
+      return expected.getName();
     }
 
     @Override
@@ -282,6 +309,11 @@ final class Entries {
     }
 
     @Override
+    String getName(SetStateEntryMessage expected) {
+      return expected.getName();
+    }
+
+    @Override
     void checkEntryHeader(SetStateEntryMessage expected, MessageLite actual)
         throws ProtocolException {
       if (!(actual instanceof SetStateEntryMessage)) {
@@ -304,6 +336,11 @@ final class Entries {
     static final SleepEntry INSTANCE = new SleepEntry();
 
     private SleepEntry() {}
+
+    @Override
+    String getName(SleepEntryMessage expected) {
+      return expected.getName();
+    }
 
     @Override
     void trace(SleepEntryMessage expected, Span span) {
@@ -363,6 +400,11 @@ final class Entries {
     }
 
     @Override
+    String getName(InvokeEntryMessage expected) {
+      return expected.getName();
+    }
+
+    @Override
     void checkEntryHeader(InvokeEntryMessage expected, MessageLite actual)
         throws ProtocolException {
       if (!(actual instanceof InvokeEntryMessage)) {
@@ -415,6 +457,11 @@ final class Entries {
     }
 
     @Override
+    String getName(BackgroundInvokeEntryMessage expected) {
+      return expected.getName();
+    }
+
+    @Override
     void checkEntryHeader(BackgroundInvokeEntryMessage expected, MessageLite actual)
         throws ProtocolException {
       Util.assertEntryEquals(expected, actual);
@@ -426,6 +473,11 @@ final class Entries {
     static final AwakeableEntry INSTANCE = new AwakeableEntry();
 
     private AwakeableEntry() {}
+
+    @Override
+    String getName(AwakeableEntryMessage expected) {
+      return expected.getName();
+    }
 
     @Override
     void trace(AwakeableEntryMessage expected, Span span) {
@@ -466,6 +518,11 @@ final class Entries {
     @Override
     public void trace(CompleteAwakeableEntryMessage expected, Span span) {
       span.addEvent("CompleteAwakeable");
+    }
+
+    @Override
+    String getName(CompleteAwakeableEntryMessage expected) {
+      return expected.getName();
     }
 
     @Override

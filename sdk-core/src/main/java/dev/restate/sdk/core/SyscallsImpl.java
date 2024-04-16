@@ -219,11 +219,11 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public void enterSideEffectBlock(EnterSideEffectSyscallCallback callback) {
+  public void enterSideEffectBlock(String name, EnterSideEffectSyscallCallback callback) {
     wrapAndPropagateExceptions(
         () -> {
           LOG.trace("enterSideEffectBlock");
-          this.stateMachine.enterSideEffectBlock(callback);
+          this.stateMachine.enterSideEffectBlock(name, callback);
         },
         callback);
   }

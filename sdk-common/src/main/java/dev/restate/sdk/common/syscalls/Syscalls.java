@@ -68,7 +68,7 @@ public interface Syscalls {
       @Nullable Duration delay,
       SyscallCallback<Void> requestCallback);
 
-  void enterSideEffectBlock(EnterSideEffectSyscallCallback callback);
+  void enterSideEffectBlock(@Nullable String name, EnterSideEffectSyscallCallback callback);
 
   void exitSideEffectBlock(ByteString toWrite, ExitSideEffectSyscallCallback callback);
 

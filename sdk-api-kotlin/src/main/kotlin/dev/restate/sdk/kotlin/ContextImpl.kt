@@ -130,11 +130,16 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
     }
   }
 
-  override suspend fun <T : Any?> runBlock(serde: Serde<T>, block: suspend () -> T): T {
+  override suspend fun <T : Any?> runBlock(
+      serde: Serde<T>,
+      name: String,
+      block: suspend () -> T
+  ): T {
     val exitResult =
         suspendCancellableCoroutine { cont: CancellableContinuation<CompletableDeferred<ByteString>>
           ->
           syscalls.enterSideEffectBlock(
+              name,
               object : EnterSideEffectSyscallCallback {
                 override fun onSuccess(t: ByteString?) {
                   val deferred: CompletableDeferred<ByteString> = CompletableDeferred()
