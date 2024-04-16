@@ -98,13 +98,16 @@ message EndMessage {
 // --- Journal Entries ---
 
 // Every Completable JournalEntry has a result field, filled only and only if the entry is in DONE state.
-// Depending on the semantics of the corresponding syscall, the entry can represent the result field with any of these three types:
+//
+// For every journal entry, fields 12, 13, 14 and 15 are reserved.
+//
+// The field 12 is used for name. The name is used by introspection/observability tools.
+//
+// Depending on the semantics of the corresponding syscall, the entry can represent the completion result field with any of these three types:
 //
 //   * google.protobuf.Empty empty = 13 for cases when we need to propagate to user code the distinction between default value or no value.
 //   * bytes value = 14 for carrying the result value
 //   * Failure failure = 15 for carrying a failure
-//
-// The tag numbers 12, 13, 14 and 15 are reserved and shouldn't be used for other fields.
 
 // ------ Input and output ------
 
@@ -285,8 +288,22 @@ message CompleteAwakeableEntryMessage {
   string id = 1;
 
   oneof result {
-    bytes value = 5;
-    Failure failure = 6;
+    bytes value = 14;
+    Failure failure = 15;
+  };
+
+  // Entry name
+  string name = 12;
+}
+
+// Completable: No
+// Fallible: No
+// Type: 0x0C00 + 5
+// Flag: RequiresRuntimeAck
+message SideEffectEntryMessage {
+  oneof result {
+    bytes value = 14;
+    dev.restate.service.protocol.Failure failure = 15;
   };
 
   // Entry name

@@ -11,8 +11,8 @@ The system is composed of two actors:
   - SDK, which contains the implementation of the Restate Protocol
   - User business logic, which interacts with the SDK to access Restate system calls (or syscalls)
 
-Each invocation is modeled by the protocol as a state machine, where state transitions can be caused
-either by user code or by _Runtime events_.
+Each invocation is modeled by the protocol as a state machine, where state transitions can be caused either by user code
+or by _Runtime events_.
 
 Every state transition is logged in the _Invocation journal_, used to implement Restate's durable execution model. The
 journal is also used to suspend an invocation and resume it at a later point in time. The _Invocation journal_ is
@@ -103,7 +103,9 @@ protocol mandates the following messages:
 
 ### Message stream
 
-In order to execute an invocation, service deployment and restate Runtime open a single stream between the runtime and the service deployment. Given 10 concurrent invocations to a service deployment, there are 10 concurrent streams, each of them mapping to a specific invocation.
+In order to execute an invocation, service deployment and restate Runtime open a single stream between the runtime and
+the service deployment. Given 10 concurrent invocations to a service deployment, there are 10 concurrent streams, each
+of them mapping to a specific invocation.
 
 Every unit of the stream contains a Message serialized using the
 [Protobuf encoding](https://protobuf.dev/programming-guides/encoding/), using the definitions in
@@ -145,26 +147,21 @@ For example:
 
 An arbitrary path MAY prepend the aforementioned path format.
 
-In case the path format is not respected, or `serviceName` or `handlerName` is unknown, the SDK MUST close the stream replying back with a `404` status code.
+In case the path format is not respected, or `serviceName` or `handlerName` is unknown, the SDK MUST close the stream
+replying back with a `404` status code.
 
 In case the invocation is accepted, `200` status code MUST be returned.
 
-Additionally, the header `x-restate-user-agent` MAY be sent back, with the following format:
+Additionally, the header `x-restate-server` MAY be sent back, with the following format:
 
 ```http request
-x-restate-user-agent: <sdk-name> / <sdk-version>; <additional-metadata?>
+x-restate-server: <sdk-name> / <sdk-version>
 ```
 
 E.g.:
 
 ```http request
-x-restate-user-agent: restate-sdk-java/0.8.0
-```
-
-Or:
-
-```http request
-x-restate-user-agent: restate-sdk-java/0.8.0; gitHash=0c5917b
+x-restate-server: restate-sdk-java/0.8.0
 ```
 
 This header is used for observability purposes by the Restate observability tools.
@@ -321,6 +318,7 @@ descriptions in [`protocol.proto`](dev/restate/service/protocol.proto).
 | `SetStateEntryMessage`          | `0x0800` | No          | No       | Set the value of a service instance state key.                                                                                                                   |
 | `ClearStateEntryMessage`        | `0x0801` | No          | No       | Clear the value of a service instance state key.                                                                                                                 |
 | `ClearAllStateEntryMessage`     | `0x0802` | No          | No       | Clear all the values of the service instance state.                                                                                                              |
+| `SideEffectEntryMessage`        | `0x0C05` | No          | No       | Run non-deterministic user provided code and persist the result.                                                                                                 |
 
 #### Awakeable identifier
 
@@ -437,15 +435,3 @@ A possible implementation could be the following. Given a user requests a state 
 
 In order for the aforementioned algorithm to work, set, clear and clear all state operations must be reflected on the
 local `state_map` as well.
-
-### Side effect/Run
-
-The side effect/run feature allows users to execute arbitrary non-deterministic code within their service and record the
-result, such that on re-executions the stored value will be used instead of replaying the given code.
-
-SDKs MAY implement the side effect feature by storing the result using a custom entry message, as described in
-[Custom entry](#custom-entry-messages). By convention, the SDKs SHOULD use the entry type `FC01` for side effects.
-
-When storing side effects, SDKs MAY need to wait for the
-[acknowledgment of the stored entry](#acknowledgment-of-stored-entries) before continuing the execution of the
-invocation.
