@@ -62,7 +62,7 @@ public enum MessageType {
   public static final short AWAKEABLE_ENTRY_MESSAGE_TYPE = 0x0C03;
   public static final short COMPLETE_AWAKEABLE_ENTRY_MESSAGE_TYPE = 0x0C04;
   public static final short COMBINATOR_AWAITABLE_ENTRY_MESSAGE_TYPE = (short) 0xFC00;
-  public static final short SIDE_EFFECT_ENTRY_MESSAGE_TYPE = (short) 0xFC01;
+  public static final short SIDE_EFFECT_ENTRY_MESSAGE_TYPE = (short) 0x0C05;
 
   public Parser<? extends MessageLite> messageParser() {
     switch (this) {
@@ -105,7 +105,7 @@ public enum MessageType {
       case CombinatorAwaitableEntryMessage:
         return Java.CombinatorAwaitableEntryMessage.parser();
       case SideEffectEntryMessage:
-        return Java.SideEffectEntryMessage.parser();
+        return Protocol.SideEffectEntryMessage.parser();
     }
     throw new IllegalStateException();
   }
@@ -237,7 +237,7 @@ public enum MessageType {
       return MessageType.CompleteAwakeableEntryMessage;
     } else if (msg instanceof Java.CombinatorAwaitableEntryMessage) {
       return MessageType.CombinatorAwaitableEntryMessage;
-    } else if (msg instanceof Java.SideEffectEntryMessage) {
+    } else if (msg instanceof Protocol.SideEffectEntryMessage) {
       return MessageType.SideEffectEntryMessage;
     } else if (msg instanceof Protocol.CompletionMessage) {
       throw new IllegalArgumentException("SDK should never send a CompletionMessage");

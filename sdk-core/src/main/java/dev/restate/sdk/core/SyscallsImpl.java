@@ -9,7 +9,6 @@
 package dev.restate.sdk.core;
 
 import com.google.protobuf.ByteString;
-import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.common.Request;
 import dev.restate.sdk.common.Target;
@@ -234,7 +233,7 @@ public final class SyscallsImpl implements SyscallsInternal {
         () -> {
           LOG.trace("exitSideEffectBlock with success");
           this.stateMachine.exitSideEffectBlock(
-              Java.SideEffectEntryMessage.newBuilder().setValue(toWrite).build(), callback);
+              Protocol.SideEffectEntryMessage.newBuilder().setValue(toWrite).build(), callback);
         },
         callback);
   }
@@ -246,7 +245,7 @@ public final class SyscallsImpl implements SyscallsInternal {
         () -> {
           LOG.trace("exitSideEffectBlock with failure");
           this.stateMachine.exitSideEffectBlock(
-              Java.SideEffectEntryMessage.newBuilder()
+              Protocol.SideEffectEntryMessage.newBuilder()
                   .setFailure(Util.toProtocolFailure(toWrite))
                   .build(),
               callback);

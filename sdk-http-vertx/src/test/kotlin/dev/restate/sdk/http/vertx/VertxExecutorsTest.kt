@@ -9,12 +9,13 @@
 package dev.restate.sdk.http.vertx
 
 import com.google.protobuf.ByteString
-import dev.restate.generated.sdk.java.Java
+import dev.restate.generated.service.protocol.Protocol
 import dev.restate.sdk.common.CoreSerdes
 import dev.restate.sdk.core.ProtoUtils.*
 import dev.restate.sdk.core.TestDefinitions
 import dev.restate.sdk.core.TestDefinitions.testInvocation
-import dev.restate.sdk.kotlin.*
+import dev.restate.sdk.kotlin.Component
+import dev.restate.sdk.kotlin.runBlock
 import io.vertx.core.Vertx
 import java.util.stream.Stream
 import kotlin.coroutines.coroutineContext
@@ -75,7 +76,7 @@ class VertxExecutorsTest : TestDefinitions.TestSuite {
             .withInput(startMessage(1), inputMessage(), ackMessage(1))
             .onlyUnbuffered()
             .expectingOutput(
-                Java.SideEffectEntryMessage.newBuilder().setValue(ByteString.EMPTY),
+                Protocol.SideEffectEntryMessage.newBuilder().setValue(ByteString.EMPTY),
                 outputMessage(),
                 END_MESSAGE),
         testInvocation(
@@ -89,7 +90,7 @@ class VertxExecutorsTest : TestDefinitions.TestSuite {
             .withInput(startMessage(1), inputMessage(), ackMessage(1))
             .onlyUnbuffered()
             .expectingOutput(
-                Java.SideEffectEntryMessage.newBuilder().setValue(ByteString.EMPTY),
+                Protocol.SideEffectEntryMessage.newBuilder().setValue(ByteString.EMPTY),
                 outputMessage(),
                 END_MESSAGE))
   }

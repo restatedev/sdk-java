@@ -9,7 +9,6 @@
 package dev.restate.sdk.core;
 
 import com.google.protobuf.MessageLite;
-import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 
 public class MessageHeader {
@@ -95,7 +94,7 @@ public class MessageHeader {
               ? DONE_FLAG
               : 0,
           msg.getSerializedSize());
-    } else if (msg instanceof Java.SideEffectEntryMessage) {
+    } else if (msg instanceof Protocol.SideEffectEntryMessage) {
       return new MessageHeader(
           MessageType.SideEffectEntryMessage, REQUIRES_ACK_FLAG, msg.getSerializedSize());
     }

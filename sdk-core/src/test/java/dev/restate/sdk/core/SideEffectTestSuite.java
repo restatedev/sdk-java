@@ -15,7 +15,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
-import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.common.TerminalException;
@@ -41,14 +40,14 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
         this.sideEffect("Francesco")
             .withInput(startMessage(1), inputMessage("Till"))
             .expectingOutput(
-                Java.SideEffectEntryMessage.newBuilder()
+                Protocol.SideEffectEntryMessage.newBuilder()
                     .setValue(CoreSerdes.JSON_STRING.serializeToByteString("Francesco")),
                 suspensionMessage(1))
             .named("Without optimization suspends"),
         this.sideEffect("Francesco")
             .withInput(startMessage(1), inputMessage("Till"), ackMessage(1))
             .expectingOutput(
-                Java.SideEffectEntryMessage.newBuilder()
+                Protocol.SideEffectEntryMessage.newBuilder()
                     .setValue(CoreSerdes.JSON_STRING.serializeToByteString("Francesco")),
                 outputMessage("Hello Francesco"),
                 END_MESSAGE)
@@ -56,14 +55,14 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
         this.namedSideEffect("get-my-name", "Francesco")
             .withInput(startMessage(1), inputMessage("Till"))
             .expectingOutput(
-                Java.SideEffectEntryMessage.newBuilder()
+                Protocol.SideEffectEntryMessage.newBuilder()
                     .setName("get-my-name")
                     .setValue(CoreSerdes.JSON_STRING.serializeToByteString("Francesco")),
                 suspensionMessage(1)),
         this.consecutiveSideEffect("Francesco")
             .withInput(startMessage(1), inputMessage("Till"))
             .expectingOutput(
-                Java.SideEffectEntryMessage.newBuilder()
+                Protocol.SideEffectEntryMessage.newBuilder()
                     .setValue(CoreSerdes.JSON_STRING.serializeToByteString("Francesco")),
                 suspensionMessage(1))
             .named("With optimization and without ack on first side effect will suspend"),
@@ -71,9 +70,9 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
             .withInput(startMessage(1), inputMessage("Till"), ackMessage(1))
             .onlyUnbuffered()
             .expectingOutput(
-                Java.SideEffectEntryMessage.newBuilder()
+                Protocol.SideEffectEntryMessage.newBuilder()
                     .setValue(CoreSerdes.JSON_STRING.serializeToByteString("Francesco")),
-                Java.SideEffectEntryMessage.newBuilder()
+                Protocol.SideEffectEntryMessage.newBuilder()
                     .setValue(CoreSerdes.JSON_STRING.serializeToByteString("FRANCESCO")),
                 suspensionMessage(2))
             .named("With optimization and ack on first side effect will suspend"),
@@ -81,9 +80,9 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
             .withInput(startMessage(1), inputMessage("Till"), ackMessage(1), ackMessage(2))
             .onlyUnbuffered()
             .expectingOutput(
-                Java.SideEffectEntryMessage.newBuilder()
+                Protocol.SideEffectEntryMessage.newBuilder()
                     .setValue(CoreSerdes.JSON_STRING.serializeToByteString("Francesco")),
-                Java.SideEffectEntryMessage.newBuilder()
+                Protocol.SideEffectEntryMessage.newBuilder()
                     .setValue(CoreSerdes.JSON_STRING.serializeToByteString("FRANCESCO")),
                 outputMessage("Hello FRANCESCO"),
                 END_MESSAGE)
@@ -117,8 +116,8 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
                   assertThat(actualOutputMessages).hasSize(3);
                   assertThat(actualOutputMessages)
                       .element(0)
-                      .asInstanceOf(type(Java.SideEffectEntryMessage.class))
-                      .returns(true, Java.SideEffectEntryMessage::hasValue);
+                      .asInstanceOf(type(Protocol.SideEffectEntryMessage.class))
+                      .returns(true, Protocol.SideEffectEntryMessage::hasValue);
                   assertThat(actualOutputMessages).element(1).isEqualTo(outputMessage("Hello"));
                   assertThat(actualOutputMessages).element(2).isEqualTo(END_MESSAGE);
                 }),

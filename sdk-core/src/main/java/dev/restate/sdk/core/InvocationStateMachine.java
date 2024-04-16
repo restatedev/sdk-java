@@ -412,10 +412,10 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       // Retrieve the entry
       this.readEntry(
           msg -> {
-            Util.assertEntryClass(Java.SideEffectEntryMessage.class, msg);
+            Util.assertEntryClass(Protocol.SideEffectEntryMessage.class, msg);
 
             // We have a result already, complete the callback
-            completeSideEffectCallbackWithEntry((Java.SideEffectEntryMessage) msg, callback);
+            completeSideEffectCallbackWithEntry((Protocol.SideEffectEntryMessage) msg, callback);
           },
           callback::onCancel);
     } else if (this.invocationState == InvocationState.PROCESSING) {
@@ -431,7 +431,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   }
 
   void exitSideEffectBlock(
-      Java.SideEffectEntryMessage sideEffectEntry, ExitSideEffectSyscallCallback callback) {
+      Protocol.SideEffectEntryMessage sideEffectEntry, ExitSideEffectSyscallCallback callback) {
     this.insideSideEffect = false;
     if (this.invocationState == InvocationState.CLOSED) {
       callback.onCancel(AbortedExecutionException.INSTANCE);
@@ -454,7 +454,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       this.writeEntry(sideEffectEntry);
 
       // Wait for entry to be acked
-      Java.SideEffectEntryMessage finalSideEffectEntry = sideEffectEntry;
+      Protocol.SideEffectEntryMessage finalSideEffectEntry = sideEffectEntry;
       this.sideEffectAckStateMachine.waitLastSideEffectAck(
           new SideEffectAckStateMachine.SideEffectAckCallback() {
             @Override
@@ -480,7 +480,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   }
 
   void completeSideEffectCallbackWithEntry(
-      Java.SideEffectEntryMessage sideEffectEntry, ExitSideEffectSyscallCallback callback) {
+      Protocol.SideEffectEntryMessage sideEffectEntry, ExitSideEffectSyscallCallback callback) {
     if (sideEffectEntry.hasFailure()) {
       callback.onFailure(Util.toRestateException(sideEffectEntry.getFailure()));
     } else {

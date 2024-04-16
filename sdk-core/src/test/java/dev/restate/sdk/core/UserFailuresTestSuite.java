@@ -14,7 +14,7 @@ import static dev.restate.sdk.core.ProtoUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.restate.generated.sdk.java.Java;
+import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.common.TerminalException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
@@ -69,7 +69,7 @@ public abstract class UserFailuresTestSuite implements TestSuite {
                 TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR)
             .withInput(startMessage(1), inputMessage(), ackMessage(1))
             .expectingOutput(
-                Java.SideEffectEntryMessage.newBuilder()
+                Protocol.SideEffectEntryMessage.newBuilder()
                     .setFailure(
                         Util.toProtocolFailure(
                             TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR)),
@@ -79,7 +79,7 @@ public abstract class UserFailuresTestSuite implements TestSuite {
         this.sideEffectThrowTerminalException(501, WHATEVER)
             .withInput(startMessage(1), inputMessage(), ackMessage(1))
             .expectingOutput(
-                Java.SideEffectEntryMessage.newBuilder()
+                Protocol.SideEffectEntryMessage.newBuilder()
                     .setFailure(Util.toProtocolFailure(501, WHATEVER)),
                 outputMessage(501, WHATEVER),
                 END_MESSAGE)

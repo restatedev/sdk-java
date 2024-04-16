@@ -154,6 +154,6 @@ public final class Util {
         || msg instanceof Protocol.AwakeableEntryMessage
         || msg instanceof Protocol.CompleteAwakeableEntryMessage
         || msg instanceof Java.CombinatorAwaitableEntryMessage
-        || msg instanceof Java.SideEffectEntryMessage;
+        || msg instanceof Protocol.SideEffectEntryMessage;
   }
 }

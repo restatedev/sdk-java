@@ -14,7 +14,7 @@ import static dev.restate.sdk.core.ProtoUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.restate.generated.sdk.java.Java;
+import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.common.Serde;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -78,7 +78,7 @@ public abstract class StateMachineFailuresTestSuite implements TestDefinitions.T
             .named("Serde serialization error"),
         this.sideEffectFailure(FAILING_DESERIALIZATION_INTEGER_TYPE_TAG)
             .withInput(
-                startMessage(2), inputMessage("Till"), Java.SideEffectEntryMessage.newBuilder())
+                startMessage(2), inputMessage("Till"), Protocol.SideEffectEntryMessage.newBuilder())
             .assertingOutput(
                 AssertUtils.containsOnly(
                     errorMessageStartingWith(IllegalStateException.class.getCanonicalName())))
