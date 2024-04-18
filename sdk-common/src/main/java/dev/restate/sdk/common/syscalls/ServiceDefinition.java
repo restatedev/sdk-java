@@ -8,34 +8,34 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.common.syscalls;
 
-import dev.restate.sdk.common.ComponentType;
+import dev.restate.sdk.common.ServiceType;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public final class ComponentDefinition<O> {
+public final class ServiceDefinition<O> {
 
-  private final String fullyQualifiedComponentName;
-  private final ComponentType componentType;
+  private final String serviceName;
+  private final ServiceType serviceType;
   private final Map<String, HandlerDefinition<O>> handlers;
 
-  public ComponentDefinition(
+  public ServiceDefinition(
       String fullyQualifiedComponentName,
-      ComponentType componentType,
+      ServiceType serviceType,
       Collection<HandlerDefinition<O>> handlers) {
-    this.fullyQualifiedComponentName = fullyQualifiedComponentName;
-    this.componentType = componentType;
+    this.serviceName = fullyQualifiedComponentName;
+    this.serviceType = serviceType;
     this.handlers =
         handlers.stream()
             .collect(Collectors.toMap(HandlerDefinition::getName, Function.identity()));
   }
 
-  public String getFullyQualifiedComponentName() {
-    return fullyQualifiedComponentName;
+  public String getServiceName() {
+    return serviceName;
   }
 
-  public ComponentType getComponentType() {
-    return componentType;
+  public ServiceType getServiceType() {
+    return serviceType;
   }
 
   public Collection<HandlerDefinition<O>> getHandlers() {
@@ -50,14 +50,14 @@ public final class ComponentDefinition<O> {
   public boolean equals(Object object) {
     if (this == object) return true;
     if (object == null || getClass() != object.getClass()) return false;
-    ComponentDefinition<?> that = (ComponentDefinition<?>) object;
-    return Objects.equals(fullyQualifiedComponentName, that.fullyQualifiedComponentName)
-        && componentType == that.componentType
+    ServiceDefinition<?> that = (ServiceDefinition<?>) object;
+    return Objects.equals(serviceName, that.serviceName)
+        && serviceType == that.serviceType
         && Objects.equals(handlers, that.handlers);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(fullyQualifiedComponentName, componentType, handlers);
+    return Objects.hash(serviceName, serviceType, handlers);
   }
 }

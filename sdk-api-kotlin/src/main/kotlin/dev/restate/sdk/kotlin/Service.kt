@@ -9,9 +9,9 @@
 package dev.restate.sdk.kotlin
 
 import com.google.protobuf.ByteString
-import dev.restate.sdk.common.BindableComponent
-import dev.restate.sdk.common.ComponentType
+import dev.restate.sdk.common.BindableService
 import dev.restate.sdk.common.Serde
+import dev.restate.sdk.common.ServiceType
 import dev.restate.sdk.common.TerminalException
 import dev.restate.sdk.common.syscalls.*
 import kotlin.coroutines.CoroutineContext
@@ -21,31 +21,31 @@ import kotlinx.coroutines.asContextElement
 import kotlinx.coroutines.launch
 import org.apache.logging.log4j.LogManager
 
-class Component
+class Service
 private constructor(
     fqsn: String,
     isKeyed: Boolean,
     handlers: Map<String, Handler<*, *, *>>,
     private val options: Options
-) : BindableComponent<Component.Options> {
-  private val componentDefinition =
-      ComponentDefinition(
+) : BindableService<Service.Options> {
+  private val serviceDefinition =
+      ServiceDefinition(
           fqsn,
-          if (isKeyed) ComponentType.VIRTUAL_OBJECT else ComponentType.SERVICE,
+          if (isKeyed) ServiceType.VIRTUAL_OBJECT else ServiceType.SERVICE,
           handlers.values.map { obj: Handler<*, *, *> -> obj.toHandlerDefinition() })
 
   override fun options(): Options {
     return this.options
   }
 
-  override fun definitions() = listOf(this.componentDefinition)
+  override fun definitions() = listOf(this.serviceDefinition)
 
   companion object {
     fun service(
         name: String,
         options: Options = Options.DEFAULT,
         init: ServiceBuilder.() -> Unit
-    ): Component {
+    ): Service {
       val builder = ServiceBuilder(name)
       builder.init()
       return builder.build(options)
@@ -55,7 +55,7 @@ private constructor(
         name: String,
         options: Options = Options.DEFAULT,
         init: VirtualObjectBuilder.() -> Unit
-    ): Component {
+    ): Service {
       val builder = VirtualObjectBuilder(name)
       builder.init()
       return builder.build(options)
@@ -78,7 +78,7 @@ private constructor(
         noinline runner: suspend (ObjectContext, REQ) -> RES
     ) = this.handler(HandlerSignature(name, KtSerdes.json(), KtSerdes.json()), runner)
 
-    fun build(options: Options) = Component(this.name, true, this.handlers, options)
+    fun build(options: Options) = Service(this.name, true, this.handlers, options)
   }
 
   class ServiceBuilder internal constructor(private val name: String) {
@@ -97,7 +97,7 @@ private constructor(
         noinline runner: suspend (Context, REQ) -> RES
     ) = this.handler(HandlerSignature(name, KtSerdes.json(), KtSerdes.json()), runner)
 
-    fun build(options: Options) = Component(this.name, false, this.handlers, options)
+    fun build(options: Options) = Service(this.name, false, this.handlers, options)
   }
 
   class Handler<REQ, RES, CTX : Context>(

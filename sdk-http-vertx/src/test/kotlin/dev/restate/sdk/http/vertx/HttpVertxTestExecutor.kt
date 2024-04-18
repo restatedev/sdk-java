@@ -34,14 +34,14 @@ class HttpVertxTestExecutor(private val vertx: Vertx) : TestExecutor {
   override fun executeTest(definition: TestDefinition) {
     runBlocking(vertx.dispatcher()) {
       // This test infra supports only components returning one component definition
-      val componentDefinition = definition.component.definitions()
+      val componentDefinition = definition.bindableService.definitions()
       Assertions.assertThat(componentDefinition).size().isEqualTo(1)
 
       // Build server
       val server =
           RestateHttpEndpointBuilder.builder(vertx)
               .withOptions(HttpServerOptions().setPort(0))
-              .bind(definition.component)
+              .bind(definition.bindableService)
               .build()
       server.listen().coAwait()
 
@@ -53,7 +53,7 @@ class HttpVertxTestExecutor(private val vertx: Vertx) : TestExecutor {
                   HttpMethod.POST,
                   server.actualPort(),
                   "localhost",
-                  "/invoke/${componentDefinition.get(0).fullyQualifiedComponentName}/${definition.method}")
+                  "/invoke/${componentDefinition.get(0).serviceName}/${definition.method}")
               .coAwait()
 
       // Prepare request header and send them

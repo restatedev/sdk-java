@@ -8,31 +8,31 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.gen.model;
 
-import dev.restate.sdk.common.ComponentType;
+import dev.restate.sdk.common.ServiceType;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 
-public class Component {
+public class Service {
 
   private final CharSequence targetPkg;
   private final CharSequence targetFqcn;
-  private final String componentName;
-  private final ComponentType componentType;
+  private final String serviceName;
+  private final ServiceType serviceType;
   private final List<Handler> handlers;
 
-  public Component(
+  public Service(
       CharSequence targetPkg,
       CharSequence targetFqcn,
-      String componentName,
-      ComponentType componentType,
+      String serviceName,
+      ServiceType serviceType,
       List<Handler> handlers) {
     this.targetPkg = targetPkg;
     this.targetFqcn = targetFqcn;
-    this.componentName = componentName;
+    this.serviceName = serviceName;
 
-    this.componentType = componentType;
+    this.serviceType = serviceType;
     this.handlers = handlers;
   }
 
@@ -44,23 +44,23 @@ public class Component {
     return this.targetFqcn;
   }
 
-  public String getFullyQualifiedComponentName() {
-    return this.componentName;
+  public String getFullyQualifiedServiceName() {
+    return this.serviceName;
   }
 
-  public String getSimpleComponentName() {
-    return this.componentName.substring(this.componentName.lastIndexOf('.') + 1);
+  public String getSimpleServiceName() {
+    return this.serviceName.substring(this.serviceName.lastIndexOf('.') + 1);
   }
 
   public CharSequence getGeneratedClassFqcnPrefix() {
     if (this.targetPkg == null || this.targetPkg.length() == 0) {
-      return getSimpleComponentName();
+      return getSimpleServiceName();
     }
-    return this.targetPkg + "." + getSimpleComponentName();
+    return this.targetPkg + "." + getSimpleServiceName();
   }
 
-  public ComponentType getComponentType() {
-    return componentType;
+  public ServiceType getServiceType() {
+    return serviceType;
   }
 
   public List<Handler> getMethods() {
@@ -74,8 +74,8 @@ public class Component {
   public static class Builder {
     private CharSequence targetPkg;
     private CharSequence targetFqcn;
-    private String componentName;
-    private ComponentType componentType;
+    private String serviceName;
+    private ServiceType serviceType;
     private final List<Handler> handlers = new ArrayList<>();
 
     public Builder withTargetPkg(CharSequence targetPkg) {
@@ -88,13 +88,13 @@ public class Component {
       return this;
     }
 
-    public Builder withComponentName(String componentName) {
-      this.componentName = componentName;
+    public Builder withServiceName(String serviceName) {
+      this.serviceName = serviceName;
       return this;
     }
 
-    public Builder withComponentType(ComponentType componentType) {
-      this.componentType = componentType;
+    public Builder withServiceType(ServiceType serviceType) {
+      this.serviceType = serviceType;
       return this;
     }
 
@@ -116,27 +116,27 @@ public class Component {
       return targetFqcn;
     }
 
-    public String getComponentName() {
-      return componentName;
+    public String getServiceName() {
+      return serviceName;
     }
 
-    public ComponentType getComponentType() {
-      return componentType;
+    public ServiceType getServiceType() {
+      return serviceType;
     }
 
     public List<Handler> getHandlers() {
       return handlers;
     }
 
-    public Component validateAndBuild() {
-      String componentNameLowercase = componentName.toLowerCase();
-      if (componentNameLowercase.startsWith("restate")
-          || componentNameLowercase.startsWith("openapi")) {
+    public Service validateAndBuild() {
+      String serviceNameLowercase = serviceName.toLowerCase();
+      if (serviceNameLowercase.startsWith("restate")
+          || serviceNameLowercase.startsWith("openapi")) {
         throw new IllegalArgumentException(
-            "A component name cannot start with `restate` or `openapi`");
+            "A service name cannot start with `restate` or `openapi`");
       }
 
-      if (componentType.equals(ComponentType.WORKFLOW)) {
+      if (serviceType.equals(ServiceType.WORKFLOW)) {
         if (handlers.stream().filter(m -> m.getHandlerType().equals(HandlerType.WORKFLOW)).count()
             != 1) {
           throw new IllegalArgumentException(
@@ -144,11 +144,11 @@ public class Component {
         }
       }
 
-      return new Component(
+      return new Service(
           Objects.requireNonNull(targetPkg),
           Objects.requireNonNull(targetFqcn),
-          Objects.requireNonNull(componentName),
-          Objects.requireNonNull(componentType),
+          Objects.requireNonNull(serviceName),
+          Objects.requireNonNull(serviceType),
           handlers);
     }
   }

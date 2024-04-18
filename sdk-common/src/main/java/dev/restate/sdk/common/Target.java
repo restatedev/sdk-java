@@ -12,12 +12,12 @@ import java.util.Objects;
 
 public final class Target {
 
-  private final String component;
+  private final String service;
   private final String handler;
   private final String key;
 
-  private Target(String component, String handler, String key) {
-    this.component = component;
+  private Target(String service, String handler, String key) {
+    this.service = service;
     this.handler = handler;
     this.key = key;
   }
@@ -30,8 +30,8 @@ public final class Target {
     return new Target(name, handler, null);
   }
 
-  public String getComponent() {
-    return component;
+  public String getService() {
+    return service;
   }
 
   public String getHandler() {
@@ -47,21 +47,21 @@ public final class Target {
     if (this == object) return true;
     if (object == null || getClass() != object.getClass()) return false;
     Target target = (Target) object;
-    return Objects.equals(component, target.component)
+    return Objects.equals(service, target.service)
         && Objects.equals(handler, target.handler)
         && Objects.equals(key, target.key);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(component, handler, key);
+    return Objects.hash(service, handler, key);
   }
 
   @Override
   public String toString() {
     if (key == null) {
-      return component + "/" + handler;
+      return service + "/" + handler;
     }
-    return component + "/" + key + "/" + handler;
+    return service + "/" + key + "/" + handler;
   }
 }

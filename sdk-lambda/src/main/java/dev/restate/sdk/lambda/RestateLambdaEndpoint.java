@@ -99,7 +99,7 @@ public final class RestateLambdaEndpoint {
       LOG.warn("Path doesn't match the pattern /invoke/SvcName/MethodName: '{}'", input.getPath());
       return new APIGatewayProxyResponseEvent().withStatusCode(404);
     }
-    String componentName = pathSegments[pathSegments.length - 2];
+    String serviceName = pathSegments[pathSegments.length - 2];
     String handlerName = pathSegments[pathSegments.length - 1];
 
     // Parse OTEL context and generate span
@@ -120,7 +120,7 @@ public final class RestateLambdaEndpoint {
     try {
       handler =
           this.restateEndpoint.resolve(
-              componentName,
+              serviceName,
               handlerName,
               otelContext,
               RestateEndpoint.LoggingContextSetter.THREAD_LOCAL_INSTANCE,

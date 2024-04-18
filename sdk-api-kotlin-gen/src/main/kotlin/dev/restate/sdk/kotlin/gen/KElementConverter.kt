@@ -16,27 +16,27 @@ import com.google.devtools.ksp.processing.KSBuiltIns
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.*
 import com.google.devtools.ksp.visitor.KSDefaultVisitor
-import dev.restate.sdk.common.ComponentType
-import dev.restate.sdk.gen.model.Component
+import dev.restate.sdk.common.ServiceType
 import dev.restate.sdk.gen.model.Handler
 import dev.restate.sdk.gen.model.HandlerType
 import dev.restate.sdk.gen.model.PayloadType
+import dev.restate.sdk.gen.model.Service
 import dev.restate.sdk.kotlin.Context
 import dev.restate.sdk.kotlin.ObjectContext
 import java.util.regex.Pattern
 import kotlin.reflect.KClass
 
 class KElementConverter(private val logger: KSPLogger, private val builtIns: KSBuiltIns) :
-    KSDefaultVisitor<Component.Builder, Unit>() {
+    KSDefaultVisitor<Service.Builder, Unit>() {
   companion object {
     private val SUPPORTED_CLASS_KIND: Set<ClassKind> = setOf(ClassKind.CLASS, ClassKind.INTERFACE)
     private val EMPTY_PAYLOAD: PayloadType =
         PayloadType(true, "", "Unit", "dev.restate.sdk.kotlin.KtSerdes.UNIT")
   }
 
-  override fun defaultHandler(node: KSNode, data: Component.Builder) {}
+  override fun defaultHandler(node: KSNode, data: Service.Builder) {}
 
-  override fun visitAnnotated(annotated: KSAnnotated, data: Component.Builder) {
+  override fun visitAnnotated(annotated: KSAnnotated, data: Service.Builder) {
     if (annotated !is KSClassDeclaration) {
       logger.error(
           "Only classes or interfaces can be annotated with @Service or @VirtualObject or @Workflow")
@@ -45,18 +45,14 @@ class KElementConverter(private val logger: KSPLogger, private val builtIns: KSB
   }
 
   @OptIn(KspExperimental::class)
-  override fun visitClassDeclaration(
-      classDeclaration: KSClassDeclaration,
-      data: Component.Builder
-  ) {
+  override fun visitClassDeclaration(classDeclaration: KSClassDeclaration, data: Service.Builder) {
     // Validate class declaration
     if (classDeclaration.typeParameters.isNotEmpty()) {
-      logger.error(
-          "The ComponentProcessor doesn't support components with generics", classDeclaration)
+      logger.error("The ServiceProcessor doesn't support services with generics", classDeclaration)
     }
     if (!SUPPORTED_CLASS_KIND.contains(classDeclaration.classKind)) {
       logger.error(
-          "The ComponentProcessor supports only class declarations of kind $SUPPORTED_CLASS_KIND",
+          "The ServiceProcessor supports only class declarations of kind $SUPPORTED_CLASS_KIND",
           classDeclaration)
     }
     if (classDeclaration.getVisibility() == Visibility.PRIVATE) {
@@ -66,7 +62,7 @@ class KElementConverter(private val logger: KSPLogger, private val builtIns: KSB
       logger.error("sdk-api-kotlin doesn't support workflows yet", classDeclaration)
     }
 
-    // Figure out component type annotations
+    // Figure out service type annotations
     val serviceAnnotation =
         classDeclaration
             .getAnnotationsByType(dev.restate.sdk.annotation.Service::class)
@@ -85,21 +81,20 @@ class KElementConverter(private val logger: KSPLogger, private val builtIns: KSB
           classDeclaration)
     }
 
-    data.withComponentType(
-        if (isAnnotatedWithService) ComponentType.SERVICE else ComponentType.VIRTUAL_OBJECT)
+    data.withServiceType(
+        if (isAnnotatedWithService) ServiceType.SERVICE else ServiceType.VIRTUAL_OBJECT)
 
     // Infer names
     val targetPkg = classDeclaration.packageName.asString()
     val targetFqcn = classDeclaration.qualifiedName!!.asString()
-    var componentName =
+    var serviceName =
         if (isAnnotatedWithService) serviceAnnotation!!.name else virtualObjectAnnotation!!.name
-    if (componentName.isEmpty()) {
+    if (serviceName.isEmpty()) {
       // Use Simple class name
       // With this logic we make sure we flatten subclasses names
-      componentName =
-          targetFqcn.substring(targetPkg.length).replace(Pattern.quote(".").toRegex(), "")
+      serviceName = targetFqcn.substring(targetPkg.length).replace(Pattern.quote(".").toRegex(), "")
     }
-    data.withTargetPkg(targetPkg).withTargetFqcn(targetFqcn).withComponentName(componentName)
+    data.withTargetPkg(targetPkg).withTargetFqcn(targetFqcn).withServiceName(serviceName)
 
     // Compute handlers
     classDeclaration
@@ -120,10 +115,10 @@ class KElementConverter(private val logger: KSPLogger, private val builtIns: KSB
   }
 
   @OptIn(KspExperimental::class)
-  override fun visitFunctionDeclaration(function: KSFunctionDeclaration, data: Component.Builder) {
+  override fun visitFunctionDeclaration(function: KSFunctionDeclaration, data: Service.Builder) {
     // Validate function declaration
     if (function.typeParameters.isNotEmpty()) {
-      logger.error("The ComponentProcessor doesn't support methods with generics", function)
+      logger.error("The ServiceProcessor doesn't support methods with generics", function)
     }
     if (function.functionKind != FunctionKind.MEMBER) {
       logger.error("Only member function declarations are supported as Restate handlers")
@@ -151,10 +146,10 @@ class KElementConverter(private val logger: KSPLogger, private val builtIns: KSB
     val handlerType =
         if (isAnnotatedWithShared) HandlerType.SHARED
         else if (isAnnotatedWithExclusive) HandlerType.EXCLUSIVE
-        else defaultHandlerType(data.componentType, function)
+        else defaultHandlerType(data.serviceType, function)
     handlerBuilder.withHandlerType(handlerType)
 
-    validateMethodSignature(data.componentType, handlerType, function)
+    validateMethodSignature(data.serviceType, handlerType, function)
 
     try {
       data.withHandler(
@@ -173,18 +168,18 @@ class KElementConverter(private val logger: KSPLogger, private val builtIns: KSB
     }
   }
 
-  private fun defaultHandlerType(componentType: ComponentType, node: KSNode): HandlerType {
-    when (componentType) {
-      ComponentType.SERVICE -> return HandlerType.STATELESS
-      ComponentType.VIRTUAL_OBJECT -> return HandlerType.EXCLUSIVE
-      ComponentType.WORKFLOW ->
+  private fun defaultHandlerType(serviceType: ServiceType, node: KSNode): HandlerType {
+    when (serviceType) {
+      ServiceType.SERVICE -> return HandlerType.STATELESS
+      ServiceType.VIRTUAL_OBJECT -> return HandlerType.EXCLUSIVE
+      ServiceType.WORKFLOW ->
           logger.error("Workflow handlers MUST be annotated with either @Shared or @Workflow", node)
     }
     throw IllegalStateException("Unexpected")
   }
 
   private fun validateMethodSignature(
-      componentType: ComponentType,
+      serviceType: ServiceType,
       handlerType: HandlerType,
       function: KSFunctionDeclaration
   ) {
@@ -196,14 +191,13 @@ class KElementConverter(private val logger: KSPLogger, private val builtIns: KSB
     when (handlerType) {
       HandlerType.SHARED ->
           logger.error(
-              "The annotation @Shared is not supported by the component type $componentType",
-              function)
+              "The annotation @Shared is not supported by the service type $serviceType", function)
       HandlerType.EXCLUSIVE ->
-          if (componentType == ComponentType.VIRTUAL_OBJECT) {
+          if (serviceType == ServiceType.VIRTUAL_OBJECT) {
             validateFirstParameterType(ObjectContext::class, function)
           } else {
             logger.error(
-                "The annotation @Exclusive is not supported by the component type $componentType",
+                "The annotation @Exclusive is not supported by the service type $serviceType",
                 function)
           }
       HandlerType.STATELESS -> validateFirstParameterType(Context::class, function)

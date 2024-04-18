@@ -8,10 +8,10 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.gen;
 
-import dev.restate.sdk.common.BindableComponentFactory;
-import dev.restate.sdk.common.ComponentType;
+import dev.restate.sdk.common.BindableServiceFactory;
+import dev.restate.sdk.common.ServiceType;
 import dev.restate.sdk.common.function.ThrowingFunction;
-import dev.restate.sdk.gen.model.Component;
+import dev.restate.sdk.gen.model.Service;
 import dev.restate.sdk.gen.template.HandlebarsTemplateEngine;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -33,10 +33,10 @@ import javax.tools.StandardLocation;
   "dev.restate.sdk.annotation.VirtualObject"
 })
 @SupportedSourceVersion(SourceVersion.RELEASE_11)
-public class ComponentProcessor extends AbstractProcessor {
+public class ServiceProcessor extends AbstractProcessor {
 
-  private HandlebarsTemplateEngine bindableComponentFactoryCodegen;
-  private HandlebarsTemplateEngine bindableComponentCodegen;
+  private HandlebarsTemplateEngine bindableServiceFactoryCodegen;
+  private HandlebarsTemplateEngine bindableServiceCodegen;
   private HandlebarsTemplateEngine clientCodegen;
 
   private static final Set<String> RESERVED_METHOD_NAMES = Set.of("send");
@@ -47,40 +47,40 @@ public class ComponentProcessor extends AbstractProcessor {
 
     FilerTemplateLoader filerTemplateLoader = new FilerTemplateLoader(processingEnv.getFiler());
 
-    this.bindableComponentFactoryCodegen =
+    this.bindableServiceFactoryCodegen =
         new HandlebarsTemplateEngine(
-            "BindableComponentFactory",
+            "BindableServiceFactory",
             filerTemplateLoader,
             Map.of(
-                ComponentType.WORKFLOW,
-                "templates/BindableComponentFactory.hbs",
-                ComponentType.SERVICE,
-                "templates/BindableComponentFactory.hbs",
-                ComponentType.VIRTUAL_OBJECT,
-                "templates/BindableComponentFactory.hbs"),
+                ServiceType.WORKFLOW,
+                "templates/BindableServiceFactory.hbs",
+                ServiceType.SERVICE,
+                "templates/BindableServiceFactory.hbs",
+                ServiceType.VIRTUAL_OBJECT,
+                "templates/BindableServiceFactory.hbs"),
             RESERVED_METHOD_NAMES);
-    this.bindableComponentCodegen =
+    this.bindableServiceCodegen =
         new HandlebarsTemplateEngine(
-            "BindableComponent",
+            "BindableService",
             filerTemplateLoader,
             Map.of(
-                ComponentType.WORKFLOW,
-                "templates/workflow/BindableComponent.hbs",
-                ComponentType.SERVICE,
-                "templates/BindableComponent.hbs",
-                ComponentType.VIRTUAL_OBJECT,
-                "templates/BindableComponent.hbs"),
+                ServiceType.WORKFLOW,
+                "templates/workflow/BindableService.hbs",
+                ServiceType.SERVICE,
+                "templates/BindableService.hbs",
+                ServiceType.VIRTUAL_OBJECT,
+                "templates/BindableService.hbs"),
             RESERVED_METHOD_NAMES);
     this.clientCodegen =
         new HandlebarsTemplateEngine(
             "Client",
             filerTemplateLoader,
             Map.of(
-                ComponentType.WORKFLOW,
+                ServiceType.WORKFLOW,
                 "templates/workflow/Client.hbs",
-                ComponentType.SERVICE,
+                ServiceType.SERVICE,
                 "templates/Client.hbs",
-                ComponentType.VIRTUAL_OBJECT,
+                ServiceType.VIRTUAL_OBJECT,
                 "templates/Client.hbs"),
             RESERVED_METHOD_NAMES);
   }
@@ -94,7 +94,7 @@ public class ComponentProcessor extends AbstractProcessor {
             processingEnv.getTypeUtils());
 
     // Parsing phase
-    List<Map.Entry<Element, Component>> parsedServices =
+    List<Map.Entry<Element, Service>> parsedServices =
         annotations.stream()
             .flatMap(annotation -> roundEnv.getElementsAnnotatedWith(annotation).stream())
             .filter(e -> e.getKind().isClass() || e.getKind().isInterface())
@@ -104,12 +104,12 @@ public class ComponentProcessor extends AbstractProcessor {
     Filer filer = processingEnv.getFiler();
 
     // Run code generation
-    for (Map.Entry<Element, Component> e : parsedServices) {
+    for (Map.Entry<Element, Service> e : parsedServices) {
       try {
         ThrowingFunction<String, Writer> fileCreator =
             name -> filer.createSourceFile(name, e.getKey()).openWriter();
-        this.bindableComponentFactoryCodegen.generate(fileCreator, e.getValue());
-        this.bindableComponentCodegen.generate(fileCreator, e.getValue());
+        this.bindableServiceFactoryCodegen.generate(fileCreator, e.getValue());
+        this.bindableServiceCodegen.generate(fileCreator, e.getValue());
         this.clientCodegen.generate(fileCreator, e.getValue());
       } catch (Throwable ex) {
         throw new RuntimeException(ex);
@@ -122,7 +122,7 @@ public class ComponentProcessor extends AbstractProcessor {
       resourceFilePath =
           readOrCreateResource(
               processingEnv.getFiler(),
-              "META-INF/services/" + BindableComponentFactory.class.getCanonicalName());
+              "META-INF/services/" + BindableServiceFactory.class.getCanonicalName());
       Files.createDirectories(resourceFilePath.getParent());
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -135,8 +135,8 @@ public class ComponentProcessor extends AbstractProcessor {
             StandardOpenOption.WRITE,
             StandardOpenOption.CREATE,
             StandardOpenOption.APPEND)) {
-      for (Map.Entry<Element, Component> e : parsedServices) {
-        writer.write(e.getValue().getGeneratedClassFqcnPrefix() + "BindableComponentFactory");
+      for (Map.Entry<Element, Service> e : parsedServices) {
+        writer.write(e.getValue().getGeneratedClassFqcnPrefix() + "BindableServiceFactory");
         writer.write('\n');
       }
     } catch (IOException e) {

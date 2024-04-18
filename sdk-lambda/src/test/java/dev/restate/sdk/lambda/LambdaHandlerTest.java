@@ -35,7 +35,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class LambdaHandlerTest {
 
-  @ValueSource(strings = {JavaCounterClient.COMPONENT_NAME, "KtCounter"})
+  @ValueSource(strings = {JavaCounterClient.SERVICE_NAME, "KtCounter"})
   @ParameterizedTest
   public void testInvoke(String serviceName) throws IOException {
     MyServicesHandler handler = new MyServicesHandler();
@@ -97,7 +97,7 @@ class LambdaHandlerTest {
 
     assertThat(discoveryResponse.getComponents())
         .map(Component::getFullyQualifiedComponentName)
-        .containsOnly(JavaCounterClient.COMPONENT_NAME, "KtCounter");
+        .containsOnly(JavaCounterClient.SERVICE_NAME, "KtCounter");
   }
 
   private static byte[] serializeEntries(MessageLite... msgs) throws IOException {

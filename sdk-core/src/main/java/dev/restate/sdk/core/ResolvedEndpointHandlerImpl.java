@@ -23,21 +23,18 @@ final class ResolvedEndpointHandlerImpl implements ResolvedEndpointHandler {
   private static final Logger LOG = LogManager.getLogger(ResolvedEndpointHandlerImpl.class);
 
   private final InvocationStateMachine stateMachine;
-  private final RestateEndpoint.LoggingContextSetter loggingContextSetter;
   private final InvocationHandler<Object> wrappedHandler;
   private final Object componentOptions;
   private final @Nullable Executor syscallsExecutor;
 
   public ResolvedEndpointHandlerImpl(
       InvocationStateMachine stateMachine,
-      RestateEndpoint.LoggingContextSetter loggingContextSetter,
       InvocationHandler<Object> handler,
-      Object componentOptions,
+      Object serviceOptions,
       @Nullable Executor syscallExecutor) {
     this.stateMachine = stateMachine;
-    this.loggingContextSetter = loggingContextSetter;
     this.wrappedHandler = new InvocationHandlerWrapper<>(handler);
-    this.componentOptions = componentOptions;
+    this.componentOptions = serviceOptions;
     this.syscallsExecutor = syscallExecutor;
   }
 

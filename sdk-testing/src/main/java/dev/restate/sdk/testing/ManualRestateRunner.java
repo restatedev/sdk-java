@@ -102,7 +102,7 @@ public class ManualRestateRunner
                       new RegisterDeploymentRequestAnyOf()
                           .uri("http://host.testcontainers.internal:" + serviceEndpointPort)));
       LOG.debug(
-          "Registered components {}",
+          "Registered services {}",
           response.getComponents().stream()
               .map(dev.restate.admin.model.ComponentMetadata::getName)
               .collect(Collectors.toList()));

@@ -30,7 +30,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   private static final Logger LOG = LogManager.getLogger(InvocationStateMachine.class);
 
-  private final String componentName;
+  private final String serviceName;
   private final String fullyQualifiedHandlerName;
   private final Span span;
   private final RestateEndpoint.LoggingContextSetter loggingContextSetter;
@@ -63,11 +63,11 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   private final CallbackHandle<SyscallCallback<Request>> afterStartCallback;
 
   InvocationStateMachine(
-      String componentName,
+      String serviceName,
       String fullyQualifiedHandlerName,
       Span span,
       RestateEndpoint.LoggingContextSetter loggingContextSetter) {
-    this.componentName = componentName;
+    this.serviceName = serviceName;
     this.fullyQualifiedHandlerName = fullyQualifiedHandlerName;
     this.span = span;
     this.loggingContextSetter = loggingContextSetter;
@@ -81,8 +81,8 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   // --- Getters
 
-  public String getComponentName() {
-    return componentName;
+  public String getServiceName() {
+    return serviceName;
   }
 
   public ByteString id() {

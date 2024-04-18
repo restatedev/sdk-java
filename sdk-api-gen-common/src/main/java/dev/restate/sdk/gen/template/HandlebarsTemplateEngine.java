@@ -14,11 +14,11 @@ import com.github.jknack.handlebars.Template;
 import com.github.jknack.handlebars.context.FieldValueResolver;
 import com.github.jknack.handlebars.helper.StringHelpers;
 import com.github.jknack.handlebars.io.TemplateLoader;
-import dev.restate.sdk.common.ComponentType;
+import dev.restate.sdk.common.ServiceType;
 import dev.restate.sdk.common.function.ThrowingFunction;
-import dev.restate.sdk.gen.model.Component;
 import dev.restate.sdk.gen.model.Handler;
 import dev.restate.sdk.gen.model.HandlerType;
+import dev.restate.sdk.gen.model.Service;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.List;
@@ -29,13 +29,13 @@ import java.util.stream.Collectors;
 public class HandlebarsTemplateEngine {
 
   private final String baseTemplateName;
-  private final Map<ComponentType, Template> templates;
+  private final Map<ServiceType, Template> templates;
   private final Set<String> handlerNamesToPrefix;
 
   public HandlebarsTemplateEngine(
       String baseTemplateName,
       TemplateLoader templateLoader,
-      Map<ComponentType, String> templates,
+      Map<ServiceType, String> templates,
       Set<String> handlerNamesToPrefix) {
     this.baseTemplateName = baseTemplateName;
     this.handlerNamesToPrefix = handlerNamesToPrefix;
@@ -62,16 +62,16 @@ public class HandlebarsTemplateEngine {
                     }));
   }
 
-  public void generate(ThrowingFunction<String, Writer> createFile, Component component)
+  public void generate(ThrowingFunction<String, Writer> createFile, Service service)
       throws Throwable {
-    String fileName = component.getGeneratedClassFqcnPrefix() + this.baseTemplateName;
+    String fileName = service.getGeneratedClassFqcnPrefix() + this.baseTemplateName;
     try (Writer out = createFile.apply(fileName)) {
       this.templates
-          .get(component.getComponentType())
+          .get(service.getServiceType())
           .apply(
               Context.newBuilder(
-                      new ComponentTemplateModel(
-                          component, this.baseTemplateName, this.handlerNamesToPrefix))
+                      new ServiceTemplateModel(
+                          service, this.baseTemplateName, this.handlerNamesToPrefix))
                   .resolver(FieldValueResolver.INSTANCE)
                   .build(),
               out);
@@ -80,30 +80,30 @@ public class HandlebarsTemplateEngine {
 
   // --- classes to interact with the handlebars template
 
-  static class ComponentTemplateModel {
+  static class ServiceTemplateModel {
     public final String originalClassPkg;
     public final String originalClassFqcn;
     public final String generatedClassSimpleNamePrefix;
     public final String generatedClassSimpleName;
-    public final String componentName;
-    public final String componentType;
+    public final String serviceName;
+    public final String serviceType;
     public final boolean isWorkflow;
     public final boolean isObject;
     public final boolean isService;
     public final List<HandlerTemplateModel> handlers;
 
-    private ComponentTemplateModel(
-        Component inner, String baseTemplateName, Set<String> handlerNamesToPrefix) {
+    private ServiceTemplateModel(
+        Service inner, String baseTemplateName, Set<String> handlerNamesToPrefix) {
       this.originalClassPkg = inner.getTargetPkg().toString();
       this.originalClassFqcn = inner.getTargetFqcn().toString();
-      this.generatedClassSimpleNamePrefix = inner.getSimpleComponentName();
+      this.generatedClassSimpleNamePrefix = inner.getSimpleServiceName();
       this.generatedClassSimpleName = this.generatedClassSimpleNamePrefix + baseTemplateName;
-      this.componentName = inner.getFullyQualifiedComponentName();
+      this.serviceName = inner.getFullyQualifiedServiceName();
 
-      this.componentType = inner.getComponentType().toString();
-      this.isWorkflow = inner.getComponentType() == ComponentType.WORKFLOW;
-      this.isObject = inner.getComponentType() == ComponentType.VIRTUAL_OBJECT;
-      this.isService = inner.getComponentType() == ComponentType.SERVICE;
+      this.serviceType = inner.getServiceType().toString();
+      this.isWorkflow = inner.getServiceType() == ServiceType.WORKFLOW;
+      this.isObject = inner.getServiceType() == ServiceType.VIRTUAL_OBJECT;
+      this.isService = inner.getServiceType() == ServiceType.SERVICE;
 
       this.handlers =
           inner.getMethods().stream()

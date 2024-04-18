@@ -14,7 +14,6 @@ import dev.restate.sdk.common.CoreSerdes
 import dev.restate.sdk.core.ProtoUtils.*
 import dev.restate.sdk.core.TestDefinitions
 import dev.restate.sdk.core.TestDefinitions.testInvocation
-import dev.restate.sdk.kotlin.Component
 import dev.restate.sdk.kotlin.runBlock
 import io.vertx.core.Vertx
 import java.util.stream.Stream
@@ -65,9 +64,10 @@ class VertxExecutorsTest : TestDefinitions.TestSuite {
   override fun definitions(): Stream<TestDefinitions.TestDefinition> {
     return Stream.of(
         testInvocation(
-                dev.restate.sdk.kotlin.Component.service(
+                dev.restate.sdk.kotlin.Service.service(
                     "CheckNonBlockingComponentTrampolineExecutor",
-                    Component.Options(Dispatchers.Default + nonBlockingCoroutineName)) {
+                    dev.restate.sdk.kotlin.Service.Options(
+                        Dispatchers.Default + nonBlockingCoroutineName)) {
                       handler("do") { ctx, _: Unit ->
                         checkNonBlockingComponentTrampolineExecutor(ctx)
                       }
@@ -80,12 +80,12 @@ class VertxExecutorsTest : TestDefinitions.TestSuite {
                 outputMessage(),
                 END_MESSAGE),
         testInvocation(
-                dev.restate.sdk.Component.service("CheckBlockingComponentTrampolineExecutor")
+                dev.restate.sdk.Service.service("CheckBlockingComponentTrampolineExecutor")
                     .with(
-                        dev.restate.sdk.Component.HandlerSignature.of(
+                        dev.restate.sdk.Service.HandlerSignature.of(
                             "do", CoreSerdes.VOID, CoreSerdes.VOID),
                         this::checkBlockingComponentTrampolineExecutor)
-                    .build(dev.restate.sdk.Component.Options.DEFAULT),
+                    .build(dev.restate.sdk.Service.Options.DEFAULT),
                 "do")
             .withInput(startMessage(1), inputMessage(), ackMessage(1))
             .onlyUnbuffered()

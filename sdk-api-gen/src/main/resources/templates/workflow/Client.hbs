@@ -10,7 +10,7 @@ import java.time.Duration;
 
 public class {{generatedClassSimpleName}} {
 
-    public static final String WORKFLOW_NAME = "{{componentName}}";
+    public static final String WORKFLOW_NAME = "{{serviceName}}";
 
     {{#handlers}}
     private static final Serde<{{{boxedInputFqcn}}}> {{inputSerdeFieldName}} = {{{inputSerdeDecl}}};

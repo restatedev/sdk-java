@@ -8,8 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.lambda;
 
-import dev.restate.sdk.common.BindableComponent;
-import dev.restate.sdk.common.syscalls.ComponentDefinition;
+import dev.restate.sdk.common.BindableService;
+import dev.restate.sdk.common.syscalls.ServiceDefinition;
 import dev.restate.sdk.core.RestateEndpoint;
 import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
 import io.opentelemetry.api.OpenTelemetry;
@@ -22,19 +22,18 @@ public final class RestateLambdaEndpointBuilder {
   private OpenTelemetry openTelemetry = OpenTelemetry.noop();
 
   /**
-   * Add a Restate entity to the endpoint, specifying the {@code executor} where to run the entity
+   * Add a Restate service to the endpoint, specifying the {@code executor} where to run the entity
    * code.
    */
   public RestateLambdaEndpointBuilder bind(Object service) {
-    return this.bind(RestateEndpoint.discoverBindableComponentFactory(service).create(service));
+    return this.bind(RestateEndpoint.discoverBindableServiceFactory(service).create(service));
   }
 
-  /** Add a Restate bindable component to the endpoint. */
-  public RestateLambdaEndpointBuilder bind(BindableComponent<?> component) {
-    for (ComponentDefinition<?> componentDefinition : component.definitions()) {
+  /** Add a Restate bindable service to the endpoint. */
+  public RestateLambdaEndpointBuilder bind(BindableService<?> service) {
+    for (ServiceDefinition<?> serviceDefinition : service.definitions()) {
       //noinspection unchecked
-      this.restateEndpoint.bind(
-          (ComponentDefinition<Object>) componentDefinition, component.options());
+      this.restateEndpoint.bind((ServiceDefinition<Object>) serviceDefinition, service.options());
     }
 
     return this;

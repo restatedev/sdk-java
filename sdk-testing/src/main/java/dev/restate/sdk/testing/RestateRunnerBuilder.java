@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testing;
 
-import dev.restate.sdk.common.BindableComponent;
+import dev.restate.sdk.common.BindableService;
 import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder;
 import java.util.HashMap;
 import java.util.Map;
@@ -45,30 +45,30 @@ public class RestateRunnerBuilder {
   }
 
   /**
-   * Add a Restate component to the endpoint. This will automatically discover the generated factory
+   * Add a Restate service to the endpoint. This will automatically discover the generated factory
    * based on the class name.
    *
-   * <p>You can also manually instantiate the {@link BindableComponent} using {@link
-   * #with(BindableComponent)}.
+   * <p>You can also manually instantiate the {@link BindableService} using {@link
+   * #with(BindableService)}.
    */
-  public RestateRunnerBuilder with(Object component) {
-    endpointBuilder.bind(component);
+  public RestateRunnerBuilder with(Object service) {
+    endpointBuilder.bind(service);
     return this;
   }
 
   /**
-   * Add a Restate bindable component to the endpoint.
+   * Add a Restate bindable service to the endpoint.
    *
-   * <p>To override the options, use {@link #with(BindableComponent, Object)}.
+   * <p>To override the options, use {@link #with(BindableService, Object)}.
    */
-  public RestateRunnerBuilder with(BindableComponent<?> component) {
-    endpointBuilder.bind(component);
+  public RestateRunnerBuilder with(BindableService<?> service) {
+    endpointBuilder.bind(service);
     return this;
   }
 
-  /** Add a Restate bindable component to the endpoint, overriding the options. */
-  public <O> RestateRunnerBuilder with(BindableComponent<O> component, O options) {
-    endpointBuilder.bind(component, options);
+  /** Add a Restate bindable service to the endpoint, overriding the options. */
+  public <O> RestateRunnerBuilder with(BindableService<O> service, O options) {
+    endpointBuilder.bind(service, options);
     return this;
   }
 

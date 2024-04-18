@@ -10,12 +10,12 @@ package dev.restate.sdk.workflow.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.protobuf.*;
-import dev.restate.sdk.Component;
-import dev.restate.sdk.Component.HandlerSignature;
 import dev.restate.sdk.Context;
 import dev.restate.sdk.ObjectContext;
+import dev.restate.sdk.Service;
+import dev.restate.sdk.Service.HandlerSignature;
 import dev.restate.sdk.common.*;
-import dev.restate.sdk.common.syscalls.ComponentDefinition;
+import dev.restate.sdk.common.syscalls.ServiceDefinition;
 import dev.restate.sdk.serde.jackson.JacksonSerdes;
 import dev.restate.sdk.serde.protobuf.ProtobufSerdes;
 import dev.restate.sdk.workflow.WorkflowContext;
@@ -26,7 +26,7 @@ import java.util.*;
 import java.util.function.BiFunction;
 import org.jspecify.annotations.Nullable;
 
-public class WorkflowImpl implements BindableComponent<Component.Options> {
+public class WorkflowImpl implements BindableService<Service.Options> {
 
   public static final Serde<InvokeRequest> INVOKE_REQUEST_SERDE =
       JacksonSerdes.of(InvokeRequest.class);
@@ -60,15 +60,15 @@ public class WorkflowImpl implements BindableComponent<Component.Options> {
   private static final String START_HANDLER = "_start";
 
   private final String name;
-  private final Component.Options options;
-  private final Component.Handler<?, ?> workflowMethod;
-  private final HashMap<String, Component.Handler<?, ?>> sharedHandlers;
+  private final Service.Options options;
+  private final Service.Handler<?, ?> workflowMethod;
+  private final HashMap<String, Service.Handler<?, ?>> sharedHandlers;
 
   public WorkflowImpl(
       String name,
-      Component.Options options,
-      Component.Handler<?, ?> workflowMethod,
-      HashMap<String, Component.Handler<?, ?>> sharedHandlers) {
+      Service.Options options,
+      Service.Handler<?, ?> workflowMethod,
+      HashMap<String, Service.Handler<?, ?>> sharedHandlers) {
     this.name = name;
     this.options = options;
     this.workflowMethod = workflowMethod;
@@ -144,8 +144,8 @@ public class WorkflowImpl implements BindableComponent<Component.Options> {
   private byte[] invokeSharedMethod(String handlerName, Context context, InvokeRequest request) {
     // Lookup the method
     @SuppressWarnings("unchecked")
-    Component.Handler<Object, Object> method =
-        (Component.Handler<Object, Object>) sharedHandlers.get(handlerName);
+    Service.Handler<Object, Object> method =
+        (Service.Handler<Object, Object>) sharedHandlers.get(handlerName);
     if (method == null) {
       throw new TerminalException(404, "Method " + handlerName + " not found");
     }
@@ -319,18 +319,18 @@ public class WorkflowImpl implements BindableComponent<Component.Options> {
     return Target.virtualObject(workflowManagerObjectName(name), key, handler);
   }
 
-  // --- Components definition
+  // --- Services definition
 
   @Override
-  public Component.Options options() {
+  public Service.Options options() {
     return options;
   }
 
   @Override
-  public List<ComponentDefinition<Component.Options>> definitions() {
+  public List<ServiceDefinition<Service.Options>> definitions() {
     // Prepare workflow service
-    Component.ServiceBuilder workflowBuilder =
-        Component.service(name)
+    Service.ServiceBuilder workflowBuilder =
+        Service.service(name)
             .with(
                 HandlerSignature.of("submit", INVOKE_REQUEST_SERDE, WORKFLOW_EXECUTION_STATE_SERDE),
                 this::submit)
@@ -352,8 +352,8 @@ public class WorkflowImpl implements BindableComponent<Component.Options> {
     }
 
     // Prepare workflow manager service
-    Component workflowManager =
-        Component.virtualObject(workflowManagerObjectName(name))
+    Service workflowManager =
+        Service.virtualObject(workflowManagerObjectName(name))
             .with(
                 HandlerSignature.of("getState", CoreSerdes.JSON_STRING, GET_STATE_RESPONSE_SERDE),
                 this::getState)

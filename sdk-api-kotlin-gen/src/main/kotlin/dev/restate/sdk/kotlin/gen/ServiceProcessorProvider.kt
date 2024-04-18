@@ -12,10 +12,9 @@ import com.google.devtools.ksp.processing.SymbolProcessor
 import com.google.devtools.ksp.processing.SymbolProcessorEnvironment
 import com.google.devtools.ksp.processing.SymbolProcessorProvider
 
-class ComponentProcessorProvider : SymbolProcessorProvider {
+class ServiceProcessorProvider : SymbolProcessorProvider {
 
   override fun create(environment: SymbolProcessorEnvironment): SymbolProcessor {
-    return ComponentProcessor(
-        logger = environment.logger, codeGenerator = environment.codeGenerator)
+    return ServiceProcessor(logger = environment.logger, codeGenerator = environment.codeGenerator)
   }
 }
