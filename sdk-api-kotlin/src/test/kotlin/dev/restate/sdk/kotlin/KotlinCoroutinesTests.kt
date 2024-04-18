@@ -51,7 +51,7 @@ class KotlinCoroutinesTests : TestRunner() {
     ): TestInvocationBuilder {
       return TestDefinitions.testInvocation(
           Service.virtualObject(name, Service.Options(Dispatchers.Unconfined)) {
-            handler("run", runner)
+            exclusiveHandler("run", runner)
           },
           "run")
     }

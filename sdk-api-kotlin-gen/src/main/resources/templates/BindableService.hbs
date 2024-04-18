@@ -11,7 +11,7 @@ class {{generatedClassSimpleName}}(
 
     val service: dev.restate.sdk.kotlin.Service = dev.restate.sdk.kotlin.Service.{{#if isObject}}virtualObject{{else}}service{{/if}}(SERVICE_NAME, options) {
         {{#handlers}}
-            handler(dev.restate.sdk.kotlin.Service.HandlerSignature("{{name}}", {{{inputSerdeDecl}}}, {{{outputSerdeDecl}}})) { ctx, req ->
+            {{#if isShared}}sharedHandler{{else if isExclusive}}exclusiveHandler{{else}}handler{{/if}}(dev.restate.sdk.kotlin.Service.HandlerSignature("{{name}}", {{{inputSerdeDecl}}}, {{{outputSerdeDecl}}})) { ctx, req ->
             {{#if inputEmpty}}bindableService.{{name}}(ctx){{else}}bindableService.{{name}}(ctx, req){{/if}}
             }
         {{/handlers}}

@@ -12,10 +12,8 @@ import static dev.restate.sdk.core.ProtoUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.testInvocation;
 
 import com.google.protobuf.ByteString;
-import dev.restate.sdk.annotation.Exclusive;
-import dev.restate.sdk.annotation.Handler;
+import dev.restate.sdk.annotation.*;
 import dev.restate.sdk.annotation.Service;
-import dev.restate.sdk.annotation.VirtualObject;
 import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.common.Target;
 import dev.restate.sdk.core.ProtoUtils;
@@ -37,6 +35,12 @@ public class CodegenTest implements TestSuite {
   static class ObjectGreeter {
     @Exclusive
     String greet(ObjectContext context, String request) {
+      return request;
+    }
+
+    @Handler
+    @Shared
+    String sharedGreet(SharedObjectContext context, String request) {
       return request;
     }
   }
@@ -110,6 +114,10 @@ public class CodegenTest implements TestSuite {
             .onlyUnbuffered()
             .expectingOutput(outputMessage("Francesco"), END_MESSAGE),
         testInvocation(ObjectGreeter::new, "greet")
+            .withInput(startMessage(1, "slinkydeveloper"), inputMessage("Francesco"))
+            .onlyUnbuffered()
+            .expectingOutput(outputMessage("Francesco"), END_MESSAGE),
+        testInvocation(ObjectGreeter::new, "sharedGreet")
             .withInput(startMessage(1, "slinkydeveloper"), inputMessage("Francesco"))
             .onlyUnbuffered()
             .expectingOutput(outputMessage("Francesco"), END_MESSAGE),

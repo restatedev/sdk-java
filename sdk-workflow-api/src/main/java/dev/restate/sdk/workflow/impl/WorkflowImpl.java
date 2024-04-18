@@ -354,22 +354,22 @@ public class WorkflowImpl implements BindableService<Service.Options> {
     // Prepare workflow manager service
     Service workflowManager =
         Service.virtualObject(workflowManagerObjectName(name))
-            .with(
+            .withExclusive(
                 HandlerSignature.of("getState", CoreSerdes.JSON_STRING, GET_STATE_RESPONSE_SERDE),
                 this::getState)
-            .with(
+            .withExclusive(
                 HandlerSignature.of("setState", SET_STATE_REQUEST_SERDE, CoreSerdes.VOID),
                 (context, setStateRequest) -> {
                   this.setState(context, setStateRequest);
                   return null;
                 })
-            .with(
+            .withExclusive(
                 HandlerSignature.of("clearState", CoreSerdes.JSON_STRING, CoreSerdes.VOID),
                 (context, s) -> {
                   this.clearState(context, s);
                   return null;
                 })
-            .with(
+            .withExclusive(
                 HandlerSignature.of(
                     "waitDurablePromiseCompletion",
                     WAIT_DURABLE_PROMISE_COMPLETION_REQUEST_SERDE,
@@ -378,13 +378,13 @@ public class WorkflowImpl implements BindableService<Service.Options> {
                   this.waitDurablePromiseCompletion(context, waitDurablePromiseCompletionRequest);
                   return null;
                 })
-            .with(
+            .withExclusive(
                 HandlerSignature.of(
                     "getDurablePromiseCompletion",
                     CoreSerdes.JSON_STRING,
                     MAYBE_DURABLE_PROMISE_COMPLETION_SERDE),
                 this::getDurablePromiseCompletion)
-            .with(
+            .withExclusive(
                 HandlerSignature.of(
                     "completeDurablePromise",
                     COMPLETE_DURABLE_PROMISE_REQUEST_SERDE,
@@ -393,19 +393,19 @@ public class WorkflowImpl implements BindableService<Service.Options> {
                   this.completeDurablePromise(context, completeDurablePromiseRequest);
                   return null;
                 })
-            .with(
+            .withExclusive(
                 HandlerSignature.of("tryStart", CoreSerdes.VOID, WORKFLOW_EXECUTION_STATE_SERDE),
                 (context, unused) -> this.tryStart(context))
-            .with(
+            .withExclusive(
                 HandlerSignature.of("getOutput", CoreSerdes.VOID, GET_OUTPUT_RESPONSE_SERDE),
                 (context, unused) -> this.getOutput(context))
-            .with(
+            .withExclusive(
                 HandlerSignature.of("setOutput", SET_OUTPUT_REQUEST_SERDE, CoreSerdes.VOID),
                 (context, setOutputRequest) -> {
                   this.setOutput(context, setOutputRequest);
                   return null;
                 })
-            .with(
+            .withExclusive(
                 HandlerSignature.of("cleanup", CoreSerdes.VOID, CoreSerdes.VOID),
                 (context, unused) -> {
                   this.cleanup(context);

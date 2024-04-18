@@ -10,6 +10,7 @@ package dev.restate.sdk.gen;
 
 import dev.restate.sdk.Context;
 import dev.restate.sdk.ObjectContext;
+import dev.restate.sdk.SharedObjectContext;
 import dev.restate.sdk.annotation.Exclusive;
 import dev.restate.sdk.annotation.Shared;
 import dev.restate.sdk.annotation.Workflow;
@@ -233,6 +234,8 @@ public class ElementConverter {
       case SHARED:
         if (serviceType == ServiceType.WORKFLOW) {
           validateFirstParameterType(WorkflowSharedContext.class, element);
+        } else if (serviceType == ServiceType.VIRTUAL_OBJECT) {
+          validateFirstParameterType(SharedObjectContext.class, element);
         } else {
           messager.printMessage(
               Diagnostic.Kind.ERROR,

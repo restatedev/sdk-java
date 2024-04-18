@@ -23,6 +23,7 @@ import dev.restate.sdk.gen.model.PayloadType
 import dev.restate.sdk.gen.model.Service
 import dev.restate.sdk.kotlin.Context
 import dev.restate.sdk.kotlin.ObjectContext
+import dev.restate.sdk.kotlin.SharedObjectContext
 import java.util.regex.Pattern
 import kotlin.reflect.KClass
 
@@ -128,7 +129,7 @@ class KElementConverter(private val logger: KSPLogger, private val builtIns: KSB
     }
 
     val isAnnotatedWithShared =
-        function.isAnnotationPresent(dev.restate.sdk.annotation.Service::class)
+        function.isAnnotationPresent(dev.restate.sdk.annotation.Shared::class)
     val isAnnotatedWithExclusive =
         function.isAnnotationPresent(dev.restate.sdk.annotation.Exclusive::class)
 
@@ -190,8 +191,13 @@ class KElementConverter(private val logger: KSPLogger, private val builtIns: KSB
     }
     when (handlerType) {
       HandlerType.SHARED ->
-          logger.error(
-              "The annotation @Shared is not supported by the service type $serviceType", function)
+          if (serviceType == ServiceType.VIRTUAL_OBJECT) {
+            validateFirstParameterType(SharedObjectContext::class, function)
+          } else {
+            logger.error(
+                "The annotation @Shared is not supported by the service type $serviceType",
+                function)
+          }
       HandlerType.EXCLUSIVE ->
           if (serviceType == ServiceType.VIRTUAL_OBJECT) {
             validateFirstParameterType(ObjectContext::class, function)
