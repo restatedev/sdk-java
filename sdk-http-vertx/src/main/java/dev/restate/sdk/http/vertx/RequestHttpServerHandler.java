@@ -18,6 +18,7 @@ import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.ResolvedEndpointHandler;
 import dev.restate.sdk.core.RestateEndpoint;
 import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
+import dev.restate.sdk.version.Version;
 import io.netty.util.AsciiString;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.context.propagation.TextMapGetter;
@@ -41,6 +42,9 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
   private static final Logger LOG = LogManager.getLogger(RequestHttpServerHandler.class);
 
   private static final AsciiString APPLICATION_RESTATE = AsciiString.cached("application/restate");
+  private static final AsciiString X_RESTATE_SERVER_KEY = AsciiString.cached("x-restate-server");
+  private static final AsciiString X_RESTATE_SERVER_VALUE =
+      AsciiString.cached(Version.X_RESTATE_SERVER);
   private static final ObjectMapper MANIFEST_OBJECT_MAPPER = new ObjectMapper();
 
   private static final Pattern SLASH = Pattern.compile(Pattern.quote("/"));
@@ -127,7 +131,9 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
     // Vert.x will send them as soon as we send the first write
     HttpServerResponse response = request.response();
     response.setStatusCode(OK.code());
-    response.putHeader(CONTENT_TYPE, APPLICATION_RESTATE);
+    response
+        .putHeader(CONTENT_TYPE, APPLICATION_RESTATE)
+        .putHeader(X_RESTATE_SERVER_KEY, X_RESTATE_SERVER_VALUE);
     // This is No-op for HTTP2
     response.setChunked(true);
 
@@ -159,6 +165,7 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
     request
         .response()
         .setStatusCode(OK.code())
+        .putHeader(X_RESTATE_SERVER_KEY, X_RESTATE_SERVER_VALUE)
         .putHeader(CONTENT_TYPE, APPLICATION_JSON)
         .end(responseBuffer);
   }
