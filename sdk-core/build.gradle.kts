@@ -1,5 +1,3 @@
-import com.google.protobuf.gradle.id
-
 plugins {
   `java-library`
   `library-publishing-conventions`

@@ -24,7 +24,7 @@ allprojects {
 
   configure<com.diffplug.gradle.spotless.SpotlessExtension> {
     java {
-      targetExclude("build/generated/**/*.java")
+      targetExclude("build/**/*.java")
 
       googleJavaFormat()
 

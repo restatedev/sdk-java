@@ -19,6 +19,7 @@ import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.ResolvedEndpointHandler;
 import dev.restate.sdk.core.RestateEndpoint;
 import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
+import dev.restate.sdk.version.Version;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.context.propagation.TextMapGetter;
 import java.nio.ByteBuffer;
@@ -39,9 +40,9 @@ public final class RestateLambdaEndpoint {
   private static final String INVOKE_PATH_SEGMENT = "invoke";
   private static final String DISCOVER_PATH = "/discover";
   private static final Map<String, String> INVOKE_RESPONSE_HEADERS =
-      Map.of("content-type", "application/restate");
+      Map.of("content-type", "application/restate", "x-restate-server", Version.X_RESTATE_SERVER);
   private static final Map<String, String> DISCOVER_RESPONSE_HEADERS =
-      Map.of("content-type", "application/json");
+      Map.of("content-type", "application/json", "x-restate-server", Version.X_RESTATE_SERVER);
 
   private static TextMapGetter<Map<String, String>> OTEL_HEADERS_GETTER =
       new TextMapGetter<>() {
