@@ -58,7 +58,7 @@ public class JavaBlockingTests extends TestRunner {
       String name, Serde<T> reqSerde, Serde<R> resSerde, BiFunction<ObjectContext, T, R> runner) {
     return TestDefinitions.testInvocation(
         Service.virtualObject(name)
-            .with(Service.HandlerSignature.of("run", reqSerde, resSerde), runner)
+            .withExclusive(Service.HandlerSignature.of("run", reqSerde, resSerde), runner)
             .build(Service.Options.DEFAULT),
         "run");
   }

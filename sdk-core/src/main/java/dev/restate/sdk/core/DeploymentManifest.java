@@ -8,6 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
+import dev.restate.sdk.common.HandlerType;
 import dev.restate.sdk.common.ServiceType;
 import dev.restate.sdk.common.syscalls.ServiceDefinition;
 import dev.restate.sdk.core.manifest.Component;
@@ -36,7 +37,12 @@ final class DeploymentManifest {
                                 .withComponentType(convertServiceType(svc.getServiceType()))
                                 .withHandlers(
                                     svc.getHandlers().stream()
-                                        .map(method -> new Handler().withName(method.getName()))
+                                        .map(
+                                            method ->
+                                                new Handler()
+                                                    .withHandlerType(
+                                                        convertHandlerType(method.getHandlerType()))
+                                                    .withName(method.getName()))
                                         .collect(Collectors.toList())))
                     .collect(Collectors.toList()));
   }
@@ -52,6 +58,16 @@ final class DeploymentManifest {
         return Component.ComponentType.SERVICE;
       case VIRTUAL_OBJECT:
         return Component.ComponentType.VIRTUAL_OBJECT;
+    }
+    throw new IllegalStateException();
+  }
+
+  private static Handler.HandlerType convertHandlerType(HandlerType handlerType) {
+    switch (handlerType) {
+      case EXCLUSIVE:
+        return Handler.HandlerType.EXCLUSIVE;
+      case SHARED:
+        return Handler.HandlerType.SHARED;
     }
     throw new IllegalStateException();
   }

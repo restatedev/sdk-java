@@ -71,9 +71,15 @@ public final class Service implements BindableService<Service.Options> {
       super(name);
     }
 
-    public <REQ, RES> VirtualObjectBuilder with(
+    public <REQ, RES> VirtualObjectBuilder withShared(
+        HandlerSignature<REQ, RES> sig, BiFunction<SharedObjectContext, REQ, RES> runner) {
+      this.handlers.put(sig.getName(), new Handler<>(sig, HandlerType.SHARED, runner));
+      return this;
+    }
+
+    public <REQ, RES> VirtualObjectBuilder withExclusive(
         HandlerSignature<REQ, RES> sig, BiFunction<ObjectContext, REQ, RES> runner) {
-      this.handlers.put(sig.getName(), new Handler<>(sig, runner));
+      this.handlers.put(sig.getName(), new Handler<>(sig, HandlerType.EXCLUSIVE, runner));
       return this;
     }
 
@@ -90,7 +96,7 @@ public final class Service implements BindableService<Service.Options> {
 
     public <REQ, RES> ServiceBuilder with(
         HandlerSignature<REQ, RES> sig, BiFunction<Context, REQ, RES> runner) {
-      this.handlers.put(sig.getName(), new Handler<>(sig, runner));
+      this.handlers.put(sig.getName(), new Handler<>(sig, HandlerType.SHARED, runner));
       return this;
     }
 
@@ -102,14 +108,17 @@ public final class Service implements BindableService<Service.Options> {
   @SuppressWarnings("unchecked")
   public static class Handler<REQ, RES> implements InvocationHandler<Service.Options> {
     private final HandlerSignature<REQ, RES> handlerSignature;
+    private final HandlerType handlerType;
     private final BiFunction<Context, REQ, RES> runner;
 
     private static final Logger LOG = LogManager.getLogger(Handler.class);
 
     public Handler(
         HandlerSignature<REQ, RES> handlerSignature,
+        HandlerType handlerType,
         BiFunction<? extends Context, REQ, RES> runner) {
       this.handlerSignature = handlerSignature;
+      this.handlerType = handlerType;
       this.runner = (BiFunction<Context, REQ, RES>) runner;
     }
 
@@ -124,6 +133,7 @@ public final class Service implements BindableService<Service.Options> {
     public HandlerDefinition<Service.Options> toHandlerDefinition() {
       return new HandlerDefinition<>(
           this.handlerSignature.name,
+          this.handlerType,
           this.handlerSignature.requestSerde.schema(),
           this.handlerSignature.responseSerde.schema(),
           this);

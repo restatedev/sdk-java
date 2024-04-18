@@ -22,4 +22,6 @@ private val COUNTER: StateKey<Long> =
             { v: ByteArray? -> String(v!!, StandardCharsets.UTF_8).toLong() }))
 
 fun counter(): BindableService<*> =
-    Service.virtualObject("KtCounter") { handler("get") { ctx, _: Unit -> ctx.get(COUNTER) ?: -1 } }
+    Service.virtualObject("KtCounter") {
+      exclusiveHandler("get") { ctx, _: Unit -> ctx.get(COUNTER) ?: -1 }
+    }

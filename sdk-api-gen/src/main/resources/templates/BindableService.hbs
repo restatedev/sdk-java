@@ -13,7 +13,7 @@ public class {{generatedClassSimpleName}} implements dev.restate.sdk.common.Bind
     public {{generatedClassSimpleName}}({{originalClassFqcn}} bindableService, dev.restate.sdk.Service.Options options) {
         this.service = dev.restate.sdk.Service.{{#if isObject}}virtualObject{{else}}service{{/if}}(SERVICE_NAME)
             {{#handlers}}
-                .with(
+                .{{#if isShared}}withShared{{else if isExclusive}}withExclusive{{else}}with{{/if}}(
                 dev.restate.sdk.Service.HandlerSignature.of("{{name}}", {{{inputSerdeDecl}}}, {{{outputSerdeDecl}}}),
                 (ctx, req) -> {
                 {{#if outputEmpty}}

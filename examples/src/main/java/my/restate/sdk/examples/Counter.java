@@ -9,7 +9,9 @@
 package my.restate.sdk.examples;
 
 import dev.restate.sdk.ObjectContext;
+import dev.restate.sdk.SharedObjectContext;
 import dev.restate.sdk.annotation.Handler;
+import dev.restate.sdk.annotation.Shared;
 import dev.restate.sdk.annotation.VirtualObject;
 import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.common.StateKey;
@@ -36,8 +38,9 @@ public class Counter {
     ctx.set(TOTAL, newValue);
   }
 
+  @Shared
   @Handler
-  public Long get(ObjectContext ctx) {
+  public Long get(SharedObjectContext ctx) {
     return ctx.get(TOTAL).orElse(0L);
   }
 

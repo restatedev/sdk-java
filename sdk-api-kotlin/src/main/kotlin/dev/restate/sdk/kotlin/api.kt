@@ -247,7 +247,7 @@ suspend inline fun <reified T : Any> Context.awakeable(): Awakeable<T> {
  * This interface extends [Context] adding access to the virtual object instance key-value state
  * storage.
  */
-sealed interface ObjectContext : Context {
+sealed interface SharedObjectContext : Context {
 
   /** @return the key of this object */
   fun key(): String
@@ -267,6 +267,13 @@ sealed interface ObjectContext : Context {
    * @return the immutable collection of known state keys.
    */
   suspend fun stateKeys(): Collection<String>
+}
+
+/**
+ * This interface extends [Context] adding access to the virtual object instance key-value state
+ * storage.
+ */
+sealed interface ObjectContext : SharedObjectContext {
 
   /**
    * Sets the given value under the given key, serializing the value using the [StateKey.serde].

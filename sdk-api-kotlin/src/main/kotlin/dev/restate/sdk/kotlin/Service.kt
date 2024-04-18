@@ -9,10 +9,7 @@
 package dev.restate.sdk.kotlin
 
 import com.google.protobuf.ByteString
-import dev.restate.sdk.common.BindableService
-import dev.restate.sdk.common.Serde
-import dev.restate.sdk.common.ServiceType
-import dev.restate.sdk.common.TerminalException
+import dev.restate.sdk.common.*
 import dev.restate.sdk.common.syscalls.*
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineScope
@@ -65,18 +62,31 @@ private constructor(
   class VirtualObjectBuilder internal constructor(private val name: String) {
     private val handlers: MutableMap<String, Handler<*, *, ObjectContext>> = mutableMapOf()
 
-    fun <REQ, RES> handler(
+    fun <REQ, RES> sharedHandler(
         sig: HandlerSignature<REQ, RES>,
         runner: suspend (ObjectContext, REQ) -> RES
     ): VirtualObjectBuilder {
-      handlers[sig.name] = Handler(sig, runner)
+      handlers[sig.name] = Handler(sig, HandlerType.SHARED, runner)
       return this
     }
 
-    inline fun <reified REQ, reified RES> handler(
+    inline fun <reified REQ, reified RES> sharedHandler(
         name: String,
         noinline runner: suspend (ObjectContext, REQ) -> RES
-    ) = this.handler(HandlerSignature(name, KtSerdes.json(), KtSerdes.json()), runner)
+    ) = this.sharedHandler(HandlerSignature(name, KtSerdes.json(), KtSerdes.json()), runner)
+
+    fun <REQ, RES> exclusiveHandler(
+        sig: HandlerSignature<REQ, RES>,
+        runner: suspend (ObjectContext, REQ) -> RES
+    ): VirtualObjectBuilder {
+      handlers[sig.name] = Handler(sig, HandlerType.EXCLUSIVE, runner)
+      return this
+    }
+
+    inline fun <reified REQ, reified RES> exclusiveHandler(
+        name: String,
+        noinline runner: suspend (ObjectContext, REQ) -> RES
+    ) = this.exclusiveHandler(HandlerSignature(name, KtSerdes.json(), KtSerdes.json()), runner)
 
     fun build(options: Options) = Service(this.name, true, this.handlers, options)
   }
@@ -88,7 +98,7 @@ private constructor(
         sig: HandlerSignature<REQ, RES>,
         runner: suspend (Context, REQ) -> RES
     ): ServiceBuilder {
-      handlers[sig.name] = Handler(sig, runner)
+      handlers[sig.name] = Handler(sig, HandlerType.SHARED, runner)
       return this
     }
 
@@ -102,6 +112,7 @@ private constructor(
 
   class Handler<REQ, RES, CTX : Context>(
       private val handlerSignature: HandlerSignature<REQ, RES>,
+      private val handlerType: HandlerType,
       private val runner: suspend (CTX, REQ) -> RES,
   ) : InvocationHandler<Options> {
 
@@ -112,6 +123,7 @@ private constructor(
     fun toHandlerDefinition() =
         HandlerDefinition(
             handlerSignature.name,
+            handlerType,
             handlerSignature.requestSerde.schema(),
             handlerSignature.responseSerde.schema(),
             this)

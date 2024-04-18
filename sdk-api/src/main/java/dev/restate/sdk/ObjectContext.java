@@ -9,8 +9,6 @@
 package dev.restate.sdk;
 
 import dev.restate.sdk.common.*;
-import java.util.Collection;
-import java.util.Optional;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -22,31 +20,7 @@ import org.jspecify.annotations.NonNull;
  *
  * @see Context
  */
-public interface ObjectContext extends Context {
-
-  /**
-   * @return the key of this object
-   */
-  String key();
-
-  /**
-   * Gets the state stored under key, deserializing the raw value using the {@link Serde} in the
-   * {@link StateKey}.
-   *
-   * @param key identifying the state to get and its type.
-   * @return an {@link Optional} containing the stored state deserialized or an empty {@link
-   *     Optional} if not set yet.
-   * @throws RuntimeException when the state cannot be deserialized.
-   */
-  <T> Optional<T> get(StateKey<T> key);
-
-  /**
-   * Gets all the known state keys for this virtual object instance.
-   *
-   * @return the immutable collection of known state keys.
-   */
-  Collection<String> stateKeys();
-
+public interface ObjectContext extends SharedObjectContext {
   /**
    * Clears the state stored under key.
    *

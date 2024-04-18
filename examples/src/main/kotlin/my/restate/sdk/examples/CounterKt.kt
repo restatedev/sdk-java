@@ -9,10 +9,12 @@
 package my.restate.sdk.examples
 
 import dev.restate.sdk.annotation.Handler
+import dev.restate.sdk.annotation.Shared
 import dev.restate.sdk.annotation.VirtualObject
 import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder
 import dev.restate.sdk.kotlin.KtStateKey
 import dev.restate.sdk.kotlin.ObjectContext
+import dev.restate.sdk.kotlin.SharedObjectContext
 import kotlinx.serialization.Serializable
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
@@ -40,7 +42,8 @@ class CounterKt {
   }
 
   @Handler
-  suspend fun get(ctx: ObjectContext): Long {
+  @Shared
+  suspend fun get(ctx: SharedObjectContext): Long {
     return ctx.get(TOTAL) ?: 0L
   }
 

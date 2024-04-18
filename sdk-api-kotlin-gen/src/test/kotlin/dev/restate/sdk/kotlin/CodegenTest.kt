@@ -9,10 +9,8 @@
 package dev.restate.sdk.kotlin
 
 import com.google.protobuf.ByteString
-import dev.restate.sdk.annotation.Exclusive
-import dev.restate.sdk.annotation.Handler
+import dev.restate.sdk.annotation.*
 import dev.restate.sdk.annotation.Service
-import dev.restate.sdk.annotation.VirtualObject
 import dev.restate.sdk.common.CoreSerdes
 import dev.restate.sdk.common.Target
 import dev.restate.sdk.core.ProtoUtils.*
@@ -34,6 +32,12 @@ class CodegenTest : TestDefinitions.TestSuite {
   class ObjectGreeter {
     @Exclusive
     suspend fun greet(context: ObjectContext, request: String): String {
+      return request
+    }
+
+    @Handler
+    @Shared
+    suspend fun sharedGreet(context: SharedObjectContext, request: String): String {
       return request
     }
   }
@@ -101,6 +105,10 @@ class CodegenTest : TestDefinitions.TestSuite {
             .onlyUnbuffered()
             .expectingOutput(outputMessage("Francesco"), END_MESSAGE),
         testInvocation({ ObjectGreeter() }, "greet")
+            .withInput(startMessage(1, "slinkydeveloper"), inputMessage("Francesco"))
+            .onlyUnbuffered()
+            .expectingOutput(outputMessage("Francesco"), END_MESSAGE),
+        testInvocation({ ObjectGreeter() }, "sharedGreet")
             .withInput(startMessage(1, "slinkydeveloper"), inputMessage("Francesco"))
             .onlyUnbuffered()
             .expectingOutput(outputMessage("Francesco"), END_MESSAGE),

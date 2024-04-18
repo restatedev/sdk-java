@@ -19,7 +19,7 @@ private val COUNTER: StateKey<Long> = BlockingGreeter.COUNTER
 
 fun greeter(): BindableService<*> =
     Service.virtualObject("KtGreeter") {
-      handler("greet") { ctx, request: String ->
+      exclusiveHandler("greet") { ctx, request: String ->
         LOG.info("Greet invoked!")
 
         val count = (ctx.get(COUNTER) ?: 0) + 1

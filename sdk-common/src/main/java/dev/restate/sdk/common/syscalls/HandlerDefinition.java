@@ -8,17 +8,24 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.common.syscalls;
 
+import dev.restate.sdk.common.HandlerType;
 import java.util.Objects;
 
 public final class HandlerDefinition<O> {
   private final String name;
+  private final HandlerType handlerType;
   private final Object inputSchema;
   private final Object outputSchema;
   private final InvocationHandler<O> handler;
 
   public HandlerDefinition(
-      String name, Object inputSchema, Object outputSchema, InvocationHandler<O> handler) {
+      String name,
+      HandlerType handlerType,
+      Object inputSchema,
+      Object outputSchema,
+      InvocationHandler<O> handler) {
     this.name = name;
+    this.handlerType = handlerType;
     this.inputSchema = inputSchema;
     this.outputSchema = outputSchema;
     this.handler = handler;
@@ -26,6 +33,10 @@ public final class HandlerDefinition<O> {
 
   public String getName() {
     return name;
+  }
+
+  public HandlerType getHandlerType() {
+    return handlerType;
   }
 
   public Object getInputSchema() {
