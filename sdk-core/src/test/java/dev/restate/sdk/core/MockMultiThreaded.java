@@ -11,8 +11,8 @@ package dev.restate.sdk.core;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.protobuf.MessageLite;
-import dev.restate.sdk.common.BindableComponent;
-import dev.restate.sdk.common.syscalls.ComponentDefinition;
+import dev.restate.sdk.common.BindableService;
+import dev.restate.sdk.common.syscalls.ServiceDefinition;
 import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
 import java.time.Duration;
 import java.util.List;
@@ -38,23 +38,23 @@ public final class MockMultiThreaded implements TestDefinitions.TestExecutor {
     // Output subscriber buffers all the output messages and provides a completion future
     FlowUtils.FutureSubscriber<MessageLite> outputSubscriber = new FlowUtils.FutureSubscriber<>();
 
-    // This test infra supports only components returning one component definition
+    // This test infra supports only services returning one service definition
     @SuppressWarnings("unchecked")
-    BindableComponent<Object> bindableComponent =
-        (BindableComponent<Object>) definition.getComponent();
-    List<ComponentDefinition<Object>> componentDefinition = bindableComponent.definitions();
-    assertThat(componentDefinition).size().isEqualTo(1);
+    BindableService<Object> bindableService =
+        (BindableService<Object>) definition.getBindableService();
+    List<ServiceDefinition<Object>> serviceDefinition = bindableService.definitions();
+    assertThat(serviceDefinition).size().isEqualTo(1);
 
     // Prepare server
     RestateEndpoint.Builder builder =
         RestateEndpoint.newBuilder(DeploymentManifestSchema.ProtocolMode.BIDI_STREAM)
-            .bind(componentDefinition.get(0), bindableComponent.options());
+            .bind(serviceDefinition.get(0), bindableService.options());
     RestateEndpoint server = builder.build();
 
     // Start invocation
     ResolvedEndpointHandler handler =
         server.resolve(
-            componentDefinition.get(0).getFullyQualifiedComponentName(),
+            serviceDefinition.get(0).getServiceName(),
             definition.getMethod(),
             io.opentelemetry.context.Context.current(),
             RestateEndpoint.LoggingContextSetter.THREAD_LOCAL_INSTANCE,

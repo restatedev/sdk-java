@@ -8,9 +8,13 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.common;
 
-public interface BindableComponentFactory<T, O> {
+import dev.restate.sdk.common.syscalls.ServiceDefinition;
+import java.util.List;
 
-  BindableComponent<O> create(T componentObject);
+/** Definition of bindable Restate service. */
+public interface BindableService<O> {
 
-  boolean supports(Object componentObject);
+  O options();
+
+  List<ServiceDefinition<O>> definitions();
 }

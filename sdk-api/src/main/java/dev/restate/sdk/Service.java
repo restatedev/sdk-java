@@ -10,7 +10,7 @@ package dev.restate.sdk;
 
 import com.google.protobuf.ByteString;
 import dev.restate.sdk.common.*;
-import dev.restate.sdk.common.ComponentType;
+import dev.restate.sdk.common.ServiceType;
 import dev.restate.sdk.common.syscalls.*;
 import java.util.*;
 import java.util.concurrent.Executor;
@@ -20,16 +20,16 @@ import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public final class Component implements BindableComponent<Component.Options> {
-  private final ComponentDefinition<Component.Options> componentDefinition;
-  private final Component.Options options;
+public final class Service implements BindableService<Service.Options> {
+  private final ServiceDefinition<Options> serviceDefinition;
+  private final Service.Options options;
 
-  private Component(
+  private Service(
       String fqsn, boolean isKeyed, HashMap<String, Handler<?, ?>> handlers, Options options) {
-    this.componentDefinition =
-        new ComponentDefinition<>(
+    this.serviceDefinition =
+        new ServiceDefinition<>(
             fqsn,
-            isKeyed ? ComponentType.VIRTUAL_OBJECT : ComponentType.SERVICE,
+            isKeyed ? ServiceType.VIRTUAL_OBJECT : ServiceType.SERVICE,
             handlers.values().stream()
                 .map(Handler::toHandlerDefinition)
                 .collect(Collectors.toList()));
@@ -42,8 +42,8 @@ public final class Component implements BindableComponent<Component.Options> {
   }
 
   @Override
-  public List<ComponentDefinition<Component.Options>> definitions() {
-    return List.of(this.componentDefinition);
+  public List<ServiceDefinition<Options>> definitions() {
+    return List.of(this.serviceDefinition);
   }
 
   public static ServiceBuilder service(String name) {
@@ -54,18 +54,18 @@ public final class Component implements BindableComponent<Component.Options> {
     return new VirtualObjectBuilder(name);
   }
 
-  public static class AbstractComponentBuilder {
+  public static class AbstractServiceBuilder {
 
     protected final String name;
     protected final HashMap<String, Handler<?, ?>> handlers;
 
-    public AbstractComponentBuilder(String name) {
+    public AbstractServiceBuilder(String name) {
       this.name = name;
       this.handlers = new HashMap<>();
     }
   }
 
-  public static class VirtualObjectBuilder extends AbstractComponentBuilder {
+  public static class VirtualObjectBuilder extends AbstractServiceBuilder {
 
     VirtualObjectBuilder(String name) {
       super(name);
@@ -77,12 +77,12 @@ public final class Component implements BindableComponent<Component.Options> {
       return this;
     }
 
-    public Component build(Component.Options options) {
-      return new Component(this.name, true, this.handlers, options);
+    public Service build(Service.Options options) {
+      return new Service(this.name, true, this.handlers, options);
     }
   }
 
-  public static class ServiceBuilder extends AbstractComponentBuilder {
+  public static class ServiceBuilder extends AbstractServiceBuilder {
 
     ServiceBuilder(String name) {
       super(name);
@@ -94,13 +94,13 @@ public final class Component implements BindableComponent<Component.Options> {
       return this;
     }
 
-    public Component build(Component.Options options) {
-      return new Component(this.name, false, this.handlers, options);
+    public Service build(Service.Options options) {
+      return new Service(this.name, false, this.handlers, options);
     }
   }
 
   @SuppressWarnings("unchecked")
-  public static class Handler<REQ, RES> implements InvocationHandler<Component.Options> {
+  public static class Handler<REQ, RES> implements InvocationHandler<Service.Options> {
     private final HandlerSignature<REQ, RES> handlerSignature;
     private final BiFunction<Context, REQ, RES> runner;
 
@@ -121,7 +121,7 @@ public final class Component implements BindableComponent<Component.Options> {
       return runner;
     }
 
-    public HandlerDefinition<Component.Options> toHandlerDefinition() {
+    public HandlerDefinition<Service.Options> toHandlerDefinition() {
       return new HandlerDefinition<>(
           this.handlerSignature.name,
           this.handlerSignature.requestSerde.schema(),
@@ -131,7 +131,7 @@ public final class Component implements BindableComponent<Component.Options> {
 
     @Override
     public void handle(
-        Syscalls syscalls, Component.Options options, SyscallCallback<ByteString> callback) {
+        Syscalls syscalls, Service.Options options, SyscallCallback<ByteString> callback) {
       // Wrap the executor for setting/unsetting the thread local
       Executor wrapped =
           runnable ->

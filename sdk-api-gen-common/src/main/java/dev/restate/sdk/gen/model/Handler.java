@@ -92,7 +92,7 @@ public class Handler {
       if (handlerNameLowercase.startsWith("restate")
           || handlerNameLowercase.startsWith("openapi")) {
         throw new IllegalArgumentException(
-            "A component name cannot start with `restate` or `openapi`");
+            "A service name cannot start with `restate` or `openapi`");
       }
 
       return new Handler(

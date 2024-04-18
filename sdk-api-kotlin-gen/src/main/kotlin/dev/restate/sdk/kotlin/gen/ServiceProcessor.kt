@@ -13,45 +13,45 @@ import com.google.devtools.ksp.containingFile
 import com.google.devtools.ksp.processing.*
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.Origin
-import dev.restate.sdk.common.BindableComponentFactory
-import dev.restate.sdk.common.ComponentType
-import dev.restate.sdk.gen.model.Component
+import dev.restate.sdk.common.BindableServiceFactory
+import dev.restate.sdk.common.ServiceType
+import dev.restate.sdk.gen.model.Service
 import dev.restate.sdk.gen.template.HandlebarsTemplateEngine
 import java.io.BufferedWriter
 import java.io.IOException
 import java.io.Writer
 import java.nio.charset.Charset
 
-class ComponentProcessor(private val logger: KSPLogger, private val codeGenerator: CodeGenerator) :
+class ServiceProcessor(private val logger: KSPLogger, private val codeGenerator: CodeGenerator) :
     SymbolProcessor {
 
   companion object {
     private val RESERVED_METHOD_NAMES: Set<String> = setOf("send")
   }
 
-  private val bindableComponentFactoryCodegen: HandlebarsTemplateEngine =
+  private val bindableServiceFactoryCodegen: HandlebarsTemplateEngine =
       HandlebarsTemplateEngine(
-          "BindableComponentFactory",
+          "BindableServiceFactory",
           ClassPathTemplateLoader(),
           mapOf(
-              ComponentType.SERVICE to "templates/BindableComponentFactory",
-              ComponentType.VIRTUAL_OBJECT to "templates/BindableComponentFactory"),
+              ServiceType.SERVICE to "templates/BindableServiceFactory",
+              ServiceType.VIRTUAL_OBJECT to "templates/BindableServiceFactory"),
           RESERVED_METHOD_NAMES)
-  private val bindableComponentCodegen: HandlebarsTemplateEngine =
+  private val bindableServiceCodegen: HandlebarsTemplateEngine =
       HandlebarsTemplateEngine(
-          "BindableComponent",
+          "BindableService",
           ClassPathTemplateLoader(),
           mapOf(
-              ComponentType.SERVICE to "templates/BindableComponent",
-              ComponentType.VIRTUAL_OBJECT to "templates/BindableComponent"),
+              ServiceType.SERVICE to "templates/BindableService",
+              ServiceType.VIRTUAL_OBJECT to "templates/BindableService"),
           RESERVED_METHOD_NAMES)
   private val clientCodegen: HandlebarsTemplateEngine =
       HandlebarsTemplateEngine(
           "Client",
           ClassPathTemplateLoader(),
           mapOf(
-              ComponentType.SERVICE to "templates/Client",
-              ComponentType.VIRTUAL_OBJECT to "templates/Client"),
+              ServiceType.SERVICE to "templates/Client",
+              ServiceType.VIRTUAL_OBJECT to "templates/Client"),
           RESERVED_METHOD_NAMES)
 
   override fun process(resolver: Resolver): List<KSAnnotated> {
@@ -70,54 +70,54 @@ class ComponentProcessor(private val logger: KSPLogger, private val codeGenerato
                     dev.restate.sdk.annotation.Workflow::class.qualifiedName!!)
                 .toSet()
 
-    val components =
+    val services =
         resolved
             .filter { it.containingFile!!.origin == Origin.KOTLIN }
             .map {
-              val componentBuilder = Component.builder()
-              converter.visitAnnotated(it, componentBuilder)
+              val serviceBuilder = Service.builder()
+              converter.visitAnnotated(it, serviceBuilder)
 
-              var componentModel: Component? = null
+              var serviceModel: Service? = null
               try {
-                componentModel = componentBuilder.validateAndBuild()
+                serviceModel = serviceBuilder.validateAndBuild()
               } catch (e: Exception) {
-                logger.error("Unable to build component: $e", it)
+                logger.error("Unable to build service: $e", it)
               }
-              (it to componentModel!!)
+              (it to serviceModel!!)
             }
             .toList()
 
     // Run code generation
-    for (component in components) {
+    for (service in services) {
       try {
         val fileCreator: (String) -> Writer = { name: String ->
           codeGenerator
               .createNewFile(
-                  Dependencies(false, component.first.containingFile!!),
-                  component.second.targetPkg.toString(),
+                  Dependencies(false, service.first.containingFile!!),
+                  service.second.targetPkg.toString(),
                   name)
               .writer(Charset.defaultCharset())
         }
-        this.bindableComponentFactoryCodegen.generate(fileCreator, component.second)
-        this.bindableComponentCodegen.generate(fileCreator, component.second)
-        this.clientCodegen.generate(fileCreator, component.second)
+        this.bindableServiceFactoryCodegen.generate(fileCreator, service.second)
+        this.bindableServiceCodegen.generate(fileCreator, service.second)
+        this.clientCodegen.generate(fileCreator, service.second)
       } catch (ex: Throwable) {
         throw RuntimeException(ex)
       }
     }
 
     // META-INF
-    if (components.isNotEmpty()) {
-      generateMetaINF(components)
+    if (services.isNotEmpty()) {
+      generateMetaINF(services)
     }
 
     return emptyList()
   }
 
-  private fun generateMetaINF(components: List<Pair<KSAnnotated, Component>>) {
-    val resourceFile = "META-INF/services/${BindableComponentFactory::class.java.canonicalName}"
+  private fun generateMetaINF(services: List<Pair<KSAnnotated, Service>>) {
+    val resourceFile = "META-INF/services/${BindableServiceFactory::class.java.canonicalName}"
     val dependencies =
-        Dependencies(true, *(components.map { it.first.containingFile!! }.toTypedArray()))
+        Dependencies(true, *(services.map { it.first.containingFile!! }.toTypedArray()))
 
     val writer: BufferedWriter =
         try {
@@ -132,8 +132,8 @@ class ComponentProcessor(private val logger: KSPLogger, private val codeGenerato
 
     try {
       writer.use {
-        for (component in components) {
-          it.write("${component.second.generatedClassFqcnPrefix}BindableComponentFactory")
+        for (service in services) {
+          it.write("${service.second.generatedClassFqcnPrefix}BindableServiceFactory")
           it.newLine()
         }
       }

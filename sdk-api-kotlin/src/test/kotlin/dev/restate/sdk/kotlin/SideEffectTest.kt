@@ -41,9 +41,9 @@ class SideEffectTest : SideEffectTestSuite() {
 
   override fun checkContextSwitching(): TestInvocationBuilder =
       TestDefinitions.testInvocation(
-          Component.service(
+          Service.service(
               "CheckContextSwitching",
-              Component.Options(
+              Service.Options(
                   Dispatchers.Unconfined + CoroutineName("CheckContextSwitchingTestCoroutine"))) {
                 handler("run") { ctx, _: Unit ->
                   val sideEffectCoroutine = ctx.runBlock { coroutineContext[CoroutineName]!!.name }

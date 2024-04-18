@@ -90,12 +90,12 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
     String[] pathSegments = SLASH.split(uri.getPath());
     if (pathSegments.length < 3) {
       LOG.warn(
-          "Path doesn't match the pattern /invoke/ComponentName/HandlerName nor /discover: '{}'",
+          "Path doesn't match the pattern /invoke/ServiceName/HandlerName nor /discover: '{}'",
           request.path());
       request.response().setStatusCode(NOT_FOUND.code()).end();
       return;
     }
-    String componentName = pathSegments[pathSegments.length - 2];
+    String serviceName = pathSegments[pathSegments.length - 2];
     String handlerName = pathSegments[pathSegments.length - 1];
 
     // Parse OTEL context and generate span
@@ -114,7 +114,7 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
     try {
       handler =
           restateEndpoint.resolve(
-              componentName,
+              serviceName,
               handlerName,
               otelContext,
               ContextualData::put,
@@ -125,7 +125,7 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
       return;
     }
 
-    LOG.debug("Handling request to " + componentName + "/" + handlerName);
+    LOG.debug("Handling request to " + serviceName + "/" + handlerName);
 
     // Prepare the header frame to send in the response.
     // Vert.x will send them as soon as we send the first write

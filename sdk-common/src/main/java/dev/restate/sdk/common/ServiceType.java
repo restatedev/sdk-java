@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.common;
 
-public enum ComponentType {
+public enum ServiceType {
   SERVICE,
   VIRTUAL_OBJECT,
   WORKFLOW

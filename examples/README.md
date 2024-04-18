@@ -38,7 +38,7 @@ You can modify the class to run setting `-PmainClass=<FQCN>`, for example, in or
 ./gradlew :examples:run -PmainClass=my.restate.sdk.examples.CounterKtKt
 ```
 
-## Invoking the counter bindableComponent
+## Invoking the Counter
 
 If you want to invoke the counter virtual object via curl:
 

@@ -8,10 +8,10 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.lambda.testservices
 
-import dev.restate.sdk.common.BindableComponent
+import dev.restate.sdk.common.BindableService
 import dev.restate.sdk.common.Serde
 import dev.restate.sdk.common.StateKey
-import dev.restate.sdk.kotlin.Component
+import dev.restate.sdk.kotlin.Service
 import java.nio.charset.StandardCharsets
 
 private val COUNTER: StateKey<Long> =
@@ -21,7 +21,5 @@ private val COUNTER: StateKey<Long> =
             { l: Long -> l.toString().toByteArray(StandardCharsets.UTF_8) },
             { v: ByteArray? -> String(v!!, StandardCharsets.UTF_8).toLong() }))
 
-fun counter(): BindableComponent<*> =
-    Component.virtualObject("KtCounter") {
-      handler("get") { ctx, _: Unit -> ctx.get(COUNTER) ?: -1 }
-    }
+fun counter(): BindableService<*> =
+    Service.virtualObject("KtCounter") { handler("get") { ctx, _: Unit -> ctx.get(COUNTER) ?: -1 } }

@@ -13,7 +13,7 @@ import dev.restate.sdk.ObjectContext;
 import dev.restate.sdk.annotation.Exclusive;
 import dev.restate.sdk.annotation.Shared;
 import dev.restate.sdk.annotation.Workflow;
-import dev.restate.sdk.common.ComponentType;
+import dev.restate.sdk.common.ServiceType;
 import dev.restate.sdk.gen.model.*;
 import dev.restate.sdk.workflow.WorkflowContext;
 import dev.restate.sdk.workflow.WorkflowSharedContext;
@@ -47,7 +47,7 @@ public class ElementConverter {
     this.types = types;
   }
 
-  public Component fromTypeElement(TypeElement element) {
+  public Service fromTypeElement(TypeElement element) {
     validateType(element);
 
     dev.restate.sdk.annotation.Service serviceAnnotation =
@@ -73,25 +73,25 @@ public class ElementConverter {
           element);
     }
 
-    ComponentType type =
+    ServiceType type =
         isAnnotatedWithWorkflow
-            ? ComponentType.WORKFLOW
-            : isAnnotatedWithService ? ComponentType.SERVICE : ComponentType.VIRTUAL_OBJECT;
+            ? ServiceType.WORKFLOW
+            : isAnnotatedWithService ? ServiceType.SERVICE : ServiceType.VIRTUAL_OBJECT;
 
     // Infer names
 
     CharSequence targetPkg = elements.getPackageOf(element).getQualifiedName();
     CharSequence targetFqcn = element.getQualifiedName();
 
-    String componentName =
+    String serviceName =
         isAnnotatedWithService
             ? serviceAnnotation.name()
             : isAnnotatedWithVirtualObject
                 ? virtualObjectAnnotation.name()
                 : workflowAnnotation.name();
-    if (componentName.isEmpty()) {
+    if (serviceName.isEmpty()) {
       // Use simple class name, flattening subclasses names
-      componentName =
+      serviceName =
           targetFqcn.toString().substring(targetPkg.length()).replaceAll(Pattern.quote("."), "");
     }
 
@@ -110,21 +110,21 @@ public class ElementConverter {
 
     if (handlers.isEmpty()) {
       messager.printMessage(
-          Diagnostic.Kind.WARNING, "The component " + componentName + " has no handlers", element);
+          Diagnostic.Kind.WARNING, "The service " + serviceName + " has no handlers", element);
     }
 
     try {
-      return new Component.Builder()
+      return new Service.Builder()
           .withTargetPkg(targetPkg)
           .withTargetFqcn(targetFqcn)
-          .withComponentName(componentName)
-          .withComponentType(type)
+          .withServiceName(serviceName)
+          .withServiceType(type)
           .withHandlers(handlers)
           .validateAndBuild();
     } catch (Exception e) {
       messager.printMessage(
           Diagnostic.Kind.ERROR,
-          "Can't build the component " + componentName + ": " + e.getMessage(),
+          "Can't build the service " + serviceName + ": " + e.getMessage(),
           element);
       return null;
     }
@@ -134,7 +134,7 @@ public class ElementConverter {
     if (!element.getTypeParameters().isEmpty()) {
       messager.printMessage(
           Diagnostic.Kind.ERROR,
-          "The ComponentProcessor doesn't support components with generics",
+          "The ServiceProcessor doesn't support services with generics",
           element);
     }
     if (element.getKind().equals(ElementKind.ENUM)) {
@@ -147,7 +147,7 @@ public class ElementConverter {
     }
   }
 
-  private Handler fromExecutableElement(ComponentType componentType, ExecutableElement element) {
+  private Handler fromExecutableElement(ServiceType serviceType, ExecutableElement element) {
     if (!element.getTypeParameters().isEmpty()) {
       messager.printMessage(
           Diagnostic.Kind.ERROR,
@@ -188,9 +188,9 @@ public class ElementConverter {
                 ? HandlerType.SHARED
                 : isAnnotatedWithExclusive
                     ? HandlerType.EXCLUSIVE
-                    : defaultHandlerType(componentType, element);
+                    : defaultHandlerType(serviceType, element);
 
-    validateMethodSignature(componentType, handlerType, element);
+    validateMethodSignature(serviceType, handlerType, element);
 
     try {
       return new Handler.Builder()
@@ -212,8 +212,8 @@ public class ElementConverter {
     }
   }
 
-  private HandlerType defaultHandlerType(ComponentType componentType, ExecutableElement element) {
-    switch (componentType) {
+  private HandlerType defaultHandlerType(ServiceType serviceType, ExecutableElement element) {
+    switch (serviceType) {
       case SERVICE:
         return HandlerType.STATELESS;
       case VIRTUAL_OBJECT:
@@ -228,25 +228,25 @@ public class ElementConverter {
   }
 
   private void validateMethodSignature(
-      ComponentType componentType, HandlerType handlerType, ExecutableElement element) {
+      ServiceType serviceType, HandlerType handlerType, ExecutableElement element) {
     switch (handlerType) {
       case SHARED:
-        if (componentType == ComponentType.WORKFLOW) {
+        if (serviceType == ServiceType.WORKFLOW) {
           validateFirstParameterType(WorkflowSharedContext.class, element);
         } else {
           messager.printMessage(
               Diagnostic.Kind.ERROR,
-              "The annotation @Shared is not supported by the service type " + componentType,
+              "The annotation @Shared is not supported by the service type " + serviceType,
               element);
         }
         break;
       case EXCLUSIVE:
-        if (componentType == ComponentType.VIRTUAL_OBJECT) {
+        if (serviceType == ServiceType.VIRTUAL_OBJECT) {
           validateFirstParameterType(ObjectContext.class, element);
         } else {
           messager.printMessage(
               Diagnostic.Kind.ERROR,
-              "The annotation @Exclusive is not supported by the service type " + componentType,
+              "The annotation @Exclusive is not supported by the service type " + serviceType,
               element);
         }
         break;
@@ -254,12 +254,12 @@ public class ElementConverter {
         validateFirstParameterType(Context.class, element);
         break;
       case WORKFLOW:
-        if (componentType == ComponentType.WORKFLOW) {
+        if (serviceType == ServiceType.WORKFLOW) {
           validateFirstParameterType(WorkflowContext.class, element);
         } else {
           messager.printMessage(
               Diagnostic.Kind.ERROR,
-              "The annotation @Shared is not supported by the service type " + componentType,
+              "The annotation @Shared is not supported by the service type " + serviceType,
               element);
         }
         break;

@@ -8,9 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import dev.restate.sdk.common.BindableComponentFactory;
-import dev.restate.sdk.common.syscalls.ComponentDefinition;
+import dev.restate.sdk.common.BindableServiceFactory;
 import dev.restate.sdk.common.syscalls.HandlerDefinition;
+import dev.restate.sdk.common.syscalls.ServiceDefinition;
 import dev.restate.sdk.core.manifest.Component;
 import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
 import io.opentelemetry.api.OpenTelemetry;
@@ -31,18 +31,18 @@ public class RestateEndpoint {
 
   private static final Logger LOG = LogManager.getLogger(RestateEndpoint.class);
 
-  private final Map<String, ComponentAndOptions<?>> components;
+  private final Map<String, ServiceAndOptions<?>> services;
   private final Tracer tracer;
   private final DeploymentManifest deploymentManifest;
 
   private RestateEndpoint(
       DeploymentManifestSchema.ProtocolMode protocolMode,
-      Map<String, ComponentAndOptions<?>> components,
+      Map<String, ServiceAndOptions<?>> services,
       Tracer tracer) {
-    this.components = components;
+    this.services = services;
     this.tracer = tracer;
     this.deploymentManifest =
-        new DeploymentManifest(protocolMode, components.values().stream().map(c -> c.component));
+        new DeploymentManifest(protocolMode, services.values().stream().map(c -> c.service));
 
     this.logCreation();
   }
@@ -56,13 +56,12 @@ public class RestateEndpoint {
       throws ProtocolException {
     // Resolve the service method definition
     @SuppressWarnings("unchecked")
-    ComponentAndOptions<Object> svc =
-        (ComponentAndOptions<Object>) this.components.get(componentName);
+    ServiceAndOptions<Object> svc = (ServiceAndOptions<Object>) this.services.get(componentName);
     if (svc == null) {
       throw ProtocolException.methodNotFound(componentName, handlerName);
     }
     String fullyQualifiedServiceMethod = componentName + "/" + handlerName;
-    HandlerDefinition<Object> handler = svc.component.getHandler(handlerName);
+    HandlerDefinition<Object> handler = svc.service.getHandler(handlerName);
     if (handler == null) {
       throw ProtocolException.methodNotFound(componentName, handlerName);
     }
@@ -88,13 +87,13 @@ public class RestateEndpoint {
             componentName, fullyQualifiedServiceMethod, span, loggingContextSetter);
 
     return new ResolvedEndpointHandlerImpl(
-        stateMachine, loggingContextSetter, handler.getHandler(), svc.options, syscallExecutor);
+        stateMachine, handler.getHandler(), svc.options, syscallExecutor);
   }
 
   public DeploymentManifestSchema handleDiscoveryRequest() {
     DeploymentManifestSchema response = this.deploymentManifest.manifest();
     LOG.info(
-        "Replying to discovery request with components [{}]",
+        "Replying to discovery request with services [{}]",
         response.getComponents().stream()
             .map(Component::getFullyQualifiedComponentName)
             .collect(Collectors.joining(",")));
@@ -102,7 +101,7 @@ public class RestateEndpoint {
   }
 
   private void logCreation() {
-    LOG.info("Registered components: {}", this.components.keySet());
+    LOG.info("Registered services: {}", this.services.keySet());
   }
 
   // -- Builder
@@ -113,7 +112,7 @@ public class RestateEndpoint {
 
   public static class Builder {
 
-    private final List<ComponentAndOptions<?>> components = new ArrayList<>();
+    private final List<ServiceAndOptions<?>> services = new ArrayList<>();
     private final DeploymentManifestSchema.ProtocolMode protocolMode;
     private Tracer tracer = OpenTelemetry.noop().getTracer("NOOP");
 
@@ -121,8 +120,8 @@ public class RestateEndpoint {
       this.protocolMode = protocolMode;
     }
 
-    public <O> Builder bind(ComponentDefinition<O> component, O options) {
-      this.components.add(new ComponentAndOptions<>(component, options));
+    public <O> Builder bind(ServiceDefinition<O> component, O options) {
+      this.services.add(new ServiceAndOptions<>(component, options));
       return this;
     }
 
@@ -134,10 +133,8 @@ public class RestateEndpoint {
     public RestateEndpoint build() {
       return new RestateEndpoint(
           this.protocolMode,
-          this.components.stream()
-              .collect(
-                  Collectors.toMap(
-                      c -> c.component.getFullyQualifiedComponentName(), Function.identity())),
+          this.services.stream()
+              .collect(Collectors.toMap(c -> c.service.getServiceName(), Function.identity())),
           tracer);
     }
   }
@@ -161,52 +158,52 @@ public class RestateEndpoint {
     void set(String key, String value);
   }
 
-  private static class ComponentAdapterSingleton {
-    private static final ComponentAdapterDiscovery INSTANCE = new ComponentAdapterDiscovery();
+  private static class ServiceAdapterSingleton {
+    private static final ServiceAdapterDiscovery INSTANCE = new ServiceAdapterDiscovery();
   }
 
   @SuppressWarnings("rawtypes")
-  private static class ComponentAdapterDiscovery {
+  private static class ServiceAdapterDiscovery {
 
-    private final List<BindableComponentFactory> adapters;
+    private final List<BindableServiceFactory> adapters;
 
-    private ComponentAdapterDiscovery() {
+    private ServiceAdapterDiscovery() {
       this.adapters =
-          ServiceLoader.load(BindableComponentFactory.class).stream()
+          ServiceLoader.load(BindableServiceFactory.class).stream()
               .map(ServiceLoader.Provider::get)
               .collect(Collectors.toList());
     }
 
-    private @Nullable BindableComponentFactory discoverAdapter(Object service) {
+    private @Nullable BindableServiceFactory discoverAdapter(Object service) {
       return this.adapters.stream().filter(sa -> sa.supports(service)).findFirst().orElse(null);
     }
   }
 
-  /** Resolve the code generated {@link BindableComponentFactory} */
+  /** Resolve the code generated {@link BindableServiceFactory} */
   @SuppressWarnings("unchecked")
-  public static BindableComponentFactory<Object, Object> discoverBindableComponentFactory(
-      Object component) {
+  public static BindableServiceFactory<Object, Object> discoverBindableServiceFactory(
+      Object service) {
     return Objects.requireNonNull(
-        ComponentAdapterSingleton.INSTANCE.discoverAdapter(component),
+        ServiceAdapterSingleton.INSTANCE.discoverAdapter(service),
         () ->
-            "ComponentAdapter class not found for service "
-                + component.getClass().getCanonicalName()
+            "ServiceAdapter class not found for service "
+                + service.getClass().getCanonicalName()
                 + ". "
-                + "Make sure the annotation processor is correctly configured to generate the ComponentAdapter, "
+                + "Make sure the annotation processor is correctly configured to generate the ServiceAdapter, "
                 + "and it generates the META-INF/services/"
-                + BindableComponentFactory.class.getCanonicalName()
+                + BindableServiceFactory.class.getCanonicalName()
                 + " file containing the generated class. "
                 + "If you're using fat jars, make sure the jar plugin correctly squashes all the META-INF/services files. "
-                + "Found ComponentAdapter: "
-                + ComponentAdapterSingleton.INSTANCE.adapters);
+                + "Found ServiceAdapter: "
+                + ServiceAdapterSingleton.INSTANCE.adapters);
   }
 
-  private static class ComponentAndOptions<O> {
-    private final ComponentDefinition<O> component;
+  private static class ServiceAndOptions<O> {
+    private final ServiceDefinition<O> service;
     private final O options;
 
-    ComponentAndOptions(ComponentDefinition<O> component, O options) {
-      this.component = component;
+    ServiceAndOptions(ServiceDefinition<O> service, O options) {
+      this.service = service;
       this.options = options;
     }
   }

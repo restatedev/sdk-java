@@ -8,8 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.http.vertx;
 
-import dev.restate.sdk.common.BindableComponent;
-import dev.restate.sdk.common.syscalls.ComponentDefinition;
+import dev.restate.sdk.common.BindableService;
+import dev.restate.sdk.common.syscalls.ServiceDefinition;
 import dev.restate.sdk.core.RestateEndpoint;
 import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
 import io.opentelemetry.api.OpenTelemetry;
@@ -22,7 +22,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 /**
- * Endpoint builder for a Restate HTTP Endpoint using Vert.x, to serve Restate components.
+ * Endpoint builder for a Restate HTTP Endpoint using Vert.x, to serve Restate services.
  *
  * <p>This endpoint supports the Restate HTTP/2 Streaming component Protocol.
  *
@@ -69,35 +69,34 @@ public class RestateHttpEndpointBuilder {
   }
 
   /**
-   * Add a Restate component to the endpoint. This will automatically discover the generated factory
+   * Add a Restate service to the endpoint. This will automatically discover the generated factory
    * based on the class name.
    *
-   * <p>You can also manually instantiate the {@link BindableComponent} using {@link
-   * #bind(BindableComponent)}.
+   * <p>You can also manually instantiate the {@link BindableService} using {@link
+   * #bind(BindableService)}.
    */
-  public RestateHttpEndpointBuilder bind(Object component) {
-    return this.bind(RestateEndpoint.discoverBindableComponentFactory(component).create(component));
+  public RestateHttpEndpointBuilder bind(Object service) {
+    return this.bind(RestateEndpoint.discoverBindableServiceFactory(service).create(service));
   }
 
   /**
-   * Add a Restate bindable component to the endpoint.
+   * Add a Restate bindable service to the endpoint.
    *
-   * <p>To override the options, use {@link #bind(BindableComponent, Object)}.
+   * <p>To override the options, use {@link #bind(BindableService, Object)}.
    */
-  public RestateHttpEndpointBuilder bind(BindableComponent<?> component) {
-    for (ComponentDefinition<?> componentDefinition : component.definitions()) {
+  public RestateHttpEndpointBuilder bind(BindableService<?> service) {
+    for (ServiceDefinition<?> serviceDefinition : service.definitions()) {
       //noinspection unchecked
-      this.endpointBuilder.bind(
-          (ComponentDefinition<Object>) componentDefinition, component.options());
+      this.endpointBuilder.bind((ServiceDefinition<Object>) serviceDefinition, service.options());
     }
 
     return this;
   }
 
-  /** Add a Restate bindable component to the endpoint, overriding the options. */
-  public <O> RestateHttpEndpointBuilder bind(BindableComponent<O> component, O options) {
-    for (ComponentDefinition<O> componentDefinition : component.definitions()) {
-      this.endpointBuilder.bind(componentDefinition, options);
+  /** Add a Restate bindable service to the endpoint, overriding the options. */
+  public <O> RestateHttpEndpointBuilder bind(BindableService<O> service, O options) {
+    for (ServiceDefinition<O> serviceDefinition : service.definitions()) {
+      this.endpointBuilder.bind(serviceDefinition, options);
     }
 
     return this;
@@ -126,7 +125,7 @@ public class RestateHttpEndpointBuilder {
     build().listen().onComplete(RestateHttpEndpointBuilder::handleStart);
   }
 
-  /** Build the {@link HttpServer} serving the Restate component endpoint. */
+  /** Build the {@link HttpServer} serving the Restate service endpoint. */
   public HttpServer build() {
     HttpServer server = vertx.createHttpServer(options);
 

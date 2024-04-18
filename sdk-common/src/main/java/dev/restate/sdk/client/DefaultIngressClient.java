@@ -165,7 +165,7 @@ public class DefaultIngressClient implements IngressClient {
 
   private URI toRequestURI(Target target, boolean isSend, Duration delay) {
     StringBuilder builder = new StringBuilder();
-    builder.append("/").append(target.getComponent());
+    builder.append("/").append(target.getService());
     if (target.getKey() != null) {
       builder.append("/").append(target.getKey());
     }

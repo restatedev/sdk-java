@@ -48,18 +48,18 @@ public class JavaBlockingTests extends TestRunner {
   public static <T, R> TestInvocationBuilder testDefinitionForService(
       String name, Serde<T> reqSerde, Serde<R> resSerde, BiFunction<Context, T, R> runner) {
     return TestDefinitions.testInvocation(
-        Component.service(name)
-            .with(Component.HandlerSignature.of("run", reqSerde, resSerde), runner)
-            .build(Component.Options.DEFAULT),
+        Service.service(name)
+            .with(Service.HandlerSignature.of("run", reqSerde, resSerde), runner)
+            .build(Service.Options.DEFAULT),
         "run");
   }
 
   public static <T, R> TestInvocationBuilder testDefinitionForVirtualObject(
       String name, Serde<T> reqSerde, Serde<R> resSerde, BiFunction<ObjectContext, T, R> runner) {
     return TestDefinitions.testInvocation(
-        Component.virtualObject(name)
-            .with(Component.HandlerSignature.of("run", reqSerde, resSerde), runner)
-            .build(Component.Options.DEFAULT),
+        Service.virtualObject(name)
+            .with(Service.HandlerSignature.of("run", reqSerde, resSerde), runner)
+            .build(Service.Options.DEFAULT),
         "run");
   }
 

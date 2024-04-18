@@ -8,12 +8,11 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import dev.restate.sdk.common.ComponentType;
-import dev.restate.sdk.common.syscalls.ComponentDefinition;
+import dev.restate.sdk.common.ServiceType;
+import dev.restate.sdk.common.syscalls.ServiceDefinition;
 import dev.restate.sdk.core.manifest.Component;
 import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
 import dev.restate.sdk.core.manifest.Handler;
-import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -22,8 +21,7 @@ final class DeploymentManifest {
   private final DeploymentManifestSchema manifest;
 
   public DeploymentManifest(
-      DeploymentManifestSchema.ProtocolMode protocolMode,
-      Stream<ComponentDefinition<?>> components) {
+      DeploymentManifestSchema.ProtocolMode protocolMode, Stream<ServiceDefinition<?>> components) {
     this.manifest =
         new DeploymentManifestSchema()
             .withMinProtocolVersion(1)
@@ -34,9 +32,8 @@ final class DeploymentManifest {
                     .map(
                         svc ->
                             new Component()
-                                .withFullyQualifiedComponentName(
-                                    svc.getFullyQualifiedComponentName())
-                                .withComponentType(convertComponentType(svc.getComponentType()))
+                                .withFullyQualifiedComponentName(svc.getServiceName())
+                                .withComponentType(convertServiceType(svc.getServiceType()))
                                 .withHandlers(
                                     svc.getHandlers().stream()
                                         .map(method -> new Handler().withName(method.getName()))
@@ -48,8 +45,8 @@ final class DeploymentManifest {
     return this.manifest;
   }
 
-  private static Component.ComponentType convertComponentType(ComponentType componentType) {
-    switch (componentType) {
+  private static Component.ComponentType convertServiceType(ServiceType serviceType) {
+    switch (serviceType) {
       case WORKFLOW:
       case SERVICE:
         return Component.ComponentType.SERVICE;

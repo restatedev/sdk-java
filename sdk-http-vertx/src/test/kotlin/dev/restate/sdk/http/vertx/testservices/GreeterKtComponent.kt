@@ -8,17 +8,17 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.http.vertx.testservices
 
-import dev.restate.sdk.common.BindableComponent
+import dev.restate.sdk.common.BindableService
 import dev.restate.sdk.common.StateKey
-import dev.restate.sdk.kotlin.Component
+import dev.restate.sdk.kotlin.Service
 import kotlin.time.Duration.Companion.seconds
 import org.apache.logging.log4j.LogManager
 
 private val LOG = LogManager.getLogger()
 private val COUNTER: StateKey<Long> = BlockingGreeter.COUNTER
 
-fun greeter(): BindableComponent<*> =
-    Component.virtualObject("KtGreeter") {
+fun greeter(): BindableService<*> =
+    Service.virtualObject("KtGreeter") {
       handler("greet") { ctx, request: String ->
         LOG.info("Greet invoked!")
 

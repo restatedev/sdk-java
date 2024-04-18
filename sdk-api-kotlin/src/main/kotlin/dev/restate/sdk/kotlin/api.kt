@@ -20,9 +20,6 @@ import kotlin.time.Duration
  * interact with other Restate services, record non-deterministic closures, execute timers and
  * synchronize with external systems.
  *
- * To use it within your Restate service, implement [RestateKtComponent] and get an instance with
- * [RestateKtComponent.restateContext].
- *
  * All methods of this interface, and related interfaces, throws either [TerminalException] or
  * cancels the coroutine. [TerminalException] can be caught and acted upon.
  *

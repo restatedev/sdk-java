@@ -176,7 +176,7 @@ public final class SyscallsImpl implements SyscallsInternal {
 
           Protocol.InvokeEntryMessage.Builder builder =
               Protocol.InvokeEntryMessage.newBuilder()
-                  .setServiceName(target.getComponent())
+                  .setServiceName(target.getService())
                   .setMethodName(target.getHandler())
                   .setParameter(parameter);
           if (target.getKey() != null) {
@@ -201,7 +201,7 @@ public final class SyscallsImpl implements SyscallsInternal {
 
           Protocol.BackgroundInvokeEntryMessage.Builder builder =
               Protocol.BackgroundInvokeEntryMessage.newBuilder()
-                  .setServiceName(target.getComponent())
+                  .setServiceName(target.getService())
                   .setMethodName(target.getHandler())
                   .setParameter(parameter);
           if (target.getKey() != null) {

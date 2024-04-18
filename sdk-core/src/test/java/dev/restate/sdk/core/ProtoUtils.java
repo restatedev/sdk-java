@@ -193,7 +193,7 @@ public class ProtoUtils {
   public static Protocol.InvokeEntryMessage.Builder invokeMessage(Target target) {
     Protocol.InvokeEntryMessage.Builder builder =
         Protocol.InvokeEntryMessage.newBuilder()
-            .setServiceName(target.getComponent())
+            .setServiceName(target.getService())
             .setMethodName(target.getHandler());
     if (target.getKey() != null) {
       builder.setKey(target.getKey());

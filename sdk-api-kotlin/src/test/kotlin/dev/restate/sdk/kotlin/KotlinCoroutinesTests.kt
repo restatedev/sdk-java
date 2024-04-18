@@ -41,9 +41,7 @@ class KotlinCoroutinesTests : TestRunner() {
         noinline runner: suspend (Context, REQ) -> RES
     ): TestInvocationBuilder {
       return TestDefinitions.testInvocation(
-          Component.service(name, Component.Options(Dispatchers.Unconfined)) {
-            handler("run", runner)
-          },
+          Service.service(name, Service.Options(Dispatchers.Unconfined)) { handler("run", runner) },
           "run")
     }
 
@@ -52,7 +50,7 @@ class KotlinCoroutinesTests : TestRunner() {
         noinline runner: suspend (ObjectContext, REQ) -> RES
     ): TestInvocationBuilder {
       return TestDefinitions.testInvocation(
-          Component.virtualObject(name, Component.Options(Dispatchers.Unconfined)) {
+          Service.virtualObject(name, Service.Options(Dispatchers.Unconfined)) {
             handler("run", runner)
           },
           "run")

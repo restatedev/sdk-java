@@ -10,9 +10,9 @@ package dev.restate.sdk.core;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.restate.sdk.common.ComponentType;
-import dev.restate.sdk.common.syscalls.ComponentDefinition;
+import dev.restate.sdk.common.ServiceType;
 import dev.restate.sdk.common.syscalls.HandlerDefinition;
+import dev.restate.sdk.common.syscalls.ServiceDefinition;
 import dev.restate.sdk.core.manifest.Component;
 import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
 import dev.restate.sdk.core.manifest.DeploymentManifestSchema.ProtocolMode;
@@ -28,9 +28,9 @@ class ComponentDiscoveryHandlerTest {
         new DeploymentManifest(
             ProtocolMode.REQUEST_RESPONSE,
             Stream.of(
-                new ComponentDefinition<>(
+                new ServiceDefinition<>(
                     "MyGreeter",
-                    ComponentType.SERVICE,
+                    ServiceType.SERVICE,
                     List.of(new HandlerDefinition<>("greet", null, null, null)))));
 
     DeploymentManifestSchema manifest = deploymentManifest.manifest();
