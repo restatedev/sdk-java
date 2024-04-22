@@ -190,11 +190,11 @@ public class ProtoUtils {
         .build();
   }
 
-  public static Protocol.InvokeEntryMessage.Builder invokeMessage(Target target) {
-    Protocol.InvokeEntryMessage.Builder builder =
-        Protocol.InvokeEntryMessage.newBuilder()
+  public static Protocol.CallEntryMessage.Builder invokeMessage(Target target) {
+    Protocol.CallEntryMessage.Builder builder =
+        Protocol.CallEntryMessage.newBuilder()
             .setServiceName(target.getService())
-            .setMethodName(target.getHandler());
+            .setHandlerName(target.getHandler());
     if (target.getKey() != null) {
       builder.setKey(target.getKey());
     }
@@ -202,23 +202,23 @@ public class ProtoUtils {
     return builder;
   }
 
-  public static <T> Protocol.InvokeEntryMessage.Builder invokeMessage(
+  public static <T> Protocol.CallEntryMessage.Builder invokeMessage(
       Target target, Serde<T> reqSerde, T parameter) {
     return invokeMessage(target).setParameter(reqSerde.serializeToByteString(parameter));
   }
 
-  public static <T, R> Protocol.InvokeEntryMessage invokeMessage(
+  public static <T, R> Protocol.CallEntryMessage invokeMessage(
       Target target, Serde<T> reqSerde, T parameter, Serde<R> resSerde, R result) {
     return invokeMessage(target, reqSerde, parameter)
         .setValue(resSerde.serializeToByteString(result))
         .build();
   }
 
-  public static Protocol.InvokeEntryMessage.Builder invokeMessage(Target target, String parameter) {
+  public static Protocol.CallEntryMessage.Builder invokeMessage(Target target, String parameter) {
     return invokeMessage(target, CoreSerdes.JSON_STRING, parameter);
   }
 
-  public static Protocol.InvokeEntryMessage invokeMessage(
+  public static Protocol.CallEntryMessage invokeMessage(
       Target target, String parameter, String result) {
     return invokeMessage(target, CoreSerdes.JSON_STRING, parameter, CoreSerdes.JSON_STRING, result);
   }

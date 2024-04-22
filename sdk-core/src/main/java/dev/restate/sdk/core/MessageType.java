@@ -34,11 +34,11 @@ public enum MessageType {
 
   // Syscalls
   SleepEntryMessage,
-  InvokeEntryMessage,
-  BackgroundInvokeEntryMessage,
+  CallEntryMessage,
+  OneWayCallEntryMessage,
   AwakeableEntryMessage,
   CompleteAwakeableEntryMessage,
-  SideEffectEntryMessage,
+  RunEntryMessage,
 
   // SDK specific
   CombinatorAwaitableEntryMessage;
@@ -94,18 +94,18 @@ public enum MessageType {
         return Protocol.GetStateKeysEntryMessage.parser();
       case SleepEntryMessage:
         return Protocol.SleepEntryMessage.parser();
-      case InvokeEntryMessage:
-        return Protocol.InvokeEntryMessage.parser();
-      case BackgroundInvokeEntryMessage:
-        return Protocol.BackgroundInvokeEntryMessage.parser();
+      case CallEntryMessage:
+        return Protocol.CallEntryMessage.parser();
+      case OneWayCallEntryMessage:
+        return Protocol.OneWayCallEntryMessage.parser();
       case AwakeableEntryMessage:
         return Protocol.AwakeableEntryMessage.parser();
       case CompleteAwakeableEntryMessage:
         return Protocol.CompleteAwakeableEntryMessage.parser();
       case CombinatorAwaitableEntryMessage:
         return Java.CombinatorAwaitableEntryMessage.parser();
-      case SideEffectEntryMessage:
-        return Protocol.SideEffectEntryMessage.parser();
+      case RunEntryMessage:
+        return Protocol.RunEntryMessage.parser();
     }
     throw new IllegalStateException();
   }
@@ -140,9 +140,9 @@ public enum MessageType {
         return GET_STATE_KEYS_ENTRY_MESSAGE_TYPE;
       case SleepEntryMessage:
         return SLEEP_ENTRY_MESSAGE_TYPE;
-      case InvokeEntryMessage:
+      case CallEntryMessage:
         return INVOKE_ENTRY_MESSAGE_TYPE;
-      case BackgroundInvokeEntryMessage:
+      case OneWayCallEntryMessage:
         return BACKGROUND_INVOKE_ENTRY_MESSAGE_TYPE;
       case AwakeableEntryMessage:
         return AWAKEABLE_ENTRY_MESSAGE_TYPE;
@@ -150,7 +150,7 @@ public enum MessageType {
         return COMPLETE_AWAKEABLE_ENTRY_MESSAGE_TYPE;
       case CombinatorAwaitableEntryMessage:
         return COMBINATOR_AWAITABLE_ENTRY_MESSAGE_TYPE;
-      case SideEffectEntryMessage:
+      case RunEntryMessage:
         return SIDE_EFFECT_ENTRY_MESSAGE_TYPE;
     }
     throw new IllegalStateException();
@@ -187,9 +187,9 @@ public enum MessageType {
       case SLEEP_ENTRY_MESSAGE_TYPE:
         return SleepEntryMessage;
       case INVOKE_ENTRY_MESSAGE_TYPE:
-        return InvokeEntryMessage;
+        return CallEntryMessage;
       case BACKGROUND_INVOKE_ENTRY_MESSAGE_TYPE:
-        return BackgroundInvokeEntryMessage;
+        return OneWayCallEntryMessage;
       case AWAKEABLE_ENTRY_MESSAGE_TYPE:
         return AwakeableEntryMessage;
       case COMPLETE_AWAKEABLE_ENTRY_MESSAGE_TYPE:
@@ -197,7 +197,7 @@ public enum MessageType {
       case COMBINATOR_AWAITABLE_ENTRY_MESSAGE_TYPE:
         return CombinatorAwaitableEntryMessage;
       case SIDE_EFFECT_ENTRY_MESSAGE_TYPE:
-        return SideEffectEntryMessage;
+        return RunEntryMessage;
     }
     throw ProtocolException.unknownMessageType(value);
   }
@@ -227,18 +227,18 @@ public enum MessageType {
       return MessageType.GetStateKeysEntryMessage;
     } else if (msg instanceof Protocol.SleepEntryMessage) {
       return MessageType.SleepEntryMessage;
-    } else if (msg instanceof Protocol.InvokeEntryMessage) {
-      return MessageType.InvokeEntryMessage;
-    } else if (msg instanceof Protocol.BackgroundInvokeEntryMessage) {
-      return MessageType.BackgroundInvokeEntryMessage;
+    } else if (msg instanceof Protocol.CallEntryMessage) {
+      return MessageType.CallEntryMessage;
+    } else if (msg instanceof Protocol.OneWayCallEntryMessage) {
+      return MessageType.OneWayCallEntryMessage;
     } else if (msg instanceof Protocol.AwakeableEntryMessage) {
       return MessageType.AwakeableEntryMessage;
     } else if (msg instanceof Protocol.CompleteAwakeableEntryMessage) {
       return MessageType.CompleteAwakeableEntryMessage;
     } else if (msg instanceof Java.CombinatorAwaitableEntryMessage) {
       return MessageType.CombinatorAwaitableEntryMessage;
-    } else if (msg instanceof Protocol.SideEffectEntryMessage) {
-      return MessageType.SideEffectEntryMessage;
+    } else if (msg instanceof Protocol.RunEntryMessage) {
+      return MessageType.RunEntryMessage;
     } else if (msg instanceof Protocol.CompletionMessage) {
       throw new IllegalArgumentException("SDK should never send a CompletionMessage");
     }

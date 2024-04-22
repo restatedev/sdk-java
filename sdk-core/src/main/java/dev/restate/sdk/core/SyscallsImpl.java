@@ -174,10 +174,10 @@ public final class SyscallsImpl implements SyscallsInternal {
         () -> {
           LOG.trace("call {}", target);
 
-          Protocol.InvokeEntryMessage.Builder builder =
-              Protocol.InvokeEntryMessage.newBuilder()
+          Protocol.CallEntryMessage.Builder builder =
+              Protocol.CallEntryMessage.newBuilder()
                   .setServiceName(target.getService())
-                  .setMethodName(target.getHandler())
+                  .setHandlerName(target.getHandler())
                   .setParameter(parameter);
           if (target.getKey() != null) {
             builder.setKey(target.getKey());
@@ -199,10 +199,10 @@ public final class SyscallsImpl implements SyscallsInternal {
         () -> {
           LOG.trace("backgroundCall {}", target);
 
-          Protocol.BackgroundInvokeEntryMessage.Builder builder =
-              Protocol.BackgroundInvokeEntryMessage.newBuilder()
+          Protocol.OneWayCallEntryMessage.Builder builder =
+              Protocol.OneWayCallEntryMessage.newBuilder()
                   .setServiceName(target.getService())
-                  .setMethodName(target.getHandler())
+                  .setHandlerName(target.getHandler())
                   .setParameter(parameter);
           if (target.getKey() != null) {
             builder.setKey(target.getKey());
@@ -233,7 +233,7 @@ public final class SyscallsImpl implements SyscallsInternal {
         () -> {
           LOG.trace("exitSideEffectBlock with success");
           this.stateMachine.exitSideEffectBlock(
-              Protocol.SideEffectEntryMessage.newBuilder().setValue(toWrite).build(), callback);
+              Protocol.RunEntryMessage.newBuilder().setValue(toWrite).build(), callback);
         },
         callback);
   }
@@ -245,7 +245,7 @@ public final class SyscallsImpl implements SyscallsInternal {
         () -> {
           LOG.trace("exitSideEffectBlock with failure");
           this.stateMachine.exitSideEffectBlock(
-              Protocol.SideEffectEntryMessage.newBuilder()
+              Protocol.RunEntryMessage.newBuilder()
                   .setFailure(Util.toProtocolFailure(toWrite))
                   .build(),
               callback);

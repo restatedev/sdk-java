@@ -404,7 +404,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   void enterSideEffectBlock(String name, EnterSideEffectSyscallCallback callback) {
     checkInsideSideEffectGuard();
-    this.nextJournalEntry(name, MessageType.SideEffectEntryMessage);
+    this.nextJournalEntry(name, MessageType.RunEntryMessage);
 
     if (this.invocationState == InvocationState.CLOSED) {
       callback.onCancel(AbortedExecutionException.INSTANCE);
@@ -412,10 +412,10 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       // Retrieve the entry
       this.readEntry(
           msg -> {
-            Util.assertEntryClass(Protocol.SideEffectEntryMessage.class, msg);
+            Util.assertEntryClass(Protocol.RunEntryMessage.class, msg);
 
             // We have a result already, complete the callback
-            completeSideEffectCallbackWithEntry((Protocol.SideEffectEntryMessage) msg, callback);
+            completeSideEffectCallbackWithEntry((Protocol.RunEntryMessage) msg, callback);
           },
           callback::onCancel);
     } else if (this.invocationState == InvocationState.PROCESSING) {
@@ -431,7 +431,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   }
 
   void exitSideEffectBlock(
-      Protocol.SideEffectEntryMessage sideEffectEntry, ExitSideEffectSyscallCallback callback) {
+      Protocol.RunEntryMessage sideEffectEntry, ExitSideEffectSyscallCallback callback) {
     this.insideSideEffect = false;
     if (this.invocationState == InvocationState.CLOSED) {
       callback.onCancel(AbortedExecutionException.INSTANCE);
@@ -454,7 +454,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       this.writeEntry(sideEffectEntry);
 
       // Wait for entry to be acked
-      Protocol.SideEffectEntryMessage finalSideEffectEntry = sideEffectEntry;
+      Protocol.RunEntryMessage finalSideEffectEntry = sideEffectEntry;
       this.sideEffectAckStateMachine.waitLastSideEffectAck(
           new SideEffectAckStateMachine.SideEffectAckCallback() {
             @Override
@@ -480,7 +480,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   }
 
   void completeSideEffectCallbackWithEntry(
-      Protocol.SideEffectEntryMessage sideEffectEntry, ExitSideEffectSyscallCallback callback) {
+      Protocol.RunEntryMessage sideEffectEntry, ExitSideEffectSyscallCallback callback) {
     if (sideEffectEntry.hasFailure()) {
       callback.onFailure(Util.toRestateException(sideEffectEntry.getFailure()));
     } else {

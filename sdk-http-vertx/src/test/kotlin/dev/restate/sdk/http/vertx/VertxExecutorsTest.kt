@@ -76,7 +76,7 @@ class VertxExecutorsTest : TestDefinitions.TestSuite {
             .withInput(startMessage(1), inputMessage(), ackMessage(1))
             .onlyUnbuffered()
             .expectingOutput(
-                Protocol.SideEffectEntryMessage.newBuilder().setValue(ByteString.EMPTY),
+                Protocol.RunEntryMessage.newBuilder().setValue(ByteString.EMPTY),
                 outputMessage(),
                 END_MESSAGE),
         testInvocation(
@@ -90,7 +90,7 @@ class VertxExecutorsTest : TestDefinitions.TestSuite {
             .withInput(startMessage(1), inputMessage(), ackMessage(1))
             .onlyUnbuffered()
             .expectingOutput(
-                Protocol.SideEffectEntryMessage.newBuilder().setValue(ByteString.EMPTY),
+                Protocol.RunEntryMessage.newBuilder().setValue(ByteString.EMPTY),
                 outputMessage(),
                 END_MESSAGE))
   }

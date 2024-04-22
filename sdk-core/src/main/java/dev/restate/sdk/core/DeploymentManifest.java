@@ -11,9 +11,9 @@ package dev.restate.sdk.core;
 import dev.restate.sdk.common.HandlerType;
 import dev.restate.sdk.common.ServiceType;
 import dev.restate.sdk.common.syscalls.ServiceDefinition;
-import dev.restate.sdk.core.manifest.Component;
 import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
 import dev.restate.sdk.core.manifest.Handler;
+import dev.restate.sdk.core.manifest.Service;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -28,19 +28,19 @@ final class DeploymentManifest {
             .withMinProtocolVersion(1)
             .withMaxProtocolVersion(1)
             .withProtocolMode(protocolMode)
-            .withComponents(
+            .withServices(
                 components
                     .map(
                         svc ->
-                            new Component()
-                                .withFullyQualifiedComponentName(svc.getServiceName())
-                                .withComponentType(convertServiceType(svc.getServiceType()))
+                            new Service()
+                                .withName(svc.getServiceName())
+                                .withTy(convertServiceType(svc.getServiceType()))
                                 .withHandlers(
                                     svc.getHandlers().stream()
                                         .map(
                                             method ->
                                                 new Handler()
-                                                    .withHandlerType(
+                                                    .withTy(
                                                         convertHandlerType(method.getHandlerType()))
                                                     .withName(method.getName()))
                                         .collect(Collectors.toList())))
@@ -51,23 +51,23 @@ final class DeploymentManifest {
     return this.manifest;
   }
 
-  private static Component.ComponentType convertServiceType(ServiceType serviceType) {
+  private static Service.Ty convertServiceType(ServiceType serviceType) {
     switch (serviceType) {
       case WORKFLOW:
       case SERVICE:
-        return Component.ComponentType.SERVICE;
+        return Service.Ty.SERVICE;
       case VIRTUAL_OBJECT:
-        return Component.ComponentType.VIRTUAL_OBJECT;
+        return Service.Ty.VIRTUAL_OBJECT;
     }
     throw new IllegalStateException();
   }
 
-  private static Handler.HandlerType convertHandlerType(HandlerType handlerType) {
+  private static Handler.Ty convertHandlerType(HandlerType handlerType) {
     switch (handlerType) {
       case EXCLUSIVE:
-        return Handler.HandlerType.EXCLUSIVE;
+        return Handler.Ty.EXCLUSIVE;
       case SHARED:
-        return Handler.HandlerType.SHARED;
+        return Handler.Ty.SHARED;
     }
     throw new IllegalStateException();
   }

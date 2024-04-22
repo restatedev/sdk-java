@@ -103,8 +103,8 @@ public class ManualRestateRunner
                           .uri("http://host.testcontainers.internal:" + serviceEndpointPort)));
       LOG.debug(
           "Registered services {}",
-          response.getComponents().stream()
-              .map(dev.restate.admin.model.ComponentMetadata::getName)
+          response.getServices().stream()
+              .map(dev.restate.admin.model.ServiceMetadata::getName)
               .collect(Collectors.toList()));
     } catch (ApiException e) {
       throw new RuntimeException(e);

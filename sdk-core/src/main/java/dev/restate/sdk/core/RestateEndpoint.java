@@ -11,8 +11,8 @@ package dev.restate.sdk.core;
 import dev.restate.sdk.common.BindableServiceFactory;
 import dev.restate.sdk.common.syscalls.HandlerDefinition;
 import dev.restate.sdk.common.syscalls.ServiceDefinition;
-import dev.restate.sdk.core.manifest.Component;
 import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
+import dev.restate.sdk.core.manifest.Service;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanKind;
@@ -94,9 +94,7 @@ public class RestateEndpoint {
     DeploymentManifestSchema response = this.deploymentManifest.manifest();
     LOG.info(
         "Replying to discovery request with services [{}]",
-        response.getComponents().stream()
-            .map(Component::getFullyQualifiedComponentName)
-            .collect(Collectors.joining(",")));
+        response.getServices().stream().map(Service::getName).collect(Collectors.joining(",")));
     return response;
   }
 

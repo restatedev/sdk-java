@@ -215,8 +215,8 @@ internal class RestateHttpEndpointTest {
         val discoveryResponse: DeploymentManifestSchema =
             ObjectMapper().readValue(responseBody.bytes, DeploymentManifestSchema::class.java)
 
-        assertThat(discoveryResponse.components)
-            .map<String> { it.fullyQualifiedComponentName }
+        assertThat(discoveryResponse.services)
+            .map<String> { it.name }
             .containsOnly(BlockingGreeter::class.java.simpleName)
       }
 

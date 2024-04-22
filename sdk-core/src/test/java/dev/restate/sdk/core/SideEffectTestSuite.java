@@ -40,14 +40,14 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
         this.sideEffect("Francesco")
             .withInput(startMessage(1), inputMessage("Till"))
             .expectingOutput(
-                Protocol.SideEffectEntryMessage.newBuilder()
+                Protocol.RunEntryMessage.newBuilder()
                     .setValue(CoreSerdes.JSON_STRING.serializeToByteString("Francesco")),
                 suspensionMessage(1))
             .named("Without optimization suspends"),
         this.sideEffect("Francesco")
             .withInput(startMessage(1), inputMessage("Till"), ackMessage(1))
             .expectingOutput(
-                Protocol.SideEffectEntryMessage.newBuilder()
+                Protocol.RunEntryMessage.newBuilder()
                     .setValue(CoreSerdes.JSON_STRING.serializeToByteString("Francesco")),
                 outputMessage("Hello Francesco"),
                 END_MESSAGE)
@@ -55,14 +55,14 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
         this.namedSideEffect("get-my-name", "Francesco")
             .withInput(startMessage(1), inputMessage("Till"))
             .expectingOutput(
-                Protocol.SideEffectEntryMessage.newBuilder()
+                Protocol.RunEntryMessage.newBuilder()
                     .setName("get-my-name")
                     .setValue(CoreSerdes.JSON_STRING.serializeToByteString("Francesco")),
                 suspensionMessage(1)),
         this.consecutiveSideEffect("Francesco")
             .withInput(startMessage(1), inputMessage("Till"))
             .expectingOutput(
-                Protocol.SideEffectEntryMessage.newBuilder()
+                Protocol.RunEntryMessage.newBuilder()
                     .setValue(CoreSerdes.JSON_STRING.serializeToByteString("Francesco")),
                 suspensionMessage(1))
             .named("With optimization and without ack on first side effect will suspend"),
@@ -70,9 +70,9 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
             .withInput(startMessage(1), inputMessage("Till"), ackMessage(1))
             .onlyUnbuffered()
             .expectingOutput(
-                Protocol.SideEffectEntryMessage.newBuilder()
+                Protocol.RunEntryMessage.newBuilder()
                     .setValue(CoreSerdes.JSON_STRING.serializeToByteString("Francesco")),
-                Protocol.SideEffectEntryMessage.newBuilder()
+                Protocol.RunEntryMessage.newBuilder()
                     .setValue(CoreSerdes.JSON_STRING.serializeToByteString("FRANCESCO")),
                 suspensionMessage(2))
             .named("With optimization and ack on first side effect will suspend"),
@@ -80,9 +80,9 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
             .withInput(startMessage(1), inputMessage("Till"), ackMessage(1), ackMessage(2))
             .onlyUnbuffered()
             .expectingOutput(
-                Protocol.SideEffectEntryMessage.newBuilder()
+                Protocol.RunEntryMessage.newBuilder()
                     .setValue(CoreSerdes.JSON_STRING.serializeToByteString("Francesco")),
-                Protocol.SideEffectEntryMessage.newBuilder()
+                Protocol.RunEntryMessage.newBuilder()
                     .setValue(CoreSerdes.JSON_STRING.serializeToByteString("FRANCESCO")),
                 outputMessage("Hello FRANCESCO"),
                 END_MESSAGE)
@@ -100,7 +100,7 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
                                     Protocol.ErrorMessage::getCode)
                                 .returns(1, Protocol.ErrorMessage::getRelatedEntryIndex)
                                 .returns(
-                                    (int) MessageType.SideEffectEntryMessage.encode(),
+                                    (int) MessageType.RunEntryMessage.encode(),
                                     Protocol.ErrorMessage::getRelatedEntryType)
                                 .returns(
                                     "my-side-effect", Protocol.ErrorMessage::getRelatedEntryName)
@@ -116,8 +116,8 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
                   assertThat(actualOutputMessages).hasSize(3);
                   assertThat(actualOutputMessages)
                       .element(0)
-                      .asInstanceOf(type(Protocol.SideEffectEntryMessage.class))
-                      .returns(true, Protocol.SideEffectEntryMessage::hasValue);
+                      .asInstanceOf(type(Protocol.RunEntryMessage.class))
+                      .returns(true, Protocol.RunEntryMessage::hasValue);
                   assertThat(actualOutputMessages).element(1).isEqualTo(outputMessage("Hello"));
                   assertThat(actualOutputMessages).element(2).isEqualTo(END_MESSAGE);
                 }),
