@@ -50,7 +50,7 @@ final class ResolvedEndpointHandlerImpl implements ResolvedEndpointHandler {
 
   @Override
   public void start() {
-    LOG.info("Start processing invocation");
+    LOG.trace("Start processing invocation");
     stateMachine.startAndConsumeInput(
         SyscallCallback.of(
             request -> {

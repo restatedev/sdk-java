@@ -200,6 +200,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       span.addEvent(
           "Start", Attributes.of(Tracing.RESTATE_INVOCATION_ID, startMessage.getDebugId()));
     }
+    LOG.info("Start invocation");
 
     // Execute state transition
     this.transitionState(InvocationState.REPLAYING);
