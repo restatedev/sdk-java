@@ -65,6 +65,12 @@ final class Entries {
     }
 
     @Override
+    void checkEntryHeader(OutputEntryMessage expected, MessageLite actual)
+        throws ProtocolException {
+      Util.assertEntryEquals(expected, actual);
+    }
+
+    @Override
     public void trace(OutputEntryMessage expected, Span span) {
       span.addEvent("Output");
     }
