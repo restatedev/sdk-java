@@ -21,8 +21,8 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.ProtoUtils;
-import dev.restate.sdk.core.manifest.Component;
 import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
+import dev.restate.sdk.core.manifest.Service;
 import dev.restate.sdk.lambda.testservices.JavaCounterClient;
 import dev.restate.sdk.lambda.testservices.MyServicesHandler;
 import java.io.ByteArrayOutputStream;
@@ -95,8 +95,8 @@ class LambdaHandlerTest {
     DeploymentManifestSchema discoveryResponse =
         new ObjectMapper().readValue(decodedStringResponse, DeploymentManifestSchema.class);
 
-    assertThat(discoveryResponse.getComponents())
-        .map(Component::getFullyQualifiedComponentName)
+    assertThat(discoveryResponse.getServices())
+        .map(Service::getName)
         .containsOnly(JavaCounterClient.SERVICE_NAME, "KtCounter");
   }
 

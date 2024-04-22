@@ -19,7 +19,7 @@ public class MessageHeaderTest {
   void requiresAckFlag() {
     assertThat(
             new MessageHeader(
-                    MessageType.InvokeEntryMessage,
+                    MessageType.CallEntryMessage,
                     MessageHeader.DONE_FLAG | MessageHeader.REQUIRES_ACK_FLAG,
                     2)
                 .encode())

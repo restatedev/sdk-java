@@ -14,9 +14,9 @@ import dev.restate.sdk.common.HandlerType;
 import dev.restate.sdk.common.ServiceType;
 import dev.restate.sdk.common.syscalls.HandlerDefinition;
 import dev.restate.sdk.common.syscalls.ServiceDefinition;
-import dev.restate.sdk.core.manifest.Component;
 import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
 import dev.restate.sdk.core.manifest.DeploymentManifestSchema.ProtocolMode;
+import dev.restate.sdk.core.manifest.Service;
 import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -38,9 +38,7 @@ class ComponentDiscoveryHandlerTest {
 
     DeploymentManifestSchema manifest = deploymentManifest.manifest();
 
-    assertThat(manifest.getComponents())
-        .extracting(Component::getFullyQualifiedComponentName)
-        .containsOnly("MyGreeter");
+    assertThat(manifest.getServices()).extracting(Service::getName).containsOnly("MyGreeter");
     assertThat(manifest.getProtocolMode()).isEqualTo(ProtocolMode.REQUEST_RESPONSE);
   }
 }

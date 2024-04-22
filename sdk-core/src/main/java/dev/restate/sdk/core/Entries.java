@@ -375,7 +375,7 @@ final class Entries {
     }
   }
 
-  static final class InvokeEntry<R> extends CompletableJournalEntry<InvokeEntryMessage, R> {
+  static final class InvokeEntry<R> extends CompletableJournalEntry<CallEntryMessage, R> {
 
     private final Function<ByteString, Result<R>> valueParser;
 
@@ -384,43 +384,42 @@ final class Entries {
     }
 
     @Override
-    void trace(InvokeEntryMessage expected, Span span) {
+    void trace(CallEntryMessage expected, Span span) {
       span.addEvent(
           "Invoke",
           Attributes.of(
               Tracing.RESTATE_COORDINATION_CALL_SERVICE,
               expected.getServiceName(),
               Tracing.RESTATE_COORDINATION_CALL_METHOD,
-              expected.getMethodName()));
+              expected.getHandlerName()));
     }
 
     @Override
-    public boolean hasResult(InvokeEntryMessage actual) {
-      return actual.getResultCase() != Protocol.InvokeEntryMessage.ResultCase.RESULT_NOT_SET;
+    public boolean hasResult(CallEntryMessage actual) {
+      return actual.getResultCase() != Protocol.CallEntryMessage.ResultCase.RESULT_NOT_SET;
     }
 
     @Override
-    String getName(InvokeEntryMessage expected) {
+    String getName(CallEntryMessage expected) {
       return expected.getName();
     }
 
     @Override
-    void checkEntryHeader(InvokeEntryMessage expected, MessageLite actual)
-        throws ProtocolException {
-      if (!(actual instanceof InvokeEntryMessage)) {
+    void checkEntryHeader(CallEntryMessage expected, MessageLite actual) throws ProtocolException {
+      if (!(actual instanceof CallEntryMessage)) {
         throw ProtocolException.entryDoesNotMatch(expected, actual);
       }
-      InvokeEntryMessage actualInvoke = (InvokeEntryMessage) actual;
+      CallEntryMessage actualInvoke = (CallEntryMessage) actual;
 
       if (!(expected.getServiceName().equals(actualInvoke.getServiceName())
-          && expected.getMethodName().equals(actualInvoke.getMethodName())
+          && expected.getHandlerName().equals(actualInvoke.getHandlerName())
           && expected.getParameter().equals(actualInvoke.getParameter()))) {
         throw ProtocolException.entryDoesNotMatch(expected, actualInvoke);
       }
     }
 
     @Override
-    public Result<R> parseEntryResult(InvokeEntryMessage actual) {
+    public Result<R> parseEntryResult(CallEntryMessage actual) {
       if (actual.hasValue()) {
         return valueParser.apply(actual.getValue());
       }
@@ -439,30 +438,30 @@ final class Entries {
     }
   }
 
-  static final class BackgroundInvokeEntry extends JournalEntry<BackgroundInvokeEntryMessage> {
+  static final class BackgroundInvokeEntry extends JournalEntry<OneWayCallEntryMessage> {
 
     static final BackgroundInvokeEntry INSTANCE = new BackgroundInvokeEntry();
 
     private BackgroundInvokeEntry() {}
 
     @Override
-    public void trace(BackgroundInvokeEntryMessage expected, Span span) {
+    public void trace(OneWayCallEntryMessage expected, Span span) {
       span.addEvent(
           "BackgroundInvoke",
           Attributes.of(
               Tracing.RESTATE_COORDINATION_CALL_SERVICE,
               expected.getServiceName(),
               Tracing.RESTATE_COORDINATION_CALL_METHOD,
-              expected.getMethodName()));
+              expected.getHandlerName()));
     }
 
     @Override
-    String getName(BackgroundInvokeEntryMessage expected) {
+    String getName(OneWayCallEntryMessage expected) {
       return expected.getName();
     }
 
     @Override
-    void checkEntryHeader(BackgroundInvokeEntryMessage expected, MessageLite actual)
+    void checkEntryHeader(OneWayCallEntryMessage expected, MessageLite actual)
         throws ProtocolException {
       Util.assertEntryEquals(expected, actual);
     }

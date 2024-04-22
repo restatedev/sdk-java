@@ -77,8 +77,7 @@ public abstract class StateMachineFailuresTestSuite implements TestDefinitions.T
                     errorMessageStartingWith(IllegalStateException.class.getCanonicalName())))
             .named("Serde serialization error"),
         this.sideEffectFailure(FAILING_DESERIALIZATION_INTEGER_TYPE_TAG)
-            .withInput(
-                startMessage(2), inputMessage("Till"), Protocol.SideEffectEntryMessage.newBuilder())
+            .withInput(startMessage(2), inputMessage("Till"), Protocol.RunEntryMessage.newBuilder())
             .assertingOutput(
                 AssertUtils.containsOnly(
                     errorMessageStartingWith(IllegalStateException.class.getCanonicalName())))

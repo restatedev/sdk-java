@@ -78,11 +78,11 @@ public class MessageHeader {
               ? DONE_FLAG
               : 0,
           msg.getSerializedSize());
-    } else if (msg instanceof Protocol.InvokeEntryMessage) {
+    } else if (msg instanceof Protocol.CallEntryMessage) {
       return new MessageHeader(
-          MessageType.InvokeEntryMessage,
-          ((Protocol.InvokeEntryMessage) msg).getResultCase()
-                  != Protocol.InvokeEntryMessage.ResultCase.RESULT_NOT_SET
+          MessageType.CallEntryMessage,
+          ((Protocol.CallEntryMessage) msg).getResultCase()
+                  != Protocol.CallEntryMessage.ResultCase.RESULT_NOT_SET
               ? DONE_FLAG
               : 0,
           msg.getSerializedSize());
@@ -94,9 +94,9 @@ public class MessageHeader {
               ? DONE_FLAG
               : 0,
           msg.getSerializedSize());
-    } else if (msg instanceof Protocol.SideEffectEntryMessage) {
+    } else if (msg instanceof Protocol.RunEntryMessage) {
       return new MessageHeader(
-          MessageType.SideEffectEntryMessage, REQUIRES_ACK_FLAG, msg.getSerializedSize());
+          MessageType.RunEntryMessage, REQUIRES_ACK_FLAG, msg.getSerializedSize());
     }
     // Messages with no flags
     return new MessageHeader(MessageType.fromMessage(msg), 0, msg.getSerializedSize());
