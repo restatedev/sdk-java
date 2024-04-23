@@ -11,6 +11,7 @@ package dev.restate.sdk.kotlin
 import com.google.protobuf.ByteString
 import dev.restate.sdk.common.*
 import dev.restate.sdk.common.syscalls.*
+import io.opentelemetry.extension.kotlin.asContextElement
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -138,7 +139,8 @@ private constructor(
       val scope =
           CoroutineScope(
               options.coroutineContext +
-                  InvocationHandler.SYSCALLS_THREAD_LOCAL.asContextElement(syscalls))
+                  InvocationHandler.SYSCALLS_THREAD_LOCAL.asContextElement(syscalls) +
+                  syscalls.request().otelContext()!!.asContextElement())
       scope.launch {
         val serializedResult: ByteString
 

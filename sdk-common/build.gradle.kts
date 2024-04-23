@@ -9,6 +9,8 @@ dependencies {
   compileOnly(coreLibs.jspecify)
 
   api(coreLibs.protobuf.java)
+  api(platform(coreLibs.opentelemetry.bom))
+  api(coreLibs.opentelemetry.api)
 
   implementation(platform(jacksonLibs.jackson.bom))
   implementation(jacksonLibs.jackson.core)
