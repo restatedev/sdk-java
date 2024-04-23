@@ -9,23 +9,34 @@
 package dev.restate.sdk.common;
 
 import com.google.protobuf.ByteString;
+import io.opentelemetry.context.Context;
 import java.util.Map;
 import java.util.Objects;
 
 public final class Request {
 
   private final InvocationId invocationId;
+  private final Context otelContext;
   private final ByteString body;
   private final Map<String, String> headers;
 
-  public Request(InvocationId invocationId, ByteString body, Map<String, String> headers) {
+  public Request(
+      InvocationId invocationId,
+      Context otelContext,
+      ByteString body,
+      Map<String, String> headers) {
     this.invocationId = invocationId;
+    this.otelContext = otelContext;
     this.body = body;
     this.headers = headers;
   }
 
   public InvocationId invocationId() {
     return invocationId;
+  }
+
+  public Context otelContext() {
+    return otelContext;
   }
 
   public byte[] body() {
@@ -46,29 +57,23 @@ public final class Request {
     if (o == null || getClass() != o.getClass()) return false;
 
     Request request = (Request) o;
-
-    if (!Objects.equals(invocationId, request.invocationId)) return false;
-    if (!Objects.equals(body, request.body)) return false;
-    return Objects.equals(headers, request.headers);
+    return Objects.equals(invocationId, request.invocationId)
+        && Objects.equals(otelContext, request.otelContext)
+        && Objects.equals(body, request.body)
+        && Objects.equals(headers, request.headers);
   }
 
   @Override
   public int hashCode() {
-    int result = invocationId != null ? invocationId.hashCode() : 0;
-    result = 31 * result + (body != null ? body.hashCode() : 0);
-    result = 31 * result + (headers != null ? headers.hashCode() : 0);
+    int result = Objects.hashCode(invocationId);
+    result = 31 * result + Objects.hashCode(otelContext);
+    result = 31 * result + Objects.hashCode(body);
+    result = 31 * result + Objects.hashCode(headers);
     return result;
   }
 
   @Override
   public String toString() {
-    return "Request{"
-        + "invocationId="
-        + invocationId
-        + ", body="
-        + body
-        + ", headers="
-        + headers
-        + '}';
+    return "Request{" + "invocationId=" + invocationId + ", headers=" + headers + '}';
   }
 }

@@ -17,7 +17,6 @@ import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.Tracer;
-import io.opentelemetry.semconv.trace.attributes.SemanticAttributes;
 import java.util.*;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
@@ -72,9 +71,6 @@ public class RestateEndpoint {
             .spanBuilder("Invoke method")
             .setSpanKind(SpanKind.SERVER)
             .setParent(otelContext)
-            .setAttribute(SemanticAttributes.RPC_SYSTEM, "restate")
-            .setAttribute(SemanticAttributes.RPC_SERVICE, componentName)
-            .setAttribute(SemanticAttributes.RPC_METHOD, handlerName)
             .startSpan();
 
     // Setup logging context

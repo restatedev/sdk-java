@@ -24,7 +24,6 @@ dependencies {
 
   implementation(platform(coreLibs.opentelemetry.bom))
   implementation(coreLibs.opentelemetry.api)
-  implementation(coreLibs.opentelemetry.semconv)
 
   testCompileOnly(coreLibs.jspecify)
   testImplementation(testingLibs.junit.jupiter)

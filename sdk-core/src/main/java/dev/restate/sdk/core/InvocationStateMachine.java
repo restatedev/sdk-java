@@ -19,6 +19,7 @@ import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.common.syscalls.*;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.context.Context;
 import java.util.*;
 import java.util.concurrent.Flow;
 import java.util.function.Consumer;
@@ -227,6 +228,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
           Request request =
               new Request(
                   invocationId,
+                  Context.root().with(span),
                   inputEntry.getValue(),
                   inputEntry.getHeadersList().stream()
                       .collect(

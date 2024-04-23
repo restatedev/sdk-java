@@ -15,6 +15,8 @@ dependencies {
   implementation(kotlinLibs.kotlinx.serialization.json)
 
   implementation(coreLibs.log4j.api)
+  implementation(platform(coreLibs.opentelemetry.bom))
+  implementation(coreLibs.opentelemetry.kotlin)
 
   testImplementation(project(":sdk-core"))
   testImplementation(testingLibs.junit.jupiter)

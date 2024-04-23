@@ -12,6 +12,7 @@ import com.google.protobuf.ByteString;
 import dev.restate.sdk.common.*;
 import dev.restate.sdk.common.ServiceType;
 import dev.restate.sdk.common.syscalls.*;
+import io.opentelemetry.context.Scope;
 import java.util.*;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -105,7 +106,6 @@ public final class Service implements BindableService<Service.Options> {
     }
   }
 
-  @SuppressWarnings("unchecked")
   public static class Handler<REQ, RES> implements InvocationHandler<Service.Options> {
     private final HandlerSignature<REQ, RES> handlerSignature;
     private final HandlerType handlerType;
@@ -119,6 +119,7 @@ public final class Service implements BindableService<Service.Options> {
         BiFunction<? extends Context, REQ, RES> runner) {
       this.handlerSignature = handlerSignature;
       this.handlerType = handlerType;
+      //noinspection unchecked
       this.runner = (BiFunction<Context, REQ, RES>) runner;
     }
 
@@ -148,7 +149,7 @@ public final class Service implements BindableService<Service.Options> {
               options.executor.execute(
                   () -> {
                     SYSCALLS_THREAD_LOCAL.set(syscalls);
-                    try {
+                    try (Scope ignored = syscalls.request().otelContext().makeCurrent()) {
                       runnable.run();
                     } finally {
                       SYSCALLS_THREAD_LOCAL.remove();

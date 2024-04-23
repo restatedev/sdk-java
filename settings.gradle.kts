@@ -36,7 +36,7 @@ dependencyResolutionManagement {
     create("coreLibs") {
       version("protobuf", "3.24.3")
       version("log4j", "2.22.0")
-      version("opentelemetry", "1.30.1")
+      version("opentelemetry", "1.37.0")
 
       library("protoc", "com.google.protobuf", "protoc").versionRef("protobuf")
       library("protobuf-java", "com.google.protobuf", "protobuf-java").versionRef("protobuf")
@@ -48,7 +48,8 @@ dependencyResolutionManagement {
       library("opentelemetry-bom", "io.opentelemetry", "opentelemetry-bom")
           .versionRef("opentelemetry")
       library("opentelemetry-api", "io.opentelemetry", "opentelemetry-api").withoutVersion()
-      library("opentelemetry-semconv", "io.opentelemetry:opentelemetry-semconv:1.19.0-alpha")
+      library("opentelemetry-kotlin", "io.opentelemetry", "opentelemetry-extension-kotlin")
+          .withoutVersion()
 
       library("jspecify", "org.jspecify", "jspecify").version("0.3.0")
     }
