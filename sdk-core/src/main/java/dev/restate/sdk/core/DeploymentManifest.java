@@ -10,14 +10,15 @@ package dev.restate.sdk.core;
 
 import dev.restate.sdk.common.HandlerType;
 import dev.restate.sdk.common.ServiceType;
+import dev.restate.sdk.common.syscalls.HandlerDefinition;
 import dev.restate.sdk.common.syscalls.ServiceDefinition;
-import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
-import dev.restate.sdk.core.manifest.Handler;
-import dev.restate.sdk.core.manifest.Service;
+import dev.restate.sdk.core.manifest.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 final class DeploymentManifest {
+  private static final Input EMPTY_INPUT = new Input();
+  private static final Output EMPTY_OUTPUT = new Output().withSetContentTypeIfEmpty(false);
 
   private final DeploymentManifestSchema manifest;
 
@@ -37,12 +38,7 @@ final class DeploymentManifest {
                                 .withTy(convertServiceType(svc.getServiceType()))
                                 .withHandlers(
                                     svc.getHandlers().stream()
-                                        .map(
-                                            method ->
-                                                new Handler()
-                                                    .withTy(
-                                                        convertHandlerType(method.getHandlerType()))
-                                                    .withName(method.getName()))
+                                        .map(DeploymentManifest::convertHandler)
                                         .collect(Collectors.toList())))
                     .collect(Collectors.toList()));
   }
@@ -60,6 +56,24 @@ final class DeploymentManifest {
         return Service.Ty.VIRTUAL_OBJECT;
     }
     throw new IllegalStateException();
+  }
+
+  private static Handler convertHandler(HandlerDefinition<?> handler) {
+    return new Handler()
+        .withName(handler.getName())
+        .withTy(convertHandlerType(handler.getHandlerType()))
+        .withInput(
+            handler.getAcceptInputContentType() == null
+                ? EMPTY_INPUT
+                : new Input()
+                    .withRequired(handler.isInputRequired())
+                    .withContentType(handler.getAcceptInputContentType()))
+        .withOutput(
+            handler.getReturnedContentType() == null
+                ? EMPTY_OUTPUT
+                : new Output()
+                    .withContentType(handler.getReturnedContentType())
+                    .withSetContentTypeIfEmpty(false));
   }
 
   private static Handler.Ty convertHandlerType(HandlerType handlerType) {

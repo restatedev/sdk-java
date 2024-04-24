@@ -53,6 +53,10 @@ object KtSerdes {
         override fun deserialize(byteString: ByteString) {
           return
         }
+
+        override fun contentType(): String? {
+          return null
+        }
       }
 
   /** Creates a [Serde] implementation using the `kotlinx.serialization` json module. */
@@ -64,6 +68,10 @@ object KtSerdes {
 
       override fun deserialize(value: ByteArray?): T {
         return Json.decodeFromString(serializer, String(value!!, StandardCharsets.UTF_8))
+      }
+
+      override fun contentType(): String {
+        return "application/json"
       }
     }
   }

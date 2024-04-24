@@ -32,7 +32,14 @@ class ComponentDiscoveryHandlerTest {
                 new ServiceDefinition<>(
                     "MyGreeter",
                     ServiceType.SERVICE,
-                    List.of(new HandlerDefinition<>("greet", HandlerType.EXCLUSIVE, null)))));
+                    List.of(
+                        new HandlerDefinition<>(
+                            "greet",
+                            HandlerType.EXCLUSIVE,
+                            false,
+                            "application/json",
+                            "application/json",
+                            null)))));
 
     DeploymentManifestSchema manifest = deploymentManifest.manifest();
 
