@@ -14,6 +14,7 @@ import dev.restate.sdk.common.TerminalException;
 
 public class ProtocolException extends RuntimeException {
 
+  static final int UNAUTHORIZED_CODE = 401;
   static final int NOT_FOUND_CODE = 404;
   static final int JOURNAL_MISMATCH_CODE = 570;
   static final int PROTOCOL_VIOLATION_CODE = 571;
@@ -28,10 +29,10 @@ public class ProtocolException extends RuntimeException {
   }
 
   private ProtocolException(String message, int code) {
-    this(message, null, code);
+    this(message, code, null);
   }
 
-  public ProtocolException(String message, Throwable cause, int code) {
+  public ProtocolException(String message, int code, Throwable cause) {
     super(message, cause);
     this.code = code;
   }
@@ -77,7 +78,11 @@ public class ProtocolException extends RuntimeException {
   static ProtocolException invalidSideEffectCall() {
     return new ProtocolException(
         "A syscall was invoked from within a side effect closure.",
-        null,
-        TerminalException.INTERNAL_SERVER_ERROR_CODE);
+        TerminalException.INTERNAL_SERVER_ERROR_CODE,
+        null);
+  }
+
+  static ProtocolException unauthorized(Throwable e) {
+    return new ProtocolException("Unauthorized", UNAUTHORIZED_CODE, e);
   }
 }

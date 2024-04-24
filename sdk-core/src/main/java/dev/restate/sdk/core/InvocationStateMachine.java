@@ -209,8 +209,8 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       this.fail(
           new ProtocolException(
               "Expected at least one entry with Input, got " + this.entriesToReplay + " entries",
-              null,
-              TerminalException.INTERNAL_SERVER_ERROR_CODE));
+              TerminalException.INTERNAL_SERVER_ERROR_CODE,
+              null));
       return;
     }
 
