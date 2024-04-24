@@ -14,7 +14,11 @@ import dev.restate.sdk.common.function.ThrowingFunction;
 import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
-/** Interface defining serialization and deserialization of concrete types. */
+/**
+ * Interface defining serialization and deserialization of concrete types.
+ *
+ * <p>You can create a custom one using {@link #using(String, ThrowingFunction, ThrowingFunction)}.
+ */
 public interface Serde<T> {
 
   byte[] serialize(@Nullable T value);
@@ -30,20 +34,20 @@ public interface Serde<T> {
     return deserialize(byteString.toByteArray());
   }
 
+  // --- Metadata about the serialized/deserialized content
+
   /**
-   * @return the schema of this object.
+   * Content-type to use in request/responses.
+   *
+   * <p>If null, the SDK assumes the produced output is empty. This might change in the future.
    */
-  default @Nullable Object schema() {
-    return null;
-  }
-
   default @Nullable String contentType() {
-    return null;
+    return "application/octet-stream";
   }
 
   /**
-   * Create a {@link Serde} from {@code serializer}/{@code deserializer} lambdas. Before invoking
-   * the serializer, we check that {@code value} is non-null.
+   * Like {@link #using(String, ThrowingFunction, ThrowingFunction)}, using content-type {@code
+   * application/octet-stream}.
    */
   static <T> Serde<T> using(
       ThrowingFunction<T, byte[]> serializer, ThrowingFunction<byte[], T> deserializer) {
@@ -56,6 +60,61 @@ public interface Serde<T> {
       @Override
       public T deserialize(byte[] value) {
         return deserializer.asFunction().apply(value);
+      }
+    };
+  }
+
+  /**
+   * Create a {@link Serde} from {@code serializer}/{@code deserializer} lambdas, tagging with
+   * {@code contentType}. Before invoking the serializer, we check that {@code value} is non-null.
+   */
+  static <T> Serde<T> using(
+      String contentType,
+      ThrowingFunction<T, byte[]> serializer,
+      ThrowingFunction<byte[], T> deserializer) {
+    return new Serde<>() {
+      @Override
+      public byte[] serialize(T value) {
+        return serializer.asFunction().apply(Objects.requireNonNull(value));
+      }
+
+      @Override
+      public T deserialize(byte[] value) {
+        return deserializer.asFunction().apply(value);
+      }
+
+      @Override
+      public @Nullable String contentType() {
+        return contentType;
+      }
+    };
+  }
+
+  static <T> Serde<T> withContentType(String contentType, Serde<T> inner) {
+    return new Serde<>() {
+      @Override
+      public byte[] serialize(@Nullable T value) {
+        return inner.serialize(value);
+      }
+
+      @Override
+      public ByteString serializeToByteString(@Nullable T value) {
+        return inner.serializeToByteString(value);
+      }
+
+      @Override
+      public T deserialize(ByteString byteString) {
+        return inner.deserialize(byteString);
+      }
+
+      @Override
+      public T deserialize(byte[] value) {
+        return inner.deserialize(value);
+      }
+
+      @Override
+      public @Nullable String contentType() {
+        return contentType;
       }
     };
   }
