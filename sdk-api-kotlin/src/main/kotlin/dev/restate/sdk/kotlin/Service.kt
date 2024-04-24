@@ -121,7 +121,14 @@ private constructor(
       private val LOG = LogManager.getLogger()
     }
 
-    fun toHandlerDefinition() = HandlerDefinition(handlerSignature.name, handlerType, this)
+    fun toHandlerDefinition() =
+        HandlerDefinition(
+            handlerSignature.name,
+            handlerType,
+            handlerSignature.requestSerde.contentType() != null,
+            handlerSignature.requestSerde.contentType(),
+            handlerSignature.responseSerde.contentType(),
+            this)
 
     override fun handle(
         syscalls: Syscalls,

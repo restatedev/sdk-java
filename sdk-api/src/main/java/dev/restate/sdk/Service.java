@@ -132,7 +132,13 @@ public final class Service implements BindableService<Service.Options> {
     }
 
     public HandlerDefinition<Service.Options> toHandlerDefinition() {
-      return new HandlerDefinition<>(this.handlerSignature.name, this.handlerType, this);
+      return new HandlerDefinition<>(
+          this.handlerSignature.name,
+          this.handlerType,
+          this.handlerSignature.requestSerde.contentType() != null,
+          this.handlerSignature.requestSerde.contentType(),
+          this.handlerSignature.responseSerde.contentType(),
+          this);
     }
 
     @Override
