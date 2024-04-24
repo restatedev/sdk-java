@@ -14,20 +14,11 @@ import java.util.Objects;
 public final class HandlerDefinition<O> {
   private final String name;
   private final HandlerType handlerType;
-  private final Object inputSchema;
-  private final Object outputSchema;
   private final InvocationHandler<O> handler;
 
-  public HandlerDefinition(
-      String name,
-      HandlerType handlerType,
-      Object inputSchema,
-      Object outputSchema,
-      InvocationHandler<O> handler) {
+  public HandlerDefinition(String name, HandlerType handlerType, InvocationHandler<O> handler) {
     this.name = name;
     this.handlerType = handlerType;
-    this.inputSchema = inputSchema;
-    this.outputSchema = outputSchema;
     this.handler = handler;
   }
 
@@ -39,14 +30,6 @@ public final class HandlerDefinition<O> {
     return handlerType;
   }
 
-  public Object getInputSchema() {
-    return inputSchema;
-  }
-
-  public Object getOutputSchema() {
-    return outputSchema;
-  }
-
   public InvocationHandler<O> getHandler() {
     return handler;
   }
@@ -56,14 +39,11 @@ public final class HandlerDefinition<O> {
     if (this == object) return true;
     if (object == null || getClass() != object.getClass()) return false;
     HandlerDefinition<?> that = (HandlerDefinition<?>) object;
-    return Objects.equals(name, that.name)
-        && Objects.equals(inputSchema, that.inputSchema)
-        && Objects.equals(outputSchema, that.outputSchema)
-        && Objects.equals(handler, that.handler);
+    return Objects.equals(name, that.name) && Objects.equals(handler, that.handler);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, inputSchema, outputSchema, handler);
+    return Objects.hash(name, handler);
   }
 }
