@@ -106,6 +106,41 @@ public class CodegenTest implements TestSuite {
     }
   }
 
+  @Service(name = "RawInputOutput")
+  static class RawInputOutput {
+
+    @Handler
+    @Raw
+    public byte[] rawOutput(Context context) {
+      var client = RawInputOutputClient.fromContext(context);
+      return client.rawOutput().await();
+      // TODO ASSERT RUNTIME AND WITH DISCOVERY TOO
+    }
+
+    @Handler
+    @Raw(contentType = "application/vnd.my.custom")
+    public byte[] rawOutputWithCustomCT(Context context) {
+      var client = RawInputOutputClient.fromContext(context);
+      return client.rawOutput().await();
+      // TODO ASSERT RUNTIME AND WITH DISCOVERY TOO
+    }
+
+    @Handler
+    public void rawInput(Context context, @Raw byte[] input) {
+      var client = RawInputOutputClient.fromContext(context);
+      client.rawInput(input).await();
+      // TODO ASSERT RUNTIME AND WITH DISCOVERY TOO
+    }
+
+    @Handler
+    public void rawInputWithCustomCt(
+        Context context, @Raw(contentType = "application/vnd.my.custom") byte[] input) {
+      var client = RawInputOutputClient.fromContext(context);
+      client.rawInputWithCustomCt(input).await();
+      // TODO ASSERT RUNTIME AND WITH DISCOVERY TOO
+    }
+  }
+
   @Override
   public Stream<TestDefinitions.TestDefinition> definitions() {
     return Stream.of(
