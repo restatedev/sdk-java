@@ -13,7 +13,6 @@ This SDK features:
 - Implement Restate services using either:
   - Java
   - Kotlin coroutines
-- Reuse the existing gRPC/Protobuf ecosystem to define service interfaces
 - Deploy Restate services as:
   - Non-blocking HTTP servers
   - On AWS Lambda
@@ -40,54 +39,12 @@ Scaffold a project using the build tool of your choice. For example, with Gradle
 gradle init --type java-application
 ```
 
-Add the dependency [sdk-api](sdk-api):
+Add the runtime dependency [sdk-api](sdk-api) and the annotation processor dependency [sdk-api-gen](sdk-api-gen):
 
 ```
-implementation("dev.restate:sdk-api:0.6.0")
+annotationProcessor("dev.restate:sdk-api-gen:0.9.0")
+implementation("dev.restate:sdk-api:0.9.0")
 ```
-
-Now you need to configure the protobuf plugin to build your Protobuf contracts. For example, with Gradle (Kotlin script):
-
-```kts
-import com.google.protobuf.gradle.id
-
-plugins {
-  // ...
-  id("com.google.protobuf") version "0.9.1"
-  // ...
-}
-
-dependencies {
-  // ...
-  // You need the following dependencies to compile the generated code
-  implementation("com.google.protobuf:protobuf-java:3.24.3")
-  implementation("io.grpc:grpc-stub:1.58.0")
-  implementation("io.grpc:grpc-protobuf:1.58.0")
-  compileOnly("org.apache.tomcat:annotations-api:6.0.53")
-}
-
-// Configure protoc plugin
-protobuf {
-  protoc { artifact = "com.google.protobuf:protoc:3.24.3" }
-
-  plugins {
-    // The Restate plugin depends on the gRPC generated code
-    id("grpc") { artifact = "io.grpc:protoc-gen-grpc-java:1.58.0" }
-    id("restate") { artifact = "dev.restate:protoc-gen-restate:0.6.0:all@jar" }
-  }
-
-  generateProtoTasks {
-    all().forEach {
-      it.plugins {
-        id("grpc")
-        id("restate")
-      }
-    }
-  }
-}
-```
-
-For Maven you can use the [xolstice Protobuf plugin](https://www.xolstice.org/protobuf-maven-plugin/index.html).
 
 ### Setup a project (Kotlin)
 
@@ -97,141 +54,93 @@ Scaffold a project using the build tool of your choice. For example, with Gradle
 gradle init --type kotlin-application
 ```
 
-Add the dependency [`sdk-api-kotlin`](sdk-api-kotlin):
+Add the [Kotlin symbol processing](https://kotlinlang.org/docs/ksp-quickstart.html#use-your-own-processor-in-a-project) plugin:
 
 ```
-implementation("dev.restate:sdk-api-kotlin:0.6.0")
-```
-
-Now you need to configure the protobuf plugin to build your Protobuf contracts. For example, with Gradle (Kotlin script):
-
-```kts
-import com.google.protobuf.gradle.id
-
 plugins {
-  // ...
-  id("com.google.protobuf") version "0.9.1"
-  // ...
-}
-
-dependencies {
-  // ...
-  // You need the following dependencies to compile the generated code
-  implementation("com.google.protobuf:protobuf-java:3.24.3")
-  implementation("com.google.protobuf:protobuf-kotlin:3.24.3")
-  implementation("io.grpc:grpc-stub:1.58.0")
-  implementation("io.grpc:grpc-protobuf:1.58.0")
-  implementation("io.grpc:grpc-kotlin-stub:1.4.0") { exclude("javax.annotation", "javax.annotation-api") }
-  compileOnly("org.apache.tomcat:annotations-api:6.0.53")
-}
-
-// Configure protoc plugin
-protobuf {
-  protoc { artifact = "com.google.protobuf:protoc:3.24.3" }
-
-  plugins {
-    // The gRPC Kotlin plugin depends on the gRPC generated code
-    id("grpc") { artifact = "io.grpc:protoc-gen-grpc-java:1.58.0" }
-    id("restate") { artifact = "dev.restate:protoc-gen-restate:0.6.0:all@jar" }
-  }
-
-  generateProtoTasks {
-    all().forEach {
-      it.plugins {
-        id("grpc")
-        id("restate") {
-          option("kotlin")
-        }
-      }
-      it.builtins {
-        // The Kotlin codegen depends on the Java generated code
-        java {}
-        id("kotlin")
-      }
-    }
-  }
+    id("com.google.devtools.ksp") version "1.9.22-1.0.18"
 }
 ```
 
-### Add the Protobuf contract
+Add the runtime dependency [sdk-api-kotlin](sdk-api-kotlin) and the ksp dependency [sdk-api-gen](sdk-api-kotlin-gen):
 
-Now you can add the Protobuf contract under `src/main/proto`. For example:
-
-```protobuf
-syntax = "proto3";
-package greeter;
-
-option java_package = "my.greeter";
-option java_outer_classname = "GreeterProto";
-
-import "dev/restate/ext.proto";
-
-service Greeter {
-  option (dev.restate.ext.service_type) = KEYED;
-
-  rpc Greet (GreetRequest) returns (GreetResponse);
-}
-
-message GreetRequest {
-  string name = 1 [(dev.restate.ext.field) = KEY];
-}
-
-message GreetResponse {
-  string message = 1;
-}
+```
+ksp("dev.restate:sdk-api-kotlin-gen:0.9.0")
+implementation("dev.restate:sdk-api-kotlin:0.9.0")
 ```
 
-By using the Gradle or Maven plugin, the code is automatically re-generated on every build.
+### Implement your first Restate component (Java)
 
-### Implement the service (Java)
-
-Implement the service in a new class, for example:
+Implement your first virtual object in a new class, for example:
 
 ```java
-public class Greeter extends GreeterRestate.GreeterRestateImplBase {
+import dev.restate.sdk.ObjectContext;
+import dev.restate.sdk.annotation.Handler;
+import dev.restate.sdk.annotation.VirtualObject;
+import dev.restate.sdk.common.CoreSerdes;
+import dev.restate.sdk.common.StateKey;
+
+@VirtualObject
+public class Greeter {
 
   private static final StateKey<Long> COUNT = StateKey.of("total", CoreSerdes.LONG);
 
-  @Override
-  public GreetResponse greet(RestateContext ctx, GreetRequest request) {
+  @Handler
+  public String greet(ObjectContext ctx, String name) {
     long count = ctx.get(COUNT).orElse(0L);
     ctx.set(COUNT, count + 1);
 
-    return GreetResponse.newBuilder()
-      .setMessage(String.format("Hello %s for the %d time!", request.getName(), count))
-      .build();
+    return String.format("Hello %s for the %d time!", name, count);
   }
 }
 ```
 
-If you want to use POJOs for state, check [how to use Jackson](#state-serde-using-jackson).
+When using composite types/POJOs for input/output, [Jackson Databind](https://github.com/FasterXML/jackson) will be used. The Jackson dependency is not automatically included, you must add it with [`sdk-serde-jackson`](sdk-serde-jackson):
 
-### Implement the service (Kotlin)
+```
+implementation("dev.restate:sdk-serde-jackson:0.9.0")
+```
 
-Implement the service in a new class, for example:
+If you want to store types/POJOs in state, use `JacksonSerdes`:
+
+```java
+private static final StateKey<Person> PERSON = StateKey.of("person", JacksonSerdes.of(Person.class));
+```
+
+### Implement your first Restate component (Kotlin)
+
+Implement your first virtual object in a new class, for example:
 
 ```kotlin
-class Greeter : GreeterRestateKtImplBase() {
+import dev.restate.sdk.annotation.Handler
+import dev.restate.sdk.annotation.VirtualObject
+import dev.restate.sdk.common.StateKey
+import dev.restate.sdk.kotlin.KtSerdes
+import dev.restate.sdk.kotlin.ObjectContext
+
+@VirtualObject
+class Greeter {
   companion object {
-    private val COUNT = StateKey.of("total", CoreSerdes.LONG)
+    private val COUNT = StateKey.of<Long>("total", KtSerdes.json())
   }
 
-  override suspend fun greet(context: RestateContext, request: GreetRequest): GreetResponse {
+  @Handler
+  suspend fun greet(context: ObjectContext, name: String): String {
     val count = context.get(COUNT) ?: 0L
     context.set(COUNT, count + 1)
-    return greetResponse { message = "Hello ${request.name} for the $count time!" }
+    return "Hello $name for the $count time!"
   }
 }
 ```
 
-If you want to use POJOs for state, check [how to use Jackson](#state-serde-using-jackson).
+When using composite data types for input/output, [`kotlinx.serialization`](https://github.com/Kotlin/kotlinx.serialization?tab=readme-ov-file#setup) will be used.
 
 ### Deploy the service (HTTP Server)
 
 To deploy the Restate service as HTTP server, add [`sdk-http-vertx`](sdk-http-vertx) to the dependencies. For example, in Gradle:
 
 ```
-implementation("dev.restate:sdk-http-vertx:0.6.0")
+implementation("dev.restate:sdk-http-vertx:0.9.0")
 ```
 
 To deploy the service, add the following code to the `main`. For example in Java:
@@ -239,7 +148,7 @@ To deploy the service, add the following code to the `main`. For example in Java
 ```java
 public static void main(String[] args) {
   RestateHttpEndpointBuilder.builder()
-        .withService(new Greeter())
+        .bind(new Greeter())
         .buildAndListen();
 }
 ```
@@ -249,7 +158,7 @@ In Kotlin:
 ```kotlin
 fun main() {
   RestateHttpEndpointBuilder.builder()
-          .withService(Greeter())
+          .bind(Greeter())
           .buildAndListen()
 }
 ```
@@ -265,7 +174,7 @@ gradle run
 To deploy the Restate service as Lambda, add [`sdk-lambda`](sdk-lambda) to the dependencies. For example, in Gradle:
 
 ```
-implementation("dev.restate:sdk-lambda:0.6.0")
+implementation("dev.restate:sdk-lambda:0.9.0")
 ```
 
 Configure the build tool to generate Fat-JARs, which are required by AWS Lambda to correctly load the JAR. For example, using Gradle:
@@ -285,7 +194,7 @@ Now create the Lambda handler invoking the service. For example, in Java:
 public class MyLambdaHandler extends BaseRestateLambdaHandler {
   @Override
   public void register(RestateLambdaEndpointBuilder builder) {
-    builder.withService(new Greeter());
+    builder.bind(new Greeter());
   }
 }
 ```
@@ -295,7 +204,7 @@ In Kotlin:
 ```kotlin
 class MyLambdaHandler : BaseRestateLambdaHandler {
   override fun register(builder: RestateLambdaEndpointBuilder) {
-    builder.withService(Greeter())
+    builder.bind(Greeter())
   }
 }
 ```
@@ -309,22 +218,6 @@ gradle shadowJar
 You can now upload the generated Jar in AWS Lambda, and configure `MyLambdaHandler` as the Lambda class in the AWS UI.
 
 ### Additional setup
-
-#### State ser/de using Jackson
-
-State ser/de is defined by the interface `Serde`. If you want to use [Jackson Databind](https://github.com/FasterXML/jackson) to ser/de POJOs to JSON, add the dependency [`sdk-serde-jackson`](sdk-serde-jackson).
-
-For example, in Gradle:
-
-```
-implementation("dev.restate:sdk-serde-jackson:0.6.0")
-```
-
-And then use `JacksonSerdes`:
-
-```java
-private static final StateKey<Person> PERSON = StateKey.of("person", JacksonSerdes.of(Person.class));
-```
 
 #### Logging
 
@@ -431,12 +324,6 @@ To publish local snapshots of the project:
 
 ```shell
 ./gradlew -DskipSigning publishToMavenLocal
-```
-
-To update the [`proto`](https://github.com/restatedev/proto/) git subtree:
-
-```shell
-git subtree pull --prefix sdk-common/src/main/proto/ git@github.com:restatedev/proto.git main --squash
 ```
 
 To update the [`service-protocol`](https://github.com/restatedev/service-protocol/) git subtree:
