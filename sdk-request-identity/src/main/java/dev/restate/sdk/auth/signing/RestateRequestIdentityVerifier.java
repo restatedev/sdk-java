@@ -44,7 +44,7 @@ public class RestateRequestIdentityVerifier implements RequestIdentityVerifier {
         }
         break;
       case SIGNATURE_SCHEME_UNSIGNED:
-        break;
+        throw new IllegalStateException("Request has no identity, but one was expected");
       default:
         throw new IllegalStateException("Unexpected signature scheme " + signatureScheme);
     }
