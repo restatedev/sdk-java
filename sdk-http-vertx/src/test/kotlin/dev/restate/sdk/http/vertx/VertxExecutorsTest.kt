@@ -11,6 +11,7 @@ package dev.restate.sdk.http.vertx
 import com.google.protobuf.ByteString
 import dev.restate.generated.service.protocol.Protocol
 import dev.restate.sdk.common.CoreSerdes
+import dev.restate.sdk.common.syscalls.HandlerSpecification
 import dev.restate.sdk.core.ProtoUtils.*
 import dev.restate.sdk.core.TestDefinitions
 import dev.restate.sdk.core.TestDefinitions.testInvocation
@@ -82,7 +83,7 @@ class VertxExecutorsTest : TestDefinitions.TestSuite {
         testInvocation(
                 dev.restate.sdk.Service.service("CheckBlockingComponentTrampolineExecutor")
                     .with(
-                        dev.restate.sdk.Service.HandlerSignature.of(
+                        HandlerSpecification.of(
                             "do", CoreSerdes.VOID, CoreSerdes.VOID),
                         this::checkBlockingComponentTrampolineExecutor)
                     .build(dev.restate.sdk.Service.Options.DEFAULT),

@@ -8,67 +8,49 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.common.syscalls;
 
-import dev.restate.sdk.common.HandlerType;
 import java.util.Objects;
-import org.jspecify.annotations.Nullable;
 
-public final class HandlerDefinition<O> {
-  private final String name;
-  private final HandlerType handlerType;
-  private final boolean inputRequired;
-  private final @Nullable String acceptInputContentType;
-  private final @Nullable String returnedContentType;
-  private final InvocationHandler<O> handler;
+public final class HandlerDefinition<REQ, RES, O> {
+
+  private final HandlerSpecification<REQ, RES> spec;
+  private final InvocationHandler<REQ, RES, O> handler;
 
   public HandlerDefinition(
-      String name,
-      HandlerType handlerType,
-      boolean inputRequired,
-      @Nullable String acceptInputContentType,
-      @Nullable String returnedContentType,
-      InvocationHandler<O> handler) {
-    this.name = name;
-    this.handlerType = handlerType;
-    this.inputRequired = inputRequired;
-    this.acceptInputContentType = acceptInputContentType;
-    this.returnedContentType = returnedContentType;
-    this.handler = handler;
+          HandlerSpecification<REQ, RES> spec,
+          InvocationHandler<REQ, RES, O> handler) {
+      this.spec = spec;
+      this.handler = handler;
   }
 
-  public String getName() {
-    return name;
+  public HandlerSpecification<REQ, RES> getSpec() {
+    return spec;
   }
 
-  public HandlerType getHandlerType() {
-    return handlerType;
-  }
-
-  public boolean isInputRequired() {
-    return inputRequired;
-  }
-
-  public String getAcceptInputContentType() {
-    return acceptInputContentType;
-  }
-
-  public String getReturnedContentType() {
-    return returnedContentType;
-  }
-
-  public InvocationHandler<O> getHandler() {
+  public InvocationHandler<REQ, RES, O> getHandler() {
     return handler;
   }
 
   @Override
-  public boolean equals(Object object) {
-    if (this == object) return true;
-    if (object == null || getClass() != object.getClass()) return false;
-    HandlerDefinition<?> that = (HandlerDefinition<?>) object;
-    return Objects.equals(name, that.name) && Objects.equals(handler, that.handler);
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+
+    HandlerDefinition<?, ?, ?> that = (HandlerDefinition<?, ?, ?>) o;
+    return Objects.equals(spec, that.spec) && Objects.equals(handler, that.handler);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, handler);
+    int result = Objects.hashCode(spec);
+    result = 31 * result + Objects.hashCode(handler);
+    return result;
+  }
+
+  @Override
+  public String toString() {
+    return "HandlerDefinition{" +
+            "spec=" + spec +
+            ", handler=" + handler +
+            '}';
   }
 }

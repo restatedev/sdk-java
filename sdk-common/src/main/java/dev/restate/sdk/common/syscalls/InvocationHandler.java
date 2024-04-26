@@ -10,7 +10,7 @@ package dev.restate.sdk.common.syscalls;
 
 import com.google.protobuf.ByteString;
 
-public interface InvocationHandler<O> {
+public interface InvocationHandler<REQ, RES, O> {
   /**
    * Thread local to store {@link Syscalls}.
    *
@@ -21,5 +21,5 @@ public interface InvocationHandler<O> {
    */
   ThreadLocal<Syscalls> SYSCALLS_THREAD_LOCAL = new ThreadLocal<>();
 
-  void handle(Syscalls syscalls, O options, SyscallCallback<ByteString> callback);
+  void handle(HandlerSpecification<REQ, RES> handlerSpecification, Syscalls syscalls, O options, SyscallCallback<ByteString> callback);
 }

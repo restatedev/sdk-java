@@ -19,6 +19,7 @@ import dev.restate.sdk.common.Target;
 import dev.restate.sdk.core.ProtoUtils;
 import dev.restate.sdk.core.TestDefinitions;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
+import java.nio.charset.StandardCharsets;
 import java.util.stream.Stream;
 
 public class CodegenTest implements TestSuite {
@@ -114,22 +115,19 @@ public class CodegenTest implements TestSuite {
     public byte[] rawOutput(Context context) {
       var client = RawInputOutputClient.fromContext(context);
       return client.rawOutput().await();
-      // TODO ASSERT RUNTIME AND WITH DISCOVERY TOO
     }
 
     @Handler
     @Raw(contentType = "application/vnd.my.custom")
     public byte[] rawOutputWithCustomCT(Context context) {
       var client = RawInputOutputClient.fromContext(context);
-      return client.rawOutput().await();
-      // TODO ASSERT RUNTIME AND WITH DISCOVERY TOO
+      return client.rawOutputWithCustomCT().await();
     }
 
     @Handler
     public void rawInput(Context context, @Raw byte[] input) {
       var client = RawInputOutputClient.fromContext(context);
       client.rawInput(input).await();
-      // TODO ASSERT RUNTIME AND WITH DISCOVERY TOO
     }
 
     @Handler
@@ -137,7 +135,14 @@ public class CodegenTest implements TestSuite {
         Context context, @Raw(contentType = "application/vnd.my.custom") byte[] input) {
       var client = RawInputOutputClient.fromContext(context);
       client.rawInputWithCustomCt(input).await();
-      // TODO ASSERT RUNTIME AND WITH DISCOVERY TOO
+    }
+
+    @Handler
+    public void rawInputWithCustomAccept(
+        Context context,
+        @Accept("application/*") @Raw(contentType = "application/vnd.my.custom") byte[] input) {
+      var client = RawInputOutputClient.fromContext(context);
+      client.rawInputWithCustomCt(input).await();
     }
   }
 
@@ -209,6 +214,53 @@ public class CodegenTest implements TestSuite {
                     Target.service("PrimitiveTypes", "primitiveInput"), CoreSerdes.JSON_INT, 10),
                 outputMessage(),
                 END_MESSAGE)
-            .named("primitive input"));
+            .named("primitive input"),
+        testInvocation(RawInputOutput::new, "rawInput")
+            .withInput(
+                startMessage(1),
+                inputMessage("{{".getBytes(StandardCharsets.UTF_8)),
+                completionMessage(1, CoreSerdes.VOID, null))
+            .onlyUnbuffered()
+            .expectingOutput(
+                invokeMessage(
+                    Target.service("RawInputOutput", "rawInput"),
+                    "{{".getBytes(StandardCharsets.UTF_8)),
+                outputMessage(),
+                END_MESSAGE),
+        testInvocation(RawInputOutput::new, "rawInputWithCustomCt")
+            .withInput(
+                startMessage(1),
+                inputMessage("{{".getBytes(StandardCharsets.UTF_8)),
+                completionMessage(1, CoreSerdes.VOID, null))
+            .onlyUnbuffered()
+            .expectingOutput(
+                invokeMessage(
+                    Target.service("RawInputOutput", "rawInputWithCustomCt"),
+                    "{{".getBytes(StandardCharsets.UTF_8)),
+                outputMessage(),
+                END_MESSAGE),
+        testInvocation(RawInputOutput::new, "rawOutput")
+            .withInput(
+                startMessage(1),
+                inputMessage(),
+                completionMessage(1, CoreSerdes.RAW, "{{".getBytes(StandardCharsets.UTF_8)))
+            .onlyUnbuffered()
+            .expectingOutput(
+                invokeMessage(Target.service("RawInputOutput", "rawOutput"), CoreSerdes.VOID, null),
+                outputMessage("{{".getBytes(StandardCharsets.UTF_8)),
+                END_MESSAGE),
+        testInvocation(RawInputOutput::new, "rawOutputWithCustomCT")
+            .withInput(
+                startMessage(1),
+                inputMessage(),
+                completionMessage(1, CoreSerdes.RAW, "{{".getBytes(StandardCharsets.UTF_8)))
+            .onlyUnbuffered()
+            .expectingOutput(
+                invokeMessage(
+                    Target.service("RawInputOutput", "rawOutputWithCustomCT"),
+                    CoreSerdes.VOID,
+                    null),
+                outputMessage("{{".getBytes(StandardCharsets.UTF_8)),
+                END_MESSAGE));
   }
 }

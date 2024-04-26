@@ -17,17 +17,17 @@ public final class ServiceDefinition<O> {
 
   private final String serviceName;
   private final ServiceType serviceType;
-  private final Map<String, HandlerDefinition<O>> handlers;
+  private final Map<String, HandlerDefinition<?, ?, O>> handlers;
 
   public ServiceDefinition(
-      String fullyQualifiedComponentName,
-      ServiceType serviceType,
-      Collection<HandlerDefinition<O>> handlers) {
-    this.serviceName = fullyQualifiedComponentName;
-    this.serviceType = serviceType;
+      String name,
+      ServiceType ty,
+      Collection<HandlerDefinition<?, ?, O>> handlers) {
+    this.serviceName = name;
+    this.serviceType = ty;
     this.handlers =
         handlers.stream()
-            .collect(Collectors.toMap(HandlerDefinition::getName, Function.identity()));
+            .collect(Collectors.toMap(h -> h.getSpec().getName(), Function.identity()));
   }
 
   public String getServiceName() {
@@ -38,11 +38,11 @@ public final class ServiceDefinition<O> {
     return serviceType;
   }
 
-  public Collection<HandlerDefinition<O>> getHandlers() {
+  public Collection<HandlerDefinition<?, ?, O>> getHandlers() {
     return handlers.values();
   }
 
-  public HandlerDefinition<O> getHandler(String name) {
+  public HandlerDefinition<?, ?, O> getHandler(String name) {
     return handlers.get(name);
   }
 

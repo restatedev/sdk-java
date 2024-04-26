@@ -9,14 +9,24 @@
 package dev.restate.sdk.core;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 import com.google.protobuf.MessageLite;
 import dev.restate.generated.service.protocol.Protocol;
+import dev.restate.sdk.common.BindableService;
 import dev.restate.sdk.common.TerminalException;
+import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
+import dev.restate.sdk.core.manifest.Handler;
+import dev.restate.sdk.core.manifest.Service;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import org.assertj.core.api.AbstractObjectAssert;
+import org.assertj.core.api.ObjectAssert;
 
 public class AssertUtils {
 
@@ -56,5 +66,70 @@ public class AssertUtils {
                 .returns(code, Protocol.ErrorMessage::getCode)
                 .extracting(Protocol.ErrorMessage::getMessage, STRING)
                 .startsWith(ProtocolException.class.getCanonicalName()));
+  }
+
+  public static DeploymentManifestSchemaAssert assertThatDiscovery(Object... services) {
+    return new DeploymentManifestSchemaAssert(
+        new DeploymentManifest(
+                DeploymentManifestSchema.ProtocolMode.BIDI_STREAM,
+                Arrays.stream(services)
+                    .flatMap(
+                        svc -> {
+                          if (svc instanceof BindableService) {
+                            return ((BindableService<?>) svc).definitions().stream();
+                          }
+
+                          return RestateEndpoint.discoverBindableServiceFactory(svc)
+                              .create(svc)
+                              .definitions()
+                              .stream();
+                        }))
+            .manifest(),
+        DeploymentManifestSchemaAssert.class);
+  }
+
+  public static class DeploymentManifestSchemaAssert
+      extends AbstractObjectAssert<DeploymentManifestSchemaAssert, DeploymentManifestSchema> {
+    public DeploymentManifestSchemaAssert(
+        DeploymentManifestSchema deploymentManifestSchema, Class<?> selfType) {
+      super(deploymentManifestSchema, selfType);
+    }
+
+    public ServiceAssert extractingService(String service) {
+      Optional<Service> svc =
+          this.actual.getServices().stream().filter(s -> s.getName().equals(service)).findFirst();
+
+      if (svc.isEmpty()) {
+        fail(
+            "Expecting deployment manifest to contain service {}. Available services: {}",
+            service,
+            this.actual.getServices().stream().map(Service::getName).collect(Collectors.toList()));
+      }
+
+      return new ServiceAssert(svc.get(), ServiceAssert.class);
+    }
+  }
+
+  public static class ServiceAssert extends AbstractObjectAssert<ServiceAssert, Service> {
+    public ServiceAssert(Service svc, Class<?> selfType) {
+      super(svc, selfType);
+    }
+
+    public ObjectAssert<Handler> extractingHandler(String handlerName) {
+      Optional<Handler> handler =
+          this.actual.getHandlers().stream()
+              .filter(s -> s.getName().equals(handlerName))
+              .findFirst();
+
+      if (handler.isEmpty()) {
+        fail(
+            "Expecting service {} manifest to contain handler {}. Available handler: {}",
+            this.actual.getName(),
+            handlerName,
+            this.actual.getHandlers().stream().map(Handler::getName).collect(Collectors.toList()));
+      }
+
+      return assertThat(handler.get());
+    }
   }
 }

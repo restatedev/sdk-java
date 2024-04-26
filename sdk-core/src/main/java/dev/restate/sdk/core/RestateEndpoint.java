@@ -60,7 +60,7 @@ public class RestateEndpoint {
       throw ProtocolException.methodNotFound(componentName, handlerName);
     }
     String fullyQualifiedServiceMethod = componentName + "/" + handlerName;
-    HandlerDefinition<Object> handler = svc.service.getHandler(handlerName);
+    HandlerDefinition<?, ?, Object> handler = svc.service.getHandler(handlerName);
     if (handler == null) {
       throw ProtocolException.methodNotFound(componentName, handlerName);
     }
@@ -83,7 +83,7 @@ public class RestateEndpoint {
             componentName, fullyQualifiedServiceMethod, span, loggingContextSetter);
 
     return new ResolvedEndpointHandlerImpl(
-        stateMachine, handler.getHandler(), svc.options, syscallExecutor);
+        stateMachine, handler, svc.options, syscallExecutor);
   }
 
   public DeploymentManifestSchema handleDiscoveryRequest() {

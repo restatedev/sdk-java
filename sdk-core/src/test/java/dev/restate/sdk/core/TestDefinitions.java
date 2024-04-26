@@ -236,7 +236,9 @@ public final class TestDefinitions {
           method,
           input,
           onlyUnbuffered,
-          service != null ? service.definitions().get(0).getServiceName() : "Unknown");
+          service != null
+              ? service.definitions().get(0).getServiceName() + "#" + method
+              : "Unknown");
       this.messagesAssert = messagesAssert;
     }
 
