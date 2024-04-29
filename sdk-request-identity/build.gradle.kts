@@ -3,7 +3,7 @@ plugins {
   `library-publishing-conventions`
 }
 
-description = "Restate SDK Jackson integration"
+description = "Restate SDK request identity implementation"
 
 dependencies {
   compileOnly(coreLibs.jspecify)
