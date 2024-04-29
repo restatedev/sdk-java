@@ -379,7 +379,6 @@ public class WorkflowImpl implements BindableService<Service.Options> {
                   return null;
                 })
             .withExclusive(
-
                     "waitDurablePromiseCompletion",
                     WAIT_DURABLE_PROMISE_COMPLETION_REQUEST_SERDE,
                     CoreSerdes.VOID,
@@ -388,13 +387,11 @@ public class WorkflowImpl implements BindableService<Service.Options> {
                   return null;
                 })
             .withExclusive(
-
                     "getDurablePromiseCompletion",
                     CoreSerdes.JSON_STRING,
                     MAYBE_DURABLE_PROMISE_COMPLETION_SERDE,
                 this::getDurablePromiseCompletion)
             .withExclusive(
-
                     "completeDurablePromise",
                     COMPLETE_DURABLE_PROMISE_REQUEST_SERDE,
                     CoreSerdes.VOID,
@@ -428,7 +425,6 @@ public class WorkflowImpl implements BindableService<Service.Options> {
                     ServiceType.SERVICE,
                     workflowHandlers
             ),
-
             workflowManager.definitions().get(0));
   }
 }
