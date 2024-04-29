@@ -54,6 +54,7 @@ public final class MockSingleThread implements TestExecutor {
         server.resolve(
             serviceDefinition.get(0).getServiceName(),
             definition.getMethod(),
+            k -> null,
             io.opentelemetry.context.Context.current(),
             RestateEndpoint.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
             null);

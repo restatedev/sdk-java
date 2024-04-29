@@ -19,6 +19,7 @@ include(
     "sdk-core",
     "sdk-serde-jackson",
     "sdk-serde-protobuf",
+    "sdk-request-identity",
     "sdk-http-vertx",
     "sdk-lambda",
     "sdk-testing",
@@ -52,6 +53,9 @@ dependencyResolutionManagement {
           .withoutVersion()
 
       library("jspecify", "org.jspecify", "jspecify").version("0.3.0")
+
+      library("jwt", "com.nimbusds:nimbus-jose-jwt:9.37.3")
+      library("tink", "com.google.crypto.tink:tink:1.13.0")
     }
     create("vertxLibs") {
       library("vertx-bom", "io.vertx:vertx-stack-depchain:4.5.1")

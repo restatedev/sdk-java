@@ -8,6 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.http.vertx;
 
+import dev.restate.sdk.auth.RequestIdentityVerifier;
 import dev.restate.sdk.common.BindableService;
 import dev.restate.sdk.common.syscalls.ServiceDefinition;
 import dev.restate.sdk.core.RestateEndpoint;
@@ -103,12 +104,24 @@ public class RestateHttpEndpointBuilder {
   }
 
   /**
-   * Add a {@link OpenTelemetry} implementation for tracing and metrics.
+   * Set the {@link OpenTelemetry} implementation for tracing and metrics.
    *
    * @see OpenTelemetry
    */
   public RestateHttpEndpointBuilder withOpenTelemetry(OpenTelemetry openTelemetry) {
     this.openTelemetry = openTelemetry;
+    return this;
+  }
+
+  /**
+   * Set the request identity verifier for this endpoint.
+   *
+   * <p>For the Restate implementation to use with Restate Cloud, check the module {@code
+   * sdk-request-identity}.
+   */
+  public RestateHttpEndpointBuilder withRequestIdentityVerifier(
+      RequestIdentityVerifier requestIdentityVerifier) {
+    this.endpointBuilder.withRequestIdentityVerifier(requestIdentityVerifier);
     return this;
   }
 

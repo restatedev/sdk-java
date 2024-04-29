@@ -122,6 +122,7 @@ public final class RestateLambdaEndpoint {
           this.restateEndpoint.resolve(
               serviceName,
               handlerName,
+              input.getHeaders()::get,
               otelContext,
               RestateEndpoint.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
               null);

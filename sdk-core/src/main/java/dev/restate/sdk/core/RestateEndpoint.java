@@ -8,6 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
+import dev.restate.sdk.auth.RequestIdentityVerifier;
 import dev.restate.sdk.common.BindableServiceFactory;
 import dev.restate.sdk.common.syscalls.HandlerDefinition;
 import dev.restate.sdk.common.syscalls.ServiceDefinition;
@@ -32,14 +33,17 @@ public class RestateEndpoint {
 
   private final Map<String, ServiceAndOptions<?>> services;
   private final Tracer tracer;
+  private final RequestIdentityVerifier requestIdentityVerifier;
   private final DeploymentManifest deploymentManifest;
 
   private RestateEndpoint(
       DeploymentManifestSchema.ProtocolMode protocolMode,
       Map<String, ServiceAndOptions<?>> services,
-      Tracer tracer) {
+      Tracer tracer,
+      RequestIdentityVerifier requestIdentityVerifier) {
     this.services = services;
     this.tracer = tracer;
+    this.requestIdentityVerifier = requestIdentityVerifier;
     this.deploymentManifest =
         new DeploymentManifest(protocolMode, services.values().stream().map(c -> c.service));
 
@@ -49,6 +53,7 @@ public class RestateEndpoint {
   public ResolvedEndpointHandler resolve(
       String componentName,
       String handlerName,
+      RequestIdentityVerifier.Headers headers,
       io.opentelemetry.context.Context otelContext,
       LoggingContextSetter loggingContextSetter,
       @Nullable Executor syscallExecutor)
@@ -63,6 +68,15 @@ public class RestateEndpoint {
     HandlerDefinition<Object> handler = svc.service.getHandler(handlerName);
     if (handler == null) {
       throw ProtocolException.methodNotFound(componentName, handlerName);
+    }
+
+    // Verify request
+    if (requestIdentityVerifier != null) {
+      try {
+        requestIdentityVerifier.verifyRequest(headers);
+      } catch (Exception e) {
+        throw ProtocolException.unauthorized(e);
+      }
     }
 
     // Generate the span
@@ -108,6 +122,7 @@ public class RestateEndpoint {
 
     private final List<ServiceAndOptions<?>> services = new ArrayList<>();
     private final DeploymentManifestSchema.ProtocolMode protocolMode;
+    private RequestIdentityVerifier requestIdentityVerifier;
     private Tracer tracer = OpenTelemetry.noop().getTracer("NOOP");
 
     public Builder(DeploymentManifestSchema.ProtocolMode protocolMode) {
@@ -124,12 +139,18 @@ public class RestateEndpoint {
       return this;
     }
 
+    public Builder withRequestIdentityVerifier(RequestIdentityVerifier requestIdentityVerifier) {
+      this.requestIdentityVerifier = requestIdentityVerifier;
+      return this;
+    }
+
     public RestateEndpoint build() {
       return new RestateEndpoint(
           this.protocolMode,
           this.services.stream()
               .collect(Collectors.toMap(c -> c.service.getServiceName(), Function.identity())),
-          tracer);
+          tracer,
+          requestIdentityVerifier);
     }
   }
 

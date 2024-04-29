@@ -116,6 +116,7 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
           restateEndpoint.resolve(
               serviceName,
               handlerName,
+              request::getHeader,
               otelContext,
               ContextualData::put,
               currentContextExecutor(vertxCurrentContext));
