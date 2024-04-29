@@ -16,7 +16,6 @@ import com.nimbusds.jose.jwk.OctetKeyPair;
 import com.nimbusds.jose.util.Base64URL;
 import com.nimbusds.jwt.SignedJWT;
 import dev.restate.sdk.auth.RequestIdentityVerifier;
-import java.util.Base64;
 
 public class RestateRequestIdentityVerifier implements RequestIdentityVerifier {
   private static final String SIGNATURE_SCHEME_HEADER = "x-restate-signature-scheme";
@@ -24,7 +23,6 @@ public class RestateRequestIdentityVerifier implements RequestIdentityVerifier {
   private static final String SIGNATURE_SCHEME_UNSIGNED = "unsigned";
   private static final String JWT_HEADER = "x-restate-jwt-v1";
   private static final String IDENTITY_V1_PREFIX = "publickeyv1_";
-  private static final byte[] ASN1_PREFIX = Base64.getDecoder().decode("MCowBQYDK2VwAyEA");
 
   private final JWSVerifier verifier;
 
@@ -66,9 +64,12 @@ public class RestateRequestIdentityVerifier implements RequestIdentityVerifier {
     }
 
     byte[] decoded = Base58.decode(key.substring(IDENTITY_V1_PREFIX.length()));
-    byte[] finalKey = prependASN1Prefix(decoded);
+    if (decoded.length != 32) {
+      throw new IllegalArgumentException(
+          "Decoded key should have length of 32, was " + decoded.length);
+    }
 
-    OctetKeyPair jwk = new OctetKeyPair.Builder(Curve.Ed25519, Base64URL.encode(finalKey)).build();
+    OctetKeyPair jwk = new OctetKeyPair.Builder(Curve.Ed25519, Base64URL.encode(decoded)).build();
     OctetKeyPair publicJWK = jwk.toPublicJWK();
     JWSVerifier verifier;
     try {
@@ -78,17 +79,5 @@ public class RestateRequestIdentityVerifier implements RequestIdentityVerifier {
     }
 
     return new RestateRequestIdentityVerifier(verifier);
-  }
-
-  private static byte[] prependASN1Prefix(byte[] y) {
-    byte[] combined = new byte[RestateRequestIdentityVerifier.ASN1_PREFIX.length + y.length];
-    System.arraycopy(
-        RestateRequestIdentityVerifier.ASN1_PREFIX,
-        0,
-        combined,
-        0,
-        RestateRequestIdentityVerifier.ASN1_PREFIX.length);
-    System.arraycopy(y, 0, combined, RestateRequestIdentityVerifier.ASN1_PREFIX.length, y.length);
-    return combined;
   }
 }
