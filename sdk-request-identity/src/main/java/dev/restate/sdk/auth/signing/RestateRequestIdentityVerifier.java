@@ -58,8 +58,8 @@ public class RestateRequestIdentityVerifier implements RequestIdentityVerifier {
     return value;
   }
 
-  /** Create the {@link RequestIdentityVerifier} from Identity v1 strings. */
-  public static RequestIdentityVerifier fromIdentityV1Key(String key) {
+  /** Create the {@link RequestIdentityVerifier} from key strings. */
+  public static RequestIdentityVerifier fromKey(String key) {
     if (!key.startsWith(IDENTITY_V1_PREFIX)) {
       throw new IllegalArgumentException(
           "Identity v1 jwt public keys are expected to start with " + IDENTITY_V1_PREFIX);
