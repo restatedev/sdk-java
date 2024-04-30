@@ -35,7 +35,7 @@ public final class WorkflowBuilder {
           Serde<REQ> requestSerde, Serde<RES> responseSerde, BiFunction<WorkflowSharedContext, REQ, RES> runner) {
     this.sharedMethods.put(
 name,
-            new HandlerDefinition<>(HandlerSpecification.of(
+            HandlerDefinition.of(HandlerSpecification.of(
                     name,
                     HandlerType.EXCLUSIVE,
                     requestSerde,
@@ -55,7 +55,7 @@ name,
           BiFunction<WorkflowContext, REQ, RES> runner) {
     return new WorkflowBuilder(
             name,
-            new HandlerDefinition<>(HandlerSpecification.of(
+            HandlerDefinition.of(HandlerSpecification.of(
                     "run",
                     HandlerType.EXCLUSIVE,
                     requestSerde,

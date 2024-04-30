@@ -332,18 +332,15 @@ public class WorkflowImpl implements BindableService<Service.Options> {
     // Prepare workflow service
     List<HandlerDefinition<?, ?, Service.Options>> workflowHandlers = new ArrayList<>();
     workflowHandlers.add(
-            new HandlerDefinition<>(
+            HandlerDefinition.of(
                     HandlerSpecification.of("submit", HandlerType.SHARED, INVOKE_REQUEST_SERDE, WORKFLOW_EXECUTION_STATE_SERDE),
-                    new Service.Handler<>(this::submit)
+                    Service.Handler.of(this::submit)
             )
     );
     workflowHandlers.add(
-            new HandlerDefinition<>(
+            HandlerDefinition.of(
                     HandlerSpecification.of( START_HANDLER, HandlerType.SHARED, INVOKE_REQUEST_SERDE, CoreSerdes.VOID),
-                    new Service.Handler<>( (context, invokeRequest) -> {
-                      this.internalStart(context, invokeRequest);
-                      return null;
-                    })
+                    Service.Handler.of(this::internalStart)
             )
     );
 
@@ -351,7 +348,7 @@ public class WorkflowImpl implements BindableService<Service.Options> {
     // Append shared methods
     for (HandlerDefinition<?, ?, Service.Options> sharedMethod : sharedHandlers.values()) {
       workflowHandlers.add(
-              new HandlerDefinition<>(
+              HandlerDefinition.of(
           HandlerSpecification.of(
               sharedMethod.getSpec().getName(), HandlerType.SHARED, INVOKE_REQUEST_SERDE, CoreSerdes.RAW),
                       new Service.Handler<>((context, invokeRequest) ->
@@ -420,7 +417,7 @@ public class WorkflowImpl implements BindableService<Service.Options> {
             .build(options);
 
     return List.of(
-            new ServiceDefinition<>(
+            ServiceDefinition.of(
                     name,
                     ServiceType.SERVICE,
                     workflowHandlers

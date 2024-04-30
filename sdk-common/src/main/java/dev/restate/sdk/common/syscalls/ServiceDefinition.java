@@ -19,7 +19,7 @@ public final class ServiceDefinition<O> {
   private final ServiceType serviceType;
   private final Map<String, HandlerDefinition<?, ?, O>> handlers;
 
-  public ServiceDefinition(
+  ServiceDefinition(
       String name,
       ServiceType ty,
       Collection<HandlerDefinition<?, ?, O>> handlers) {
@@ -59,5 +59,11 @@ public final class ServiceDefinition<O> {
   @Override
   public int hashCode() {
     return Objects.hash(serviceName, serviceType, handlers);
+  }
+
+  public static <O> ServiceDefinition<O> of(  String name,
+                                          ServiceType ty,
+                                          Collection<HandlerDefinition<?, ?, O>> handlers) {
+    return new ServiceDefinition<>(name, ty, handlers);
   }
 }

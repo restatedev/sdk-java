@@ -31,11 +31,11 @@ class ComponentDiscoveryHandlerTest {
         new DeploymentManifest(
             ProtocolMode.REQUEST_RESPONSE,
             Stream.of(
-                new ServiceDefinition<>(
+                ServiceDefinition.of(
                     "MyGreeter",
                     ServiceType.SERVICE,
                     List.of(
-                        new HandlerDefinition<>(
+                        HandlerDefinition.of(
                                 HandlerSpecification.of( "greet",
                                         HandlerType.EXCLUSIVE,
                                         CoreSerdes.VOID,

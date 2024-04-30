@@ -2,38 +2,50 @@
 
 public class {{generatedClassSimpleName}} implements dev.restate.sdk.common.BindableService<dev.restate.sdk.Service.Options> {
 
-    public static final String SERVICE_NAME = "{{serviceName}}";
-
-    private final dev.restate.sdk.Service service;
+    private final dev.restate.sdk.common.syscalls.ServiceDefinition service;
+    private final dev.restate.sdk.Service.Options options;
 
     public {{generatedClassSimpleName}}({{originalClassFqcn}} bindableService) {
         this(bindableService, dev.restate.sdk.Service.Options.DEFAULT);
     }
 
     public {{generatedClassSimpleName}}({{originalClassFqcn}} bindableService, dev.restate.sdk.Service.Options options) {
-        this.service = dev.restate.sdk.Service.{{#if isObject}}virtualObject{{else}}service{{/if}}(SERVICE_NAME)
+        this.service = dev.restate.sdk.common.syscalls.ServiceDefinition.of(
+            {{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME,
+            {{#if isObject}}dev.restate.sdk.common.ServiceType.VIRTUAL_OBJECT{{else}}dev.restate.sdk.common.ServiceType.SERVICE{{/if}},
+            java.util.List.of(
             {{#handlers}}
-                .{{#if isShared}}withShared{{else if isExclusive}}withExclusive{{else}}with{{/if}}(
-                dev.restate.sdk.Service.HandlerSignature.of("{{name}}", {{{inputSerdeDecl}}}, {{{outputSerdeDecl}}}),
-                (ctx, req) -> {
-                {{#if outputEmpty}}
-                    {{#if inputEmpty}}bindableService.{{name}}(ctx){{else}}bindableService.{{name}}(ctx, req){{/if}};
-                    return null;
-                {{else}}
-                    return {{#if inputEmpty}}bindableService.{{name}}(ctx){{else}}bindableService.{{name}}(ctx, req){{/if}};
-                {{/if}}
-                })
+                dev.restate.sdk.common.syscalls.HandlerDefinition.of(
+                    dev.restate.sdk.common.syscalls.HandlerSpecification.of(
+                        "{{name}}",
+                        {{#if isExclusive}}dev.restate.sdk.common.HandlerType.EXCLUSIVE{{else}}dev.restate.sdk.common.HandlerType.SHARED{{/if}},
+                        {{generatedClassSimpleNamePrefix}}Definitions.{{inputSerdeFieldName}},
+                        {{generatedClassSimpleNamePrefix}}Definitions.{{outputSerdeFieldName}}
+                    ){{#if acceptContentType}}.withAcceptContentType("{{acceptContentType}}"){{/if}},
+                    dev.restate.sdk.Service.Handler.of(
+                        (ctx, req) -> {
+                        {{#if outputEmpty}}
+                            {{#if inputEmpty}}bindableService.{{name}}(ctx){{else}}bindableService.{{name}}(ctx, req){{/if}};
+                            return null;
+                        {{else}}
+                            return {{#if inputEmpty}}bindableService.{{name}}(ctx){{else}}bindableService.{{name}}(ctx, req){{/if}};
+                        {{/if}}
+                        }
+                    )
+                ){{#unless @last}},{{/unless}}
             {{/handlers}}
-            .build(options);
+            )
+        );
+        this.options = options;
     }
 
     @Override
     public dev.restate.sdk.Service.Options options() {
-        return this.service.options();
+        return this.options;
     }
 
     @Override
     public java.util.List<dev.restate.sdk.common.syscalls.ServiceDefinition<dev.restate.sdk.Service.Options>> definitions() {
-        return this.service.definitions();
+        return java.util.List.of(this.service);
     }
 }

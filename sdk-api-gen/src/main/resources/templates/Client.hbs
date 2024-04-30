@@ -10,13 +10,6 @@ import java.time.Duration;
 
 public class {{generatedClassSimpleName}} {
 
-    public static final String SERVICE_NAME = "{{serviceName}}";
-
-    {{#handlers}}
-    private static final Serde<{{{boxedInputFqcn}}}> {{inputSerdeFieldName}} = {{{inputSerdeDecl}}};
-    private static final Serde<{{{boxedOutputFqcn}}}> {{outputSerdeFieldName}} = {{{outputSerdeDecl}}};
-    {{/handlers}}
-
     public static ContextClient fromContext(Context ctx{{#isObject}}, String key{{/isObject}}) {
         return new ContextClient(ctx{{#isObject}}, key{{/isObject}});
     }
@@ -42,9 +35,9 @@ public class {{generatedClassSimpleName}} {
         {{#handlers}}
         public Awaitable<{{{boxedOutputFqcn}}}> {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
             return this.ctx.call(
-                {{#if isObject}}Target.virtualObject(SERVICE_NAME, this.key, "{{name}}"){{else}}Target.service(SERVICE_NAME, "{{name}}"){{/if}},
-                {{inputSerdeFieldName}},
-                {{outputSerdeFieldName}},
+                {{#if isObject}}Target.virtualObject({{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME, this.key, "{{name}}"){{else}}Target.service({{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME, "{{name}}"){{/if}},
+                {{generatedClassSimpleNamePrefix}}Definitions.{{inputSerdeFieldName}},
+                {{generatedClassSimpleNamePrefix}}Definitions.{{outputSerdeFieldName}},
                 {{#if inputEmpty}}null{{else}}req{{/if}});
         }{{/handlers}}
 
@@ -67,8 +60,8 @@ public class {{generatedClassSimpleName}} {
             {{#handlers}}
             public void {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
                 ContextClient.this.ctx.send(
-                    {{#if isObject}}Target.virtualObject(SERVICE_NAME, ContextClient.this.key, "{{name}}"){{else}}Target.service(SERVICE_NAME, "{{name}}"){{/if}},
-                    {{inputSerdeFieldName}},
+                    {{#if isObject}}Target.virtualObject({{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME, ContextClient.this.key, "{{name}}"){{else}}Target.service({{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME, "{{name}}"){{/if}},
+                    {{generatedClassSimpleNamePrefix}}Definitions.{{inputSerdeFieldName}},
                     {{#if inputEmpty}}null{{else}}req{{/if}},
                     delay);
             }{{/handlers}}
@@ -94,9 +87,9 @@ public class {{generatedClassSimpleName}} {
 
         public {{#if outputEmpty}}void{{else}}{{{outputFqcn}}}{{/if}} {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.sdk.client.RequestOptions requestOptions) {
             {{^outputEmpty}}return {{/outputEmpty}}this.ingressClient.call(
-                {{#if isObject}}Target.virtualObject(SERVICE_NAME, this.key, "{{name}}"){{else}}Target.service(SERVICE_NAME, "{{name}}"){{/if}},
-                {{inputSerdeFieldName}},
-                {{outputSerdeFieldName}},
+                {{#if isObject}}Target.virtualObject({{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME, this.key, "{{name}}"){{else}}Target.service({{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME, "{{name}}"){{/if}},
+                {{generatedClassSimpleNamePrefix}}Definitions.{{inputSerdeFieldName}},
+                {{generatedClassSimpleNamePrefix}}Definitions.{{outputSerdeFieldName}},
                 {{#if inputEmpty}}null{{else}}req{{/if}},
                 requestOptions);
         }
@@ -109,9 +102,9 @@ public class {{generatedClassSimpleName}} {
 
         public {{#if outputEmpty}}java.util.concurrent.CompletableFuture<Void>{{else}}java.util.concurrent.CompletableFuture<{{{boxedOutputFqcn}}}>{{/if}} {{methodName}}Async({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.sdk.client.RequestOptions requestOptions) {
             return this.ingressClient.callAsync(
-                {{#if isObject}}Target.virtualObject(SERVICE_NAME, this.key, "{{name}}"){{else}}Target.service(SERVICE_NAME, "{{name}}"){{/if}},
-                {{inputSerdeFieldName}},
-                {{outputSerdeFieldName}},
+                {{#if isObject}}Target.virtualObject({{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME, this.key, "{{name}}"){{else}}Target.service({{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME, "{{name}}"){{/if}},
+                {{generatedClassSimpleNamePrefix}}Definitions.{{inputSerdeFieldName}},
+                {{generatedClassSimpleNamePrefix}}Definitions.{{outputSerdeFieldName}},
                 {{#if inputEmpty}}null{{else}}req{{/if}},
                 requestOptions);
         }{{/handlers}}
@@ -141,8 +134,8 @@ public class {{generatedClassSimpleName}} {
 
             public String {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.sdk.client.RequestOptions requestOptions) {
                 return IngressClient.this.ingressClient.send(
-                    {{#if isObject}}Target.virtualObject(SERVICE_NAME, IngressClient.this.key, "{{name}}"){{else}}Target.service(SERVICE_NAME, "{{name}}"){{/if}},
-                    {{inputSerdeFieldName}},
+                    {{#if isObject}}Target.virtualObject({{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME, IngressClient.this.key, "{{name}}"){{else}}Target.service({{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME, "{{name}}"){{/if}},
+                    {{generatedClassSimpleNamePrefix}}Definitions.{{inputSerdeFieldName}},
                     {{#if inputEmpty}}null{{else}}req{{/if}},
                     this.delay,
                     requestOptions);
@@ -156,8 +149,8 @@ public class {{generatedClassSimpleName}} {
 
             public java.util.concurrent.CompletableFuture<String> {{methodName}}Async({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.sdk.client.RequestOptions requestOptions) {
                 return IngressClient.this.ingressClient.sendAsync(
-                    {{#if isObject}}Target.virtualObject(SERVICE_NAME, IngressClient.this.key, "{{name}}"){{else}}Target.service(SERVICE_NAME, "{{name}}"){{/if}},
-                    {{inputSerdeFieldName}},
+                    {{#if isObject}}Target.virtualObject({{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME, IngressClient.this.key, "{{name}}"){{else}}Target.service({{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME, "{{name}}"){{/if}},
+                    {{generatedClassSimpleNamePrefix}}Definitions.{{inputSerdeFieldName}},
                     {{#if inputEmpty}}null{{else}}req{{/if}},
                     this.delay,
                     requestOptions);

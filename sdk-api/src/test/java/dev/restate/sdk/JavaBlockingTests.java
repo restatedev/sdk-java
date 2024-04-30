@@ -51,7 +51,7 @@ public class JavaBlockingTests extends TestRunner {
     return TestDefinitions.testInvocation(
         Service.service(name)
             .with(HandlerSpecification.of("run", reqSerde, resSerde), runner)
-            .build(Service.Options.DEFAULT),
+            .build(Options.DEFAULT),
         "run");
   }
 
@@ -60,7 +60,7 @@ public class JavaBlockingTests extends TestRunner {
     return TestDefinitions.testInvocation(
         Service.virtualObject(name)
             .withExclusive(HandlerSpecification.of("run", reqSerde, resSerde), runner)
-            .build(Service.Options.DEFAULT),
+            .build(Options.DEFAULT),
         "run");
   }
 

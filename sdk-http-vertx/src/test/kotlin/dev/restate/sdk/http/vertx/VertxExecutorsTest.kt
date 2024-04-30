@@ -10,6 +10,7 @@ package dev.restate.sdk.http.vertx
 
 import com.google.protobuf.ByteString
 import dev.restate.generated.service.protocol.Protocol
+import dev.restate.sdk.Options
 import dev.restate.sdk.common.CoreSerdes
 import dev.restate.sdk.common.syscalls.HandlerSpecification
 import dev.restate.sdk.core.ProtoUtils.*
@@ -86,7 +87,7 @@ class VertxExecutorsTest : TestDefinitions.TestSuite {
                         HandlerSpecification.of(
                             "do", CoreSerdes.VOID, CoreSerdes.VOID),
                         this::checkBlockingComponentTrampolineExecutor)
-                    .build(dev.restate.sdk.Service.Options.DEFAULT),
+                    .build(Options.DEFAULT),
                 "do")
             .withInput(startMessage(1), inputMessage(), ackMessage(1))
             .onlyUnbuffered()

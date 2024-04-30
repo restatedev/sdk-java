@@ -35,6 +35,7 @@ import javax.tools.StandardLocation;
 @SupportedSourceVersion(SourceVersion.RELEASE_11)
 public class ServiceProcessor extends AbstractProcessor {
 
+  private HandlebarsTemplateEngine definitionsCodegen;
   private HandlebarsTemplateEngine bindableServiceFactoryCodegen;
   private HandlebarsTemplateEngine bindableServiceCodegen;
   private HandlebarsTemplateEngine clientCodegen;
@@ -47,6 +48,18 @@ public class ServiceProcessor extends AbstractProcessor {
 
     FilerTemplateLoader filerTemplateLoader = new FilerTemplateLoader(processingEnv.getFiler());
 
+    this.definitionsCodegen =
+            new HandlebarsTemplateEngine(
+                    "Definitions",
+                    filerTemplateLoader,
+                    Map.of(
+                            ServiceType.WORKFLOW,
+                            "templates/Definitions.hbs",
+                            ServiceType.SERVICE,
+                            "templates/Definitions.hbs",
+                            ServiceType.VIRTUAL_OBJECT,
+                            "templates/Definitions.hbs"),
+                    RESERVED_METHOD_NAMES);
     this.bindableServiceFactoryCodegen =
         new HandlebarsTemplateEngine(
             "BindableServiceFactory",
@@ -108,6 +121,7 @@ public class ServiceProcessor extends AbstractProcessor {
       try {
         ThrowingFunction<String, Writer> fileCreator =
             name -> filer.createSourceFile(name, e.getKey()).openWriter();
+        this.definitionsCodegen.generate(fileCreator, e.getValue());
         this.bindableServiceFactoryCodegen.generate(fileCreator, e.getValue());
         this.bindableServiceCodegen.generate(fileCreator, e.getValue());
         this.clientCodegen.generate(fileCreator, e.getValue());

@@ -16,7 +16,8 @@ import io.opentelemetry.context.Scope;
 import java.util.*;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-import java.util.function.BiFunction;
+import java.util.function.*;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -30,7 +31,7 @@ public final class Service implements BindableService<Service.Options> {
       HashMap<String, HandlerDefinition<?, ?, Options>> handlers,
       Options options) {
     this.serviceDefinition =
-        new ServiceDefinition<>(
+        ServiceDefinition.of(
             fqsn,
             isKeyed ? ServiceType.VIRTUAL_OBJECT : ServiceType.SERVICE,
             new ArrayList<>(handlers.values()));
@@ -79,7 +80,7 @@ public final class Service implements BindableService<Service.Options> {
         BiFunction<SharedObjectContext, REQ, RES> runner) {
       this.handlers.put(
           name,
-          new HandlerDefinition<>(
+          HandlerDefinition.of(
               HandlerSpecification.of(name, HandlerType.SHARED, requestSerde, responseSerde),
               new Handler<>(runner)));
       return this;
@@ -92,7 +93,7 @@ public final class Service implements BindableService<Service.Options> {
         BiFunction<ObjectContext, REQ, RES> runner) {
       this.handlers.put(
           name,
-          new HandlerDefinition<>(
+          HandlerDefinition.of(
               HandlerSpecification.of(name, HandlerType.EXCLUSIVE, requestSerde, responseSerde),
               new Handler<>(runner)));
       return this;
@@ -116,7 +117,7 @@ public final class Service implements BindableService<Service.Options> {
         BiFunction<Context, REQ, RES> runner) {
       this.handlers.put(
           name,
-          new HandlerDefinition<>(
+          HandlerDefinition.of(
               HandlerSpecification.of(name, HandlerType.SHARED, requestSerde, responseSerde),
               new Handler<>(runner)));
       return this;
@@ -132,7 +133,7 @@ public final class Service implements BindableService<Service.Options> {
 
     private static final Logger LOG = LogManager.getLogger(Handler.class);
 
-    public Handler(BiFunction<? extends Context, REQ, RES> runner) {
+    Handler(BiFunction<? extends Context, REQ, RES> runner) {
       //noinspection unchecked
       this.runner = (BiFunction<Context, REQ, RES>) runner;
     }
@@ -211,6 +212,31 @@ public final class Service implements BindableService<Service.Options> {
             // Complete callback
             callback.onSuccess(serializedResult);
           });
+    }
+
+    public static <CTX extends Context, REQ, RES> Handler<REQ, RES> of(BiFunction<CTX, REQ, RES> runner) {
+      return new Handler<>(runner);
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <CTX extends Context, RES> Handler<Void, RES> of(Function<CTX, RES> runner) {
+      return new Handler<>((context, o) -> runner.apply((CTX) context));
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <CTX extends Context, REQ> Handler<REQ, Void> of(BiConsumer<CTX, REQ> runner) {
+      return new Handler<>((context, o) -> {
+        runner.accept((CTX) context, o);
+        return null;
+      });
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <CTX extends Context> Handler<Void, Void> of(Consumer<CTX> runner) {
+      return new Handler<>((ctx, o) -> {
+        runner.accept((CTX) ctx);
+        return null;
+      });
     }
   }
 

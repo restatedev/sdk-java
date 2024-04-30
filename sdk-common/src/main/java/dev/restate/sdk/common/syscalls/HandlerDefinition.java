@@ -15,7 +15,7 @@ public final class HandlerDefinition<REQ, RES, O> {
   private final HandlerSpecification<REQ, RES> spec;
   private final InvocationHandler<REQ, RES, O> handler;
 
-  public HandlerDefinition(
+  HandlerDefinition(
           HandlerSpecification<REQ, RES> spec,
           InvocationHandler<REQ, RES, O> handler) {
       this.spec = spec;
@@ -52,5 +52,10 @@ public final class HandlerDefinition<REQ, RES, O> {
             "spec=" + spec +
             ", handler=" + handler +
             '}';
+  }
+
+  public static <REQ, RES, O> HandlerDefinition<REQ, RES, O> of( HandlerSpecification<REQ, RES> spec,
+                                                                 InvocationHandler<REQ, RES, O> handler) {
+    return new HandlerDefinition<>(spec, handler);
   }
 }
