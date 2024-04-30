@@ -41,7 +41,7 @@ name,
                     requestSerde,
                     responseSerde
             ),
-                    new Service.Handler<>(runner)));
+                    Service.Handler.of(runner)));
     return this;
   }
 
@@ -61,7 +61,7 @@ name,
                     requestSerde,
                     responseSerde
             ),
-                    new Service.Handler<>(runner))
+                    Service.Handler.of(runner))
     );
   }
 }

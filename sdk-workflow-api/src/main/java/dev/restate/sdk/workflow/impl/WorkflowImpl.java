@@ -351,7 +351,7 @@ public class WorkflowImpl implements BindableService<Service.Options> {
               HandlerDefinition.of(
           HandlerSpecification.of(
               sharedMethod.getSpec().getName(), HandlerType.SHARED, INVOKE_REQUEST_SERDE, CoreSerdes.RAW),
-                      new Service.Handler<>((context, invokeRequest) ->
+                      Service.Handler.of((BiFunction<Context, InvokeRequest, byte[]>) (context, invokeRequest) ->
               this.invokeSharedMethod(
                   sharedMethod.getSpec().getName(), context, invokeRequest)))
       );

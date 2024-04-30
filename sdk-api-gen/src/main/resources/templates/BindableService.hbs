@@ -5,6 +5,7 @@ public class {{generatedClassSimpleName}} implements dev.restate.sdk.common.Bind
     private final dev.restate.sdk.common.syscalls.ServiceDefinition service;
     private final dev.restate.sdk.Service.Options options;
 
+
     public {{generatedClassSimpleName}}({{originalClassFqcn}} bindableService) {
         this(bindableService, dev.restate.sdk.Service.Options.DEFAULT);
     }
@@ -22,16 +23,7 @@ public class {{generatedClassSimpleName}} implements dev.restate.sdk.common.Bind
                         {{generatedClassSimpleNamePrefix}}Definitions.{{inputSerdeFieldName}},
                         {{generatedClassSimpleNamePrefix}}Definitions.{{outputSerdeFieldName}}
                     ){{#if acceptContentType}}.withAcceptContentType("{{acceptContentType}}"){{/if}},
-                    dev.restate.sdk.Service.Handler.of(
-                        (ctx, req) -> {
-                        {{#if outputEmpty}}
-                            {{#if inputEmpty}}bindableService.{{name}}(ctx){{else}}bindableService.{{name}}(ctx, req){{/if}};
-                            return null;
-                        {{else}}
-                            return {{#if inputEmpty}}bindableService.{{name}}(ctx){{else}}bindableService.{{name}}(ctx, req){{/if}};
-                        {{/if}}
-                        }
-                    )
+                    dev.restate.sdk.Service.Handler.of(bindableService::{{name}})
                 ){{#unless @last}},{{/unless}}
             {{/handlers}}
             )
