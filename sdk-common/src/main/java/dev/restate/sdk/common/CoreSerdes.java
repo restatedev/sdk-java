@@ -52,6 +52,11 @@ public abstract class CoreSerdes {
         public Void deserialize(ByteString byteString) {
           return null;
         }
+
+        @Override
+        public @Nullable String contentType() {
+          return null;
+        }
       };
 
   /** Pass through {@link Serde} for byte array. */
