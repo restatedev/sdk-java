@@ -19,8 +19,8 @@ public class {{generatedClassSimpleName}} implements dev.restate.sdk.common.Bind
                     dev.restate.sdk.common.syscalls.HandlerSpecification.of(
                         "{{name}}",
                         {{#if isExclusive}}dev.restate.sdk.common.HandlerType.EXCLUSIVE{{else}}dev.restate.sdk.common.HandlerType.SHARED{{/if}},
-                        {{generatedClassSimpleNamePrefix}}Definitions.{{inputSerdeFieldName}},
-                        {{generatedClassSimpleNamePrefix}}Definitions.{{outputSerdeFieldName}}
+                        {{inputSerdeRef}},
+                        {{outputSerdeRef}}
                     ){{#if inputAcceptContentType}}.withAcceptContentType("{{inputAcceptContentType}}"){{/if}},
                     dev.restate.sdk.Service.Handler.of(bindableService::{{name}})
                 ){{#unless @last}},{{/unless}}

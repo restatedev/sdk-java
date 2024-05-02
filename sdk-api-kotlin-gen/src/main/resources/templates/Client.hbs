@@ -28,8 +28,8 @@ object {{generatedClassSimpleName}} {
         suspend fun {{methodName}}({{^inputEmpty}}req: {{{inputFqcn}}}{{/inputEmpty}}): Awaitable<{{{boxedOutputFqcn}}}> {
             return this.ctx.callAsync(
                 {{#if isObject}}Target.virtualObject({{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME, this.key, "{{name}}"){{else}}Target.service({{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME, "{{name}}"){{/if}},
-                {{generatedClassSimpleNamePrefix}}Definitions.{{inputSerdeFieldName}},
-                {{generatedClassSimpleNamePrefix}}Definitions.{{outputSerdeFieldName}},
+                {{inputSerdeRef}},
+                {{outputSerdeRef}},
                 {{#if inputEmpty}}Unit{{else}}req{{/if}})
         }{{/handlers}}
 
@@ -42,7 +42,7 @@ object {{generatedClassSimpleName}} {
             suspend fun {{methodName}}({{^inputEmpty}}req: {{{inputFqcn}}}{{/inputEmpty}}) {
                 this@ContextClient.ctx.send(
                     {{#if isObject}}Target.virtualObject({{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME, this@ContextClient.key, "{{name}}"){{else}}Target.service({{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME, "{{name}}"){{/if}},
-                    {{generatedClassSimpleNamePrefix}}Definitions.{{inputSerdeFieldName}},
+                    {{inputSerdeRef}},
                     {{#if inputEmpty}}Unit{{else}}req{{/if}},
                     delay);
             }{{/handlers}}
@@ -55,8 +55,8 @@ object {{generatedClassSimpleName}} {
         suspend fun {{methodName}}({{^inputEmpty}}req: {{{inputFqcn}}}, {{/inputEmpty}}requestOptions: dev.restate.sdk.client.RequestOptions = dev.restate.sdk.client.RequestOptions.DEFAULT): {{{boxedOutputFqcn}}} {
             return this.ingressClient.callSuspend(
                 {{#if isObject}}Target.virtualObject({{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME, this.key, "{{name}}"){{else}}Target.service({{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME, "{{name}}"){{/if}},
-                {{generatedClassSimpleNamePrefix}}Definitions.{{inputSerdeFieldName}},
-                {{generatedClassSimpleNamePrefix}}Definitions.{{outputSerdeFieldName}},
+                {{inputSerdeRef}},
+                {{outputSerdeRef}},
                 {{#if inputEmpty}}Unit{{else}}req{{/if}},
                 requestOptions);
         }{{/handlers}}
@@ -70,7 +70,7 @@ object {{generatedClassSimpleName}} {
             suspend fun {{methodName}}({{^inputEmpty}}req: {{{inputFqcn}}}, {{/inputEmpty}}requestOptions: dev.restate.sdk.client.RequestOptions = dev.restate.sdk.client.RequestOptions.DEFAULT): String {
                 return this@IngressClient.ingressClient.sendSuspend(
                     {{#if isObject}}Target.virtualObject({{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME, this@IngressClient.key, "{{name}}"){{else}}Target.service({{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME, "{{name}}"){{/if}},
-                    {{generatedClassSimpleNamePrefix}}Definitions.{{inputSerdeFieldName}},
+                    {{inputSerdeRef}},
                     {{#if inputEmpty}}Unit{{else}}req{{/if}},
                     delay,
                     requestOptions);

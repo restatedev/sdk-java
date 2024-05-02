@@ -12,7 +12,6 @@ import static dev.restate.sdk.core.ProtoUtils.GREETER_SERVICE_TARGET;
 
 import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.common.Serde;
-import dev.restate.sdk.common.syscalls.HandlerSpecification;
 import dev.restate.sdk.core.MockMultiThreaded;
 import dev.restate.sdk.core.MockSingleThread;
 import dev.restate.sdk.core.TestDefinitions;
@@ -50,8 +49,8 @@ public class JavaBlockingTests extends TestRunner {
       String name, Serde<T> reqSerde, Serde<R> resSerde, BiFunction<Context, T, R> runner) {
     return TestDefinitions.testInvocation(
         Service.service(name)
-            .with(HandlerSpecification.of("run", reqSerde, resSerde), runner)
-            .build(Options.DEFAULT),
+            .with("run", reqSerde, resSerde, runner)
+            .build(Service.Options.DEFAULT),
         "run");
   }
 
@@ -59,8 +58,8 @@ public class JavaBlockingTests extends TestRunner {
       String name, Serde<T> reqSerde, Serde<R> resSerde, BiFunction<ObjectContext, T, R> runner) {
     return TestDefinitions.testInvocation(
         Service.virtualObject(name)
-            .withExclusive(HandlerSpecification.of("run", reqSerde, resSerde), runner)
-            .build(Options.DEFAULT),
+            .withExclusive("run", reqSerde, resSerde, runner)
+            .build(Service.Options.DEFAULT),
         "run");
   }
 

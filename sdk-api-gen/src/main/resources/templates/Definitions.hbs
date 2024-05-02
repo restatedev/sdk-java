@@ -1,22 +1,18 @@
 {{#if originalClassPkg}}package {{originalClassPkg}};{{/if}}
 
-import dev.restate.sdk.Awaitable;
-import dev.restate.sdk.Context;
-import dev.restate.sdk.common.StateKey;
-import dev.restate.sdk.common.Serde;
-import dev.restate.sdk.common.Target;
-import java.util.Optional;
-import java.time.Duration;
-
 public final class {{generatedClassSimpleName}} {
 
     public static final String SERVICE_NAME = "{{serviceName}}";
 
-    {{#handlers}}
-    public static final Serde<{{{boxedInputFqcn}}}> {{inputSerdeFieldName}} = {{{inputSerdeDecl}}};
-    public static final Serde<{{{boxedOutputFqcn}}}> {{outputSerdeFieldName}} = {{{outputSerdeDecl}}};
-    {{/handlers}}
-
     private {{generatedClassSimpleName}}() {}
+
+    public final static class Serde {
+        {{#handlers}}
+        public static final dev.restate.sdk.common.Serde<{{{boxedInputFqcn}}}> {{inputSerdeFieldName}} = {{{inputSerdeDecl}}};
+        public static final dev.restate.sdk.common.Serde<{{{boxedOutputFqcn}}}> {{outputSerdeFieldName}} = {{{outputSerdeDecl}}};
+        {{/handlers}}
+
+        private Serde() {}
+    }
 
 }

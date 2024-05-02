@@ -107,7 +107,12 @@ public class HandlebarsTemplateEngine {
 
       this.handlers =
           inner.getMethods().stream()
-              .map(h -> new HandlerTemplateModel(h, handlerNamesToPrefix))
+              .map(
+                  h ->
+                      new HandlerTemplateModel(
+                          h,
+                          this.generatedClassSimpleNamePrefix + "Definitions.Serde",
+                          handlerNamesToPrefix))
               .collect(Collectors.toList());
     }
   }
@@ -127,14 +132,17 @@ public class HandlebarsTemplateEngine {
     public final String boxedInputFqcn;
     public final String inputSerdeFieldName;
     public final String inputAcceptContentType;
+    public final String inputSerdeRef;
 
     public final boolean outputEmpty;
     public final String outputFqcn;
     public final String outputSerdeDecl;
     public final String boxedOutputFqcn;
     public final String outputSerdeFieldName;
+    public final String outputSerdeRef;
 
-    private HandlerTemplateModel(Handler inner, Set<String> handlerNamesToPrefix) {
+    private HandlerTemplateModel(
+        Handler inner, String definitionsClass, Set<String> handlerNamesToPrefix) {
       this.name = inner.getName().toString();
       this.methodName = (handlerNamesToPrefix.contains(this.name) ? "_" : "") + this.name;
       this.handlerType = inner.getHandlerType().toString();
@@ -147,14 +155,16 @@ public class HandlebarsTemplateEngine {
       this.inputFqcn = inner.getInputType().getName();
       this.inputSerdeDecl = inner.getInputType().getSerdeDecl();
       this.boxedInputFqcn = inner.getInputType().getBoxed();
-      this.inputSerdeFieldName = "SERDE_" + this.name.toUpperCase() + "_INPUT";
+      this.inputSerdeFieldName = this.name.toUpperCase() + "_INPUT";
       this.inputAcceptContentType = inner.getInputAccept();
+      this.inputSerdeRef = definitionsClass + "." + this.inputSerdeFieldName;
 
       this.outputEmpty = inner.getOutputType().isEmpty();
       this.outputFqcn = inner.getOutputType().getName();
       this.outputSerdeDecl = inner.getOutputType().getSerdeDecl();
       this.boxedOutputFqcn = inner.getOutputType().getBoxed();
-      this.outputSerdeFieldName = "SERDE_" + this.name.toUpperCase() + "_OUTPUT";
+      this.outputSerdeFieldName = this.name.toUpperCase() + "_OUTPUT";
+      this.outputSerdeRef = definitionsClass + "." + this.outputSerdeFieldName;
     }
   }
 }
