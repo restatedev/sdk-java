@@ -126,6 +126,7 @@ public class HandlebarsTemplateEngine {
     public final String inputSerdeDecl;
     public final String boxedInputFqcn;
     public final String inputSerdeFieldName;
+    public final String inputAcceptContentType;
 
     public final boolean outputEmpty;
     public final String outputFqcn;
@@ -147,6 +148,7 @@ public class HandlebarsTemplateEngine {
       this.inputSerdeDecl = inner.getInputType().getSerdeDecl();
       this.boxedInputFqcn = inner.getInputType().getBoxed();
       this.inputSerdeFieldName = "SERDE_" + this.name.toUpperCase() + "_INPUT";
+      this.inputAcceptContentType = inner.getInputAccept();
 
       this.outputEmpty = inner.getOutputType().isEmpty();
       this.outputFqcn = inner.getOutputType().getName();

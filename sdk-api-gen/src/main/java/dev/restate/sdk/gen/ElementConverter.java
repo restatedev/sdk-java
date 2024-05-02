@@ -197,6 +197,7 @@ public class ElementConverter {
       return new Handler.Builder()
           .withName(element.getSimpleName())
           .withHandlerType(handlerType)
+          .withInputAccept(inputAcceptFromParameterList(element.getParameters()))
           .withInputType(inputPayloadFromParameterList(element.getParameters()))
           .withOutputType(outputPayloadFromExecutableElement(element))
           .validateAndBuild();
@@ -271,6 +272,18 @@ public class ElementConverter {
           "The method signature must have " + clazz.getCanonicalName() + " as first parameter",
           element);
     }
+  }
+
+  private String inputAcceptFromParameterList(List<? extends VariableElement> element) {
+    if (element.size() <= 1) {
+      return null;
+    }
+
+    Accept accept = element.get(1).getAnnotation(Accept.class);
+    if (accept == null) {
+      return null;
+    }
+    return accept.value();
   }
 
   private PayloadType inputPayloadFromParameterList(List<? extends VariableElement> element) {

@@ -59,6 +59,7 @@ public class Handler {
   public static class Builder {
     private CharSequence name;
     private HandlerType handlerType;
+    private String inputAccept;
     private PayloadType inputType;
     private PayloadType outputType;
 
@@ -69,6 +70,11 @@ public class Handler {
 
     public Builder withHandlerType(HandlerType handlerType) {
       this.handlerType = handlerType;
+      return this;
+    }
+
+    public Builder withInputAccept(String inputAccept) {
+      this.inputAccept = inputAccept;
       return this;
     }
 
@@ -109,7 +115,7 @@ public class Handler {
       return new Handler(
           Objects.requireNonNull(name),
           Objects.requireNonNull(handlerType),
-          null,
+          inputAccept,
           inputType,
           outputType);
     }

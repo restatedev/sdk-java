@@ -37,7 +37,7 @@ public final class WorkflowBuilder {
 name,
             HandlerDefinition.of(HandlerSpecification.of(
                     name,
-                    HandlerType.EXCLUSIVE,
+                    HandlerType.SHARED,
                     requestSerde,
                     responseSerde
             ),
