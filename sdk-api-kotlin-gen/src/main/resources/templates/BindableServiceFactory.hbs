@@ -4,10 +4,6 @@ import dev.restate.sdk.kotlin.Service.Options
 
 class {{generatedClassSimpleName}}: dev.restate.sdk.common.BindableServiceFactory<{{originalClassFqcn}}, Options> {
 
-    companion object {
-        const val SERVICE_NAME: String = "{{serviceName}}";
-    }
-
     override fun create(bindableService: {{originalClassFqcn}}): dev.restate.sdk.common.BindableService<dev.restate.sdk.kotlin.Service.Options> {
         return {{generatedClassSimpleNamePrefix}}BindableService(bindableService);
     }

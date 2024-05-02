@@ -17,7 +17,6 @@ import java.util.*;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.function.*;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -214,7 +213,8 @@ public final class Service implements BindableService<Service.Options> {
           });
     }
 
-    public static <CTX extends Context, REQ, RES> Handler<REQ, RES> of(BiFunction<CTX, REQ, RES> runner) {
+    public static <CTX extends Context, REQ, RES> Handler<REQ, RES> of(
+        BiFunction<CTX, REQ, RES> runner) {
       return new Handler<>(runner);
     }
 
@@ -225,18 +225,20 @@ public final class Service implements BindableService<Service.Options> {
 
     @SuppressWarnings("unchecked")
     public static <CTX extends Context, REQ> Handler<REQ, Void> of(BiConsumer<CTX, REQ> runner) {
-      return new Handler<>((context, o) -> {
-        runner.accept((CTX) context, o);
-        return null;
-      });
+      return new Handler<>(
+          (context, o) -> {
+            runner.accept((CTX) context, o);
+            return null;
+          });
     }
 
     @SuppressWarnings("unchecked")
     public static <CTX extends Context> Handler<Void, Void> of(Consumer<CTX> runner) {
-      return new Handler<>((ctx, o) -> {
-        runner.accept((CTX) ctx);
-        return null;
-      });
+      return new Handler<>(
+          (ctx, o) -> {
+            runner.accept((CTX) ctx);
+            return null;
+          });
     }
   }
 

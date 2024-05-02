@@ -31,17 +31,15 @@ public final class WorkflowBuilder {
   }
 
   public <REQ, RES> WorkflowBuilder withShared(
-          String name,
-          Serde<REQ> requestSerde, Serde<RES> responseSerde, BiFunction<WorkflowSharedContext, REQ, RES> runner) {
+      String name,
+      Serde<REQ> requestSerde,
+      Serde<RES> responseSerde,
+      BiFunction<WorkflowSharedContext, REQ, RES> runner) {
     this.sharedMethods.put(
-name,
-            HandlerDefinition.of(HandlerSpecification.of(
-                    name,
-                    HandlerType.SHARED,
-                    requestSerde,
-                    responseSerde
-            ),
-                    Service.Handler.of(runner)));
+        name,
+        HandlerDefinition.of(
+            HandlerSpecification.of(name, HandlerType.SHARED, requestSerde, responseSerde),
+            Service.Handler.of(runner)));
     return this;
   }
 
@@ -50,18 +48,14 @@ name,
   }
 
   public static <REQ, RES> WorkflowBuilder named(
-          String name,
-          Serde<REQ> requestSerde, Serde<RES> responseSerde,
-          BiFunction<WorkflowContext, REQ, RES> runner) {
+      String name,
+      Serde<REQ> requestSerde,
+      Serde<RES> responseSerde,
+      BiFunction<WorkflowContext, REQ, RES> runner) {
     return new WorkflowBuilder(
-            name,
-            HandlerDefinition.of(HandlerSpecification.of(
-                    "run",
-                    HandlerType.EXCLUSIVE,
-                    requestSerde,
-                    responseSerde
-            ),
-                    Service.Handler.of(runner))
-    );
+        name,
+        HandlerDefinition.of(
+            HandlerSpecification.of("run", HandlerType.EXCLUSIVE, requestSerde, responseSerde),
+            Service.Handler.of(runner)));
   }
 }

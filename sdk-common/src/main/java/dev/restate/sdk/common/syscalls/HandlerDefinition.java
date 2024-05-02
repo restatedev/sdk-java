@@ -15,11 +15,9 @@ public final class HandlerDefinition<REQ, RES, O> {
   private final HandlerSpecification<REQ, RES> spec;
   private final InvocationHandler<REQ, RES, O> handler;
 
-  HandlerDefinition(
-          HandlerSpecification<REQ, RES> spec,
-          InvocationHandler<REQ, RES, O> handler) {
-      this.spec = spec;
-      this.handler = handler;
+  HandlerDefinition(HandlerSpecification<REQ, RES> spec, InvocationHandler<REQ, RES, O> handler) {
+    this.spec = spec;
+    this.handler = handler;
   }
 
   public HandlerSpecification<REQ, RES> getSpec() {
@@ -48,14 +46,11 @@ public final class HandlerDefinition<REQ, RES, O> {
 
   @Override
   public String toString() {
-    return "HandlerDefinition{" +
-            "spec=" + spec +
-            ", handler=" + handler +
-            '}';
+    return "HandlerDefinition{" + "spec=" + spec + ", handler=" + handler + '}';
   }
 
-  public static <REQ, RES, O> HandlerDefinition<REQ, RES, O> of( HandlerSpecification<REQ, RES> spec,
-                                                                 InvocationHandler<REQ, RES, O> handler) {
+  public static <REQ, RES, O> HandlerDefinition<REQ, RES, O> of(
+      HandlerSpecification<REQ, RES> spec, InvocationHandler<REQ, RES, O> handler) {
     return new HandlerDefinition<>(spec, handler);
   }
 }

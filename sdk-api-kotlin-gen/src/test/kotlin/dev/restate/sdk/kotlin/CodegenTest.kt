@@ -98,6 +98,47 @@ class CodegenTest : TestDefinitions.TestSuite {
     }
   }
 
+  @Service(name = "RawInputOutput")
+  class RawInputOutput {
+    @Handler
+    @Raw
+    suspend fun rawOutput(context: Context): ByteArray {
+      val client: RawInputOutputClient.ContextClient = RawInputOutputClient.fromContext(context)
+      return client.rawOutput().await()
+    }
+
+    @Handler
+    @Raw(contentType = "application/vnd.my.custom")
+    suspend fun rawOutputWithCustomCT(context: Context): ByteArray {
+      val client: RawInputOutputClient.ContextClient = RawInputOutputClient.fromContext(context)
+      return client.rawOutputWithCustomCT().await()
+    }
+
+    @Handler
+    suspend fun rawInput(context: Context, @Raw input: ByteArray) {
+      val client: RawInputOutputClient.ContextClient = RawInputOutputClient.fromContext(context)
+      client.rawInput(input).await()
+    }
+
+    @Handler
+    suspend fun rawInputWithCustomCt(
+        context: Context,
+        @Raw(contentType = "application/vnd.my.custom") input: ByteArray
+    ) {
+      val client: RawInputOutputClient.ContextClient = RawInputOutputClient.fromContext(context)
+      client.rawInputWithCustomCt(input).await()
+    }
+
+    @Handler
+    suspend fun rawInputWithCustomAccept(
+        context: Context,
+        @Accept("application/*") @Raw(contentType = "application/vnd.my.custom") input: ByteArray
+    ) {
+      val client: RawInputOutputClient.ContextClient = RawInputOutputClient.fromContext(context)
+      client.rawInputWithCustomCt(input).await()
+    }
+  }
+
   override fun definitions(): Stream<TestDefinition> {
     return Stream.of(
         testInvocation({ ServiceGreeter() }, "greet")
@@ -165,6 +206,48 @@ class CodegenTest : TestDefinitions.TestSuite {
                     Target.service("PrimitiveTypes", "primitiveInput"), CoreSerdes.JSON_INT, 10),
                 outputMessage(),
                 END_MESSAGE)
-            .named("primitive input"))
+            .named("primitive input"),
+        testInvocation({ RawInputOutput() }, "rawInput")
+            .withInput(
+                startMessage(1),
+                inputMessage("{{".toByteArray()),
+                completionMessage(1, KtSerdes.UNIT, null))
+            .onlyUnbuffered()
+            .expectingOutput(
+                invokeMessage(Target.service("RawInputOutput", "rawInput"), "{{".toByteArray()),
+                outputMessage(),
+                END_MESSAGE),
+        testInvocation({ RawInputOutput() }, "rawInputWithCustomCt")
+            .withInput(
+                startMessage(1),
+                inputMessage("{{".toByteArray()),
+                completionMessage(1, KtSerdes.UNIT, null))
+            .onlyUnbuffered()
+            .expectingOutput(
+                invokeMessage(
+                    Target.service("RawInputOutput", "rawInputWithCustomCt"), "{{".toByteArray()),
+                outputMessage(),
+                END_MESSAGE),
+        testInvocation({ RawInputOutput() }, "rawOutput")
+            .withInput(
+                startMessage(1),
+                inputMessage(),
+                completionMessage(1, CoreSerdes.RAW, "{{".toByteArray()))
+            .onlyUnbuffered()
+            .expectingOutput(
+                invokeMessage(Target.service("RawInputOutput", "rawOutput"), KtSerdes.UNIT, null),
+                outputMessage("{{".toByteArray()),
+                END_MESSAGE),
+        testInvocation({ RawInputOutput() }, "rawOutputWithCustomCT")
+            .withInput(
+                startMessage(1),
+                inputMessage(),
+                completionMessage(1, CoreSerdes.RAW, "{{".toByteArray()))
+            .onlyUnbuffered()
+            .expectingOutput(
+                invokeMessage(
+                    Target.service("RawInputOutput", "rawOutputWithCustomCT"), KtSerdes.UNIT, null),
+                outputMessage("{{".toByteArray()),
+                END_MESSAGE))
   }
 }

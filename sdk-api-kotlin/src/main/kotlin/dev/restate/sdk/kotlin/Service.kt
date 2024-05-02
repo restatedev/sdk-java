@@ -27,7 +27,7 @@ private constructor(
     private val options: Options
 ) : BindableService<Service.Options> {
   private val serviceDefinition =
-      ServiceDefinition(
+      ServiceDefinition.of(
           fqsn,
           if (isKeyed) ServiceType.VIRTUAL_OBJECT else ServiceType.SERVICE,
           handlers.values.toList())
@@ -70,7 +70,7 @@ private constructor(
         runner: suspend (SharedObjectContext, REQ) -> RES
     ): VirtualObjectBuilder {
       handlers[name] =
-          HandlerDefinition(
+          HandlerDefinition.of(
               HandlerSpecification.of(name, HandlerType.SHARED, requestSerde, responseSerde),
               Handler(runner))
       return this
@@ -88,7 +88,7 @@ private constructor(
         runner: suspend (ObjectContext, REQ) -> RES
     ): VirtualObjectBuilder {
       handlers[name] =
-          HandlerDefinition(
+          HandlerDefinition.of(
               HandlerSpecification.of(name, HandlerType.EXCLUSIVE, requestSerde, responseSerde),
               Handler(runner))
       return this
@@ -112,7 +112,7 @@ private constructor(
         runner: suspend (SharedObjectContext, REQ) -> RES
     ): ServiceBuilder {
       handlers[name] =
-          HandlerDefinition(
+          HandlerDefinition.of(
               HandlerSpecification.of(name, HandlerType.SHARED, requestSerde, responseSerde),
               Handler(runner))
       return this
@@ -126,12 +126,21 @@ private constructor(
     fun build(options: Options) = Service(this.name, false, this.handlers, options)
   }
 
-  class Handler<REQ, RES, CTX : Context>(
+  class Handler<REQ, RES, CTX : Context>
+  internal constructor(
       private val runner: suspend (CTX, REQ) -> RES,
   ) : InvocationHandler<REQ, RES, Options> {
 
     companion object {
       private val LOG = LogManager.getLogger()
+
+      fun <REQ, RES, CTX : Context> of(runner: suspend (CTX, REQ) -> RES): Handler<REQ, RES, CTX> {
+        return Handler(runner)
+      }
+
+      fun <RES, CTX : Context> of(runner: suspend (CTX) -> RES): Handler<Unit, RES, CTX> {
+        return Handler { ctx: CTX, _: Unit -> runner(ctx) }
+      }
     }
 
     override fun handle(

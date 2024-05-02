@@ -8,12 +8,17 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
+import dev.restate.sdk.core.AssertUtils.assertThatDiscovery
 import dev.restate.sdk.core.MockMultiThreaded
 import dev.restate.sdk.core.MockSingleThread
 import dev.restate.sdk.core.TestDefinitions
 import dev.restate.sdk.core.TestDefinitions.TestExecutor
 import dev.restate.sdk.core.TestRunner
+import dev.restate.sdk.core.manifest.Input
+import dev.restate.sdk.core.manifest.Output
 import java.util.stream.Stream
+import org.assertj.core.api.InstanceOfAssertFactories.type
+import org.junit.jupiter.api.Test
 
 class KtCodegenTests : TestRunner() {
   override fun executors(): Stream<TestExecutor> {
@@ -22,5 +27,35 @@ class KtCodegenTests : TestRunner() {
 
   public override fun definitions(): Stream<TestDefinitions.TestSuite> {
     return Stream.of(CodegenTest())
+  }
+
+  @Test
+  fun checkCustomInputContentType() {
+    assertThatDiscovery(CodegenTest.RawInputOutput())
+        .extractingService("RawInputOutput")
+        .extractingHandler("rawInputWithCustomCt")
+        .extracting({ it.input }, type(Input::class.java))
+        .extracting { it.contentType }
+        .isEqualTo("application/vnd.my.custom")
+  }
+
+  @Test
+  fun checkCustomInputAcceptContentType() {
+    assertThatDiscovery(CodegenTest.RawInputOutput())
+        .extractingService("RawInputOutput")
+        .extractingHandler("rawInputWithCustomAccept")
+        .extracting({ it.input }, type(Input::class.java))
+        .extracting { it.contentType }
+        .isEqualTo("application/*")
+  }
+
+  @Test
+  fun checkCustomOutputContentType() {
+    assertThatDiscovery(CodegenTest.RawInputOutput())
+        .extractingService("RawInputOutput")
+        .extractingHandler("rawOutputWithCustomCT")
+        .extracting({ it.output }, type(Output::class.java))
+        .extracting { it.contentType }
+        .isEqualTo("application/vnd.my.custom")
   }
 }

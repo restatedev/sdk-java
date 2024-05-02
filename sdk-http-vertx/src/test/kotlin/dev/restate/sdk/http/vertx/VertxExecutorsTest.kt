@@ -84,8 +84,7 @@ class VertxExecutorsTest : TestDefinitions.TestSuite {
         testInvocation(
                 dev.restate.sdk.Service.service("CheckBlockingComponentTrampolineExecutor")
                     .with(
-                        HandlerSpecification.of(
-                            "do", CoreSerdes.VOID, CoreSerdes.VOID),
+                        HandlerSpecification.of("do", CoreSerdes.VOID, CoreSerdes.VOID),
                         this::checkBlockingComponentTrampolineExecutor)
                     .build(Options.DEFAULT),
                 "do")

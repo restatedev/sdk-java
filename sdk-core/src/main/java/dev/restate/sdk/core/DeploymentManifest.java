@@ -61,23 +61,20 @@ final class DeploymentManifest {
 
   private static Handler convertHandler(HandlerDefinition<?, ?, ?> handler) {
     HandlerSpecification<?, ?> spec = handler.getSpec();
-    String acceptContentType = spec.getAcceptContentType() != null ? spec.getAcceptContentType() : spec.getRequestSerde().contentType();
+    String acceptContentType =
+        spec.getAcceptContentType() != null
+            ? spec.getAcceptContentType()
+            : spec.getRequestSerde().contentType();
 
     return new Handler()
         .withName(spec.getName())
         .withTy(convertHandlerType(spec.getHandlerType()))
         .withInput(
-                acceptContentType == null
+            acceptContentType == null
                 ? EMPTY_INPUT
-                : new Input()
-                    .withRequired(
-                    true
-                    )
-                    .withContentType(
-                           acceptContentType
-                    ))
+                : new Input().withRequired(true).withContentType(acceptContentType))
         .withOutput(
-                spec.getResponseSerde().contentType() == null
+            spec.getResponseSerde().contentType() == null
                 ? EMPTY_OUTPUT
                 : new Output()
                     .withContentType(spec.getResponseSerde().contentType())

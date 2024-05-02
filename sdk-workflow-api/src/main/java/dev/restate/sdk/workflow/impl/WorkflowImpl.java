@@ -13,9 +13,9 @@ import com.google.protobuf.*;
 import dev.restate.sdk.Context;
 import dev.restate.sdk.ObjectContext;
 import dev.restate.sdk.Service;
+import dev.restate.sdk.common.*;
 import dev.restate.sdk.common.syscalls.HandlerDefinition;
 import dev.restate.sdk.common.syscalls.HandlerSpecification;
-import dev.restate.sdk.common.*;
 import dev.restate.sdk.common.syscalls.ServiceDefinition;
 import dev.restate.sdk.serde.jackson.JacksonSerdes;
 import dev.restate.sdk.serde.protobuf.ProtobufSerdes;
@@ -66,10 +66,10 @@ public class WorkflowImpl implements BindableService<Service.Options> {
   private final HashMap<String, HandlerDefinition<?, ?, Service.Options>> sharedHandlers;
 
   public WorkflowImpl(
-          String name,
-          Service.Options options,
-          HandlerDefinition<?, ?, Service.Options> workflowMethod,
-          HashMap<String, HandlerDefinition<?, ?, Service.Options>> sharedHandlers) {
+      String name,
+      Service.Options options,
+      HandlerDefinition<?, ?, Service.Options> workflowMethod,
+      HashMap<String, HandlerDefinition<?, ?, Service.Options>> sharedHandlers) {
     this.name = name;
     this.options = options;
     this.workflowMethod = workflowMethod;
@@ -104,7 +104,7 @@ public class WorkflowImpl implements BindableService<Service.Options> {
       // Convert input
       Object input =
           this.workflowMethod
-                  .getSpec()
+              .getSpec()
               .getRequestSerde()
               .deserialize(invokeRequest.getPayload().toString().getBytes(StandardCharsets.UTF_8));
 
@@ -112,12 +112,13 @@ public class WorkflowImpl implements BindableService<Service.Options> {
       WorkflowContext ctx = new WorkflowContextImpl(context, name, invokeRequest.getKey(), true);
       @SuppressWarnings("unchecked")
       Object output =
-          ((Service.Handler<Object, Object>) this.workflowMethod.getHandler()).getRunner().apply(ctx, input);
+          ((Service.Handler<Object, Object>) this.workflowMethod.getHandler())
+              .getRunner()
+              .apply(ctx, input);
 
       //noinspection unchecked
       valueOutput =
-          ((Serde<Object>) this.workflowMethod.getSpec().getResponseSerde())
-              .serialize(output);
+          ((Serde<Object>) this.workflowMethod.getSpec().getResponseSerde()).serialize(output);
     } catch (TerminalException e) {
       // Intercept TerminalException to record it
       context.send(
@@ -161,7 +162,8 @@ public class WorkflowImpl implements BindableService<Service.Options> {
     // Invoke method
     WorkflowContext ctx = new WorkflowContextImpl(context, name, request.getKey(), false);
     // We let the sdk core to manage the failures
-    Object output =   ((Service.Handler<Object, Object>) method.getHandler()).getRunner().apply(ctx, input);
+    Object output =
+        ((Service.Handler<Object, Object>) method.getHandler()).getRunner().apply(ctx, input);
 
     return method.getSpec().getResponseSerde().serialize(output);
   }
@@ -332,84 +334,96 @@ public class WorkflowImpl implements BindableService<Service.Options> {
     // Prepare workflow service
     List<HandlerDefinition<?, ?, Service.Options>> workflowHandlers = new ArrayList<>();
     workflowHandlers.add(
-            HandlerDefinition.of(
-                    HandlerSpecification.of("submit", HandlerType.SHARED, INVOKE_REQUEST_SERDE, WORKFLOW_EXECUTION_STATE_SERDE),
-                    Service.Handler.of(this::submit)
-            )
-    );
+        HandlerDefinition.of(
+            HandlerSpecification.of(
+                "submit", HandlerType.SHARED, INVOKE_REQUEST_SERDE, WORKFLOW_EXECUTION_STATE_SERDE),
+            Service.Handler.of(this::submit)));
     workflowHandlers.add(
-            HandlerDefinition.of(
-                    HandlerSpecification.of( START_HANDLER, HandlerType.SHARED, INVOKE_REQUEST_SERDE, CoreSerdes.VOID),
-                    Service.Handler.of(this::internalStart)
-            )
-    );
-
+        HandlerDefinition.of(
+            HandlerSpecification.of(
+                START_HANDLER, HandlerType.SHARED, INVOKE_REQUEST_SERDE, CoreSerdes.VOID),
+            Service.Handler.of(this::internalStart)));
 
     // Append shared methods
     for (HandlerDefinition<?, ?, Service.Options> sharedMethod : sharedHandlers.values()) {
       workflowHandlers.add(
-              HandlerDefinition.of(
-          HandlerSpecification.of(
-              sharedMethod.getSpec().getName(), HandlerType.SHARED, INVOKE_REQUEST_SERDE, CoreSerdes.RAW),
-                      Service.Handler.of((BiFunction<Context, InvokeRequest, byte[]>) (context, invokeRequest) ->
-              this.invokeSharedMethod(
-                  sharedMethod.getSpec().getName(), context, invokeRequest)))
-      );
+          HandlerDefinition.of(
+              HandlerSpecification.of(
+                  sharedMethod.getSpec().getName(),
+                  HandlerType.SHARED,
+                  INVOKE_REQUEST_SERDE,
+                  CoreSerdes.RAW),
+              Service.Handler.of(
+                  (BiFunction<Context, InvokeRequest, byte[]>)
+                      (context, invokeRequest) ->
+                          this.invokeSharedMethod(
+                              sharedMethod.getSpec().getName(), context, invokeRequest))));
     }
 
     // Prepare workflow manager service
     Service workflowManager =
         Service.virtualObject(workflowManagerObjectName(name))
             .withExclusive(
-               "getState", CoreSerdes.JSON_STRING, GET_STATE_RESPONSE_SERDE,
-                this::getState)
+                "getState", CoreSerdes.JSON_STRING, GET_STATE_RESPONSE_SERDE, this::getState)
             .withExclusive(
-              "setState", SET_STATE_REQUEST_SERDE, CoreSerdes.VOID,
+                "setState",
+                SET_STATE_REQUEST_SERDE,
+                CoreSerdes.VOID,
                 (context, setStateRequest) -> {
                   this.setState(context, setStateRequest);
                   return null;
                 })
             .withExclusive(
-                "clearState", CoreSerdes.JSON_STRING, CoreSerdes.VOID,
+                "clearState",
+                CoreSerdes.JSON_STRING,
+                CoreSerdes.VOID,
                 (context, s) -> {
                   this.clearState(context, s);
                   return null;
                 })
             .withExclusive(
-                    "waitDurablePromiseCompletion",
-                    WAIT_DURABLE_PROMISE_COMPLETION_REQUEST_SERDE,
-                    CoreSerdes.VOID,
+                "waitDurablePromiseCompletion",
+                WAIT_DURABLE_PROMISE_COMPLETION_REQUEST_SERDE,
+                CoreSerdes.VOID,
                 (context, waitDurablePromiseCompletionRequest) -> {
                   this.waitDurablePromiseCompletion(context, waitDurablePromiseCompletionRequest);
                   return null;
                 })
             .withExclusive(
-                    "getDurablePromiseCompletion",
-                    CoreSerdes.JSON_STRING,
-                    MAYBE_DURABLE_PROMISE_COMPLETION_SERDE,
+                "getDurablePromiseCompletion",
+                CoreSerdes.JSON_STRING,
+                MAYBE_DURABLE_PROMISE_COMPLETION_SERDE,
                 this::getDurablePromiseCompletion)
             .withExclusive(
-                    "completeDurablePromise",
-                    COMPLETE_DURABLE_PROMISE_REQUEST_SERDE,
-                    CoreSerdes.VOID,
+                "completeDurablePromise",
+                COMPLETE_DURABLE_PROMISE_REQUEST_SERDE,
+                CoreSerdes.VOID,
                 (context, completeDurablePromiseRequest) -> {
                   this.completeDurablePromise(context, completeDurablePromiseRequest);
                   return null;
                 })
             .withExclusive(
-               "tryStart", CoreSerdes.VOID, WORKFLOW_EXECUTION_STATE_SERDE,
+                "tryStart",
+                CoreSerdes.VOID,
+                WORKFLOW_EXECUTION_STATE_SERDE,
                 (context, unused) -> this.tryStart(context))
             .withExclusive(
-           "getOutput", CoreSerdes.VOID, GET_OUTPUT_RESPONSE_SERDE,
+                "getOutput",
+                CoreSerdes.VOID,
+                GET_OUTPUT_RESPONSE_SERDE,
                 (context, unused) -> this.getOutput(context))
             .withExclusive(
-            "setOutput", SET_OUTPUT_REQUEST_SERDE, CoreSerdes.VOID,
+                "setOutput",
+                SET_OUTPUT_REQUEST_SERDE,
+                CoreSerdes.VOID,
                 (context, setOutputRequest) -> {
                   this.setOutput(context, setOutputRequest);
                   return null;
                 })
             .withExclusive(
-             "cleanup", CoreSerdes.VOID, CoreSerdes.VOID,
+                "cleanup",
+                CoreSerdes.VOID,
+                CoreSerdes.VOID,
                 (context, unused) -> {
                   this.cleanup(context);
                   return null;
@@ -417,11 +431,7 @@ public class WorkflowImpl implements BindableService<Service.Options> {
             .build(options);
 
     return List.of(
-            ServiceDefinition.of(
-                    name,
-                    ServiceType.SERVICE,
-                    workflowHandlers
-            ),
-            workflowManager.definitions().get(0));
+        ServiceDefinition.of(name, ServiceType.SERVICE, workflowHandlers),
+        workflowManager.definitions().get(0));
   }
 }

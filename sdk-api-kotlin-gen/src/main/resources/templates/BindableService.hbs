@@ -2,26 +2,33 @@
 
 class {{generatedClassSimpleName}}(
     bindableService: {{originalClassFqcn}},
-    options: dev.restate.sdk.kotlin.Service.Options = dev.restate.sdk.kotlin.Service.Options.DEFAULT
+    private val options: dev.restate.sdk.kotlin.Service.Options = dev.restate.sdk.kotlin.Service.Options.DEFAULT
 ): dev.restate.sdk.common.BindableService<dev.restate.sdk.kotlin.Service.Options> {
 
-    companion object {
-        const val SERVICE_NAME: String = "{{serviceName}}";
-    }
-
-    val service: dev.restate.sdk.kotlin.Service = dev.restate.sdk.kotlin.Service.{{#if isObject}}virtualObject{{else}}service{{/if}}(SERVICE_NAME, options) {
-        {{#handlers}}
-            {{#if isShared}}sharedHandler{{else if isExclusive}}exclusiveHandler{{else}}handler{{/if}}(dev.restate.sdk.kotlin.Service.HandlerSignature("{{name}}", {{{inputSerdeDecl}}}, {{{outputSerdeDecl}}})) { ctx, req ->
-            {{#if inputEmpty}}bindableService.{{name}}(ctx){{else}}bindableService.{{name}}(ctx, req){{/if}}
-            }
-        {{/handlers}}
-        }
+    val service: dev.restate.sdk.common.syscalls.ServiceDefinition<dev.restate.sdk.kotlin.Service.Options> =
+        dev.restate.sdk.common.syscalls.ServiceDefinition.of(
+            {{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME,
+            {{#if isObject}}dev.restate.sdk.common.ServiceType.VIRTUAL_OBJECT{{else}}dev.restate.sdk.common.ServiceType.SERVICE{{/if}},
+            listOf(
+                {{#handlers}}
+                dev.restate.sdk.common.syscalls.HandlerDefinition.of(
+                    dev.restate.sdk.common.syscalls.HandlerSpecification.of(
+                        "{{name}}",
+                        {{#if isExclusive}}dev.restate.sdk.common.HandlerType.EXCLUSIVE{{else}}dev.restate.sdk.common.HandlerType.SHARED{{/if}},
+                        {{generatedClassSimpleNamePrefix}}Definitions.{{inputSerdeFieldName}},
+                        {{generatedClassSimpleNamePrefix}}Definitions.{{outputSerdeFieldName}}
+                    ){{#if inputAcceptContentType}}.withAcceptContentType("{{inputAcceptContentType}}"){{/if}},
+                    dev.restate.sdk.kotlin.Service.Handler.of(bindableService::{{name}})
+                ){{#unless @last}},{{/unless}}
+                {{/handlers}}
+            )
+        )
 
     override fun options(): dev.restate.sdk.kotlin.Service.Options {
-        return service.options()
+        return this.options
     }
 
     override fun definitions(): List<dev.restate.sdk.common.syscalls.ServiceDefinition<dev.restate.sdk.kotlin.Service.Options>> {
-        return service.definitions()
+        return listOf(service)
     }
 }

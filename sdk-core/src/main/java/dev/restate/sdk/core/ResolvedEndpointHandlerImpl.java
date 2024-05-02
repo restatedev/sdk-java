@@ -11,7 +11,6 @@ package dev.restate.sdk.core;
 import com.google.protobuf.ByteString;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.common.syscalls.*;
-
 import java.util.concurrent.Executor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -34,8 +33,10 @@ final class ResolvedEndpointHandlerImpl implements ResolvedEndpointHandler {
       Object serviceOptions,
       @Nullable Executor syscallExecutor) {
     this.stateMachine = stateMachine;
-      this.spec = (HandlerSpecification<Object, Object>) handler.getSpec();
-    this.wrappedHandler =  new InvocationHandlerWrapper<>((InvocationHandler<Object, Object, Object>)handler.getHandler());
+    this.spec = (HandlerSpecification<Object, Object>) handler.getSpec();
+    this.wrappedHandler =
+        new InvocationHandlerWrapper<>(
+            (InvocationHandler<Object, Object, Object>) handler.getHandler());
     this.componentOptions = serviceOptions;
     this.syscallsExecutor = syscallExecutor;
   }
@@ -105,7 +106,8 @@ final class ResolvedEndpointHandlerImpl implements ResolvedEndpointHandler {
     }
   }
 
-  private static class InvocationHandlerWrapper<REQ, RES, O> implements InvocationHandler<REQ, RES, O> {
+  private static class InvocationHandlerWrapper<REQ, RES, O>
+      implements InvocationHandler<REQ, RES, O> {
 
     private final InvocationHandler<REQ, RES, O> handler;
 
@@ -114,7 +116,11 @@ final class ResolvedEndpointHandlerImpl implements ResolvedEndpointHandler {
     }
 
     @Override
-    public void handle(HandlerSpecification<REQ, RES> spec, Syscalls syscalls, O options, SyscallCallback<ByteString> callback) {
+    public void handle(
+        HandlerSpecification<REQ, RES> spec,
+        Syscalls syscalls,
+        O options,
+        SyscallCallback<ByteString> callback) {
       try {
         this.handler.handle(spec, syscalls, options, callback);
       } catch (Throwable e) {

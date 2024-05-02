@@ -14,7 +14,8 @@ public class {{generatedClassSimpleName}} implements dev.restate.sdk.common.Bind
         this.service = dev.restate.sdk.workflow.WorkflowBuilder.named(
         SERVICE_NAME,
         {{#handlers}}{{#if isWorkflow}}
-            dev.restate.sdk.Service.HandlerSignature.of("{{name}}", {{{inputSerdeDecl}}}, {{{outputSerdeDecl}}}),
+            {{{inputSerdeDecl}}},
+            {{{outputSerdeDecl}}},
             (ctx, req) -> {
             {{#if outputEmpty}}
                 {{#if inputEmpty}}bindableService.{{name}}(ctx){{else}}bindableService.{{name}}(ctx, req){{/if}};
@@ -26,7 +27,9 @@ public class {{generatedClassSimpleName}} implements dev.restate.sdk.common.Bind
         {{/if}}{{/handlers}})
         {{#handlers}}{{#if isShared}}
             .with{{capitalizeFirst (lower handlerType)}}(
-            dev.restate.sdk.Service.HandlerSignature.of("{{name}}", {{{inputSerdeDecl}}}, {{{outputSerdeDecl}}}),
+            "{{name}}",
+            {{{inputSerdeDecl}}},
+            {{{outputSerdeDecl}}},
             (ctx, req) -> {
             {{#if outputEmpty}}
                 {{#if inputEmpty}}bindableService.{{name}}(ctx){{else}}bindableService.{{name}}(ctx, req){{/if}};

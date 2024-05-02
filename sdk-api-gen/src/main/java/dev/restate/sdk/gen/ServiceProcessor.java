@@ -49,17 +49,17 @@ public class ServiceProcessor extends AbstractProcessor {
     FilerTemplateLoader filerTemplateLoader = new FilerTemplateLoader(processingEnv.getFiler());
 
     this.definitionsCodegen =
-            new HandlebarsTemplateEngine(
-                    "Definitions",
-                    filerTemplateLoader,
-                    Map.of(
-                            ServiceType.WORKFLOW,
-                            "templates/Definitions.hbs",
-                            ServiceType.SERVICE,
-                            "templates/Definitions.hbs",
-                            ServiceType.VIRTUAL_OBJECT,
-                            "templates/Definitions.hbs"),
-                    RESERVED_METHOD_NAMES);
+        new HandlebarsTemplateEngine(
+            "Definitions",
+            filerTemplateLoader,
+            Map.of(
+                ServiceType.WORKFLOW,
+                "templates/Definitions.hbs",
+                ServiceType.SERVICE,
+                "templates/Definitions.hbs",
+                ServiceType.VIRTUAL_OBJECT,
+                "templates/Definitions.hbs"),
+            RESERVED_METHOD_NAMES);
     this.bindableServiceFactoryCodegen =
         new HandlebarsTemplateEngine(
             "BindableServiceFactory",

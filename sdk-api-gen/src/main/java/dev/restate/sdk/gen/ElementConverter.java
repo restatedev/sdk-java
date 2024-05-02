@@ -16,11 +16,10 @@ import dev.restate.sdk.common.ServiceType;
 import dev.restate.sdk.gen.model.*;
 import dev.restate.sdk.gen.model.Handler;
 import dev.restate.sdk.gen.model.Service;
+import dev.restate.sdk.gen.utils.AnnotationUtils;
 import dev.restate.sdk.workflow.WorkflowContext;
 import dev.restate.sdk.workflow.WorkflowSharedContext;
-import java.lang.annotation.Annotation;
 import java.util.List;
-import java.util.Objects;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.processing.Messager;
@@ -335,13 +334,13 @@ public class ElementConverter {
     if (rawAnnotation != null
         && !rawAnnotation
             .contentType()
-            .equals(getAnnotationDefaultValue(Raw.class, "contentType"))) {
+            .equals(AnnotationUtils.getAnnotationDefaultValue(Raw.class, "contentType"))) {
       serdeDecl = contentTypeDecoratedSerdeDecl(serdeDecl, rawAnnotation.contentType());
     }
     if (jsonAnnotation != null
         && !jsonAnnotation
             .contentType()
-            .equals(getAnnotationDefaultValue(Json.class, "contentType"))) {
+            .equals(AnnotationUtils.getAnnotationDefaultValue(Json.class, "contentType"))) {
       serdeDecl = contentTypeDecoratedSerdeDecl(serdeDecl, jsonAnnotation.contentType());
     }
 
@@ -406,15 +405,6 @@ public class ElementConverter {
         return "Void";
       default:
         return ty.toString();
-    }
-  }
-
-  private static Object getAnnotationDefaultValue(
-      Class<? extends Annotation> annotation, String name) {
-    try {
-      return Objects.requireNonNull(annotation.getMethod(name).getDefaultValue());
-    } catch (NoSuchMethodException e) {
-      throw new RuntimeException(e);
     }
   }
 }

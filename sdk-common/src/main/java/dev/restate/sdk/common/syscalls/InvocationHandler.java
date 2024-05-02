@@ -21,5 +21,9 @@ public interface InvocationHandler<REQ, RES, O> {
    */
   ThreadLocal<Syscalls> SYSCALLS_THREAD_LOCAL = new ThreadLocal<>();
 
-  void handle(HandlerSpecification<REQ, RES> handlerSpecification, Syscalls syscalls, O options, SyscallCallback<ByteString> callback);
+  void handle(
+      HandlerSpecification<REQ, RES> handlerSpecification,
+      Syscalls syscalls,
+      O options,
+      SyscallCallback<ByteString> callback);
 }

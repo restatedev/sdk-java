@@ -82,8 +82,7 @@ public class RestateEndpoint {
         new InvocationStateMachine(
             componentName, fullyQualifiedServiceMethod, span, loggingContextSetter);
 
-    return new ResolvedEndpointHandlerImpl(
-        stateMachine, handler, svc.options, syscallExecutor);
+    return new ResolvedEndpointHandlerImpl(stateMachine, handler, svc.options, syscallExecutor);
   }
 
   public DeploymentManifestSchema handleDiscoveryRequest() {

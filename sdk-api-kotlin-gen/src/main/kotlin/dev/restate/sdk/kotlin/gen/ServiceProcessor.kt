@@ -9,7 +9,9 @@
 package dev.restate.sdk.kotlin.gen
 
 import com.github.jknack.handlebars.io.ClassPathTemplateLoader
+import com.google.devtools.ksp.KspExperimental
 import com.google.devtools.ksp.containingFile
+import com.google.devtools.ksp.getKotlinClassByName
 import com.google.devtools.ksp.processing.*
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.Origin
@@ -53,9 +55,22 @@ class ServiceProcessor(private val logger: KSPLogger, private val codeGenerator:
               ServiceType.SERVICE to "templates/Client",
               ServiceType.VIRTUAL_OBJECT to "templates/Client"),
           RESERVED_METHOD_NAMES)
+  private val definitionsCodegen: HandlebarsTemplateEngine =
+      HandlebarsTemplateEngine(
+          "Definitions",
+          ClassPathTemplateLoader(),
+          mapOf(
+              ServiceType.SERVICE to "templates/Definitions",
+              ServiceType.VIRTUAL_OBJECT to "templates/Definitions"),
+          RESERVED_METHOD_NAMES)
 
+  @OptIn(KspExperimental::class)
   override fun process(resolver: Resolver): List<KSAnnotated> {
-    val converter = KElementConverter(logger, resolver.builtIns)
+    val converter =
+        KElementConverter(
+            logger,
+            resolver.builtIns,
+            resolver.getKotlinClassByName(ByteArray::class.qualifiedName!!)!!.asType(listOf()))
 
     val resolved =
         resolver
@@ -101,6 +116,7 @@ class ServiceProcessor(private val logger: KSPLogger, private val codeGenerator:
         this.bindableServiceFactoryCodegen.generate(fileCreator, service.second)
         this.bindableServiceCodegen.generate(fileCreator, service.second)
         this.clientCodegen.generate(fileCreator, service.second)
+        this.definitionsCodegen.generate(fileCreator, service.second)
       } catch (ex: Throwable) {
         throw RuntimeException(ex)
       }

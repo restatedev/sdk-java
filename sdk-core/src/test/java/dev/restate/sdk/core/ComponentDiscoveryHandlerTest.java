@@ -36,10 +36,8 @@ class ComponentDiscoveryHandlerTest {
                     ServiceType.SERVICE,
                     List.of(
                         HandlerDefinition.of(
-                                HandlerSpecification.of( "greet",
-                                        HandlerType.EXCLUSIVE,
-                                        CoreSerdes.VOID,
-                                        CoreSerdes.VOID),
+                            HandlerSpecification.of(
+                                "greet", HandlerType.EXCLUSIVE, CoreSerdes.VOID, CoreSerdes.VOID),
                             null)))));
 
     DeploymentManifestSchema manifest = deploymentManifest.manifest();

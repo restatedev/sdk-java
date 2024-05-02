@@ -1,0 +1,12 @@
+{{#if originalClassPkg}}package {{originalClassPkg}}{{/if}}
+
+object {{generatedClassSimpleName}} {
+
+    const val SERVICE_NAME: String = "{{serviceName}}"
+
+    {{#handlers}}
+    val {{inputSerdeFieldName}}: dev.restate.sdk.common.Serde<{{{boxedInputFqcn}}}> = {{{inputSerdeDecl}}}
+    val {{outputSerdeFieldName}}: dev.restate.sdk.common.Serde<{{{boxedOutputFqcn}}}> = {{{outputSerdeDecl}}}
+    {{/handlers}}
+
+}

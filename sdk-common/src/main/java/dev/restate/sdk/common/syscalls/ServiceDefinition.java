@@ -19,10 +19,7 @@ public final class ServiceDefinition<O> {
   private final ServiceType serviceType;
   private final Map<String, HandlerDefinition<?, ?, O>> handlers;
 
-  ServiceDefinition(
-      String name,
-      ServiceType ty,
-      Collection<HandlerDefinition<?, ?, O>> handlers) {
+  ServiceDefinition(String name, ServiceType ty, Collection<HandlerDefinition<?, ?, O>> handlers) {
     this.serviceName = name;
     this.serviceType = ty;
     this.handlers =
@@ -61,9 +58,8 @@ public final class ServiceDefinition<O> {
     return Objects.hash(serviceName, serviceType, handlers);
   }
 
-  public static <O> ServiceDefinition<O> of(  String name,
-                                          ServiceType ty,
-                                          Collection<HandlerDefinition<?, ?, O>> handlers) {
+  public static <O> ServiceDefinition<O> of(
+      String name, ServiceType ty, Collection<HandlerDefinition<?, ?, O>> handlers) {
     return new ServiceDefinition<>(name, ty, handlers);
   }
 }

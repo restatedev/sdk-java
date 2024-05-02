@@ -16,7 +16,8 @@ public class NameInferenceTest {
 
   @Test
   void expectedName() {
-    assertThat(CodegenTestServiceGreeterDefinitions.SERVICE_NAME).isEqualTo("CodegenTestServiceGreeter");
+    assertThat(CodegenTestServiceGreeterDefinitions.SERVICE_NAME)
+        .isEqualTo("CodegenTestServiceGreeter");
     assertThat(GreeterWithoutExplicitNameDefinitions.SERVICE_NAME)
         .isEqualTo("GreeterWithoutExplicitName");
     assertThat(MyExplicitNameDefinitions.SERVICE_NAME).isEqualTo("MyExplicitName");
