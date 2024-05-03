@@ -16,23 +16,31 @@ import com.google.devtools.ksp.processing.KSBuiltIns
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.*
 import com.google.devtools.ksp.visitor.KSDefaultVisitor
+import dev.restate.sdk.annotation.Accept
+import dev.restate.sdk.annotation.Json
+import dev.restate.sdk.annotation.Raw
 import dev.restate.sdk.common.ServiceType
 import dev.restate.sdk.gen.model.Handler
 import dev.restate.sdk.gen.model.HandlerType
 import dev.restate.sdk.gen.model.PayloadType
 import dev.restate.sdk.gen.model.Service
+import dev.restate.sdk.gen.utils.AnnotationUtils.getAnnotationDefaultValue
 import dev.restate.sdk.kotlin.Context
 import dev.restate.sdk.kotlin.ObjectContext
 import dev.restate.sdk.kotlin.SharedObjectContext
 import java.util.regex.Pattern
 import kotlin.reflect.KClass
 
-class KElementConverter(private val logger: KSPLogger, private val builtIns: KSBuiltIns) :
-    KSDefaultVisitor<Service.Builder, Unit>() {
+class KElementConverter(
+    private val logger: KSPLogger,
+    private val builtIns: KSBuiltIns,
+    private val byteArrayType: KSType
+) : KSDefaultVisitor<Service.Builder, Unit>() {
   companion object {
     private val SUPPORTED_CLASS_KIND: Set<ClassKind> = setOf(ClassKind.CLASS, ClassKind.INTERFACE)
     private val EMPTY_PAYLOAD: PayloadType =
         PayloadType(true, "", "Unit", "dev.restate.sdk.kotlin.KtSerdes.UNIT")
+    private const val RAW_SERDE: String = "dev.restate.sdk.common.CoreSerdes.RAW"
   }
 
   override fun defaultHandler(node: KSNode, data: Service.Builder) {}
@@ -157,16 +165,86 @@ class KElementConverter(private val logger: KSPLogger, private val builtIns: KSB
           handlerBuilder
               .withName(function.simpleName.asString())
               .withHandlerType(handlerType)
-              .withInputType(
-                  if (function.parameters.size == 2) payloadFromType(function.parameters[1].type)
-                  else EMPTY_PAYLOAD)
-              .withOutputType(
-                  if (function.returnType != null) payloadFromType(function.returnType!!)
-                  else EMPTY_PAYLOAD)
+              .withInputAccept(inputAcceptFromParameterList(function.parameters))
+              .withInputType(inputPayloadFromParameterList(function.parameters))
+              .withOutputType(outputPayloadFromExecutableElement(function))
               .validateAndBuild())
     } catch (e: Exception) {
       logger.error("Error when building handler: $e", function)
     }
+  }
+
+  @OptIn(KspExperimental::class)
+  private fun inputAcceptFromParameterList(paramList: List<KSValueParameter>): String? {
+    if (paramList.size <= 1) {
+      return null
+    }
+
+    return paramList[1].getAnnotationsByType(Accept::class).firstOrNull()?.value
+  }
+
+  @OptIn(KspExperimental::class)
+  private fun inputPayloadFromParameterList(paramList: List<KSValueParameter>): PayloadType {
+    if (paramList.size <= 1) {
+      return EMPTY_PAYLOAD
+    }
+
+    val parameterElement: KSValueParameter = paramList[1]
+    return payloadFromTypeMirrorAndAnnotations(
+        parameterElement.type.resolve(),
+        parameterElement.getAnnotationsByType(Json::class).firstOrNull(),
+        parameterElement.getAnnotationsByType(Raw::class).firstOrNull(),
+        parameterElement)
+  }
+
+  @OptIn(KspExperimental::class)
+  private fun outputPayloadFromExecutableElement(fn: KSFunctionDeclaration): PayloadType {
+    return payloadFromTypeMirrorAndAnnotations(
+        fn.returnType?.resolve() ?: builtIns.unitType,
+        fn.getAnnotationsByType(Json::class).firstOrNull(),
+        fn.getAnnotationsByType(Raw::class).firstOrNull(),
+        fn)
+  }
+
+  private fun payloadFromTypeMirrorAndAnnotations(
+      ty: KSType,
+      jsonAnnotation: Json?,
+      rawAnnotation: Raw?,
+      relatedNode: KSNode
+  ): PayloadType {
+    if (ty == builtIns.unitType) {
+      if (rawAnnotation != null || jsonAnnotation != null) {
+        logger.error("Unexpected annotation for void type.", relatedNode)
+      }
+      return EMPTY_PAYLOAD
+    }
+    // Some validation
+    if (rawAnnotation != null && jsonAnnotation != null) {
+      logger.error("A parameter cannot be annotated both with @Raw and @Json.", relatedNode)
+    }
+    if (rawAnnotation != null && ty != byteArrayType) {
+      logger.error("A parameter annotated with @Raw MUST be of type byte[], was $ty", relatedNode)
+    }
+
+    var serdeDecl: String = if (rawAnnotation != null) RAW_SERDE else jsonSerdeDecl(ty)
+    if (rawAnnotation != null &&
+        rawAnnotation.contentType != getAnnotationDefaultValue(Raw::class.java, "contentType")) {
+      serdeDecl = contentTypeDecoratedSerdeDecl(serdeDecl, rawAnnotation.contentType)
+    }
+    if (jsonAnnotation != null &&
+        jsonAnnotation.contentType != getAnnotationDefaultValue(Json::class.java, "contentType")) {
+      serdeDecl = contentTypeDecoratedSerdeDecl(serdeDecl, jsonAnnotation.contentType)
+    }
+
+    return PayloadType(false, ty.toString(), boxedType(ty), serdeDecl)
+  }
+
+  private fun contentTypeDecoratedSerdeDecl(serdeDecl: String, contentType: String): String {
+    return ("dev.restate.sdk.common.Serde.withContentType(\"" +
+        contentType +
+        "\", " +
+        serdeDecl +
+        ")")
   }
 
   private fun defaultHandlerType(serviceType: ServiceType, node: KSNode): HandlerType {
@@ -222,12 +300,7 @@ class KElementConverter(private val logger: KSPLogger, private val builtIns: KSB
     }
   }
 
-  private fun payloadFromType(typeRef: KSTypeReference): PayloadType {
-    val ty = typeRef.resolve()
-    return PayloadType(false, typeRef.toString(), boxedType(ty), serdeDecl(ty))
-  }
-
-  private fun serdeDecl(ty: KSType): String {
+  private fun jsonSerdeDecl(ty: KSType): String {
     return when (ty) {
       builtIns.unitType -> "dev.restate.sdk.kotlin.KtSerdes.UNIT"
       else -> "dev.restate.sdk.kotlin.KtSerdes.json<${boxedType(ty)}>()"

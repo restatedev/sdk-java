@@ -106,6 +106,10 @@ public class ProtoUtils {
     return Protocol.InputEntryMessage.newBuilder().setValue(ByteString.EMPTY).build();
   }
 
+  public static Protocol.InputEntryMessage inputMessage(byte[] value) {
+    return Protocol.InputEntryMessage.newBuilder().setValue(ByteString.copyFrom(value)).build();
+  }
+
   public static <T> Protocol.InputEntryMessage inputMessage(Serde<T> serde, T value) {
     return Protocol.InputEntryMessage.newBuilder()
         .setValue(serde.serializeToByteString(value))
@@ -132,6 +136,10 @@ public class ProtoUtils {
 
   public static Protocol.OutputEntryMessage outputMessage(int value) {
     return outputMessage(CoreSerdes.JSON_INT, value);
+  }
+
+  public static Protocol.OutputEntryMessage outputMessage(byte[] b) {
+    return outputMessage(CoreSerdes.RAW, b);
   }
 
   public static Protocol.OutputEntryMessage outputMessage() {
@@ -200,6 +208,10 @@ public class ProtoUtils {
     }
 
     return builder;
+  }
+
+  public static Protocol.CallEntryMessage.Builder invokeMessage(Target target, byte[] parameter) {
+    return invokeMessage(target, CoreSerdes.RAW, parameter);
   }
 
   public static <T> Protocol.CallEntryMessage.Builder invokeMessage(

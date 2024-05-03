@@ -16,8 +16,7 @@ import io.opentelemetry.context.Scope;
 import java.util.*;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-import java.util.function.BiFunction;
-import java.util.stream.Collectors;
+import java.util.function.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -26,14 +25,15 @@ public final class Service implements BindableService<Service.Options> {
   private final Service.Options options;
 
   private Service(
-      String fqsn, boolean isKeyed, HashMap<String, Handler<?, ?>> handlers, Options options) {
+      String fqsn,
+      boolean isKeyed,
+      HashMap<String, HandlerDefinition<?, ?, Options>> handlers,
+      Options options) {
     this.serviceDefinition =
-        new ServiceDefinition<>(
+        ServiceDefinition.of(
             fqsn,
             isKeyed ? ServiceType.VIRTUAL_OBJECT : ServiceType.SERVICE,
-            handlers.values().stream()
-                .map(Handler::toHandlerDefinition)
-                .collect(Collectors.toList()));
+            new ArrayList<>(handlers.values()));
     this.options = options;
   }
 
@@ -58,7 +58,7 @@ public final class Service implements BindableService<Service.Options> {
   public static class AbstractServiceBuilder {
 
     protected final String name;
-    protected final HashMap<String, Handler<?, ?>> handlers;
+    protected final HashMap<String, HandlerDefinition<?, ?, Options>> handlers;
 
     public AbstractServiceBuilder(String name) {
       this.name = name;
@@ -73,14 +73,28 @@ public final class Service implements BindableService<Service.Options> {
     }
 
     public <REQ, RES> VirtualObjectBuilder withShared(
-        HandlerSignature<REQ, RES> sig, BiFunction<SharedObjectContext, REQ, RES> runner) {
-      this.handlers.put(sig.getName(), new Handler<>(sig, HandlerType.SHARED, runner));
+        String name,
+        Serde<REQ> requestSerde,
+        Serde<RES> responseSerde,
+        BiFunction<SharedObjectContext, REQ, RES> runner) {
+      this.handlers.put(
+          name,
+          HandlerDefinition.of(
+              HandlerSpecification.of(name, HandlerType.SHARED, requestSerde, responseSerde),
+              new Handler<>(runner)));
       return this;
     }
 
     public <REQ, RES> VirtualObjectBuilder withExclusive(
-        HandlerSignature<REQ, RES> sig, BiFunction<ObjectContext, REQ, RES> runner) {
-      this.handlers.put(sig.getName(), new Handler<>(sig, HandlerType.EXCLUSIVE, runner));
+        String name,
+        Serde<REQ> requestSerde,
+        Serde<RES> responseSerde,
+        BiFunction<ObjectContext, REQ, RES> runner) {
+      this.handlers.put(
+          name,
+          HandlerDefinition.of(
+              HandlerSpecification.of(name, HandlerType.EXCLUSIVE, requestSerde, responseSerde),
+              new Handler<>(runner)));
       return this;
     }
 
@@ -96,8 +110,15 @@ public final class Service implements BindableService<Service.Options> {
     }
 
     public <REQ, RES> ServiceBuilder with(
-        HandlerSignature<REQ, RES> sig, BiFunction<Context, REQ, RES> runner) {
-      this.handlers.put(sig.getName(), new Handler<>(sig, HandlerType.SHARED, runner));
+        String name,
+        Serde<REQ> requestSerde,
+        Serde<RES> responseSerde,
+        BiFunction<Context, REQ, RES> runner) {
+      this.handlers.put(
+          name,
+          HandlerDefinition.of(
+              HandlerSpecification.of(name, HandlerType.SHARED, requestSerde, responseSerde),
+              new Handler<>(runner)));
       return this;
     }
 
@@ -106,44 +127,26 @@ public final class Service implements BindableService<Service.Options> {
     }
   }
 
-  public static class Handler<REQ, RES> implements InvocationHandler<Service.Options> {
-    private final HandlerSignature<REQ, RES> handlerSignature;
-    private final HandlerType handlerType;
+  public static class Handler<REQ, RES> implements InvocationHandler<REQ, RES, Service.Options> {
     private final BiFunction<Context, REQ, RES> runner;
 
     private static final Logger LOG = LogManager.getLogger(Handler.class);
 
-    public Handler(
-        HandlerSignature<REQ, RES> handlerSignature,
-        HandlerType handlerType,
-        BiFunction<? extends Context, REQ, RES> runner) {
-      this.handlerSignature = handlerSignature;
-      this.handlerType = handlerType;
+    Handler(BiFunction<? extends Context, REQ, RES> runner) {
       //noinspection unchecked
       this.runner = (BiFunction<Context, REQ, RES>) runner;
-    }
-
-    public HandlerSignature<REQ, RES> getHandlerSignature() {
-      return handlerSignature;
     }
 
     public BiFunction<Context, REQ, RES> getRunner() {
       return runner;
     }
 
-    public HandlerDefinition<Service.Options> toHandlerDefinition() {
-      return new HandlerDefinition<>(
-          this.handlerSignature.name,
-          this.handlerType,
-          this.handlerSignature.requestSerde.contentType() != null,
-          this.handlerSignature.requestSerde.contentType(),
-          this.handlerSignature.responseSerde.contentType(),
-          this);
-    }
-
     @Override
     public void handle(
-        Syscalls syscalls, Service.Options options, SyscallCallback<ByteString> callback) {
+        HandlerSpecification<REQ, RES> handlerSpecification,
+        Syscalls syscalls,
+        Service.Options options,
+        SyscallCallback<ByteString> callback) {
       // Wrap the executor for setting/unsetting the thread local
       Executor wrapped =
           runnable ->
@@ -164,7 +167,10 @@ public final class Service implements BindableService<Service.Options> {
             // Parse input
             REQ req;
             try {
-              req = this.handlerSignature.requestSerde.deserialize(syscalls.request().bodyBuffer());
+              req =
+                  handlerSpecification
+                      .getRequestSerde()
+                      .deserialize(syscalls.request().bodyBuffer());
             } catch (Error e) {
               throw e;
             } catch (Throwable e) {
@@ -190,7 +196,7 @@ public final class Service implements BindableService<Service.Options> {
             // Serialize output
             ByteString serializedResult;
             try {
-              serializedResult = this.handlerSignature.responseSerde.serializeToByteString(res);
+              serializedResult = handlerSpecification.getResponseSerde().serializeToByteString(res);
             } catch (Error e) {
               throw e;
             } catch (Throwable e) {
@@ -206,35 +212,33 @@ public final class Service implements BindableService<Service.Options> {
             callback.onSuccess(serializedResult);
           });
     }
-  }
 
-  public static class HandlerSignature<REQ, RES> {
-
-    private final String name;
-    private final Serde<REQ> requestSerde;
-    private final Serde<RES> responseSerde;
-
-    HandlerSignature(String name, Serde<REQ> requestSerde, Serde<RES> responseSerde) {
-      this.name = name;
-      this.requestSerde = requestSerde;
-      this.responseSerde = responseSerde;
+    public static <CTX extends Context, REQ, RES> Handler<REQ, RES> of(
+        BiFunction<CTX, REQ, RES> runner) {
+      return new Handler<>(runner);
     }
 
-    public static <T, R> HandlerSignature<T, R> of(
-        String method, Serde<T> requestSerde, Serde<R> responseSerde) {
-      return new HandlerSignature<>(method, requestSerde, responseSerde);
+    @SuppressWarnings("unchecked")
+    public static <CTX extends Context, RES> Handler<Void, RES> of(Function<CTX, RES> runner) {
+      return new Handler<>((context, o) -> runner.apply((CTX) context));
     }
 
-    public String getName() {
-      return name;
+    @SuppressWarnings("unchecked")
+    public static <CTX extends Context, REQ> Handler<REQ, Void> of(BiConsumer<CTX, REQ> runner) {
+      return new Handler<>(
+          (context, o) -> {
+            runner.accept((CTX) context, o);
+            return null;
+          });
     }
 
-    public Serde<REQ> getRequestSerde() {
-      return requestSerde;
-    }
-
-    public Serde<RES> getResponseSerde() {
-      return responseSerde;
+    @SuppressWarnings("unchecked")
+    public static <CTX extends Context> Handler<Void, Void> of(Consumer<CTX> runner) {
+      return new Handler<>(
+          (ctx, o) -> {
+            runner.accept((CTX) ctx);
+            return null;
+          });
     }
   }
 

@@ -17,17 +17,14 @@ public final class ServiceDefinition<O> {
 
   private final String serviceName;
   private final ServiceType serviceType;
-  private final Map<String, HandlerDefinition<O>> handlers;
+  private final Map<String, HandlerDefinition<?, ?, O>> handlers;
 
-  public ServiceDefinition(
-      String fullyQualifiedComponentName,
-      ServiceType serviceType,
-      Collection<HandlerDefinition<O>> handlers) {
-    this.serviceName = fullyQualifiedComponentName;
-    this.serviceType = serviceType;
+  ServiceDefinition(String name, ServiceType ty, Collection<HandlerDefinition<?, ?, O>> handlers) {
+    this.serviceName = name;
+    this.serviceType = ty;
     this.handlers =
         handlers.stream()
-            .collect(Collectors.toMap(HandlerDefinition::getName, Function.identity()));
+            .collect(Collectors.toMap(h -> h.getSpec().getName(), Function.identity()));
   }
 
   public String getServiceName() {
@@ -38,11 +35,11 @@ public final class ServiceDefinition<O> {
     return serviceType;
   }
 
-  public Collection<HandlerDefinition<O>> getHandlers() {
+  public Collection<HandlerDefinition<?, ?, O>> getHandlers() {
     return handlers.values();
   }
 
-  public HandlerDefinition<O> getHandler(String name) {
+  public HandlerDefinition<?, ?, O> getHandler(String name) {
     return handlers.get(name);
   }
 
@@ -59,5 +56,10 @@ public final class ServiceDefinition<O> {
   @Override
   public int hashCode() {
     return Objects.hash(serviceName, serviceType, handlers);
+  }
+
+  public static <O> ServiceDefinition<O> of(
+      String name, ServiceType ty, Collection<HandlerDefinition<?, ?, O>> handlers) {
+    return new ServiceDefinition<>(name, ty, handlers);
   }
 }

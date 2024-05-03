@@ -10,9 +10,7 @@ package dev.restate.sdk.core;
 
 import com.google.protobuf.ByteString;
 import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.common.syscalls.InvocationHandler;
-import dev.restate.sdk.common.syscalls.SyscallCallback;
-import dev.restate.sdk.common.syscalls.Syscalls;
+import dev.restate.sdk.common.syscalls.*;
 import java.util.concurrent.Executor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -23,17 +21,22 @@ final class ResolvedEndpointHandlerImpl implements ResolvedEndpointHandler {
   private static final Logger LOG = LogManager.getLogger(ResolvedEndpointHandlerImpl.class);
 
   private final InvocationStateMachine stateMachine;
-  private final InvocationHandler<Object> wrappedHandler;
+  private final HandlerSpecification<Object, Object> spec;
+  private final InvocationHandler<Object, Object, Object> wrappedHandler;
   private final Object componentOptions;
   private final @Nullable Executor syscallsExecutor;
 
+  @SuppressWarnings("unchecked")
   public ResolvedEndpointHandlerImpl(
       InvocationStateMachine stateMachine,
-      InvocationHandler<Object> handler,
+      HandlerDefinition<?, ?, Object> handler,
       Object serviceOptions,
       @Nullable Executor syscallExecutor) {
     this.stateMachine = stateMachine;
-    this.wrappedHandler = new InvocationHandlerWrapper<>(handler);
+    this.spec = (HandlerSpecification<Object, Object>) handler.getSpec();
+    this.wrappedHandler =
+        new InvocationHandlerWrapper<>(
+            (InvocationHandler<Object, Object, Object>) handler.getHandler());
     this.componentOptions = serviceOptions;
     this.syscallsExecutor = syscallExecutor;
   }
@@ -63,6 +66,7 @@ final class ResolvedEndpointHandlerImpl implements ResolvedEndpointHandler {
 
               // pollInput then invoke the wrappedHandler
               wrappedHandler.handle(
+                  spec,
                   syscalls,
                   componentOptions,
                   SyscallCallback.of(
@@ -102,18 +106,23 @@ final class ResolvedEndpointHandlerImpl implements ResolvedEndpointHandler {
     }
   }
 
-  private static class InvocationHandlerWrapper<O> implements InvocationHandler<O> {
+  private static class InvocationHandlerWrapper<REQ, RES, O>
+      implements InvocationHandler<REQ, RES, O> {
 
-    private final InvocationHandler<O> handler;
+    private final InvocationHandler<REQ, RES, O> handler;
 
-    private InvocationHandlerWrapper(InvocationHandler<O> handler) {
+    private InvocationHandlerWrapper(InvocationHandler<REQ, RES, O> handler) {
       this.handler = handler;
     }
 
     @Override
-    public void handle(Syscalls syscalls, O options, SyscallCallback<ByteString> callback) {
+    public void handle(
+        HandlerSpecification<REQ, RES> spec,
+        Syscalls syscalls,
+        O options,
+        SyscallCallback<ByteString> callback) {
       try {
-        this.handler.handle(syscalls, options, callback);
+        this.handler.handle(spec, syscalls, options, callback);
       } catch (Throwable e) {
         callback.onCancel(e);
       }

@@ -11,6 +11,7 @@ package dev.restate.sdk.core;
 import dev.restate.sdk.common.HandlerType;
 import dev.restate.sdk.common.ServiceType;
 import dev.restate.sdk.common.syscalls.HandlerDefinition;
+import dev.restate.sdk.common.syscalls.HandlerSpecification;
 import dev.restate.sdk.common.syscalls.ServiceDefinition;
 import dev.restate.sdk.core.manifest.*;
 import java.util.stream.Collectors;
@@ -58,21 +59,25 @@ final class DeploymentManifest {
     throw new IllegalStateException();
   }
 
-  private static Handler convertHandler(HandlerDefinition<?> handler) {
+  private static Handler convertHandler(HandlerDefinition<?, ?, ?> handler) {
+    HandlerSpecification<?, ?> spec = handler.getSpec();
+    String acceptContentType =
+        spec.getAcceptContentType() != null
+            ? spec.getAcceptContentType()
+            : spec.getRequestSerde().contentType();
+
     return new Handler()
-        .withName(handler.getName())
-        .withTy(convertHandlerType(handler.getHandlerType()))
+        .withName(spec.getName())
+        .withTy(convertHandlerType(spec.getHandlerType()))
         .withInput(
-            handler.getAcceptInputContentType() == null
+            acceptContentType == null
                 ? EMPTY_INPUT
-                : new Input()
-                    .withRequired(handler.isInputRequired())
-                    .withContentType(handler.getAcceptInputContentType()))
+                : new Input().withRequired(true).withContentType(acceptContentType))
         .withOutput(
-            handler.getReturnedContentType() == null
+            spec.getResponseSerde().contentType() == null
                 ? EMPTY_OUTPUT
                 : new Output()
-                    .withContentType(handler.getReturnedContentType())
+                    .withContentType(spec.getResponseSerde().contentType())
                     .withSetContentTypeIfEmpty(false));
   }
 

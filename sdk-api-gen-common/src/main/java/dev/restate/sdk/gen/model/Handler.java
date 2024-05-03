@@ -9,18 +9,25 @@
 package dev.restate.sdk.gen.model;
 
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
 public class Handler {
 
   private final CharSequence name;
   private final HandlerType handlerType;
+  private final @Nullable String inputAccept;
   private final PayloadType inputType;
   private final PayloadType outputType;
 
   public Handler(
-      CharSequence name, HandlerType handlerType, PayloadType inputType, PayloadType outputType) {
+      CharSequence name,
+      HandlerType handlerType,
+      @Nullable String inputAccept,
+      PayloadType inputType,
+      PayloadType outputType) {
     this.name = name;
     this.handlerType = handlerType;
+    this.inputAccept = inputAccept;
     this.inputType = inputType;
     this.outputType = outputType;
   }
@@ -31,6 +38,10 @@ public class Handler {
 
   public HandlerType getHandlerType() {
     return handlerType;
+  }
+
+  public String getInputAccept() {
+    return inputAccept;
   }
 
   public PayloadType getInputType() {
@@ -48,6 +59,7 @@ public class Handler {
   public static class Builder {
     private CharSequence name;
     private HandlerType handlerType;
+    private String inputAccept;
     private PayloadType inputType;
     private PayloadType outputType;
 
@@ -58,6 +70,11 @@ public class Handler {
 
     public Builder withHandlerType(HandlerType handlerType) {
       this.handlerType = handlerType;
+      return this;
+    }
+
+    public Builder withInputAccept(String inputAccept) {
+      this.inputAccept = inputAccept;
       return this;
     }
 
@@ -96,7 +113,11 @@ public class Handler {
       }
 
       return new Handler(
-          Objects.requireNonNull(name), Objects.requireNonNull(handlerType), inputType, outputType);
+          Objects.requireNonNull(name),
+          Objects.requireNonNull(handlerType),
+          inputAccept,
+          inputType,
+          outputType);
     }
   }
 }

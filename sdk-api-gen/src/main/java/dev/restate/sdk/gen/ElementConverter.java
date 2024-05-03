@@ -11,32 +11,31 @@ package dev.restate.sdk.gen;
 import dev.restate.sdk.Context;
 import dev.restate.sdk.ObjectContext;
 import dev.restate.sdk.SharedObjectContext;
-import dev.restate.sdk.annotation.Exclusive;
-import dev.restate.sdk.annotation.Shared;
-import dev.restate.sdk.annotation.Workflow;
+import dev.restate.sdk.annotation.*;
 import dev.restate.sdk.common.ServiceType;
 import dev.restate.sdk.gen.model.*;
+import dev.restate.sdk.gen.model.Handler;
+import dev.restate.sdk.gen.model.Service;
+import dev.restate.sdk.gen.utils.AnnotationUtils;
 import dev.restate.sdk.workflow.WorkflowContext;
 import dev.restate.sdk.workflow.WorkflowSharedContext;
 import java.util.List;
-import java.util.Objects;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.processing.Messager;
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Modifier;
-import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.*;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
+import org.jspecify.annotations.Nullable;
 
 public class ElementConverter {
 
   private static final PayloadType EMPTY_PAYLOAD =
       new PayloadType(true, "", "Void", "dev.restate.sdk.common.CoreSerdes.VOID");
+  private static final String RAW_SERDE = "dev.restate.sdk.common.CoreSerdes.RAW";
 
   private final Messager messager;
   private final Elements elements;
@@ -197,18 +196,12 @@ public class ElementConverter {
       return new Handler.Builder()
           .withName(element.getSimpleName())
           .withHandlerType(handlerType)
-          .withInputType(
-              element.getParameters().size() > 1
-                  ? payloadFromType(element.getParameters().get(1).asType())
-                  : EMPTY_PAYLOAD)
-          .withOutputType(
-              !element.getReturnType().getKind().equals(TypeKind.VOID)
-                  ? payloadFromType(element.getReturnType())
-                  : EMPTY_PAYLOAD)
+          .withInputAccept(inputAcceptFromParameterList(element.getParameters()))
+          .withInputType(inputPayloadFromParameterList(element.getParameters()))
+          .withOutputType(outputPayloadFromExecutableElement(element))
           .validateAndBuild();
     } catch (Exception e) {
-      messager.printMessage(
-          Diagnostic.Kind.ERROR, "Error when building handler: " + e.getMessage(), element);
+      messager.printMessage(Diagnostic.Kind.ERROR, "Error when building handler: " + e, element);
       return null;
     }
   }
@@ -280,13 +273,89 @@ public class ElementConverter {
     }
   }
 
-  private PayloadType payloadFromType(TypeMirror typeMirror) {
-    Objects.requireNonNull(typeMirror);
-    return new PayloadType(
-        false, typeMirror.toString(), boxedType(typeMirror), serdeDecl(typeMirror));
+  private String inputAcceptFromParameterList(List<? extends VariableElement> element) {
+    if (element.size() <= 1) {
+      return null;
+    }
+
+    Accept accept = element.get(1).getAnnotation(Accept.class);
+    if (accept == null) {
+      return null;
+    }
+    return accept.value();
   }
 
-  private static String serdeDecl(TypeMirror ty) {
+  private PayloadType inputPayloadFromParameterList(List<? extends VariableElement> element) {
+    if (element.size() <= 1) {
+      return EMPTY_PAYLOAD;
+    }
+
+    Element parameterElement = element.get(1);
+    return payloadFromTypeMirrorAndAnnotations(
+        parameterElement.asType(),
+        parameterElement.getAnnotation(Json.class),
+        parameterElement.getAnnotation(Raw.class),
+        parameterElement);
+  }
+
+  private PayloadType outputPayloadFromExecutableElement(ExecutableElement element) {
+    return payloadFromTypeMirrorAndAnnotations(
+        element.getReturnType(),
+        element.getAnnotation(Json.class),
+        element.getAnnotation(Raw.class),
+        element);
+  }
+
+  private PayloadType payloadFromTypeMirrorAndAnnotations(
+      TypeMirror ty, @Nullable Json jsonAnnotation, @Nullable Raw rawAnnotation, Element element) {
+    if (ty.getKind().equals(TypeKind.VOID)) {
+      if (rawAnnotation != null || jsonAnnotation != null) {
+        messager.printMessage(
+            Diagnostic.Kind.ERROR, "Unexpected annotation for void type.", element);
+      }
+      return EMPTY_PAYLOAD;
+    }
+    // Some validation
+    if (rawAnnotation != null && jsonAnnotation != null) {
+      messager.printMessage(
+          Diagnostic.Kind.ERROR,
+          "A parameter cannot be annotated both with @Raw and @Json.",
+          element);
+    }
+    if (rawAnnotation != null
+        && !types.isSameType(ty, types.getArrayType(types.getPrimitiveType(TypeKind.BYTE)))) {
+      messager.printMessage(
+          Diagnostic.Kind.ERROR,
+          "A parameter annotated with @Raw MUST be of type byte[], was " + ty,
+          element);
+    }
+
+    String serdeDecl = rawAnnotation != null ? RAW_SERDE : jsonSerdeDecl(ty);
+    if (rawAnnotation != null
+        && !rawAnnotation
+            .contentType()
+            .equals(AnnotationUtils.getAnnotationDefaultValue(Raw.class, "contentType"))) {
+      serdeDecl = contentTypeDecoratedSerdeDecl(serdeDecl, rawAnnotation.contentType());
+    }
+    if (jsonAnnotation != null
+        && !jsonAnnotation
+            .contentType()
+            .equals(AnnotationUtils.getAnnotationDefaultValue(Json.class, "contentType"))) {
+      serdeDecl = contentTypeDecoratedSerdeDecl(serdeDecl, jsonAnnotation.contentType());
+    }
+
+    return new PayloadType(false, ty.toString(), boxedType(ty), serdeDecl);
+  }
+
+  private static String contentTypeDecoratedSerdeDecl(String serdeDecl, String contentType) {
+    return "dev.restate.sdk.common.Serde.withContentType(\""
+        + contentType
+        + "\", "
+        + serdeDecl
+        + ")";
+  }
+
+  private static String jsonSerdeDecl(TypeMirror ty) {
     switch (ty.getKind()) {
       case BOOLEAN:
         return "dev.restate.sdk.common.CoreSerdes.JSON_BOOLEAN";
