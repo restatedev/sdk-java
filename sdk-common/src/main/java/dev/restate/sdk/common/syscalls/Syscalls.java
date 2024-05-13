@@ -81,6 +81,14 @@ public interface Syscalls {
 
   void rejectAwakeable(String id, String reason, SyscallCallback<Void> requestCallback);
 
+  void promise(String key, SyscallCallback<Deferred<ByteString>> callback);
+
+  void peekPromise(String key, SyscallCallback<Deferred<ByteString>> callback);
+
+  void resolvePromise(String key, ByteString payload, SyscallCallback<Deferred<Void>> callback);
+
+  void rejectPromise(String key, String reason, SyscallCallback<Deferred<Void>> callback);
+
   void fail(Throwable cause);
 
   // ----- Deferred

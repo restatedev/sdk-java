@@ -8,9 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.gen;
 
-import dev.restate.sdk.common.BindableServiceFactory;
 import dev.restate.sdk.common.ServiceType;
 import dev.restate.sdk.common.function.ThrowingFunction;
+import dev.restate.sdk.common.syscalls.ServiceDefinitionFactory;
 import dev.restate.sdk.gen.model.Service;
 import dev.restate.sdk.gen.template.HandlebarsTemplateEngine;
 import java.io.*;
@@ -36,8 +36,7 @@ import javax.tools.StandardLocation;
 public class ServiceProcessor extends AbstractProcessor {
 
   private HandlebarsTemplateEngine definitionsCodegen;
-  private HandlebarsTemplateEngine bindableServiceFactoryCodegen;
-  private HandlebarsTemplateEngine bindableServiceCodegen;
+  private HandlebarsTemplateEngine serviceDefinitionFactoryCodegen;
   private HandlebarsTemplateEngine clientCodegen;
 
   private static final Set<String> RESERVED_METHOD_NAMES = Set.of("send");
@@ -60,29 +59,17 @@ public class ServiceProcessor extends AbstractProcessor {
                 ServiceType.VIRTUAL_OBJECT,
                 "templates/Definitions.hbs"),
             RESERVED_METHOD_NAMES);
-    this.bindableServiceFactoryCodegen =
+    this.serviceDefinitionFactoryCodegen =
         new HandlebarsTemplateEngine(
-            "BindableServiceFactory",
+            "ServiceDefinitionFactory",
             filerTemplateLoader,
             Map.of(
                 ServiceType.WORKFLOW,
-                "templates/BindableServiceFactory.hbs",
+                "templates/ServiceDefinitionFactory.hbs",
                 ServiceType.SERVICE,
-                "templates/BindableServiceFactory.hbs",
+                "templates/ServiceDefinitionFactory.hbs",
                 ServiceType.VIRTUAL_OBJECT,
-                "templates/BindableServiceFactory.hbs"),
-            RESERVED_METHOD_NAMES);
-    this.bindableServiceCodegen =
-        new HandlebarsTemplateEngine(
-            "BindableService",
-            filerTemplateLoader,
-            Map.of(
-                ServiceType.WORKFLOW,
-                "templates/workflow/BindableService.hbs",
-                ServiceType.SERVICE,
-                "templates/BindableService.hbs",
-                ServiceType.VIRTUAL_OBJECT,
-                "templates/BindableService.hbs"),
+                "templates/ServiceDefinitionFactory.hbs"),
             RESERVED_METHOD_NAMES);
     this.clientCodegen =
         new HandlebarsTemplateEngine(
@@ -90,7 +77,7 @@ public class ServiceProcessor extends AbstractProcessor {
             filerTemplateLoader,
             Map.of(
                 ServiceType.WORKFLOW,
-                "templates/workflow/Client.hbs",
+                "templates/Client.hbs",
                 ServiceType.SERVICE,
                 "templates/Client.hbs",
                 ServiceType.VIRTUAL_OBJECT,
@@ -122,8 +109,7 @@ public class ServiceProcessor extends AbstractProcessor {
         ThrowingFunction<String, Writer> fileCreator =
             name -> filer.createSourceFile(name, e.getKey()).openWriter();
         this.definitionsCodegen.generate(fileCreator, e.getValue());
-        this.bindableServiceFactoryCodegen.generate(fileCreator, e.getValue());
-        this.bindableServiceCodegen.generate(fileCreator, e.getValue());
+        this.serviceDefinitionFactoryCodegen.generate(fileCreator, e.getValue());
         this.clientCodegen.generate(fileCreator, e.getValue());
       } catch (Throwable ex) {
         throw new RuntimeException(ex);
@@ -136,7 +122,7 @@ public class ServiceProcessor extends AbstractProcessor {
       resourceFilePath =
           readOrCreateResource(
               processingEnv.getFiler(),
-              "META-INF/services/" + BindableServiceFactory.class.getCanonicalName());
+              "META-INF/services/" + ServiceDefinitionFactory.class.getCanonicalName());
       Files.createDirectories(resourceFilePath.getParent());
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -150,7 +136,7 @@ public class ServiceProcessor extends AbstractProcessor {
             StandardOpenOption.CREATE,
             StandardOpenOption.APPEND)) {
       for (Map.Entry<Element, Service> e : parsedServices) {
-        writer.write(e.getValue().getGeneratedClassFqcnPrefix() + "BindableServiceFactory");
+        writer.write(e.getValue().getGeneratedClassFqcnPrefix() + "ServiceDefinitionFactory");
         writer.write('\n');
       }
     } catch (IOException e) {

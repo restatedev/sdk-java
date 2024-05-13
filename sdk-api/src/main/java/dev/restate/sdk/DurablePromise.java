@@ -6,9 +6,8 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-package dev.restate.sdk.workflow;
+package dev.restate.sdk;
 
-import dev.restate.sdk.Awaitable;
 import java.util.Optional;
 
 public interface DurablePromise<T> {

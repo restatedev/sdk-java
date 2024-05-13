@@ -23,7 +23,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.suspendCancellableCoroutine
 
-internal class ContextImpl internal constructor(private val syscalls: Syscalls) : ObjectContext {
+internal class ContextImpl internal constructor(private val syscalls: Syscalls) : WorkflowContext {
   override fun key(): String {
     return this.syscalls.objectKey()
   }
@@ -221,5 +221,103 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
 
   override fun random(): RestateRandom {
     return RestateRandom(syscalls.request().invocationId().toRandomSeed(), syscalls)
+  }
+
+  override fun <T : Any> durablePromise(key: DurablePromiseKey<T>): DurablePromise<T> {
+    return DurablePromiseImpl(key)
+  }
+
+  override fun <T : Any> durablePromiseHandle(key: DurablePromiseKey<T>): DurablePromiseHandle<T> {
+    return DurablePromiseHandleImpl(key)
+  }
+
+  inner class DurablePromiseImpl<T : Any>(private val key: DurablePromiseKey<T>) :
+      DurablePromise<T> {
+    override suspend fun awaitable(): Awaitable<T> {
+      val deferred: Deferred<ByteString> =
+          suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<ByteString>> ->
+            syscalls.promise(key.name(), completingContinuation(cont))
+          }
+
+      return SingleSerdeAwaitableImpl(syscalls, deferred, key.serde())
+    }
+
+    override suspend fun peek(): T? {
+      val deferred: Deferred<ByteString> =
+          suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<ByteString>> ->
+            syscalls.peekPromise(key.name(), completingContinuation(cont))
+          }
+
+      if (!deferred.isCompleted) {
+        suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
+          syscalls.resolveDeferred(deferred, completingUnitContinuation(cont))
+        }
+      }
+
+      val readyResult = deferred.toResult()!!
+      if (!readyResult.isSuccess) {
+        throw readyResult.failure!!
+      }
+      if (readyResult.isEmpty) {
+        return null
+      }
+      return key.serde().deserializeWrappingException(syscalls, readyResult.value!!)!!
+    }
+
+    override suspend fun isCompleted(): Boolean {
+      val deferred: Deferred<ByteString> =
+          suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<ByteString>> ->
+            syscalls.peekPromise(key.name(), completingContinuation(cont))
+          }
+
+      if (!deferred.isCompleted) {
+        suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
+          syscalls.resolveDeferred(deferred, completingUnitContinuation(cont))
+        }
+      }
+
+      return !deferred.toResult()!!.isEmpty
+    }
+  }
+
+  inner class DurablePromiseHandleImpl<T : Any>(private val key: DurablePromiseKey<T>) :
+      DurablePromiseHandle<T> {
+    override suspend fun resolve(payload: T) {
+      val input = key.serde().serializeWrappingException(syscalls, payload)
+
+      val deferred: Deferred<Void> =
+          suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<Void>> ->
+            syscalls.resolvePromise(key.name(), input, completingContinuation(cont))
+          }
+
+      if (!deferred.isCompleted) {
+        suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
+          syscalls.resolveDeferred(deferred, completingUnitContinuation(cont))
+        }
+      }
+
+      val readyResult = deferred.toResult()!!
+      if (!readyResult.isSuccess) {
+        throw readyResult.failure!!
+      }
+    }
+
+    override suspend fun reject(reason: String) {
+      val deferred: Deferred<Void> =
+          suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<Void>> ->
+            syscalls.rejectPromise(key.name(), reason, completingContinuation(cont))
+          }
+
+      if (!deferred.isCompleted) {
+        suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
+          syscalls.resolveDeferred(deferred, completingUnitContinuation(cont))
+        }
+      }
+
+      val readyResult = deferred.toResult()!!
+      if (!readyResult.isSuccess) {
+        throw readyResult.failure!!
+      }
+    }
   }
 }

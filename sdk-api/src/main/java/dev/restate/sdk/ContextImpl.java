@@ -23,7 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-class ContextImpl implements ObjectContext {
+class ContextImpl implements ObjectContext, WorkflowContext {
 
   private final Syscalls syscalls;
 
@@ -214,5 +214,76 @@ class ContextImpl implements ObjectContext {
   @Override
   public RestateRandom random() {
     return new RestateRandom(this.request().invocationId().toRandomSeed(), this.syscalls);
+  }
+
+  @Override
+  public <T> DurablePromise<T> durablePromise(DurablePromiseKey<T> key) {
+    return new DurablePromise<>() {
+      @Override
+      public Awaitable<T> awaitable() {
+        Deferred<ByteString> result = Util.blockOnSyscall(cb -> syscalls.promise(key.name(), cb));
+        return Awaitable.single(syscalls, result)
+            .map(bs -> Util.deserializeWrappingException(syscalls, key.serde(), bs));
+      }
+
+      @Override
+      public Optional<T> peek() {
+        Deferred<ByteString> deferred =
+            Util.blockOnSyscall(cb -> syscalls.peekPromise(key.name(), cb));
+
+        if (!deferred.isCompleted()) {
+          Util.<Void>blockOnSyscall(cb -> syscalls.resolveDeferred(deferred, cb));
+        }
+
+        return Util.unwrapOptionalReadyResult(deferred.toResult())
+            .map(bs -> Util.deserializeWrappingException(syscalls, key.serde(), bs));
+      }
+
+      @Override
+      public boolean isCompleted() {
+        Deferred<ByteString> deferred =
+            Util.blockOnSyscall(cb -> syscalls.peekPromise(key.name(), cb));
+
+        if (!deferred.isCompleted()) {
+          Util.<Void>blockOnSyscall(cb -> syscalls.resolveDeferred(deferred, cb));
+        }
+
+        return !deferred.toResult().isEmpty();
+      }
+    };
+  }
+
+  @Override
+  public <T> DurablePromiseHandle<T> durablePromiseHandle(DurablePromiseKey<T> key) {
+    return new DurablePromiseHandle<>() {
+      @Override
+      public void resolve(T payload) throws IllegalStateException {
+        Deferred<Void> deferred =
+            Util.blockOnSyscall(
+                cb ->
+                    syscalls.resolvePromise(
+                        key.name(),
+                        Util.serializeWrappingException(syscalls, key.serde(), payload),
+                        cb));
+
+        if (!deferred.isCompleted()) {
+          Util.<Void>blockOnSyscall(cb -> syscalls.resolveDeferred(deferred, cb));
+        }
+
+        Util.unwrapResult(deferred.toResult());
+      }
+
+      @Override
+      public void reject(String reason) throws IllegalStateException {
+        Deferred<Void> deferred =
+            Util.blockOnSyscall(cb -> syscalls.rejectPromise(key.name(), reason, cb));
+
+        if (!deferred.isCompleted()) {
+          Util.<Void>blockOnSyscall(cb -> syscalls.resolveDeferred(deferred, cb));
+        }
+
+        Util.unwrapResult(deferred.toResult());
+      }
+    };
   }
 }

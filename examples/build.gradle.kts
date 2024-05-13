@@ -19,7 +19,6 @@ dependencies {
   implementation(project(":sdk-http-vertx"))
   implementation(project(":sdk-api-kotlin"))
   implementation(project(":sdk-serde-jackson"))
-  implementation(project(":sdk-workflow-api"))
 
   implementation(platform(jacksonLibs.jackson.bom))
   implementation(jacksonLibs.jackson.jsr310)

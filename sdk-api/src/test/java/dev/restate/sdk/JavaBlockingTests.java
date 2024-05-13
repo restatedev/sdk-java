@@ -11,7 +11,12 @@ package dev.restate.sdk;
 import static dev.restate.sdk.core.ProtoUtils.GREETER_SERVICE_TARGET;
 
 import dev.restate.sdk.common.CoreSerdes;
+import dev.restate.sdk.common.HandlerType;
 import dev.restate.sdk.common.Serde;
+import dev.restate.sdk.common.ServiceType;
+import dev.restate.sdk.common.syscalls.HandlerDefinition;
+import dev.restate.sdk.common.syscalls.HandlerSpecification;
+import dev.restate.sdk.common.syscalls.ServiceDefinition;
 import dev.restate.sdk.core.MockMultiThreaded;
 import dev.restate.sdk.core.MockSingleThread;
 import dev.restate.sdk.core.TestDefinitions;
@@ -19,6 +24,7 @@ import dev.restate.sdk.core.TestDefinitions.TestExecutor;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
 import dev.restate.sdk.core.TestRunner;
+import java.util.List;
 import java.util.function.BiFunction;
 import java.util.stream.Stream;
 
@@ -38,6 +44,7 @@ public class JavaBlockingTests extends TestRunner {
         new StateTest(),
         new InvocationIdTest(),
         new OnlyInputAndOutputTest(),
+        new PromiseTest(),
         new SideEffectTest(),
         new SleepTest(),
         new StateMachineFailuresTest(),
@@ -48,18 +55,39 @@ public class JavaBlockingTests extends TestRunner {
   public static <T, R> TestInvocationBuilder testDefinitionForService(
       String name, Serde<T> reqSerde, Serde<R> resSerde, BiFunction<Context, T, R> runner) {
     return TestDefinitions.testInvocation(
-        Service.service(name)
-            .with("run", reqSerde, resSerde, runner)
-            .build(Service.Options.DEFAULT),
+        ServiceDefinition.of(
+            name,
+            ServiceType.SERVICE,
+            List.of(
+                HandlerDefinition.of(
+                    HandlerSpecification.of("run", HandlerType.SHARED, reqSerde, resSerde),
+                    HandlerRunner.of(runner)))),
         "run");
   }
 
   public static <T, R> TestInvocationBuilder testDefinitionForVirtualObject(
       String name, Serde<T> reqSerde, Serde<R> resSerde, BiFunction<ObjectContext, T, R> runner) {
     return TestDefinitions.testInvocation(
-        Service.virtualObject(name)
-            .withExclusive("run", reqSerde, resSerde, runner)
-            .build(Service.Options.DEFAULT),
+        ServiceDefinition.of(
+            name,
+            ServiceType.VIRTUAL_OBJECT,
+            List.of(
+                HandlerDefinition.of(
+                    HandlerSpecification.of("run", HandlerType.EXCLUSIVE, reqSerde, resSerde),
+                    HandlerRunner.of(runner)))),
+        "run");
+  }
+
+  public static <T, R> TestInvocationBuilder testDefinitionForWorkflow(
+      String name, Serde<T> reqSerde, Serde<R> resSerde, BiFunction<WorkflowContext, T, R> runner) {
+    return TestDefinitions.testInvocation(
+        ServiceDefinition.of(
+            name,
+            ServiceType.WORKFLOW,
+            List.of(
+                HandlerDefinition.of(
+                    HandlerSpecification.of("run", HandlerType.WORKFLOW, reqSerde, resSerde),
+                    HandlerRunner.of(runner)))),
         "run");
   }
 

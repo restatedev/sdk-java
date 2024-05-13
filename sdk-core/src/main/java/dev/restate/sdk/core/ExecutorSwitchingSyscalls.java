@@ -121,6 +121,27 @@ class ExecutorSwitchingSyscalls implements SyscallsInternal {
   }
 
   @Override
+  public void promise(String key, SyscallCallback<Deferred<ByteString>> callback) {
+    syscallsExecutor.execute(() -> syscalls.promise(key, callback));
+  }
+
+  @Override
+  public void peekPromise(String key, SyscallCallback<Deferred<ByteString>> callback) {
+    syscallsExecutor.execute(() -> syscalls.peekPromise(key, callback));
+  }
+
+  @Override
+  public void resolvePromise(
+      String key, ByteString payload, SyscallCallback<Deferred<Void>> callback) {
+    syscallsExecutor.execute(() -> syscalls.resolvePromise(key, payload, callback));
+  }
+
+  @Override
+  public void rejectPromise(String key, String reason, SyscallCallback<Deferred<Void>> callback) {
+    syscallsExecutor.execute(() -> syscalls.rejectPromise(key, reason, callback));
+  }
+
+  @Override
   public <T> void resolveDeferred(Deferred<T> deferredToResolve, SyscallCallback<Void> callback) {
     syscallsExecutor.execute(() -> syscalls.resolveDeferred(deferredToResolve, callback));
   }

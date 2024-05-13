@@ -10,11 +10,18 @@ package dev.restate.sdk.http.vertx
 
 import com.google.protobuf.ByteString
 import dev.restate.generated.service.protocol.Protocol
-import dev.restate.sdk.Service
+import dev.restate.sdk.HandlerRunner
 import dev.restate.sdk.common.CoreSerdes
+import dev.restate.sdk.common.HandlerType
+import dev.restate.sdk.common.ServiceType
+import dev.restate.sdk.common.syscalls.HandlerDefinition
+import dev.restate.sdk.common.syscalls.HandlerSpecification
+import dev.restate.sdk.common.syscalls.ServiceDefinition
 import dev.restate.sdk.core.ProtoUtils.*
 import dev.restate.sdk.core.TestDefinitions
 import dev.restate.sdk.core.TestDefinitions.testInvocation
+import dev.restate.sdk.kotlin.Context
+import dev.restate.sdk.kotlin.KtSerdes
 import dev.restate.sdk.kotlin.runBlock
 import io.vertx.core.Vertx
 import java.util.stream.Stream
@@ -65,14 +72,18 @@ class VertxExecutorsTest : TestDefinitions.TestSuite {
   override fun definitions(): Stream<TestDefinitions.TestDefinition> {
     return Stream.of(
         testInvocation(
-                dev.restate.sdk.kotlin.Service.service(
+                ServiceDefinition.of(
                     "CheckNonBlockingComponentTrampolineExecutor",
-                    dev.restate.sdk.kotlin.Service.Options(
-                        Dispatchers.Default + nonBlockingCoroutineName)) {
-                      handler("do") { ctx, _: Unit ->
-                        checkNonBlockingComponentTrampolineExecutor(ctx)
-                      }
-                    },
+                    ServiceType.SERVICE,
+                    listOf(
+                        HandlerDefinition.of(
+                            HandlerSpecification.of(
+                                "do", HandlerType.SHARED, KtSerdes.UNIT, KtSerdes.UNIT),
+                            dev.restate.sdk.kotlin.HandlerRunner.of { ctx: Context, _: Unit ->
+                              checkNonBlockingComponentTrampolineExecutor(ctx)
+                            }))),
+                dev.restate.sdk.kotlin.HandlerRunner.Options(
+                    Dispatchers.Default + nonBlockingCoroutineName),
                 "do")
             .withInput(startMessage(1), inputMessage(), ackMessage(1))
             .onlyUnbuffered()
@@ -81,13 +92,20 @@ class VertxExecutorsTest : TestDefinitions.TestSuite {
                 outputMessage(),
                 END_MESSAGE),
         testInvocation(
-                dev.restate.sdk.Service.service("CheckBlockingComponentTrampolineExecutor")
-                    .with(
-                        "do",
-                        CoreSerdes.VOID,
-                        CoreSerdes.VOID,
-                        this::checkBlockingComponentTrampolineExecutor)
-                    .build(Service.Options.DEFAULT),
+                ServiceDefinition.of(
+                    "CheckBlockingComponentTrampolineExecutor",
+                    ServiceType.SERVICE,
+                    listOf(
+                        HandlerDefinition.of(
+                            HandlerSpecification.of(
+                                "do",
+                                HandlerType.SHARED,
+                                CoreSerdes.VOID,
+                                CoreSerdes.VOID,
+                            ),
+                            dev.restate.sdk.HandlerRunner.of(
+                                this::checkBlockingComponentTrampolineExecutor)))),
+                HandlerRunner.Options.DEFAULT,
                 "do")
             .withInput(startMessage(1), inputMessage(), ackMessage(1))
             .onlyUnbuffered()

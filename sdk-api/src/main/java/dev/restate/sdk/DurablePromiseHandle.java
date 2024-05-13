@@ -6,15 +6,10 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-package dev.restate.sdk.common;
+package dev.restate.sdk;
 
-import dev.restate.sdk.common.syscalls.ServiceDefinition;
-import java.util.List;
+public interface DurablePromiseHandle<T> {
+  void resolve(T payload) throws IllegalStateException;
 
-/** Definition of bindable Restate service. */
-public interface BindableService<O> {
-
-  O options();
-
-  List<ServiceDefinition<O>> definitions();
+  void reject(String reason) throws IllegalStateException;
 }

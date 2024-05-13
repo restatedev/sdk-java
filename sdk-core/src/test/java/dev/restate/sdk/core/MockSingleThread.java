@@ -11,13 +11,11 @@ package dev.restate.sdk.core;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.protobuf.MessageLite;
-import dev.restate.sdk.common.BindableService;
 import dev.restate.sdk.common.syscalls.ServiceDefinition;
 import dev.restate.sdk.core.TestDefinitions.TestDefinition;
 import dev.restate.sdk.core.TestDefinitions.TestExecutor;
 import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import java.time.Duration;
-import java.util.List;
 import org.apache.logging.log4j.ThreadContext;
 
 public final class MockSingleThread implements TestExecutor {
@@ -36,23 +34,21 @@ public final class MockSingleThread implements TestExecutor {
     // Output subscriber buffers all the output messages and provides a completion future
     FlowUtils.FutureSubscriber<MessageLite> outputSubscriber = new FlowUtils.FutureSubscriber<>();
 
-    // This test infra supports only components returning one component definition
-    @SuppressWarnings("unchecked")
-    BindableService<Object> bindableService =
-        (BindableService<Object>) definition.getBindableService();
-    List<ServiceDefinition<Object>> serviceDefinition = bindableService.definitions();
-    assertThat(serviceDefinition).size().isEqualTo(1);
+    ServiceDefinition<?> serviceDefinition = definition.getServiceDefinition();
 
     // Prepare server
+    @SuppressWarnings("unchecked")
     RestateEndpoint.Builder builder =
         RestateEndpoint.newBuilder(EndpointManifestSchema.ProtocolMode.BIDI_STREAM)
-            .bind(serviceDefinition.get(0), bindableService.options());
+            .bind(
+                (ServiceDefinition<? super Object>) serviceDefinition,
+                definition.getServiceOptions());
     RestateEndpoint server = builder.build();
 
     // Start invocation
     ResolvedEndpointHandler handler =
         server.resolve(
-            serviceDefinition.get(0).getServiceName(),
+            serviceDefinition.getServiceName(),
             definition.getMethod(),
             k -> null,
             io.opentelemetry.context.Context.current(),

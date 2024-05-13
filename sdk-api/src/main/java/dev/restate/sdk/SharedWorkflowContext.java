@@ -6,10 +6,12 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-package dev.restate.sdk.workflow;
+package dev.restate.sdk;
 
-public enum WorkflowExecutionState {
-  STARTED,
-  ALREADY_STARTED,
-  ALREADY_COMPLETED,
+import dev.restate.sdk.common.DurablePromiseKey;
+
+public interface SharedWorkflowContext extends SharedObjectContext {
+  <T> DurablePromise<T> durablePromise(DurablePromiseKey<T> key);
+
+  <T> DurablePromiseHandle<T> durablePromiseHandle(DurablePromiseKey<T> key);
 }

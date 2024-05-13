@@ -11,11 +11,9 @@ package dev.restate.sdk.core;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.protobuf.MessageLite;
-import dev.restate.sdk.common.BindableService;
 import dev.restate.sdk.common.syscalls.ServiceDefinition;
 import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import java.time.Duration;
-import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import org.apache.logging.log4j.ThreadContext;
@@ -39,22 +37,21 @@ public final class MockMultiThreaded implements TestDefinitions.TestExecutor {
     FlowUtils.FutureSubscriber<MessageLite> outputSubscriber = new FlowUtils.FutureSubscriber<>();
 
     // This test infra supports only services returning one service definition
-    @SuppressWarnings("unchecked")
-    BindableService<Object> bindableService =
-        (BindableService<Object>) definition.getBindableService();
-    List<ServiceDefinition<Object>> serviceDefinition = bindableService.definitions();
-    assertThat(serviceDefinition).size().isEqualTo(1);
+    ServiceDefinition<?> serviceDefinition = definition.getServiceDefinition();
 
     // Prepare server
+    @SuppressWarnings("unchecked")
     RestateEndpoint.Builder builder =
         RestateEndpoint.newBuilder(EndpointManifestSchema.ProtocolMode.BIDI_STREAM)
-            .bind(serviceDefinition.get(0), bindableService.options());
+            .bind(
+                (ServiceDefinition<? super Object>) serviceDefinition,
+                definition.getServiceOptions());
     RestateEndpoint server = builder.build();
 
     // Start invocation
     ResolvedEndpointHandler handler =
         server.resolve(
-            serviceDefinition.get(0).getServiceName(),
+            serviceDefinition.getServiceName(),
             definition.getMethod(),
             k -> null,
             io.opentelemetry.context.Context.current(),

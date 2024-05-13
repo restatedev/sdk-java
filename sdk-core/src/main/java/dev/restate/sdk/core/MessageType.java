@@ -31,6 +31,9 @@ public enum MessageType {
   ClearStateEntryMessage,
   ClearAllStateEntryMessage,
   GetStateKeysEntryMessage,
+  GetPromiseEntryMessage,
+  PeekPromiseEntryMessage,
+  CompletePromiseEntryMessage,
 
   // Syscalls
   SleepEntryMessage,
@@ -56,6 +59,9 @@ public enum MessageType {
   public static final short CLEAR_STATE_ENTRY_MESSAGE_TYPE = 0x0802;
   public static final short CLEAR_ALL_STATE_ENTRY_MESSAGE_TYPE = 0x0803;
   public static final short GET_STATE_KEYS_ENTRY_MESSAGE_TYPE = 0x0804;
+  public static final short GET_PROMISE_ENTRY_MESSAGE_TYPE = 0x0808;
+  public static final short PEEK_PROMISE_ENTRY_MESSAGE_TYPE = 0x0809;
+  public static final short COMPLETE_PROMISE_ENTRY_MESSAGE_TYPE = 0x080A;
   public static final short SLEEP_ENTRY_MESSAGE_TYPE = 0x0C00;
   public static final short INVOKE_ENTRY_MESSAGE_TYPE = 0x0C01;
   public static final short BACKGROUND_INVOKE_ENTRY_MESSAGE_TYPE = 0x0C02;
@@ -92,6 +98,12 @@ public enum MessageType {
         return Protocol.ClearAllStateEntryMessage.parser();
       case GetStateKeysEntryMessage:
         return Protocol.GetStateKeysEntryMessage.parser();
+      case GetPromiseEntryMessage:
+        return Protocol.GetPromiseEntryMessage.parser();
+      case PeekPromiseEntryMessage:
+        return Protocol.PeekPromiseEntryMessage.parser();
+      case CompletePromiseEntryMessage:
+        return Protocol.CompletePromiseEntryMessage.parser();
       case SleepEntryMessage:
         return Protocol.SleepEntryMessage.parser();
       case CallEntryMessage:
@@ -138,6 +150,12 @@ public enum MessageType {
         return CLEAR_ALL_STATE_ENTRY_MESSAGE_TYPE;
       case GetStateKeysEntryMessage:
         return GET_STATE_KEYS_ENTRY_MESSAGE_TYPE;
+      case GetPromiseEntryMessage:
+        return GET_PROMISE_ENTRY_MESSAGE_TYPE;
+      case PeekPromiseEntryMessage:
+        return PEEK_PROMISE_ENTRY_MESSAGE_TYPE;
+      case CompletePromiseEntryMessage:
+        return COMPLETE_PROMISE_ENTRY_MESSAGE_TYPE;
       case SleepEntryMessage:
         return SLEEP_ENTRY_MESSAGE_TYPE;
       case CallEntryMessage:
@@ -184,6 +202,12 @@ public enum MessageType {
         return ClearAllStateEntryMessage;
       case GET_STATE_KEYS_ENTRY_MESSAGE_TYPE:
         return GetStateKeysEntryMessage;
+      case GET_PROMISE_ENTRY_MESSAGE_TYPE:
+        return GetPromiseEntryMessage;
+      case PEEK_PROMISE_ENTRY_MESSAGE_TYPE:
+        return PeekPromiseEntryMessage;
+      case COMPLETE_PROMISE_ENTRY_MESSAGE_TYPE:
+        return CompletePromiseEntryMessage;
       case SLEEP_ENTRY_MESSAGE_TYPE:
         return SleepEntryMessage;
       case INVOKE_ENTRY_MESSAGE_TYPE:
@@ -225,6 +249,12 @@ public enum MessageType {
       return MessageType.ClearAllStateEntryMessage;
     } else if (msg instanceof Protocol.GetStateKeysEntryMessage) {
       return MessageType.GetStateKeysEntryMessage;
+    } else if (msg instanceof Protocol.GetPromiseEntryMessage) {
+      return MessageType.GetPromiseEntryMessage;
+    } else if (msg instanceof Protocol.PeekPromiseEntryMessage) {
+      return MessageType.PeekPromiseEntryMessage;
+    } else if (msg instanceof Protocol.CompletePromiseEntryMessage) {
+      return MessageType.CompletePromiseEntryMessage;
     } else if (msg instanceof Protocol.SleepEntryMessage) {
       return MessageType.SleepEntryMessage;
     } else if (msg instanceof Protocol.CallEntryMessage) {

@@ -514,6 +514,177 @@ final class Entries {
     }
   }
 
+  static final class GetPromiseEntry
+      extends CompletableJournalEntry<GetPromiseEntryMessage, ByteString> {
+    static final GetPromiseEntry INSTANCE = new GetPromiseEntry();
+
+    private GetPromiseEntry() {}
+
+    @Override
+    String getName(GetPromiseEntryMessage expected) {
+      return expected.getName();
+    }
+
+    @Override
+    void trace(GetPromiseEntryMessage expected, Span span) {
+      span.addEvent("Promise");
+    }
+
+    @Override
+    void checkEntryHeader(GetPromiseEntryMessage expected, MessageLite actual)
+        throws ProtocolException {
+      if (!(actual instanceof GetPromiseEntryMessage)) {
+        throw ProtocolException.entryDoesNotMatch(expected, actual);
+      }
+      if (!expected.getKey().equals(((GetPromiseEntryMessage) actual).getKey())) {
+        throw ProtocolException.entryDoesNotMatch(expected, actual);
+      }
+    }
+
+    @Override
+    public boolean hasResult(GetPromiseEntryMessage actual) {
+      return actual.getResultCase() != Protocol.GetPromiseEntryMessage.ResultCase.RESULT_NOT_SET;
+    }
+
+    @Override
+    public Result<ByteString> parseEntryResult(GetPromiseEntryMessage actual) {
+      if (actual.hasValue()) {
+        return Result.success(actual.getValue());
+      }
+      return Result.failure(Util.toRestateException(actual.getFailure()));
+    }
+
+    @Override
+    public Result<ByteString> parseCompletionResult(CompletionMessage actual) {
+      if (actual.hasValue()) {
+        return Result.success(actual.getValue());
+      }
+      if (actual.hasFailure()) {
+        return Result.failure(Util.toRestateException(actual.getFailure()));
+      }
+      return super.parseCompletionResult(actual);
+    }
+  }
+
+  static final class PeekPromiseEntry
+      extends CompletableJournalEntry<PeekPromiseEntryMessage, ByteString> {
+    static final PeekPromiseEntry INSTANCE = new PeekPromiseEntry();
+
+    private PeekPromiseEntry() {}
+
+    @Override
+    String getName(PeekPromiseEntryMessage expected) {
+      return expected.getName();
+    }
+
+    @Override
+    void trace(PeekPromiseEntryMessage expected, Span span) {
+      span.addEvent("PeekPromise");
+    }
+
+    @Override
+    void checkEntryHeader(PeekPromiseEntryMessage expected, MessageLite actual)
+        throws ProtocolException {
+      if (!(actual instanceof PeekPromiseEntryMessage)) {
+        throw ProtocolException.entryDoesNotMatch(expected, actual);
+      }
+      if (!expected.getKey().equals(((PeekPromiseEntryMessage) actual).getKey())) {
+        throw ProtocolException.entryDoesNotMatch(expected, actual);
+      }
+    }
+
+    @Override
+    public boolean hasResult(PeekPromiseEntryMessage actual) {
+      return actual.getResultCase() != Protocol.PeekPromiseEntryMessage.ResultCase.RESULT_NOT_SET;
+    }
+
+    @Override
+    public Result<ByteString> parseEntryResult(PeekPromiseEntryMessage actual) {
+      if (actual.getResultCase() == PeekPromiseEntryMessage.ResultCase.VALUE) {
+        return Result.success(actual.getValue());
+      } else if (actual.getResultCase() == PeekPromiseEntryMessage.ResultCase.FAILURE) {
+        return Result.failure(Util.toRestateException(actual.getFailure()));
+      } else if (actual.getResultCase() == PeekPromiseEntryMessage.ResultCase.EMPTY) {
+        return Result.empty();
+      } else {
+        throw new IllegalStateException("PeekPromiseEntry has not been completed.");
+      }
+    }
+
+    @Override
+    public Result<ByteString> parseCompletionResult(CompletionMessage actual) {
+      if (actual.getResultCase() == CompletionMessage.ResultCase.VALUE) {
+        return Result.success(actual.getValue());
+      } else if (actual.getResultCase() == CompletionMessage.ResultCase.EMPTY) {
+        return Result.empty();
+      } else if (actual.getResultCase() == CompletionMessage.ResultCase.FAILURE) {
+        return Result.failure(Util.toRestateException(actual.getFailure()));
+      }
+      return super.parseCompletionResult(actual);
+    }
+  }
+
+  static final class CompletePromiseEntry
+      extends CompletableJournalEntry<CompletePromiseEntryMessage, Void> {
+
+    static final CompletePromiseEntry INSTANCE = new CompletePromiseEntry();
+
+    private CompletePromiseEntry() {}
+
+    @Override
+    String getName(CompletePromiseEntryMessage expected) {
+      return expected.getName();
+    }
+
+    @Override
+    void trace(CompletePromiseEntryMessage expected, Span span) {
+      span.addEvent("CompletePromise");
+    }
+
+    @Override
+    void checkEntryHeader(CompletePromiseEntryMessage expected, MessageLite actual)
+        throws ProtocolException {
+      if (!(actual instanceof CompletePromiseEntryMessage)) {
+        throw ProtocolException.entryDoesNotMatch(expected, actual);
+      }
+      if (!expected.getKey().equals(((CompletePromiseEntryMessage) actual).getKey())) {
+        throw ProtocolException.entryDoesNotMatch(expected, actual);
+      }
+      if (!expected
+          .getCompletionCase()
+          .equals(((CompletePromiseEntryMessage) actual).getCompletionCase())) {
+        throw ProtocolException.entryDoesNotMatch(expected, actual);
+      }
+    }
+
+    @Override
+    public boolean hasResult(CompletePromiseEntryMessage actual) {
+      return actual.getResultCase()
+          != Protocol.CompletePromiseEntryMessage.ResultCase.RESULT_NOT_SET;
+    }
+
+    @Override
+    public Result<Void> parseEntryResult(CompletePromiseEntryMessage actual) {
+      if (actual.getResultCase() == CompletePromiseEntryMessage.ResultCase.FAILURE) {
+        return Result.failure(Util.toRestateException(actual.getFailure()));
+      } else if (actual.getResultCase() == CompletePromiseEntryMessage.ResultCase.EMPTY) {
+        return Result.empty();
+      } else {
+        throw new IllegalStateException("CompletePromiseEntry has not been completed.");
+      }
+    }
+
+    @Override
+    public Result<Void> parseCompletionResult(CompletionMessage actual) {
+      if (actual.getResultCase() == CompletionMessage.ResultCase.EMPTY) {
+        return Result.empty();
+      } else if (actual.getResultCase() == CompletionMessage.ResultCase.FAILURE) {
+        return Result.failure(Util.toRestateException(actual.getFailure()));
+      }
+      return super.parseCompletionResult(actual);
+    }
+  }
+
   static final class CompleteAwakeableEntry extends JournalEntry<CompleteAwakeableEntryMessage> {
 
     static final CompleteAwakeableEntry INSTANCE = new CompleteAwakeableEntry();

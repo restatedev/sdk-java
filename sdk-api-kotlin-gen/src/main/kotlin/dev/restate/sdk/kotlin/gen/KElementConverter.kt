@@ -25,9 +25,7 @@ import dev.restate.sdk.gen.model.HandlerType
 import dev.restate.sdk.gen.model.PayloadType
 import dev.restate.sdk.gen.model.Service
 import dev.restate.sdk.gen.utils.AnnotationUtils.getAnnotationDefaultValue
-import dev.restate.sdk.kotlin.Context
-import dev.restate.sdk.kotlin.ObjectContext
-import dev.restate.sdk.kotlin.SharedObjectContext
+import dev.restate.sdk.kotlin.*
 import java.util.regex.Pattern
 import kotlin.reflect.KClass
 
@@ -67,9 +65,6 @@ class KElementConverter(
     if (classDeclaration.getVisibility() == Visibility.PRIVATE) {
       logger.error("The annotated class is private", classDeclaration)
     }
-    if (classDeclaration.isAnnotationPresent(dev.restate.sdk.annotation.Workflow::class)) {
-      logger.error("sdk-api-kotlin doesn't support workflows yet", classDeclaration)
-    }
 
     // Figure out service type annotations
     val serviceAnnotation =
@@ -80,24 +75,32 @@ class KElementConverter(
         classDeclaration
             .getAnnotationsByType(dev.restate.sdk.annotation.VirtualObject::class)
             .firstOrNull()
+    val workflowAnnotation =
+        classDeclaration
+            .getAnnotationsByType(dev.restate.sdk.annotation.Workflow::class)
+            .firstOrNull()
     val isAnnotatedWithService = serviceAnnotation != null
     val isAnnotatedWithVirtualObject = virtualObjectAnnotation != null
+    val isAnnotatedWithWorkflow = workflowAnnotation != null
 
     // Check there's exactly one annotation
-    if (!(isAnnotatedWithService xor isAnnotatedWithVirtualObject)) {
+    if (!(isAnnotatedWithService xor isAnnotatedWithVirtualObject xor isAnnotatedWithWorkflow)) {
       logger.error(
-          "The type can be annotated only with one annotation between @VirtualObject and @Service",
+          "The type can be annotated only with one annotation between @VirtualObject and @Service and @Workflow",
           classDeclaration)
     }
 
     data.withServiceType(
-        if (isAnnotatedWithService) ServiceType.SERVICE else ServiceType.VIRTUAL_OBJECT)
+        if (isAnnotatedWithService) ServiceType.SERVICE
+        else if (isAnnotatedWithWorkflow) ServiceType.WORKFLOW else ServiceType.VIRTUAL_OBJECT)
 
     // Infer names
     val targetPkg = classDeclaration.packageName.asString()
     val targetFqcn = classDeclaration.qualifiedName!!.asString()
     var serviceName =
-        if (isAnnotatedWithService) serviceAnnotation!!.name else virtualObjectAnnotation!!.name
+        if (isAnnotatedWithService) serviceAnnotation!!.name
+        else if (isAnnotatedWithWorkflow) workflowAnnotation!!.name
+        else virtualObjectAnnotation!!.name
     if (serviceName.isEmpty()) {
       // Use Simple class name
       // With this logic we make sure we flatten subclasses names
@@ -132,21 +135,23 @@ class KElementConverter(
     if (function.functionKind != FunctionKind.MEMBER) {
       logger.error("Only member function declarations are supported as Restate handlers")
     }
-    if (function.isAnnotationPresent(dev.restate.sdk.annotation.Workflow::class)) {
-      logger.error("sdk-api-kotlin doesn't support workflows yet", function)
-    }
 
     val isAnnotatedWithShared =
         function.isAnnotationPresent(dev.restate.sdk.annotation.Shared::class)
     val isAnnotatedWithExclusive =
         function.isAnnotationPresent(dev.restate.sdk.annotation.Exclusive::class)
+    val isAnnotatedWithWorkflow =
+        function.isAnnotationPresent(dev.restate.sdk.annotation.Workflow::class)
 
     // Check there's no more than one annotation
-    val hasAnyAnnotation = isAnnotatedWithExclusive || isAnnotatedWithShared
-    val hasExactlyOneAnnotation = isAnnotatedWithShared xor isAnnotatedWithExclusive
+    val hasAnyAnnotation =
+        isAnnotatedWithExclusive || isAnnotatedWithShared || isAnnotatedWithWorkflow
+    val hasExactlyOneAnnotation =
+        isAnnotatedWithShared xor isAnnotatedWithExclusive xor isAnnotatedWithWorkflow
     if (!(!hasAnyAnnotation || hasExactlyOneAnnotation)) {
       logger.error(
-          "You can have only one annotation between @Shared and @Exclusive to a method", function)
+          "You can have only one annotation between @Shared and @Exclusive and @Workflow to a method",
+          function)
     }
 
     val handlerBuilder = Handler.builder()
@@ -155,6 +160,7 @@ class KElementConverter(
     val handlerType =
         if (isAnnotatedWithShared) HandlerType.SHARED
         else if (isAnnotatedWithExclusive) HandlerType.EXCLUSIVE
+        else if (isAnnotatedWithWorkflow) HandlerType.WORKFLOW
         else defaultHandlerType(data.serviceType, function)
     handlerBuilder.withHandlerType(handlerType)
 
@@ -251,10 +257,8 @@ class KElementConverter(
     when (serviceType) {
       ServiceType.SERVICE -> return HandlerType.STATELESS
       ServiceType.VIRTUAL_OBJECT -> return HandlerType.EXCLUSIVE
-      ServiceType.WORKFLOW ->
-          logger.error("Workflow handlers MUST be annotated with either @Shared or @Workflow", node)
+      ServiceType.WORKFLOW -> return HandlerType.SHARED
     }
-    throw IllegalStateException("Unexpected")
   }
 
   private fun validateMethodSignature(
@@ -271,6 +275,8 @@ class KElementConverter(
       HandlerType.SHARED ->
           if (serviceType == ServiceType.VIRTUAL_OBJECT) {
             validateFirstParameterType(SharedObjectContext::class, function)
+          } else if (serviceType == ServiceType.WORKFLOW) {
+            validateFirstParameterType(SharedWorkflowContext::class, function)
           } else {
             logger.error(
                 "The annotation @Shared is not supported by the service type $serviceType",
@@ -286,8 +292,13 @@ class KElementConverter(
           }
       HandlerType.STATELESS -> validateFirstParameterType(Context::class, function)
       HandlerType.WORKFLOW ->
-          logger.error(
-              "The annotation @Workflow is currently not supported in sdk-api-kotlin", function)
+          if (serviceType == ServiceType.WORKFLOW) {
+            validateFirstParameterType(WorkflowContext::class, function)
+          } else {
+            logger.error(
+                "The annotation @Workflow is not supported by the service type $serviceType",
+                function)
+          }
     }
   }
 

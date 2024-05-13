@@ -9,6 +9,11 @@
 package dev.restate.sdk.kotlin
 
 import dev.restate.sdk.common.CoreSerdes
+import dev.restate.sdk.common.HandlerType
+import dev.restate.sdk.common.ServiceType
+import dev.restate.sdk.common.syscalls.HandlerDefinition
+import dev.restate.sdk.common.syscalls.HandlerSpecification
+import dev.restate.sdk.common.syscalls.ServiceDefinition
 import dev.restate.sdk.core.*
 import dev.restate.sdk.core.TestDefinitions.TestExecutor
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder
@@ -28,6 +33,7 @@ class KotlinCoroutinesTests : TestRunner() {
         StateTest(),
         InvocationIdTest(),
         OnlyInputAndOutputTest(),
+        PromiseTest(),
         SideEffectTest(),
         SleepTest(),
         StateMachineFailuresTest(),
@@ -41,7 +47,15 @@ class KotlinCoroutinesTests : TestRunner() {
         noinline runner: suspend (Context, REQ) -> RES
     ): TestInvocationBuilder {
       return TestDefinitions.testInvocation(
-          Service.service(name, Service.Options(Dispatchers.Unconfined)) { handler("run", runner) },
+          ServiceDefinition.of(
+              name,
+              ServiceType.SERVICE,
+              listOf(
+                  HandlerDefinition.of(
+                      HandlerSpecification.of(
+                          "run", HandlerType.SHARED, KtSerdes.json(), KtSerdes.json()),
+                      HandlerRunner.of(runner)))),
+          HandlerRunner.Options(Dispatchers.Unconfined),
           "run")
     }
 
@@ -50,9 +64,32 @@ class KotlinCoroutinesTests : TestRunner() {
         noinline runner: suspend (ObjectContext, REQ) -> RES
     ): TestInvocationBuilder {
       return TestDefinitions.testInvocation(
-          Service.virtualObject(name, Service.Options(Dispatchers.Unconfined)) {
-            exclusiveHandler("run", runner)
-          },
+          ServiceDefinition.of(
+              name,
+              ServiceType.VIRTUAL_OBJECT,
+              listOf(
+                  HandlerDefinition.of(
+                      HandlerSpecification.of(
+                          "run", HandlerType.EXCLUSIVE, KtSerdes.json(), KtSerdes.json()),
+                      HandlerRunner.of(runner)))),
+          HandlerRunner.Options(Dispatchers.Unconfined),
+          "run")
+    }
+
+    inline fun <reified REQ, reified RES> testDefinitionForWorkflow(
+        name: String,
+        noinline runner: suspend (WorkflowContext, REQ) -> RES
+    ): TestInvocationBuilder {
+      return TestDefinitions.testInvocation(
+          ServiceDefinition.of(
+              name,
+              ServiceType.WORKFLOW,
+              listOf(
+                  HandlerDefinition.of(
+                      HandlerSpecification.of(
+                          "run", HandlerType.WORKFLOW, KtSerdes.json(), KtSerdes.json()),
+                      HandlerRunner.of(runner)))),
+          HandlerRunner.Options(Dispatchers.Unconfined),
           "run")
     }
 

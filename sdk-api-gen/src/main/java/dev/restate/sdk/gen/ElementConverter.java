@@ -11,14 +11,14 @@ package dev.restate.sdk.gen;
 import dev.restate.sdk.Context;
 import dev.restate.sdk.ObjectContext;
 import dev.restate.sdk.SharedObjectContext;
+import dev.restate.sdk.SharedWorkflowContext;
+import dev.restate.sdk.WorkflowContext;
 import dev.restate.sdk.annotation.*;
 import dev.restate.sdk.common.ServiceType;
 import dev.restate.sdk.gen.model.*;
 import dev.restate.sdk.gen.model.Handler;
 import dev.restate.sdk.gen.model.Service;
 import dev.restate.sdk.gen.utils.AnnotationUtils;
-import dev.restate.sdk.workflow.WorkflowContext;
-import dev.restate.sdk.workflow.WorkflowSharedContext;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -213,10 +213,7 @@ public class ElementConverter {
       case VIRTUAL_OBJECT:
         return HandlerType.EXCLUSIVE;
       case WORKFLOW:
-        messager.printMessage(
-            Diagnostic.Kind.ERROR,
-            "Workflow methods MUST be annotated with either @Shared or @Workflow",
-            element);
+        return HandlerType.SHARED;
     }
     throw new IllegalStateException("Unexpected");
   }
@@ -226,7 +223,7 @@ public class ElementConverter {
     switch (handlerType) {
       case SHARED:
         if (serviceType == ServiceType.WORKFLOW) {
-          validateFirstParameterType(WorkflowSharedContext.class, element);
+          validateFirstParameterType(SharedWorkflowContext.class, element);
         } else if (serviceType == ServiceType.VIRTUAL_OBJECT) {
           validateFirstParameterType(SharedObjectContext.class, element);
         } else {

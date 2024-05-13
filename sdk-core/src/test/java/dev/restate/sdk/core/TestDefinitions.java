@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.MessageLiteOrBuilder;
 import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.common.BindableService;
+import dev.restate.sdk.common.syscalls.ServiceDefinition;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -27,7 +27,9 @@ public final class TestDefinitions {
   private TestDefinitions() {}
 
   public interface TestDefinition {
-    BindableService<?> getBindableService();
+    ServiceDefinition<?> getServiceDefinition();
+
+    Object getServiceOptions();
 
     String getMethod();
 
@@ -67,14 +69,19 @@ public final class TestDefinitions {
   }
 
   public static TestInvocationBuilder testInvocation(Object service, String handler) {
-    if (service instanceof BindableService) {
-      return new TestInvocationBuilder((BindableService<?>) service, handler);
+    if (service instanceof ServiceDefinition) {
+      return new TestInvocationBuilder((ServiceDefinition<?>) service, null, handler);
     }
 
     // In case it's code generated, discover the adapter
-    BindableService<?> bindableService =
-        RestateEndpoint.discoverBindableServiceFactory(service).create(service);
-    return new TestInvocationBuilder(bindableService, handler);
+    ServiceDefinition<?> serviceDefinition =
+        RestateEndpoint.discoverServiceDefinitionFactory(service).create(service);
+    return new TestInvocationBuilder(serviceDefinition, null, handler);
+  }
+
+  public static <O> TestInvocationBuilder testInvocation(
+      ServiceDefinition<O> service, O options, String handler) {
+    return new TestInvocationBuilder(service, options, handler);
   }
 
   public static TestInvocationBuilder unsupported(String reason) {
@@ -82,12 +89,14 @@ public final class TestDefinitions {
   }
 
   public static class TestInvocationBuilder {
-    protected final @Nullable BindableService<?> service;
+    protected final @Nullable ServiceDefinition<?> service;
+    protected final @Nullable Object options;
     protected final @Nullable String handler;
     protected final @Nullable String invalidReason;
 
-    TestInvocationBuilder(BindableService<?> service, String handler) {
+    TestInvocationBuilder(ServiceDefinition<?> service, @Nullable Object options, String handler) {
       this.service = service;
+      this.options = options;
       this.handler = handler;
 
       this.invalidReason = null;
@@ -95,6 +104,7 @@ public final class TestDefinitions {
 
     TestInvocationBuilder(String invalidReason) {
       this.service = null;
+      this.options = null;
       this.handler = null;
 
       this.invalidReason = invalidReason;
@@ -107,6 +117,7 @@ public final class TestDefinitions {
 
       return new WithInputBuilder(
           service,
+          options,
           handler,
           Arrays.stream(messages)
               .map(
@@ -128,8 +139,11 @@ public final class TestDefinitions {
     }
 
     WithInputBuilder(
-        BindableService<?> service, String method, List<InvocationFlow.InvocationInput> input) {
-      super(service, method);
+        ServiceDefinition<?> service,
+        @Nullable Object options,
+        String method,
+        List<InvocationFlow.InvocationInput> input) {
+      super(service, options, method);
       this.input = new ArrayList<>(input);
     }
 
@@ -161,12 +175,13 @@ public final class TestDefinitions {
 
     public ExpectingOutputMessages assertingOutput(Consumer<List<MessageLite>> messages) {
       return new ExpectingOutputMessages(
-          service, invalidReason, handler, input, onlyUnbuffered, messages);
+          service, options, invalidReason, handler, input, onlyUnbuffered, messages);
     }
   }
 
   public abstract static class BaseTestDefinition implements TestDefinition {
-    protected final @Nullable BindableService<?> service;
+    protected final @Nullable ServiceDefinition<?> service;
+    protected final @Nullable Object options;
     protected final @Nullable String invalidReason;
     protected final String method;
     protected final List<InvocationFlow.InvocationInput> input;
@@ -174,13 +189,15 @@ public final class TestDefinitions {
     protected final String named;
 
     private BaseTestDefinition(
-        @Nullable BindableService<?> service,
+        @Nullable ServiceDefinition<?> service,
+        @Nullable Object options,
         @Nullable String invalidReason,
         String method,
         List<InvocationFlow.InvocationInput> input,
         boolean onlyUnbuffered,
         String named) {
       this.service = service;
+      this.options = options;
       this.invalidReason = invalidReason;
       this.method = method;
       this.input = input;
@@ -189,8 +206,13 @@ public final class TestDefinitions {
     }
 
     @Override
-    public BindableService<?> getBindableService() {
+    public ServiceDefinition<?> getServiceDefinition() {
       return Objects.requireNonNull(service);
+    }
+
+    @Override
+    public Object getServiceOptions() {
+      return options;
     }
 
     @Override
@@ -224,7 +246,8 @@ public final class TestDefinitions {
     private final Consumer<List<MessageLite>> messagesAssert;
 
     private ExpectingOutputMessages(
-        @Nullable BindableService<?> service,
+        @Nullable ServiceDefinition<?> service,
+        @Nullable Object options,
         @Nullable String invalidReason,
         String method,
         List<InvocationFlow.InvocationInput> input,
@@ -232,31 +255,32 @@ public final class TestDefinitions {
         Consumer<List<MessageLite>> messagesAssert) {
       super(
           service,
+          options,
           invalidReason,
           method,
           input,
           onlyUnbuffered,
-          service != null
-              ? service.definitions().get(0).getServiceName() + "#" + method
-              : "Unknown");
+          service != null ? service.getServiceName() + "#" + method : "Unknown");
       this.messagesAssert = messagesAssert;
     }
 
     ExpectingOutputMessages(
-        @Nullable BindableService<?> service,
+        @Nullable ServiceDefinition<?> service,
+        @Nullable Object options,
         @Nullable String invalidReason,
         String method,
         List<InvocationFlow.InvocationInput> input,
         boolean onlyUnbuffered,
         Consumer<List<MessageLite>> messagesAssert,
         String named) {
-      super(service, invalidReason, method, input, onlyUnbuffered, named);
+      super(service, options, invalidReason, method, input, onlyUnbuffered, named);
       this.messagesAssert = messagesAssert;
     }
 
     public ExpectingOutputMessages named(String name) {
       return new ExpectingOutputMessages(
           service,
+          options,
           invalidReason,
           method,
           input,

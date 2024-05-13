@@ -10,5 +10,6 @@ package dev.restate.sdk.common;
 
 public enum HandlerType {
   SHARED,
-  EXCLUSIVE
+  EXCLUSIVE,
+  WORKFLOW
 }

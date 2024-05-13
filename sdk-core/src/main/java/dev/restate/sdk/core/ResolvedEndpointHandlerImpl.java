@@ -22,22 +22,21 @@ final class ResolvedEndpointHandlerImpl implements ResolvedEndpointHandler {
 
   private final InvocationStateMachine stateMachine;
   private final HandlerSpecification<Object, Object> spec;
-  private final InvocationHandler<Object, Object, Object> wrappedHandler;
-  private final Object componentOptions;
+  private final HandlerRunner<Object, Object, Object> wrappedHandler;
+  private final @Nullable Object serviceOptions;
   private final @Nullable Executor syscallsExecutor;
 
   @SuppressWarnings("unchecked")
   public ResolvedEndpointHandlerImpl(
       InvocationStateMachine stateMachine,
       HandlerDefinition<?, ?, Object> handler,
-      Object serviceOptions,
+      @Nullable Object serviceOptions,
       @Nullable Executor syscallExecutor) {
     this.stateMachine = stateMachine;
     this.spec = (HandlerSpecification<Object, Object>) handler.getSpec();
     this.wrappedHandler =
-        new InvocationHandlerWrapper<>(
-            (InvocationHandler<Object, Object, Object>) handler.getHandler());
-    this.componentOptions = serviceOptions;
+        new HandlerRunnerWrapper<>((HandlerRunner<Object, Object, Object>) handler.getRunner());
+    this.serviceOptions = serviceOptions;
     this.syscallsExecutor = syscallExecutor;
   }
 
@@ -65,10 +64,10 @@ final class ResolvedEndpointHandlerImpl implements ResolvedEndpointHandler {
                       : new SyscallsImpl(request, stateMachine);
 
               // pollInput then invoke the wrappedHandler
-              wrappedHandler.handle(
+              wrappedHandler.run(
                   spec,
                   syscalls,
-                  componentOptions,
+                  serviceOptions,
                   SyscallCallback.of(
                       o -> this.writeOutputAndEnd(syscalls, o), t -> this.end(syscalls, t)));
             },
@@ -106,23 +105,22 @@ final class ResolvedEndpointHandlerImpl implements ResolvedEndpointHandler {
     }
   }
 
-  private static class InvocationHandlerWrapper<REQ, RES, O>
-      implements InvocationHandler<REQ, RES, O> {
+  private static class HandlerRunnerWrapper<REQ, RES, O> implements HandlerRunner<REQ, RES, O> {
 
-    private final InvocationHandler<REQ, RES, O> handler;
+    private final HandlerRunner<REQ, RES, O> handler;
 
-    private InvocationHandlerWrapper(InvocationHandler<REQ, RES, O> handler) {
+    private HandlerRunnerWrapper(HandlerRunner<REQ, RES, O> handler) {
       this.handler = handler;
     }
 
     @Override
-    public void handle(
+    public void run(
         HandlerSpecification<REQ, RES> spec,
         Syscalls syscalls,
-        O options,
+        @Nullable O options,
         SyscallCallback<ByteString> callback) {
       try {
-        this.handler.handle(spec, syscalls, options, callback);
+        this.handler.run(spec, syscalls, options, callback);
       } catch (Throwable e) {
         callback.onCancel(e);
       }

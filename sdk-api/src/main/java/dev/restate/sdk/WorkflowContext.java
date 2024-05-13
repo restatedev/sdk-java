@@ -6,10 +6,6 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-package dev.restate.sdk.workflow;
+package dev.restate.sdk;
 
-public interface DurablePromiseHandle<T> {
-  void resolve(T payload) throws IllegalStateException;
-
-  void reject(String reason) throws IllegalStateException;
-}
+public interface WorkflowContext extends SharedWorkflowContext, ObjectContext {}

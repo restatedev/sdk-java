@@ -9,7 +9,6 @@
 package dev.restate.sdk.http.vertx;
 
 import dev.restate.sdk.auth.RequestIdentityVerifier;
-import dev.restate.sdk.common.BindableService;
 import dev.restate.sdk.common.syscalls.ServiceDefinition;
 import dev.restate.sdk.core.RestateEndpoint;
 import dev.restate.sdk.core.manifest.EndpointManifestSchema;
@@ -73,33 +72,27 @@ public class RestateHttpEndpointBuilder {
    * Add a Restate service to the endpoint. This will automatically discover the generated factory
    * based on the class name.
    *
-   * <p>You can also manually instantiate the {@link BindableService} using {@link
-   * #bind(BindableService)}.
+   * <p>You can also manually instantiate the {@link ServiceDefinition} using {@link
+   * #bind(ServiceDefinition)}.
    */
   public RestateHttpEndpointBuilder bind(Object service) {
-    return this.bind(RestateEndpoint.discoverBindableServiceFactory(service).create(service));
+    return this.bind(RestateEndpoint.discoverServiceDefinitionFactory(service).create(service));
   }
 
   /**
-   * Add a Restate bindable service to the endpoint.
+   * Add a Restate service to the endpoint.
    *
-   * <p>To override the options, use {@link #bind(BindableService, Object)}.
+   * <p>To set the options, use {@link #bind(ServiceDefinition, Object)}.
    */
-  public RestateHttpEndpointBuilder bind(BindableService<?> service) {
-    for (ServiceDefinition<?> serviceDefinition : service.definitions()) {
-      //noinspection unchecked
-      this.endpointBuilder.bind((ServiceDefinition<Object>) serviceDefinition, service.options());
-    }
-
+  public RestateHttpEndpointBuilder bind(ServiceDefinition<?> serviceDefinition) {
+    //noinspection unchecked
+    this.endpointBuilder.bind((ServiceDefinition<Object>) serviceDefinition, null);
     return this;
   }
 
-  /** Add a Restate bindable service to the endpoint, overriding the options. */
-  public <O> RestateHttpEndpointBuilder bind(BindableService<O> service, O options) {
-    for (ServiceDefinition<O> serviceDefinition : service.definitions()) {
-      this.endpointBuilder.bind(serviceDefinition, options);
-    }
-
+  /** Add a Restate service to the endpoint, setting the options. */
+  public <O> RestateHttpEndpointBuilder bind(ServiceDefinition<O> serviceDefinition, O options) {
+    this.endpointBuilder.bind(serviceDefinition, options);
     return this;
   }
 

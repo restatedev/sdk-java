@@ -12,7 +12,6 @@ dependencies {
   implementation(project(":sdk-api-gen-common"))
 
   implementation(project(":sdk-api"))
-  implementation(project(":sdk-workflow-api"))
 
   testAnnotationProcessor(project(":sdk-api-gen"))
   testImplementation(project(":sdk-core"))

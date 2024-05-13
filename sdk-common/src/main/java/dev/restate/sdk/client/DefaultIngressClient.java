@@ -45,7 +45,7 @@ public class DefaultIngressClient implements IngressClient {
       Serde<Req> reqSerde,
       Serde<Res> resSerde,
       Req req,
-      RequestOptions requestOptions) {
+      CallRequestOptions requestOptions) {
     HttpRequest request = prepareHttpRequest(target, false, reqSerde, req, null, requestOptions);
     return httpClient
         .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
@@ -70,6 +70,11 @@ public class DefaultIngressClient implements IngressClient {
 
   @Override
   public <Req> CompletableFuture<String> sendAsync(
+      Target target, Serde<Req> reqSerde, Req req, Duration delay, CallRequestOptions options) {
+    return sendAsyncInner(target, reqSerde, req, delay, options);
+  }
+
+  public <Req> CompletableFuture<String> sendAsyncInner(
       Target target, Serde<Req> reqSerde, Req req, Duration delay, RequestOptions options) {
     HttpRequest request = prepareHttpRequest(target, true, reqSerde, req, delay, options);
     return httpClient
@@ -98,7 +103,8 @@ public class DefaultIngressClient implements IngressClient {
   public AwakeableHandle awakeableHandle(String id) {
     return new AwakeableHandle() {
       @Override
-      public <T> CompletableFuture<Void> resolveAsync(Serde<T> serde, @NonNull T payload) {
+      public <T> CompletableFuture<Void> resolveAsync(
+          Serde<T> serde, @NonNull T payload, RequestOptions options) {
         // Prepare request
         var reqBuilder =
             HttpRequest.newBuilder().uri(baseUri.resolve("/restate/awakeables/" + id + "/resolve"));
@@ -110,6 +116,7 @@ public class DefaultIngressClient implements IngressClient {
 
         // Add headers
         headers.forEach(reqBuilder::header);
+        options.getAdditionalHeaders().forEach(reqBuilder::header);
 
         // Build and Send request
         HttpRequest request =
@@ -133,7 +140,7 @@ public class DefaultIngressClient implements IngressClient {
       }
 
       @Override
-      public CompletableFuture<Void> rejectAsync(String reason) {
+      public CompletableFuture<Void> rejectAsync(String reason, RequestOptions options) {
         // Prepare request
         var reqBuilder =
             HttpRequest.newBuilder()
@@ -142,6 +149,7 @@ public class DefaultIngressClient implements IngressClient {
 
         // Add headers
         headers.forEach(reqBuilder::header);
+        options.getAdditionalHeaders().forEach(reqBuilder::header);
 
         // Build and Send request
         HttpRequest request = reqBuilder.POST(HttpRequest.BodyPublishers.ofString(reason)).build();
@@ -158,6 +166,92 @@ public class DefaultIngressClient implements IngressClient {
                   }
 
                   return null;
+                });
+      }
+    };
+  }
+
+  @Override
+  public <Req, Res> CompletableFuture<InvocationHandle<Res>> submitAsync(
+      Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req, RequestOptions options) {
+    return this.sendAsyncInner(target, reqSerde, req, null, options)
+        .thenApply(id -> this.invocationHandle(id, resSerde));
+  }
+
+  @Override
+  public <Res> InvocationHandle<Res> invocationHandle(String invocationId, Serde<Res> resSerde) {
+    return new InvocationHandle<>() {
+      @Override
+      public CompletableFuture<Res> attachAsync(RequestOptions options) {
+        // Prepare request
+        var reqBuilder =
+            HttpRequest.newBuilder()
+                .uri(baseUri.resolve("/restate/invocation/" + invocationId + "/attach"));
+
+        // Add headers
+        headers.forEach(reqBuilder::header);
+        options.getAdditionalHeaders().forEach(reqBuilder::header);
+
+        // Build and Send request
+        HttpRequest request = reqBuilder.GET().build();
+        return httpClient
+            .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
+            .handle(
+                (response, throwable) -> {
+                  if (throwable != null) {
+                    throw new IngressException("Error when executing the request", throwable);
+                  }
+
+                  if (response.statusCode() >= 300) {
+                    handleNonSuccessResponse(response);
+                  }
+
+                  try {
+                    return resSerde.deserialize(response.body());
+                  } catch (Exception e) {
+                    throw new IngressException(
+                        "Cannot deserialize the response",
+                        response.statusCode(),
+                        response.body(),
+                        e);
+                  }
+                });
+      }
+
+      @Override
+      public CompletableFuture<Res> getOutputAsync(RequestOptions options) {
+        // Prepare request
+        var reqBuilder =
+            HttpRequest.newBuilder()
+                .uri(baseUri.resolve("/restate/invocation/" + invocationId + "/output"));
+
+        // Add headers
+        headers.forEach(reqBuilder::header);
+        options.getAdditionalHeaders().forEach(reqBuilder::header);
+
+        // Build and Send request
+        HttpRequest request = reqBuilder.GET().build();
+        return httpClient
+            .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
+            .handle(
+                (response, throwable) -> {
+                  if (throwable != null) {
+                    throw new IngressException("Error when executing the request", throwable);
+                  }
+
+                  if (response.statusCode() >= 300) {
+                    handleNonSuccessResponse(response);
+                  }
+
+                  try {
+                    return resSerde.deserialize(response.body());
+                  } catch (Exception e) {
+                    throw new IngressException(
+                        "Cannot deserialize the response",
+                        response.statusCode(),
+                        response.body(),
+                        e);
+                  }
                 });
       }
     };
@@ -198,8 +292,10 @@ public class DefaultIngressClient implements IngressClient {
     this.headers.forEach(reqBuilder::header);
 
     // Add idempotency key and period
-    if (options.getIdempotencyKey() != null) {
-      reqBuilder.header("idempotency-key", options.getIdempotencyKey());
+    if (options instanceof CallRequestOptions) {
+      if (((CallRequestOptions) options).getIdempotencyKey() != null) {
+        reqBuilder.header("idempotency-key", ((CallRequestOptions) options).getIdempotencyKey());
+      }
     }
 
     // Add additional headers

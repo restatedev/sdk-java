@@ -8,25 +8,36 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.http.vertx.testservices
 
-import dev.restate.sdk.common.BindableService
+import dev.restate.sdk.common.HandlerType
+import dev.restate.sdk.common.ServiceType
 import dev.restate.sdk.common.StateKey
-import dev.restate.sdk.kotlin.Service
+import dev.restate.sdk.common.syscalls.HandlerDefinition
+import dev.restate.sdk.common.syscalls.HandlerSpecification
+import dev.restate.sdk.common.syscalls.ServiceDefinition
+import dev.restate.sdk.kotlin.HandlerRunner
+import dev.restate.sdk.kotlin.KtSerdes
+import dev.restate.sdk.kotlin.ObjectContext
 import kotlin.time.Duration.Companion.seconds
 import org.apache.logging.log4j.LogManager
 
 private val LOG = LogManager.getLogger()
 private val COUNTER: StateKey<Long> = BlockingGreeter.COUNTER
 
-fun greeter(): BindableService<*> =
-    Service.virtualObject("KtGreeter") {
-      exclusiveHandler("greet") { ctx, request: String ->
-        LOG.info("Greet invoked!")
+fun greeter(): ServiceDefinition<*> =
+    ServiceDefinition.of(
+        "KtGreeter",
+        ServiceType.VIRTUAL_OBJECT,
+        listOf(
+            HandlerDefinition.of(
+                HandlerSpecification.of(
+                    "greet", HandlerType.EXCLUSIVE, KtSerdes.json(), KtSerdes.json()),
+                HandlerRunner.of { ctx: ObjectContext, request: String ->
+                  LOG.info("Greet invoked!")
 
-        val count = (ctx.get(COUNTER) ?: 0) + 1
-        ctx.set(COUNTER, count)
+                  val count = (ctx.get(COUNTER) ?: 0) + 1
+                  ctx.set(COUNTER, count)
 
-        ctx.sleep(1.seconds)
+                  ctx.sleep(1.seconds)
 
-        "Hello $request. Count: $count"
-      }
-    }
+                  "Hello $request. Count: $count"
+                })))

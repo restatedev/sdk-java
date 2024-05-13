@@ -14,9 +14,10 @@ import com.google.devtools.ksp.containingFile
 import com.google.devtools.ksp.getKotlinClassByName
 import com.google.devtools.ksp.processing.*
 import com.google.devtools.ksp.symbol.KSAnnotated
+import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.Origin
-import dev.restate.sdk.common.BindableServiceFactory
 import dev.restate.sdk.common.ServiceType
+import dev.restate.sdk.common.syscalls.ServiceDefinitionFactory
 import dev.restate.sdk.gen.model.Service
 import dev.restate.sdk.gen.template.HandlebarsTemplateEngine
 import java.io.BufferedWriter
@@ -33,19 +34,12 @@ class ServiceProcessor(private val logger: KSPLogger, private val codeGenerator:
 
   private val bindableServiceFactoryCodegen: HandlebarsTemplateEngine =
       HandlebarsTemplateEngine(
-          "BindableServiceFactory",
+          "ServiceDefinitionFactory",
           ClassPathTemplateLoader(),
           mapOf(
-              ServiceType.SERVICE to "templates/BindableServiceFactory",
-              ServiceType.VIRTUAL_OBJECT to "templates/BindableServiceFactory"),
-          RESERVED_METHOD_NAMES)
-  private val bindableServiceCodegen: HandlebarsTemplateEngine =
-      HandlebarsTemplateEngine(
-          "BindableService",
-          ClassPathTemplateLoader(),
-          mapOf(
-              ServiceType.SERVICE to "templates/BindableService",
-              ServiceType.VIRTUAL_OBJECT to "templates/BindableService"),
+              ServiceType.SERVICE to "templates/ServiceDefinitionFactory",
+              ServiceType.WORKFLOW to "templates/ServiceDefinitionFactory",
+              ServiceType.VIRTUAL_OBJECT to "templates/ServiceDefinitionFactory"),
           RESERVED_METHOD_NAMES)
   private val clientCodegen: HandlebarsTemplateEngine =
       HandlebarsTemplateEngine(
@@ -53,6 +47,7 @@ class ServiceProcessor(private val logger: KSPLogger, private val codeGenerator:
           ClassPathTemplateLoader(),
           mapOf(
               ServiceType.SERVICE to "templates/Client",
+              ServiceType.WORKFLOW to "templates/Client",
               ServiceType.VIRTUAL_OBJECT to "templates/Client"),
           RESERVED_METHOD_NAMES)
   private val definitionsCodegen: HandlebarsTemplateEngine =
@@ -61,6 +56,7 @@ class ServiceProcessor(private val logger: KSPLogger, private val codeGenerator:
           ClassPathTemplateLoader(),
           mapOf(
               ServiceType.SERVICE to "templates/Definitions",
+              ServiceType.WORKFLOW to "templates/Definitions",
               ServiceType.VIRTUAL_OBJECT to "templates/Definitions"),
           RESERVED_METHOD_NAMES)
 
@@ -83,6 +79,8 @@ class ServiceProcessor(private val logger: KSPLogger, private val codeGenerator:
             resolver
                 .getSymbolsWithAnnotation(
                     dev.restate.sdk.annotation.Workflow::class.qualifiedName!!)
+                // Workflow annotation can be set on functions too
+                .filter { ksAnnotated -> ksAnnotated is KSClassDeclaration }
                 .toSet()
 
     val services =
@@ -114,7 +112,6 @@ class ServiceProcessor(private val logger: KSPLogger, private val codeGenerator:
               .writer(Charset.defaultCharset())
         }
         this.bindableServiceFactoryCodegen.generate(fileCreator, service.second)
-        this.bindableServiceCodegen.generate(fileCreator, service.second)
         this.clientCodegen.generate(fileCreator, service.second)
         this.definitionsCodegen.generate(fileCreator, service.second)
       } catch (ex: Throwable) {
@@ -131,7 +128,7 @@ class ServiceProcessor(private val logger: KSPLogger, private val codeGenerator:
   }
 
   private fun generateMetaINF(services: List<Pair<KSAnnotated, Service>>) {
-    val resourceFile = "META-INF/services/${BindableServiceFactory::class.java.canonicalName}"
+    val resourceFile = "META-INF/services/${ServiceDefinitionFactory::class.java.canonicalName}"
     val dependencies =
         Dependencies(true, *(services.map { it.first.containingFile!! }.toTypedArray()))
 
@@ -149,7 +146,7 @@ class ServiceProcessor(private val logger: KSPLogger, private val codeGenerator:
     try {
       writer.use {
         for (service in services) {
-          it.write("${service.second.generatedClassFqcnPrefix}BindableServiceFactory")
+          it.write("${service.second.generatedClassFqcnPrefix}ServiceDefinitionFactory")
           it.newLine()
         }
       }

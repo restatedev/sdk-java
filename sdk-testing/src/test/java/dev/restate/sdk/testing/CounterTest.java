@@ -22,7 +22,7 @@ class CounterTest {
       RestateRunnerBuilder.create()
           .withRestateContainerImage(
               "ghcr.io/restatedev/restate:main") // test against the latest main Restate image
-          .with(new Counter())
+          .bind(new Counter())
           .buildRunner();
 
   @Test

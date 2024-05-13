@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import dev.restate.sdk.common.syscalls.InvocationHandler;
+import dev.restate.sdk.common.syscalls.HandlerRunner;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -16,7 +16,7 @@ import org.apache.logging.log4j.core.util.ContextDataProvider;
 
 /**
  * Log4j2 {@link ContextDataProvider} inferring context from {@link
- * InvocationHandler#SYSCALLS_THREAD_LOCAL}.
+ * HandlerRunner#SYSCALLS_THREAD_LOCAL}.
  *
  * <p>This is used to propagate the context to the user code, such that log statements from the user
  * will contain the restate logging context variables.
@@ -24,7 +24,7 @@ import org.apache.logging.log4j.core.util.ContextDataProvider;
 public class RestateContextDataProvider implements ContextDataProvider {
   @Override
   public Map<String, String> supplyContextData() {
-    SyscallsInternal syscalls = (SyscallsInternal) InvocationHandler.SYSCALLS_THREAD_LOCAL.get();
+    SyscallsInternal syscalls = (SyscallsInternal) HandlerRunner.SYSCALLS_THREAD_LOCAL.get();
     if (syscalls == null) {
       return Collections.emptyMap();
     }

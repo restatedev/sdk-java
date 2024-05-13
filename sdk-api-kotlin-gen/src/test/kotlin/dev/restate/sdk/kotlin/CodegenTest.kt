@@ -139,6 +139,21 @@ class CodegenTest : TestDefinitions.TestSuite {
     }
   }
 
+  @Workflow(name = "MyWorkflow")
+  class MyWorkflow {
+    @Workflow
+    suspend fun run(context: WorkflowContext, myInput: String) {
+      val client = MyWorkflowClient.fromContext(context, context.key())
+      client.send().sharedHandler(myInput)
+    }
+
+    @Handler
+    suspend fun sharedHandler(context: SharedWorkflowContext, myInput: String): String {
+      val client = MyWorkflowClient.fromContext(context, context.key())
+      return client.sharedHandler(myInput).await()
+    }
+  }
+
   override fun definitions(): Stream<TestDefinition> {
     return Stream.of(
         testInvocation({ ServiceGreeter() }, "greet")

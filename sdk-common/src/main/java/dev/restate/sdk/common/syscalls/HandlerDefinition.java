@@ -13,19 +13,19 @@ import java.util.Objects;
 public final class HandlerDefinition<REQ, RES, O> {
 
   private final HandlerSpecification<REQ, RES> spec;
-  private final InvocationHandler<REQ, RES, O> handler;
+  private final HandlerRunner<REQ, RES, O> runner;
 
-  HandlerDefinition(HandlerSpecification<REQ, RES> spec, InvocationHandler<REQ, RES, O> handler) {
+  HandlerDefinition(HandlerSpecification<REQ, RES> spec, HandlerRunner<REQ, RES, O> runner) {
     this.spec = spec;
-    this.handler = handler;
+    this.runner = runner;
   }
 
   public HandlerSpecification<REQ, RES> getSpec() {
     return spec;
   }
 
-  public InvocationHandler<REQ, RES, O> getHandler() {
-    return handler;
+  public HandlerRunner<REQ, RES, O> getRunner() {
+    return runner;
   }
 
   @Override
@@ -34,23 +34,23 @@ public final class HandlerDefinition<REQ, RES, O> {
     if (o == null || getClass() != o.getClass()) return false;
 
     HandlerDefinition<?, ?, ?> that = (HandlerDefinition<?, ?, ?>) o;
-    return Objects.equals(spec, that.spec) && Objects.equals(handler, that.handler);
+    return Objects.equals(spec, that.spec) && Objects.equals(runner, that.runner);
   }
 
   @Override
   public int hashCode() {
     int result = Objects.hashCode(spec);
-    result = 31 * result + Objects.hashCode(handler);
+    result = 31 * result + Objects.hashCode(runner);
     return result;
   }
 
   @Override
   public String toString() {
-    return "HandlerDefinition{" + "spec=" + spec + ", handler=" + handler + '}';
+    return "HandlerDefinition{" + "spec=" + spec + ", handler=" + runner + '}';
   }
 
   public static <REQ, RES, O> HandlerDefinition<REQ, RES, O> of(
-      HandlerSpecification<REQ, RES> spec, InvocationHandler<REQ, RES, O> handler) {
-    return new HandlerDefinition<>(spec, handler);
+      HandlerSpecification<REQ, RES> spec, HandlerRunner<REQ, RES, O> runner) {
+    return new HandlerDefinition<>(spec, runner);
   }
 }

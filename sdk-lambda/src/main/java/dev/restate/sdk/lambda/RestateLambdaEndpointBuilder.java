@@ -9,7 +9,6 @@
 package dev.restate.sdk.lambda;
 
 import dev.restate.sdk.auth.RequestIdentityVerifier;
-import dev.restate.sdk.common.BindableService;
 import dev.restate.sdk.common.syscalls.ServiceDefinition;
 import dev.restate.sdk.core.RestateEndpoint;
 import dev.restate.sdk.core.manifest.EndpointManifestSchema;
@@ -23,20 +22,30 @@ public final class RestateLambdaEndpointBuilder {
   private OpenTelemetry openTelemetry = OpenTelemetry.noop();
 
   /**
-   * Add a Restate service to the endpoint, specifying the {@code executor} where to run the entity
-   * code.
+   * Add a Restate service to the endpoint. This will automatically discover the generated factory
+   * based on the class name.
+   *
+   * <p>You can also manually instantiate the {@link ServiceDefinition} using {@link
+   * #bind(ServiceDefinition)}.
    */
   public RestateLambdaEndpointBuilder bind(Object service) {
-    return this.bind(RestateEndpoint.discoverBindableServiceFactory(service).create(service));
+    return this.bind(RestateEndpoint.discoverServiceDefinitionFactory(service).create(service));
   }
 
-  /** Add a Restate bindable service to the endpoint. */
-  public RestateLambdaEndpointBuilder bind(BindableService<?> service) {
-    for (ServiceDefinition<?> serviceDefinition : service.definitions()) {
-      //noinspection unchecked
-      this.restateEndpoint.bind((ServiceDefinition<Object>) serviceDefinition, service.options());
-    }
+  /**
+   * Add a Restate service to the endpoint.
+   *
+   * <p>To set the options, use {@link #bind(ServiceDefinition, Object)}.
+   */
+  public RestateLambdaEndpointBuilder bind(ServiceDefinition<?> service) {
+    //noinspection unchecked
+    this.restateEndpoint.bind((ServiceDefinition<Object>) service, null);
+    return this;
+  }
 
+  /** Add a Restate service to the endpoint, setting the options. */
+  public <O> RestateLambdaEndpointBuilder bind(ServiceDefinition<O> serviceDefinition, O options) {
+    this.restateEndpoint.bind(serviceDefinition, options);
     return this;
   }
 
