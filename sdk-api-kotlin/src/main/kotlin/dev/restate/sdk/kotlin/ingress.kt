@@ -13,9 +13,9 @@ import dev.restate.sdk.client.IngressClient
 import dev.restate.sdk.client.RequestOptions
 import dev.restate.sdk.common.Serde
 import dev.restate.sdk.common.Target
-import kotlinx.coroutines.future.await
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
+import kotlinx.coroutines.future.await
 
 // Extension methods for the IngressClient
 

@@ -194,7 +194,15 @@ public class DefaultIngressClient implements IngressClient {
                     handleNonSuccessResponse(response);
                   }
 
-                  return null;
+                  try {
+                    return resSerde.deserialize(response.body());
+                  } catch (Exception e) {
+                    throw new IngressException(
+                        "Cannot deserialize the response",
+                        response.statusCode(),
+                        response.body(),
+                        e);
+                  }
                 });
       }
 
@@ -224,7 +232,15 @@ public class DefaultIngressClient implements IngressClient {
                     handleNonSuccessResponse(response);
                   }
 
-                  return null;
+                  try {
+                    return resSerde.deserialize(response.body());
+                  } catch (Exception e) {
+                    throw new IngressException(
+                        "Cannot deserialize the response",
+                        response.statusCode(),
+                        response.body(),
+                        e);
+                  }
                 });
       }
     };
