@@ -8,8 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
+import dev.restate.sdk.client.CallRequestOptions
 import dev.restate.sdk.client.IngressClient
-import dev.restate.sdk.client.RequestOptions
 import dev.restate.sdk.common.Serde
 import dev.restate.sdk.common.Target
 import kotlin.time.Duration
@@ -23,7 +23,7 @@ suspend fun <Req, Res> IngressClient.callSuspend(
     reqSerde: Serde<Req>,
     resSerde: Serde<Res>,
     req: Req,
-    options: RequestOptions = RequestOptions.DEFAULT
+    options: CallRequestOptions = CallRequestOptions.DEFAULT
 ): Res {
   return this.callAsync(target, reqSerde, resSerde, req, options).await()
 }
@@ -33,7 +33,7 @@ suspend fun <Req> IngressClient.sendSuspend(
     reqSerde: Serde<Req>,
     req: Req,
     delay: Duration = Duration.ZERO,
-    options: RequestOptions = RequestOptions.DEFAULT
+    options: CallRequestOptions = CallRequestOptions.DEFAULT
 ): String {
   return this.sendAsync(target, reqSerde, req, delay.toJavaDuration(), options).await()
 }

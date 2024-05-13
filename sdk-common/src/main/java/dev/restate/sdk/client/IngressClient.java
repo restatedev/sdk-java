@@ -22,15 +22,15 @@ import org.jspecify.annotations.Nullable;
 public interface IngressClient {
 
   <Req, Res> CompletableFuture<Res> callAsync(
-      Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req, RequestOptions options);
+      Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req, CallRequestOptions options);
 
   default <Req, Res> CompletableFuture<Res> callAsync(
       Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req) {
-    return callAsync(target, reqSerde, resSerde, req, RequestOptions.DEFAULT);
+    return callAsync(target, reqSerde, resSerde, req, CallRequestOptions.DEFAULT);
   }
 
   default <Req, Res> Res call(
-      Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req, RequestOptions options)
+      Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req, CallRequestOptions options)
       throws IngressException {
     try {
       return callAsync(target, reqSerde, resSerde, req, options).join();
@@ -44,7 +44,7 @@ public interface IngressClient {
 
   default <Req, Res> Res call(Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req)
       throws IngressException {
-    return call(target, reqSerde, resSerde, req, RequestOptions.DEFAULT);
+    return call(target, reqSerde, resSerde, req, CallRequestOptions.DEFAULT);
   }
 
   <Req> CompletableFuture<String> sendAsync(
@@ -52,19 +52,23 @@ public interface IngressClient {
       Serde<Req> reqSerde,
       Req req,
       @Nullable Duration delay,
-      RequestOptions options);
+      CallRequestOptions options);
 
   default <Req> CompletableFuture<String> sendAsync(
       Target target, Serde<Req> reqSerde, Req req, @Nullable Duration delay) {
-    return sendAsync(target, reqSerde, req, delay, RequestOptions.DEFAULT);
+    return sendAsync(target, reqSerde, req, delay, CallRequestOptions.DEFAULT);
   }
 
   default <Req> CompletableFuture<String> sendAsync(Target target, Serde<Req> reqSerde, Req req) {
-    return sendAsync(target, reqSerde, req, null, RequestOptions.DEFAULT);
+    return sendAsync(target, reqSerde, req, null, CallRequestOptions.DEFAULT);
   }
 
   default <Req> String send(
-      Target target, Serde<Req> reqSerde, Req req, @Nullable Duration delay, RequestOptions options)
+      Target target,
+      Serde<Req> reqSerde,
+      Req req,
+      @Nullable Duration delay,
+      CallRequestOptions options)
       throws IngressException {
     try {
       return sendAsync(target, reqSerde, req, delay, options).join();
@@ -78,11 +82,11 @@ public interface IngressClient {
 
   default <Req> String send(Target target, Serde<Req> reqSerde, Req req, @Nullable Duration delay)
       throws IngressException {
-    return send(target, reqSerde, req, delay, RequestOptions.DEFAULT);
+    return send(target, reqSerde, req, delay, CallRequestOptions.DEFAULT);
   }
 
   default <Req> String send(Target target, Serde<Req> reqSerde, Req req) throws IngressException {
-    return send(target, reqSerde, req, null, RequestOptions.DEFAULT);
+    return send(target, reqSerde, req, null, CallRequestOptions.DEFAULT);
   }
 
   /**

@@ -82,10 +82,10 @@ public class {{generatedClassSimpleName}} {
         public {{#if outputEmpty}}void{{else}}{{{outputFqcn}}}{{/if}} {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
             {{^outputEmpty}}return {{/outputEmpty}}this.{{methodName}}(
                 {{^inputEmpty}}req, {{/inputEmpty}}
-                dev.restate.sdk.client.RequestOptions.DEFAULT);
+                dev.restate.sdk.client.CallRequestOptions.DEFAULT);
         }
 
-        public {{#if outputEmpty}}void{{else}}{{{outputFqcn}}}{{/if}} {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.sdk.client.RequestOptions requestOptions) {
+        public {{#if outputEmpty}}void{{else}}{{{outputFqcn}}}{{/if}} {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.sdk.client.CallRequestOptions requestOptions) {
             {{^outputEmpty}}return {{/outputEmpty}}this.ingressClient.call(
                 {{#if isObject}}Target.virtualObject({{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME, this.key, "{{name}}"){{else}}Target.service({{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME, "{{name}}"){{/if}},
                 {{inputSerdeRef}},
@@ -97,10 +97,10 @@ public class {{generatedClassSimpleName}} {
         public {{#if outputEmpty}}java.util.concurrent.CompletableFuture<Void>{{else}}java.util.concurrent.CompletableFuture<{{{boxedOutputFqcn}}}>{{/if}} {{methodName}}Async({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
             return this.{{methodName}}Async(
                 {{^inputEmpty}}req, {{/inputEmpty}}
-                dev.restate.sdk.client.RequestOptions.DEFAULT);
+                dev.restate.sdk.client.CallRequestOptions.DEFAULT);
         }
 
-        public {{#if outputEmpty}}java.util.concurrent.CompletableFuture<Void>{{else}}java.util.concurrent.CompletableFuture<{{{boxedOutputFqcn}}}>{{/if}} {{methodName}}Async({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.sdk.client.RequestOptions requestOptions) {
+        public {{#if outputEmpty}}java.util.concurrent.CompletableFuture<Void>{{else}}java.util.concurrent.CompletableFuture<{{{boxedOutputFqcn}}}>{{/if}} {{methodName}}Async({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.sdk.client.CallRequestOptions requestOptions) {
             return this.ingressClient.callAsync(
                 {{#if isObject}}Target.virtualObject({{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME, this.key, "{{name}}"){{else}}Target.service({{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME, "{{name}}"){{/if}},
                 {{inputSerdeRef}},
@@ -129,10 +129,10 @@ public class {{generatedClassSimpleName}} {
             public String {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
                 return this.{{methodName}}(
                     {{^inputEmpty}}req, {{/inputEmpty}}
-                    dev.restate.sdk.client.RequestOptions.DEFAULT);
+                    dev.restate.sdk.client.CallRequestOptions.DEFAULT);
             }
 
-            public String {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.sdk.client.RequestOptions requestOptions) {
+            public String {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.sdk.client.CallRequestOptions requestOptions) {
                 return IngressClient.this.ingressClient.send(
                     {{#if isObject}}Target.virtualObject({{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME, IngressClient.this.key, "{{name}}"){{else}}Target.service({{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME, "{{name}}"){{/if}},
                     {{inputSerdeRef}},
@@ -144,10 +144,10 @@ public class {{generatedClassSimpleName}} {
             public java.util.concurrent.CompletableFuture<String> {{methodName}}Async({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
                 return this.{{methodName}}Async(
                     {{^inputEmpty}}req, {{/inputEmpty}}
-                    dev.restate.sdk.client.RequestOptions.DEFAULT);
+                    dev.restate.sdk.client.CallRequestOptions.DEFAULT);
             }
 
-            public java.util.concurrent.CompletableFuture<String> {{methodName}}Async({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.sdk.client.RequestOptions requestOptions) {
+            public java.util.concurrent.CompletableFuture<String> {{methodName}}Async({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.sdk.client.CallRequestOptions requestOptions) {
                 return IngressClient.this.ingressClient.sendAsync(
                     {{#if isObject}}Target.virtualObject({{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME, IngressClient.this.key, "{{name}}"){{else}}Target.service({{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME, "{{name}}"){{/if}},
                     {{inputSerdeRef}},

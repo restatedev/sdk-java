@@ -45,7 +45,7 @@ public class DefaultIngressClient implements IngressClient {
       Serde<Req> reqSerde,
       Serde<Res> resSerde,
       Req req,
-      RequestOptions requestOptions) {
+      CallRequestOptions requestOptions) {
     HttpRequest request = prepareHttpRequest(target, false, reqSerde, req, null, requestOptions);
     return httpClient
         .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
@@ -70,7 +70,7 @@ public class DefaultIngressClient implements IngressClient {
 
   @Override
   public <Req> CompletableFuture<String> sendAsync(
-      Target target, Serde<Req> reqSerde, Req req, Duration delay, RequestOptions options) {
+      Target target, Serde<Req> reqSerde, Req req, Duration delay, CallRequestOptions options) {
     HttpRequest request = prepareHttpRequest(target, true, reqSerde, req, delay, options);
     return httpClient
         .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
@@ -186,7 +186,7 @@ public class DefaultIngressClient implements IngressClient {
       Serde<Req> reqSerde,
       Req req,
       Duration delay,
-      RequestOptions options) {
+      CallRequestOptions options) {
     var reqBuilder = HttpRequest.newBuilder().uri(toRequestURI(target, isSend, delay));
 
     // Add content-type

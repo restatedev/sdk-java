@@ -10,36 +10,38 @@ package dev.restate.sdk.client;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 
 public class RequestOptions {
-
   public static final RequestOptions DEFAULT = new RequestOptions();
 
-  private String idempotencyKey;
-  private final Map<String, String> additionalHeaders = new HashMap<>();
+  final Map<String, String> additionalHeaders;
 
-  public RequestOptions withIdempotency(String idempotencyKey) {
-    this.idempotencyKey = idempotencyKey;
-    return this;
+  public RequestOptions() {
+    this(new HashMap<>());
+  }
+
+  public RequestOptions(Map<String, String> additionalHeaders) {
+    this.additionalHeaders = additionalHeaders;
   }
 
   public RequestOptions withHeader(String name, String value) {
-    this.additionalHeaders.put(name, value);
-    return this;
+    RequestOptions newOptions = this.copy();
+    newOptions.additionalHeaders.put(name, value);
+    return newOptions;
   }
 
-  public RequestOptions withHeaders(Map<String, String> additionalHeaders) {
-    this.additionalHeaders.putAll(additionalHeaders);
-    return this;
-  }
-
-  public String getIdempotencyKey() {
-    return idempotencyKey;
+  public RequestOptions withHeaders(Map<? extends String, ? extends String> additionalHeaders) {
+    RequestOptions newOptions = this.copy();
+    newOptions.additionalHeaders.putAll(additionalHeaders);
+    return newOptions;
   }
 
   public Map<String, String> getAdditionalHeaders() {
     return additionalHeaders;
+  }
+
+  public RequestOptions copy() {
+    return new RequestOptions(new HashMap<>(this.additionalHeaders));
   }
 
   @Override
@@ -48,26 +50,16 @@ public class RequestOptions {
     if (o == null || getClass() != o.getClass()) return false;
 
     RequestOptions that = (RequestOptions) o;
-
-    if (!Objects.equals(idempotencyKey, that.idempotencyKey)) return false;
     return additionalHeaders.equals(that.additionalHeaders);
   }
 
   @Override
   public int hashCode() {
-    int result = idempotencyKey != null ? idempotencyKey.hashCode() : 0;
-    result = 31 * result + additionalHeaders.hashCode();
-    return result;
+    return additionalHeaders.hashCode();
   }
 
   @Override
   public String toString() {
-    return "RequestOptions{"
-        + "idempotencyKey='"
-        + idempotencyKey
-        + '\''
-        + ", additionalHeaders="
-        + additionalHeaders
-        + '}';
+    return "RequestOptions{" + "additionalHeaders=" + additionalHeaders + '}';
   }
 }
