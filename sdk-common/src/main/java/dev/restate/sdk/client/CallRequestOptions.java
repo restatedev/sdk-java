@@ -31,6 +31,20 @@ public final class CallRequestOptions extends RequestOptions {
     return new CallRequestOptions(new HashMap<>(this.additionalHeaders), idempotencyKey);
   }
 
+  @Override
+  public CallRequestOptions withHeader(String name, String value) {
+    CallRequestOptions newOptions = this.copy();
+    newOptions.additionalHeaders.put(name, value);
+    return newOptions;
+  }
+
+  @Override
+  public CallRequestOptions withHeaders(Map<? extends String, ? extends String> additionalHeaders) {
+    CallRequestOptions newOptions = this.copy();
+    newOptions.additionalHeaders.putAll(additionalHeaders);
+    return newOptions;
+  }
+
   public String getIdempotencyKey() {
     return idempotencyKey;
   }
