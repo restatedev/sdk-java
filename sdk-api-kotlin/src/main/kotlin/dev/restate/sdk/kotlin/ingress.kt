@@ -10,11 +10,12 @@ package dev.restate.sdk.kotlin
 
 import dev.restate.sdk.client.CallRequestOptions
 import dev.restate.sdk.client.IngressClient
+import dev.restate.sdk.client.RequestOptions
 import dev.restate.sdk.common.Serde
 import dev.restate.sdk.common.Target
+import kotlinx.coroutines.future.await
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
-import kotlinx.coroutines.future.await
 
 // Extension methods for the IngressClient
 
@@ -38,10 +39,31 @@ suspend fun <Req> IngressClient.sendSuspend(
   return this.sendAsync(target, reqSerde, req, delay.toJavaDuration(), options).await()
 }
 
-suspend fun <T> IngressClient.AwakeableHandle.resolveSuspend(serde: Serde<T>, payload: T) {
-  this.resolveAsync(serde, payload).await()
+suspend fun <T> IngressClient.AwakeableHandle.resolveSuspend(
+    serde: Serde<T>,
+    payload: T,
+    options: RequestOptions = RequestOptions.DEFAULT
+) {
+  this.resolveAsync(serde, payload, options).await()
 }
 
-suspend fun IngressClient.AwakeableHandle.rejectSuspend(reason: String) {
-  this.rejectAsync(reason).await()
+suspend fun IngressClient.AwakeableHandle.rejectSuspend(
+    reason: String,
+    options: RequestOptions = RequestOptions.DEFAULT
+) {
+  this.rejectAsync(reason, options).await()
+}
+
+suspend fun <T> IngressClient.InvocationHandle.attachSuspend(
+    resSerde: Serde<T>,
+    options: RequestOptions = RequestOptions.DEFAULT
+) {
+  this.attachAsync(resSerde, options).await()
+}
+
+suspend fun <T> IngressClient.InvocationHandle.getOutputSuspend(
+    resSerde: Serde<T>,
+    options: RequestOptions = RequestOptions.DEFAULT
+) {
+  this.getOutputAsync(resSerde, options).await()
 }

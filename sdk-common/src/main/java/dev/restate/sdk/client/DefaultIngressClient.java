@@ -98,7 +98,8 @@ public class DefaultIngressClient implements IngressClient {
   public AwakeableHandle awakeableHandle(String id) {
     return new AwakeableHandle() {
       @Override
-      public <T> CompletableFuture<Void> resolveAsync(Serde<T> serde, @NonNull T payload) {
+      public <T> CompletableFuture<Void> resolveAsync(
+          Serde<T> serde, @NonNull T payload, RequestOptions options) {
         // Prepare request
         var reqBuilder =
             HttpRequest.newBuilder().uri(baseUri.resolve("/restate/awakeables/" + id + "/resolve"));
@@ -110,6 +111,7 @@ public class DefaultIngressClient implements IngressClient {
 
         // Add headers
         headers.forEach(reqBuilder::header);
+        options.getAdditionalHeaders().forEach(reqBuilder::header);
 
         // Build and Send request
         HttpRequest request =
@@ -133,7 +135,7 @@ public class DefaultIngressClient implements IngressClient {
       }
 
       @Override
-      public CompletableFuture<Void> rejectAsync(String reason) {
+      public CompletableFuture<Void> rejectAsync(String reason, RequestOptions options) {
         // Prepare request
         var reqBuilder =
             HttpRequest.newBuilder()
@@ -142,9 +144,74 @@ public class DefaultIngressClient implements IngressClient {
 
         // Add headers
         headers.forEach(reqBuilder::header);
+        options.getAdditionalHeaders().forEach(reqBuilder::header);
 
         // Build and Send request
         HttpRequest request = reqBuilder.POST(HttpRequest.BodyPublishers.ofString(reason)).build();
+        return httpClient
+            .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
+            .handle(
+                (response, throwable) -> {
+                  if (throwable != null) {
+                    throw new IngressException("Error when executing the request", throwable);
+                  }
+
+                  if (response.statusCode() >= 300) {
+                    handleNonSuccessResponse(response);
+                  }
+
+                  return null;
+                });
+      }
+    };
+  }
+
+  @Override
+  public InvocationHandle invocationHandle(String invocationId) {
+    return new InvocationHandle() {
+      @Override
+      public <Res> CompletableFuture<Res> attachAsync(Serde<Res> resSerde, RequestOptions options) {
+        // Prepare request
+        var reqBuilder =
+            HttpRequest.newBuilder()
+                .uri(baseUri.resolve("/restate/invocation/" + invocationId + "/attach"));
+
+        // Add headers
+        headers.forEach(reqBuilder::header);
+        options.getAdditionalHeaders().forEach(reqBuilder::header);
+
+        // Build and Send request
+        HttpRequest request = reqBuilder.GET().build();
+        return httpClient
+            .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
+            .handle(
+                (response, throwable) -> {
+                  if (throwable != null) {
+                    throw new IngressException("Error when executing the request", throwable);
+                  }
+
+                  if (response.statusCode() >= 300) {
+                    handleNonSuccessResponse(response);
+                  }
+
+                  return null;
+                });
+      }
+
+      @Override
+      public <Res> CompletableFuture<Res> getOutputAsync(
+          Serde<Res> resSerde, RequestOptions options) {
+        // Prepare request
+        var reqBuilder =
+            HttpRequest.newBuilder()
+                .uri(baseUri.resolve("/restate/invocation/" + invocationId + "/output"));
+
+        // Add headers
+        headers.forEach(reqBuilder::header);
+        options.getAdditionalHeaders().forEach(reqBuilder::header);
+
+        // Build and Send request
+        HttpRequest request = reqBuilder.GET().build();
         return httpClient
             .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
             .handle(

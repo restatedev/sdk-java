@@ -101,18 +101,19 @@ public interface IngressClient {
    * ingress
    */
   interface AwakeableHandle {
-    /** Same as {@link #resolve(Serde, Object)} but async. */
-    <T> CompletableFuture<Void> resolveAsync(Serde<T> serde, @NonNull T payload);
+    /** Same as {@link #resolve(Serde, Object)} but async with options. */
+    <T> CompletableFuture<Void> resolveAsync(
+        Serde<T> serde, @NonNull T payload, RequestOptions options);
 
-    /**
-     * Complete with success the Awakeable.
-     *
-     * @param serde used to serialize the Awakeable result payload.
-     * @param payload the result payload. MUST NOT be null.
-     */
-    default <T> void resolve(Serde<T> serde, @NonNull T payload) {
+    /** Same as {@link #resolve(Serde, Object)} but async. */
+    default <T> CompletableFuture<Void> resolveAsync(Serde<T> serde, @NonNull T payload) {
+      return resolveAsync(serde, payload, RequestOptions.DEFAULT);
+    }
+
+    /** Same as {@link #resolve(Serde, Object)} with options. */
+    default <T> void resolve(Serde<T> serde, @NonNull T payload, RequestOptions options) {
       try {
-        resolveAsync(serde, payload).join();
+        resolveAsync(serde, payload, options).join();
       } catch (CompletionException e) {
         if (e.getCause() instanceof RuntimeException) {
           throw (RuntimeException) e.getCause();
@@ -121,8 +122,35 @@ public interface IngressClient {
       }
     }
 
+    /**
+     * Complete with success the Awakeable.
+     *
+     * @param serde used to serialize the Awakeable result payload.
+     * @param payload the result payload. MUST NOT be null.
+     */
+    default <T> void resolve(Serde<T> serde, @NonNull T payload) {
+      this.resolve(serde, payload, RequestOptions.DEFAULT);
+    }
+
+    /** Same as {@link #reject(String)} but async with options. */
+    CompletableFuture<Void> rejectAsync(String reason, RequestOptions options);
+
     /** Same as {@link #reject(String)} but async. */
-    CompletableFuture<Void> rejectAsync(String reason);
+    default CompletableFuture<Void> rejectAsync(String reason) {
+      return rejectAsync(reason, RequestOptions.DEFAULT);
+    }
+
+    /** Same as {@link #reject(String)} with options. */
+    default void reject(String reason, RequestOptions options) {
+      try {
+        rejectAsync(reason, options).join();
+      } catch (CompletionException e) {
+        if (e.getCause() instanceof RuntimeException) {
+          throw (RuntimeException) e.getCause();
+        }
+        throw new RuntimeException(e.getCause());
+      }
+    }
 
     /**
      * Complete with failure the Awakeable.
@@ -130,14 +158,54 @@ public interface IngressClient {
      * @param reason the rejection reason. MUST NOT be null.
      */
     default void reject(String reason) {
+      this.reject(reason, RequestOptions.DEFAULT);
+    }
+  }
+
+  InvocationHandle invocationHandle(String invocationId);
+
+  interface InvocationHandle {
+    <Res> CompletableFuture<Res> attachAsync(Serde<Res> resSerde, RequestOptions options);
+
+    default <Res> CompletableFuture<Res> attachAsync(Serde<Res> resSerde) {
+      return attachAsync(resSerde, RequestOptions.DEFAULT);
+    }
+
+    default <Res> Res attach(Serde<Res> resSerde, RequestOptions options) throws IngressException {
       try {
-        rejectAsync(reason).join();
+        return attachAsync(resSerde, options).join();
       } catch (CompletionException e) {
         if (e.getCause() instanceof RuntimeException) {
           throw (RuntimeException) e.getCause();
         }
         throw new RuntimeException(e.getCause());
       }
+    }
+
+    default <Res> Res attach(Serde<Res> resSerde) throws IngressException {
+      return attach(resSerde, RequestOptions.DEFAULT);
+    }
+
+    <Res> CompletableFuture<Res> getOutputAsync(Serde<Res> resSerde, RequestOptions options);
+
+    default <Res> CompletableFuture<Res> getOutputAsync(Serde<Res> resSerde) {
+      return getOutputAsync(resSerde, RequestOptions.DEFAULT);
+    }
+
+    default <Res> Res getOutput(Serde<Res> resSerde, RequestOptions options)
+        throws IngressException {
+      try {
+        return getOutputAsync(resSerde, options).join();
+      } catch (CompletionException e) {
+        if (e.getCause() instanceof RuntimeException) {
+          throw (RuntimeException) e.getCause();
+        }
+        throw new RuntimeException(e.getCause());
+      }
+    }
+
+    default <Res> Res getOutput(Serde<Res> resSerde) throws IngressException {
+      return getOutput(resSerde, RequestOptions.DEFAULT);
     }
   }
 
