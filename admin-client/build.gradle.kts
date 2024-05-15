@@ -3,7 +3,7 @@ import org.openapitools.generator.gradle.plugin.tasks.GenerateTask
 
 plugins {
   `java-library`
-  id("org.openapi.generator") version "6.6.0"
+  id("org.openapi.generator") version "7.5.0"
   `library-publishing-conventions`
 }
 
@@ -14,7 +14,6 @@ dependencies {
   implementation(jacksonLibs.jackson.core)
   implementation(jacksonLibs.jackson.databind)
   implementation(jacksonLibs.jackson.jsr310)
-  implementation("org.openapitools:jackson-databind-nullable:0.2.6")
 
   // Required for the annotations
   compileOnly("org.apache.tomcat:annotations-api:6.0.53")
@@ -42,6 +41,8 @@ tasks.withType<GenerateTask> {
   generateApiDocumentation.set(false)
   generateModelTests.set(false)
   generateModelDocumentation.set(false)
+
+  configOptions.put("openApiNullable", "false")
 
   finalizedBy("spotlessJava")
 }
