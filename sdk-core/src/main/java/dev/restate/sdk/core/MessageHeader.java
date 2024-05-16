@@ -13,9 +13,6 @@ import dev.restate.generated.service.protocol.Protocol;
 
 public class MessageHeader {
 
-  static final short SUPPORTED_PROTOCOL_VERSION = 2;
-
-  static final short VERSION_MASK = 0x03FF;
   static final short DONE_FLAG = 0x0001;
   static final int REQUIRES_ACK_FLAG = 0x8000;
 
@@ -100,21 +97,5 @@ public class MessageHeader {
     }
     // Messages with no flags
     return new MessageHeader(MessageType.fromMessage(msg), 0, msg.getSerializedSize());
-  }
-
-  public static void checkProtocolVersion(MessageHeader header) {
-    if (header.type != MessageType.StartMessage) {
-      throw new IllegalStateException("Expected StartMessage, got " + header.type);
-    }
-
-    short version = (short) (header.flags & VERSION_MASK);
-    if (version != SUPPORTED_PROTOCOL_VERSION) {
-      throw new IllegalStateException(
-          "Unsupported protocol version "
-              + version
-              + ", only version "
-              + SUPPORTED_PROTOCOL_VERSION
-              + " is supported");
-    }
   }
 }

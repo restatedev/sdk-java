@@ -24,16 +24,4 @@ public class MessageHeaderTest {
                 .encode())
         .isEqualTo(0x0C01_8001_0000_0002L);
   }
-
-  @Test
-  void checkProtocolVersion() {
-    int unknownVersion = Integer.MAX_VALUE & MessageHeader.VERSION_MASK;
-    assertThatThrownBy(
-            () ->
-                MessageHeader.checkProtocolVersion(
-                    new MessageHeader(MessageType.StartMessage, unknownVersion, 0)))
-        .hasMessage(
-            "Unsupported protocol version %d, only version %d is supported",
-            unknownVersion, MessageHeader.SUPPORTED_PROTOCOL_VERSION);
-  }
 }
