@@ -8,12 +8,14 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.http.vertx;
 
+import static io.netty.handler.codec.http.HttpHeaderNames.ACCEPT;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;
 import static io.netty.handler.codec.http.HttpHeaderValues.APPLICATION_JSON;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.ResolvedEndpointHandler;
 import dev.restate.sdk.core.RestateEndpoint;
@@ -31,6 +33,8 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.http.impl.HttpServerRequestInternal;
 import java.net.URI;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.regex.Pattern;
 import org.apache.logging.log4j.LogManager;
@@ -152,22 +156,69 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
   }
 
   private void handleDiscoveryRequest(HttpServerRequest request) {
-    // Compute response and write it back
-    DeploymentManifestSchema response = this.restateEndpoint.handleDiscoveryRequest();
-    Buffer responseBuffer;
-    try {
-      responseBuffer = Buffer.buffer(MANIFEST_OBJECT_MAPPER.writeValueAsBytes(response));
-    } catch (JsonProcessingException e) {
-      LOG.warn("Error when writing out the manifest POJO", e);
-      request.response().setStatusCode(INTERNAL_SERVER_ERROR.code()).end();
-      return;
+    final String accept = request.getHeader(ACCEPT);
+
+    final Discovery.ServiceDiscoveryProtocolVersion serviceDiscoveryProtocolVersion = selectSupportedServiceDiscoveryProtocolVersion(accept);
+
+    if (serviceDiscoveryProtocolVersion == Discovery.ServiceDiscoveryProtocolVersion.V1) {
+      // Compute response and write it back
+      DeploymentManifestSchema response = this.restateEndpoint.handleDiscoveryRequest();
+
+      Buffer responseBuffer;
+      try {
+        responseBuffer = Buffer.buffer(MANIFEST_OBJECT_MAPPER.writeValueAsBytes(response));
+      } catch (JsonProcessingException e) {
+        LOG.warn("Error when writing out the manifest POJO", e);
+        request.response().setStatusCode(INTERNAL_SERVER_ERROR.code()).end();
+        return;
+      }
+
+      request
+          .response()
+          .setStatusCode(OK.code())
+          .putHeader(X_RESTATE_SERVER_KEY, X_RESTATE_SERVER_VALUE)
+          .putHeader(CONTENT_TYPE, serviceDiscoveryProtocolVersionToContentType(serviceDiscoveryProtocolVersion))
+          .end(responseBuffer);
+    } else {
+      request.response().setStatusCode(UNSUPPORTED_MEDIA_TYPE.code()).setStatusMessage("Service endpoint does not support the accepted service discovery protocol versions.").end();
+    }
+  }
+
+  private static Discovery.ServiceDiscoveryProtocolVersion selectSupportedServiceDiscoveryProtocolVersion(String accept) {
+    // assume V1 in case nothing was set
+    if (accept == null || accept.isEmpty()) {
+      return Discovery.ServiceDiscoveryProtocolVersion.V1;
     }
 
-    request
-        .response()
-        .setStatusCode(OK.code())
-        .putHeader(X_RESTATE_SERVER_KEY, X_RESTATE_SERVER_VALUE)
-        .putHeader(CONTENT_TYPE, APPLICATION_JSON)
-        .end(responseBuffer);
+    final String[] supportedVersions = accept.split(",");
+
+    Discovery.ServiceDiscoveryProtocolVersion maxVersion = Discovery.ServiceDiscoveryProtocolVersion.UNRECOGNIZED;
+
+    for (String versionString: supportedVersions) {
+      final Optional<Discovery.ServiceDiscoveryProtocolVersion> optionalVersion = parseServiceDiscoveryProtocolVersion(versionString.trim());
+
+      if (optionalVersion.isPresent()) {
+        final Discovery.ServiceDiscoveryProtocolVersion version = optionalVersion.get();
+        if (version.getNumber() > maxVersion.getNumber()) {
+          maxVersion = version;
+        }
+      }
+    }
+
+    return maxVersion;
+  }
+
+  private static Optional<Discovery.ServiceDiscoveryProtocolVersion> parseServiceDiscoveryProtocolVersion(String versionString) {
+    if (versionString.equals("application/vnd.restate.endpointmanifest.v1+json")) {
+      return Optional.of(Discovery.ServiceDiscoveryProtocolVersion.V1);
+    }
+    return Optional.empty();
+  }
+
+  private static String serviceDiscoveryProtocolVersionToContentType(Discovery.ServiceDiscoveryProtocolVersion version) {
+    if (Objects.requireNonNull(version) == Discovery.ServiceDiscoveryProtocolVersion.V1) {
+      return "application/vnd.restate.endpointmanifest.v1+json";
+    }
+    return "";
   }
 }
