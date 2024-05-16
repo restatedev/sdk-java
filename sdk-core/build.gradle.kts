@@ -43,7 +43,7 @@ sourceSets {
 
 // Configure jsonSchema2Pojo
 jsonSchema2Pojo {
-  setSource(files("$projectDir/src/main/service-protocol/deployment_manifest_schema.json"))
+  setSource(files("$projectDir/src/main/service-protocol/endpoint_manifest_schema.json"))
   targetPackage = "dev.restate.sdk.core.manifest"
   targetDirectory = generatedJ2SPDir.get().asFile
 
