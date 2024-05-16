@@ -11,9 +11,11 @@ package dev.restate.sdk.http.vertx
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.protobuf.ByteString
 import com.google.protobuf.MessageLite
+import dev.restate.generated.service.discovery.Discovery
 import dev.restate.generated.service.protocol.Protocol.*
 import dev.restate.sdk.common.CoreSerdes
 import dev.restate.sdk.core.ProtoUtils.*
+import dev.restate.sdk.core.ServiceProtocol
 import dev.restate.sdk.core.manifest.DeploymentManifestSchema
 import dev.restate.sdk.http.vertx.testservices.BlockingGreeter
 import dev.restate.sdk.http.vertx.testservices.greeter
@@ -82,7 +84,11 @@ internal class RestateHttpEndpointTest {
                 .coAwait()
 
         // Prepare request header
-        request.setChunked(true).putHeader(HttpHeaders.CONTENT_TYPE, "application/restate")
+        request
+            .setChunked(true)
+            .putHeader(
+                HttpHeaders.CONTENT_TYPE,
+                ServiceProtocol.serviceProtocolVersionToHeaderValue(ServiceProtocolVersion.V1))
 
         // Send start message and PollInputStreamEntry
         request.write(encode(startMessage(1).build()))
@@ -172,7 +178,14 @@ internal class RestateHttpEndpointTest {
                 .coAwait()
 
         // Prepare request header
-        request.setChunked(true).putHeader(HttpHeaders.CONTENT_TYPE, "application/restate")
+        request
+            .setChunked(true)
+            .putHeader(
+                HttpHeaders.CONTENT_TYPE,
+                ServiceProtocol.serviceProtocolVersionToHeaderValue(ServiceProtocolVersion.V1))
+            .putHeader(
+                HttpHeaders.ACCEPT,
+                ServiceProtocol.serviceProtocolVersionToHeaderValue(ServiceProtocolVersion.V1))
         request.write(encode(startMessage(0).build()))
 
         val response = request.response().coAwait()
@@ -200,6 +213,10 @@ internal class RestateHttpEndpointTest {
         // Send request
         val request =
             client.request(HttpMethod.GET, endpointPort, "localhost", "/discover").coAwait()
+        request.putHeader(
+            HttpHeaders.ACCEPT,
+            ServiceProtocol.serviceDiscoveryProtocolVersionToHeaderValue(
+                Discovery.ServiceDiscoveryProtocolVersion.V1))
         request.end().coAwait()
 
         // Assert response
@@ -207,7 +224,10 @@ internal class RestateHttpEndpointTest {
 
         // Response status and content type header
         assertThat(response.statusCode()).isEqualTo(HttpResponseStatus.OK.code())
-        assertThat(response.getHeader(HttpHeaders.CONTENT_TYPE)).isEqualTo("application/json")
+        assertThat(response.getHeader(HttpHeaders.CONTENT_TYPE))
+            .isEqualTo(
+                ServiceProtocol.serviceDiscoveryProtocolVersionToHeaderValue(
+                    Discovery.ServiceDiscoveryProtocolVersion.V1))
 
         // Parse response
         val responseBody = response.body().coAwait()

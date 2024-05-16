@@ -18,6 +18,7 @@ dependencies {
   // We need this for the manifest
   implementation(platform(jacksonLibs.jackson.bom))
   implementation(jacksonLibs.jackson.annotations)
+  implementation(jacksonLibs.jackson.databind)
 
   // We don't want a hard-dependency on it
   compileOnly(coreLibs.log4j.core)

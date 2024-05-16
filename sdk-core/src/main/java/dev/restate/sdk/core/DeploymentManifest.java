@@ -8,6 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
+import static dev.restate.sdk.core.ServiceProtocol.MAX_SERVICE_PROTOCOL_VERSION;
+import static dev.restate.sdk.core.ServiceProtocol.MIN_SERVICE_PROTOCOL_VERSION;
+
 import dev.restate.sdk.common.HandlerType;
 import dev.restate.sdk.common.ServiceType;
 import dev.restate.sdk.common.syscalls.HandlerDefinition;
@@ -18,6 +21,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 final class DeploymentManifest {
+
   private static final Input EMPTY_INPUT = new Input();
   private static final Output EMPTY_OUTPUT = new Output().withSetContentTypeIfEmpty(false);
 
@@ -27,8 +31,8 @@ final class DeploymentManifest {
       DeploymentManifestSchema.ProtocolMode protocolMode, Stream<ServiceDefinition<?>> components) {
     this.manifest =
         new DeploymentManifestSchema()
-            .withMinProtocolVersion(1)
-            .withMaxProtocolVersion(1)
+            .withMinProtocolVersion(MIN_SERVICE_PROTOCOL_VERSION.getNumber())
+            .withMaxProtocolVersion(MAX_SERVICE_PROTOCOL_VERSION.getNumber())
             .withProtocolMode(protocolMode)
             .withServices(
                 components

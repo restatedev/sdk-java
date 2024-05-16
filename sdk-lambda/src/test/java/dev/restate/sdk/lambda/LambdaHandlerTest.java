@@ -19,8 +19,10 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
+import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.ProtoUtils;
+import dev.restate.sdk.core.ServiceProtocol;
 import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
 import dev.restate.sdk.core.manifest.Service;
 import dev.restate.sdk.lambda.testservices.JavaCounterDefinitions;
@@ -42,7 +44,11 @@ class LambdaHandlerTest {
 
     // Mock request
     APIGatewayProxyRequestEvent request = new APIGatewayProxyRequestEvent();
-    request.setHeaders(Map.of("content-type", "application/restate"));
+    request.setHeaders(
+        Map.of(
+            "content-type",
+            ServiceProtocol.serviceProtocolVersionToHeaderValue(
+                Protocol.ServiceProtocolVersion.V1)));
     request.setPath("/a/path/prefix/invoke/" + serviceName + "/get");
     request.setHttpMethod("POST");
     request.setIsBase64Encoded(true);
@@ -63,7 +69,11 @@ class LambdaHandlerTest {
 
     // Assert response
     assertThat(response.getStatusCode()).isEqualTo(200);
-    assertThat(response.getHeaders()).containsEntry("content-type", "application/restate");
+    assertThat(response.getHeaders())
+        .containsEntry(
+            "content-type",
+            ServiceProtocol.serviceProtocolVersionToHeaderValue(
+                Protocol.ServiceProtocolVersion.V1));
     assertThat(response.getIsBase64Encoded()).isTrue();
     assertThat(response.getBody())
         .asBase64Decoded()
@@ -82,13 +92,22 @@ class LambdaHandlerTest {
     // Mock request
     APIGatewayProxyRequestEvent request = new APIGatewayProxyRequestEvent();
     request.setPath("/a/path/prefix/discover");
+    request.setHeaders(
+        Map.of(
+            "accept",
+            ServiceProtocol.serviceDiscoveryProtocolVersionToHeaderValue(
+                Discovery.ServiceDiscoveryProtocolVersion.V1)));
 
     // Send request
     APIGatewayProxyResponseEvent response = handler.handleRequest(request, mockContext());
 
     // Assert response
     assertThat(response.getStatusCode()).isEqualTo(200);
-    assertThat(response.getHeaders()).containsEntry("content-type", "application/json");
+    assertThat(response.getHeaders())
+        .containsEntry(
+            "content-type",
+            ServiceProtocol.serviceDiscoveryProtocolVersionToHeaderValue(
+                Discovery.ServiceDiscoveryProtocolVersion.V1));
     assertThat(response.getIsBase64Encoded()).isTrue();
     byte[] decodedStringResponse = Base64.getDecoder().decode(response.getBody());
     // Compute response and write it back

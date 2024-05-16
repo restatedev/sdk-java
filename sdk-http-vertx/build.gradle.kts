@@ -16,10 +16,6 @@ dependencies {
   implementation(platform(vertxLibs.vertx.bom))
   implementation(vertxLibs.vertx.core)
 
-  // Jackson (we need it for the manifest)
-  implementation(platform(jacksonLibs.jackson.bom))
-  implementation(jacksonLibs.jackson.databind)
-
   // Observability
   implementation(platform(coreLibs.opentelemetry.bom))
   implementation(coreLibs.opentelemetry.api)

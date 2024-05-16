@@ -13,10 +13,6 @@ dependencies {
   api(lambdaLibs.core)
   api(lambdaLibs.events)
 
-  // Jackson (we need it for the manifest)
-  implementation(platform(jacksonLibs.jackson.bom))
-  implementation(jacksonLibs.jackson.databind)
-
   implementation(platform(coreLibs.opentelemetry.bom))
   implementation(coreLibs.opentelemetry.api)
 

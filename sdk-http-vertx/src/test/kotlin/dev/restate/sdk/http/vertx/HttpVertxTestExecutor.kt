@@ -9,6 +9,8 @@
 package dev.restate.sdk.http.vertx
 
 import com.google.protobuf.MessageLite
+import dev.restate.generated.service.protocol.Protocol
+import dev.restate.sdk.core.ServiceProtocol
 import dev.restate.sdk.core.TestDefinitions.TestDefinition
 import dev.restate.sdk.core.TestDefinitions.TestExecutor
 import io.vertx.core.Vertx
@@ -57,7 +59,16 @@ class HttpVertxTestExecutor(private val vertx: Vertx) : TestExecutor {
               .coAwait()
 
       // Prepare request header and send them
-      request.setChunked(true).putHeader(HttpHeaders.CONTENT_TYPE, "application/restate")
+      request
+          .setChunked(true)
+          .putHeader(
+              HttpHeaders.CONTENT_TYPE,
+              ServiceProtocol.serviceProtocolVersionToHeaderValue(
+                  Protocol.ServiceProtocolVersion.V1))
+          .putHeader(
+              HttpHeaders.ACCEPT,
+              ServiceProtocol.serviceProtocolVersionToHeaderValue(
+                  Protocol.ServiceProtocolVersion.V1))
       request.sendHead().coAwait()
 
       launch {

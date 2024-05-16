@@ -8,17 +8,18 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.http.vertx;
 
+import static dev.restate.sdk.core.ServiceProtocol.selectSupportedServiceDiscoveryProtocolVersion;
+import static dev.restate.sdk.core.ServiceProtocol.serviceDiscoveryProtocolVersionToHeaderValue;
 import static io.netty.handler.codec.http.HttpHeaderNames.ACCEPT;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;
-import static io.netty.handler.codec.http.HttpHeaderValues.APPLICATION_JSON;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.restate.generated.service.discovery.Discovery;
+import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.ResolvedEndpointHandler;
 import dev.restate.sdk.core.RestateEndpoint;
+import dev.restate.sdk.core.ServiceProtocol;
 import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
 import dev.restate.sdk.version.Version;
 import io.netty.util.AsciiString;
@@ -33,8 +34,6 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.http.impl.HttpServerRequestInternal;
 import java.net.URI;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.regex.Pattern;
 import org.apache.logging.log4j.LogManager;
@@ -45,11 +44,9 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
 
   private static final Logger LOG = LogManager.getLogger(RequestHttpServerHandler.class);
 
-  private static final AsciiString APPLICATION_RESTATE = AsciiString.cached("application/restate");
   private static final AsciiString X_RESTATE_SERVER_KEY = AsciiString.cached("x-restate-server");
   private static final AsciiString X_RESTATE_SERVER_VALUE =
       AsciiString.cached(Version.X_RESTATE_SERVER);
-  private static final ObjectMapper MANIFEST_OBJECT_MAPPER = new ObjectMapper();
 
   private static final Pattern SLASH = Pattern.compile(Pattern.quote("/"));
 
@@ -87,6 +84,27 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
     // Let's first check if it's a discovery request
     if (DISCOVER_PATH.equalsIgnoreCase(uri.getPath())) {
       this.handleDiscoveryRequest(request);
+      return;
+    }
+
+    // check protocol version
+    final String protocolVersionString = request.getHeader(CONTENT_TYPE);
+
+    final Protocol.ServiceProtocolVersion serviceProtocolVersion =
+        ServiceProtocol.parseServiceProtocolVersion(protocolVersionString);
+
+    if (!ServiceProtocol.is_supported(serviceProtocolVersion)) {
+      final String errorMessage =
+          String.format(
+              "Service endpoint does not support the service protocol version '%s'.",
+              protocolVersionString);
+      LOG.warn(errorMessage);
+      request
+          .response()
+          .setStatusCode(UNSUPPORTED_MEDIA_TYPE.code())
+          .putHeader(CONTENT_TYPE, "text/plain")
+          .putHeader(X_RESTATE_SERVER_KEY, X_RESTATE_SERVER_VALUE)
+          .end(errorMessage);
       return;
     }
 
@@ -137,7 +155,9 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
     HttpServerResponse response = request.response();
     response.setStatusCode(OK.code());
     response
-        .putHeader(CONTENT_TYPE, APPLICATION_RESTATE)
+        .putHeader(
+            CONTENT_TYPE,
+            ServiceProtocol.serviceProtocolVersionToHeaderValue(serviceProtocolVersion))
         .putHeader(X_RESTATE_SERVER_KEY, X_RESTATE_SERVER_VALUE);
     // This is No-op for HTTP2
     response.setChunked(true);
@@ -156,20 +176,37 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
   }
 
   private void handleDiscoveryRequest(HttpServerRequest request) {
-    final String accept = request.getHeader(ACCEPT);
+    final String acceptVersionsString = request.getHeader(ACCEPT);
 
-    final Discovery.ServiceDiscoveryProtocolVersion serviceDiscoveryProtocolVersion = selectSupportedServiceDiscoveryProtocolVersion(accept);
+    final Discovery.ServiceDiscoveryProtocolVersion serviceDiscoveryProtocolVersion =
+        selectSupportedServiceDiscoveryProtocolVersion(acceptVersionsString);
 
-    if (serviceDiscoveryProtocolVersion == Discovery.ServiceDiscoveryProtocolVersion.V1) {
+    if (serviceDiscoveryProtocolVersion
+        == Discovery.ServiceDiscoveryProtocolVersion
+            .SERVICE_DISCOVERY_PROTOCOL_VERSION_UNSPECIFIED) {
+      final String errorMessage =
+          String.format(
+              "Unsupported service discovery protocol version: '%s'", acceptVersionsString);
+      LOG.warn(errorMessage);
+      request
+          .response()
+          .setStatusCode(UNSUPPORTED_MEDIA_TYPE.code())
+          .putHeader(CONTENT_TYPE, "text/plain")
+          .putHeader(X_RESTATE_SERVER_KEY, X_RESTATE_SERVER_VALUE)
+          .end(errorMessage);
+    } else {
       // Compute response and write it back
       DeploymentManifestSchema response = this.restateEndpoint.handleDiscoveryRequest();
 
       Buffer responseBuffer;
       try {
-        responseBuffer = Buffer.buffer(MANIFEST_OBJECT_MAPPER.writeValueAsBytes(response));
-      } catch (JsonProcessingException e) {
+        responseBuffer =
+            Buffer.buffer(
+                new ServiceProtocol.DiscoveryResponseSerializer(serviceDiscoveryProtocolVersion)
+                    .serialize(response));
+      } catch (Exception e) {
         LOG.warn("Error when writing out the manifest POJO", e);
-        request.response().setStatusCode(INTERNAL_SERVER_ERROR.code()).end();
+        request.response().setStatusCode(INTERNAL_SERVER_ERROR.code()).end(e.getMessage());
         return;
       }
 
@@ -177,48 +214,10 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
           .response()
           .setStatusCode(OK.code())
           .putHeader(X_RESTATE_SERVER_KEY, X_RESTATE_SERVER_VALUE)
-          .putHeader(CONTENT_TYPE, serviceDiscoveryProtocolVersionToContentType(serviceDiscoveryProtocolVersion))
+          .putHeader(
+              CONTENT_TYPE,
+              serviceDiscoveryProtocolVersionToHeaderValue(serviceDiscoveryProtocolVersion))
           .end(responseBuffer);
-    } else {
-      request.response().setStatusCode(UNSUPPORTED_MEDIA_TYPE.code()).setStatusMessage("Service endpoint does not support the accepted service discovery protocol versions.").end();
     }
-  }
-
-  private static Discovery.ServiceDiscoveryProtocolVersion selectSupportedServiceDiscoveryProtocolVersion(String accept) {
-    // assume V1 in case nothing was set
-    if (accept == null || accept.isEmpty()) {
-      return Discovery.ServiceDiscoveryProtocolVersion.V1;
-    }
-
-    final String[] supportedVersions = accept.split(",");
-
-    Discovery.ServiceDiscoveryProtocolVersion maxVersion = Discovery.ServiceDiscoveryProtocolVersion.UNRECOGNIZED;
-
-    for (String versionString: supportedVersions) {
-      final Optional<Discovery.ServiceDiscoveryProtocolVersion> optionalVersion = parseServiceDiscoveryProtocolVersion(versionString.trim());
-
-      if (optionalVersion.isPresent()) {
-        final Discovery.ServiceDiscoveryProtocolVersion version = optionalVersion.get();
-        if (version.getNumber() > maxVersion.getNumber()) {
-          maxVersion = version;
-        }
-      }
-    }
-
-    return maxVersion;
-  }
-
-  private static Optional<Discovery.ServiceDiscoveryProtocolVersion> parseServiceDiscoveryProtocolVersion(String versionString) {
-    if (versionString.equals("application/vnd.restate.endpointmanifest.v1+json")) {
-      return Optional.of(Discovery.ServiceDiscoveryProtocolVersion.V1);
-    }
-    return Optional.empty();
-  }
-
-  private static String serviceDiscoveryProtocolVersionToContentType(Discovery.ServiceDiscoveryProtocolVersion version) {
-    if (Objects.requireNonNull(version) == Discovery.ServiceDiscoveryProtocolVersion.V1) {
-      return "application/vnd.restate.endpointmanifest.v1+json";
-    }
-    return "";
   }
 }
