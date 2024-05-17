@@ -12,7 +12,7 @@ import dev.restate.sdk.auth.RequestIdentityVerifier;
 import dev.restate.sdk.common.BindableServiceFactory;
 import dev.restate.sdk.common.syscalls.HandlerDefinition;
 import dev.restate.sdk.common.syscalls.ServiceDefinition;
-import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
+import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import dev.restate.sdk.core.manifest.Service;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
@@ -34,10 +34,10 @@ public class RestateEndpoint {
   private final Map<String, ServiceAndOptions<?>> services;
   private final Tracer tracer;
   private final RequestIdentityVerifier requestIdentityVerifier;
-  private final DeploymentManifest deploymentManifest;
+  private final EndpointManifest deploymentManifest;
 
   private RestateEndpoint(
-      DeploymentManifestSchema.ProtocolMode protocolMode,
+      EndpointManifestSchema.ProtocolMode protocolMode,
       Map<String, ServiceAndOptions<?>> services,
       Tracer tracer,
       RequestIdentityVerifier requestIdentityVerifier) {
@@ -45,7 +45,7 @@ public class RestateEndpoint {
     this.tracer = tracer;
     this.requestIdentityVerifier = requestIdentityVerifier;
     this.deploymentManifest =
-        new DeploymentManifest(protocolMode, services.values().stream().map(c -> c.service));
+        new EndpointManifest(protocolMode, services.values().stream().map(c -> c.service));
 
     this.logCreation();
   }
@@ -99,8 +99,8 @@ public class RestateEndpoint {
     return new ResolvedEndpointHandlerImpl(stateMachine, handler, svc.options, syscallExecutor);
   }
 
-  public DeploymentManifestSchema handleDiscoveryRequest() {
-    DeploymentManifestSchema response = this.deploymentManifest.manifest();
+  public EndpointManifestSchema handleDiscoveryRequest() {
+    EndpointManifestSchema response = this.deploymentManifest.manifest();
     LOG.info(
         "Replying to discovery request with services [{}]",
         response.getServices().stream().map(Service::getName).collect(Collectors.joining(",")));
@@ -113,18 +113,18 @@ public class RestateEndpoint {
 
   // -- Builder
 
-  public static Builder newBuilder(DeploymentManifestSchema.ProtocolMode protocolMode) {
+  public static Builder newBuilder(EndpointManifestSchema.ProtocolMode protocolMode) {
     return new Builder(protocolMode);
   }
 
   public static class Builder {
 
     private final List<ServiceAndOptions<?>> services = new ArrayList<>();
-    private final DeploymentManifestSchema.ProtocolMode protocolMode;
+    private final EndpointManifestSchema.ProtocolMode protocolMode;
     private RequestIdentityVerifier requestIdentityVerifier;
     private Tracer tracer = OpenTelemetry.noop().getTracer("NOOP");
 
-    public Builder(DeploymentManifestSchema.ProtocolMode protocolMode) {
+    public Builder(EndpointManifestSchema.ProtocolMode protocolMode) {
       this.protocolMode = protocolMode;
     }
 

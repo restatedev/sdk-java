@@ -11,7 +11,7 @@ package dev.restate.sdk.core;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
+import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -40,7 +40,8 @@ public class ServiceProtocol {
     if (Objects.requireNonNull(version) == Protocol.ServiceProtocolVersion.V1) {
       return "application/vnd.restate.invocation.v1";
     }
-    throw new IllegalArgumentException(String.format("Service protocol version '%s' has no header value", version.getNumber()));
+    throw new IllegalArgumentException(
+        String.format("Service protocol version '%s' has no header value", version.getNumber()));
   }
 
   public static boolean is_supported(Protocol.ServiceProtocolVersion serviceProtocolVersion) {
@@ -60,8 +61,8 @@ public class ServiceProtocol {
    * Selects the highest supported service protocol version from a list of supported versions.
    *
    * @param acceptedVersionsString A comma-separated list of accepted service protocol versions.
-   * @return The highest supported service protocol version, otherwise {@link
-   *     Protocol.ServiceProtocolVersion.SERVICE_PROTOCOL_VERSION_UNSPECIFIED}
+   * @return The highest supported service protocol version, otherwise
+   *     Protocol.ServiceProtocolVersion.SERVICE_PROTOCOL_VERSION_UNSPECIFIED
    */
   public static Discovery.ServiceDiscoveryProtocolVersion
       selectSupportedServiceDiscoveryProtocolVersion(String acceptedVersionsString) {
@@ -105,7 +106,9 @@ public class ServiceProtocol {
     if (Objects.requireNonNull(version) == Discovery.ServiceDiscoveryProtocolVersion.V1) {
       return "application/vnd.restate.endpointmanifest.v1+json";
     }
-    throw new IllegalArgumentException(String.format("Service discovery protocol version '%s' has no header value", version.getNumber()));
+    throw new IllegalArgumentException(
+        String.format(
+            "Service discovery protocol version '%s' has no header value", version.getNumber()));
   }
 
   public static class DiscoveryResponseSerializer {
@@ -122,7 +125,7 @@ public class ServiceProtocol {
       this.serviceDiscoveryProtocolVersion = serviceDiscoveryProtocolVersion;
     }
 
-    public byte[] serialize(DeploymentManifestSchema response) throws Exception {
+    public byte[] serialize(EndpointManifestSchema response) throws Exception {
       if (this.serviceDiscoveryProtocolVersion == Discovery.ServiceDiscoveryProtocolVersion.V1) {
         return MANIFEST_OBJECT_MAPPER.writeValueAsBytes(response);
       }

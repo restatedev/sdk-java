@@ -20,17 +20,17 @@ import dev.restate.sdk.core.manifest.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-final class DeploymentManifest {
+final class EndpointManifest {
 
   private static final Input EMPTY_INPUT = new Input();
   private static final Output EMPTY_OUTPUT = new Output().withSetContentTypeIfEmpty(false);
 
-  private final DeploymentManifestSchema manifest;
+  private final EndpointManifestSchema manifest;
 
-  public DeploymentManifest(
-      DeploymentManifestSchema.ProtocolMode protocolMode, Stream<ServiceDefinition<?>> components) {
+  public EndpointManifest(
+      EndpointManifestSchema.ProtocolMode protocolMode, Stream<ServiceDefinition<?>> components) {
     this.manifest =
-        new DeploymentManifestSchema()
+        new EndpointManifestSchema()
             .withMinProtocolVersion(MIN_SERVICE_PROTOCOL_VERSION.getNumber())
             .withMaxProtocolVersion(MAX_SERVICE_PROTOCOL_VERSION.getNumber())
             .withProtocolMode(protocolMode)
@@ -43,12 +43,12 @@ final class DeploymentManifest {
                                 .withTy(convertServiceType(svc.getServiceType()))
                                 .withHandlers(
                                     svc.getHandlers().stream()
-                                        .map(DeploymentManifest::convertHandler)
+                                        .map(EndpointManifest::convertHandler)
                                         .collect(Collectors.toList())))
                     .collect(Collectors.toList()));
   }
 
-  public DeploymentManifestSchema manifest() {
+  public EndpointManifestSchema manifest() {
     return this.manifest;
   }
 

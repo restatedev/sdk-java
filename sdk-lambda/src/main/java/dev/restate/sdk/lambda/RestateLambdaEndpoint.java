@@ -21,7 +21,7 @@ import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.ResolvedEndpointHandler;
 import dev.restate.sdk.core.RestateEndpoint;
 import dev.restate.sdk.core.ServiceProtocol;
-import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
+import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import dev.restate.sdk.version.Version;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.context.propagation.TextMapGetter;
@@ -206,7 +206,7 @@ public final class RestateLambdaEndpoint {
       return response;
     } else {
       // Compute response and write it back
-      DeploymentManifestSchema responseManifest = this.restateEndpoint.handleDiscoveryRequest();
+      EndpointManifestSchema responseManifest = this.restateEndpoint.handleDiscoveryRequest();
       byte[] serializedManifest;
       try {
         serializedManifest =

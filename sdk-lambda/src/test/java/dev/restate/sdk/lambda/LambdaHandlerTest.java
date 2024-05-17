@@ -23,7 +23,7 @@ import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.ProtoUtils;
 import dev.restate.sdk.core.ServiceProtocol;
-import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
+import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import dev.restate.sdk.core.manifest.Service;
 import dev.restate.sdk.lambda.testservices.JavaCounterDefinitions;
 import dev.restate.sdk.lambda.testservices.MyServicesHandler;
@@ -111,8 +111,8 @@ class LambdaHandlerTest {
     assertThat(response.getIsBase64Encoded()).isTrue();
     byte[] decodedStringResponse = Base64.getDecoder().decode(response.getBody());
     // Compute response and write it back
-    DeploymentManifestSchema discoveryResponse =
-        new ObjectMapper().readValue(decodedStringResponse, DeploymentManifestSchema.class);
+    EndpointManifestSchema discoveryResponse =
+        new ObjectMapper().readValue(decodedStringResponse, EndpointManifestSchema.class);
 
     assertThat(discoveryResponse.getServices())
         .map(Service::getName)

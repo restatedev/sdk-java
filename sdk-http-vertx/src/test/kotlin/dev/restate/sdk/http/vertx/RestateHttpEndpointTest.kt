@@ -16,7 +16,7 @@ import dev.restate.generated.service.protocol.Protocol.*
 import dev.restate.sdk.common.CoreSerdes
 import dev.restate.sdk.core.ProtoUtils.*
 import dev.restate.sdk.core.ServiceProtocol
-import dev.restate.sdk.core.manifest.DeploymentManifestSchema
+import dev.restate.sdk.core.manifest.EndpointManifestSchema
 import dev.restate.sdk.http.vertx.testservices.BlockingGreeter
 import dev.restate.sdk.http.vertx.testservices.greeter
 import io.netty.handler.codec.http.HttpResponseStatus
@@ -232,8 +232,8 @@ internal class RestateHttpEndpointTest {
         // Parse response
         val responseBody = response.body().coAwait()
         // Compute response and write it back
-        val discoveryResponse: DeploymentManifestSchema =
-            ObjectMapper().readValue(responseBody.bytes, DeploymentManifestSchema::class.java)
+        val discoveryResponse: EndpointManifestSchema =
+            ObjectMapper().readValue(responseBody.bytes, EndpointManifestSchema::class.java)
 
         assertThat(discoveryResponse.services)
             .map<String> { it.name }

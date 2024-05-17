@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.google.protobuf.MessageLite;
 import dev.restate.sdk.common.BindableService;
 import dev.restate.sdk.common.syscalls.ServiceDefinition;
-import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
+import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.Executor;
@@ -47,7 +47,7 @@ public final class MockMultiThreaded implements TestDefinitions.TestExecutor {
 
     // Prepare server
     RestateEndpoint.Builder builder =
-        RestateEndpoint.newBuilder(DeploymentManifestSchema.ProtocolMode.BIDI_STREAM)
+        RestateEndpoint.newBuilder(EndpointManifestSchema.ProtocolMode.BIDI_STREAM)
             .bind(serviceDefinition.get(0), bindableService.options());
     RestateEndpoint server = builder.build();
 

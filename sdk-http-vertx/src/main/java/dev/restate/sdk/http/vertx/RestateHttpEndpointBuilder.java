@@ -12,7 +12,7 @@ import dev.restate.sdk.auth.RequestIdentityVerifier;
 import dev.restate.sdk.common.BindableService;
 import dev.restate.sdk.common.syscalls.ServiceDefinition;
 import dev.restate.sdk.core.RestateEndpoint;
-import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
+import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import io.opentelemetry.api.OpenTelemetry;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Vertx;
@@ -43,7 +43,7 @@ public class RestateHttpEndpointBuilder {
 
   private final Vertx vertx;
   private final RestateEndpoint.Builder endpointBuilder =
-      RestateEndpoint.newBuilder(DeploymentManifestSchema.ProtocolMode.BIDI_STREAM);
+      RestateEndpoint.newBuilder(EndpointManifestSchema.ProtocolMode.BIDI_STREAM);
   private OpenTelemetry openTelemetry = OpenTelemetry.noop();
   private HttpServerOptions options =
       new HttpServerOptions()

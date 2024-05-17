@@ -12,14 +12,14 @@ import dev.restate.sdk.auth.RequestIdentityVerifier;
 import dev.restate.sdk.common.BindableService;
 import dev.restate.sdk.common.syscalls.ServiceDefinition;
 import dev.restate.sdk.core.RestateEndpoint;
-import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
+import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import io.opentelemetry.api.OpenTelemetry;
 
 /** Endpoint builder for a Restate AWS Lambda Endpoint, to serve Restate service. */
 public final class RestateLambdaEndpointBuilder {
 
   private final RestateEndpoint.Builder restateEndpoint =
-      RestateEndpoint.newBuilder(DeploymentManifestSchema.ProtocolMode.REQUEST_RESPONSE);
+      RestateEndpoint.newBuilder(EndpointManifestSchema.ProtocolMode.REQUEST_RESPONSE);
   private OpenTelemetry openTelemetry = OpenTelemetry.noop();
 
   /**

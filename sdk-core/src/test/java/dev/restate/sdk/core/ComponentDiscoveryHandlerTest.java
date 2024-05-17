@@ -16,8 +16,7 @@ import dev.restate.sdk.common.ServiceType;
 import dev.restate.sdk.common.syscalls.HandlerDefinition;
 import dev.restate.sdk.common.syscalls.HandlerSpecification;
 import dev.restate.sdk.common.syscalls.ServiceDefinition;
-import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
-import dev.restate.sdk.core.manifest.DeploymentManifestSchema.ProtocolMode;
+import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import dev.restate.sdk.core.manifest.Service;
 import java.util.List;
 import java.util.stream.Stream;
@@ -27,9 +26,9 @@ class ComponentDiscoveryHandlerTest {
 
   @Test
   void handleWithMultipleServices() {
-    DeploymentManifest deploymentManifest =
-        new DeploymentManifest(
-            ProtocolMode.REQUEST_RESPONSE,
+    EndpointManifest deploymentManifest =
+        new EndpointManifest(
+            EndpointManifestSchema.ProtocolMode.REQUEST_RESPONSE,
             Stream.of(
                 ServiceDefinition.of(
                     "MyGreeter",
@@ -40,9 +39,10 @@ class ComponentDiscoveryHandlerTest {
                                 "greet", HandlerType.EXCLUSIVE, CoreSerdes.VOID, CoreSerdes.VOID),
                             null)))));
 
-    DeploymentManifestSchema manifest = deploymentManifest.manifest();
+    EndpointManifestSchema manifest = deploymentManifest.manifest();
 
     assertThat(manifest.getServices()).extracting(Service::getName).containsOnly("MyGreeter");
-    assertThat(manifest.getProtocolMode()).isEqualTo(ProtocolMode.REQUEST_RESPONSE);
+    assertThat(manifest.getProtocolMode())
+        .isEqualTo(EndpointManifestSchema.ProtocolMode.REQUEST_RESPONSE);
   }
 }

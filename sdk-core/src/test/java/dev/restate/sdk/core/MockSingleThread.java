@@ -15,7 +15,7 @@ import dev.restate.sdk.common.BindableService;
 import dev.restate.sdk.common.syscalls.ServiceDefinition;
 import dev.restate.sdk.core.TestDefinitions.TestDefinition;
 import dev.restate.sdk.core.TestDefinitions.TestExecutor;
-import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
+import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import java.time.Duration;
 import java.util.List;
 import org.apache.logging.log4j.ThreadContext;
@@ -45,7 +45,7 @@ public final class MockSingleThread implements TestExecutor {
 
     // Prepare server
     RestateEndpoint.Builder builder =
-        RestateEndpoint.newBuilder(DeploymentManifestSchema.ProtocolMode.BIDI_STREAM)
+        RestateEndpoint.newBuilder(EndpointManifestSchema.ProtocolMode.BIDI_STREAM)
             .bind(serviceDefinition.get(0), bindableService.options());
     RestateEndpoint server = builder.build();
 

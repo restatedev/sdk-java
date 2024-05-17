@@ -17,7 +17,7 @@ import com.google.protobuf.MessageLite;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.common.BindableService;
 import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
+import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import dev.restate.sdk.core.manifest.Handler;
 import dev.restate.sdk.core.manifest.Service;
 import java.util.Arrays;
@@ -68,10 +68,10 @@ public class AssertUtils {
                 .startsWith(ProtocolException.class.getCanonicalName()));
   }
 
-  public static DeploymentManifestSchemaAssert assertThatDiscovery(Object... services) {
-    return new DeploymentManifestSchemaAssert(
-        new DeploymentManifest(
-                DeploymentManifestSchema.ProtocolMode.BIDI_STREAM,
+  public static EndpointManifestSchemaAssert assertThatDiscovery(Object... services) {
+    return new EndpointManifestSchemaAssert(
+        new EndpointManifest(
+                EndpointManifestSchema.ProtocolMode.BIDI_STREAM,
                 Arrays.stream(services)
                     .flatMap(
                         svc -> {
@@ -85,14 +85,14 @@ public class AssertUtils {
                               .stream();
                         }))
             .manifest(),
-        DeploymentManifestSchemaAssert.class);
+        EndpointManifestSchemaAssert.class);
   }
 
-  public static class DeploymentManifestSchemaAssert
-      extends AbstractObjectAssert<DeploymentManifestSchemaAssert, DeploymentManifestSchema> {
-    public DeploymentManifestSchemaAssert(
-        DeploymentManifestSchema deploymentManifestSchema, Class<?> selfType) {
-      super(deploymentManifestSchema, selfType);
+  public static class EndpointManifestSchemaAssert
+      extends AbstractObjectAssert<EndpointManifestSchemaAssert, EndpointManifestSchema> {
+    public EndpointManifestSchemaAssert(
+        EndpointManifestSchema endpointManifestSchema, Class<?> selfType) {
+      super(endpointManifestSchema, selfType);
     }
 
     public ServiceAssert extractingService(String service) {

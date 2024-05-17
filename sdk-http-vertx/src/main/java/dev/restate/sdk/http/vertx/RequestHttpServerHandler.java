@@ -20,7 +20,7 @@ import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.ResolvedEndpointHandler;
 import dev.restate.sdk.core.RestateEndpoint;
 import dev.restate.sdk.core.ServiceProtocol;
-import dev.restate.sdk.core.manifest.DeploymentManifestSchema;
+import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import dev.restate.sdk.version.Version;
 import io.netty.util.AsciiString;
 import io.opentelemetry.api.OpenTelemetry;
@@ -196,7 +196,7 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
           .end(errorMessage);
     } else {
       // Compute response and write it back
-      DeploymentManifestSchema response = this.restateEndpoint.handleDiscoveryRequest();
+      EndpointManifestSchema response = this.restateEndpoint.handleDiscoveryRequest();
 
       Buffer responseBuffer;
       try {
