@@ -242,8 +242,10 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   // --- Close state machine
 
   void end() {
-    LOG.info("End invocation");
-    this.closeWithMessage(Protocol.EndMessage.getDefaultInstance(), ProtocolException.CLOSED);
+    if (this.invocationState != InvocationState.CLOSED) {
+      LOG.info("End invocation");
+      this.closeWithMessage(Protocol.EndMessage.getDefaultInstance(), ProtocolException.CLOSED);
+    }
   }
 
   void suspend(Collection<Integer> suspensionIndexes) {
@@ -256,14 +258,16 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   }
 
   void fail(Throwable cause) {
-    LOG.warn("Invocation failed", cause);
-    this.closeWithMessage(
-        Util.toErrorMessage(
-            cause,
-            this.currentJournalEntryIndex,
-            this.currentJournalEntryName,
-            this.currentJournalEntryType),
-        cause);
+    if (this.invocationState != InvocationState.CLOSED) {
+      LOG.warn("Invocation failed", cause);
+      this.closeWithMessage(
+          Util.toErrorMessage(
+              cause,
+              this.currentJournalEntryIndex,
+              this.currentJournalEntryName,
+              this.currentJournalEntryType),
+          cause);
+    }
   }
 
   private void closeWithMessage(MessageLite closeMessage, Throwable cause) {
