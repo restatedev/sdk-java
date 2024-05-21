@@ -107,6 +107,24 @@ public class CodegenTest implements TestSuite {
     }
   }
 
+  @Workflow
+  static class WorkflowCornerCases {
+    @Workflow
+    public String run(WorkflowContext context, String request) {
+      return null;
+    }
+
+    @Shared
+    public String submit(SharedWorkflowContext context, String request) {
+      // Just needs to compile
+      String ignored =
+          CodegenTestWorkflowCornerCasesClient.fromIngress("invalid", request)._submit("my_send");
+      return CodegenTestWorkflowCornerCasesClient.fromIngress("invalid", request)
+          .submit("my_send")
+          .getOutput();
+    }
+  }
+
   @Service(name = "RawInputOutput")
   static class RawInputOutput {
 

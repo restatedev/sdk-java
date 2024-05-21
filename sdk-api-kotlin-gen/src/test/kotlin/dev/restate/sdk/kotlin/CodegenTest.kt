@@ -10,7 +10,6 @@ package dev.restate.sdk.kotlin
 
 import com.google.protobuf.ByteString
 import dev.restate.sdk.annotation.*
-import dev.restate.sdk.annotation.Service
 import dev.restate.sdk.common.CoreSerdes
 import dev.restate.sdk.common.Target
 import dev.restate.sdk.core.ProtoUtils.*
@@ -95,6 +94,24 @@ class CodegenTest : TestDefinitions.TestSuite {
     suspend fun send(context: ObjectContext, request: String): String {
       // Just needs to compile
       return CodegenTestCornerCasesClient.fromContext(context, request)._send("my_send").await()
+    }
+  }
+
+  @Workflow
+  class WorkflowCornerCases {
+    @Workflow
+    fun process(context: WorkflowContext, request: String): String {
+      return ""
+    }
+
+    @Shared
+    suspend fun submit(context: SharedWorkflowContext, request: String): String {
+      // Just needs to compile
+      val ignored: String =
+          CodegenTestWorkflowCornerCasesClient.fromIngress("invalid", request)._submit("my_send")
+      return CodegenTestWorkflowCornerCasesClient.fromIngress("invalid", request)
+          .submit("my_send")
+          .output
     }
   }
 
