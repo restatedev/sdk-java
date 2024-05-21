@@ -8,6 +8,11 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
+import dev.restate.sdk.common.HandlerType
+import dev.restate.sdk.common.ServiceType
+import dev.restate.sdk.common.syscalls.HandlerDefinition
+import dev.restate.sdk.common.syscalls.HandlerSpecification
+import dev.restate.sdk.common.syscalls.ServiceDefinition
 import dev.restate.sdk.core.ProtoUtils.GREETER_SERVICE_TARGET
 import dev.restate.sdk.core.SideEffectTestSuite
 import dev.restate.sdk.core.TestDefinitions
@@ -41,18 +46,23 @@ class SideEffectTest : SideEffectTestSuite() {
 
   override fun checkContextSwitching(): TestInvocationBuilder =
       TestDefinitions.testInvocation(
-          Service.service(
+          ServiceDefinition.of(
               "CheckContextSwitching",
-              Service.Options(
-                  Dispatchers.Unconfined + CoroutineName("CheckContextSwitchingTestCoroutine"))) {
-                handler("run") { ctx, _: Unit ->
-                  val sideEffectCoroutine = ctx.runBlock { coroutineContext[CoroutineName]!!.name }
-                  check(sideEffectCoroutine == "CheckContextSwitchingTestCoroutine") {
-                    "Side effect thread is not running within the same coroutine context of the handler method: $sideEffectCoroutine"
-                  }
-                  "Hello"
-                }
-              },
+              ServiceType.SERVICE,
+              listOf(
+                  HandlerDefinition.of(
+                      HandlerSpecification.of(
+                          "run", HandlerType.SHARED, KtSerdes.UNIT, KtSerdes.json()),
+                      HandlerRunner.of { ctx: Context, _: Unit ->
+                        val sideEffectCoroutine =
+                            ctx.runBlock { coroutineContext[CoroutineName]!!.name }
+                        check(sideEffectCoroutine == "CheckContextSwitchingTestCoroutine") {
+                          "Side effect thread is not running within the same coroutine context of the handler method: $sideEffectCoroutine"
+                        }
+                        "Hello"
+                      }))),
+          HandlerRunner.Options(
+              Dispatchers.Unconfined + CoroutineName("CheckContextSwitchingTestCoroutine")),
           "run")
 
   override fun sideEffectGuard(): TestInvocationBuilder =

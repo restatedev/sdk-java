@@ -14,8 +14,10 @@ import dev.restate.sdk.core.MockSingleThread
 import dev.restate.sdk.core.TestDefinitions
 import dev.restate.sdk.core.TestDefinitions.TestExecutor
 import dev.restate.sdk.core.TestRunner
+import dev.restate.sdk.core.manifest.Handler
 import dev.restate.sdk.core.manifest.Input
 import dev.restate.sdk.core.manifest.Output
+import dev.restate.sdk.core.manifest.Service
 import java.util.stream.Stream
 import org.assertj.core.api.InstanceOfAssertFactories.type
 import org.junit.jupiter.api.Test
@@ -57,5 +59,14 @@ class KtCodegenTests : TestRunner() {
         .extracting({ it.output }, type(Output::class.java))
         .extracting { it.contentType }
         .isEqualTo("application/vnd.my.custom")
+  }
+
+  @Test
+  fun workflowType() {
+    assertThatDiscovery(CodegenTest.MyWorkflow())
+        .extractingService("MyWorkflow")
+        .returns(Service.Ty.WORKFLOW) { obj -> obj.ty }
+        .extractingHandler("run")
+        .returns(Handler.Ty.WORKFLOW) { obj -> obj.ty }
   }
 }

@@ -55,6 +55,7 @@ final class EndpointManifest {
   private static Service.Ty convertServiceType(ServiceType serviceType) {
     switch (serviceType) {
       case WORKFLOW:
+        return Service.Ty.WORKFLOW;
       case SERVICE:
         return Service.Ty.SERVICE;
       case VIRTUAL_OBJECT:
@@ -87,6 +88,8 @@ final class EndpointManifest {
 
   private static Handler.Ty convertHandlerType(HandlerType handlerType) {
     switch (handlerType) {
+      case WORKFLOW:
+        return Handler.Ty.WORKFLOW;
       case EXCLUSIVE:
         return Handler.Ty.EXCLUSIVE;
       case SHARED:

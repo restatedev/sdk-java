@@ -15,8 +15,8 @@ import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 import com.google.protobuf.MessageLite;
 import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.common.BindableService;
 import dev.restate.sdk.common.TerminalException;
+import dev.restate.sdk.common.syscalls.ServiceDefinition;
 import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import dev.restate.sdk.core.manifest.Handler;
 import dev.restate.sdk.core.manifest.Service;
@@ -73,16 +73,13 @@ public class AssertUtils {
         new EndpointManifest(
                 EndpointManifestSchema.ProtocolMode.BIDI_STREAM,
                 Arrays.stream(services)
-                    .flatMap(
+                    .map(
                         svc -> {
-                          if (svc instanceof BindableService) {
-                            return ((BindableService<?>) svc).definitions().stream();
+                          if (svc instanceof ServiceDefinition<?>) {
+                            return (ServiceDefinition<?>) svc;
                           }
 
-                          return RestateEndpoint.discoverBindableServiceFactory(svc)
-                              .create(svc)
-                              .definitions()
-                              .stream();
+                          return RestateEndpoint.discoverServiceDefinitionFactory(svc).create(svc);
                         }))
             .manifest(),
         EndpointManifestSchemaAssert.class);

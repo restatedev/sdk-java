@@ -26,7 +26,6 @@ include(
     "sdk-api-gen-common",
     "sdk-api-gen",
     "sdk-api-kotlin-gen",
-    "sdk-workflow-api",
     "examples",
 )
 

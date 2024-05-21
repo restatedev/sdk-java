@@ -146,6 +146,22 @@ public class CodegenTest implements TestSuite {
     }
   }
 
+  @Workflow(name = "MyWorkflow")
+  static class MyWorkflow {
+
+    @Workflow
+    public void run(WorkflowContext context, String myInput) {
+      var client = MyWorkflowClient.fromContext(context, context.key());
+      client.send().sharedHandler(myInput);
+    }
+
+    @Handler
+    public String sharedHandler(SharedWorkflowContext context, String myInput) {
+      var client = MyWorkflowClient.fromContext(context, context.key());
+      return client.sharedHandler(myInput).await();
+    }
+  }
+
   @Override
   public Stream<TestDefinitions.TestDefinition> definitions() {
     return Stream.of(

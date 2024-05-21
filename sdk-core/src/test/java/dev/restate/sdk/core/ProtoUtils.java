@@ -240,6 +240,28 @@ public class ProtoUtils {
     return awakeable().setValue(CoreSerdes.JSON_STRING.serializeToByteString(value)).build();
   }
 
+  public static Protocol.GetPromiseEntryMessage.Builder getPromise(String key) {
+    return Protocol.GetPromiseEntryMessage.newBuilder().setKey(key);
+  }
+
+  public static Protocol.PeekPromiseEntryMessage.Builder peekPromise(String key) {
+    return Protocol.PeekPromiseEntryMessage.newBuilder().setKey(key);
+  }
+
+  public static Protocol.CompletePromiseEntryMessage.Builder completePromise(
+      String key, String value) {
+    return Protocol.CompletePromiseEntryMessage.newBuilder()
+        .setKey(key)
+        .setCompletionValue(CoreSerdes.JSON_STRING.serializeToByteString(value));
+  }
+
+  public static Protocol.CompletePromiseEntryMessage.Builder completePromise(
+      String key, Throwable e) {
+    return Protocol.CompletePromiseEntryMessage.newBuilder()
+        .setKey(key)
+        .setCompletionFailure(Util.toProtocolFailure(e));
+  }
+
   public static Java.CombinatorAwaitableEntryMessage combinatorsMessage(Integer... order) {
     return Java.CombinatorAwaitableEntryMessage.newBuilder()
         .addAllEntryIndex(Arrays.asList(order))

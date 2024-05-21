@@ -16,8 +16,10 @@ import dev.restate.sdk.core.MockSingleThread;
 import dev.restate.sdk.core.TestDefinitions.TestExecutor;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
 import dev.restate.sdk.core.TestRunner;
+import dev.restate.sdk.core.manifest.Handler;
 import dev.restate.sdk.core.manifest.Input;
 import dev.restate.sdk.core.manifest.Output;
+import dev.restate.sdk.core.manifest.Service;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
@@ -61,5 +63,14 @@ public class JavaCodegenTests extends TestRunner {
         .extracting(dev.restate.sdk.core.manifest.Handler::getOutput, type(Output.class))
         .extracting(Output::getContentType)
         .isEqualTo("application/vnd.my.custom");
+  }
+
+  @Test
+  void workflowType() {
+    assertThatDiscovery(new CodegenTest.MyWorkflow())
+        .extractingService("MyWorkflow")
+        .returns(Service.Ty.WORKFLOW, Service::getTy)
+        .extractingHandler("run")
+        .returns(Handler.Ty.WORKFLOW, Handler::getTy);
   }
 }

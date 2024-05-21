@@ -42,6 +42,24 @@ public class HandlebarsTemplateEngine {
 
     Handlebars handlebars = new Handlebars(templateLoader);
     handlebars.registerHelpers(StringHelpers.class);
+    handlebars.<HandlerTemplateModel>registerHelper(
+        "targetExpr",
+        (h, options) -> {
+          switch (h.serviceType) {
+            case SERVICE:
+              return String.format(
+                  "Target.service(%s.SERVICE_NAME, \"%s\")", h.definitionsClass, h.name);
+            case VIRTUAL_OBJECT:
+              return String.format(
+                  "Target.virtualObject(%s.SERVICE_NAME, %s, \"%s\")",
+                  h.definitionsClass, options.param(0), h.name);
+            case WORKFLOW:
+              return String.format(
+                  "Target.workflow(%s.SERVICE_NAME, %s, \"%s\")",
+                  h.definitionsClass, options.param(0), h.name);
+          }
+          throw new IllegalStateException();
+        });
 
     this.templates =
         templates.entrySet().stream()
@@ -90,6 +108,7 @@ public class HandlebarsTemplateEngine {
     public final boolean isWorkflow;
     public final boolean isObject;
     public final boolean isService;
+    public final boolean isKeyed;
     public final List<HandlerTemplateModel> handlers;
 
     private ServiceTemplateModel(
@@ -104,6 +123,7 @@ public class HandlebarsTemplateEngine {
       this.isWorkflow = inner.getServiceType() == ServiceType.WORKFLOW;
       this.isObject = inner.getServiceType() == ServiceType.VIRTUAL_OBJECT;
       this.isService = inner.getServiceType() == ServiceType.SERVICE;
+      this.isKeyed = this.isObject || this.isWorkflow;
 
       this.handlers =
           inner.getMethods().stream()
@@ -111,7 +131,8 @@ public class HandlebarsTemplateEngine {
                   h ->
                       new HandlerTemplateModel(
                           h,
-                          this.generatedClassSimpleNamePrefix + "Definitions.Serde",
+                          inner.getServiceType(),
+                          this.generatedClassSimpleNamePrefix + "Definitions",
                           handlerNamesToPrefix))
               .collect(Collectors.toList());
     }
@@ -125,6 +146,9 @@ public class HandlebarsTemplateEngine {
     public final boolean isShared;
     public final boolean isStateless;
     public final boolean isExclusive;
+
+    private final ServiceType serviceType;
+    private final String definitionsClass;
 
     public final boolean inputEmpty;
     public final String inputFqcn;
@@ -142,7 +166,10 @@ public class HandlebarsTemplateEngine {
     public final String outputSerdeRef;
 
     private HandlerTemplateModel(
-        Handler inner, String definitionsClass, Set<String> handlerNamesToPrefix) {
+        Handler inner,
+        ServiceType serviceType,
+        String definitionsClass,
+        Set<String> handlerNamesToPrefix) {
       this.name = inner.getName().toString();
       this.methodName = (handlerNamesToPrefix.contains(this.name) ? "_" : "") + this.name;
       this.handlerType = inner.getHandlerType().toString();
@@ -151,20 +178,23 @@ public class HandlebarsTemplateEngine {
       this.isExclusive = inner.getHandlerType() == HandlerType.EXCLUSIVE;
       this.isStateless = inner.getHandlerType() == HandlerType.STATELESS;
 
+      this.serviceType = serviceType;
+      this.definitionsClass = definitionsClass;
+
       this.inputEmpty = inner.getInputType().isEmpty();
       this.inputFqcn = inner.getInputType().getName();
       this.inputSerdeDecl = inner.getInputType().getSerdeDecl();
       this.boxedInputFqcn = inner.getInputType().getBoxed();
       this.inputSerdeFieldName = this.name.toUpperCase() + "_INPUT";
       this.inputAcceptContentType = inner.getInputAccept();
-      this.inputSerdeRef = definitionsClass + "." + this.inputSerdeFieldName;
+      this.inputSerdeRef = definitionsClass + ".Serde." + this.inputSerdeFieldName;
 
       this.outputEmpty = inner.getOutputType().isEmpty();
       this.outputFqcn = inner.getOutputType().getName();
       this.outputSerdeDecl = inner.getOutputType().getSerdeDecl();
       this.boxedOutputFqcn = inner.getOutputType().getBoxed();
       this.outputSerdeFieldName = this.name.toUpperCase() + "_OUTPUT";
-      this.outputSerdeRef = definitionsClass + "." + this.outputSerdeFieldName;
+      this.outputSerdeRef = definitionsClass + ".Serde." + this.outputSerdeFieldName;
     }
   }
 }

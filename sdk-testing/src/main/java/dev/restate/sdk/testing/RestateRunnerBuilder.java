@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testing;
 
-import dev.restate.sdk.common.BindableService;
+import dev.restate.sdk.common.syscalls.ServiceDefinition;
 import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder;
 import java.util.HashMap;
 import java.util.Map;
@@ -48,27 +48,28 @@ public class RestateRunnerBuilder {
    * Add a Restate service to the endpoint. This will automatically discover the generated factory
    * based on the class name.
    *
-   * <p>You can also manually instantiate the {@link BindableService} using {@link
-   * #with(BindableService)}.
+   * <p>You can also manually instantiate the {@link ServiceDefinition} using {@link
+   * #bind(ServiceDefinition)}.
    */
-  public RestateRunnerBuilder with(Object service) {
-    endpointBuilder.bind(service);
+  public RestateRunnerBuilder bind(Object service) {
+    this.endpointBuilder.bind(service);
     return this;
   }
 
   /**
-   * Add a Restate bindable service to the endpoint.
+   * Add a Restate service to the endpoint.
    *
-   * <p>To override the options, use {@link #with(BindableService, Object)}.
+   * <p>To set the options, use {@link #bind(ServiceDefinition, Object)}.
    */
-  public RestateRunnerBuilder with(BindableService<?> service) {
-    endpointBuilder.bind(service);
+  public RestateRunnerBuilder bind(ServiceDefinition<?> serviceDefinition) {
+    //noinspection unchecked
+    this.endpointBuilder.bind((ServiceDefinition<Object>) serviceDefinition, null);
     return this;
   }
 
-  /** Add a Restate bindable service to the endpoint, overriding the options. */
-  public <O> RestateRunnerBuilder with(BindableService<O> service, O options) {
-    endpointBuilder.bind(service, options);
+  /** Add a Restate service to the endpoint, setting the options. */
+  public <O> RestateRunnerBuilder bind(ServiceDefinition<O> serviceDefinition, O options) {
+    this.endpointBuilder.bind(serviceDefinition, options);
     return this;
   }
 

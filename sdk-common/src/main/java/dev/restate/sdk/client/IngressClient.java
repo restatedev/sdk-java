@@ -22,15 +22,15 @@ import org.jspecify.annotations.Nullable;
 public interface IngressClient {
 
   <Req, Res> CompletableFuture<Res> callAsync(
-      Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req, RequestOptions options);
+      Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req, CallRequestOptions options);
 
   default <Req, Res> CompletableFuture<Res> callAsync(
       Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req) {
-    return callAsync(target, reqSerde, resSerde, req, RequestOptions.DEFAULT);
+    return callAsync(target, reqSerde, resSerde, req, CallRequestOptions.DEFAULT);
   }
 
   default <Req, Res> Res call(
-      Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req, RequestOptions options)
+      Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req, CallRequestOptions options)
       throws IngressException {
     try {
       return callAsync(target, reqSerde, resSerde, req, options).join();
@@ -44,7 +44,7 @@ public interface IngressClient {
 
   default <Req, Res> Res call(Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req)
       throws IngressException {
-    return call(target, reqSerde, resSerde, req, RequestOptions.DEFAULT);
+    return call(target, reqSerde, resSerde, req, CallRequestOptions.DEFAULT);
   }
 
   <Req> CompletableFuture<String> sendAsync(
@@ -52,19 +52,23 @@ public interface IngressClient {
       Serde<Req> reqSerde,
       Req req,
       @Nullable Duration delay,
-      RequestOptions options);
+      CallRequestOptions options);
 
   default <Req> CompletableFuture<String> sendAsync(
       Target target, Serde<Req> reqSerde, Req req, @Nullable Duration delay) {
-    return sendAsync(target, reqSerde, req, delay, RequestOptions.DEFAULT);
+    return sendAsync(target, reqSerde, req, delay, CallRequestOptions.DEFAULT);
   }
 
   default <Req> CompletableFuture<String> sendAsync(Target target, Serde<Req> reqSerde, Req req) {
-    return sendAsync(target, reqSerde, req, null, RequestOptions.DEFAULT);
+    return sendAsync(target, reqSerde, req, null, CallRequestOptions.DEFAULT);
   }
 
   default <Req> String send(
-      Target target, Serde<Req> reqSerde, Req req, @Nullable Duration delay, RequestOptions options)
+      Target target,
+      Serde<Req> reqSerde,
+      Req req,
+      @Nullable Duration delay,
+      CallRequestOptions options)
       throws IngressException {
     try {
       return sendAsync(target, reqSerde, req, delay, options).join();
@@ -78,11 +82,11 @@ public interface IngressClient {
 
   default <Req> String send(Target target, Serde<Req> reqSerde, Req req, @Nullable Duration delay)
       throws IngressException {
-    return send(target, reqSerde, req, delay, RequestOptions.DEFAULT);
+    return send(target, reqSerde, req, delay, CallRequestOptions.DEFAULT);
   }
 
   default <Req> String send(Target target, Serde<Req> reqSerde, Req req) throws IngressException {
-    return send(target, reqSerde, req, null, RequestOptions.DEFAULT);
+    return send(target, reqSerde, req, null, CallRequestOptions.DEFAULT);
   }
 
   /**
@@ -97,18 +101,19 @@ public interface IngressClient {
    * ingress
    */
   interface AwakeableHandle {
-    /** Same as {@link #resolve(Serde, Object)} but async. */
-    <T> CompletableFuture<Void> resolveAsync(Serde<T> serde, @NonNull T payload);
+    /** Same as {@link #resolve(Serde, Object)} but async with options. */
+    <T> CompletableFuture<Void> resolveAsync(
+        Serde<T> serde, @NonNull T payload, RequestOptions options);
 
-    /**
-     * Complete with success the Awakeable.
-     *
-     * @param serde used to serialize the Awakeable result payload.
-     * @param payload the result payload. MUST NOT be null.
-     */
-    default <T> void resolve(Serde<T> serde, @NonNull T payload) {
+    /** Same as {@link #resolve(Serde, Object)} but async. */
+    default <T> CompletableFuture<Void> resolveAsync(Serde<T> serde, @NonNull T payload) {
+      return resolveAsync(serde, payload, RequestOptions.DEFAULT);
+    }
+
+    /** Same as {@link #resolve(Serde, Object)} with options. */
+    default <T> void resolve(Serde<T> serde, @NonNull T payload, RequestOptions options) {
       try {
-        resolveAsync(serde, payload).join();
+        resolveAsync(serde, payload, options).join();
       } catch (CompletionException e) {
         if (e.getCause() instanceof RuntimeException) {
           throw (RuntimeException) e.getCause();
@@ -117,8 +122,35 @@ public interface IngressClient {
       }
     }
 
+    /**
+     * Complete with success the Awakeable.
+     *
+     * @param serde used to serialize the Awakeable result payload.
+     * @param payload the result payload. MUST NOT be null.
+     */
+    default <T> void resolve(Serde<T> serde, @NonNull T payload) {
+      this.resolve(serde, payload, RequestOptions.DEFAULT);
+    }
+
+    /** Same as {@link #reject(String)} but async with options. */
+    CompletableFuture<Void> rejectAsync(String reason, RequestOptions options);
+
     /** Same as {@link #reject(String)} but async. */
-    CompletableFuture<Void> rejectAsync(String reason);
+    default CompletableFuture<Void> rejectAsync(String reason) {
+      return rejectAsync(reason, RequestOptions.DEFAULT);
+    }
+
+    /** Same as {@link #reject(String)} with options. */
+    default void reject(String reason, RequestOptions options) {
+      try {
+        rejectAsync(reason, options).join();
+      } catch (CompletionException e) {
+        if (e.getCause() instanceof RuntimeException) {
+          throw (RuntimeException) e.getCause();
+        }
+        throw new RuntimeException(e.getCause());
+      }
+    }
 
     /**
      * Complete with failure the Awakeable.
@@ -126,14 +158,79 @@ public interface IngressClient {
      * @param reason the rejection reason. MUST NOT be null.
      */
     default void reject(String reason) {
+      this.reject(reason, RequestOptions.DEFAULT);
+    }
+  }
+
+  <Req, Res> CompletableFuture<InvocationHandle<Res>> submitAsync(
+      Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req, RequestOptions options);
+
+  default <Req, Res> CompletableFuture<InvocationHandle<Res>> submitAsync(
+      Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req) {
+    return submitAsync(target, reqSerde, resSerde, req, RequestOptions.DEFAULT);
+  }
+
+  default <Req, Res> InvocationHandle<Res> submit(
+      Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req, RequestOptions options)
+      throws IngressException {
+    try {
+      return submitAsync(target, reqSerde, resSerde, req, options).join();
+    } catch (CompletionException e) {
+      if (e.getCause() instanceof RuntimeException) {
+        throw (RuntimeException) e.getCause();
+      }
+      throw new RuntimeException(e.getCause());
+    }
+  }
+
+  default <Req, Res> InvocationHandle<Res> submit(
+      Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req) throws IngressException {
+    return submit(target, reqSerde, resSerde, req, RequestOptions.DEFAULT);
+  }
+
+  <Res> InvocationHandle<Res> invocationHandle(String invocationId, Serde<Res> resSerde);
+
+  interface InvocationHandle<Res> {
+    CompletableFuture<Res> attachAsync(RequestOptions options);
+
+    default CompletableFuture<Res> attachAsync() {
+      return attachAsync(RequestOptions.DEFAULT);
+    }
+
+    default Res attach(RequestOptions options) throws IngressException {
       try {
-        rejectAsync(reason).join();
+        return attachAsync(options).join();
       } catch (CompletionException e) {
         if (e.getCause() instanceof RuntimeException) {
           throw (RuntimeException) e.getCause();
         }
         throw new RuntimeException(e.getCause());
       }
+    }
+
+    default Res attach() throws IngressException {
+      return attach(RequestOptions.DEFAULT);
+    }
+
+    CompletableFuture<Res> getOutputAsync(RequestOptions options);
+
+    default CompletableFuture<Res> getOutputAsync() {
+      return getOutputAsync(RequestOptions.DEFAULT);
+    }
+
+    default Res getOutput(RequestOptions options) throws IngressException {
+      try {
+        return getOutputAsync(options).join();
+      } catch (CompletionException e) {
+        if (e.getCause() instanceof RuntimeException) {
+          throw (RuntimeException) e.getCause();
+        }
+        throw new RuntimeException(e.getCause());
+      }
+    }
+
+    default Res getOutput() throws IngressException {
+      return getOutput(RequestOptions.DEFAULT);
     }
   }
 

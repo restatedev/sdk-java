@@ -294,6 +294,14 @@ sealed interface ObjectContext : SharedObjectContext {
   suspend fun clearAll()
 }
 
+sealed interface SharedWorkflowContext : SharedObjectContext {
+  fun <T : Any> durablePromise(key: DurablePromiseKey<T>): DurablePromise<T>
+
+  fun <T : Any> durablePromiseHandle(key: DurablePromiseKey<T>): DurablePromiseHandle<T>
+}
+
+sealed interface WorkflowContext : SharedWorkflowContext, ObjectContext {}
+
 class RestateRandom(seed: Long, private val syscalls: Syscalls) : Random() {
   private val r = Random(seed)
 
@@ -443,4 +451,31 @@ sealed interface AwakeableHandle {
  */
 suspend inline fun <reified T : Any> AwakeableHandle.resolve(payload: T) {
   return this.resolve(KtSerdes.json(), payload)
+}
+
+sealed interface DurablePromise<T> {
+  suspend fun awaitable(): Awaitable<T>
+
+  suspend fun peek(): T?
+
+  suspend fun isCompleted(): Boolean
+}
+
+/** This class represents a handle to a [DurablePromise] created in another service. */
+sealed interface DurablePromiseHandle<T> {
+  /**
+   * Complete with success the [DurablePromise].
+   *
+   * @param payload the result payload.
+   * @see DurablePromise
+   */
+  suspend fun resolve(payload: T)
+
+  /**
+   * Complete with failure the [DurablePromise].
+   *
+   * @param reason the rejection reason.
+   * @see DurablePromise
+   */
+  suspend fun reject(reason: String)
 }

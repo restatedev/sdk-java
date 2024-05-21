@@ -9,9 +9,9 @@
 package dev.restate.sdk.core;
 
 import dev.restate.sdk.auth.RequestIdentityVerifier;
-import dev.restate.sdk.common.BindableServiceFactory;
 import dev.restate.sdk.common.syscalls.HandlerDefinition;
 import dev.restate.sdk.common.syscalls.ServiceDefinition;
+import dev.restate.sdk.common.syscalls.ServiceDefinitionFactory;
 import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import dev.restate.sdk.core.manifest.Service;
 import io.opentelemetry.api.OpenTelemetry;
@@ -128,7 +128,7 @@ public class RestateEndpoint {
       this.protocolMode = protocolMode;
     }
 
-    public <O> Builder bind(ServiceDefinition<O> component, O options) {
+    public <O> Builder bind(ServiceDefinition<O> component, @Nullable O options) {
       this.services.add(new ServiceAndOptions<>(component, options));
       return this;
     }
@@ -172,44 +172,45 @@ public class RestateEndpoint {
     void set(String key, String value);
   }
 
-  private static class ServiceAdapterSingleton {
-    private static final ServiceAdapterDiscovery INSTANCE = new ServiceAdapterDiscovery();
+  private static class ServiceDefinitionFactorySingleton {
+    private static final ServiceDefinitionFactoryDiscovery INSTANCE =
+        new ServiceDefinitionFactoryDiscovery();
   }
 
   @SuppressWarnings("rawtypes")
-  private static class ServiceAdapterDiscovery {
+  private static class ServiceDefinitionFactoryDiscovery {
 
-    private final List<BindableServiceFactory> adapters;
+    private final List<ServiceDefinitionFactory> factories;
 
-    private ServiceAdapterDiscovery() {
-      this.adapters =
-          ServiceLoader.load(BindableServiceFactory.class).stream()
+    private ServiceDefinitionFactoryDiscovery() {
+      this.factories =
+          ServiceLoader.load(ServiceDefinitionFactory.class).stream()
               .map(ServiceLoader.Provider::get)
               .collect(Collectors.toList());
     }
 
-    private @Nullable BindableServiceFactory discoverAdapter(Object service) {
-      return this.adapters.stream().filter(sa -> sa.supports(service)).findFirst().orElse(null);
+    private @Nullable ServiceDefinitionFactory discoverFactory(Object service) {
+      return this.factories.stream().filter(sa -> sa.supports(service)).findFirst().orElse(null);
     }
   }
 
-  /** Resolve the code generated {@link BindableServiceFactory} */
+  /** Resolve the code generated {@link ServiceDefinitionFactory} */
   @SuppressWarnings("unchecked")
-  public static BindableServiceFactory<Object, Object> discoverBindableServiceFactory(
+  public static ServiceDefinitionFactory<Object, Object> discoverServiceDefinitionFactory(
       Object service) {
     return Objects.requireNonNull(
-        ServiceAdapterSingleton.INSTANCE.discoverAdapter(service),
+        ServiceDefinitionFactorySingleton.INSTANCE.discoverFactory(service),
         () ->
-            "ServiceAdapter class not found for service "
+            "ServiceDefinitionFactory class not found for service "
                 + service.getClass().getCanonicalName()
                 + ". "
-                + "Make sure the annotation processor is correctly configured to generate the ServiceAdapter, "
+                + "Make sure the annotation processor is correctly configured to generate the ServiceDefinitionFactory, "
                 + "and it generates the META-INF/services/"
-                + BindableServiceFactory.class.getCanonicalName()
+                + ServiceDefinitionFactory.class.getCanonicalName()
                 + " file containing the generated class. "
                 + "If you're using fat jars, make sure the jar plugin correctly squashes all the META-INF/services files. "
                 + "Found ServiceAdapter: "
-                + ServiceAdapterSingleton.INSTANCE.adapters);
+                + ServiceDefinitionFactorySingleton.INSTANCE.factories);
   }
 
   private static class ServiceAndOptions<O> {

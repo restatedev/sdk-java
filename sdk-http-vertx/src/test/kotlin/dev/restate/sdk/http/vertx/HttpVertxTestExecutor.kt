@@ -10,6 +10,7 @@ package dev.restate.sdk.http.vertx
 
 import com.google.protobuf.MessageLite
 import dev.restate.generated.service.protocol.Protocol
+import dev.restate.sdk.common.syscalls.ServiceDefinition
 import dev.restate.sdk.core.ServiceProtocol
 import dev.restate.sdk.core.TestDefinitions.TestDefinition
 import dev.restate.sdk.core.TestDefinitions.TestExecutor
@@ -26,7 +27,6 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
-import org.assertj.core.api.Assertions
 
 class HttpVertxTestExecutor(private val vertx: Vertx) : TestExecutor {
   override fun buffered(): Boolean {
@@ -35,15 +35,12 @@ class HttpVertxTestExecutor(private val vertx: Vertx) : TestExecutor {
 
   override fun executeTest(definition: TestDefinition) {
     runBlocking(vertx.dispatcher()) {
-      // This test infra supports only components returning one component definition
-      val componentDefinition = definition.bindableService.definitions()
-      Assertions.assertThat(componentDefinition).size().isEqualTo(1)
-
       // Build server
       val server =
           RestateHttpEndpointBuilder.builder(vertx)
               .withOptions(HttpServerOptions().setPort(0))
-              .bind(definition.bindableService)
+              .bind(
+                  definition.serviceDefinition as ServiceDefinition<Any>, definition.serviceOptions)
               .build()
       server.listen().coAwait()
 
@@ -55,7 +52,7 @@ class HttpVertxTestExecutor(private val vertx: Vertx) : TestExecutor {
                   HttpMethod.POST,
                   server.actualPort(),
                   "localhost",
-                  "/invoke/${componentDefinition.get(0).serviceName}/${definition.method}")
+                  "/invoke/${definition.serviceDefinition.serviceName}/${definition.method}")
               .coAwait()
 
       // Prepare request header and send them

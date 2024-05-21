@@ -11,19 +11,18 @@ package my.restate.sdk.examples;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import dev.restate.sdk.Context;
+import dev.restate.sdk.SharedWorkflowContext;
+import dev.restate.sdk.WorkflowContext;
 import dev.restate.sdk.annotation.Handler;
 import dev.restate.sdk.annotation.Service;
 import dev.restate.sdk.annotation.Shared;
 import dev.restate.sdk.annotation.Workflow;
 import dev.restate.sdk.common.CoreSerdes;
+import dev.restate.sdk.common.DurablePromiseKey;
 import dev.restate.sdk.common.StateKey;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder;
 import dev.restate.sdk.serde.jackson.JacksonSerdes;
-import dev.restate.sdk.workflow.DurablePromiseKey;
-import dev.restate.sdk.workflow.WorkflowContext;
-import dev.restate.sdk.workflow.WorkflowExecutionState;
-import dev.restate.sdk.workflow.WorkflowSharedContext;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
@@ -36,7 +35,8 @@ public class LoanWorkflow {
 
   // --- Data types used by the Loan Worfklow
 
-  enum Status {
+  public enum Status {
+    UNKNOWN,
     SUBMITTED,
     WAITING_HUMAN_APPROVAL,
     APPROVED,
@@ -103,7 +103,7 @@ public class LoanWorkflow {
     LOG.info("Loan request submitted");
 
     // 2. Ask human approval
-    ctx.run(() -> askHumanApproval(ctx.workflowKey()));
+    ctx.run(() -> askHumanApproval(ctx.key()));
     ctx.set(STATUS, Status.WAITING_HUMAN_APPROVAL);
 
     // 3. Wait human approval
@@ -142,13 +142,18 @@ public class LoanWorkflow {
   // --- Methods to approve/reject loan
 
   @Shared
-  public void approveLoan(WorkflowSharedContext ctx) {
+  public void approveLoan(SharedWorkflowContext ctx) {
     ctx.durablePromiseHandle(HUMAN_APPROVAL).resolve(true);
   }
 
   @Shared
-  public void rejectLoan(WorkflowSharedContext ctx) {
+  public void rejectLoan(SharedWorkflowContext ctx) {
     ctx.durablePromiseHandle(HUMAN_APPROVAL).resolve(false);
+  }
+
+  @Shared
+  public Status getStatus(SharedWorkflowContext ctx) {
+    return ctx.get(STATUS).orElse(Status.UNKNOWN);
   }
 
   public static void main(String[] args) {
@@ -170,13 +175,10 @@ public class LoanWorkflow {
     LoanWorkflowClient.IngressClient client =
         LoanWorkflowClient.fromIngress("http://127.0.0.1:8080", "my-loan");
 
-    WorkflowExecutionState state =
+    var state =
         client.submit(
             new LoanRequest(
                 "Francesco", "slinkydeveloper", "DE1234", new BigDecimal("1000000000")));
-    if (state != WorkflowExecutionState.STARTED) {
-      throw new IllegalStateException("Unexpected state " + state);
-    }
 
     LOG.info("Started loan workflow");
 
@@ -192,22 +194,16 @@ public class LoanWorkflow {
     // Now approve it
     client.approveLoan();
 
-    while (!client.isCompleted()) {
-      LOG.info("Not completed yet");
-      try {
-        Thread.sleep(10_000);
-      } catch (InterruptedException e) {
-        throw new RuntimeException(e);
-      }
-    }
+    // Wait for output
+    state.attach();
 
-    LOG.info("Loan workflow completed");
+    LOG.info("Loan workflow completed, now in status {}", client.getStatus());
   }
 
   // -- Some mocks
 
   private static void askHumanApproval(String workflowKey) throws InterruptedException {
-    LOG.info("Sending human approval request");
+    LOG.info("Sending human approval request for workflow {}", workflowKey);
     Thread.sleep(1000);
   }
 

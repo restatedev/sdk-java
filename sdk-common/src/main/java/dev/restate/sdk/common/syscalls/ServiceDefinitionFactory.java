@@ -6,11 +6,11 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-package dev.restate.sdk.common;
+package dev.restate.sdk.common.syscalls;
 
-public interface BindableServiceFactory<T, O> {
+public interface ServiceDefinitionFactory<T, O> {
 
-  BindableService<O> create(T serviceObject);
+  ServiceDefinition<O> create(T serviceObject);
 
   boolean supports(Object serviceObject);
 }

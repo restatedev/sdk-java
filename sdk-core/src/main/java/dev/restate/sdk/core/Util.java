@@ -148,6 +148,9 @@ public final class Util {
         || msg instanceof Protocol.SetStateEntryMessage
         || msg instanceof Protocol.ClearStateEntryMessage
         || msg instanceof Protocol.ClearAllStateEntryMessage
+        || msg instanceof Protocol.GetPromiseEntryMessage
+        || msg instanceof Protocol.PeekPromiseEntryMessage
+        || msg instanceof Protocol.CompletePromiseEntryMessage
         || msg instanceof Protocol.SleepEntryMessage
         || msg instanceof Protocol.CallEntryMessage
         || msg instanceof Protocol.OneWayCallEntryMessage

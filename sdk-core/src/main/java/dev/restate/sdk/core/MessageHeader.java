@@ -52,29 +52,22 @@ public class MessageHeader {
 
   public static MessageHeader fromMessage(MessageLite msg) {
     if (msg instanceof Protocol.GetStateEntryMessage) {
-      return new MessageHeader(
-          MessageType.GetStateEntryMessage,
-          ((Protocol.GetStateEntryMessage) msg).getResultCase()
-                  != Protocol.GetStateEntryMessage.ResultCase.RESULT_NOT_SET
-              ? DONE_FLAG
-              : 0,
-          msg.getSerializedSize());
+      return fromCompletableMessage(
+          (Protocol.GetStateEntryMessage) msg, Entries.GetStateEntry.INSTANCE);
     } else if (msg instanceof Protocol.GetStateKeysEntryMessage) {
-      return new MessageHeader(
-          MessageType.GetStateKeysEntryMessage,
-          ((Protocol.GetStateKeysEntryMessage) msg).getResultCase()
-                  != Protocol.GetStateKeysEntryMessage.ResultCase.RESULT_NOT_SET
-              ? DONE_FLAG
-              : 0,
-          msg.getSerializedSize());
+      return fromCompletableMessage(
+          (Protocol.GetStateKeysEntryMessage) msg, Entries.GetStateKeysEntry.INSTANCE);
+    } else if (msg instanceof Protocol.GetPromiseEntryMessage) {
+      return fromCompletableMessage(
+          (Protocol.GetPromiseEntryMessage) msg, Entries.GetPromiseEntry.INSTANCE);
+    } else if (msg instanceof Protocol.PeekPromiseEntryMessage) {
+      return fromCompletableMessage(
+          (Protocol.PeekPromiseEntryMessage) msg, Entries.PeekPromiseEntry.INSTANCE);
+    } else if (msg instanceof Protocol.CompletePromiseEntryMessage) {
+      return fromCompletableMessage(
+          (Protocol.CompletePromiseEntryMessage) msg, Entries.CompletePromiseEntry.INSTANCE);
     } else if (msg instanceof Protocol.SleepEntryMessage) {
-      return new MessageHeader(
-          MessageType.SleepEntryMessage,
-          ((Protocol.SleepEntryMessage) msg).getResultCase()
-                  != Protocol.SleepEntryMessage.ResultCase.RESULT_NOT_SET
-              ? DONE_FLAG
-              : 0,
-          msg.getSerializedSize());
+      return fromCompletableMessage((Protocol.SleepEntryMessage) msg, Entries.SleepEntry.INSTANCE);
     } else if (msg instanceof Protocol.CallEntryMessage) {
       return new MessageHeader(
           MessageType.CallEntryMessage,
@@ -84,18 +77,21 @@ public class MessageHeader {
               : 0,
           msg.getSerializedSize());
     } else if (msg instanceof Protocol.AwakeableEntryMessage) {
-      return new MessageHeader(
-          MessageType.AwakeableEntryMessage,
-          ((Protocol.AwakeableEntryMessage) msg).getResultCase()
-                  != Protocol.AwakeableEntryMessage.ResultCase.RESULT_NOT_SET
-              ? DONE_FLAG
-              : 0,
-          msg.getSerializedSize());
+      return fromCompletableMessage(
+          (Protocol.AwakeableEntryMessage) msg, Entries.AwakeableEntry.INSTANCE);
     } else if (msg instanceof Protocol.RunEntryMessage) {
       return new MessageHeader(
           MessageType.RunEntryMessage, REQUIRES_ACK_FLAG, msg.getSerializedSize());
     }
     // Messages with no flags
     return new MessageHeader(MessageType.fromMessage(msg), 0, msg.getSerializedSize());
+  }
+
+  private static <MSG extends MessageLite, E extends Entries.CompletableJournalEntry<MSG, ?>>
+      MessageHeader fromCompletableMessage(MSG msg, E entry) {
+    return new MessageHeader(
+        MessageType.fromMessage(msg),
+        entry.hasResult(msg) ? DONE_FLAG : 0,
+        msg.getSerializedSize());
   }
 }

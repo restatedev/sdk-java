@@ -6,10 +6,7 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-package dev.restate.sdk.workflow;
-
-import dev.restate.sdk.common.CoreSerdes;
-import dev.restate.sdk.common.Serde;
+package dev.restate.sdk.common;
 
 /**
  * This class holds information about durable promise's name and its type tag to be used for

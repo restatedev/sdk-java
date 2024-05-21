@@ -325,6 +325,68 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
+  public void promise(String key, SyscallCallback<Deferred<ByteString>> callback) {
+    wrapAndPropagateExceptions(
+        () -> {
+          LOG.trace("promise");
+          this.stateMachine.processCompletableJournalEntry(
+              Protocol.GetPromiseEntryMessage.newBuilder().setKey(key).build(),
+              GetPromiseEntry.INSTANCE,
+              callback);
+        },
+        callback);
+  }
+
+  @Override
+  public void peekPromise(String key, SyscallCallback<Deferred<ByteString>> callback) {
+    wrapAndPropagateExceptions(
+        () -> {
+          LOG.trace("peekPromise");
+          this.stateMachine.processCompletableJournalEntry(
+              Protocol.PeekPromiseEntryMessage.newBuilder().setKey(key).build(),
+              PeekPromiseEntry.INSTANCE,
+              callback);
+        },
+        callback);
+  }
+
+  @Override
+  public void resolvePromise(
+      String key, ByteString payload, SyscallCallback<Deferred<Void>> callback) {
+    wrapAndPropagateExceptions(
+        () -> {
+          LOG.trace("resolvePromise");
+          this.stateMachine.processCompletableJournalEntry(
+              Protocol.CompletePromiseEntryMessage.newBuilder()
+                  .setKey(key)
+                  .setCompletionValue(payload)
+                  .build(),
+              CompletePromiseEntry.INSTANCE,
+              callback);
+        },
+        callback);
+  }
+
+  @Override
+  public void rejectPromise(String key, String reason, SyscallCallback<Deferred<Void>> callback) {
+    wrapAndPropagateExceptions(
+        () -> {
+          LOG.trace("resolvePromise");
+          this.stateMachine.processCompletableJournalEntry(
+              Protocol.CompletePromiseEntryMessage.newBuilder()
+                  .setKey(key)
+                  .setCompletionFailure(
+                      Protocol.Failure.newBuilder()
+                          .setCode(TerminalException.INTERNAL_SERVER_ERROR_CODE)
+                          .setMessage(reason))
+                  .build(),
+              CompletePromiseEntry.INSTANCE,
+              callback);
+        },
+        callback);
+  }
+
+  @Override
   public <T> void resolveDeferred(Deferred<T> deferredToResolve, SyscallCallback<Void> callback) {
     wrapAndPropagateExceptions(
         () -> this.stateMachine.resolveDeferred(deferredToResolve, callback), callback);

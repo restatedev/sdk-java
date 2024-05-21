@@ -26,6 +26,10 @@ public final class Target {
     return new Target(name, handler, key);
   }
 
+  public static Target workflow(String name, String key, String handler) {
+    return new Target(name, handler, key);
+  }
+
   public static Target service(String name, String handler) {
     return new Target(name, handler, null);
   }
