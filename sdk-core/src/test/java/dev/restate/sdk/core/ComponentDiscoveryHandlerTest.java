@@ -17,7 +17,6 @@ import dev.restate.sdk.common.syscalls.HandlerDefinition;
 import dev.restate.sdk.common.syscalls.HandlerSpecification;
 import dev.restate.sdk.common.syscalls.ServiceDefinition;
 import dev.restate.sdk.core.manifest.EndpointManifestSchema;
-import dev.restate.sdk.core.manifest.EndpointManifestSchema.ProtocolMode;
 import dev.restate.sdk.core.manifest.Service;
 import java.util.List;
 import java.util.stream.Stream;

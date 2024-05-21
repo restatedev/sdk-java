@@ -9,8 +9,8 @@
 package dev.restate.sdk.http.vertx
 
 import com.google.protobuf.MessageLite
-import dev.restate.sdk.common.syscalls.ServiceDefinition
 import dev.restate.generated.service.protocol.Protocol
+import dev.restate.sdk.common.syscalls.ServiceDefinition
 import dev.restate.sdk.core.ServiceProtocol
 import dev.restate.sdk.core.TestDefinitions.TestDefinition
 import dev.restate.sdk.core.TestDefinitions.TestExecutor
