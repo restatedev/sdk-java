@@ -30,6 +30,7 @@ dependencies {
   testImplementation(testingLibs.junit.jupiter)
   testImplementation(testingLibs.assertj)
   testImplementation(coreLibs.log4j.core)
+  testImplementation(project(":sdk-serde-jackson"))
 }
 
 // Configure source sets for protobuf plugin and jsonschema2pojo

@@ -6,108 +6,124 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-package dev.restate.sdk.common;
+package dev.restate.sdk.serde.jackson;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.core.*;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.function.ThrowingBiConsumer;
 import dev.restate.sdk.common.function.ThrowingFunction;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Collection of common serializers/deserializers.
+ * {@link Serde} implementations for Jackson.
  *
- * <p>To ser/de POJOs using JSON, you can use the module {@code sdk-serde-jackson}.
+ * <p>You can use these serdes for serializing and deserializing state, side effects results and
+ * awakeables using Jackson's {@link ObjectMapper}.
+ *
+ * <p>For example:
+ *
+ * <pre>{@code
+ * private static final StateKey<Person> PERSON = StateKey.of("person", JacksonSerdes.of(Person.class));
+ * }</pre>
+ *
+ * Or using Jackson's {@link TypeReference} to encapsulate generics:
+ *
+ * <pre>{@code
+ * private static final StateKey<List<Person>> PEOPLE = StateKey.of("people", JacksonSerdes.of(new TypeReference<>() {}));
+ * }</pre>
+ *
+ * When no object mapper is provided, a default one is used, using the default {@link
+ * com.fasterxml.jackson.core.JsonFactory} and discovering SPI modules.
  */
-public abstract class CoreSerdes {
+public final class JsonSerdes {
 
-  private CoreSerdes() {}
+  private JsonSerdes() {}
 
-  /** Noop {@link Serde} for void. */
-  public static Serde<Void> VOID =
-      new Serde<>() {
-        @Override
-        public byte[] serialize(Void value) {
-          return new byte[0];
-        }
+  private static final ObjectMapper defaultMapper;
 
-        @Override
-        public ByteBuffer serializeToByteBuffer(@Nullable Void value) {
-          return ByteBuffer.allocate(0);
-        }
+  static {
+    defaultMapper = new ObjectMapper();
+    // Find modules through SPI (e.g. jackson-datatype-jsr310)
+    defaultMapper.findAndRegisterModules();
+  }
 
-        @Override
-        public Void deserialize(byte[] value) {
+  /** Serialize/Deserialize class using the default object mapper. */
+  public static <T> Serde<T> of(Class<T> clazz) {
+    return of(defaultMapper, clazz);
+  }
+
+  /** Serialize/Deserialize class using the provided object mapper. */
+  public static <T> Serde<T> of(ObjectMapper mapper, Class<T> clazz) {
+    return new Serde<>() {
+      @Override
+      public byte[] serialize(@Nullable T value) {
+        try {
+          return mapper.writeValueAsBytes(value);
+        } catch (JsonProcessingException e) {
+          sneakyThrow(e);
           return null;
         }
+      }
 
-        @Override
-        public Void deserialize(ByteBuffer byteBuffer) {
+      @Override
+      public T deserialize(byte[] value) {
+        try {
+          return mapper.readValue(value, clazz);
+        } catch (IOException e) {
+          sneakyThrow(e);
           return null;
         }
+      }
 
-        @Override
-        public @Nullable String contentType() {
+      @Override
+      public String contentType() {
+        return "application/json";
+      }
+    };
+  }
+
+  /** Serialize/Deserialize {@link TypeReference} using the default object mapper. */
+  public static <T> Serde<T> of(TypeReference<T> typeReference) {
+    return of(defaultMapper, typeReference);
+  }
+
+  /** Serialize/Deserialize {@link TypeReference} using the default object mapper. */
+  public static <T> Serde<T> of(ObjectMapper mapper, TypeReference<T> typeReference) {
+    return new Serde<>() {
+      @Override
+      public byte[] serialize(@Nullable T value) {
+        try {
+          return mapper.writeValueAsBytes(value);
+        } catch (JsonProcessingException e) {
+          sneakyThrow(e);
           return null;
         }
-      };
+      }
 
-  /** Pass through {@link Serde} for byte array. */
-  public static Serde<byte[]> RAW =
-      new Serde<>() {
-        @Override
-        public byte[] serialize(byte[] value) {
-          return Objects.requireNonNull(value);
+      @Override
+      public T deserialize(byte[] value) {
+        try {
+          return mapper.readValue(value, typeReference);
+        } catch (IOException e) {
+          sneakyThrow(e);
+          return null;
         }
+      }
 
-        @Override
-        public byte[] deserialize(byte[] value) {
-          return value;
-        }
-      };
-
-  /** Pass through {@link Serde} for {@link ByteBuffer}. */
-  public static Serde<ByteBuffer> BYTE_BUFFER =
-      new Serde<>() {
-
-        @Override
-        public byte[] serialize(@Nullable ByteBuffer byteBuffer) {
-          if (byteBuffer == null) {
-            return new byte[] {};
-          }
-          if (byteBuffer.hasArray()) {
-            return byteBuffer.array();
-          }
-          byte[] bytes = new byte[byteBuffer.remaining()];
-          byteBuffer.get(bytes);
-          return bytes;
-        }
-
-        @Override
-        public ByteBuffer serializeToByteBuffer(@Nullable ByteBuffer value) {
-          return value;
-        }
-
-        @Override
-        public ByteBuffer deserialize(byte[] value) {
-          return ByteBuffer.wrap(value);
-        }
-
-        @Override
-        public ByteBuffer deserialize(ByteBuffer byteBuffer) {
-          return byteBuffer;
-        }
-      };
+      @Override
+      public String contentType() {
+        return "application/json";
+      }
+    };
+  }
 
   /** {@link Serde} for {@link String}. This writes and reads {@link String} as JSON value. */
-  public static Serde<String> JSON_STRING =
+  public static Serde<String> STRING =
       usingJackson(
           JsonGenerator::writeString,
           p -> {
@@ -119,7 +135,7 @@ public abstract class CoreSerdes {
           });
 
   /** {@link Serde} for {@link Boolean}. This writes and reads {@link Boolean} as JSON value. */
-  public static Serde<Boolean> JSON_BOOLEAN =
+  public static Serde<Boolean> BOOLEAN =
       usingJackson(
           JsonGenerator::writeBoolean,
           p -> {
@@ -128,7 +144,7 @@ public abstract class CoreSerdes {
           });
 
   /** {@link Serde} for {@link Byte}. This writes and reads {@link Byte} as JSON value. */
-  public static Serde<Byte> JSON_BYTE =
+  public static Serde<Byte> BYTE =
       usingJackson(
           JsonGenerator::writeNumber,
           p -> {
@@ -137,7 +153,7 @@ public abstract class CoreSerdes {
           });
 
   /** {@link Serde} for {@link Short}. This writes and reads {@link Short} as JSON value. */
-  public static Serde<Short> JSON_SHORT =
+  public static Serde<Short> SHORT =
       usingJackson(
           JsonGenerator::writeNumber,
           p -> {
@@ -146,7 +162,7 @@ public abstract class CoreSerdes {
           });
 
   /** {@link Serde} for {@link Integer}. This writes and reads {@link Integer} as JSON value. */
-  public static Serde<Integer> JSON_INT =
+  public static Serde<Integer> INT =
       usingJackson(
           JsonGenerator::writeNumber,
           p -> {
@@ -155,7 +171,7 @@ public abstract class CoreSerdes {
           });
 
   /** {@link Serde} for {@link Long}. This writes and reads {@link Long} as JSON value. */
-  public static Serde<Long> JSON_LONG =
+  public static Serde<Long> LONG =
       usingJackson(
           JsonGenerator::writeNumber,
           p -> {
@@ -164,7 +180,7 @@ public abstract class CoreSerdes {
           });
 
   /** {@link Serde} for {@link Float}. This writes and reads {@link Float} as JSON value. */
-  public static Serde<Float> JSON_FLOAT =
+  public static Serde<Float> FLOAT =
       usingJackson(
           JsonGenerator::writeNumber,
           p -> {
@@ -173,7 +189,7 @@ public abstract class CoreSerdes {
           });
 
   /** {@link Serde} for {@link Double}. This writes and reads {@link Double} as JSON value. */
-  public static Serde<Double> JSON_DOUBLE =
+  public static Serde<Double> DOUBLE =
       usingJackson(
           JsonGenerator::writeNumber,
           p -> {
@@ -195,7 +211,8 @@ public abstract class CoreSerdes {
         try (JsonGenerator gen = JSON_FACTORY.createGenerator(outputStream)) {
           serializer.asBiConsumer().accept(gen, value);
         } catch (IOException e) {
-          throw new RuntimeException("Cannot create JsonGenerator", e);
+          sneakyThrow(e);
+          return null;
         }
         return outputStream.toByteArray();
       }
@@ -206,7 +223,8 @@ public abstract class CoreSerdes {
         try (JsonParser parser = JSON_FACTORY.createParser(inputStream)) {
           return deserializer.asFunction().apply(parser);
         } catch (IOException e) {
-          throw new RuntimeException("Cannot create JsonGenerator", e);
+          sneakyThrow(e);
+          return null;
         }
       }
 
@@ -215,5 +233,10 @@ public abstract class CoreSerdes {
         return "application/json";
       }
     };
+  }
+
+  @SuppressWarnings("unchecked")
+  private static <E extends Throwable> void sneakyThrow(Object exception) throws E {
+    throw (E) exception;
   }
 }

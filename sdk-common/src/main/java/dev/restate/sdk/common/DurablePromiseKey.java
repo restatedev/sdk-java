@@ -29,14 +29,9 @@ public final class DurablePromiseKey<T> {
     return new DurablePromiseKey<>(name, serde);
   }
 
-  /** Create a new {@link DurablePromiseKey} for {@link String} state. */
-  public static DurablePromiseKey<String> string(String name) {
-    return new DurablePromiseKey<>(name, CoreSerdes.JSON_STRING);
-  }
-
   /** Create a new {@link DurablePromiseKey} for bytes state. */
   public static DurablePromiseKey<byte[]> raw(String name) {
-    return new DurablePromiseKey<>(name, CoreSerdes.RAW);
+    return new DurablePromiseKey<>(name, Serde.RAW);
   }
 
   public String name() {

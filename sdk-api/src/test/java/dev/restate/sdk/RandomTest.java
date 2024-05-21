@@ -10,9 +10,10 @@ package dev.restate.sdk;
 
 import static dev.restate.sdk.JavaBlockingTests.testDefinitionForService;
 
-import dev.restate.sdk.common.CoreSerdes;
+import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.core.RandomTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
+import dev.restate.sdk.serde.jackson.JsonSerdes;
 import java.util.Random;
 
 public class RandomTest extends RandomTestSuite {
@@ -20,16 +21,16 @@ public class RandomTest extends RandomTestSuite {
   protected TestInvocationBuilder randomShouldBeDeterministic() {
     return testDefinitionForService(
         "RandomShouldBeDeterministic",
-        CoreSerdes.VOID,
-        CoreSerdes.JSON_INT,
+        Serde.VOID,
+        JsonSerdes.INT,
         (ctx, unused) -> ctx.random().nextInt());
   }
 
   protected TestInvocationBuilder randomInsideSideEffect() {
     return testDefinitionForService(
         "RandomInsideSideEffect",
-        CoreSerdes.VOID,
-        CoreSerdes.JSON_INT,
+        Serde.VOID,
+        JsonSerdes.INT,
         (ctx, unused) -> {
           ctx.run(() -> ctx.random().nextInt());
           throw new IllegalStateException("This should not unreachable");

@@ -13,6 +13,7 @@ import static dev.restate.sdk.JavaBlockingTests.testDefinitionForVirtualObject;
 import dev.restate.sdk.common.*;
 import dev.restate.sdk.core.StateMachineFailuresTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
+import dev.restate.sdk.serde.jackson.JsonSerdes;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -28,8 +29,8 @@ public class StateMachineFailuresTest extends StateMachineFailuresTestSuite {
   protected TestInvocationBuilder getState(AtomicInteger nonTerminalExceptionsSeen) {
     return testDefinitionForVirtualObject(
         "GetState",
-        CoreSerdes.VOID,
-        CoreSerdes.JSON_STRING,
+        Serde.VOID,
+        JsonSerdes.STRING,
         (ctx, unused) -> {
           try {
             ctx.get(STATE);
@@ -52,8 +53,8 @@ public class StateMachineFailuresTest extends StateMachineFailuresTestSuite {
   protected TestInvocationBuilder sideEffectFailure(Serde<Integer> serde) {
     return testDefinitionForVirtualObject(
         "SideEffectFailure",
-        CoreSerdes.VOID,
-        CoreSerdes.JSON_STRING,
+        Serde.VOID,
+        JsonSerdes.STRING,
         (ctx, unused) -> {
           ctx.run(serde, () -> 0);
           return "Francesco";

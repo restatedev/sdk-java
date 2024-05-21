@@ -40,7 +40,7 @@ public final class Request {
   }
 
   public byte[] body() {
-    return CoreSerdes.BYTE_BUFFER.serialize(body);
+    return Serde.BYTE_BUFFER.serialize(body);
   }
 
   public ByteBuffer bodyBuffer() {

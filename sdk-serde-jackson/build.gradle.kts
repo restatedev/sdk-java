@@ -12,8 +12,8 @@ dependencies {
   api(jacksonLibs.jackson.databind)
   implementation(jacksonLibs.jackson.core)
 
+  implementation(project(":sdk-common"))
+
   testImplementation(testingLibs.junit.jupiter)
   testImplementation(testingLibs.assertj)
-
-  implementation(project(":sdk-common"))
 }

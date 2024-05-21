@@ -10,9 +10,10 @@ package dev.restate.sdk;
 
 import static dev.restate.sdk.JavaBlockingTests.testDefinitionForService;
 
-import dev.restate.sdk.common.CoreSerdes;
+import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.core.SleepTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
+import dev.restate.sdk.serde.jackson.JsonSerdes;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,8 +23,8 @@ public class SleepTest extends SleepTestSuite {
   protected TestInvocationBuilder sleepGreeter() {
     return testDefinitionForService(
         "SleepGreeter",
-        CoreSerdes.VOID,
-        CoreSerdes.JSON_STRING,
+        Serde.VOID,
+        JsonSerdes.STRING,
         (ctx, unused) -> {
           ctx.sleep(Duration.ofSeconds(1));
           return "Hello";
@@ -33,8 +34,8 @@ public class SleepTest extends SleepTestSuite {
   protected TestInvocationBuilder manySleeps() {
     return testDefinitionForService(
         "ManySleeps",
-        CoreSerdes.VOID,
-        CoreSerdes.VOID,
+        Serde.VOID,
+        Serde.VOID,
         (ctx, unused) -> {
           List<Awaitable<?>> collectedAwaitables = new ArrayList<>();
 

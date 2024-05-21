@@ -22,7 +22,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-class JacksonSerdesTest {
+class JsonPOJOMappingSerdesTest {
 
   public static class Person {
 
@@ -58,13 +58,13 @@ class JacksonSerdesTest {
 
   private static Stream<Arguments> roundtripTestCases() {
     return Stream.of(
-        Arguments.of(new Person("Francesco"), JacksonSerdes.of(Person.class)),
+        Arguments.of(new Person("Francesco"), JsonSerdes.of(Person.class)),
         Arguments.of(
             List.of(new Person("Francesco"), new Person("Till")),
-            JacksonSerdes.of(new TypeReference<List<Person>>() {})),
+            JsonSerdes.of(new TypeReference<List<Person>>() {})),
         Arguments.of(
             Set.of(new Person("Francesco"), new Person("Till")),
-            JacksonSerdes.of(new TypeReference<Set<Person>>() {})));
+            JsonSerdes.of(new TypeReference<Set<Person>>() {})));
   }
 
   @ParameterizedTest(name = "{0}")

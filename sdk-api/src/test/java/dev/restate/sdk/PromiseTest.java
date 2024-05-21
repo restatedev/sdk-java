@@ -10,21 +10,25 @@ package dev.restate.sdk;
 
 import static dev.restate.sdk.JavaBlockingTests.*;
 
-import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.common.DurablePromiseKey;
+import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.PromiseTestSuite;
 import dev.restate.sdk.core.TestDefinitions;
+import dev.restate.sdk.serde.jackson.JsonSerdes;
 
 public class PromiseTest extends PromiseTestSuite {
   @Override
   protected TestDefinitions.TestInvocationBuilder awaitPromise(String promiseKey) {
     return testDefinitionForWorkflow(
         "AwaitPromise",
-        CoreSerdes.VOID,
-        CoreSerdes.JSON_STRING,
+        Serde.VOID,
+        JsonSerdes.STRING,
         (context, unused) ->
-            context.durablePromise(DurablePromiseKey.string(promiseKey)).awaitable().await());
+            context
+                .durablePromise(DurablePromiseKey.of(promiseKey, JsonSerdes.STRING))
+                .awaitable()
+                .await());
   }
 
   @Override
@@ -32,11 +36,11 @@ public class PromiseTest extends PromiseTestSuite {
       String promiseKey, String emptyCaseReturnValue) {
     return testDefinitionForWorkflow(
         "PeekPromise",
-        CoreSerdes.VOID,
-        CoreSerdes.JSON_STRING,
+        Serde.VOID,
+        JsonSerdes.STRING,
         (context, unused) ->
             context
-                .durablePromise(DurablePromiseKey.string(promiseKey))
+                .durablePromise(DurablePromiseKey.of(promiseKey, JsonSerdes.STRING))
                 .peek()
                 .orElse(emptyCaseReturnValue));
   }
@@ -45,10 +49,12 @@ public class PromiseTest extends PromiseTestSuite {
   protected TestDefinitions.TestInvocationBuilder awaitIsPromiseCompleted(String promiseKey) {
     return testDefinitionForWorkflow(
         "IsCompletedPromise",
-        CoreSerdes.VOID,
-        CoreSerdes.JSON_BOOLEAN,
+        Serde.VOID,
+        JsonSerdes.BOOLEAN,
         (context, unused) ->
-            context.durablePromise(DurablePromiseKey.string(promiseKey)).isCompleted());
+            context
+                .durablePromise(DurablePromiseKey.of(promiseKey, JsonSerdes.STRING))
+                .isCompleted());
   }
 
   @Override
@@ -56,12 +62,12 @@ public class PromiseTest extends PromiseTestSuite {
       String promiseKey, String completionValue) {
     return testDefinitionForWorkflow(
         "ResolvePromise",
-        CoreSerdes.VOID,
-        CoreSerdes.JSON_BOOLEAN,
+        Serde.VOID,
+        JsonSerdes.BOOLEAN,
         (context, unused) -> {
           try {
             context
-                .durablePromiseHandle(DurablePromiseKey.string(promiseKey))
+                .durablePromiseHandle(DurablePromiseKey.of(promiseKey, JsonSerdes.STRING))
                 .resolve(completionValue);
             return true;
           } catch (TerminalException e) {
@@ -75,11 +81,13 @@ public class PromiseTest extends PromiseTestSuite {
       String promiseKey, String rejectReason) {
     return testDefinitionForWorkflow(
         "RejectPromise",
-        CoreSerdes.VOID,
-        CoreSerdes.JSON_BOOLEAN,
+        Serde.VOID,
+        JsonSerdes.BOOLEAN,
         (context, unused) -> {
           try {
-            context.durablePromiseHandle(DurablePromiseKey.string(promiseKey)).reject(rejectReason);
+            context
+                .durablePromiseHandle(DurablePromiseKey.of(promiseKey, JsonSerdes.STRING))
+                .reject(rejectReason);
             return true;
           } catch (TerminalException e) {
             return false;

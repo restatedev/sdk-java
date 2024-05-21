@@ -10,10 +10,11 @@ package dev.restate.sdk;
 
 import static dev.restate.sdk.JavaBlockingTests.*;
 
-import dev.restate.sdk.common.CoreSerdes;
+import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.StateKey;
 import dev.restate.sdk.core.DeferredTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
+import dev.restate.sdk.serde.jackson.JsonSerdes;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 
@@ -22,14 +23,14 @@ public class DeferredTest extends DeferredTestSuite {
   protected TestInvocationBuilder reverseAwaitOrder() {
     return testDefinitionForVirtualObject(
         "ReverseAwaitOrder",
-        CoreSerdes.VOID,
-        CoreSerdes.JSON_STRING,
+        Serde.VOID,
+        JsonSerdes.STRING,
         (context, unused) -> {
           Awaitable<String> a1 = callGreeterGreetService(context, "Francesco");
           Awaitable<String> a2 = callGreeterGreetService(context, "Till");
 
           String a2Res = a2.await();
-          context.set(StateKey.of("A2", CoreSerdes.JSON_STRING), a2Res);
+          context.set(StateKey.of("A2", JsonSerdes.STRING), a2Res);
 
           String a1Res = a1.await();
 
@@ -40,8 +41,8 @@ public class DeferredTest extends DeferredTestSuite {
   protected TestInvocationBuilder awaitTwiceTheSameAwaitable() {
     return testDefinitionForService(
         "AwaitTwiceTheSameAwaitable",
-        CoreSerdes.VOID,
-        CoreSerdes.JSON_STRING,
+        Serde.VOID,
+        JsonSerdes.STRING,
         (context, unused) -> {
           Awaitable<String> a = callGreeterGreetService(context, "Francesco");
 
@@ -52,8 +53,8 @@ public class DeferredTest extends DeferredTestSuite {
   protected TestInvocationBuilder awaitAll() {
     return testDefinitionForService(
         "AwaitAll",
-        CoreSerdes.VOID,
-        CoreSerdes.JSON_STRING,
+        Serde.VOID,
+        JsonSerdes.STRING,
         (context, unused) -> {
           Awaitable<String> a1 = callGreeterGreetService(context, "Francesco");
           Awaitable<String> a2 = callGreeterGreetService(context, "Till");
@@ -67,8 +68,8 @@ public class DeferredTest extends DeferredTestSuite {
   protected TestInvocationBuilder awaitAny() {
     return testDefinitionForService(
         "AwaitAny",
-        CoreSerdes.VOID,
-        CoreSerdes.JSON_STRING,
+        Serde.VOID,
+        JsonSerdes.STRING,
         (context, unused) -> {
           Awaitable<String> a1 = callGreeterGreetService(context, "Francesco");
           Awaitable<String> a2 = callGreeterGreetService(context, "Till");
@@ -80,13 +81,13 @@ public class DeferredTest extends DeferredTestSuite {
   protected TestInvocationBuilder combineAnyWithAll() {
     return testDefinitionForService(
         "CombineAnyWithAll",
-        CoreSerdes.VOID,
-        CoreSerdes.JSON_STRING,
+        Serde.VOID,
+        JsonSerdes.STRING,
         (ctx, unused) -> {
-          Awaitable<String> a1 = ctx.awakeable(CoreSerdes.JSON_STRING);
-          Awaitable<String> a2 = ctx.awakeable(CoreSerdes.JSON_STRING);
-          Awaitable<String> a3 = ctx.awakeable(CoreSerdes.JSON_STRING);
-          Awaitable<String> a4 = ctx.awakeable(CoreSerdes.JSON_STRING);
+          Awaitable<String> a1 = ctx.awakeable(JsonSerdes.STRING);
+          Awaitable<String> a2 = ctx.awakeable(JsonSerdes.STRING);
+          Awaitable<String> a3 = ctx.awakeable(JsonSerdes.STRING);
+          Awaitable<String> a4 = ctx.awakeable(JsonSerdes.STRING);
 
           Awaitable<Object> a12 = Awaitable.any(a1, a2);
           Awaitable<Object> a23 = Awaitable.any(a2, a3);
@@ -100,13 +101,13 @@ public class DeferredTest extends DeferredTestSuite {
   protected TestInvocationBuilder awaitAnyIndex() {
     return testDefinitionForService(
         "AwaitAnyIndex",
-        CoreSerdes.VOID,
-        CoreSerdes.JSON_STRING,
+        Serde.VOID,
+        JsonSerdes.STRING,
         (ctx, unused) -> {
-          Awaitable<String> a1 = ctx.awakeable(CoreSerdes.JSON_STRING);
-          Awaitable<String> a2 = ctx.awakeable(CoreSerdes.JSON_STRING);
-          Awaitable<String> a3 = ctx.awakeable(CoreSerdes.JSON_STRING);
-          Awaitable<String> a4 = ctx.awakeable(CoreSerdes.JSON_STRING);
+          Awaitable<String> a1 = ctx.awakeable(JsonSerdes.STRING);
+          Awaitable<String> a2 = ctx.awakeable(JsonSerdes.STRING);
+          Awaitable<String> a3 = ctx.awakeable(JsonSerdes.STRING);
+          Awaitable<String> a4 = ctx.awakeable(JsonSerdes.STRING);
 
           return String.valueOf(Awaitable.any(a1, Awaitable.all(a2, a3), a4).awaitIndex());
         });
@@ -115,11 +116,11 @@ public class DeferredTest extends DeferredTestSuite {
   protected TestInvocationBuilder awaitOnAlreadyResolvedAwaitables() {
     return testDefinitionForService(
         "AwaitOnAlreadyResolvedAwaitables",
-        CoreSerdes.VOID,
-        CoreSerdes.JSON_STRING,
+        Serde.VOID,
+        JsonSerdes.STRING,
         (ctx, unused) -> {
-          Awaitable<String> a1 = ctx.awakeable(CoreSerdes.JSON_STRING);
-          Awaitable<String> a2 = ctx.awakeable(CoreSerdes.JSON_STRING);
+          Awaitable<String> a1 = ctx.awakeable(JsonSerdes.STRING);
+          Awaitable<String> a2 = ctx.awakeable(JsonSerdes.STRING);
 
           Awaitable<Void> a12 = Awaitable.all(a1, a2);
           Awaitable<Void> a12and1 = Awaitable.all(a12, a1);
@@ -135,8 +136,8 @@ public class DeferredTest extends DeferredTestSuite {
   protected TestInvocationBuilder awaitWithTimeout() {
     return testDefinitionForService(
         "AwaitOnAlreadyResolvedAwaitables",
-        CoreSerdes.VOID,
-        CoreSerdes.JSON_STRING,
+        Serde.VOID,
+        JsonSerdes.STRING,
         (ctx, unused) -> {
           Awaitable<String> call = callGreeterGreetService(ctx, "Francesco");
 

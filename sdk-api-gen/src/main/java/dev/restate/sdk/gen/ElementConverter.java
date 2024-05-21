@@ -34,8 +34,8 @@ import org.jspecify.annotations.Nullable;
 public class ElementConverter {
 
   private static final PayloadType EMPTY_PAYLOAD =
-      new PayloadType(true, "", "Void", "dev.restate.sdk.common.CoreSerdes.VOID");
-  private static final String RAW_SERDE = "dev.restate.sdk.common.CoreSerdes.RAW";
+      new PayloadType(true, "", "Void", "dev.restate.sdk.common.Serde.VOID");
+  private static final String RAW_SERDE = "dev.restate.sdk.common.Serde.RAW";
 
   private final Messager messager;
   private final Elements elements;
@@ -355,26 +355,26 @@ public class ElementConverter {
   private static String jsonSerdeDecl(TypeMirror ty) {
     switch (ty.getKind()) {
       case BOOLEAN:
-        return "dev.restate.sdk.common.CoreSerdes.JSON_BOOLEAN";
+        return "dev.restate.sdk.serde.jackson.JsonSerdes.BOOLEAN";
       case BYTE:
-        return "dev.restate.sdk.common.CoreSerdes.JSON_BYTE";
+        return "dev.restate.sdk.serde.jackson.JsonSerdes.BYTE";
       case SHORT:
-        return "dev.restate.sdk.common.CoreSerdes.JSON_SHORT";
+        return "dev.restate.sdk.serde.jackson.JsonSerdes.SHORT";
       case INT:
-        return "dev.restate.sdk.common.CoreSerdes.JSON_INT";
+        return "dev.restate.sdk.serde.jackson.JsonSerdes.INT";
       case LONG:
-        return "dev.restate.sdk.common.CoreSerdes.JSON_LONG";
+        return "dev.restate.sdk.serde.jackson.JsonSerdes.LONG";
       case CHAR:
-        return "dev.restate.sdk.common.CoreSerdes.JSON_CHAR";
+        return "dev.restate.sdk.serde.jackson.JsonSerdes.CHAR";
       case FLOAT:
-        return "dev.restate.sdk.common.CoreSerdes.JSON_FLOAT";
+        return "dev.restate.sdk.serde.jackson.JsonSerdes.FLOAT";
       case DOUBLE:
-        return "dev.restate.sdk.common.CoreSerdes.JSON_DOUBLE";
+        return "dev.restate.sdk.serde.jackson.JsonSerdes.DOUBLE";
       case VOID:
-        return "dev.restate.sdk.common.CoreSerdes.VOID";
+        return "dev.restate.sdk.common.Serde.VOID";
       default:
         // Default to Jackson type reference serde
-        return "dev.restate.sdk.serde.jackson.JacksonSerdes.of(new com.fasterxml.jackson.core.type.TypeReference<"
+        return "dev.restate.sdk.serde.jackson.JsonSerdes.of(new com.fasterxml.jackson.core.type.TypeReference<"
             + ty
             + ">() {})";
     }

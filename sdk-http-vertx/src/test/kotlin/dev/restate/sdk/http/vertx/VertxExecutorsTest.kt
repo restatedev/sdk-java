@@ -11,8 +11,8 @@ package dev.restate.sdk.http.vertx
 import com.google.protobuf.ByteString
 import dev.restate.generated.service.protocol.Protocol
 import dev.restate.sdk.HandlerRunner
-import dev.restate.sdk.common.CoreSerdes
 import dev.restate.sdk.common.HandlerType
+import dev.restate.sdk.common.Serde
 import dev.restate.sdk.common.ServiceType
 import dev.restate.sdk.common.syscalls.HandlerDefinition
 import dev.restate.sdk.common.syscalls.HandlerSpecification
@@ -100,8 +100,8 @@ class VertxExecutorsTest : TestDefinitions.TestSuite {
                             HandlerSpecification.of(
                                 "do",
                                 HandlerType.SHARED,
-                                CoreSerdes.VOID,
-                                CoreSerdes.VOID,
+                                Serde.VOID,
+                                Serde.VOID,
                             ),
                             dev.restate.sdk.HandlerRunner.of(
                                 this::checkBlockingComponentTrampolineExecutor)))),

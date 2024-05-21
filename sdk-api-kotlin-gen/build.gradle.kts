@@ -23,8 +23,9 @@ dependencies {
   testImplementation(coreLibs.log4j.core)
   testImplementation(kotlinLibs.kotlinx.coroutines)
 
-  // Import test suites from sdk-core
+  // Import test suites from sdk-core, and jackson serdes (used by sdk-core test archives)
   testImplementation(project(":sdk-core", "testArchive"))
+  testImplementation(project(":sdk-serde-jackson"))
 }
 
 // Generate test jar

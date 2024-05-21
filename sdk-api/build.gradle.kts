@@ -13,6 +13,7 @@ dependencies {
   implementation(coreLibs.log4j.api)
 
   testImplementation(project(":sdk-core"))
+  testImplementation(project(":sdk-serde-jackson"))
   testImplementation(testingLibs.junit.jupiter)
   testImplementation(testingLibs.assertj)
   testImplementation(coreLibs.protobuf.java)

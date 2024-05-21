@@ -13,9 +13,9 @@ import dev.restate.sdk.SharedObjectContext;
 import dev.restate.sdk.annotation.Handler;
 import dev.restate.sdk.annotation.Shared;
 import dev.restate.sdk.annotation.VirtualObject;
-import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.common.StateKey;
 import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder;
+import dev.restate.sdk.serde.jackson.JsonSerdes;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -24,7 +24,7 @@ public class Counter {
 
   private static final Logger LOG = LogManager.getLogger(Counter.class);
 
-  private static final StateKey<Long> TOTAL = StateKey.of("total", CoreSerdes.JSON_LONG);
+  private static final StateKey<Long> TOTAL = StateKey.of("total", JsonSerdes.LONG);
 
   @Handler
   public void reset(ObjectContext ctx) {
