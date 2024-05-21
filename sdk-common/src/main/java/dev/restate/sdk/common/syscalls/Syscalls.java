@@ -8,10 +8,10 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.common.syscalls;
 
-import com.google.protobuf.ByteString;
 import dev.restate.sdk.common.Request;
 import dev.restate.sdk.common.Target;
 import dev.restate.sdk.common.TerminalException;
+import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.*;
 import java.util.List;
@@ -40,13 +40,13 @@ public interface Syscalls {
   // Note: These are not supposed to be exposed to RestateContext, but they should be used through
   // gRPC APIs.
 
-  void writeOutput(ByteString value, SyscallCallback<Void> callback);
+  void writeOutput(ByteBuffer value, SyscallCallback<Void> callback);
 
   void writeOutput(TerminalException exception, SyscallCallback<Void> callback);
 
   // ----- State
 
-  void get(String name, SyscallCallback<Deferred<ByteString>> callback);
+  void get(String name, SyscallCallback<Deferred<ByteBuffer>> callback);
 
   void getKeys(SyscallCallback<Deferred<Collection<String>>> callback);
 
@@ -54,38 +54,38 @@ public interface Syscalls {
 
   void clearAll(SyscallCallback<Void> callback);
 
-  void set(String name, ByteString value, SyscallCallback<Void> callback);
+  void set(String name, ByteBuffer value, SyscallCallback<Void> callback);
 
   // ----- Syscalls
 
   void sleep(Duration duration, SyscallCallback<Deferred<Void>> callback);
 
-  void call(Target target, ByteString parameter, SyscallCallback<Deferred<ByteString>> callback);
+  void call(Target target, ByteBuffer parameter, SyscallCallback<Deferred<ByteBuffer>> callback);
 
   void send(
       Target target,
-      ByteString parameter,
+      ByteBuffer parameter,
       @Nullable Duration delay,
       SyscallCallback<Void> requestCallback);
 
   void enterSideEffectBlock(@Nullable String name, EnterSideEffectSyscallCallback callback);
 
-  void exitSideEffectBlock(ByteString toWrite, ExitSideEffectSyscallCallback callback);
+  void exitSideEffectBlock(ByteBuffer toWrite, ExitSideEffectSyscallCallback callback);
 
   void exitSideEffectBlockWithTerminalException(
       TerminalException toWrite, ExitSideEffectSyscallCallback callback);
 
-  void awakeable(SyscallCallback<Map.Entry<String, Deferred<ByteString>>> callback);
+  void awakeable(SyscallCallback<Map.Entry<String, Deferred<ByteBuffer>>> callback);
 
-  void resolveAwakeable(String id, ByteString payload, SyscallCallback<Void> requestCallback);
+  void resolveAwakeable(String id, ByteBuffer payload, SyscallCallback<Void> requestCallback);
 
   void rejectAwakeable(String id, String reason, SyscallCallback<Void> requestCallback);
 
-  void promise(String key, SyscallCallback<Deferred<ByteString>> callback);
+  void promise(String key, SyscallCallback<Deferred<ByteBuffer>> callback);
 
-  void peekPromise(String key, SyscallCallback<Deferred<ByteString>> callback);
+  void peekPromise(String key, SyscallCallback<Deferred<ByteBuffer>> callback);
 
-  void resolvePromise(String key, ByteString payload, SyscallCallback<Deferred<Void>> callback);
+  void resolvePromise(String key, ByteBuffer payload, SyscallCallback<Deferred<Void>> callback);
 
   void rejectPromise(String key, String reason, SyscallCallback<Deferred<Void>> callback);
 

@@ -8,11 +8,11 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import com.google.protobuf.ByteString;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.syscalls.Deferred;
 import dev.restate.sdk.common.syscalls.Result;
 import dev.restate.sdk.common.syscalls.Syscalls;
+import java.nio.ByteBuffer;
 
 /**
  * An {@link Awakeable} is a special type of {@link Awaitable} which can be arbitrarily completed by
@@ -28,11 +28,11 @@ import dev.restate.sdk.common.syscalls.Syscalls;
  * <p>NOTE: This interface MUST NOT be accessed concurrently since it can lead to different
  * orderings of user actions, corrupting the execution of the invocation.
  */
-public final class Awakeable<T> extends Awaitable.MappedAwaitable<ByteString, T> {
+public final class Awakeable<T> extends Awaitable.MappedAwaitable<ByteBuffer, T> {
 
   private final String identifier;
 
-  Awakeable(Syscalls syscalls, Deferred<ByteString> deferred, Serde<T> serde, String identifier) {
+  Awakeable(Syscalls syscalls, Deferred<ByteBuffer> deferred, Serde<T> serde, String identifier) {
     super(
         Awaitable.single(syscalls, deferred),
         res -> {

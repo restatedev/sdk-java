@@ -8,9 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import com.google.protobuf.ByteString;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.common.syscalls.*;
+import java.nio.ByteBuffer;
 import java.util.concurrent.Executor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -74,12 +74,12 @@ final class ResolvedEndpointHandlerImpl implements ResolvedEndpointHandler {
             t -> {}));
   }
 
-  private void writeOutputAndEnd(SyscallsInternal syscalls, ByteString output) {
+  private void writeOutputAndEnd(SyscallsInternal syscalls, ByteBuffer output) {
     syscalls.writeOutput(
         output,
         SyscallCallback.ofVoid(
             () -> {
-              LOG.trace("Wrote output message:\n{}", output);
+              LOG.trace("Wrote output message");
               this.end(syscalls, null);
             },
             syscalls::fail));
@@ -118,7 +118,7 @@ final class ResolvedEndpointHandlerImpl implements ResolvedEndpointHandler {
         HandlerSpecification<REQ, RES> spec,
         Syscalls syscalls,
         @Nullable O options,
-        SyscallCallback<ByteString> callback) {
+        SyscallCallback<ByteBuffer> callback) {
       try {
         this.handler.run(spec, syscalls, options, callback);
       } catch (Throwable e) {

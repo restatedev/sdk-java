@@ -8,10 +8,10 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import com.google.protobuf.ByteString
 import dev.restate.sdk.common.DurablePromiseKey
 import dev.restate.sdk.common.Serde
 import dev.restate.sdk.common.StateKey
+import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import kotlin.reflect.typeOf
 import kotlinx.serialization.KSerializer
@@ -51,15 +51,15 @@ object KtSerdes {
           return ByteArray(0)
         }
 
-        override fun serializeToByteString(value: Unit?): ByteString {
-          return ByteString.EMPTY
+        override fun serializeToByteBuffer(value: Unit?): ByteBuffer {
+          return ByteBuffer.allocate(0)
         }
 
         override fun deserialize(value: ByteArray) {
           return
         }
 
-        override fun deserialize(byteString: ByteString) {
+        override fun deserialize(byteBuffer: ByteBuffer) {
           return
         }
 
@@ -71,12 +71,12 @@ object KtSerdes {
   /** Creates a [Serde] implementation using the `kotlinx.serialization` json module. */
   fun <T> json(serializer: KSerializer<T>): Serde<T> {
     return object : Serde<T> {
-      override fun serialize(value: T?): ByteArray {
+      override fun serialize(value: T): ByteArray {
         return Json.encodeToString(serializer, value!!).encodeToByteArray()
       }
 
-      override fun deserialize(value: ByteArray?): T {
-        return Json.decodeFromString(serializer, String(value!!, StandardCharsets.UTF_8))
+      override fun deserialize(value: ByteArray): T {
+        return Json.decodeFromString(serializer, String(value, StandardCharsets.UTF_8))
       }
 
       override fun contentType(): String {

@@ -8,11 +8,11 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import com.google.protobuf.ByteString
 import dev.restate.sdk.common.Serde
 import dev.restate.sdk.common.syscalls.Deferred
 import dev.restate.sdk.common.syscalls.Result
 import dev.restate.sdk.common.syscalls.Syscalls
+import java.nio.ByteBuffer
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.suspendCancellableCoroutine
 
@@ -79,14 +79,14 @@ internal abstract class BaseSingleMappedAwaitableImpl<T : Any, U : Any>(
 internal open class SingleSerdeAwaitableImpl<T : Any>
 internal constructor(
     syscalls: Syscalls,
-    deferred: Deferred<ByteString>,
+    deferred: Deferred<ByteBuffer>,
     private val serde: Serde<T>,
 ) :
-    BaseSingleMappedAwaitableImpl<ByteString, T>(
+    BaseSingleMappedAwaitableImpl<ByteBuffer, T>(
         SingleAwaitableImpl(syscalls, deferred),
     ) {
   @Suppress("UNCHECKED_CAST")
-  override suspend fun map(res: Result<ByteString>): Result<T> {
+  override suspend fun map(res: Result<ByteBuffer>): Result<T> {
     return if (res.isSuccess) {
       // This propagates exceptions as non-terminal
       Result.success(serde.deserializeWrappingException(syscalls, res.value!!))
@@ -151,7 +151,7 @@ internal fun wrapAnyAwaitable(awaitables: List<Awaitable<*>>): AnyAwaitable {
 internal class AwakeableImpl<T : Any>
 internal constructor(
     syscalls: Syscalls,
-    deferred: Deferred<ByteString>,
+    deferred: Deferred<ByteBuffer>,
     serde: Serde<T>,
     override val id: String
 ) : SingleSerdeAwaitableImpl<T>(syscalls, deferred, serde), Awakeable<T> {}

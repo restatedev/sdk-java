@@ -56,7 +56,10 @@ public abstract class AwakeableIdTestSuite implements TestSuite {
                   assertThat(messages)
                       .element(1)
                       .asInstanceOf(type(Protocol.OutputEntryMessage.class))
-                      .extracting(out -> CoreSerdes.JSON_STRING.deserialize(out.getValue()))
+                      .extracting(
+                          out ->
+                              CoreSerdes.JSON_STRING.deserialize(
+                                  out.getValue().asReadOnlyByteBuffer()))
                       .isEqualTo(base64ExpectedAwakeableId);
                 }));
   }

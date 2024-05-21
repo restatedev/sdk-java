@@ -12,12 +12,12 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import com.google.protobuf.ByteString;
 import dev.restate.sdk.common.function.ThrowingBiConsumer;
 import dev.restate.sdk.common.function.ThrowingFunction;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
@@ -39,8 +39,8 @@ public abstract class CoreSerdes {
         }
 
         @Override
-        public ByteString serializeToByteString(@Nullable Void value) {
-          return ByteString.EMPTY;
+        public ByteBuffer serializeToByteBuffer(@Nullable Void value) {
+          return ByteBuffer.allocate(0);
         }
 
         @Override
@@ -49,7 +49,7 @@ public abstract class CoreSerdes {
         }
 
         @Override
-        public Void deserialize(ByteString byteString) {
+        public Void deserialize(ByteBuffer byteBuffer) {
           return null;
         }
 
@@ -70,6 +70,39 @@ public abstract class CoreSerdes {
         @Override
         public byte[] deserialize(byte[] value) {
           return value;
+        }
+      };
+
+  /** Pass through {@link Serde} for {@link ByteBuffer}. */
+  public static Serde<ByteBuffer> BYTE_BUFFER =
+      new Serde<>() {
+
+        @Override
+        public byte[] serialize(@Nullable ByteBuffer byteBuffer) {
+          if (byteBuffer == null) {
+            return new byte[] {};
+          }
+          if (byteBuffer.hasArray()) {
+            return byteBuffer.array();
+          }
+          byte[] bytes = new byte[byteBuffer.remaining()];
+          byteBuffer.get(bytes);
+          return bytes;
+        }
+
+        @Override
+        public ByteBuffer serializeToByteBuffer(@Nullable ByteBuffer value) {
+          return value;
+        }
+
+        @Override
+        public ByteBuffer deserialize(byte[] value) {
+          return ByteBuffer.wrap(value);
+        }
+
+        @Override
+        public ByteBuffer deserialize(ByteBuffer byteBuffer) {
+          return byteBuffer;
         }
       };
 

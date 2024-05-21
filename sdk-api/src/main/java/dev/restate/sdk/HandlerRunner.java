@@ -8,12 +8,12 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import com.google.protobuf.ByteString;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.common.syscalls.HandlerSpecification;
 import dev.restate.sdk.common.syscalls.SyscallCallback;
 import dev.restate.sdk.common.syscalls.Syscalls;
 import io.opentelemetry.context.Scope;
+import java.nio.ByteBuffer;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
@@ -41,7 +41,7 @@ public class HandlerRunner<REQ, RES>
       HandlerSpecification<REQ, RES> handlerSpecification,
       Syscalls syscalls,
       @Nullable Options options,
-      SyscallCallback<ByteString> callback) {
+      SyscallCallback<ByteBuffer> callback) {
     if (options == null) {
       options = Options.DEFAULT;
     }
@@ -92,9 +92,9 @@ public class HandlerRunner<REQ, RES>
           }
 
           // Serialize output
-          ByteString serializedResult;
+          ByteBuffer serializedResult;
           try {
-            serializedResult = handlerSpecification.getResponseSerde().serializeToByteString(res);
+            serializedResult = handlerSpecification.getResponseSerde().serializeToByteBuffer(res);
           } catch (Error e) {
             throw e;
           } catch (Throwable e) {

@@ -8,10 +8,10 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.common.syscalls;
 
-import com.google.protobuf.ByteString;
 import dev.restate.sdk.common.TerminalException;
+import java.nio.ByteBuffer;
 
-public interface ExitSideEffectSyscallCallback extends SyscallCallback<ByteString> {
+public interface ExitSideEffectSyscallCallback extends SyscallCallback<ByteBuffer> {
 
   /** This is user failure. */
   void onFailure(TerminalException t);

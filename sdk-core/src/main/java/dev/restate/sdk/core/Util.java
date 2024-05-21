@@ -8,13 +8,16 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
+import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
+import com.google.protobuf.UnsafeByteOperations;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.common.AbortedExecutionException;
 import dev.restate.sdk.common.TerminalException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.nio.ByteBuffer;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
@@ -158,5 +161,10 @@ public final class Util {
         || msg instanceof Protocol.CompleteAwakeableEntryMessage
         || msg instanceof Java.CombinatorAwaitableEntryMessage
         || msg instanceof Protocol.RunEntryMessage;
+  }
+
+  /** NOTE! This method rewinds the buffer!!! */
+  static ByteString nioBufferToProtobufBuffer(ByteBuffer nioBuffer) {
+    return UnsafeByteOperations.unsafeWrap(nioBuffer.rewind());
   }
 }

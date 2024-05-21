@@ -12,6 +12,8 @@ dependencies {
   api(project(":sdk-common"))
   implementation(project(":sdk-core"))
 
+  implementation(coreLibs.protobuf.java)
+
   // Vert.x
   implementation(platform(vertxLibs.vertx.bom))
   implementation(vertxLibs.vertx.core)

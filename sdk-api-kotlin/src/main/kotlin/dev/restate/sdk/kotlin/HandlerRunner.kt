@@ -8,12 +8,12 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import com.google.protobuf.ByteString
 import dev.restate.sdk.common.TerminalException
 import dev.restate.sdk.common.syscalls.HandlerSpecification
 import dev.restate.sdk.common.syscalls.SyscallCallback
 import dev.restate.sdk.common.syscalls.Syscalls
 import io.opentelemetry.extension.kotlin.asContextElement
+import java.nio.ByteBuffer
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -45,7 +45,7 @@ internal constructor(
       handlerSpecification: HandlerSpecification<REQ, RES>,
       syscalls: Syscalls,
       options: Options?,
-      callback: SyscallCallback<ByteString>
+      callback: SyscallCallback<ByteBuffer>
   ) {
     val ctx: Context = ContextImpl(syscalls)
 
@@ -57,7 +57,7 @@ internal constructor(
                     .asContextElement(syscalls) +
                 syscalls.request().otelContext()!!.asContextElement())
     scope.launch {
-      val serializedResult: ByteString
+      val serializedResult: ByteBuffer
 
       try {
         // Parse input
@@ -77,7 +77,7 @@ internal constructor(
 
         // Serialize output
         try {
-          serializedResult = handlerSpecification.responseSerde.serializeToByteString(res)
+          serializedResult = handlerSpecification.responseSerde.serializeToByteBuffer(res)
         } catch (e: Error) {
           throw e
         } catch (e: Throwable) {

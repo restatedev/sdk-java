@@ -11,11 +11,13 @@ package dev.restate.sdk.core;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageLite;
+import com.google.protobuf.UnsafeByteOperations;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.generated.service.protocol.Protocol.*;
 import dev.restate.sdk.common.syscalls.Result;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -77,7 +79,7 @@ final class Entries {
   }
 
   static final class GetStateEntry
-      extends CompletableJournalEntry<GetStateEntryMessage, ByteString> {
+      extends CompletableJournalEntry<GetStateEntryMessage, ByteBuffer> {
 
     static final GetStateEntry INSTANCE = new GetStateEntry();
 
@@ -111,9 +113,9 @@ final class Entries {
     }
 
     @Override
-    public Result<ByteString> parseEntryResult(GetStateEntryMessage actual) {
+    public Result<ByteBuffer> parseEntryResult(GetStateEntryMessage actual) {
       if (actual.getResultCase() == GetStateEntryMessage.ResultCase.VALUE) {
-        return Result.success(actual.getValue());
+        return Result.success(actual.getValue().asReadOnlyByteBuffer());
       } else if (actual.getResultCase() == GetStateEntryMessage.ResultCase.FAILURE) {
         return Result.failure(Util.toRestateException(actual.getFailure()));
       } else if (actual.getResultCase() == GetStateEntryMessage.ResultCase.EMPTY) {
@@ -124,9 +126,9 @@ final class Entries {
     }
 
     @Override
-    public Result<ByteString> parseCompletionResult(CompletionMessage actual) {
+    public Result<ByteBuffer> parseCompletionResult(CompletionMessage actual) {
       if (actual.getResultCase() == CompletionMessage.ResultCase.VALUE) {
-        return Result.success(actual.getValue());
+        return Result.success(actual.getValue().asReadOnlyByteBuffer());
       } else if (actual.getResultCase() == CompletionMessage.ResultCase.EMPTY) {
         return Result.empty();
       } else if (actual.getResultCase() == CompletionMessage.ResultCase.FAILURE) {
@@ -138,7 +140,7 @@ final class Entries {
     @Override
     void updateUserStateStoreWithEntry(
         GetStateEntryMessage expected, UserStateStore userStateStore) {
-      userStateStore.set(expected.getKey(), expected.getValue());
+      userStateStore.set(expected.getKey(), expected.getValue().asReadOnlyByteBuffer());
     }
 
     @Override
@@ -146,7 +148,9 @@ final class Entries {
         GetStateEntryMessage expected, UserStateStore userStateStore) {
       UserStateStore.State value = userStateStore.get(expected.getKey());
       if (value instanceof UserStateStore.Value) {
-        return expected.toBuilder().setValue(((UserStateStore.Value) value).getValue()).build();
+        return expected.toBuilder()
+            .setValue(UnsafeByteOperations.unsafeWrap(((UserStateStore.Value) value).getValue()))
+            .build();
       } else if (value instanceof UserStateStore.Empty) {
         return expected.toBuilder().setEmpty(Empty.getDefaultInstance()).build();
       }
@@ -159,7 +163,7 @@ final class Entries {
       if (actual.hasEmpty()) {
         userStateStore.clear(expected.getKey());
       } else {
-        userStateStore.set(expected.getKey(), actual.getValue());
+        userStateStore.set(expected.getKey(), actual.getValue().asReadOnlyByteBuffer());
       }
     }
   }
@@ -333,7 +337,7 @@ final class Entries {
     @Override
     void updateUserStateStoreWithEntry(
         SetStateEntryMessage expected, UserStateStore userStateStore) {
-      userStateStore.set(expected.getKey(), expected.getValue());
+      userStateStore.set(expected.getKey(), expected.getValue().asReadOnlyByteBuffer());
     }
   }
 
@@ -383,9 +387,9 @@ final class Entries {
 
   static final class InvokeEntry<R> extends CompletableJournalEntry<CallEntryMessage, R> {
 
-    private final Function<ByteString, Result<R>> valueParser;
+    private final Function<ByteBuffer, Result<R>> valueParser;
 
-    InvokeEntry(Function<ByteString, Result<R>> valueParser) {
+    InvokeEntry(Function<ByteBuffer, Result<R>> valueParser) {
       this.valueParser = valueParser;
     }
 
@@ -427,7 +431,7 @@ final class Entries {
     @Override
     public Result<R> parseEntryResult(CallEntryMessage actual) {
       if (actual.hasValue()) {
-        return valueParser.apply(actual.getValue());
+        return valueParser.apply(actual.getValue().asReadOnlyByteBuffer());
       }
       return Result.failure(Util.toRestateException(actual.getFailure()));
     }
@@ -435,7 +439,7 @@ final class Entries {
     @Override
     public Result<R> parseCompletionResult(CompletionMessage actual) {
       if (actual.hasValue()) {
-        return valueParser.apply(actual.getValue());
+        return valueParser.apply(actual.getValue().asReadOnlyByteBuffer());
       }
       if (actual.hasFailure()) {
         return Result.failure(Util.toRestateException(actual.getFailure()));
@@ -474,7 +478,7 @@ final class Entries {
   }
 
   static final class AwakeableEntry
-      extends CompletableJournalEntry<AwakeableEntryMessage, ByteString> {
+      extends CompletableJournalEntry<AwakeableEntryMessage, ByteBuffer> {
     static final AwakeableEntry INSTANCE = new AwakeableEntry();
 
     private AwakeableEntry() {}
@@ -495,17 +499,17 @@ final class Entries {
     }
 
     @Override
-    public Result<ByteString> parseEntryResult(AwakeableEntryMessage actual) {
+    public Result<ByteBuffer> parseEntryResult(AwakeableEntryMessage actual) {
       if (actual.hasValue()) {
-        return Result.success(actual.getValue());
+        return Result.success(actual.getValue().asReadOnlyByteBuffer());
       }
       return Result.failure(Util.toRestateException(actual.getFailure()));
     }
 
     @Override
-    public Result<ByteString> parseCompletionResult(CompletionMessage actual) {
+    public Result<ByteBuffer> parseCompletionResult(CompletionMessage actual) {
       if (actual.hasValue()) {
-        return Result.success(actual.getValue());
+        return Result.success(actual.getValue().asReadOnlyByteBuffer());
       }
       if (actual.hasFailure()) {
         return Result.failure(Util.toRestateException(actual.getFailure()));
@@ -515,7 +519,7 @@ final class Entries {
   }
 
   static final class GetPromiseEntry
-      extends CompletableJournalEntry<GetPromiseEntryMessage, ByteString> {
+      extends CompletableJournalEntry<GetPromiseEntryMessage, ByteBuffer> {
     static final GetPromiseEntry INSTANCE = new GetPromiseEntry();
 
     private GetPromiseEntry() {}
@@ -547,17 +551,17 @@ final class Entries {
     }
 
     @Override
-    public Result<ByteString> parseEntryResult(GetPromiseEntryMessage actual) {
+    public Result<ByteBuffer> parseEntryResult(GetPromiseEntryMessage actual) {
       if (actual.hasValue()) {
-        return Result.success(actual.getValue());
+        return Result.success(actual.getValue().asReadOnlyByteBuffer());
       }
       return Result.failure(Util.toRestateException(actual.getFailure()));
     }
 
     @Override
-    public Result<ByteString> parseCompletionResult(CompletionMessage actual) {
+    public Result<ByteBuffer> parseCompletionResult(CompletionMessage actual) {
       if (actual.hasValue()) {
-        return Result.success(actual.getValue());
+        return Result.success(actual.getValue().asReadOnlyByteBuffer());
       }
       if (actual.hasFailure()) {
         return Result.failure(Util.toRestateException(actual.getFailure()));
@@ -567,7 +571,7 @@ final class Entries {
   }
 
   static final class PeekPromiseEntry
-      extends CompletableJournalEntry<PeekPromiseEntryMessage, ByteString> {
+      extends CompletableJournalEntry<PeekPromiseEntryMessage, ByteBuffer> {
     static final PeekPromiseEntry INSTANCE = new PeekPromiseEntry();
 
     private PeekPromiseEntry() {}
@@ -599,9 +603,9 @@ final class Entries {
     }
 
     @Override
-    public Result<ByteString> parseEntryResult(PeekPromiseEntryMessage actual) {
+    public Result<ByteBuffer> parseEntryResult(PeekPromiseEntryMessage actual) {
       if (actual.getResultCase() == PeekPromiseEntryMessage.ResultCase.VALUE) {
-        return Result.success(actual.getValue());
+        return Result.success(actual.getValue().asReadOnlyByteBuffer());
       } else if (actual.getResultCase() == PeekPromiseEntryMessage.ResultCase.FAILURE) {
         return Result.failure(Util.toRestateException(actual.getFailure()));
       } else if (actual.getResultCase() == PeekPromiseEntryMessage.ResultCase.EMPTY) {
@@ -612,9 +616,9 @@ final class Entries {
     }
 
     @Override
-    public Result<ByteString> parseCompletionResult(CompletionMessage actual) {
+    public Result<ByteBuffer> parseCompletionResult(CompletionMessage actual) {
       if (actual.getResultCase() == CompletionMessage.ResultCase.VALUE) {
-        return Result.success(actual.getValue());
+        return Result.success(actual.getValue().asReadOnlyByteBuffer());
       } else if (actual.getResultCase() == CompletionMessage.ResultCase.EMPTY) {
         return Result.empty();
       } else if (actual.getResultCase() == CompletionMessage.ResultCase.FAILURE) {
