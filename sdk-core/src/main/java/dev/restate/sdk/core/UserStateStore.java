@@ -9,6 +9,7 @@
 package dev.restate.sdk.core;
 
 import com.google.protobuf.ByteString;
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -31,13 +32,13 @@ final class UserStateStore {
   }
 
   static final class Value implements State {
-    private final ByteString value;
+    private final ByteBuffer value;
 
-    private Value(ByteString value) {
+    private Value(ByteBuffer value) {
       this.value = value;
     }
 
-    public ByteString getValue() {
+    public ByteBuffer getValue() {
       return value;
     }
   }
@@ -50,14 +51,16 @@ final class UserStateStore {
     this.map =
         new HashMap<>(
             map.entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, e -> new Value(e.getValue()))));
+                .collect(
+                    Collectors.toMap(
+                        Map.Entry::getKey, e -> new Value(e.getValue().asReadOnlyByteBuffer()))));
   }
 
   public State get(ByteString key) {
     return this.map.getOrDefault(key, isPartial ? Unknown.INSTANCE : Empty.INSTANCE);
   }
 
-  public void set(ByteString key, ByteString value) {
+  public void set(ByteString key, ByteBuffer value) {
     this.map.put(key, new Value(value));
   }
 

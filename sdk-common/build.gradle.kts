@@ -8,7 +8,6 @@ description = "Common interfaces of the Restate SDK"
 dependencies {
   compileOnly(coreLibs.jspecify)
 
-  api(coreLibs.protobuf.java)
   api(platform(coreLibs.opentelemetry.bom))
   api(coreLibs.opentelemetry.api)
 

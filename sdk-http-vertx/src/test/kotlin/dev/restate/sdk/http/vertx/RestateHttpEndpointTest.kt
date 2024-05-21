@@ -119,7 +119,7 @@ internal class RestateHttpEndpointTest {
         request.write(
             encode(
                 completionMessage(1)
-                    .setValue(CoreSerdes.JSON_LONG.serializeToByteString(2))
+                    .setValue(ByteString.copyFrom(CoreSerdes.JSON_LONG.serialize(2)))
                     .build()))
 
         // Wait for Set State Entry

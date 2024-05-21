@@ -8,7 +8,6 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import com.google.protobuf.ByteString;
 import dev.restate.sdk.common.Request;
 import dev.restate.sdk.common.Target;
 import dev.restate.sdk.common.TerminalException;
@@ -16,6 +15,7 @@ import dev.restate.sdk.common.syscalls.Deferred;
 import dev.restate.sdk.common.syscalls.EnterSideEffectSyscallCallback;
 import dev.restate.sdk.common.syscalls.ExitSideEffectSyscallCallback;
 import dev.restate.sdk.common.syscalls.SyscallCallback;
+import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Map;
@@ -33,7 +33,7 @@ class ExecutorSwitchingSyscalls implements SyscallsInternal {
   }
 
   @Override
-  public void writeOutput(ByteString value, SyscallCallback<Void> callback) {
+  public void writeOutput(ByteBuffer value, SyscallCallback<Void> callback) {
     syscallsExecutor.execute(() -> syscalls.writeOutput(value, callback));
   }
 
@@ -43,7 +43,7 @@ class ExecutorSwitchingSyscalls implements SyscallsInternal {
   }
 
   @Override
-  public void get(String name, SyscallCallback<Deferred<ByteString>> callback) {
+  public void get(String name, SyscallCallback<Deferred<ByteBuffer>> callback) {
     syscallsExecutor.execute(() -> syscalls.get(name, callback));
   }
 
@@ -63,7 +63,7 @@ class ExecutorSwitchingSyscalls implements SyscallsInternal {
   }
 
   @Override
-  public void set(String name, ByteString value, SyscallCallback<Void> callback) {
+  public void set(String name, ByteBuffer value, SyscallCallback<Void> callback) {
     syscallsExecutor.execute(() -> syscalls.set(name, value, callback));
   }
 
@@ -74,14 +74,14 @@ class ExecutorSwitchingSyscalls implements SyscallsInternal {
 
   @Override
   public void call(
-      Target target, ByteString parameter, SyscallCallback<Deferred<ByteString>> callback) {
+      Target target, ByteBuffer parameter, SyscallCallback<Deferred<ByteBuffer>> callback) {
     syscallsExecutor.execute(() -> syscalls.call(target, parameter, callback));
   }
 
   @Override
   public void send(
       Target target,
-      ByteString parameter,
+      ByteBuffer parameter,
       @Nullable Duration delay,
       SyscallCallback<Void> requestCallback) {
     syscallsExecutor.execute(() -> syscalls.send(target, parameter, delay, requestCallback));
@@ -93,7 +93,7 @@ class ExecutorSwitchingSyscalls implements SyscallsInternal {
   }
 
   @Override
-  public void exitSideEffectBlock(ByteString toWrite, ExitSideEffectSyscallCallback callback) {
+  public void exitSideEffectBlock(ByteBuffer toWrite, ExitSideEffectSyscallCallback callback) {
     syscallsExecutor.execute(() -> syscalls.exitSideEffectBlock(toWrite, callback));
   }
 
@@ -105,13 +105,13 @@ class ExecutorSwitchingSyscalls implements SyscallsInternal {
   }
 
   @Override
-  public void awakeable(SyscallCallback<Map.Entry<String, Deferred<ByteString>>> callback) {
+  public void awakeable(SyscallCallback<Map.Entry<String, Deferred<ByteBuffer>>> callback) {
     syscallsExecutor.execute(() -> syscalls.awakeable(callback));
   }
 
   @Override
   public void resolveAwakeable(
-      String id, ByteString payload, SyscallCallback<Void> requestCallback) {
+      String id, ByteBuffer payload, SyscallCallback<Void> requestCallback) {
     syscallsExecutor.execute(() -> syscalls.resolveAwakeable(id, payload, requestCallback));
   }
 
@@ -121,18 +121,18 @@ class ExecutorSwitchingSyscalls implements SyscallsInternal {
   }
 
   @Override
-  public void promise(String key, SyscallCallback<Deferred<ByteString>> callback) {
+  public void promise(String key, SyscallCallback<Deferred<ByteBuffer>> callback) {
     syscallsExecutor.execute(() -> syscalls.promise(key, callback));
   }
 
   @Override
-  public void peekPromise(String key, SyscallCallback<Deferred<ByteString>> callback) {
+  public void peekPromise(String key, SyscallCallback<Deferred<ByteBuffer>> callback) {
     syscallsExecutor.execute(() -> syscalls.peekPromise(key, callback));
   }
 
   @Override
   public void resolvePromise(
-      String key, ByteString payload, SyscallCallback<Deferred<Void>> callback) {
+      String key, ByteBuffer payload, SyscallCallback<Deferred<Void>> callback) {
     syscallsExecutor.execute(() -> syscalls.resolvePromise(key, payload, callback));
   }
 

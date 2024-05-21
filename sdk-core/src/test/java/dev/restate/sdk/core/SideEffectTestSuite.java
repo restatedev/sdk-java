@@ -15,6 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
+import com.google.protobuf.ByteString;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.common.TerminalException;
@@ -41,14 +42,14 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
             .withInput(startMessage(1), inputMessage("Till"))
             .expectingOutput(
                 Protocol.RunEntryMessage.newBuilder()
-                    .setValue(CoreSerdes.JSON_STRING.serializeToByteString("Francesco")),
+                    .setValue(ByteString.copyFrom(CoreSerdes.JSON_STRING.serialize("Francesco"))),
                 suspensionMessage(1))
             .named("Without optimization suspends"),
         this.sideEffect("Francesco")
             .withInput(startMessage(1), inputMessage("Till"), ackMessage(1))
             .expectingOutput(
                 Protocol.RunEntryMessage.newBuilder()
-                    .setValue(CoreSerdes.JSON_STRING.serializeToByteString("Francesco")),
+                    .setValue(ByteString.copyFrom(CoreSerdes.JSON_STRING.serialize("Francesco"))),
                 outputMessage("Hello Francesco"),
                 END_MESSAGE)
             .named("Without optimization and with acks returns"),
@@ -57,13 +58,13 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
             .expectingOutput(
                 Protocol.RunEntryMessage.newBuilder()
                     .setName("get-my-name")
-                    .setValue(CoreSerdes.JSON_STRING.serializeToByteString("Francesco")),
+                    .setValue(ByteString.copyFrom(CoreSerdes.JSON_STRING.serialize("Francesco"))),
                 suspensionMessage(1)),
         this.consecutiveSideEffect("Francesco")
             .withInput(startMessage(1), inputMessage("Till"))
             .expectingOutput(
                 Protocol.RunEntryMessage.newBuilder()
-                    .setValue(CoreSerdes.JSON_STRING.serializeToByteString("Francesco")),
+                    .setValue(ByteString.copyFrom(CoreSerdes.JSON_STRING.serialize("Francesco"))),
                 suspensionMessage(1))
             .named("With optimization and without ack on first side effect will suspend"),
         this.consecutiveSideEffect("Francesco")
@@ -71,9 +72,9 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
             .onlyUnbuffered()
             .expectingOutput(
                 Protocol.RunEntryMessage.newBuilder()
-                    .setValue(CoreSerdes.JSON_STRING.serializeToByteString("Francesco")),
+                    .setValue(ByteString.copyFrom(CoreSerdes.JSON_STRING.serialize("Francesco"))),
                 Protocol.RunEntryMessage.newBuilder()
-                    .setValue(CoreSerdes.JSON_STRING.serializeToByteString("FRANCESCO")),
+                    .setValue(ByteString.copyFrom(CoreSerdes.JSON_STRING.serialize("FRANCESCO"))),
                 suspensionMessage(2))
             .named("With optimization and ack on first side effect will suspend"),
         this.consecutiveSideEffect("Francesco")
@@ -81,9 +82,9 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
             .onlyUnbuffered()
             .expectingOutput(
                 Protocol.RunEntryMessage.newBuilder()
-                    .setValue(CoreSerdes.JSON_STRING.serializeToByteString("Francesco")),
+                    .setValue(ByteString.copyFrom(CoreSerdes.JSON_STRING.serialize("Francesco"))),
                 Protocol.RunEntryMessage.newBuilder()
-                    .setValue(CoreSerdes.JSON_STRING.serializeToByteString("FRANCESCO")),
+                    .setValue(ByteString.copyFrom(CoreSerdes.JSON_STRING.serialize("FRANCESCO"))),
                 outputMessage("Hello FRANCESCO"),
                 END_MESSAGE)
             .named("With optimization and ack on first and second side effect will resume"),

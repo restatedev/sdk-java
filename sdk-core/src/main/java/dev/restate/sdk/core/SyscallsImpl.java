@@ -8,6 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
+import static dev.restate.sdk.core.Util.nioBufferToProtobufBuffer;
+
 import com.google.protobuf.ByteString;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.common.Request;
@@ -50,12 +52,15 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public void writeOutput(ByteString value, SyscallCallback<Void> callback) {
+  public void writeOutput(ByteBuffer value, SyscallCallback<Void> callback) {
     wrapAndPropagateExceptions(
         () -> {
           LOG.trace("writeOutput success");
           this.writeOutput(
-              Protocol.OutputEntryMessage.newBuilder().setValue(value).build(), callback);
+              Protocol.OutputEntryMessage.newBuilder()
+                  .setValue(nioBufferToProtobufBuffer(value))
+                  .build(),
+              callback);
         },
         callback);
   }
@@ -81,7 +86,7 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public void get(String name, SyscallCallback<Deferred<ByteString>> callback) {
+  public void get(String name, SyscallCallback<Deferred<ByteBuffer>> callback) {
     wrapAndPropagateExceptions(
         () -> {
           LOG.trace("get {}", name);
@@ -137,14 +142,14 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public void set(String name, ByteString value, SyscallCallback<Void> callback) {
+  public void set(String name, ByteBuffer value, SyscallCallback<Void> callback) {
     wrapAndPropagateExceptions(
         () -> {
           LOG.trace("set {}", name);
           this.stateMachine.processJournalEntry(
               Protocol.SetStateEntryMessage.newBuilder()
                   .setKey(ByteString.copyFromUtf8(name))
-                  .setValue(value)
+                  .setValue(nioBufferToProtobufBuffer(value))
                   .build(),
               SetStateEntry.INSTANCE,
               callback);
@@ -169,7 +174,7 @@ public final class SyscallsImpl implements SyscallsInternal {
 
   @Override
   public void call(
-      Target target, ByteString parameter, SyscallCallback<Deferred<ByteString>> callback) {
+      Target target, ByteBuffer parameter, SyscallCallback<Deferred<ByteBuffer>> callback) {
     wrapAndPropagateExceptions(
         () -> {
           LOG.trace("call {}", target);
@@ -178,7 +183,7 @@ public final class SyscallsImpl implements SyscallsInternal {
               Protocol.CallEntryMessage.newBuilder()
                   .setServiceName(target.getService())
                   .setHandlerName(target.getHandler())
-                  .setParameter(parameter);
+                  .setParameter(nioBufferToProtobufBuffer(parameter));
           if (target.getKey() != null) {
             builder.setKey(target.getKey());
           }
@@ -192,7 +197,7 @@ public final class SyscallsImpl implements SyscallsInternal {
   @Override
   public void send(
       Target target,
-      ByteString parameter,
+      ByteBuffer parameter,
       @Nullable Duration delay,
       SyscallCallback<Void> callback) {
     wrapAndPropagateExceptions(
@@ -203,7 +208,7 @@ public final class SyscallsImpl implements SyscallsInternal {
               Protocol.OneWayCallEntryMessage.newBuilder()
                   .setServiceName(target.getService())
                   .setHandlerName(target.getHandler())
-                  .setParameter(parameter);
+                  .setParameter(nioBufferToProtobufBuffer(parameter));
           if (target.getKey() != null) {
             builder.setKey(target.getKey());
           }
@@ -228,12 +233,15 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public void exitSideEffectBlock(ByteString toWrite, ExitSideEffectSyscallCallback callback) {
+  public void exitSideEffectBlock(ByteBuffer toWrite, ExitSideEffectSyscallCallback callback) {
     wrapAndPropagateExceptions(
         () -> {
           LOG.trace("exitSideEffectBlock with success");
           this.stateMachine.exitSideEffectBlock(
-              Protocol.RunEntryMessage.newBuilder().setValue(toWrite).build(), callback);
+              Protocol.RunEntryMessage.newBuilder()
+                  .setValue(nioBufferToProtobufBuffer(toWrite))
+                  .build(),
+              callback);
         },
         callback);
   }
@@ -254,7 +262,7 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public void awakeable(SyscallCallback<Map.Entry<String, Deferred<ByteString>>> callback) {
+  public void awakeable(SyscallCallback<Map.Entry<String, Deferred<ByteBuffer>>> callback) {
     wrapAndPropagateExceptions(
         () -> {
           LOG.trace("awakeable");
@@ -271,7 +279,7 @@ public final class SyscallsImpl implements SyscallsInternal {
                                 ByteString.copyFrom(
                                     ByteBuffer.allocate(4)
                                         .putInt(
-                                            ((SingleDeferredInternal<ByteString>) deferredResult)
+                                            ((SingleDeferredInternal<ByteBuffer>) deferredResult)
                                                 .entryIndex())
                                         .rewind()));
 
@@ -287,13 +295,14 @@ public final class SyscallsImpl implements SyscallsInternal {
 
   @Override
   public void resolveAwakeable(
-      String serializedId, ByteString payload, SyscallCallback<Void> callback) {
+      String serializedId, ByteBuffer payload, SyscallCallback<Void> callback) {
     wrapAndPropagateExceptions(
         () -> {
           LOG.trace("resolveAwakeable");
           completeAwakeable(
               serializedId,
-              Protocol.CompleteAwakeableEntryMessage.newBuilder().setValue(payload),
+              Protocol.CompleteAwakeableEntryMessage.newBuilder()
+                  .setValue(nioBufferToProtobufBuffer(payload)),
               callback);
         },
         callback);
@@ -325,7 +334,7 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public void promise(String key, SyscallCallback<Deferred<ByteString>> callback) {
+  public void promise(String key, SyscallCallback<Deferred<ByteBuffer>> callback) {
     wrapAndPropagateExceptions(
         () -> {
           LOG.trace("promise");
@@ -338,7 +347,7 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
-  public void peekPromise(String key, SyscallCallback<Deferred<ByteString>> callback) {
+  public void peekPromise(String key, SyscallCallback<Deferred<ByteBuffer>> callback) {
     wrapAndPropagateExceptions(
         () -> {
           LOG.trace("peekPromise");
@@ -352,14 +361,14 @@ public final class SyscallsImpl implements SyscallsInternal {
 
   @Override
   public void resolvePromise(
-      String key, ByteString payload, SyscallCallback<Deferred<Void>> callback) {
+      String key, ByteBuffer payload, SyscallCallback<Deferred<Void>> callback) {
     wrapAndPropagateExceptions(
         () -> {
           LOG.trace("resolvePromise");
           this.stateMachine.processCompletableJournalEntry(
               Protocol.CompletePromiseEntryMessage.newBuilder()
                   .setKey(key)
-                  .setCompletionValue(payload)
+                  .setCompletionValue(nioBufferToProtobufBuffer(payload))
                   .build(),
               CompletePromiseEntry.INSTANCE,
               callback);

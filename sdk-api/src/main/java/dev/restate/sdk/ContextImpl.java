@@ -8,13 +8,13 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import com.google.protobuf.ByteString;
 import dev.restate.sdk.common.*;
 import dev.restate.sdk.common.function.ThrowingSupplier;
 import dev.restate.sdk.common.syscalls.Deferred;
 import dev.restate.sdk.common.syscalls.EnterSideEffectSyscallCallback;
 import dev.restate.sdk.common.syscalls.ExitSideEffectSyscallCallback;
 import dev.restate.sdk.common.syscalls.Syscalls;
+import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Map;
@@ -43,7 +43,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
 
   @Override
   public <T> Optional<T> get(StateKey<T> key) {
-    Deferred<ByteString> deferred = Util.blockOnSyscall(cb -> syscalls.get(key.name(), cb));
+    Deferred<ByteBuffer> deferred = Util.blockOnSyscall(cb -> syscalls.get(key.name(), cb));
 
     if (!deferred.isCompleted()) {
       Util.<Void>blockOnSyscall(cb -> syscalls.resolveDeferred(deferred, cb));
@@ -91,27 +91,27 @@ class ContextImpl implements ObjectContext, WorkflowContext {
   @Override
   public <T, R> Awaitable<R> call(
       Target target, Serde<T> inputSerde, Serde<R> outputSerde, T parameter) {
-    ByteString input = Util.serializeWrappingException(syscalls, inputSerde, parameter);
-    Deferred<ByteString> result = Util.blockOnSyscall(cb -> syscalls.call(target, input, cb));
+    ByteBuffer input = Util.serializeWrappingException(syscalls, inputSerde, parameter);
+    Deferred<ByteBuffer> result = Util.blockOnSyscall(cb -> syscalls.call(target, input, cb));
     return Awaitable.single(syscalls, result)
         .map(bs -> Util.deserializeWrappingException(syscalls, outputSerde, bs));
   }
 
   @Override
   public <T> void send(Target target, Serde<T> inputSerde, T parameter) {
-    ByteString input = Util.serializeWrappingException(syscalls, inputSerde, parameter);
+    ByteBuffer input = Util.serializeWrappingException(syscalls, inputSerde, parameter);
     Util.<Void>blockOnSyscall(cb -> syscalls.send(target, input, null, cb));
   }
 
   @Override
   public <T> void send(Target target, Serde<T> inputSerde, T parameter, Duration delay) {
-    ByteString input = Util.serializeWrappingException(syscalls, inputSerde, parameter);
+    ByteBuffer input = Util.serializeWrappingException(syscalls, inputSerde, parameter);
     Util.<Void>blockOnSyscall(cb -> syscalls.send(target, input, delay, cb));
   }
 
   @Override
   public <T> T run(String name, Serde<T> serde, ThrowingSupplier<T> action) {
-    CompletableFuture<CompletableFuture<ByteString>> enterFut = new CompletableFuture<>();
+    CompletableFuture<CompletableFuture<ByteBuffer>> enterFut = new CompletableFuture<>();
     syscalls.enterSideEffectBlock(
         name,
         new EnterSideEffectSyscallCallback() {
@@ -121,7 +121,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
           }
 
           @Override
-          public void onSuccess(ByteString result) {
+          public void onSuccess(ByteBuffer result) {
             enterFut.complete(CompletableFuture.completedFuture(result));
           }
 
@@ -137,7 +137,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
         });
 
     // If a failure was stored, it's simply thrown here
-    CompletableFuture<ByteString> exitFut = Util.awaitCompletableFuture(enterFut);
+    CompletableFuture<ByteBuffer> exitFut = Util.awaitCompletableFuture(enterFut);
     if (exitFut.isDone()) {
       // We already have a result, we don't need to execute the action
       return Util.deserializeWrappingException(
@@ -147,7 +147,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
     ExitSideEffectSyscallCallback exitCallback =
         new ExitSideEffectSyscallCallback() {
           @Override
-          public void onSuccess(ByteString result) {
+          public void onSuccess(ByteBuffer result) {
             exitFut.complete(result);
           }
 
@@ -188,7 +188,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
   @Override
   public <T> Awakeable<T> awakeable(Serde<T> serde) throws TerminalException {
     // Retrieve the awakeable
-    Map.Entry<String, Deferred<ByteString>> awakeable = Util.blockOnSyscall(syscalls::awakeable);
+    Map.Entry<String, Deferred<ByteBuffer>> awakeable = Util.blockOnSyscall(syscalls::awakeable);
 
     return new Awakeable<>(syscalls, awakeable.getValue(), serde, awakeable.getKey());
   }
@@ -221,14 +221,14 @@ class ContextImpl implements ObjectContext, WorkflowContext {
     return new DurablePromise<>() {
       @Override
       public Awaitable<T> awaitable() {
-        Deferred<ByteString> result = Util.blockOnSyscall(cb -> syscalls.promise(key.name(), cb));
+        Deferred<ByteBuffer> result = Util.blockOnSyscall(cb -> syscalls.promise(key.name(), cb));
         return Awaitable.single(syscalls, result)
             .map(bs -> Util.deserializeWrappingException(syscalls, key.serde(), bs));
       }
 
       @Override
       public Optional<T> peek() {
-        Deferred<ByteString> deferred =
+        Deferred<ByteBuffer> deferred =
             Util.blockOnSyscall(cb -> syscalls.peekPromise(key.name(), cb));
 
         if (!deferred.isCompleted()) {
@@ -241,7 +241,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
 
       @Override
       public boolean isCompleted() {
-        Deferred<ByteString> deferred =
+        Deferred<ByteBuffer> deferred =
             Util.blockOnSyscall(cb -> syscalls.peekPromise(key.name(), cb));
 
         if (!deferred.isCompleted()) {

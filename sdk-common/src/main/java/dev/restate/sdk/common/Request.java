@@ -8,8 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.common;
 
-import com.google.protobuf.ByteString;
 import io.opentelemetry.context.Context;
+import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Objects;
 
@@ -17,13 +17,13 @@ public final class Request {
 
   private final InvocationId invocationId;
   private final Context otelContext;
-  private final ByteString body;
+  private final ByteBuffer body;
   private final Map<String, String> headers;
 
   public Request(
       InvocationId invocationId,
       Context otelContext,
-      ByteString body,
+      ByteBuffer body,
       Map<String, String> headers) {
     this.invocationId = invocationId;
     this.otelContext = otelContext;
@@ -40,11 +40,11 @@ public final class Request {
   }
 
   public byte[] body() {
-    return body.toByteArray();
+    return CoreSerdes.BYTE_BUFFER.serialize(body);
   }
 
-  public ByteString bodyBuffer() {
-    return body;
+  public ByteBuffer bodyBuffer() {
+    return body.asReadOnlyBuffer();
   }
 
   public Map<String, String> headers() {

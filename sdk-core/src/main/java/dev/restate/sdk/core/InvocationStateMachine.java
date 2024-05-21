@@ -228,7 +228,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
               new Request(
                   invocationId,
                   Context.root().with(span),
-                  inputEntry.getValue(),
+                  inputEntry.getValue().asReadOnlyByteBuffer(),
                   inputEntry.getHeadersList().stream()
                       .collect(
                           Collectors.toUnmodifiableMap(
@@ -490,7 +490,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     if (sideEffectEntry.hasFailure()) {
       callback.onFailure(Util.toRestateException(sideEffectEntry.getFailure()));
     } else {
-      callback.onSuccess(sideEffectEntry.getValue());
+      callback.onSuccess(sideEffectEntry.getValue().asReadOnlyByteBuffer());
     }
   }
 

@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.common.syscalls;
 
-import com.google.protobuf.ByteString;
+import java.nio.ByteBuffer;
 import org.jspecify.annotations.Nullable;
 
 public interface HandlerRunner<REQ, RES, O> {
@@ -26,5 +26,5 @@ public interface HandlerRunner<REQ, RES, O> {
       HandlerSpecification<REQ, RES> handlerSpecification,
       Syscalls syscalls,
       @Nullable O options,
-      SyscallCallback<ByteString> callback);
+      SyscallCallback<ByteBuffer> callback);
 }

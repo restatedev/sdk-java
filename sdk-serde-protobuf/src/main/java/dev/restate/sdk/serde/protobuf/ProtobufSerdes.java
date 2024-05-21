@@ -8,11 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.serde.protobuf;
 
-import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.MessageLite;
-import com.google.protobuf.Parser;
+import com.google.protobuf.*;
 import dev.restate.sdk.common.Serde;
+import java.nio.ByteBuffer;
 import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
@@ -37,16 +35,17 @@ public abstract class ProtobufSerdes {
         }
       }
 
-      // -- We reimplement the ByteString variants here as it might be more efficient to use them.
+      // -- We reimplement the ByteBuffer variants here as it might be more efficient to use them.
+
       @Override
-      public ByteString serializeToByteString(@Nullable T value) {
-        return Objects.requireNonNull(value).toByteString();
+      public ByteBuffer serializeToByteBuffer(@Nullable T value) {
+        return Objects.requireNonNull(value).toByteString().asReadOnlyByteBuffer();
       }
 
       @Override
-      public T deserialize(ByteString byteString) {
+      public T deserialize(ByteBuffer byteBuffer) {
         try {
-          return parser.parseFrom(byteString);
+          return parser.parseFrom(UnsafeByteOperations.unsafeWrap(byteBuffer.rewind()));
         } catch (InvalidProtocolBufferException e) {
           throw new RuntimeException("Cannot deserialize Protobuf object", e);
         }

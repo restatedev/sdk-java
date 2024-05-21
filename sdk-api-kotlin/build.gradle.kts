@@ -22,6 +22,7 @@ dependencies {
   testImplementation(testingLibs.junit.jupiter)
   testImplementation(testingLibs.assertj)
   testImplementation(coreLibs.log4j.core)
+  testImplementation(coreLibs.protobuf.java)
 
   testImplementation(project(":sdk-core", "testArchive"))
 }

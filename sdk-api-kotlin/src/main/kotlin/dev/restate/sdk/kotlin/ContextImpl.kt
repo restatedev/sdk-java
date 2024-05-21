@@ -8,13 +8,13 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import com.google.protobuf.ByteString
 import dev.restate.sdk.common.*
 import dev.restate.sdk.common.Target
 import dev.restate.sdk.common.syscalls.Deferred
 import dev.restate.sdk.common.syscalls.EnterSideEffectSyscallCallback
 import dev.restate.sdk.common.syscalls.ExitSideEffectSyscallCallback
 import dev.restate.sdk.common.syscalls.Syscalls
+import java.nio.ByteBuffer
 import kotlin.coroutines.resume
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
@@ -33,8 +33,8 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
   }
 
   override suspend fun <T : Any> get(key: StateKey<T>): T? {
-    val deferred: Deferred<ByteString> =
-        suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<ByteString>> ->
+    val deferred: Deferred<ByteBuffer> =
+        suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<ByteBuffer>> ->
           syscalls.get(key.name(), completingContinuation(cont))
         }
 
@@ -109,8 +109,8 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
   ): Awaitable<R> {
     val input = inputSerde.serializeWrappingException(syscalls, parameter)
 
-    val deferred: Deferred<ByteString> =
-        suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<ByteString>> ->
+    val deferred: Deferred<ByteBuffer> =
+        suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<ByteBuffer>> ->
           syscalls.call(target, input, completingContinuation(cont))
         }
 
@@ -136,19 +136,19 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
       block: suspend () -> T
   ): T {
     val exitResult =
-        suspendCancellableCoroutine { cont: CancellableContinuation<CompletableDeferred<ByteString>>
+        suspendCancellableCoroutine { cont: CancellableContinuation<CompletableDeferred<ByteBuffer>>
           ->
           syscalls.enterSideEffectBlock(
               name,
               object : EnterSideEffectSyscallCallback {
-                override fun onSuccess(t: ByteString?) {
-                  val deferred: CompletableDeferred<ByteString> = CompletableDeferred()
+                override fun onSuccess(t: ByteBuffer?) {
+                  val deferred: CompletableDeferred<ByteBuffer> = CompletableDeferred()
                   deferred.complete(t!!)
                   cont.resume(deferred)
                 }
 
                 override fun onFailure(t: TerminalException) {
-                  val deferred: CompletableDeferred<ByteString> = CompletableDeferred()
+                  val deferred: CompletableDeferred<ByteBuffer> = CompletableDeferred()
                   deferred.completeExceptionally(t)
                   cont.resume(deferred)
                 }
@@ -182,7 +182,7 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
 
     val exitCallback =
         object : ExitSideEffectSyscallCallback {
-          override fun onSuccess(t: ByteString?) {
+          override fun onSuccess(t: ByteBuffer?) {
             exitResult.complete(t!!)
           }
 
@@ -208,7 +208,7 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
   override suspend fun <T : Any> awakeable(serde: Serde<T>): Awakeable<T> {
     val (aid, deferredResult) =
         suspendCancellableCoroutine {
-            cont: CancellableContinuation<Map.Entry<String, Deferred<ByteString>>> ->
+            cont: CancellableContinuation<Map.Entry<String, Deferred<ByteBuffer>>> ->
           syscalls.awakeable(completingContinuation(cont))
         }
 
@@ -234,8 +234,8 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
   inner class DurablePromiseImpl<T : Any>(private val key: DurablePromiseKey<T>) :
       DurablePromise<T> {
     override suspend fun awaitable(): Awaitable<T> {
-      val deferred: Deferred<ByteString> =
-          suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<ByteString>> ->
+      val deferred: Deferred<ByteBuffer> =
+          suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<ByteBuffer>> ->
             syscalls.promise(key.name(), completingContinuation(cont))
           }
 
@@ -243,8 +243,8 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
     }
 
     override suspend fun peek(): T? {
-      val deferred: Deferred<ByteString> =
-          suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<ByteString>> ->
+      val deferred: Deferred<ByteBuffer> =
+          suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<ByteBuffer>> ->
             syscalls.peekPromise(key.name(), completingContinuation(cont))
           }
 
@@ -265,8 +265,8 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
     }
 
     override suspend fun isCompleted(): Boolean {
-      val deferred: Deferred<ByteString> =
-          suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<ByteString>> ->
+      val deferred: Deferred<ByteBuffer> =
+          suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<ByteBuffer>> ->
             syscalls.peekPromise(key.name(), completingContinuation(cont))
           }
 

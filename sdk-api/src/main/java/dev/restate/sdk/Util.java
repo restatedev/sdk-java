@@ -8,7 +8,6 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import com.google.protobuf.ByteString;
 import dev.restate.sdk.common.AbortedExecutionException;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.function.ThrowingFunction;
@@ -16,6 +15,7 @@ import dev.restate.sdk.common.syscalls.Deferred;
 import dev.restate.sdk.common.syscalls.Result;
 import dev.restate.sdk.common.syscalls.SyscallCallback;
 import dev.restate.sdk.common.syscalls.Syscalls;
+import java.nio.ByteBuffer;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -78,12 +78,12 @@ class Util {
     }
   }
 
-  static <T> ByteString serializeWrappingException(Syscalls syscalls, Serde<T> serde, T value) {
-    return executeMappingException(syscalls, serde::serializeToByteString, value);
+  static <T> ByteBuffer serializeWrappingException(Syscalls syscalls, Serde<T> serde, T value) {
+    return executeMappingException(syscalls, serde::serializeToByteBuffer, value);
   }
 
   static <T> T deserializeWrappingException(
-      Syscalls syscalls, Serde<T> serde, ByteString byteString) {
+      Syscalls syscalls, Serde<T> serde, ByteBuffer byteString) {
     return executeMappingException(syscalls, serde::deserialize, byteString);
   }
 }
