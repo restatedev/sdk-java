@@ -8,26 +8,19 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.client;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.Target;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.jspecify.annotations.NonNull;
 
 public class DefaultIngressClient implements IngressClient {
-
-  private static final JsonFactory JSON_FACTORY = new JsonFactory();
 
   private final HttpClient httpClient;
   private final URI baseUri;
@@ -89,13 +82,16 @@ public class DefaultIngressClient implements IngressClient {
                 handleNonSuccessResponse(response);
               }
 
-              try {
-                return findStringFieldInJsonObject(
-                    new ByteArrayInputStream(response.body()), "invocationId");
-              } catch (Exception e) {
-                throw new IngressException(
-                    "Cannot deserialize the response", response.statusCode(), response.body(), e);
-              }
+              return response
+                  .headers()
+                  .firstValue("x-restate-id")
+                  .orElseThrow(
+                      () ->
+                          new IngressException(
+                              "Expected x-restate-id header to be present in the response",
+                              response.statusCode(),
+                              response.body()))
+                  .trim();
             });
   }
 
@@ -306,41 +302,15 @@ public class DefaultIngressClient implements IngressClient {
 
   private void handleNonSuccessResponse(HttpResponse<byte[]> response) {
     if (response.headers().firstValue("content-type").orElse("").contains("application/json")) {
-      String errorMessage;
-      // Let's try to parse the message field
-      try {
-        errorMessage =
-            findStringFieldInJsonObject(new ByteArrayInputStream(response.body()), "message");
-      } catch (Exception e) {
-        throw new IngressException(
-            "Can't decode error response from ingress", response.statusCode(), response.body(), e);
-      }
-      throw new IngressException(errorMessage, response.statusCode(), response.body());
+      throw new IngressException(
+          "Received non success status code: "
+              + new String(response.body(), StandardCharsets.UTF_8),
+          response.statusCode(),
+          response.body());
     }
 
     // Fallback error
     throw new IngressException(
         "Received non success status code", response.statusCode(), response.body());
-  }
-
-  private static String findStringFieldInJsonObject(InputStream body, String fieldName)
-      throws IOException {
-    try (JsonParser parser = JSON_FACTORY.createParser(body)) {
-      if (parser.nextToken() != JsonToken.START_OBJECT) {
-        throw new IllegalStateException(
-            "Expecting token " + JsonToken.START_OBJECT + ", got " + parser.getCurrentToken());
-      }
-      for (String actualFieldName = parser.nextFieldName();
-          actualFieldName != null;
-          actualFieldName = parser.nextFieldName()) {
-        if (actualFieldName.equalsIgnoreCase(fieldName)) {
-          return parser.nextTextValue();
-        } else {
-          parser.nextValue();
-        }
-      }
-      throw new IllegalStateException(
-          "Expecting field name \"" + fieldName + "\", got " + parser.getCurrentToken());
-    }
   }
 }
