@@ -234,6 +234,53 @@ public interface IngressClient {
     }
   }
 
+  <Res> WorkflowHandle<Res> workflowHandle(
+      String workflowName, String workflowId, Serde<Res> resSerde);
+
+  interface WorkflowHandle<Res> {
+    CompletableFuture<Res> attachAsync(RequestOptions options);
+
+    default CompletableFuture<Res> attachAsync() {
+      return attachAsync(RequestOptions.DEFAULT);
+    }
+
+    default Res attach(RequestOptions options) throws IngressException {
+      try {
+        return attachAsync(options).join();
+      } catch (CompletionException e) {
+        if (e.getCause() instanceof RuntimeException) {
+          throw (RuntimeException) e.getCause();
+        }
+        throw new RuntimeException(e.getCause());
+      }
+    }
+
+    default Res attach() throws IngressException {
+      return attach(RequestOptions.DEFAULT);
+    }
+
+    CompletableFuture<Res> getOutputAsync(RequestOptions options);
+
+    default CompletableFuture<Res> getOutputAsync() {
+      return getOutputAsync(RequestOptions.DEFAULT);
+    }
+
+    default Res getOutput(RequestOptions options) throws IngressException {
+      try {
+        return getOutputAsync(options).join();
+      } catch (CompletionException e) {
+        if (e.getCause() instanceof RuntimeException) {
+          throw (RuntimeException) e.getCause();
+        }
+        throw new RuntimeException(e.getCause());
+      }
+    }
+
+    default Res getOutput() throws IngressException {
+      return getOutput(RequestOptions.DEFAULT);
+    }
+  }
+
   static IngressClient defaultClient(String baseUri) {
     return defaultClient(baseUri, Collections.emptyMap());
   }

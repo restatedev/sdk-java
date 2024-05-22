@@ -17,9 +17,11 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -257,11 +259,103 @@ public class DefaultIngressClient implements IngressClient {
     };
   }
 
+  @Override
+  public <Res> WorkflowHandle<Res> workflowHandle(
+      String workflowName, String workflowId, Serde<Res> resSerde) {
+    return new WorkflowHandle<>() {
+      @Override
+      public CompletableFuture<Res> attachAsync(RequestOptions options) {
+        // Prepare request
+        var reqBuilder =
+            HttpRequest.newBuilder()
+                .uri(
+                    baseUri.resolve(
+                        "/restate/workflow/"
+                            + workflowName
+                            + "/"
+                            + URLEncoder.encode(workflowId, StandardCharsets.UTF_8)
+                            + "/attach"));
+
+        // Add headers
+        headers.forEach(reqBuilder::header);
+        options.getAdditionalHeaders().forEach(reqBuilder::header);
+
+        // Build and Send request
+        HttpRequest request = reqBuilder.GET().build();
+        return httpClient
+            .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
+            .handle(
+                (response, throwable) -> {
+                  if (throwable != null) {
+                    throw new IngressException("Error when executing the request", throwable);
+                  }
+
+                  if (response.statusCode() >= 300) {
+                    handleNonSuccessResponse(response);
+                  }
+
+                  try {
+                    return resSerde.deserialize(response.body());
+                  } catch (Exception e) {
+                    throw new IngressException(
+                        "Cannot deserialize the response",
+                        response.statusCode(),
+                        response.body(),
+                        e);
+                  }
+                });
+      }
+
+      @Override
+      public CompletableFuture<Res> getOutputAsync(RequestOptions options) {
+        // Prepare request
+        var reqBuilder =
+            HttpRequest.newBuilder()
+                .uri(
+                    baseUri.resolve(
+                        "/restate/workflow/"
+                            + workflowName
+                            + "/"
+                            + URLEncoder.encode(workflowId, StandardCharsets.UTF_8)
+                            + "/output"));
+
+        // Add headers
+        headers.forEach(reqBuilder::header);
+        options.getAdditionalHeaders().forEach(reqBuilder::header);
+
+        // Build and Send request
+        HttpRequest request = reqBuilder.GET().build();
+        return httpClient
+            .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
+            .handle(
+                (response, throwable) -> {
+                  if (throwable != null) {
+                    throw new IngressException("Error when executing the request", throwable);
+                  }
+
+                  if (response.statusCode() >= 300) {
+                    handleNonSuccessResponse(response);
+                  }
+
+                  try {
+                    return resSerde.deserialize(response.body());
+                  } catch (Exception e) {
+                    throw new IngressException(
+                        "Cannot deserialize the response",
+                        response.statusCode(),
+                        response.body(),
+                        e);
+                  }
+                });
+      }
+    };
+  }
+
   private URI toRequestURI(Target target, boolean isSend, Duration delay) {
     StringBuilder builder = new StringBuilder();
     builder.append("/").append(target.getService());
     if (target.getKey() != null) {
-      builder.append("/").append(target.getKey());
+      builder.append("/").append(URLEncoder.encode(target.getKey(), StandardCharsets.UTF_8));
     }
     builder.append("/").append(target.getHandler());
     if (isSend) {
