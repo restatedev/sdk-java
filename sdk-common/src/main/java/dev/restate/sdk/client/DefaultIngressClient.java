@@ -47,7 +47,7 @@ public class DefaultIngressClient implements IngressClient {
       Serde<Req> reqSerde,
       Serde<Res> resSerde,
       Req req,
-      CallRequestOptions requestOptions) {
+      RequestOptions requestOptions) {
     HttpRequest request = prepareHttpRequest(target, false, reqSerde, req, null, requestOptions);
     return httpClient
         .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
@@ -72,7 +72,7 @@ public class DefaultIngressClient implements IngressClient {
 
   @Override
   public <Req> CompletableFuture<String> sendAsync(
-      Target target, Serde<Req> reqSerde, Req req, Duration delay, CallRequestOptions options) {
+      Target target, Serde<Req> reqSerde, Req req, Duration delay, RequestOptions options) {
     return sendAsyncInner(target, reqSerde, req, delay, options);
   }
 
@@ -174,15 +174,13 @@ public class DefaultIngressClient implements IngressClient {
   }
 
   @Override
-  public <Req, Res> CompletableFuture<InvocationHandle<Res>> submitAsync(
-      Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req, RequestOptions options) {
-    return this.sendAsyncInner(target, reqSerde, req, null, options)
-        .thenApply(id -> this.invocationHandle(id, resSerde));
-  }
-
-  @Override
   public <Res> InvocationHandle<Res> invocationHandle(String invocationId, Serde<Res> resSerde) {
     return new InvocationHandle<>() {
+      @Override
+      public String invocationId() {
+        return invocationId;
+      }
+
       @Override
       public CompletableFuture<Res> attachAsync(RequestOptions options) {
         // Prepare request
