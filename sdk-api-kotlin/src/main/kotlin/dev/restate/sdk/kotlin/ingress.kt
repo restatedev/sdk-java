@@ -8,7 +8,6 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.client.CallRequestOptions
 import dev.restate.sdk.client.IngressClient
 import dev.restate.sdk.client.RequestOptions
 import dev.restate.sdk.common.Serde
@@ -24,7 +23,7 @@ suspend fun <Req, Res> IngressClient.callSuspend(
     reqSerde: Serde<Req>,
     resSerde: Serde<Res>,
     req: Req,
-    options: CallRequestOptions = CallRequestOptions.DEFAULT
+    options: RequestOptions = RequestOptions.DEFAULT
 ): Res {
   return this.callAsync(target, reqSerde, resSerde, req, options).await()
 }
@@ -34,7 +33,7 @@ suspend fun <Req> IngressClient.sendSuspend(
     reqSerde: Serde<Req>,
     req: Req,
     delay: Duration = Duration.ZERO,
-    options: CallRequestOptions = CallRequestOptions.DEFAULT
+    options: RequestOptions = RequestOptions.DEFAULT
 ): String {
   return this.sendAsync(target, reqSerde, req, delay.toJavaDuration(), options).await()
 }
@@ -54,16 +53,6 @@ suspend fun IngressClient.AwakeableHandle.rejectSuspend(
   this.rejectAsync(reason, options).await()
 }
 
-suspend fun <Req, Res> IngressClient.submitSuspend(
-    target: Target,
-    reqSerde: Serde<Req>,
-    resSerde: Serde<Res>,
-    req: Req,
-    options: RequestOptions = RequestOptions.DEFAULT
-): IngressClient.InvocationHandle<Res> {
-  return this.submitAsync(target, reqSerde, resSerde, req, options).await()
-}
-
 suspend fun <T> IngressClient.InvocationHandle<T>.attachSuspend(
     options: RequestOptions = RequestOptions.DEFAULT
 ) {
@@ -71,6 +60,18 @@ suspend fun <T> IngressClient.InvocationHandle<T>.attachSuspend(
 }
 
 suspend fun <T> IngressClient.InvocationHandle<T>.getOutputSuspend(
+    options: RequestOptions = RequestOptions.DEFAULT
+) {
+  this.getOutputAsync(options).await()
+}
+
+suspend fun <T> IngressClient.WorkflowHandle<T>.attachSuspend(
+    options: RequestOptions = RequestOptions.DEFAULT
+) {
+  this.attachAsync(options).await()
+}
+
+suspend fun <T> IngressClient.WorkflowHandle<T>.getOutputSuspend(
     options: RequestOptions = RequestOptions.DEFAULT
 ) {
   this.getOutputAsync(options).await()

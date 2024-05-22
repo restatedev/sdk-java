@@ -39,7 +39,8 @@ public class ServiceProcessor extends AbstractProcessor {
   private HandlebarsTemplateEngine serviceDefinitionFactoryCodegen;
   private HandlebarsTemplateEngine clientCodegen;
 
-  private static final Set<String> RESERVED_METHOD_NAMES = Set.of("send", "submit");
+  private static final Set<String> RESERVED_METHOD_NAMES =
+      Set.of("send", "submit", "workflowHandle");
 
   @Override
   public synchronized void init(ProcessingEnvironment processingEnv) {

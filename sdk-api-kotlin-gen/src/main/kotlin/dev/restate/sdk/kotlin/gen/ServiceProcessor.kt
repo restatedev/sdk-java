@@ -29,7 +29,7 @@ class ServiceProcessor(private val logger: KSPLogger, private val codeGenerator:
     SymbolProcessor {
 
   companion object {
-    private val RESERVED_METHOD_NAMES: Set<String> = setOf("send", "submit")
+    private val RESERVED_METHOD_NAMES: Set<String> = setOf("send", "submit", "workflowHandle")
   }
 
   private val bindableServiceFactoryCodegen: HandlebarsTemplateEngine =
