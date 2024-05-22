@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 public class Service {
 
@@ -142,6 +143,11 @@ public class Service {
           throw new IllegalArgumentException(
               "Workflow services must have exactly one method annotated as @Workflow");
         }
+      }
+
+      if (handlers.size()
+          != handlers.stream().map(Handler::getName).collect(Collectors.toSet()).size()) {
+        throw new IllegalArgumentException("Cannot have two handlers with the same name");
       }
 
       return new Service(
