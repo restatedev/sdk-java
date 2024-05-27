@@ -122,4 +122,80 @@ public interface Serde<T> {
       }
     };
   }
+
+  /** Noop {@link Serde} for void. */
+  Serde<Void> VOID =
+      new Serde<>() {
+        @Override
+        public byte[] serialize(Void value) {
+          return new byte[0];
+        }
+
+        @Override
+        public ByteBuffer serializeToByteBuffer(@Nullable Void value) {
+          return ByteBuffer.allocate(0);
+        }
+
+        @Override
+        public Void deserialize(byte[] value) {
+          return null;
+        }
+
+        @Override
+        public Void deserialize(ByteBuffer byteBuffer) {
+          return null;
+        }
+
+        @Override
+        public @Nullable String contentType() {
+          return null;
+        }
+      };
+
+  /** Pass through {@link Serde} for byte array. */
+  Serde<byte[]> RAW =
+      new Serde<>() {
+        @Override
+        public byte[] serialize(byte[] value) {
+          return Objects.requireNonNull(value);
+        }
+
+        @Override
+        public byte[] deserialize(byte[] value) {
+          return value;
+        }
+      };
+
+  /** Pass through {@link Serde} for {@link ByteBuffer}. */
+  Serde<ByteBuffer> BYTE_BUFFER =
+      new Serde<>() {
+
+        @Override
+        public byte[] serialize(@Nullable ByteBuffer byteBuffer) {
+          if (byteBuffer == null) {
+            return new byte[] {};
+          }
+          if (byteBuffer.hasArray()) {
+            return byteBuffer.array();
+          }
+          byte[] bytes = new byte[byteBuffer.remaining()];
+          byteBuffer.get(bytes);
+          return bytes;
+        }
+
+        @Override
+        public ByteBuffer serializeToByteBuffer(@Nullable ByteBuffer value) {
+          return value;
+        }
+
+        @Override
+        public ByteBuffer deserialize(byte[] value) {
+          return ByteBuffer.wrap(value);
+        }
+
+        @Override
+        public ByteBuffer deserialize(ByteBuffer byteBuffer) {
+          return byteBuffer;
+        }
+      };
 }

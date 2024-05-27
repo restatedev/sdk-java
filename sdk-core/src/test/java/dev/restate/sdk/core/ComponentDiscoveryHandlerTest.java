@@ -10,8 +10,8 @@ package dev.restate.sdk.core;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.common.HandlerType;
+import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.ServiceType;
 import dev.restate.sdk.common.syscalls.HandlerDefinition;
 import dev.restate.sdk.common.syscalls.HandlerSpecification;
@@ -36,7 +36,7 @@ class ComponentDiscoveryHandlerTest {
                     List.of(
                         HandlerDefinition.of(
                             HandlerSpecification.of(
-                                "greet", HandlerType.EXCLUSIVE, CoreSerdes.VOID, CoreSerdes.VOID),
+                                "greet", HandlerType.EXCLUSIVE, Serde.VOID, Serde.VOID),
                             null)))));
 
     EndpointManifestSchema manifest = deploymentManifest.manifest();

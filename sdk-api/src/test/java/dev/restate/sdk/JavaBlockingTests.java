@@ -10,8 +10,8 @@ package dev.restate.sdk;
 
 import static dev.restate.sdk.core.ProtoUtils.GREETER_SERVICE_TARGET;
 
-import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.common.HandlerType;
+import dev.restate.sdk.common.JsonSerdes;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.ServiceType;
 import dev.restate.sdk.common.syscalls.HandlerDefinition;
@@ -92,7 +92,6 @@ public class JavaBlockingTests extends TestRunner {
   }
 
   public static Awaitable<String> callGreeterGreetService(Context ctx, String parameter) {
-    return ctx.call(
-        GREETER_SERVICE_TARGET, CoreSerdes.JSON_STRING, CoreSerdes.JSON_STRING, parameter);
+    return ctx.call(GREETER_SERVICE_TARGET, JsonSerdes.STRING, JsonSerdes.STRING, parameter);
   }
 }

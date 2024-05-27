@@ -14,7 +14,8 @@ import static dev.restate.sdk.core.TestDefinitions.testInvocation;
 import com.google.protobuf.ByteString;
 import dev.restate.sdk.annotation.*;
 import dev.restate.sdk.annotation.Service;
-import dev.restate.sdk.common.CoreSerdes;
+import dev.restate.sdk.common.JsonSerdes;
+import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.Target;
 import dev.restate.sdk.core.ProtoUtils;
 import dev.restate.sdk.core.TestDefinitions;
@@ -230,13 +231,12 @@ public class CodegenTest implements TestSuite {
                 END_MESSAGE)
             .named("empty input and empty output"),
         testInvocation(PrimitiveTypes::new, "primitiveOutput")
-            .withInput(
-                startMessage(1), inputMessage(), completionMessage(1, CoreSerdes.JSON_INT, 10))
+            .withInput(startMessage(1), inputMessage(), completionMessage(1, JsonSerdes.INT, 10))
             .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(
-                    Target.service("PrimitiveTypes", "primitiveOutput"), CoreSerdes.VOID, null),
-                outputMessage(CoreSerdes.JSON_INT, 10),
+                    Target.service("PrimitiveTypes", "primitiveOutput"), Serde.VOID, null),
+                outputMessage(JsonSerdes.INT, 10),
                 END_MESSAGE)
             .named("primitive output"),
         testInvocation(PrimitiveTypes::new, "primitiveInput")
@@ -245,7 +245,7 @@ public class CodegenTest implements TestSuite {
             .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(
-                    Target.service("PrimitiveTypes", "primitiveInput"), CoreSerdes.JSON_INT, 10),
+                    Target.service("PrimitiveTypes", "primitiveInput"), JsonSerdes.INT, 10),
                 outputMessage(),
                 END_MESSAGE)
             .named("primitive input"),
@@ -253,7 +253,7 @@ public class CodegenTest implements TestSuite {
             .withInput(
                 startMessage(1),
                 inputMessage("{{".getBytes(StandardCharsets.UTF_8)),
-                completionMessage(1, CoreSerdes.VOID, null))
+                completionMessage(1, Serde.VOID, null))
             .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(
@@ -265,7 +265,7 @@ public class CodegenTest implements TestSuite {
             .withInput(
                 startMessage(1),
                 inputMessage("{{".getBytes(StandardCharsets.UTF_8)),
-                completionMessage(1, CoreSerdes.VOID, null))
+                completionMessage(1, Serde.VOID, null))
             .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(
@@ -277,23 +277,21 @@ public class CodegenTest implements TestSuite {
             .withInput(
                 startMessage(1),
                 inputMessage(),
-                completionMessage(1, CoreSerdes.RAW, "{{".getBytes(StandardCharsets.UTF_8)))
+                completionMessage(1, Serde.RAW, "{{".getBytes(StandardCharsets.UTF_8)))
             .onlyUnbuffered()
             .expectingOutput(
-                invokeMessage(Target.service("RawInputOutput", "rawOutput"), CoreSerdes.VOID, null),
+                invokeMessage(Target.service("RawInputOutput", "rawOutput"), Serde.VOID, null),
                 outputMessage("{{".getBytes(StandardCharsets.UTF_8)),
                 END_MESSAGE),
         testInvocation(RawInputOutput::new, "rawOutputWithCustomCT")
             .withInput(
                 startMessage(1),
                 inputMessage(),
-                completionMessage(1, CoreSerdes.RAW, "{{".getBytes(StandardCharsets.UTF_8)))
+                completionMessage(1, Serde.RAW, "{{".getBytes(StandardCharsets.UTF_8)))
             .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(
-                    Target.service("RawInputOutput", "rawOutputWithCustomCT"),
-                    CoreSerdes.VOID,
-                    null),
+                    Target.service("RawInputOutput", "rawOutputWithCustomCT"), Serde.VOID, null),
                 outputMessage("{{".getBytes(StandardCharsets.UTF_8)),
                 END_MESSAGE));
   }

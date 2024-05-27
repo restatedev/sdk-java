@@ -17,8 +17,8 @@ import dev.restate.sdk.annotation.Handler;
 import dev.restate.sdk.annotation.Service;
 import dev.restate.sdk.annotation.Shared;
 import dev.restate.sdk.annotation.Workflow;
-import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.common.DurablePromiseKey;
+import dev.restate.sdk.common.JsonSerdes;
 import dev.restate.sdk.common.StateKey;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder;
@@ -88,9 +88,9 @@ public class LoanWorkflow {
   private static final StateKey<LoanRequest> LOAN_REQUEST =
       StateKey.of("loanRequest", JacksonSerdes.of(LoanRequest.class));
   private static final DurablePromiseKey<Boolean> HUMAN_APPROVAL =
-      DurablePromiseKey.of("humanApproval", CoreSerdes.JSON_BOOLEAN);
+      DurablePromiseKey.of("humanApproval", JsonSerdes.BOOLEAN);
   private static final StateKey<String> TRANSFER_EXECUTION_TIME =
-      StateKey.of("transferExecutionTime", CoreSerdes.JSON_STRING);
+      StateKey.of("transferExecutionTime", JsonSerdes.STRING);
 
   // --- The main workflow method
 

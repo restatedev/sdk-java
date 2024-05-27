@@ -10,8 +10,9 @@ package dev.restate.sdk;
 
 import static dev.restate.sdk.JavaBlockingTests.*;
 
-import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.common.DurablePromiseKey;
+import dev.restate.sdk.common.JsonSerdes;
+import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.PromiseTestSuite;
 import dev.restate.sdk.core.TestDefinitions;
@@ -21,8 +22,8 @@ public class PromiseTest extends PromiseTestSuite {
   protected TestDefinitions.TestInvocationBuilder awaitPromise(String promiseKey) {
     return testDefinitionForWorkflow(
         "AwaitPromise",
-        CoreSerdes.VOID,
-        CoreSerdes.JSON_STRING,
+        Serde.VOID,
+        JsonSerdes.STRING,
         (context, unused) ->
             context.durablePromise(DurablePromiseKey.string(promiseKey)).awaitable().await());
   }
@@ -32,8 +33,8 @@ public class PromiseTest extends PromiseTestSuite {
       String promiseKey, String emptyCaseReturnValue) {
     return testDefinitionForWorkflow(
         "PeekPromise",
-        CoreSerdes.VOID,
-        CoreSerdes.JSON_STRING,
+        Serde.VOID,
+        JsonSerdes.STRING,
         (context, unused) ->
             context
                 .durablePromise(DurablePromiseKey.string(promiseKey))
@@ -45,8 +46,8 @@ public class PromiseTest extends PromiseTestSuite {
   protected TestDefinitions.TestInvocationBuilder awaitIsPromiseCompleted(String promiseKey) {
     return testDefinitionForWorkflow(
         "IsCompletedPromise",
-        CoreSerdes.VOID,
-        CoreSerdes.JSON_BOOLEAN,
+        Serde.VOID,
+        JsonSerdes.BOOLEAN,
         (context, unused) ->
             context.durablePromise(DurablePromiseKey.string(promiseKey)).isCompleted());
   }
@@ -56,8 +57,8 @@ public class PromiseTest extends PromiseTestSuite {
       String promiseKey, String completionValue) {
     return testDefinitionForWorkflow(
         "ResolvePromise",
-        CoreSerdes.VOID,
-        CoreSerdes.JSON_BOOLEAN,
+        Serde.VOID,
+        JsonSerdes.BOOLEAN,
         (context, unused) -> {
           try {
             context
@@ -75,8 +76,8 @@ public class PromiseTest extends PromiseTestSuite {
       String promiseKey, String rejectReason) {
     return testDefinitionForWorkflow(
         "RejectPromise",
-        CoreSerdes.VOID,
-        CoreSerdes.JSON_BOOLEAN,
+        Serde.VOID,
+        JsonSerdes.BOOLEAN,
         (context, unused) -> {
           try {
             context.durablePromiseHandle(DurablePromiseKey.string(promiseKey)).reject(rejectReason);

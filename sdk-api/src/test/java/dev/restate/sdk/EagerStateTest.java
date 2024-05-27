@@ -11,7 +11,8 @@ package dev.restate.sdk;
 import static dev.restate.sdk.JavaBlockingTests.testDefinitionForVirtualObject;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.restate.sdk.common.CoreSerdes;
+import dev.restate.sdk.common.JsonSerdes;
+import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.StateKey;
 import dev.restate.sdk.core.EagerStateTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
@@ -21,43 +22,43 @@ public class EagerStateTest extends EagerStateTestSuite {
   protected TestInvocationBuilder getEmpty() {
     return testDefinitionForVirtualObject(
         "GetEmpty",
-        CoreSerdes.VOID,
-        CoreSerdes.JSON_STRING,
+        Serde.VOID,
+        JsonSerdes.STRING,
         (ctx, unused) ->
-            String.valueOf(ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).isEmpty()));
+            String.valueOf(ctx.get(StateKey.of("STATE", JsonSerdes.STRING)).isEmpty()));
   }
 
   protected TestInvocationBuilder get() {
     return testDefinitionForVirtualObject(
         "GetEmpty",
-        CoreSerdes.VOID,
-        CoreSerdes.JSON_STRING,
-        (ctx, unused) -> ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get());
+        Serde.VOID,
+        JsonSerdes.STRING,
+        (ctx, unused) -> ctx.get(StateKey.of("STATE", JsonSerdes.STRING)).get());
   }
 
   protected TestInvocationBuilder getAppendAndGet() {
     return testDefinitionForVirtualObject(
         "GetAppendAndGet",
-        CoreSerdes.JSON_STRING,
-        CoreSerdes.JSON_STRING,
+        JsonSerdes.STRING,
+        JsonSerdes.STRING,
         (ctx, input) -> {
-          String oldState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
-          ctx.set(StateKey.of("STATE", CoreSerdes.JSON_STRING), oldState + input);
+          String oldState = ctx.get(StateKey.of("STATE", JsonSerdes.STRING)).get();
+          ctx.set(StateKey.of("STATE", JsonSerdes.STRING), oldState + input);
 
-          return ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
+          return ctx.get(StateKey.of("STATE", JsonSerdes.STRING)).get();
         });
   }
 
   protected TestInvocationBuilder getClearAndGet() {
     return testDefinitionForVirtualObject(
         "GetClearAndGet",
-        CoreSerdes.VOID,
-        CoreSerdes.JSON_STRING,
+        Serde.VOID,
+        JsonSerdes.STRING,
         (ctx, input) -> {
-          String oldState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
+          String oldState = ctx.get(StateKey.of("STATE", JsonSerdes.STRING)).get();
 
-          ctx.clear(StateKey.of("STATE", CoreSerdes.JSON_STRING));
-          assertThat(ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))).isEmpty();
+          ctx.clear(StateKey.of("STATE", JsonSerdes.STRING));
+          assertThat(ctx.get(StateKey.of("STATE", JsonSerdes.STRING))).isEmpty();
           return oldState;
         });
   }
@@ -65,14 +66,14 @@ public class EagerStateTest extends EagerStateTestSuite {
   protected TestInvocationBuilder getClearAllAndGet() {
     return testDefinitionForVirtualObject(
         "GetClearAllAndGet",
-        CoreSerdes.VOID,
-        CoreSerdes.JSON_STRING,
+        Serde.VOID,
+        JsonSerdes.STRING,
         (ctx, input) -> {
-          String oldState = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)).get();
+          String oldState = ctx.get(StateKey.of("STATE", JsonSerdes.STRING)).get();
 
           ctx.clearAll();
-          assertThat(ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))).isEmpty();
-          assertThat(ctx.get(StateKey.of("ANOTHER_STATE", CoreSerdes.JSON_STRING))).isEmpty();
+          assertThat(ctx.get(StateKey.of("STATE", JsonSerdes.STRING))).isEmpty();
+          assertThat(ctx.get(StateKey.of("ANOTHER_STATE", JsonSerdes.STRING))).isEmpty();
 
           return oldState;
         });
@@ -81,8 +82,8 @@ public class EagerStateTest extends EagerStateTestSuite {
   protected TestInvocationBuilder listKeys() {
     return testDefinitionForVirtualObject(
         "ListKeys",
-        CoreSerdes.VOID,
-        CoreSerdes.JSON_STRING,
+        Serde.VOID,
+        JsonSerdes.STRING,
         (ctx, input) -> String.join(",", ctx.stateKeys()));
   }
 }

@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.common.CoreSerdes
+import dev.restate.sdk.common.JsonSerdes
 import dev.restate.sdk.common.StateKey
 import dev.restate.sdk.core.DeferredTestSuite
 import dev.restate.sdk.core.TestDefinitions.*
@@ -23,7 +23,7 @@ class DeferredTest : DeferredTestSuite() {
         val a2: Awaitable<String> = callGreeterGreetService(ctx, "Till")
 
         val a2Res: String = a2.await()
-        ctx.set(StateKey.of("A2", CoreSerdes.JSON_STRING), a2Res)
+        ctx.set(StateKey.of("A2", JsonSerdes.STRING), a2Res)
 
         val a1Res: String = a1.await()
         "$a1Res-$a2Res"
@@ -62,10 +62,10 @@ class DeferredTest : DeferredTestSuite() {
 
   override fun combineAnyWithAll(): TestInvocationBuilder =
       testDefinitionForVirtualObject("CombineAnyWithAll") { ctx, _: Unit ->
-        val a1 = ctx.awakeable(CoreSerdes.JSON_STRING)
-        val a2 = ctx.awakeable(CoreSerdes.JSON_STRING)
-        val a3 = ctx.awakeable(CoreSerdes.JSON_STRING)
-        val a4 = ctx.awakeable(CoreSerdes.JSON_STRING)
+        val a1 = ctx.awakeable(JsonSerdes.STRING)
+        val a2 = ctx.awakeable(JsonSerdes.STRING)
+        val a3 = ctx.awakeable(JsonSerdes.STRING)
+        val a4 = ctx.awakeable(JsonSerdes.STRING)
 
         val a12 = Awaitable.any(a1, a2)
         val a23 = Awaitable.any(a2, a3)
@@ -77,18 +77,18 @@ class DeferredTest : DeferredTestSuite() {
 
   override fun awaitAnyIndex(): TestInvocationBuilder =
       testDefinitionForVirtualObject("AwaitAnyIndex") { ctx, _: Unit ->
-        val a1 = ctx.awakeable(CoreSerdes.JSON_STRING)
-        val a2 = ctx.awakeable(CoreSerdes.JSON_STRING)
-        val a3 = ctx.awakeable(CoreSerdes.JSON_STRING)
-        val a4 = ctx.awakeable(CoreSerdes.JSON_STRING)
+        val a1 = ctx.awakeable(JsonSerdes.STRING)
+        val a2 = ctx.awakeable(JsonSerdes.STRING)
+        val a3 = ctx.awakeable(JsonSerdes.STRING)
+        val a4 = ctx.awakeable(JsonSerdes.STRING)
 
         Awaitable.any(a1, Awaitable.all(a2, a3), a4).awaitIndex().toString()
       }
 
   override fun awaitOnAlreadyResolvedAwaitables(): TestInvocationBuilder =
       testDefinitionForVirtualObject("AwaitOnAlreadyResolvedAwaitables") { ctx, _: Unit ->
-        val a1 = ctx.awakeable(CoreSerdes.JSON_STRING)
-        val a2 = ctx.awakeable(CoreSerdes.JSON_STRING)
+        val a1 = ctx.awakeable(JsonSerdes.STRING)
+        val a2 = ctx.awakeable(JsonSerdes.STRING)
         val a12 = Awaitable.all(a1, a2)
         val a12and1 = Awaitable.all(a12, a1)
         val a121and12 = Awaitable.all(a12and1, a12)

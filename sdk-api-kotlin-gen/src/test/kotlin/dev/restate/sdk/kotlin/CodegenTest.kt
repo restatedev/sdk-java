@@ -10,7 +10,8 @@ package dev.restate.sdk.kotlin
 
 import com.google.protobuf.ByteString
 import dev.restate.sdk.annotation.*
-import dev.restate.sdk.common.CoreSerdes
+import dev.restate.sdk.common.JsonSerdes
+import dev.restate.sdk.common.Serde
 import dev.restate.sdk.common.Target
 import dev.restate.sdk.core.ProtoUtils.*
 import dev.restate.sdk.core.TestDefinitions
@@ -220,13 +221,12 @@ class CodegenTest : TestDefinitions.TestSuite {
                 END_MESSAGE)
             .named("empty input and empty output"),
         testInvocation({ PrimitiveTypes() }, "primitiveOutput")
-            .withInput(
-                startMessage(1), inputMessage(), completionMessage(1, CoreSerdes.JSON_INT, 10))
+            .withInput(startMessage(1), inputMessage(), completionMessage(1, JsonSerdes.INT, 10))
             .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(
-                    Target.service("PrimitiveTypes", "primitiveOutput"), CoreSerdes.VOID, null),
-                outputMessage(CoreSerdes.JSON_INT, 10),
+                    Target.service("PrimitiveTypes", "primitiveOutput"), Serde.VOID, null),
+                outputMessage(JsonSerdes.INT, 10),
                 END_MESSAGE)
             .named("primitive output"),
         testInvocation({ PrimitiveTypes() }, "primitiveInput")
@@ -235,7 +235,7 @@ class CodegenTest : TestDefinitions.TestSuite {
             .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(
-                    Target.service("PrimitiveTypes", "primitiveInput"), CoreSerdes.JSON_INT, 10),
+                    Target.service("PrimitiveTypes", "primitiveInput"), JsonSerdes.INT, 10),
                 outputMessage(),
                 END_MESSAGE)
             .named("primitive input"),
@@ -264,7 +264,7 @@ class CodegenTest : TestDefinitions.TestSuite {
             .withInput(
                 startMessage(1),
                 inputMessage(),
-                completionMessage(1, CoreSerdes.RAW, "{{".toByteArray()))
+                completionMessage(1, Serde.RAW, "{{".toByteArray()))
             .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(Target.service("RawInputOutput", "rawOutput"), KtSerdes.UNIT, null),
@@ -274,7 +274,7 @@ class CodegenTest : TestDefinitions.TestSuite {
             .withInput(
                 startMessage(1),
                 inputMessage(),
-                completionMessage(1, CoreSerdes.RAW, "{{".toByteArray()))
+                completionMessage(1, Serde.RAW, "{{".toByteArray()))
             .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(

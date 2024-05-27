@@ -13,7 +13,7 @@ import com.google.protobuf.ByteString
 import com.google.protobuf.MessageLite
 import dev.restate.generated.service.discovery.Discovery
 import dev.restate.generated.service.protocol.Protocol.*
-import dev.restate.sdk.common.CoreSerdes
+import dev.restate.sdk.common.JsonSerdes
 import dev.restate.sdk.core.ProtoUtils.*
 import dev.restate.sdk.core.ServiceProtocol
 import dev.restate.sdk.core.manifest.EndpointManifestSchema
@@ -119,7 +119,7 @@ internal class RestateHttpEndpointTest {
         request.write(
             encode(
                 completionMessage(1)
-                    .setValue(ByteString.copyFrom(CoreSerdes.JSON_LONG.serialize(2)))
+                    .setValue(ByteString.copyFrom(JsonSerdes.LONG.serialize(2)))
                     .build()))
 
         // Wait for Set State Entry

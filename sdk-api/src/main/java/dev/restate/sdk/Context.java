@@ -42,7 +42,7 @@ public interface Context {
 
   /** Like {@link #call(Target, Serde, Serde, Object)} with raw input/output. */
   default Awaitable<byte[]> call(Target target, byte[] parameter) {
-    return call(target, CoreSerdes.RAW, CoreSerdes.RAW, parameter);
+    return call(target, Serde.RAW, Serde.RAW, parameter);
   }
 
   /**
@@ -54,9 +54,9 @@ public interface Context {
    */
   <T> void send(Target target, Serde<T> inputSerde, T parameter);
 
-  /** Like {@link #send(Target, Serde, Object)} with raw input. */
+  /** Like {@link #send(Target, Serde, Object)} with bytes input. */
   default void send(Target target, byte[] parameter) {
-    send(target, CoreSerdes.RAW, parameter);
+    send(target, Serde.RAW, parameter);
   }
 
   /**
@@ -72,9 +72,9 @@ public interface Context {
    */
   <T> void send(Target target, Serde<T> inputSerde, T parameter, Duration delay);
 
-  /** Like {@link #send(Target, Serde, Object, Duration)} with raw input. */
+  /** Like {@link #send(Target, Serde, Object, Duration)} with bytes input. */
   default void send(Target target, byte[] parameter, Duration delay) {
-    send(target, CoreSerdes.RAW, parameter, delay);
+    send(target, Serde.RAW, parameter, delay);
   }
 
   /**
@@ -148,7 +148,7 @@ public interface Context {
   default void run(String name, ThrowingRunnable runnable) throws TerminalException {
     run(
         name,
-        CoreSerdes.VOID,
+        Serde.VOID,
         () -> {
           runnable.run();
           return null;

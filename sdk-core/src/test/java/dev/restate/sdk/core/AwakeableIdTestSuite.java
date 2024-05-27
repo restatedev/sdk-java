@@ -16,7 +16,7 @@ import com.google.protobuf.ByteString;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.generated.service.protocol.Protocol.AwakeableEntryMessage;
 import dev.restate.generated.service.protocol.Protocol.StartMessage;
-import dev.restate.sdk.common.CoreSerdes;
+import dev.restate.sdk.common.JsonSerdes;
 import dev.restate.sdk.core.TestDefinitions.TestDefinition;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
 import java.nio.ByteBuffer;
@@ -58,8 +58,7 @@ public abstract class AwakeableIdTestSuite implements TestSuite {
                       .asInstanceOf(type(Protocol.OutputEntryMessage.class))
                       .extracting(
                           out ->
-                              CoreSerdes.JSON_STRING.deserialize(
-                                  out.getValue().asReadOnlyByteBuffer()))
+                              JsonSerdes.STRING.deserialize(out.getValue().asReadOnlyByteBuffer()))
                       .isEqualTo(base64ExpectedAwakeableId);
                 }));
   }
