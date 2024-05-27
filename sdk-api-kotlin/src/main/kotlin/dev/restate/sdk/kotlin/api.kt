@@ -57,7 +57,7 @@ sealed interface Context {
    * @param parameter the invocation request parameter.
    * @return the invocation response.
    */
-  suspend fun <T : Any, R : Any> call(
+  suspend fun <T : Any?, R : Any?> call(
       target: Target,
       inputSerde: Serde<T>,
       outputSerde: Serde<R>,
@@ -75,7 +75,7 @@ sealed interface Context {
    * @param parameter the invocation request parameter.
    * @return an [Awaitable] that wraps the Restate service method result.
    */
-  suspend fun <T : Any, R : Any> callAsync(
+  suspend fun <T : Any?, R : Any?> callAsync(
       target: Target,
       inputSerde: Serde<T>,
       outputSerde: Serde<R>,
@@ -90,7 +90,7 @@ sealed interface Context {
    * @param parameter the invocation request parameter.
    * @param delay time to wait before executing the call
    */
-  suspend fun <T : Any> send(
+  suspend fun <T : Any?> send(
       target: Target,
       inputSerde: Serde<T>,
       parameter: T,

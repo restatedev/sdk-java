@@ -16,6 +16,7 @@ import java.nio.charset.StandardCharsets
 import kotlin.reflect.typeOf
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.serializer
 
 object KtStateKey {
@@ -29,7 +30,7 @@ object KtStateKey {
 object KtDurablePromiseKey {
 
   /** Creates a json [StateKey]. */
-  inline fun <reified T> json(name: String): DurablePromiseKey<T> {
+  inline fun <reified T : Any?> json(name: String): DurablePromiseKey<T> {
     return DurablePromiseKey.of(name, KtSerdes.json())
   }
 }
@@ -37,7 +38,7 @@ object KtDurablePromiseKey {
 object KtSerdes {
 
   /** Creates a [Serde] implementation using the `kotlinx.serialization` json module. */
-  inline fun <reified T> json(): Serde<T> {
+  inline fun <reified T : Any?> json(): Serde<T> {
     @Suppress("UNCHECKED_CAST")
     return when (typeOf<T>()) {
       typeOf<Unit>() -> UNIT as Serde<T>
@@ -69,10 +70,13 @@ object KtSerdes {
       }
 
   /** Creates a [Serde] implementation using the `kotlinx.serialization` json module. */
-  fun <T> json(serializer: KSerializer<T>): Serde<T> {
+  fun <T : Any?> json(serializer: KSerializer<T>): Serde<T> {
     return object : Serde<T> {
-      override fun serialize(value: T): ByteArray {
-        return Json.encodeToString(serializer, value!!).encodeToByteArray()
+      override fun serialize(value: T?): ByteArray {
+        if (value == null) {
+          return Json.encodeToString(JsonNull.serializer(), JsonNull).encodeToByteArray()
+        }
+        return Json.encodeToString(serializer, value).encodeToByteArray()
       }
 
       override fun deserialize(value: ByteArray): T {

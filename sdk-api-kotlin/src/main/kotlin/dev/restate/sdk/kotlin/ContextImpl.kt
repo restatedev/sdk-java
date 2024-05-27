@@ -74,7 +74,7 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
   }
 
   override suspend fun <T : Any> set(key: StateKey<T>, value: T) {
-    val serializedValue = key.serde().serializeWrappingException(syscalls, value)!!
+    val serializedValue = key.serde().serializeWrappingException(syscalls, value)
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
       syscalls.set(key.name(), serializedValue, completingUnitContinuation(cont))
     }
@@ -101,7 +101,7 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
     return UnitAwakeableImpl(syscalls, deferred)
   }
 
-  override suspend fun <T : Any, R : Any> callAsync(
+  override suspend fun <T : Any?, R : Any?> callAsync(
       target: Target,
       inputSerde: Serde<T>,
       outputSerde: Serde<R>,
@@ -117,7 +117,7 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
     return SingleSerdeAwaitableImpl(syscalls, deferred, outputSerde)
   }
 
-  override suspend fun <T : Any> send(
+  override suspend fun <T : Any?> send(
       target: Target,
       inputSerde: Serde<T>,
       parameter: T,
