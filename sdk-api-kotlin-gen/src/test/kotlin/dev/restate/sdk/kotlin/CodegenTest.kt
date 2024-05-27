@@ -96,6 +96,13 @@ class CodegenTest : TestDefinitions.TestSuite {
       // Just needs to compile
       return CodegenTestCornerCasesClient.fromContext(context, request)._send("my_send").await()
     }
+
+    @Exclusive
+    suspend fun returnNull(context: ObjectContext, request: String?): String? {
+      return CodegenTestCornerCasesClient.fromContext(context, context.key())
+          .returnNull(request)
+          .await()
+    }
   }
 
   @Workflow
@@ -280,6 +287,20 @@ class CodegenTest : TestDefinitions.TestSuite {
                 invokeMessage(
                     Target.service("RawInputOutput", "rawOutputWithCustomCT"), KtSerdes.UNIT, null),
                 outputMessage("{{".toByteArray()),
-                END_MESSAGE))
+                END_MESSAGE),
+        testInvocation({ CornerCases() }, "returnNull")
+            .withInput(
+                startMessage(1, "mykey"),
+                inputMessage(KtSerdes.json<String?>().serialize(null)),
+                completionMessage(1, KtSerdes.json<String?>(), null))
+            .onlyUnbuffered()
+            .expectingOutput(
+                invokeMessage(
+                    Target.virtualObject("CodegenTestCornerCases", "mykey", "returnNull"),
+                    KtSerdes.json<String?>(),
+                    null),
+                outputMessage(KtSerdes.json<String?>(), null),
+                END_MESSAGE),
+    )
   }
 }

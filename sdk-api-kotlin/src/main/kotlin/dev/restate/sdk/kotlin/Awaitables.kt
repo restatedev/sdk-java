@@ -57,7 +57,7 @@ internal class SingleAwaitableImpl<T : Any?>(
   }
 }
 
-internal abstract class BaseSingleMappedAwaitableImpl<T : Any, U : Any>(
+internal abstract class BaseSingleMappedAwaitableImpl<T : Any?, U : Any?>(
     private val inner: BaseAwaitableImpl<T>
 ) : BaseAwaitableImpl<U>(inner.syscalls) {
   private var mappedResult: Result<U>? = null
@@ -76,7 +76,7 @@ internal abstract class BaseSingleMappedAwaitableImpl<T : Any, U : Any>(
   }
 }
 
-internal open class SingleSerdeAwaitableImpl<T : Any>
+internal open class SingleSerdeAwaitableImpl<T : Any?>
 internal constructor(
     syscalls: Syscalls,
     deferred: Deferred<ByteBuffer>,
