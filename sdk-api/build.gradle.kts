@@ -12,6 +12,9 @@ dependencies {
 
   implementation(coreLibs.log4j.api)
 
+  implementation(platform(jacksonLibs.jackson.bom))
+  implementation(jacksonLibs.jackson.core)
+
   testImplementation(project(":sdk-core"))
   testImplementation(testingLibs.junit.jupiter)
   testImplementation(testingLibs.assertj)

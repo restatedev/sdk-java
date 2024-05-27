@@ -11,7 +11,7 @@ package dev.restate.sdk;
 import static dev.restate.sdk.JavaBlockingTests.testDefinitionForService;
 
 import dev.restate.sdk.common.AbortedExecutionException;
-import dev.restate.sdk.common.CoreSerdes;
+import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import dev.restate.sdk.core.UserFailuresTestSuite;
@@ -22,8 +22,8 @@ public class UserFailuresTest extends UserFailuresTestSuite {
   protected TestInvocationBuilder throwIllegalStateException() {
     return testDefinitionForService(
         "ThrowIllegalStateException",
-        CoreSerdes.VOID,
-        CoreSerdes.VOID,
+        Serde.VOID,
+        Serde.VOID,
         (ctx, unused) -> {
           throw new IllegalStateException("Whatever");
         });
@@ -33,8 +33,8 @@ public class UserFailuresTest extends UserFailuresTestSuite {
       AtomicInteger nonTerminalExceptionsSeen) {
     return testDefinitionForService(
         "SideEffectThrowIllegalStateException",
-        CoreSerdes.VOID,
-        CoreSerdes.VOID,
+        Serde.VOID,
+        Serde.VOID,
         (ctx, unused) -> {
           try {
             ctx.run(
@@ -59,8 +59,8 @@ public class UserFailuresTest extends UserFailuresTestSuite {
   protected TestInvocationBuilder throwTerminalException(int code, String message) {
     return testDefinitionForService(
         "ThrowTerminalException",
-        CoreSerdes.VOID,
-        CoreSerdes.VOID,
+        Serde.VOID,
+        Serde.VOID,
         (ctx, unused) -> {
           throw new TerminalException(code, message);
         });
@@ -69,8 +69,8 @@ public class UserFailuresTest extends UserFailuresTestSuite {
   protected TestInvocationBuilder sideEffectThrowTerminalException(int code, String message) {
     return testDefinitionForService(
         "SideEffectThrowTerminalException",
-        CoreSerdes.VOID,
-        CoreSerdes.VOID,
+        Serde.VOID,
+        Serde.VOID,
         (ctx, unused) -> {
           ctx.run(
               () -> {

@@ -14,7 +14,6 @@ import com.google.protobuf.MessageLiteOrBuilder;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.generated.service.protocol.Protocol.StartMessage.StateEntry;
-import dev.restate.sdk.common.CoreSerdes;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.Target;
 import java.util.Arrays;
@@ -65,7 +64,7 @@ public class ProtoUtils {
                         StateEntry.newBuilder()
                             .setKey(ByteString.copyFromUtf8(e.getKey()))
                             .setValue(
-                                ByteString.copyFrom(CoreSerdes.JSON_STRING.serialize(e.getValue())))
+                                ByteString.copyFrom(TestSerdes.STRING.serialize(e.getValue())))
                             .build())
                 .collect(Collectors.toList()));
   }
@@ -80,7 +79,7 @@ public class ProtoUtils {
   }
 
   public static Protocol.CompletionMessage completionMessage(int index, String value) {
-    return completionMessage(index, CoreSerdes.JSON_STRING, value);
+    return completionMessage(index, TestSerdes.STRING, value);
   }
 
   public static Protocol.CompletionMessage completionMessage(
@@ -115,11 +114,11 @@ public class ProtoUtils {
   }
 
   public static Protocol.InputEntryMessage inputMessage(String value) {
-    return inputMessage(CoreSerdes.JSON_STRING, value);
+    return inputMessage(TestSerdes.STRING, value);
   }
 
   public static Protocol.InputEntryMessage inputMessage(int value) {
-    return inputMessage(CoreSerdes.JSON_INT, value);
+    return inputMessage(TestSerdes.INT, value);
   }
 
   public static <T> Protocol.OutputEntryMessage outputMessage(Serde<T> serde, T value) {
@@ -129,15 +128,15 @@ public class ProtoUtils {
   }
 
   public static Protocol.OutputEntryMessage outputMessage(String value) {
-    return outputMessage(CoreSerdes.JSON_STRING, value);
+    return outputMessage(TestSerdes.STRING, value);
   }
 
   public static Protocol.OutputEntryMessage outputMessage(int value) {
-    return outputMessage(CoreSerdes.JSON_INT, value);
+    return outputMessage(TestSerdes.INT, value);
   }
 
   public static Protocol.OutputEntryMessage outputMessage(byte[] b) {
-    return outputMessage(CoreSerdes.RAW, b);
+    return outputMessage(Serde.RAW, b);
   }
 
   public static Protocol.OutputEntryMessage outputMessage() {
@@ -175,7 +174,7 @@ public class ProtoUtils {
   }
 
   public static Protocol.GetStateEntryMessage getStateMessage(String key, String value) {
-    return getStateMessage(key, CoreSerdes.JSON_STRING, value);
+    return getStateMessage(key, TestSerdes.STRING, value);
   }
 
   public static <T> Protocol.SetStateEntryMessage setStateMessage(
@@ -187,7 +186,7 @@ public class ProtoUtils {
   }
 
   public static Protocol.SetStateEntryMessage setStateMessage(String key, String value) {
-    return setStateMessage(key, CoreSerdes.JSON_STRING, value);
+    return setStateMessage(key, TestSerdes.STRING, value);
   }
 
   public static Protocol.ClearStateEntryMessage clearStateMessage(String key) {
@@ -209,7 +208,7 @@ public class ProtoUtils {
   }
 
   public static Protocol.CallEntryMessage.Builder invokeMessage(Target target, byte[] parameter) {
-    return invokeMessage(target, CoreSerdes.RAW, parameter);
+    return invokeMessage(target, Serde.RAW, parameter);
   }
 
   public static <T> Protocol.CallEntryMessage.Builder invokeMessage(
@@ -225,12 +224,12 @@ public class ProtoUtils {
   }
 
   public static Protocol.CallEntryMessage.Builder invokeMessage(Target target, String parameter) {
-    return invokeMessage(target, CoreSerdes.JSON_STRING, parameter);
+    return invokeMessage(target, TestSerdes.STRING, parameter);
   }
 
   public static Protocol.CallEntryMessage invokeMessage(
       Target target, String parameter, String result) {
-    return invokeMessage(target, CoreSerdes.JSON_STRING, parameter, CoreSerdes.JSON_STRING, result);
+    return invokeMessage(target, TestSerdes.STRING, parameter, TestSerdes.STRING, result);
   }
 
   public static Protocol.AwakeableEntryMessage.Builder awakeable() {
@@ -238,9 +237,7 @@ public class ProtoUtils {
   }
 
   public static Protocol.AwakeableEntryMessage awakeable(String value) {
-    return awakeable()
-        .setValue(ByteString.copyFrom(CoreSerdes.JSON_STRING.serialize(value)))
-        .build();
+    return awakeable().setValue(ByteString.copyFrom(TestSerdes.STRING.serialize(value))).build();
   }
 
   public static Protocol.GetPromiseEntryMessage.Builder getPromise(String key) {
@@ -255,7 +252,7 @@ public class ProtoUtils {
       String key, String value) {
     return Protocol.CompletePromiseEntryMessage.newBuilder()
         .setKey(key)
-        .setCompletionValue(ByteString.copyFrom(CoreSerdes.JSON_STRING.serialize(value)));
+        .setCompletionValue(ByteString.copyFrom(TestSerdes.STRING.serialize(value)));
   }
 
   public static Protocol.CompletePromiseEntryMessage.Builder completePromise(

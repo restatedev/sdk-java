@@ -10,7 +10,7 @@ package dev.restate.sdk;
 
 import static dev.restate.sdk.JavaBlockingTests.testDefinitionForService;
 
-import dev.restate.sdk.common.CoreSerdes;
+import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.core.AwakeableIdTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 
@@ -19,8 +19,8 @@ public class AwakeableIdTest extends AwakeableIdTestSuite {
   protected TestInvocationBuilder returnAwakeableId() {
     return testDefinitionForService(
         "ReturnAwakeableId",
-        CoreSerdes.VOID,
-        CoreSerdes.JSON_STRING,
-        (context, unused) -> context.awakeable(CoreSerdes.JSON_STRING).id());
+        Serde.VOID,
+        JsonSerdes.STRING,
+        (context, unused) -> context.awakeable(JsonSerdes.STRING).id());
   }
 }

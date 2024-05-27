@@ -8,7 +8,6 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.common.CoreSerdes
 import dev.restate.sdk.common.HandlerType
 import dev.restate.sdk.common.ServiceType
 import dev.restate.sdk.common.syscalls.HandlerDefinition
@@ -95,10 +94,7 @@ class KotlinCoroutinesTests : TestRunner() {
 
     suspend fun callGreeterGreetService(ctx: Context, parameter: String): Awaitable<String> {
       return ctx.callAsync(
-          ProtoUtils.GREETER_SERVICE_TARGET,
-          CoreSerdes.JSON_STRING,
-          CoreSerdes.JSON_STRING,
-          parameter)
+          ProtoUtils.GREETER_SERVICE_TARGET, TestSerdes.STRING, TestSerdes.STRING, parameter)
     }
   }
 }

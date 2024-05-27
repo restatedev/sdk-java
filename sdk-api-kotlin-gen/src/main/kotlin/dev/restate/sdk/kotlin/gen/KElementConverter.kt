@@ -38,7 +38,7 @@ class KElementConverter(
     private val SUPPORTED_CLASS_KIND: Set<ClassKind> = setOf(ClassKind.CLASS, ClassKind.INTERFACE)
     private val EMPTY_PAYLOAD: PayloadType =
         PayloadType(true, "", "Unit", "dev.restate.sdk.kotlin.KtSerdes.UNIT")
-    private const val RAW_SERDE: String = "dev.restate.sdk.common.CoreSerdes.RAW"
+    private const val RAW_SERDE: String = "dev.restate.sdk.common.Serde.RAW"
   }
 
   override fun defaultHandler(node: KSNode, data: Service.Builder) {}

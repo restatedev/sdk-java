@@ -77,13 +77,13 @@ Implement your first virtual object in a new class, for example:
 import dev.restate.sdk.ObjectContext;
 import dev.restate.sdk.annotation.Handler;
 import dev.restate.sdk.annotation.VirtualObject;
-import dev.restate.sdk.common.CoreSerdes;
+import dev.restate.sdk.JsonSerdes;
 import dev.restate.sdk.common.StateKey;
 
 @VirtualObject
 public class Greeter {
 
-  private static final StateKey<Long> COUNT = StateKey.of("total", CoreSerdes.LONG);
+  private static final StateKey<Long> COUNT = StateKey.of("total", JsonSerdes.LONG);
 
   @Handler
   public String greet(ObjectContext ctx, String name) {

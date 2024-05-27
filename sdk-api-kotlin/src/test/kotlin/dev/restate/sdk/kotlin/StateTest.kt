@@ -8,11 +8,11 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.common.CoreSerdes
 import dev.restate.sdk.common.StateKey
 import dev.restate.sdk.core.ProtoUtils.*
 import dev.restate.sdk.core.StateTestSuite
 import dev.restate.sdk.core.TestDefinitions.*
+import dev.restate.sdk.core.TestSerdes
 import dev.restate.sdk.kotlin.KotlinCoroutinesTests.Companion.testDefinitionForVirtualObject
 import java.util.stream.Stream
 import kotlinx.serialization.Serializable
@@ -21,14 +21,14 @@ class StateTest : StateTestSuite() {
 
   override fun getState(): TestInvocationBuilder =
       testDefinitionForVirtualObject("GetState") { ctx, _: Unit ->
-        val state = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING)) ?: "Unknown"
+        val state = ctx.get(StateKey.of("STATE", TestSerdes.STRING)) ?: "Unknown"
         "Hello $state"
       }
 
   override fun getAndSetState(): TestInvocationBuilder =
       testDefinitionForVirtualObject("GetAndSetState") { ctx, name: String ->
-        val state = ctx.get(StateKey.of("STATE", CoreSerdes.JSON_STRING))!!
-        ctx.set(StateKey.of("STATE", CoreSerdes.JSON_STRING), name)
+        val state = ctx.get(StateKey.of("STATE", TestSerdes.STRING))!!
+        ctx.set(StateKey.of("STATE", TestSerdes.STRING), name)
         "Hello $state"
       }
 
