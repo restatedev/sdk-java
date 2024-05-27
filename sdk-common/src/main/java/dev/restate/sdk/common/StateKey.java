@@ -29,11 +29,6 @@ public final class StateKey<T> {
     return new StateKey<>(name, serde);
   }
 
-  /** Create a new {@link StateKey} for {@link String} state. */
-  public static StateKey<String> string(String name) {
-    return new StateKey<>(name, JsonSerdes.STRING);
-  }
-
   /** Create a new {@link StateKey} for bytes state. */
   public static StateKey<byte[]> bytes(String name) {
     return new StateKey<>(name, Serde.RAW);

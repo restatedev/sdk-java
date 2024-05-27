@@ -6,12 +6,13 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-package dev.restate.sdk.common;
+package dev.restate.sdk;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.function.ThrowingBiConsumer;
 import dev.restate.sdk.common.function.ThrowingFunction;
 import java.io.ByteArrayInputStream;

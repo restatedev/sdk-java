@@ -12,7 +12,6 @@ import static dev.restate.sdk.core.ProtoUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.*;
 
 import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.common.JsonSerdes;
 import dev.restate.sdk.common.TerminalException;
 import java.util.stream.Stream;
 
@@ -77,7 +76,7 @@ public abstract class PromiseTestSuite implements TestSuite {
         this.awaitIsPromiseCompleted(PROMISE_KEY)
             .withInput(startMessage(1), inputMessage(), completionMessage(1, "my value"))
             .expectingOutput(
-                peekPromise(PROMISE_KEY), outputMessage(JsonSerdes.BOOLEAN, true), END_MESSAGE)
+                peekPromise(PROMISE_KEY), outputMessage(TestSerdes.BOOLEAN, true), END_MESSAGE)
             .named("Completed with success"),
         this.awaitIsPromiseCompleted(PROMISE_KEY)
             .withInput(
@@ -85,7 +84,7 @@ public abstract class PromiseTestSuite implements TestSuite {
                 inputMessage(),
                 completionMessage(1, new TerminalException("myerror")))
             .expectingOutput(
-                peekPromise(PROMISE_KEY), outputMessage(JsonSerdes.BOOLEAN, true), END_MESSAGE)
+                peekPromise(PROMISE_KEY), outputMessage(TestSerdes.BOOLEAN, true), END_MESSAGE)
             .named("Completed with failure"),
         this.awaitIsPromiseCompleted(PROMISE_KEY)
             .withInput(
@@ -93,7 +92,7 @@ public abstract class PromiseTestSuite implements TestSuite {
                 inputMessage(),
                 completionMessage(1).setEmpty(Protocol.Empty.getDefaultInstance()))
             .expectingOutput(
-                peekPromise(PROMISE_KEY), outputMessage(JsonSerdes.BOOLEAN, false), END_MESSAGE)
+                peekPromise(PROMISE_KEY), outputMessage(TestSerdes.BOOLEAN, false), END_MESSAGE)
             .named("Not completed"),
         // --- Promise resolve
         this.awaitResolvePromise(PROMISE_KEY, "my val")
@@ -103,7 +102,7 @@ public abstract class PromiseTestSuite implements TestSuite {
                 completionMessage(1).setEmpty(Protocol.Empty.getDefaultInstance()))
             .expectingOutput(
                 completePromise(PROMISE_KEY, "my val"),
-                outputMessage(JsonSerdes.BOOLEAN, true),
+                outputMessage(TestSerdes.BOOLEAN, true),
                 END_MESSAGE)
             .named("resolve succeeds"),
         this.awaitResolvePromise(PROMISE_KEY, "my val")
@@ -113,7 +112,7 @@ public abstract class PromiseTestSuite implements TestSuite {
                 completionMessage(1, new TerminalException("cannot write promise")))
             .expectingOutput(
                 completePromise(PROMISE_KEY, "my val"),
-                outputMessage(JsonSerdes.BOOLEAN, false),
+                outputMessage(TestSerdes.BOOLEAN, false),
                 END_MESSAGE)
             .named("resolve fails"),
         // --- Promise reject
@@ -124,7 +123,7 @@ public abstract class PromiseTestSuite implements TestSuite {
                 completionMessage(1).setEmpty(Protocol.Empty.getDefaultInstance()))
             .expectingOutput(
                 completePromise(PROMISE_KEY, new TerminalException("my failure")),
-                outputMessage(JsonSerdes.BOOLEAN, true),
+                outputMessage(TestSerdes.BOOLEAN, true),
                 END_MESSAGE)
             .named("resolve succeeds"),
         this.awaitRejectPromise(PROMISE_KEY, "my failure")
@@ -134,7 +133,7 @@ public abstract class PromiseTestSuite implements TestSuite {
                 completionMessage(1, new TerminalException("cannot write promise")))
             .expectingOutput(
                 completePromise(PROMISE_KEY, new TerminalException("my failure")),
-                outputMessage(JsonSerdes.BOOLEAN, false),
+                outputMessage(TestSerdes.BOOLEAN, false),
                 END_MESSAGE)
             .named("resolve fails"));
   }

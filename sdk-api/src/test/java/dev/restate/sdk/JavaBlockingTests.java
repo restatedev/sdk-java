@@ -11,7 +11,6 @@ package dev.restate.sdk;
 import static dev.restate.sdk.core.ProtoUtils.GREETER_SERVICE_TARGET;
 
 import dev.restate.sdk.common.HandlerType;
-import dev.restate.sdk.common.JsonSerdes;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.ServiceType;
 import dev.restate.sdk.common.syscalls.HandlerDefinition;

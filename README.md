@@ -77,7 +77,7 @@ Implement your first virtual object in a new class, for example:
 import dev.restate.sdk.ObjectContext;
 import dev.restate.sdk.annotation.Handler;
 import dev.restate.sdk.annotation.VirtualObject;
-import dev.restate.sdk.common.JsonSerdes;
+import dev.restate.sdk.JsonSerdes;
 import dev.restate.sdk.common.StateKey;
 
 @VirtualObject

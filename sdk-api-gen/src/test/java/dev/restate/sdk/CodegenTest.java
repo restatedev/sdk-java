@@ -14,7 +14,6 @@ import static dev.restate.sdk.core.TestDefinitions.testInvocation;
 import com.google.protobuf.ByteString;
 import dev.restate.sdk.annotation.*;
 import dev.restate.sdk.annotation.Service;
-import dev.restate.sdk.common.JsonSerdes;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.Target;
 import dev.restate.sdk.core.ProtoUtils;

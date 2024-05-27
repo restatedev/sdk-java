@@ -10,7 +10,6 @@ package dev.restate.sdk;
 
 import static dev.restate.sdk.JavaBlockingTests.testDefinitionForService;
 
-import dev.restate.sdk.common.JsonSerdes;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.core.RandomTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;

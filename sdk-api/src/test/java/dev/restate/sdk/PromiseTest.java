@@ -11,11 +11,11 @@ package dev.restate.sdk;
 import static dev.restate.sdk.JavaBlockingTests.*;
 
 import dev.restate.sdk.common.DurablePromiseKey;
-import dev.restate.sdk.common.JsonSerdes;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.PromiseTestSuite;
 import dev.restate.sdk.core.TestDefinitions;
+import dev.restate.sdk.core.TestSerdes;
 
 public class PromiseTest extends PromiseTestSuite {
   @Override
@@ -25,7 +25,10 @@ public class PromiseTest extends PromiseTestSuite {
         Serde.VOID,
         JsonSerdes.STRING,
         (context, unused) ->
-            context.durablePromise(DurablePromiseKey.string(promiseKey)).awaitable().await());
+            context
+                .durablePromise(DurablePromiseKey.of(promiseKey, TestSerdes.STRING))
+                .awaitable()
+                .await());
   }
 
   @Override
@@ -37,7 +40,7 @@ public class PromiseTest extends PromiseTestSuite {
         JsonSerdes.STRING,
         (context, unused) ->
             context
-                .durablePromise(DurablePromiseKey.string(promiseKey))
+                .durablePromise(DurablePromiseKey.of(promiseKey, TestSerdes.STRING))
                 .peek()
                 .orElse(emptyCaseReturnValue));
   }
@@ -49,7 +52,9 @@ public class PromiseTest extends PromiseTestSuite {
         Serde.VOID,
         JsonSerdes.BOOLEAN,
         (context, unused) ->
-            context.durablePromise(DurablePromiseKey.string(promiseKey)).isCompleted());
+            context
+                .durablePromise(DurablePromiseKey.of(promiseKey, TestSerdes.STRING))
+                .isCompleted());
   }
 
   @Override
@@ -62,7 +67,7 @@ public class PromiseTest extends PromiseTestSuite {
         (context, unused) -> {
           try {
             context
-                .durablePromiseHandle(DurablePromiseKey.string(promiseKey))
+                .durablePromiseHandle(DurablePromiseKey.of(promiseKey, TestSerdes.STRING))
                 .resolve(completionValue);
             return true;
           } catch (TerminalException e) {
@@ -80,7 +85,9 @@ public class PromiseTest extends PromiseTestSuite {
         JsonSerdes.BOOLEAN,
         (context, unused) -> {
           try {
-            context.durablePromiseHandle(DurablePromiseKey.string(promiseKey)).reject(rejectReason);
+            context
+                .durablePromiseHandle(DurablePromiseKey.of(promiseKey, TestSerdes.STRING))
+                .reject(rejectReason);
             return true;
           } catch (TerminalException e) {
             return false;

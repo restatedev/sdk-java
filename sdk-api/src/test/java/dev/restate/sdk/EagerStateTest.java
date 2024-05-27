@@ -11,7 +11,6 @@ package dev.restate.sdk;
 import static dev.restate.sdk.JavaBlockingTests.testDefinitionForVirtualObject;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.restate.sdk.common.JsonSerdes;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.StateKey;
 import dev.restate.sdk.core.EagerStateTestSuite;

@@ -355,21 +355,21 @@ public class ElementConverter {
   private static String jsonSerdeDecl(TypeMirror ty) {
     switch (ty.getKind()) {
       case BOOLEAN:
-        return "dev.restate.sdk.common.JsonSerdes.BOOLEAN";
+        return "dev.restate.sdk.JsonSerdes.BOOLEAN";
       case BYTE:
-        return "dev.restate.sdk.common.JsonSerdes.BYTE";
+        return "dev.restate.sdk.JsonSerdes.BYTE";
       case SHORT:
-        return "dev.restate.sdk.common.JsonSerdes.SHORT";
+        return "dev.restate.sdk.JsonSerdes.SHORT";
       case INT:
-        return "dev.restate.sdk.common.JsonSerdes.INT";
+        return "dev.restate.sdk.JsonSerdes.INT";
       case LONG:
-        return "dev.restate.sdk.common.JsonSerdes.LONG";
+        return "dev.restate.sdk.JsonSerdes.LONG";
       case CHAR:
-        return "dev.restate.sdk.common.JsonSerdes.CHAR";
+        return "dev.restate.sdk.JsonSerdes.CHAR";
       case FLOAT:
-        return "dev.restate.sdk.common.JsonSerdes.FLOAT";
+        return "dev.restate.sdk.JsonSerdes.FLOAT";
       case DOUBLE:
-        return "dev.restate.sdk.common.JsonSerdes.DOUBLE";
+        return "dev.restate.sdk.JsonSerdes.DOUBLE";
       case VOID:
         return "dev.restate.sdk.common.Serde.VOID";
       default:

@@ -13,7 +13,7 @@ import com.google.protobuf.ByteString
 import com.google.protobuf.MessageLite
 import dev.restate.generated.service.discovery.Discovery
 import dev.restate.generated.service.protocol.Protocol.*
-import dev.restate.sdk.common.JsonSerdes
+import dev.restate.sdk.JsonSerdes
 import dev.restate.sdk.core.ProtoUtils.*
 import dev.restate.sdk.core.ServiceProtocol
 import dev.restate.sdk.core.manifest.EndpointManifestSchema
