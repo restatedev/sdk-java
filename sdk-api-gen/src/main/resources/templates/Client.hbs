@@ -86,35 +86,34 @@ public class {{generatedClassSimpleName}} {
                 {{outputSerdeRef}});
         }
 
-        public dev.restate.sdk.client.IngressClient.WorkflowHandle<{{{boxedOutputFqcn}}}> submit({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
+        public dev.restate.sdk.client.SendResponse submit({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
             return this.submit(
                 {{^inputEmpty}}req, {{/inputEmpty}}
                 dev.restate.sdk.client.RequestOptions.DEFAULT);
         }
 
-        public dev.restate.sdk.client.IngressClient.WorkflowHandle<{{{boxedOutputFqcn}}}> submit({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.sdk.client.RequestOptions requestOptions) {
-            IngressClient.this.ingressClient.send(
+        public dev.restate.sdk.client.SendResponse submit({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.sdk.client.RequestOptions requestOptions) {
+            return IngressClient.this.ingressClient.send(
                 {{{targetExpr this "this.key"}}},
                 {{inputSerdeRef}},
                 {{#if inputEmpty}}null{{else}}req{{/if}},
                 null,
                 requestOptions);
-            return this.workflowHandle();
         }
 
-        public java.util.concurrent.CompletableFuture<dev.restate.sdk.client.IngressClient.WorkflowHandle<{{{boxedOutputFqcn}}}>> submitAsync({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
+        public java.util.concurrent.CompletableFuture<dev.restate.sdk.client.SendResponse> submitAsync({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
             return this.submitAsync(
                 {{^inputEmpty}}req, {{/inputEmpty}}
                 dev.restate.sdk.client.RequestOptions.DEFAULT);
         }
 
-        public java.util.concurrent.CompletableFuture<dev.restate.sdk.client.IngressClient.WorkflowHandle<{{{boxedOutputFqcn}}}>> submitAsync({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.sdk.client.RequestOptions requestOptions) {
+        public java.util.concurrent.CompletableFuture<dev.restate.sdk.client.SendResponse> submitAsync({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.sdk.client.RequestOptions requestOptions) {
             return IngressClient.this.ingressClient.sendAsync(
                 {{{targetExpr this "this.key"}}},
                 {{inputSerdeRef}},
                 {{#if inputEmpty}}null{{else}}req{{/if}},
                 null,
-                requestOptions).thenApply(id -> this.workflowHandle());
+                requestOptions);
         }
         {{else}}
         public {{#if outputEmpty}}void{{else}}{{{outputFqcn}}}{{/if}} {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
@@ -164,13 +163,13 @@ public class {{generatedClassSimpleName}} {
             }
 
             {{#handlers}}{{^isWorkflow}}
-            public String {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
+            public dev.restate.sdk.client.SendResponse {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
                 return this.{{methodName}}(
                     {{^inputEmpty}}req, {{/inputEmpty}}
                     dev.restate.sdk.client.CallRequestOptions.DEFAULT);
             }
 
-            public String {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.sdk.client.CallRequestOptions requestOptions) {
+            public dev.restate.sdk.client.SendResponse {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.sdk.client.CallRequestOptions requestOptions) {
                 return IngressClient.this.ingressClient.send(
                     {{{targetExpr this "IngressClient.this.key"}}},
                     {{inputSerdeRef}},
@@ -179,13 +178,13 @@ public class {{generatedClassSimpleName}} {
                     requestOptions);
             }
 
-            public java.util.concurrent.CompletableFuture<String> {{methodName}}Async({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
+            public java.util.concurrent.CompletableFuture<dev.restate.sdk.client.SendResponse> {{methodName}}Async({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
                 return this.{{methodName}}Async(
                     {{^inputEmpty}}req, {{/inputEmpty}}
                     dev.restate.sdk.client.CallRequestOptions.DEFAULT);
             }
 
-            public java.util.concurrent.CompletableFuture<String> {{methodName}}Async({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.sdk.client.CallRequestOptions requestOptions) {
+            public java.util.concurrent.CompletableFuture<dev.restate.sdk.client.SendResponse> {{methodName}}Async({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.sdk.client.CallRequestOptions requestOptions) {
                 return IngressClient.this.ingressClient.sendAsync(
                     {{{targetExpr this "IngressClient.this.key"}}},
                     {{inputSerdeRef}},

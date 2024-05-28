@@ -23,7 +23,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import org.jspecify.annotations.NonNull;
 
@@ -71,12 +71,7 @@ public class DefaultIngressClient implements IngressClient {
   }
 
   @Override
-  public <Req> CompletableFuture<String> sendAsync(
-      Target target, Serde<Req> reqSerde, Req req, Duration delay, RequestOptions options) {
-    return sendAsyncInner(target, reqSerde, req, delay, options);
-  }
-
-  public <Req> CompletableFuture<String> sendAsyncInner(
+  public <Req> CompletableFuture<SendResponse> sendAsync(
       Target target, Serde<Req> reqSerde, Req req, Duration delay, RequestOptions options) {
     HttpRequest request = prepareHttpRequest(target, true, reqSerde, req, delay, options);
     return httpClient
@@ -86,18 +81,34 @@ public class DefaultIngressClient implements IngressClient {
               if (throwable != null) {
                 throw new IngressException("Error when executing the request", throwable);
               }
-
               if (response.statusCode() >= 300) {
                 handleNonSuccessResponse(response);
               }
 
+              Map<String, String> fields;
               try {
-                return findStringFieldInJsonObject(
-                    new ByteArrayInputStream(response.body()), "invocationId");
+                fields =
+                    findStringFieldsInJsonObject(
+                        new ByteArrayInputStream(response.body()), "invocationId", "status");
               } catch (Exception e) {
                 throw new IngressException(
                     "Cannot deserialize the response", response.statusCode(), response.body(), e);
               }
+
+              String statusField = fields.get("status");
+              SendResponse.SendStatus status;
+              if ("Accepted".equals(statusField)) {
+                status = SendResponse.SendStatus.ACCEPTED;
+              } else if ("PreviouslyAccepted".equals(statusField)) {
+                status = SendResponse.SendStatus.PREVIOUSLY_ACCEPTED;
+              } else {
+                throw new IngressException(
+                    "Cannot deserialize the response status, got " + statusField,
+                    response.statusCode(),
+                    response.body());
+              }
+
+              return new SendResponse(status, fields.get("invocationId"));
             });
   }
 
@@ -434,5 +445,34 @@ public class DefaultIngressClient implements IngressClient {
       throw new IllegalStateException(
           "Expecting field name \"" + fieldName + "\", got " + parser.getCurrentToken());
     }
+  }
+
+  private static Map<String, String> findStringFieldsInJsonObject(
+      InputStream body, String... fields) throws IOException {
+    Map<String, String> resultMap = new HashMap<>();
+    Set<String> fieldSet = new HashSet<>(Set.of(fields));
+
+    try (JsonParser parser = JSON_FACTORY.createParser(body)) {
+      if (parser.nextToken() != JsonToken.START_OBJECT) {
+        throw new IllegalStateException(
+            "Expecting token " + JsonToken.START_OBJECT + ", got " + parser.getCurrentToken());
+      }
+      for (String actualFieldName = parser.nextFieldName();
+          actualFieldName != null;
+          actualFieldName = parser.nextFieldName()) {
+        if (fieldSet.remove(actualFieldName)) {
+          resultMap.put(actualFieldName, parser.nextTextValue());
+        } else {
+          parser.nextValue();
+        }
+      }
+    }
+
+    if (!fieldSet.isEmpty()) {
+      throw new IllegalStateException(
+          "Expecting fields \"" + Arrays.toString(fields) + "\", cannot find fields " + fieldSet);
+    }
+
+    return resultMap;
   }
 }

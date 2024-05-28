@@ -119,8 +119,9 @@ public class CodegenTest implements TestSuite {
       // Just needs to compile
       String ignored =
           CodegenTestWorkflowCornerCasesClient.fromIngress("invalid", request)._submit("my_send");
+      CodegenTestWorkflowCornerCasesClient.fromIngress("invalid", request).submit("my_send");
       return CodegenTestWorkflowCornerCasesClient.fromIngress("invalid", request)
-          .submit("my_send")
+          .workflowHandle()
           .getOutput();
     }
   }

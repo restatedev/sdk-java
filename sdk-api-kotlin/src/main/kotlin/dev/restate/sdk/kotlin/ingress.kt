@@ -10,6 +10,7 @@ package dev.restate.sdk.kotlin
 
 import dev.restate.sdk.client.IngressClient
 import dev.restate.sdk.client.RequestOptions
+import dev.restate.sdk.client.SendResponse
 import dev.restate.sdk.common.Serde
 import dev.restate.sdk.common.Target
 import kotlin.time.Duration
@@ -34,7 +35,7 @@ suspend fun <Req> IngressClient.sendSuspend(
     req: Req,
     delay: Duration = Duration.ZERO,
     options: RequestOptions = RequestOptions.DEFAULT
-): String {
+): SendResponse {
   return this.sendAsync(target, reqSerde, req, delay.toJavaDuration(), options).await()
 }
 
