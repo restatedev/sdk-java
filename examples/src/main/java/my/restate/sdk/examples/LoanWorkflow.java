@@ -95,7 +95,7 @@ public class LoanWorkflow {
   // --- The main workflow method
 
   @Workflow
-  public void run(WorkflowContext ctx, LoanRequest loanRequest) {
+  public String run(WorkflowContext ctx, LoanRequest loanRequest) {
     // 1. Set status
     ctx.set(STATUS, Status.SUBMITTED);
     ctx.set(LOAN_REQUEST, loanRequest);
@@ -111,7 +111,7 @@ public class LoanWorkflow {
     if (!approved) {
       LOG.info("Not approved");
       ctx.set(STATUS, Status.NOT_APPROVED);
-      return;
+      return "Not approved";
     }
     LOG.info("Approved");
     ctx.set(STATUS, Status.APPROVED);
@@ -129,7 +129,7 @@ public class LoanWorkflow {
     } catch (TerminalException | TimeoutException e) {
       LOG.warn("Transaction failed", e);
       ctx.set(STATUS, Status.TRANSFER_FAILED);
-      return;
+      return "Failed";
     }
 
     LOG.info("Transfer complete");
@@ -137,13 +137,16 @@ public class LoanWorkflow {
     // 5. Transfer complete!
     ctx.set(TRANSFER_EXECUTION_TIME, executionTime.toString());
     ctx.set(STATUS, Status.TRANSFER_SUCCEEDED);
+
+    return "Transfer succeeded";
   }
 
   // --- Methods to approve/reject loan
 
   @Shared
-  public void approveLoan(SharedWorkflowContext ctx) {
+  public String approveLoan(SharedWorkflowContext ctx) {
     ctx.durablePromiseHandle(HUMAN_APPROVAL).resolve(true);
+    return "Approved";
   }
 
   @Shared
@@ -195,7 +198,7 @@ public class LoanWorkflow {
     client.approveLoan();
 
     // Wait for output
-    state.attach();
+    client.workflowHandle().attach();
 
     LOG.info("Loan workflow completed, now in status {}", client.getStatus());
   }
