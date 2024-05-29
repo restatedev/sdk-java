@@ -13,6 +13,10 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Defines a method as a Shared handler. It can be used only on methods of either {@link
+ * VirtualObject} or {@link Workflow}. This implies the annotation {@link Handler}.
+ */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.SOURCE)
 public @interface Shared {}

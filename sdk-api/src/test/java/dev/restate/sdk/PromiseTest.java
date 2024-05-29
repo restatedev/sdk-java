@@ -26,7 +26,7 @@ public class PromiseTest extends PromiseTestSuite {
         JsonSerdes.STRING,
         (context, unused) ->
             context
-                .durablePromise(DurablePromiseKey.of(promiseKey, TestSerdes.STRING))
+                .promise(DurablePromiseKey.of(promiseKey, TestSerdes.STRING))
                 .awaitable()
                 .await());
   }
@@ -40,7 +40,7 @@ public class PromiseTest extends PromiseTestSuite {
         JsonSerdes.STRING,
         (context, unused) ->
             context
-                .durablePromise(DurablePromiseKey.of(promiseKey, TestSerdes.STRING))
+                .promise(DurablePromiseKey.of(promiseKey, TestSerdes.STRING))
                 .peek()
                 .orElse(emptyCaseReturnValue));
   }
@@ -52,9 +52,7 @@ public class PromiseTest extends PromiseTestSuite {
         Serde.VOID,
         JsonSerdes.BOOLEAN,
         (context, unused) ->
-            context
-                .durablePromise(DurablePromiseKey.of(promiseKey, TestSerdes.STRING))
-                .isCompleted());
+            context.promise(DurablePromiseKey.of(promiseKey, TestSerdes.STRING)).isCompleted());
   }
 
   @Override
@@ -67,7 +65,7 @@ public class PromiseTest extends PromiseTestSuite {
         (context, unused) -> {
           try {
             context
-                .durablePromiseHandle(DurablePromiseKey.of(promiseKey, TestSerdes.STRING))
+                .promiseHandle(DurablePromiseKey.of(promiseKey, TestSerdes.STRING))
                 .resolve(completionValue);
             return true;
           } catch (TerminalException e) {
@@ -86,7 +84,7 @@ public class PromiseTest extends PromiseTestSuite {
         (context, unused) -> {
           try {
             context
-                .durablePromiseHandle(DurablePromiseKey.of(promiseKey, TestSerdes.STRING))
+                .promiseHandle(DurablePromiseKey.of(promiseKey, TestSerdes.STRING))
                 .reject(rejectReason);
             return true;
           } catch (TerminalException e) {

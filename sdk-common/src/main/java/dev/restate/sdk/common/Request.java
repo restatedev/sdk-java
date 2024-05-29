@@ -13,6 +13,7 @@ import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Objects;
 
+/** The Request object represents the incoming request to an handler. */
 public final class Request {
 
   private final InvocationId invocationId;
@@ -31,10 +32,16 @@ public final class Request {
     this.headers = headers;
   }
 
+  /**
+   * @return this invocation id.
+   */
   public InvocationId invocationId() {
     return invocationId;
   }
 
+  /**
+   * @return the attached OpenTelemetry {@link Context}.
+   */
   public Context otelContext() {
     return otelContext;
   }
@@ -47,6 +54,9 @@ public final class Request {
     return body.asReadOnlyBuffer();
   }
 
+  /**
+   * @return the request headers, as received at the ingress.
+   */
   public Map<String, String> headers() {
     return headers;
   }

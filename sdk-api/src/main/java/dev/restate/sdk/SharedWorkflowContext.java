@@ -10,8 +10,34 @@ package dev.restate.sdk;
 
 import dev.restate.sdk.common.DurablePromiseKey;
 
+/**
+ * This interface extends {@link Context} adding access to the workflow instance key-value state
+ * storage and to the {@link DurablePromise} API.
+ *
+ * <p>NOTE: This interface MUST NOT be accessed concurrently since it can lead to different
+ * orderings of user actions, corrupting the execution of the invocation.
+ *
+ * @see Context
+ * @see SharedObjectContext
+ */
 public interface SharedWorkflowContext extends SharedObjectContext {
-  <T> DurablePromise<T> durablePromise(DurablePromiseKey<T> key);
+  /**
+   * Create a {@link DurablePromise} for the given key.
+   *
+   * <p>You can use this feature to implement interaction between different workflow handlers, e.g.
+   * to send a signal from a shared handler to the workflow handler.
+   *
+   * @return the {@link DurablePromise}.
+   * @see DurablePromise
+   */
+  <T> DurablePromise<T> promise(DurablePromiseKey<T> key);
 
-  <T> DurablePromiseHandle<T> durablePromiseHandle(DurablePromiseKey<T> key);
+  /**
+   * Create a new {@link DurablePromiseHandle} for the provided key. You can use it to {@link
+   * DurablePromiseHandle#resolve(Object)} or {@link DurablePromiseHandle#reject(String)} the given
+   * {@link DurablePromise}.
+   *
+   * @see DurablePromise
+   */
+  <T> DurablePromiseHandle<T> promiseHandle(DurablePromiseKey<T> key);
 }

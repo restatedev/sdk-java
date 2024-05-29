@@ -223,11 +223,11 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
     return RestateRandom(syscalls.request().invocationId().toRandomSeed(), syscalls)
   }
 
-  override fun <T : Any> durablePromise(key: DurablePromiseKey<T>): DurablePromise<T> {
+  override fun <T : Any> promise(key: DurablePromiseKey<T>): DurablePromise<T> {
     return DurablePromiseImpl(key)
   }
 
-  override fun <T : Any> durablePromiseHandle(key: DurablePromiseKey<T>): DurablePromiseHandle<T> {
+  override fun <T : Any> promiseHandle(key: DurablePromiseKey<T>): DurablePromiseHandle<T> {
     return DurablePromiseHandleImpl(key)
   }
 

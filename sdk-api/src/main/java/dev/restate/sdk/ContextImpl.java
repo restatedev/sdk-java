@@ -217,7 +217,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
   }
 
   @Override
-  public <T> DurablePromise<T> durablePromise(DurablePromiseKey<T> key) {
+  public <T> DurablePromise<T> promise(DurablePromiseKey<T> key) {
     return new DurablePromise<>() {
       @Override
       public Awaitable<T> awaitable() {
@@ -254,7 +254,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
   }
 
   @Override
-  public <T> DurablePromiseHandle<T> durablePromiseHandle(DurablePromiseKey<T> key) {
+  public <T> DurablePromiseHandle<T> promiseHandle(DurablePromiseKey<T> key) {
     return new DurablePromiseHandle<>() {
       @Override
       public void resolve(T payload) throws IllegalStateException {
