@@ -244,8 +244,8 @@ suspend inline fun <reified T : Any> Context.awakeable(): Awakeable<T> {
 }
 
 /**
- * This interface extends [Context] adding access to the virtual object instance key-value state
- * storage.
+ * This interface can be used only within shared handlers of virtual objects. It extends [Context]
+ * adding access to the virtual object instance key-value state storage.
  */
 sealed interface SharedObjectContext : Context {
 
@@ -270,8 +270,8 @@ sealed interface SharedObjectContext : Context {
 }
 
 /**
- * This interface extends [Context] adding access to the virtual object instance key-value state
- * storage.
+ * This interface can be used only within exclusive handlers of virtual objects. It extends
+ * [Context] adding access to the virtual object instance key-value state storage.
  */
 sealed interface ObjectContext : SharedObjectContext {
 
@@ -295,10 +295,8 @@ sealed interface ObjectContext : SharedObjectContext {
 }
 
 /**
- * This interface extends [Context] adding access to the workflow instance key-value state storage
- * and to the [DurablePromise] API.
- *
- * This interface can be used only within shared handlers of workflow classes/interfaces.
+ * This interface can be used only within shared handlers of workflow. It extends [Context] adding
+ * access to the workflow instance key-value state storage and to the [DurablePromise] API.
  *
  * NOTE: This interface MUST NOT be accessed concurrently since it can lead to different orderings
  * of user actions, corrupting the execution of the invocation.
@@ -327,10 +325,8 @@ sealed interface SharedWorkflowContext : SharedObjectContext {
 }
 
 /**
- * This interface extends [Context] adding access to the workflow instance key-value state storage
- * and to the [DurablePromise] API.
- *
- * This interface can be used only within workflow handlers of workflow classes/interfaces.
+ * This interface can be used only within workflow handlers of workflow. It extends [Context] adding
+ * access to the workflow instance key-value state storage and to the [DurablePromise] API.
  *
  * NOTE: This interface MUST NOT be accessed concurrently since it can lead to different orderings
  * of user actions, corrupting the execution of the invocation.
@@ -348,7 +344,7 @@ class RestateRandom(seed: Long, private val syscalls: Syscalls) : Random() {
     return r.nextBits(bitCount)
   }
 
-  /** Generate a UUID */
+  /** Generate a UUID that is stable across retries and replays. */
   fun nextUUID(): UUID {
     return UUID(this.nextLong(), this.nextLong())
   }
@@ -361,7 +357,7 @@ class RestateRandom(seed: Long, private val syscalls: Syscalls) : Random() {
  * The result can be either a success or a failure. In case of a failure, [await] will throw a
  * [dev.restate.sdk.core.TerminalException].
  *
- * @param T type of the awaitable result
+ * @param T type o1f the awaitable result
  */
 sealed interface Awaitable<T> {
   suspend fun await(): T

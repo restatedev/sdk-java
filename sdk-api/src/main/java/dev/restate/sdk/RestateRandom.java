@@ -48,7 +48,7 @@ public class RestateRandom extends Random {
   }
 
   /**
-   * @return a UUID generated using this RNG.
+   * @return a UUID generated using this RNG that is stable across retries and replays.
    */
   public UUID nextUUID() {
     return new UUID(this.nextLong(), this.nextLong());

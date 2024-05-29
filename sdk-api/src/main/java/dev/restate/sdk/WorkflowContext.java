@@ -9,8 +9,9 @@
 package dev.restate.sdk;
 
 /**
- * This interface extends {@link Context} adding access to the workflow instance key-value state
- * storage and to the {@link DurablePromise} API.
+ * This interface can be used only within workflow handlers of workflow. It extends {@link Context}
+ * adding access to the workflow instance key-value state storage and to the {@link DurablePromise}
+ * API.
  *
  * <p>NOTE: This interface MUST NOT be accessed concurrently since it can lead to different
  * orderings of user actions, corrupting the execution of the invocation.

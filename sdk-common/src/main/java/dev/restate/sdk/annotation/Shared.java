@@ -15,7 +15,12 @@ import java.lang.annotation.Target;
 
 /**
  * Defines a method as a Shared handler. It can be used only on methods of either {@link
- * VirtualObject} or {@link Workflow}. This implies the annotation {@link Handler}.
+ * VirtualObject} or {@link Workflow}.
+ *
+ * <p>Shared handlers can execute concurrently with the other handlers of Virtual Objects or
+ * Workflows. They can therefore not set or clear state.
+ *
+ * <p>This implies the annotation {@link Handler}.
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.SOURCE)
