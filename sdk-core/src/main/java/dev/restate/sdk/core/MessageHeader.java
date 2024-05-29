@@ -9,6 +9,7 @@
 package dev.restate.sdk.core;
 
 import com.google.protobuf.MessageLite;
+import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 
 public class MessageHeader {
@@ -82,6 +83,9 @@ public class MessageHeader {
     } else if (msg instanceof Protocol.RunEntryMessage) {
       return new MessageHeader(
           MessageType.RunEntryMessage, REQUIRES_ACK_FLAG, msg.getSerializedSize());
+    } else if (msg instanceof Java.CombinatorAwaitableEntryMessage) {
+      return new MessageHeader(
+          MessageType.CombinatorAwaitableEntryMessage, REQUIRES_ACK_FLAG, msg.getSerializedSize());
     }
     // Messages with no flags
     return new MessageHeader(MessageType.fromMessage(msg), 0, msg.getSerializedSize());
