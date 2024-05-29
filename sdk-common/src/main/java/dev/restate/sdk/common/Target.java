@@ -9,7 +9,9 @@
 package dev.restate.sdk.common;
 
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
+/** Represents an invocation target. */
 public final class Target {
 
   private final String service;
@@ -42,7 +44,10 @@ public final class Target {
     return handler;
   }
 
-  public String getKey() {
+  /**
+   * @return the virtual object/workflow key. Null if the target is a regular service.
+   */
+  public @Nullable String getKey() {
     return key;
   }
 

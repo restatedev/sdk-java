@@ -107,7 +107,7 @@ public class LoanWorkflow {
     ctx.set(STATUS, Status.WAITING_HUMAN_APPROVAL);
 
     // 3. Wait human approval
-    boolean approved = ctx.durablePromise(HUMAN_APPROVAL).awaitable().await();
+    boolean approved = ctx.promise(HUMAN_APPROVAL).awaitable().await();
     if (!approved) {
       LOG.info("Not approved");
       ctx.set(STATUS, Status.NOT_APPROVED);
@@ -145,13 +145,13 @@ public class LoanWorkflow {
 
   @Shared
   public String approveLoan(SharedWorkflowContext ctx) {
-    ctx.durablePromiseHandle(HUMAN_APPROVAL).resolve(true);
+    ctx.promiseHandle(HUMAN_APPROVAL).resolve(true);
     return "Approved";
   }
 
   @Shared
   public void rejectLoan(SharedWorkflowContext ctx) {
-    ctx.durablePromiseHandle(HUMAN_APPROVAL).resolve(false);
+    ctx.promiseHandle(HUMAN_APPROVAL).resolve(false);
   }
 
   @Shared

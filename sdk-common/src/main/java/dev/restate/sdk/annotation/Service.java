@@ -13,11 +13,17 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Annotation to define a class/interface as Restate Service. This triggers the code generation of
+ * the related Client class and the {@link
+ * dev.restate.sdk.common.syscalls.ServiceDefinitionFactory}.
+ */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.SOURCE)
 public @interface Service {
   /**
-   * Name of the Service for Restate. If not provided, it will be the FQCN of the annotated element.
+   * Name of the Service for Restate. If not provided, it will be the simple class name of the
+   * annotated element.
    */
   String name() default "";
 }

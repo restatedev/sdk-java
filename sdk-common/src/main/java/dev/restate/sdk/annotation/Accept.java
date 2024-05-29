@@ -13,6 +13,10 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Define the acceptable content type. Wildcards can be used, e.g. {@code application / *} or {@code
+ * * / *}
+ */
 @Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.SOURCE)
 public @interface Accept {

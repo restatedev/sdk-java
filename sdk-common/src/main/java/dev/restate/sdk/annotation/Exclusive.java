@@ -13,6 +13,10 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Defines a method as an exclusive handler, as opposed to {@link Shared} handlers. It can be used
+ * only on methods of {@link VirtualObject}. This implies the annotation {@link Handler}.
+ */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.SOURCE)
 public @interface Exclusive {}

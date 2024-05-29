@@ -12,8 +12,8 @@ import dev.restate.sdk.common.*;
 import org.jspecify.annotations.NonNull;
 
 /**
- * This interface extends {@link Context} adding access to the virtual object instance key-value
- * state storage
+ * This interface can be used only within exclusive handlers of virtual objects. It extends {@link
+ * Context} adding access to the virtual object instance key-value state storage.
  *
  * <p>NOTE: This interface MUST NOT be accessed concurrently since it can lead to different
  * orderings of user actions, corrupting the execution of the invocation.

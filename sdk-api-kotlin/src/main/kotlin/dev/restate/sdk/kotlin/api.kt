@@ -244,8 +244,8 @@ suspend inline fun <reified T : Any> Context.awakeable(): Awakeable<T> {
 }
 
 /**
- * This interface extends [Context] adding access to the virtual object instance key-value state
- * storage.
+ * This interface can be used only within shared handlers of virtual objects. It extends [Context]
+ * adding access to the virtual object instance key-value state storage.
  */
 sealed interface SharedObjectContext : Context {
 
@@ -270,8 +270,8 @@ sealed interface SharedObjectContext : Context {
 }
 
 /**
- * This interface extends [Context] adding access to the virtual object instance key-value state
- * storage.
+ * This interface can be used only within exclusive handlers of virtual objects. It extends
+ * [Context] adding access to the virtual object instance key-value state storage.
  */
 sealed interface ObjectContext : SharedObjectContext {
 
@@ -294,13 +294,47 @@ sealed interface ObjectContext : SharedObjectContext {
   suspend fun clearAll()
 }
 
+/**
+ * This interface can be used only within shared handlers of workflow. It extends [Context] adding
+ * access to the workflow instance key-value state storage and to the [DurablePromise] API.
+ *
+ * NOTE: This interface MUST NOT be accessed concurrently since it can lead to different orderings
+ * of user actions, corrupting the execution of the invocation.
+ *
+ * @see Context
+ * @see SharedObjectContext
+ */
 sealed interface SharedWorkflowContext : SharedObjectContext {
-  fun <T : Any> durablePromise(key: DurablePromiseKey<T>): DurablePromise<T>
+  /**
+   * Create a [DurablePromise] for the given key.
+   *
+   * You can use this feature to implement interaction between different workflow handlers, e.g. to
+   * send a signal from a shared handler to the workflow handler.
+   *
+   * @see DurablePromise
+   */
+  fun <T : Any> promise(key: DurablePromiseKey<T>): DurablePromise<T>
 
-  fun <T : Any> durablePromiseHandle(key: DurablePromiseKey<T>): DurablePromiseHandle<T>
+  /**
+   * Create a new [DurablePromiseHandle] for the provided key. You can use it to
+   * [DurablePromiseHandle.resolve] or [DurablePromiseHandle.reject] the given [DurablePromise].
+   *
+   * @see DurablePromise
+   */
+  fun <T : Any> promiseHandle(key: DurablePromiseKey<T>): DurablePromiseHandle<T>
 }
 
-sealed interface WorkflowContext : SharedWorkflowContext, ObjectContext {}
+/**
+ * This interface can be used only within workflow handlers of workflow. It extends [Context] adding
+ * access to the workflow instance key-value state storage and to the [DurablePromise] API.
+ *
+ * NOTE: This interface MUST NOT be accessed concurrently since it can lead to different orderings
+ * of user actions, corrupting the execution of the invocation.
+ *
+ * @see Context
+ * @see ObjectContext
+ */
+sealed interface WorkflowContext : SharedWorkflowContext, ObjectContext
 
 class RestateRandom(seed: Long, private val syscalls: Syscalls) : Random() {
   private val r = Random(seed)
@@ -310,6 +344,7 @@ class RestateRandom(seed: Long, private val syscalls: Syscalls) : Random() {
     return r.nextBits(bitCount)
   }
 
+  /** Generate a UUID that is stable across retries and replays. */
   fun nextUUID(): UUID {
     return UUID(this.nextLong(), this.nextLong())
   }
@@ -322,7 +357,7 @@ class RestateRandom(seed: Long, private val syscalls: Syscalls) : Random() {
  * The result can be either a success or a failure. In case of a failure, [await] will throw a
  * [dev.restate.sdk.core.TerminalException].
  *
- * @param T type of the awaitable result
+ * @param T type o1f the awaitable result
  */
 sealed interface Awaitable<T> {
   suspend fun await(): T
@@ -453,11 +488,31 @@ suspend inline fun <reified T : Any> AwakeableHandle.resolve(payload: T) {
   return this.resolve(KtSerdes.json(), payload)
 }
 
+/**
+ * A [DurablePromise] is a durable, distributed version of a Kotlin's Deferred, or more commonly of
+ * a future/promise. Restate keeps track of the [DurablePromise] across restarts/failures.
+ *
+ * You can use this feature to implement interaction between different workflow handlers, e.g. to
+ * send a signal from a shared handler to the workflow handler.
+ *
+ * Use [SharedWorkflowContext.promiseHandle] to complete a durable promise, either by
+ * [DurablePromiseHandle.resolve] or [DurablePromiseHandle.reject].
+ *
+ * A [DurablePromise] is tied to a single workflow execution and can only be resolved or rejected
+ * while the workflow run is still ongoing. Once the workflow is cleaned up, all its associated
+ * promises with their completions will be cleaned up as well.
+ *
+ * NOTE: This interface MUST NOT be accessed concurrently since it can lead to different orderings
+ * of user actions, corrupting the execution of the invocation.
+ */
 sealed interface DurablePromise<T> {
+  /** @return the awaitable to await the promise on. */
   suspend fun awaitable(): Awaitable<T>
 
+  /** @return the value, if already present, otherwise returns an empty optional. */
   suspend fun peek(): T?
 
+  /** @return true if the promise is already completed. */
   suspend fun isCompleted(): Boolean
 }
 

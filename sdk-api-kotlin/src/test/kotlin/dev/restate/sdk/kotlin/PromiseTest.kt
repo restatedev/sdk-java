@@ -16,7 +16,7 @@ import dev.restate.sdk.kotlin.KotlinCoroutinesTests.Companion.testDefinitionForW
 class PromiseTest : PromiseTestSuite() {
   override fun awaitPromise(promiseKey: String): TestDefinitions.TestInvocationBuilder =
       testDefinitionForWorkflow("AwaitPromise") { ctx, _: Unit ->
-        ctx.durablePromise(KtDurablePromiseKey.json<String>(promiseKey)).awaitable().await()
+        ctx.promise(KtDurablePromiseKey.json<String>(promiseKey)).awaitable().await()
       }
 
   override fun awaitPeekPromise(
@@ -24,13 +24,12 @@ class PromiseTest : PromiseTestSuite() {
       emptyCaseReturnValue: String
   ): TestDefinitions.TestInvocationBuilder =
       testDefinitionForWorkflow("AwaitPeekPromise") { ctx, _: Unit ->
-        ctx.durablePromise(KtDurablePromiseKey.json<String>(promiseKey)).peek()
-            ?: emptyCaseReturnValue
+        ctx.promise(KtDurablePromiseKey.json<String>(promiseKey)).peek() ?: emptyCaseReturnValue
       }
 
   override fun awaitIsPromiseCompleted(promiseKey: String): TestDefinitions.TestInvocationBuilder =
       testDefinitionForWorkflow("IsCompletedPromise") { ctx, _: Unit ->
-        ctx.durablePromise(KtDurablePromiseKey.json<String>(promiseKey)).isCompleted()
+        ctx.promise(KtDurablePromiseKey.json<String>(promiseKey)).isCompleted()
       }
 
   override fun awaitResolvePromise(
@@ -39,8 +38,7 @@ class PromiseTest : PromiseTestSuite() {
   ): TestDefinitions.TestInvocationBuilder =
       testDefinitionForWorkflow("ResolvePromise") { ctx, _: Unit ->
         try {
-          ctx.durablePromiseHandle(KtDurablePromiseKey.json<String>(promiseKey))
-              .resolve(completionValue)
+          ctx.promiseHandle(KtDurablePromiseKey.json<String>(promiseKey)).resolve(completionValue)
           return@testDefinitionForWorkflow true
         } catch (e: TerminalException) {
           return@testDefinitionForWorkflow false
@@ -53,8 +51,7 @@ class PromiseTest : PromiseTestSuite() {
   ): TestDefinitions.TestInvocationBuilder =
       testDefinitionForWorkflow("RejectPromise") { ctx, _: Unit ->
         try {
-          ctx.durablePromiseHandle(KtDurablePromiseKey.json<String>(promiseKey))
-              .reject(rejectReason)
+          ctx.promiseHandle(KtDurablePromiseKey.json<String>(promiseKey)).reject(rejectReason)
           return@testDefinitionForWorkflow true
         } catch (e: TerminalException) {
           return@testDefinitionForWorkflow false
