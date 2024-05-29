@@ -16,6 +16,7 @@ import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
+import dev.restate.generated.service.protocol.Protocol.Empty;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -42,7 +43,7 @@ public abstract class DeferredTestSuite implements TestSuite {
     return Stream.of(
         testInvocation
             .get()
-            .withInput(startMessage(1), ProtoUtils.inputMessage())
+            .withInput(startMessage(1), inputMessage())
             .expectingOutput(
                 invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
                 invokeMessage(GREETER_SERVICE_TARGET, "Till"),
@@ -52,19 +53,30 @@ public abstract class DeferredTestSuite implements TestSuite {
             .get()
             .withInput(
                 startMessage(3),
-                ProtoUtils.inputMessage(),
+                inputMessage(),
                 invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
-                invokeMessage(GREETER_SERVICE_TARGET, "Till", "TILL"))
+                invokeMessage(GREETER_SERVICE_TARGET, "Till", "TILL"),
+                ackMessage(3))
             .expectingOutput(combinatorsMessage(2), outputMessage("TILL"), END_MESSAGE)
             .named("Only one completion will generate the combinators message"),
         testInvocation
             .get()
             .withInput(
                 startMessage(3),
-                ProtoUtils.inputMessage(),
+                inputMessage(),
+                invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
+                invokeMessage(GREETER_SERVICE_TARGET, "Till", "TILL"))
+            .expectingOutput(combinatorsMessage(2), suspensionMessage(3))
+            .named("Completed without ack will suspend"),
+        testInvocation
+            .get()
+            .withInput(
+                startMessage(3),
+                inputMessage(),
                 invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
                 invokeMessage(GREETER_SERVICE_TARGET, "Till")
-                    .setFailure(Util.toProtocolFailure(new IllegalStateException("My error"))))
+                    .setFailure(Util.toProtocolFailure(new IllegalStateException("My error"))),
+                ackMessage(3))
             .expectingOutput(
                 combinatorsMessage(2),
                 outputMessage(new IllegalStateException("My error")),
@@ -74,9 +86,10 @@ public abstract class DeferredTestSuite implements TestSuite {
             .get()
             .withInput(
                 startMessage(3),
-                ProtoUtils.inputMessage(),
+                inputMessage(),
                 invokeMessage(GREETER_SERVICE_TARGET, "Francesco", "FRANCESCO"),
-                invokeMessage(GREETER_SERVICE_TARGET, "Till", "TILL"))
+                invokeMessage(GREETER_SERVICE_TARGET, "Till", "TILL"),
+                ackMessage(3))
             .assertingOutput(
                 msgs -> {
                   assertThat(msgs).hasSize(3);
@@ -100,7 +113,7 @@ public abstract class DeferredTestSuite implements TestSuite {
             .get()
             .withInput(
                 startMessage(4),
-                ProtoUtils.inputMessage(),
+                inputMessage(),
                 invokeMessage(GREETER_SERVICE_TARGET, "Francesco", "FRANCESCO"),
                 invokeMessage(GREETER_SERVICE_TARGET, "Till", "TILL"),
                 combinatorsMessage(2))
@@ -109,7 +122,7 @@ public abstract class DeferredTestSuite implements TestSuite {
         testInvocation
             .get()
             .withInput(
-                startMessage(1), ProtoUtils.inputMessage(), completionMessage(1, "FRANCESCO"))
+                startMessage(1), inputMessage(), completionMessage(1, "FRANCESCO"), ackMessage(3))
             .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
@@ -128,7 +141,7 @@ public abstract class DeferredTestSuite implements TestSuite {
         Stream.of(
             // --- Reverse await order
             this.reverseAwaitOrder()
-                .withInput(startMessage(1), ProtoUtils.inputMessage())
+                .withInput(startMessage(1), inputMessage())
                 .expectingOutput(
                     invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
                     invokeMessage(GREETER_SERVICE_TARGET, "Till"),
@@ -137,7 +150,7 @@ public abstract class DeferredTestSuite implements TestSuite {
             this.reverseAwaitOrder()
                 .withInput(
                     startMessage(1),
-                    ProtoUtils.inputMessage(),
+                    inputMessage(),
                     completionMessage(1, "FRANCESCO"),
                     completionMessage(2, "TILL"))
                 .onlyUnbuffered()
@@ -151,7 +164,7 @@ public abstract class DeferredTestSuite implements TestSuite {
             this.reverseAwaitOrder()
                 .withInput(
                     startMessage(1),
-                    ProtoUtils.inputMessage(),
+                    inputMessage(),
                     completionMessage(2, "TILL"),
                     completionMessage(1, "FRANCESCO"))
                 .onlyUnbuffered()
@@ -163,7 +176,7 @@ public abstract class DeferredTestSuite implements TestSuite {
                     END_MESSAGE)
                 .named("A2 and A1 completed later"),
             this.reverseAwaitOrder()
-                .withInput(startMessage(1), ProtoUtils.inputMessage(), completionMessage(2, "TILL"))
+                .withInput(startMessage(1), inputMessage(), completionMessage(2, "TILL"))
                 .onlyUnbuffered()
                 .expectingOutput(
                     invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
@@ -172,8 +185,7 @@ public abstract class DeferredTestSuite implements TestSuite {
                     suspensionMessage(1))
                 .named("Only A2 completed"),
             this.reverseAwaitOrder()
-                .withInput(
-                    startMessage(1), ProtoUtils.inputMessage(), completionMessage(1, "FRANCESCO"))
+                .withInput(startMessage(1), inputMessage(), completionMessage(1, "FRANCESCO"))
                 .onlyUnbuffered()
                 .expectingOutput(
                     invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
@@ -183,8 +195,7 @@ public abstract class DeferredTestSuite implements TestSuite {
 
             // --- Await twice the same executable
             this.awaitTwiceTheSameAwaitable()
-                .withInput(
-                    startMessage(1), ProtoUtils.inputMessage(), completionMessage(1, "FRANCESCO"))
+                .withInput(startMessage(1), inputMessage(), completionMessage(1, "FRANCESCO"))
                 .onlyUnbuffered()
                 .expectingOutput(
                     invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
@@ -193,7 +204,7 @@ public abstract class DeferredTestSuite implements TestSuite {
 
             // --- All combinator
             this.awaitAll()
-                .withInput(startMessage(1), ProtoUtils.inputMessage())
+                .withInput(startMessage(1), inputMessage())
                 .expectingOutput(
                     invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
                     invokeMessage(GREETER_SERVICE_TARGET, "Till"),
@@ -202,7 +213,7 @@ public abstract class DeferredTestSuite implements TestSuite {
             this.awaitAll()
                 .withInput(
                     startMessage(3),
-                    ProtoUtils.inputMessage(),
+                    inputMessage(),
                     invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
                     invokeMessage(GREETER_SERVICE_TARGET, "Till", "TILL"))
                 .expectingOutput(suspensionMessage(1))
@@ -210,9 +221,10 @@ public abstract class DeferredTestSuite implements TestSuite {
             this.awaitAll()
                 .withInput(
                     startMessage(3),
-                    ProtoUtils.inputMessage(),
+                    inputMessage(),
                     invokeMessage(GREETER_SERVICE_TARGET, "Francesco", "FRANCESCO"),
-                    invokeMessage(GREETER_SERVICE_TARGET, "Till", "TILL"))
+                    invokeMessage(GREETER_SERVICE_TARGET, "Till", "TILL"),
+                    ackMessage(3))
                 .assertingOutput(
                     msgs -> {
                       assertThat(msgs).hasSize(3);
@@ -231,7 +243,7 @@ public abstract class DeferredTestSuite implements TestSuite {
             this.awaitAll()
                 .withInput(
                     startMessage(4),
-                    ProtoUtils.inputMessage(),
+                    inputMessage(),
                     invokeMessage(GREETER_SERVICE_TARGET, "Francesco", "FRANCESCO"),
                     invokeMessage(GREETER_SERVICE_TARGET, "Till", "TILL"),
                     combinatorsMessage(1, 2))
@@ -240,9 +252,10 @@ public abstract class DeferredTestSuite implements TestSuite {
             this.awaitAll()
                 .withInput(
                     startMessage(1),
-                    ProtoUtils.inputMessage(),
+                    inputMessage(),
                     completionMessage(1, "FRANCESCO"),
-                    completionMessage(2, "TILL"))
+                    completionMessage(2, "TILL"),
+                    ackMessage(3))
                 .onlyUnbuffered()
                 .expectingOutput(
                     invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
@@ -254,8 +267,9 @@ public abstract class DeferredTestSuite implements TestSuite {
             this.awaitAll()
                 .withInput(
                     startMessage(1),
-                    ProtoUtils.inputMessage(),
-                    completionMessage(1, new IllegalStateException("My error")))
+                    inputMessage(),
+                    completionMessage(1, new IllegalStateException("My error")),
+                    ackMessage(3))
                 .onlyUnbuffered()
                 .expectingOutput(
                     invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
@@ -267,9 +281,10 @@ public abstract class DeferredTestSuite implements TestSuite {
             this.awaitAll()
                 .withInput(
                     startMessage(1),
-                    ProtoUtils.inputMessage(),
+                    inputMessage(),
                     completionMessage(1, "FRANCESCO"),
-                    completionMessage(2, new IllegalStateException("My error")))
+                    completionMessage(2, new IllegalStateException("My error")),
+                    ackMessage(3))
                 .onlyUnbuffered()
                 .expectingOutput(
                     invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
@@ -283,7 +298,7 @@ public abstract class DeferredTestSuite implements TestSuite {
             this.combineAnyWithAll()
                 .withInput(
                     startMessage(6),
-                    ProtoUtils.inputMessage(),
+                    inputMessage(),
                     awakeable("1"),
                     awakeable("2"),
                     awakeable("3"),
@@ -293,7 +308,7 @@ public abstract class DeferredTestSuite implements TestSuite {
             this.combineAnyWithAll()
                 .withInput(
                     startMessage(6),
-                    ProtoUtils.inputMessage(),
+                    inputMessage(),
                     awakeable("1"),
                     awakeable("2"),
                     awakeable("3"),
@@ -306,7 +321,7 @@ public abstract class DeferredTestSuite implements TestSuite {
             this.awaitAnyIndex()
                 .withInput(
                     startMessage(6),
-                    ProtoUtils.inputMessage(),
+                    inputMessage(),
                     awakeable("1"),
                     awakeable("2"),
                     awakeable("3"),
@@ -316,7 +331,7 @@ public abstract class DeferredTestSuite implements TestSuite {
             this.awaitAnyIndex()
                 .withInput(
                     startMessage(6),
-                    ProtoUtils.inputMessage(),
+                    inputMessage(),
                     awakeable("1"),
                     awakeable("2"),
                     awakeable("3"),
@@ -328,7 +343,12 @@ public abstract class DeferredTestSuite implements TestSuite {
             // --- Compose nested and resolved all should work
             this.awaitOnAlreadyResolvedAwaitables()
                 .withInput(
-                    startMessage(3), ProtoUtils.inputMessage(), awakeable("1"), awakeable("2"))
+                    startMessage(3),
+                    inputMessage(),
+                    awakeable("1"),
+                    awakeable("2"),
+                    ackMessage(3),
+                    ackMessage(4))
                 .assertingOutput(
                     msgs -> {
                       assertThat(msgs).hasSize(4);
@@ -348,7 +368,10 @@ public abstract class DeferredTestSuite implements TestSuite {
             // --- Await with timeout
             this.awaitWithTimeout()
                 .withInput(
-                    startMessage(1), ProtoUtils.inputMessage(), completionMessage(1, "FRANCESCO"))
+                    startMessage(1),
+                    inputMessage(),
+                    completionMessage(1, "FRANCESCO"),
+                    ackMessage(3))
                 .onlyUnbuffered()
                 .assertingOutput(
                     messages -> {
@@ -366,10 +389,9 @@ public abstract class DeferredTestSuite implements TestSuite {
             this.awaitWithTimeout()
                 .withInput(
                     startMessage(1),
-                    ProtoUtils.inputMessage(),
-                    Protocol.CompletionMessage.newBuilder()
-                        .setEntryIndex(2)
-                        .setEmpty(Protocol.Empty.getDefaultInstance()))
+                    inputMessage(),
+                    completionMessage(2).setEmpty(Empty.getDefaultInstance()),
+                    ackMessage(3))
                 .onlyUnbuffered()
                 .assertingOutput(
                     messages -> {

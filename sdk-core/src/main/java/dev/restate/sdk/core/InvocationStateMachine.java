@@ -55,7 +55,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
   // Buffering of messages and completions
   private final IncomingEntriesStateMachine incomingEntriesStateMachine;
-  private final SideEffectAckStateMachine sideEffectAckStateMachine;
+  private final AckStateMachine ackStateMachine;
   private final ReadyResultStateMachine readyResultStateMachine;
 
   // Flow sub/pub
@@ -75,7 +75,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
     this.incomingEntriesStateMachine = new IncomingEntriesStateMachine();
     this.readyResultStateMachine = new ReadyResultStateMachine();
-    this.sideEffectAckStateMachine = new SideEffectAckStateMachine();
+    this.ackStateMachine = new AckStateMachine();
 
     this.afterStartCallback = new CallbackHandle<>();
   }
@@ -142,8 +142,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       // runtime.
       this.readyResultStateMachine.offerCompletion((Protocol.CompletionMessage) msg);
     } else if (msg instanceof Protocol.EntryAckMessage) {
-      this.sideEffectAckStateMachine.tryHandleSideEffectAck(
-          ((Protocol.EntryAckMessage) msg).getEntryIndex());
+      this.ackStateMachine.tryHandleAck(((Protocol.EntryAckMessage) msg).getEntryIndex());
     } else {
       this.incomingEntriesStateMachine.offer(msg);
     }
@@ -159,7 +158,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   public void onComplete() {
     LOG.trace("Input publisher closed");
     this.readyResultStateMachine.abort(AbortedExecutionException.INSTANCE);
-    this.sideEffectAckStateMachine.abort(AbortedExecutionException.INSTANCE);
+    this.ackStateMachine.abort(AbortedExecutionException.INSTANCE);
   }
 
   // --- Init routine to wait for the start message
@@ -287,7 +286,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       // Unblock any eventual waiting callbacks
       this.afterStartCallback.consume(cb -> cb.onCancel(cause));
       this.readyResultStateMachine.abort(cause);
-      this.sideEffectAckStateMachine.abort(cause);
+      this.ackStateMachine.abort(cause);
       this.incomingEntriesStateMachine.abort(cause);
       this.span.end();
     }
@@ -456,21 +455,21 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
       }
 
       // Write new entry
-      this.sideEffectAckStateMachine.registerExecutedSideEffect(this.currentJournalEntryIndex);
+      this.ackStateMachine.registerEntryToAck(this.currentJournalEntryIndex);
       this.writeEntry(sideEffectEntry);
 
       // Wait for entry to be acked
       Protocol.RunEntryMessage finalSideEffectEntry = sideEffectEntry;
-      this.sideEffectAckStateMachine.waitLastSideEffectAck(
-          new SideEffectAckStateMachine.SideEffectAckCallback() {
+      this.ackStateMachine.waitLastAck(
+          new AckStateMachine.AckCallback() {
             @Override
-            public void onLastSideEffectAck() {
+            public void onAck() {
               completeSideEffectCallbackWithEntry(finalSideEffectEntry, callback);
             }
 
             @Override
             public void onSuspend() {
-              suspend(List.of(sideEffectAckStateMachine.getLastExecutedSideEffect()));
+              suspend(List.of(ackStateMachine.getLastEntryToAck()));
               callback.onCancel(AbortedExecutionException.INSTANCE);
             }
 
@@ -621,8 +620,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
                   + "This is a symptom of an SDK bug, please contact the developers.");
         }
 
-        writeCombinatorEntry(Collections.emptyList());
-        callback.onSuccess(null);
+        writeCombinatorEntry(Collections.emptyList(), callback);
         return;
       }
 
@@ -636,8 +634,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
           // Try to resolve the combinator now
           if (rootDeferred.tryResolve(entryIndex)) {
-            writeCombinatorEntry(resolvedOrder);
-            callback.onSuccess(null);
+            writeCombinatorEntry(resolvedOrder, callback);
             return;
           }
         } else {
@@ -667,8 +664,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
 
                   // Try to resolve the combinator now
                   if (rootDeferred.tryResolve(entryIndex)) {
-                    writeCombinatorEntry(resolvedOrder);
-                    callback.onSuccess(null);
+                    writeCombinatorEntry(resolvedOrder, callback);
                     return true;
                   }
                 }
@@ -694,12 +690,35 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
     }
   }
 
-  private void writeCombinatorEntry(List<Integer> resolvedList) {
+  private void writeCombinatorEntry(List<Integer> resolvedList, SyscallCallback<Void> callback) {
     // Create and write the entry
     Java.CombinatorAwaitableEntryMessage entry =
         Java.CombinatorAwaitableEntryMessage.newBuilder().addAllEntryIndex(resolvedList).build();
     span.addEvent("Combinator");
+
+    // We register the combinator entry to wait for an ack
+    this.ackStateMachine.registerEntryToAck(this.currentJournalEntryIndex);
     writeEntry(entry);
+
+    // Let's wait for the ack
+    this.ackStateMachine.waitLastAck(
+        new AckStateMachine.AckCallback() {
+          @Override
+          public void onAck() {
+            callback.onSuccess(null);
+          }
+
+          @Override
+          public void onSuspend() {
+            suspend(List.of(ackStateMachine.getLastEntryToAck()));
+            callback.onCancel(AbortedExecutionException.INSTANCE);
+          }
+
+          @Override
+          public void onError(Throwable e) {
+            callback.onCancel(e);
+          }
+        });
   }
 
   // --- Internal callback

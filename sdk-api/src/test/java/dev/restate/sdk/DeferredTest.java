@@ -134,7 +134,7 @@ public class DeferredTest extends DeferredTestSuite {
 
   protected TestInvocationBuilder awaitWithTimeout() {
     return testDefinitionForService(
-        "AwaitOnAlreadyResolvedAwaitables",
+        "AwaitWithTimeout",
         Serde.VOID,
         JsonSerdes.STRING,
         (ctx, unused) -> {
