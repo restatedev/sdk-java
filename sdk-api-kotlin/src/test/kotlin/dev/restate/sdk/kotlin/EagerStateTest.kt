@@ -57,4 +57,10 @@ class EagerStateTest : EagerStateTestSuite() {
       testDefinitionForVirtualObject("ListKeys") { ctx, _: Unit ->
         ctx.stateKeys().joinToString(separator = ",")
       }
+
+  override fun consecutiveGetWithEmpty(): TestInvocationBuilder =
+      testDefinitionForVirtualObject("ConsecutiveGetWithEmpty") { ctx, _: Unit ->
+        assertThat(ctx.get(StateKey.of("key-0", TestSerdes.STRING))).isNull()
+        assertThat(ctx.get(StateKey.of("key-0", TestSerdes.STRING))).isNull()
+      }
 }

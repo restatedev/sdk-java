@@ -85,4 +85,17 @@ public class EagerStateTest extends EagerStateTestSuite {
         JsonSerdes.STRING,
         (ctx, input) -> String.join(",", ctx.stateKeys()));
   }
+
+  @Override
+  protected TestInvocationBuilder consecutiveGetWithEmpty() {
+    return testDefinitionForVirtualObject(
+        "ConsecutiveGetWithEmpty",
+        Serde.VOID,
+        Serde.VOID,
+        (ctx, input) -> {
+          assertThat(ctx.get(StateKey.of("key-0", JsonSerdes.STRING))).isEmpty();
+          assertThat(ctx.get(StateKey.of("key-0", JsonSerdes.STRING))).isEmpty();
+          return null;
+        });
+  }
 }

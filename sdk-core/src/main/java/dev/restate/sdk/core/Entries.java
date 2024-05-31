@@ -140,7 +140,11 @@ final class Entries {
     @Override
     void updateUserStateStoreWithEntry(
         GetStateEntryMessage expected, UserStateStore userStateStore) {
-      userStateStore.set(expected.getKey(), expected.getValue().asReadOnlyByteBuffer());
+      if (expected.hasEmpty()) {
+        userStateStore.clear(expected.getKey());
+      } else {
+        userStateStore.set(expected.getKey(), expected.getValue().asReadOnlyByteBuffer());
+      }
     }
 
     @Override
