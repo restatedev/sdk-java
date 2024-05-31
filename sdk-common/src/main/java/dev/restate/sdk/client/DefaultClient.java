@@ -27,7 +27,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import org.jspecify.annotations.NonNull;
 
-public class DefaultIngressClient implements IngressClient {
+public class DefaultClient implements Client {
 
   private static final JsonFactory JSON_FACTORY = new JsonFactory();
 
@@ -35,7 +35,7 @@ public class DefaultIngressClient implements IngressClient {
   private final URI baseUri;
   private final Map<String, String> headers;
 
-  public DefaultIngressClient(HttpClient httpClient, String baseUri, Map<String, String> headers) {
+  DefaultClient(HttpClient httpClient, String baseUri, Map<String, String> headers) {
     this.httpClient = httpClient;
     this.baseUri = URI.create(baseUri);
     this.headers = headers;
@@ -474,5 +474,10 @@ public class DefaultIngressClient implements IngressClient {
     }
 
     return resultMap;
+  }
+
+  public static DefaultClient of(
+      HttpClient httpClient, String baseUri, Map<String, String> headers) {
+    return new DefaultClient(httpClient, baseUri, headers);
   }
 }

@@ -8,12 +8,13 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testing;
 
+import dev.restate.sdk.client.Client;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-/** Inject a {@link dev.restate.sdk.client.IngressClient} to interact with the deployed runtime. */
+/** Inject a {@link Client} to interact with the deployed runtime. */
 @Target(value = ElementType.PARAMETER)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface RestateIngressClient {}
+public @interface RestateClient {}

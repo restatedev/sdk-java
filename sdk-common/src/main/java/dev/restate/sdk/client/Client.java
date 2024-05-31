@@ -19,7 +19,7 @@ import java.util.concurrent.CompletionException;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-public interface IngressClient {
+public interface Client {
 
   <Req, Res> CompletableFuture<Res> callAsync(
       Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req, RequestOptions options);
@@ -257,11 +257,11 @@ public interface IngressClient {
     }
   }
 
-  static IngressClient defaultClient(String baseUri) {
-    return defaultClient(baseUri, Collections.emptyMap());
+  static Client connect(String baseUri) {
+    return connect(baseUri, Collections.emptyMap());
   }
 
-  static IngressClient defaultClient(String baseUri, Map<String, String> headers) {
-    return new DefaultIngressClient(HttpClient.newHttpClient(), baseUri, headers);
+  static Client connect(String baseUri, Map<String, String> headers) {
+    return new DefaultClient(HttpClient.newHttpClient(), baseUri, headers);
   }
 }
