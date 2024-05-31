@@ -9,7 +9,7 @@
 package dev.restate.sdk.testing;
 
 import dev.restate.admin.client.ApiClient;
-import dev.restate.sdk.client.IngressClient;
+import dev.restate.sdk.client.Client;
 import java.net.URL;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ExtensionContext.Namespace;
@@ -28,8 +28,8 @@ abstract class BaseRestateRunner implements ParameterResolver {
       throws ParameterResolutionException {
     return (parameterContext.isAnnotated(RestateAdminClient.class)
             && ApiClient.class.isAssignableFrom(parameterContext.getParameter().getType()))
-        || (parameterContext.isAnnotated(RestateIngressClient.class)
-            && IngressClient.class.isAssignableFrom(parameterContext.getParameter().getType()))
+        || (parameterContext.isAnnotated(RestateClient.class)
+            && Client.class.isAssignableFrom(parameterContext.getParameter().getType()))
         || (parameterContext.isAnnotated(RestateURL.class)
             && (String.class.isAssignableFrom(parameterContext.getParameter().getType())
                 || URL.class.isAssignableFrom(parameterContext.getParameter().getType())));
@@ -41,8 +41,8 @@ abstract class BaseRestateRunner implements ParameterResolver {
       throws ParameterResolutionException {
     if (parameterContext.isAnnotated(RestateAdminClient.class)) {
       return getDeployer(extensionContext).getAdminClient();
-    } else if (parameterContext.isAnnotated(RestateIngressClient.class)) {
-      return resolveIngressClient(extensionContext);
+    } else if (parameterContext.isAnnotated(RestateClient.class)) {
+      return resolveClient(extensionContext);
     } else if (parameterContext.isAnnotated(RestateURL.class)) {
       URL url = getDeployer(extensionContext).getIngressUrl();
       if (parameterContext.getParameter().getType().equals(String.class)) {
@@ -53,9 +53,9 @@ abstract class BaseRestateRunner implements ParameterResolver {
     throw new ParameterResolutionException("The parameter is not supported");
   }
 
-  private IngressClient resolveIngressClient(ExtensionContext extensionContext) {
+  private Client resolveClient(ExtensionContext extensionContext) {
     URL url = getDeployer(extensionContext).getIngressUrl();
-    return IngressClient.defaultClient(url.toString());
+    return Client.connect(url.toString());
   }
 
   private ManualRestateRunner getDeployer(ExtensionContext extensionContext) {

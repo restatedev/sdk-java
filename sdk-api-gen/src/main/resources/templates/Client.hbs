@@ -14,12 +14,12 @@ public class {{generatedClassSimpleName}} {
         return new ContextClient(ctx{{#isKeyed}}, key{{/isKeyed}});
     }
 
-    public static IngressClient fromIngress(dev.restate.sdk.client.IngressClient ingressClient{{#isKeyed}}, String key{{/isKeyed}}) {
-        return new IngressClient(ingressClient{{#isKeyed}}, key{{/isKeyed}});
+    public static IngressClient fromClient(dev.restate.sdk.client.Client client{{#isKeyed}}, String key{{/isKeyed}}) {
+        return new IngressClient(client{{#isKeyed}}, key{{/isKeyed}});
     }
 
-    public static IngressClient fromIngress(String baseUri{{#isKeyed}}, String key{{/isKeyed}}) {
-        return new IngressClient(dev.restate.sdk.client.IngressClient.defaultClient(baseUri){{#isKeyed}}, key{{/isKeyed}});
+    public static IngressClient connect(String baseUri{{#isKeyed}}, String key{{/isKeyed}}) {
+        return new IngressClient(dev.restate.sdk.client.Client.connect(baseUri){{#isKeyed}}, key{{/isKeyed}});
     }
 
     public static class ContextClient {
@@ -70,17 +70,17 @@ public class {{generatedClassSimpleName}} {
 
     public static class IngressClient {
 
-        private final dev.restate.sdk.client.IngressClient ingressClient;
+        private final dev.restate.sdk.client.Client client;
         {{#isKeyed}}private final String key;{{/isKeyed}}
 
-        public IngressClient(dev.restate.sdk.client.IngressClient ingressClient{{#isKeyed}}, String key{{/isKeyed}}) {
-            this.ingressClient = ingressClient;
+        public IngressClient(dev.restate.sdk.client.Client client{{#isKeyed}}, String key{{/isKeyed}}) {
+            this.client = client;
             {{#isKeyed}}this.key = key;{{/isKeyed}}
         }
 
         {{#handlers}}{{#if isWorkflow}}
-        public dev.restate.sdk.client.IngressClient.WorkflowHandle<{{{boxedOutputFqcn}}}> workflowHandle() {
-            return IngressClient.this.ingressClient.workflowHandle(
+        public dev.restate.sdk.client.Client.WorkflowHandle<{{{boxedOutputFqcn}}}> workflowHandle() {
+            return IngressClient.this.client.workflowHandle(
                 {{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME,
                 this.key,
                 {{outputSerdeRef}});
@@ -93,7 +93,7 @@ public class {{generatedClassSimpleName}} {
         }
 
         public dev.restate.sdk.client.SendResponse submit({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.sdk.client.RequestOptions requestOptions) {
-            return IngressClient.this.ingressClient.send(
+            return IngressClient.this.client.send(
                 {{{targetExpr this "this.key"}}},
                 {{inputSerdeRef}},
                 {{#if inputEmpty}}null{{else}}req{{/if}},
@@ -108,7 +108,7 @@ public class {{generatedClassSimpleName}} {
         }
 
         public java.util.concurrent.CompletableFuture<dev.restate.sdk.client.SendResponse> submitAsync({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.sdk.client.RequestOptions requestOptions) {
-            return IngressClient.this.ingressClient.sendAsync(
+            return IngressClient.this.client.sendAsync(
                 {{{targetExpr this "this.key"}}},
                 {{inputSerdeRef}},
                 {{#if inputEmpty}}null{{else}}req{{/if}},
@@ -123,7 +123,7 @@ public class {{generatedClassSimpleName}} {
         }
 
         public {{#if outputEmpty}}void{{else}}{{{outputFqcn}}}{{/if}} {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.sdk.client.CallRequestOptions requestOptions) {
-            {{^outputEmpty}}return {{/outputEmpty}}this.ingressClient.call(
+            {{^outputEmpty}}return {{/outputEmpty}}this.client.call(
                 {{{targetExpr this "this.key"}}},
                 {{inputSerdeRef}},
                 {{outputSerdeRef}},
@@ -138,7 +138,7 @@ public class {{generatedClassSimpleName}} {
         }
 
         public {{#if outputEmpty}}java.util.concurrent.CompletableFuture<Void>{{else}}java.util.concurrent.CompletableFuture<{{{boxedOutputFqcn}}}>{{/if}} {{methodName}}Async({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.sdk.client.CallRequestOptions requestOptions) {
-            return this.ingressClient.callAsync(
+            return this.client.callAsync(
                 {{{targetExpr this "this.key"}}},
                 {{inputSerdeRef}},
                 {{outputSerdeRef}},
@@ -170,7 +170,7 @@ public class {{generatedClassSimpleName}} {
             }
 
             public dev.restate.sdk.client.SendResponse {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.sdk.client.CallRequestOptions requestOptions) {
-                return IngressClient.this.ingressClient.send(
+                return IngressClient.this.client.send(
                     {{{targetExpr this "IngressClient.this.key"}}},
                     {{inputSerdeRef}},
                     {{#if inputEmpty}}null{{else}}req{{/if}},
@@ -185,7 +185,7 @@ public class {{generatedClassSimpleName}} {
             }
 
             public java.util.concurrent.CompletableFuture<dev.restate.sdk.client.SendResponse> {{methodName}}Async({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.sdk.client.CallRequestOptions requestOptions) {
-                return IngressClient.this.ingressClient.sendAsync(
+                return IngressClient.this.client.sendAsync(
                     {{{targetExpr this "IngressClient.this.key"}}},
                     {{inputSerdeRef}},
                     {{#if inputEmpty}}null{{else}}req{{/if}},

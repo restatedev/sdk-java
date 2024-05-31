@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.client.IngressClient
+import dev.restate.sdk.client.Client
 import dev.restate.sdk.client.RequestOptions
 import dev.restate.sdk.client.SendResponse
 import dev.restate.sdk.common.Serde
@@ -19,7 +19,7 @@ import kotlinx.coroutines.future.await
 
 // Extension methods for the IngressClient
 
-suspend fun <Req, Res> IngressClient.callSuspend(
+suspend fun <Req, Res> Client.callSuspend(
     target: Target,
     reqSerde: Serde<Req>,
     resSerde: Serde<Res>,
@@ -29,7 +29,7 @@ suspend fun <Req, Res> IngressClient.callSuspend(
   return this.callAsync(target, reqSerde, resSerde, req, options).await()
 }
 
-suspend fun <Req> IngressClient.sendSuspend(
+suspend fun <Req> Client.sendSuspend(
     target: Target,
     reqSerde: Serde<Req>,
     req: Req,
@@ -39,7 +39,7 @@ suspend fun <Req> IngressClient.sendSuspend(
   return this.sendAsync(target, reqSerde, req, delay.toJavaDuration(), options).await()
 }
 
-suspend fun <T> IngressClient.AwakeableHandle.resolveSuspend(
+suspend fun <T> Client.AwakeableHandle.resolveSuspend(
     serde: Serde<T>,
     payload: T,
     options: RequestOptions = RequestOptions.DEFAULT
@@ -47,32 +47,32 @@ suspend fun <T> IngressClient.AwakeableHandle.resolveSuspend(
   this.resolveAsync(serde, payload, options).await()
 }
 
-suspend fun IngressClient.AwakeableHandle.rejectSuspend(
+suspend fun Client.AwakeableHandle.rejectSuspend(
     reason: String,
     options: RequestOptions = RequestOptions.DEFAULT
 ) {
   this.rejectAsync(reason, options).await()
 }
 
-suspend fun <T> IngressClient.InvocationHandle<T>.attachSuspend(
+suspend fun <T> Client.InvocationHandle<T>.attachSuspend(
     options: RequestOptions = RequestOptions.DEFAULT
 ) {
   this.attachAsync(options).await()
 }
 
-suspend fun <T> IngressClient.InvocationHandle<T>.getOutputSuspend(
+suspend fun <T> Client.InvocationHandle<T>.getOutputSuspend(
     options: RequestOptions = RequestOptions.DEFAULT
 ) {
   this.getOutputAsync(options).await()
 }
 
-suspend fun <T> IngressClient.WorkflowHandle<T>.attachSuspend(
+suspend fun <T> Client.WorkflowHandle<T>.attachSuspend(
     options: RequestOptions = RequestOptions.DEFAULT
 ) {
   this.attachAsync(options).await()
 }
 
-suspend fun <T> IngressClient.WorkflowHandle<T>.getOutputSuspend(
+suspend fun <T> Client.WorkflowHandle<T>.getOutputSuspend(
     options: RequestOptions = RequestOptions.DEFAULT
 ) {
   this.getOutputAsync(options).await()

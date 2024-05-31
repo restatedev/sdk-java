@@ -176,7 +176,7 @@ public class LoanWorkflow {
 
     // To invoke the workflow:
     LoanWorkflowClient.IngressClient client =
-        LoanWorkflowClient.fromIngress("http://127.0.0.1:8080", "my-loan");
+        LoanWorkflowClient.connect("http://127.0.0.1:8080", "my-loan");
 
     var state =
         client.submit(
