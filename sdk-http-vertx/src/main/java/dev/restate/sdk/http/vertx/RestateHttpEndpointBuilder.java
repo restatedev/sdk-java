@@ -15,6 +15,7 @@ import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import io.opentelemetry.api.OpenTelemetry;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Vertx;
+import io.vertx.core.http.Http2Settings;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import java.util.*;
@@ -46,7 +47,8 @@ public class RestateHttpEndpointBuilder {
   private OpenTelemetry openTelemetry = OpenTelemetry.noop();
   private HttpServerOptions options =
       new HttpServerOptions()
-          .setPort(Optional.ofNullable(System.getenv("PORT")).map(Integer::parseInt).orElse(9080));
+          .setPort(Optional.ofNullable(System.getenv("PORT")).map(Integer::parseInt).orElse(9080))
+          .setInitialSettings(new Http2Settings().setMaxConcurrentStreams(Integer.MAX_VALUE));
 
   private RestateHttpEndpointBuilder(Vertx vertx) {
     this.vertx = vertx;
