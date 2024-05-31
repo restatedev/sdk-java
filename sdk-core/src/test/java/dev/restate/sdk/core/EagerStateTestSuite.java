@@ -15,6 +15,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.entry;
 import com.google.protobuf.MessageLite;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.generated.service.protocol.Protocol.ClearAllStateEntryMessage;
+import dev.restate.generated.service.protocol.Protocol.Empty;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -31,6 +32,8 @@ public abstract class EagerStateTestSuite implements TestSuite {
   protected abstract TestInvocationBuilder getClearAllAndGet();
 
   protected abstract TestInvocationBuilder listKeys();
+
+  protected abstract TestInvocationBuilder consecutiveGetWithEmpty();
 
   private static final Map.Entry<String, String> STATE_FRANCESCO = entry("STATE", "Francesco");
   private static final Map.Entry<String, String> ANOTHER_STATE_FRANCESCO =
@@ -165,6 +168,23 @@ public abstract class EagerStateTestSuite implements TestSuite {
                 INPUT_TILL,
                 Protocol.GetStateKeysEntryMessage.newBuilder().setValue(stateKeys("3", "2", "1")))
             .expectingOutput(outputMessage("3,2,1"), END_MESSAGE)
-            .named("With replayed list"));
+            .named("With replayed list"),
+        this.consecutiveGetWithEmpty()
+            .withInput(startMessage(1).setPartialState(false), inputMessage())
+            .expectingOutput(
+                getStateMessage("key-0").setEmpty(Empty.getDefaultInstance()),
+                getStateMessage("key-0").setEmpty(Empty.getDefaultInstance()),
+                outputMessage(),
+                END_MESSAGE),
+        this.consecutiveGetWithEmpty()
+            .withInput(
+                startMessage(2).setPartialState(false),
+                inputMessage(),
+                getStateMessage("key-0").setEmpty(Empty.getDefaultInstance()))
+            .expectingOutput(
+                getStateMessage("key-0").setEmpty(Empty.getDefaultInstance()),
+                outputMessage(),
+                END_MESSAGE)
+            .named("With replay of the first get"));
   }
 }
