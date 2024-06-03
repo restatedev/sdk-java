@@ -13,7 +13,7 @@ public class RestateRequestIdentityVerifierTest {
 
   @Test
   void parseKey() {
-    RestateRequestIdentityVerifier.fromKey(
+    RestateRequestIdentityVerifier.fromKeys(
         "publickeyv1_ChjENKeMvCtRnqG2mrBK1HmPKufgFUc98K8B3ononQvp");
   }
 }

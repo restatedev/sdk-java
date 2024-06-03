@@ -16,6 +16,9 @@ import com.nimbusds.jose.jwk.OctetKeyPair;
 import com.nimbusds.jose.util.Base64URL;
 import com.nimbusds.jwt.SignedJWT;
 import dev.restate.sdk.auth.RequestIdentityVerifier;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class RestateRequestIdentityVerifier implements RequestIdentityVerifier {
   private static final String SIGNATURE_SCHEME_HEADER = "x-restate-signature-scheme";
@@ -24,10 +27,10 @@ public class RestateRequestIdentityVerifier implements RequestIdentityVerifier {
   private static final String JWT_HEADER = "x-restate-jwt-v1";
   private static final String IDENTITY_V1_PREFIX = "publickeyv1_";
 
-  private final JWSVerifier verifier;
+  private final JWSVerifier[] verifiers;
 
-  private RestateRequestIdentityVerifier(JWSVerifier verifier) {
-    this.verifier = verifier;
+  private RestateRequestIdentityVerifier(List<JWSVerifier> verifier) {
+    this.verifiers = verifier.toArray(JWSVerifier[]::new);
   }
 
   @Override
@@ -37,10 +40,12 @@ public class RestateRequestIdentityVerifier implements RequestIdentityVerifier {
       case SIGNATURE_SCHEME_V1:
         String jwtHeader = expectHeader(headers, JWT_HEADER);
         SignedJWT signedJWT = SignedJWT.parse(jwtHeader);
-        if (!signedJWT.verify(verifier)) {
-          throw new IllegalStateException("Verification of JWT token failed");
+        for (JWSVerifier verifier : verifiers) {
+          if (signedJWT.verify(verifier)) {
+            return;
+          }
         }
-        break;
+        throw new IllegalStateException("Verification of JWT token failed");
       case SIGNATURE_SCHEME_UNSIGNED:
         throw new IllegalStateException("Request has no identity, but one was expected");
       default:
@@ -58,6 +63,21 @@ public class RestateRequestIdentityVerifier implements RequestIdentityVerifier {
 
   /** Create the {@link RequestIdentityVerifier} from key strings. */
   public static RequestIdentityVerifier fromKey(String key) {
+    return fromKeys(key);
+  }
+
+  /** Create the {@link RequestIdentityVerifier} from key strings. */
+  public static RequestIdentityVerifier fromKeys(String... keys) {
+    if (keys.length == 0) {
+      throw new IllegalArgumentException("You must provide at least one key");
+    }
+    return new RestateRequestIdentityVerifier(
+        Arrays.stream(keys)
+            .map(RestateRequestIdentityVerifier::parseKey)
+            .collect(Collectors.toList()));
+  }
+
+  private static JWSVerifier parseKey(String key) {
     if (!key.startsWith(IDENTITY_V1_PREFIX)) {
       throw new IllegalArgumentException(
           "Identity v1 jwt public keys are expected to start with " + IDENTITY_V1_PREFIX);
@@ -77,7 +97,6 @@ public class RestateRequestIdentityVerifier implements RequestIdentityVerifier {
     } catch (JOSEException e) {
       throw new RuntimeException("Cannot create the verifier", e);
     }
-
-    return new RestateRequestIdentityVerifier(verifier);
+    return verifier;
   }
 }
