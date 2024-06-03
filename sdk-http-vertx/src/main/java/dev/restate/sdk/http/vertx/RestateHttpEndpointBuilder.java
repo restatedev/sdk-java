@@ -147,7 +147,7 @@ public class RestateHttpEndpointBuilder {
 
   private static void handleStart(AsyncResult<HttpServer> ar) {
     if (ar.succeeded()) {
-      LOG.info("Restate HTTP Endpoint server started on port " + ar.result().actualPort());
+      LOG.info("Restate HTTP Endpoint server started on port {}", ar.result().actualPort());
     } else {
       LOG.error("Restate HTTP Endpoint server start failed", ar.cause());
     }

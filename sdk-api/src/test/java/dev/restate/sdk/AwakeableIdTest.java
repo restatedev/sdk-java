@@ -16,6 +16,7 @@ import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 
 public class AwakeableIdTest extends AwakeableIdTestSuite {
 
+  @Override
   protected TestInvocationBuilder returnAwakeableId() {
     return testDefinitionForService(
         "ReturnAwakeableId",

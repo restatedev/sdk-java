@@ -17,6 +17,7 @@ import java.util.Random;
 
 public class RandomTest extends RandomTestSuite {
 
+  @Override
   protected TestInvocationBuilder randomShouldBeDeterministic() {
     return testDefinitionForService(
         "RandomShouldBeDeterministic",
@@ -25,6 +26,7 @@ public class RandomTest extends RandomTestSuite {
         (ctx, unused) -> ctx.random().nextInt());
   }
 
+  @Override
   protected TestInvocationBuilder randomInsideSideEffect() {
     return testDefinitionForService(
         "RandomInsideSideEffect",
@@ -36,6 +38,7 @@ public class RandomTest extends RandomTestSuite {
         });
   }
 
+  @Override
   protected int getExpectedInt(long seed) {
     return new Random(seed).nextInt();
   }

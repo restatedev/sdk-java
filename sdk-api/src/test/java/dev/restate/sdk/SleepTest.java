@@ -19,6 +19,7 @@ import java.util.List;
 
 public class SleepTest extends SleepTestSuite {
 
+  @Override
   protected TestInvocationBuilder sleepGreeter() {
     return testDefinitionForService(
         "SleepGreeter",
@@ -30,6 +31,7 @@ public class SleepTest extends SleepTestSuite {
         });
   }
 
+  @Override
   protected TestInvocationBuilder manySleeps() {
     return testDefinitionForService(
         "ManySleeps",

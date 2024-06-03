@@ -18,6 +18,7 @@ import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 
 public class EagerStateTest extends EagerStateTestSuite {
 
+  @Override
   protected TestInvocationBuilder getEmpty() {
     return testDefinitionForVirtualObject(
         "GetEmpty",
@@ -27,6 +28,7 @@ public class EagerStateTest extends EagerStateTestSuite {
             String.valueOf(ctx.get(StateKey.of("STATE", JsonSerdes.STRING)).isEmpty()));
   }
 
+  @Override
   protected TestInvocationBuilder get() {
     return testDefinitionForVirtualObject(
         "GetEmpty",
@@ -35,6 +37,7 @@ public class EagerStateTest extends EagerStateTestSuite {
         (ctx, unused) -> ctx.get(StateKey.of("STATE", JsonSerdes.STRING)).get());
   }
 
+  @Override
   protected TestInvocationBuilder getAppendAndGet() {
     return testDefinitionForVirtualObject(
         "GetAppendAndGet",
@@ -48,6 +51,7 @@ public class EagerStateTest extends EagerStateTestSuite {
         });
   }
 
+  @Override
   protected TestInvocationBuilder getClearAndGet() {
     return testDefinitionForVirtualObject(
         "GetClearAndGet",
@@ -62,6 +66,7 @@ public class EagerStateTest extends EagerStateTestSuite {
         });
   }
 
+  @Override
   protected TestInvocationBuilder getClearAllAndGet() {
     return testDefinitionForVirtualObject(
         "GetClearAllAndGet",
@@ -78,6 +83,7 @@ public class EagerStateTest extends EagerStateTestSuite {
         });
   }
 
+  @Override
   protected TestInvocationBuilder listKeys() {
     return testDefinitionForVirtualObject(
         "ListKeys",

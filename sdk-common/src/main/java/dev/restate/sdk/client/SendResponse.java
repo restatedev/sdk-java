@@ -38,8 +38,7 @@ public class SendResponse {
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-
+    if (!(o instanceof SendResponse)) return false;
     SendResponse that = (SendResponse) o;
     return status == that.status && Objects.equals(invocationId, that.invocationId);
   }

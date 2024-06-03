@@ -10,6 +10,7 @@ package dev.restate.sdk.client;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 public class RequestOptions {
   public static final RequestOptions DEFAULT = new RequestOptions();
@@ -47,10 +48,9 @@ public class RequestOptions {
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-
+    if (!(o instanceof RequestOptions)) return false;
     RequestOptions that = (RequestOptions) o;
-    return additionalHeaders.equals(that.additionalHeaders);
+    return Objects.equals(additionalHeaders, that.additionalHeaders);
   }
 
   @Override

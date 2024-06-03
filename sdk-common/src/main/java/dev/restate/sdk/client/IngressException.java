@@ -39,16 +39,12 @@ public class IngressException extends RuntimeException {
   }
 
   @Override
-  public String toString() {
-    return "IngressException{"
-        + "statusCode="
+  public String getMessage() {
+    return "["
         + statusCode
-        + ", responseBody='"
-        + new String(responseBody, StandardCharsets.UTF_8)
-        + '\''
-        + ", message='"
-        + this.getMessage()
-        + '\''
-        + '}';
+        + "] "
+        + super.getMessage()
+        + ". Got response body: "
+        + new String(responseBody, StandardCharsets.UTF_8);
   }
 }

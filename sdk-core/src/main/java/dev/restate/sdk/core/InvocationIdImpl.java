@@ -51,12 +51,12 @@ final class InvocationIdImpl implements InvocationId {
 
       // Generate the long
       long n = 0;
-      n |= ((long) (digest[7] & 0xFF) << Byte.SIZE * 7);
-      n |= ((long) (digest[6] & 0xFF) << Byte.SIZE * 6);
-      n |= ((long) (digest[5] & 0xFF) << Byte.SIZE * 5);
-      n |= ((long) (digest[4] & 0xFF) << Byte.SIZE * 4);
-      n |= ((long) (digest[3] & 0xFF) << Byte.SIZE * 3);
-      n |= ((digest[2] & 0xFF) << Byte.SIZE * 2);
+      n |= ((long) (digest[7] & 0xFF) << (Byte.SIZE * 7));
+      n |= ((long) (digest[6] & 0xFF) << (Byte.SIZE * 6));
+      n |= ((long) (digest[5] & 0xFF) << (Byte.SIZE * 5));
+      n |= ((long) (digest[4] & 0xFF) << (Byte.SIZE * 4));
+      n |= ((long) (digest[3] & 0xFF) << (Byte.SIZE * 3));
+      n |= ((digest[2] & 0xFF) << (Byte.SIZE * 2));
       n |= ((digest[1] & 0xFF) << Byte.SIZE);
       n |= (digest[0] & 0xFF);
       seed = n;

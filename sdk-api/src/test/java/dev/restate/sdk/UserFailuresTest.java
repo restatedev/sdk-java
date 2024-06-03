@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class UserFailuresTest extends UserFailuresTestSuite {
 
+  @Override
   protected TestInvocationBuilder throwIllegalStateException() {
     return testDefinitionForService(
         "ThrowIllegalStateException",
@@ -29,6 +30,7 @@ public class UserFailuresTest extends UserFailuresTestSuite {
         });
   }
 
+  @Override
   protected TestInvocationBuilder sideEffectThrowIllegalStateException(
       AtomicInteger nonTerminalExceptionsSeen) {
     return testDefinitionForService(
@@ -56,6 +58,7 @@ public class UserFailuresTest extends UserFailuresTestSuite {
         });
   }
 
+  @Override
   protected TestInvocationBuilder throwTerminalException(int code, String message) {
     return testDefinitionForService(
         "ThrowTerminalException",
@@ -66,6 +69,7 @@ public class UserFailuresTest extends UserFailuresTestSuite {
         });
   }
 
+  @Override
   protected TestInvocationBuilder sideEffectThrowTerminalException(int code, String message) {
     return testDefinitionForService(
         "SideEffectThrowTerminalException",

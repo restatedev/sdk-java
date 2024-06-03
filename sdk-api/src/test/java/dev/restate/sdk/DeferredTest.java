@@ -19,6 +19,7 @@ import java.util.concurrent.TimeoutException;
 
 public class DeferredTest extends DeferredTestSuite {
 
+  @Override
   protected TestInvocationBuilder reverseAwaitOrder() {
     return testDefinitionForVirtualObject(
         "ReverseAwaitOrder",
@@ -37,6 +38,7 @@ public class DeferredTest extends DeferredTestSuite {
         });
   }
 
+  @Override
   protected TestInvocationBuilder awaitTwiceTheSameAwaitable() {
     return testDefinitionForService(
         "AwaitTwiceTheSameAwaitable",
@@ -49,6 +51,7 @@ public class DeferredTest extends DeferredTestSuite {
         });
   }
 
+  @Override
   protected TestInvocationBuilder awaitAll() {
     return testDefinitionForService(
         "AwaitAll",
@@ -64,6 +67,7 @@ public class DeferredTest extends DeferredTestSuite {
         });
   }
 
+  @Override
   protected TestInvocationBuilder awaitAny() {
     return testDefinitionForService(
         "AwaitAny",
@@ -77,6 +81,7 @@ public class DeferredTest extends DeferredTestSuite {
         });
   }
 
+  @Override
   protected TestInvocationBuilder combineAnyWithAll() {
     return testDefinitionForService(
         "CombineAnyWithAll",
@@ -97,6 +102,7 @@ public class DeferredTest extends DeferredTestSuite {
         });
   }
 
+  @Override
   protected TestInvocationBuilder awaitAnyIndex() {
     return testDefinitionForService(
         "AwaitAnyIndex",
@@ -112,6 +118,7 @@ public class DeferredTest extends DeferredTestSuite {
         });
   }
 
+  @Override
   protected TestInvocationBuilder awaitOnAlreadyResolvedAwaitables() {
     return testDefinitionForService(
         "AwaitOnAlreadyResolvedAwaitables",
@@ -132,6 +139,7 @@ public class DeferredTest extends DeferredTestSuite {
         });
   }
 
+  @Override
   protected TestInvocationBuilder awaitWithTimeout() {
     return testDefinitionForService(
         "AwaitWithTimeout",

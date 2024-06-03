@@ -188,7 +188,7 @@ public class ElementConverter {
                 ? HandlerType.SHARED
                 : isAnnotatedWithExclusive
                     ? HandlerType.EXCLUSIVE
-                    : defaultHandlerType(serviceType, element);
+                    : defaultHandlerType(serviceType);
 
     validateMethodSignature(serviceType, handlerType, element);
 
@@ -206,7 +206,7 @@ public class ElementConverter {
     }
   }
 
-  private HandlerType defaultHandlerType(ServiceType serviceType, ExecutableElement element) {
+  private HandlerType defaultHandlerType(ServiceType serviceType) {
     switch (serviceType) {
       case SERVICE:
         return HandlerType.STATELESS;
