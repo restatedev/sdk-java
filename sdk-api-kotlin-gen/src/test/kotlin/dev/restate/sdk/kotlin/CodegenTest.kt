@@ -18,6 +18,7 @@ import dev.restate.sdk.core.TestDefinitions.TestDefinition
 import dev.restate.sdk.core.TestDefinitions.testInvocation
 import dev.restate.sdk.core.TestSerdes
 import java.util.stream.Stream
+import kotlinx.serialization.Serializable
 
 class CodegenTest : TestDefinitions.TestSuite {
   @Service
@@ -39,6 +40,26 @@ class CodegenTest : TestDefinitions.TestSuite {
     @Shared
     suspend fun sharedGreet(context: SharedObjectContext, request: String): String {
       return request
+    }
+  }
+
+  @VirtualObject
+  class NestedDataClass {
+    @Serializable data class Input(val a: String)
+
+    @Serializable data class Output(val a: String)
+
+    @Exclusive
+    suspend fun greet(context: ObjectContext, request: Input): Output {
+      return Output(request.a)
+    }
+
+    @Exclusive
+    suspend fun complexType(
+        context: ObjectContext,
+        request: Map<Output, List<out Input>>
+    ): Map<Input, List<out Output>> {
+      return mapOf()
     }
   }
 
@@ -194,6 +215,13 @@ class CodegenTest : TestDefinitions.TestSuite {
             .withInput(startMessage(1, "slinkydeveloper"), inputMessage("Francesco"))
             .onlyUnbuffered()
             .expectingOutput(outputMessage("Francesco"), END_MESSAGE),
+        testInvocation({ NestedDataClass() }, "greet")
+            .withInput(
+                startMessage(1, "slinkydeveloper"),
+                inputMessage(KtSerdes.json(), NestedDataClass.Input("123")))
+            .onlyUnbuffered()
+            .expectingOutput(
+                outputMessage(KtSerdes.json(), NestedDataClass.Output("123")), END_MESSAGE),
         testInvocation({ ObjectGreeterImplementedFromInterface() }, "greet")
             .withInput(startMessage(1, "slinkydeveloper"), inputMessage("Francesco"))
             .onlyUnbuffered()
