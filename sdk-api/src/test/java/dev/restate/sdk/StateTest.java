@@ -17,6 +17,7 @@ import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 
 public class StateTest extends StateTestSuite {
 
+  @Override
   protected TestInvocationBuilder getState() {
     return testDefinitionForVirtualObject(
         "GetState",
@@ -29,6 +30,7 @@ public class StateTest extends StateTestSuite {
         });
   }
 
+  @Override
   protected TestInvocationBuilder getAndSetState() {
     return testDefinitionForVirtualObject(
         "GetState",
@@ -43,6 +45,7 @@ public class StateTest extends StateTestSuite {
         });
   }
 
+  @Override
   protected TestInvocationBuilder setNullState() {
     return testDefinitionForVirtualObject(
         "GetState",

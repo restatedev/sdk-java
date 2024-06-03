@@ -15,6 +15,7 @@ import dev.restate.sdk.core.TestDefinitions;
 
 public class OnlyInputAndOutputTest extends OnlyInputAndOutputTestSuite {
 
+  @Override
   protected TestDefinitions.TestInvocationBuilder noSyscallsGreeter() {
     return testDefinitionForService(
         "NoSyscallsGreeter",

@@ -25,6 +25,7 @@ public class StateMachineFailuresTest extends StateMachineFailuresTestSuite {
               i -> Integer.toString(i).getBytes(StandardCharsets.UTF_8),
               b -> Integer.parseInt(new String(b, StandardCharsets.UTF_8))));
 
+  @Override
   protected TestInvocationBuilder getState(AtomicInteger nonTerminalExceptionsSeen) {
     return testDefinitionForVirtualObject(
         "GetState",
@@ -49,6 +50,7 @@ public class StateMachineFailuresTest extends StateMachineFailuresTestSuite {
         });
   }
 
+  @Override
   protected TestInvocationBuilder sideEffectFailure(Serde<Integer> serde) {
     return testDefinitionForVirtualObject(
         "SideEffectFailure",

@@ -43,14 +43,12 @@ public class PayloadType {
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-
+    if (!(o instanceof PayloadType)) return false;
     PayloadType that = (PayloadType) o;
-
-    if (isEmpty != that.isEmpty) return false;
-    if (!Objects.equals(name, that.name)) return false;
-    if (!Objects.equals(boxed, that.boxed)) return false;
-    return Objects.equals(serdeDecl, that.serdeDecl);
+    return isEmpty == that.isEmpty
+        && Objects.equals(name, that.name)
+        && Objects.equals(boxed, that.boxed)
+        && Objects.equals(serdeDecl, that.serdeDecl);
   }
 
   @Override

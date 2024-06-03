@@ -161,7 +161,7 @@ class KElementConverter(
         if (isAnnotatedWithShared) HandlerType.SHARED
         else if (isAnnotatedWithExclusive) HandlerType.EXCLUSIVE
         else if (isAnnotatedWithWorkflow) HandlerType.WORKFLOW
-        else defaultHandlerType(data.serviceType, function)
+        else defaultHandlerType(data.serviceType)
     handlerBuilder.withHandlerType(handlerType)
 
     validateMethodSignature(data.serviceType, handlerType, function)
@@ -258,7 +258,7 @@ class KElementConverter(
         ")")
   }
 
-  private fun defaultHandlerType(serviceType: ServiceType, node: KSNode): HandlerType {
+  private fun defaultHandlerType(serviceType: ServiceType): HandlerType {
     when (serviceType) {
       ServiceType.SERVICE -> return HandlerType.STATELESS
       ServiceType.VIRTUAL_OBJECT -> return HandlerType.EXCLUSIVE

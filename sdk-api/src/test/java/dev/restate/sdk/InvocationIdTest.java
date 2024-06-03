@@ -16,6 +16,7 @@ import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 
 public class InvocationIdTest extends InvocationIdTestSuite {
 
+  @Override
   protected TestInvocationBuilder returnInvocationId() {
     return testDefinitionForService(
         "ReturnInvocationId",
