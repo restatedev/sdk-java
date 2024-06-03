@@ -130,6 +130,30 @@ public abstract class Awaitable<T> {
     return single(first.syscalls, first.syscalls.createAllDeferred(deferred));
   }
 
+  /**
+   * Create an {@link Awaitable} that awaits all the given awaitables.
+   * <p>
+   * An empty list is not supported.
+   *
+   * <p>The behavior is the same as {@link
+   * java.util.concurrent.CompletableFuture#allOf(CompletableFuture[])}.
+   */
+  public static Awaitable<Void> all(List<Awaitable<?>> awaitables) {
+    if (awaitables.isEmpty()) {
+      throw new IllegalArgumentException("Awaitable all doesn't support an empty list");
+    }
+    if (awaitables.size() == 1) {
+      return awaitables.get(0).map(unused -> null);
+    } else if (awaitables.size() == 2) {
+      return Awaitable.all(awaitables.get(0), awaitables.get(1));
+    } else {
+      return Awaitable.all(
+                      awaitables.get(0),
+                      awaitables.get(1),
+                      awaitables.subList(2, awaitables.size()).toArray(Awaitable[]::new));
+    }
+  }
+
   static class SingleAwaitable<T> extends Awaitable<T> {
 
     private final Deferred<T> deferred;
