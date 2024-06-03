@@ -34,9 +34,9 @@ dependencyResolutionManagement {
 
   versionCatalogs {
     create("coreLibs") {
-      version("protobuf", "3.24.3")
-      version("log4j", "2.22.0")
-      version("opentelemetry", "1.37.0")
+      version("protobuf", "4.27.0")
+      version("log4j", "2.23.0")
+      version("opentelemetry", "1.38.0")
 
       library("protoc", "com.google.protobuf", "protoc").versionRef("protobuf")
       library("protobuf-java", "com.google.protobuf", "protobuf-java").versionRef("protobuf")
@@ -57,18 +57,18 @@ dependencyResolutionManagement {
       library("tink", "com.google.crypto.tink:tink:1.13.0")
     }
     create("vertxLibs") {
-      library("vertx-bom", "io.vertx:vertx-stack-depchain:4.5.1")
+      library("vertx-bom", "io.vertx:vertx-stack-depchain:4.5.8")
       library("vertx-core", "io.vertx", "vertx-core").withoutVersion()
       library("vertx-kotlin-coroutines", "io.vertx", "vertx-lang-kotlin-coroutines")
           .withoutVersion()
       library("vertx-junit5", "io.vertx", "vertx-junit5").withoutVersion()
     }
     create("lambdaLibs") {
-      library("core", "com.amazonaws:aws-lambda-java-core:1.2.2")
-      library("events", "com.amazonaws:aws-lambda-java-events:3.11.0")
+      library("core", "com.amazonaws:aws-lambda-java-core:1.2.3")
+      library("events", "com.amazonaws:aws-lambda-java-events:3.11.5")
     }
     create("jacksonLibs") {
-      version("jackson", "2.16.1")
+      version("jackson", "2.17.1")
 
       library("jackson-bom", "com.fasterxml.jackson", "jackson-bom").versionRef("jackson")
       library("jackson-annotations", "com.fasterxml.jackson.core", "jackson-annotations")
@@ -82,21 +82,21 @@ dependencyResolutionManagement {
     }
     create("kotlinLibs") {
       library("kotlinx-coroutines", "org.jetbrains.kotlinx", "kotlinx-coroutines-core")
-          .version("1.7.3")
+          .version("1.9.0-RC")
       library("kotlinx-serialization-core", "org.jetbrains.kotlinx", "kotlinx-serialization-core")
-          .version("1.6.2")
+          .version("1.6.3")
       library("kotlinx-serialization-json", "org.jetbrains.kotlinx", "kotlinx-serialization-json")
-          .version("1.6.2")
+          .version("1.6.3")
 
-      version("ksp", "1.9.22-1.0.18")
+      version("ksp", "2.0.0-1.0.21")
       library("symbol-processing-api", "com.google.devtools.ksp", "symbol-processing-api")
           .versionRef("ksp")
       plugin("ksp", "com.google.devtools.ksp").versionRef("ksp")
     }
     create("testingLibs") {
-      version("junit-jupiter", "5.9.1")
-      version("assertj", "3.23.1")
-      version("testcontainers", "1.19.4")
+      version("junit-jupiter", "5.10.2")
+      version("assertj", "3.26.0")
+      version("testcontainers", "1.19.8")
 
       library("junit-jupiter", "org.junit.jupiter", "junit-jupiter").versionRef("junit-jupiter")
       library("junit-api", "org.junit.jupiter", "junit-jupiter-api").versionRef("junit-jupiter")
@@ -109,7 +109,7 @@ dependencyResolutionManagement {
           .versionRef("testcontainers")
     }
     create("pluginLibs") {
-      plugin("spotless", "com.diffplug.spotless").version("6.22.0")
+      plugin("spotless", "com.diffplug.spotless").version("6.25.0")
       plugin("protobuf", "com.google.protobuf").version("0.9.4")
       plugin("test-logger", "com.adarshr.test-logger").version("4.0.0")
     }

@@ -51,8 +51,7 @@ internal constructor(
 
     val scope =
         CoroutineScope(
-            (options?.coroutineContext
-                ?: Options.DEFAULT.coroutineContext) +
+            (options?.coroutineContext ?: Options.DEFAULT.coroutineContext) +
                 dev.restate.sdk.common.syscalls.HandlerRunner.SYSCALLS_THREAD_LOCAL
                     .asContextElement(syscalls) +
                 syscalls.request().otelContext()!!.asContextElement())
