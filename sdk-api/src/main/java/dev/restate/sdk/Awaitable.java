@@ -115,6 +115,28 @@ public abstract class Awaitable<T> {
   }
 
   /**
+   * Create an {@link Awaitable} that awaits any of the given awaitables.
+   *
+   * <p>An empty list is not supported and will throw {@link IllegalArgumentException}.
+   *
+   * <p>The behavior is the same as {@link
+   * java.util.concurrent.CompletableFuture#anyOf(CompletableFuture[])}.
+   */
+  public static AnyAwaitable any(List<Awaitable<?>> awaitables) {
+    if (awaitables.isEmpty()) {
+      throw new IllegalArgumentException("Awaitable any doesn't support an empty list");
+    }
+    return new AnyAwaitable(
+        awaitables.get(0).syscalls,
+        awaitables
+            .get(0)
+            .syscalls
+            .createAnyDeferred(
+                awaitables.stream().map(Awaitable::deferred).collect(Collectors.toList())),
+        awaitables);
+  }
+
+  /**
    * Create an {@link Awaitable} that awaits all the given awaitables.
    *
    * <p>The behavior is the same as {@link
@@ -128,6 +150,31 @@ public abstract class Awaitable<T> {
     Arrays.stream(others).map(Awaitable::deferred).forEach(deferred::add);
 
     return single(first.syscalls, first.syscalls.createAllDeferred(deferred));
+  }
+
+  /**
+   * Create an {@link Awaitable} that awaits all the given awaitables.
+   *
+   * <p>An empty list is not supported and will throw {@link IllegalArgumentException}.
+   *
+   * <p>The behavior is the same as {@link
+   * java.util.concurrent.CompletableFuture#allOf(CompletableFuture[])}.
+   */
+  public static Awaitable<Void> all(List<Awaitable<?>> awaitables) {
+    if (awaitables.isEmpty()) {
+      throw new IllegalArgumentException("Awaitable all doesn't support an empty list");
+    }
+    if (awaitables.size() == 1) {
+      return awaitables.get(0).map(unused -> null);
+    } else {
+      return single(
+          awaitables.get(0).syscalls,
+          awaitables
+              .get(0)
+              .syscalls
+              .createAllDeferred(
+                  awaitables.stream().map(Awaitable::deferred).collect(Collectors.toList())));
+    }
   }
 
   static class SingleAwaitable<T> extends Awaitable<T> {
