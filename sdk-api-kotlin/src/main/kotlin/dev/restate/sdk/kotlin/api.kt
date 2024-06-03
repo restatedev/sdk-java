@@ -510,10 +510,7 @@ sealed interface DurablePromise<T> {
   suspend fun awaitable(): Awaitable<T>
 
   /** @return the value, if already present, otherwise returns an empty optional. */
-  suspend fun peek(): T?
-
-  /** @return true if the promise is already completed. */
-  suspend fun isCompleted(): Boolean
+  suspend fun peek(): Output<T>
 }
 
 /** This class represents a handle to a [DurablePromise] created in another service. */

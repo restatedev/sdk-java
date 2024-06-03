@@ -11,6 +11,7 @@ package dev.restate.sdk.client;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import dev.restate.sdk.common.Output;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.Target;
 import java.io.ByteArrayInputStream;
@@ -230,7 +231,7 @@ public class DefaultClient implements Client {
       }
 
       @Override
-      public CompletableFuture<Res> getOutputAsync(RequestOptions options) {
+      public CompletableFuture<Output<Res>> getOutputAsync(RequestOptions options) {
         // Prepare request
         var reqBuilder =
             HttpRequest.newBuilder()
@@ -254,8 +255,12 @@ public class DefaultClient implements Client {
                     handleNonSuccessResponse(response);
                   }
 
+                  if (response.statusCode() == 470) {
+                    return Output.notReady();
+                  }
+
                   try {
-                    return resSerde.deserialize(response.body());
+                    return Output.ready(resSerde.deserialize(response.body()));
                   } catch (Exception e) {
                     throw new IngressException(
                         "Cannot deserialize the response",
@@ -316,7 +321,7 @@ public class DefaultClient implements Client {
       }
 
       @Override
-      public CompletableFuture<Res> getOutputAsync(RequestOptions options) {
+      public CompletableFuture<Output<Res>> getOutputAsync(RequestOptions options) {
         // Prepare request
         var reqBuilder =
             HttpRequest.newBuilder()
@@ -346,8 +351,12 @@ public class DefaultClient implements Client {
                     handleNonSuccessResponse(response);
                   }
 
+                  if (response.statusCode() == 470) {
+                    return Output.notReady();
+                  }
+
                   try {
-                    return resSerde.deserialize(response.body());
+                    return Output.ready(resSerde.deserialize(response.body()));
                   } catch (Exception e) {
                     throw new IngressException(
                         "Cannot deserialize the response",

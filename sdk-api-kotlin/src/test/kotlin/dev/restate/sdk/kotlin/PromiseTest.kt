@@ -24,12 +24,14 @@ class PromiseTest : PromiseTestSuite() {
       emptyCaseReturnValue: String
   ): TestDefinitions.TestInvocationBuilder =
       testDefinitionForWorkflow("AwaitPeekPromise") { ctx, _: Unit ->
-        ctx.promise(KtDurablePromiseKey.json<String>(promiseKey)).peek() ?: emptyCaseReturnValue
+        ctx.promise(KtDurablePromiseKey.json<String>(promiseKey))
+            .peek()
+            .orElse(emptyCaseReturnValue)
       }
 
   override fun awaitIsPromiseCompleted(promiseKey: String): TestDefinitions.TestInvocationBuilder =
       testDefinitionForWorkflow("IsCompletedPromise") { ctx, _: Unit ->
-        ctx.promise(KtDurablePromiseKey.json<String>(promiseKey)).isCompleted()
+        ctx.promise(KtDurablePromiseKey.json<String>(promiseKey)).peek().isReady
       }
 
   override fun awaitResolvePromise(

@@ -142,6 +142,7 @@ class CodegenTest : TestDefinitions.TestSuite {
       return CodegenTestWorkflowCornerCasesClient.connect("invalid", request)
           .workflowHandle()
           .output
+          .value
     }
   }
 

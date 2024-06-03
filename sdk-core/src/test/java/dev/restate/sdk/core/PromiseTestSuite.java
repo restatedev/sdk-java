@@ -82,14 +82,6 @@ public abstract class PromiseTestSuite implements TestSuite {
             .withInput(
                 startMessage(1),
                 inputMessage(),
-                completionMessage(1, new TerminalException("myerror")))
-            .expectingOutput(
-                peekPromise(PROMISE_KEY), outputMessage(TestSerdes.BOOLEAN, true), END_MESSAGE)
-            .named("Completed with failure"),
-        this.awaitIsPromiseCompleted(PROMISE_KEY)
-            .withInput(
-                startMessage(1),
-                inputMessage(),
                 completionMessage(1).setEmpty(Protocol.Empty.getDefaultInstance()))
             .expectingOutput(
                 peekPromise(PROMISE_KEY), outputMessage(TestSerdes.BOOLEAN, false), END_MESSAGE)

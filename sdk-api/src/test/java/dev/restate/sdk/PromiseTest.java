@@ -52,7 +52,7 @@ public class PromiseTest extends PromiseTestSuite {
         Serde.VOID,
         JsonSerdes.BOOLEAN,
         (context, unused) ->
-            context.promise(DurablePromiseKey.of(promiseKey, TestSerdes.STRING)).isCompleted());
+            context.promise(DurablePromiseKey.of(promiseKey, TestSerdes.STRING)).peek().isReady());
   }
 
   @Override

@@ -9,7 +9,7 @@
 package dev.restate.sdk;
 
 import dev.restate.sdk.common.DurablePromiseKey;
-import java.util.Optional;
+import dev.restate.sdk.common.Output;
 
 /**
  * A {@link DurablePromise} is a durable, distributed version of a {@link
@@ -39,10 +39,5 @@ public interface DurablePromise<T> {
   /**
    * @return the value, if already present, otherwise returns an empty optional.
    */
-  Optional<T> peek();
-
-  /**
-   * @return true if the promise is already completed.
-   */
-  boolean isCompleted();
+  Output<T> peek();
 }
