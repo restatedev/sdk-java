@@ -11,6 +11,7 @@ package dev.restate.sdk.kotlin
 import dev.restate.sdk.client.Client
 import dev.restate.sdk.client.RequestOptions
 import dev.restate.sdk.client.SendResponse
+import dev.restate.sdk.common.Output
 import dev.restate.sdk.common.Serde
 import dev.restate.sdk.common.Target
 import kotlin.time.Duration
@@ -39,7 +40,7 @@ suspend fun <Req> Client.sendSuspend(
   return this.sendAsync(target, reqSerde, req, delay.toJavaDuration(), options).await()
 }
 
-suspend fun <T> Client.AwakeableHandle.resolveSuspend(
+suspend fun <T : Any> Client.AwakeableHandle.resolveSuspend(
     serde: Serde<T>,
     payload: T,
     options: RequestOptions = RequestOptions.DEFAULT
@@ -56,24 +57,24 @@ suspend fun Client.AwakeableHandle.rejectSuspend(
 
 suspend fun <T> Client.InvocationHandle<T>.attachSuspend(
     options: RequestOptions = RequestOptions.DEFAULT
-) {
-  this.attachAsync(options).await()
+): T {
+  return this.attachAsync(options).await()
 }
 
-suspend fun <T> Client.InvocationHandle<T>.getOutputSuspend(
+suspend fun <T : Any?> Client.InvocationHandle<T>.getOutputSuspend(
     options: RequestOptions = RequestOptions.DEFAULT
-) {
-  this.getOutputAsync(options).await()
+): Output<T> {
+  return this.getOutputAsync(options).await()
 }
 
 suspend fun <T> Client.WorkflowHandle<T>.attachSuspend(
     options: RequestOptions = RequestOptions.DEFAULT
-) {
-  this.attachAsync(options).await()
+): T {
+  return this.attachAsync(options).await()
 }
 
 suspend fun <T> Client.WorkflowHandle<T>.getOutputSuspend(
     options: RequestOptions = RequestOptions.DEFAULT
-) {
-  this.getOutputAsync(options).await()
+): Output<T> {
+  return this.getOutputAsync(options).await()
 }

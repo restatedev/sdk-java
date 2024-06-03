@@ -242,7 +242,7 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
       return SingleSerdeAwaitableImpl(syscalls, deferred, key.serde())
     }
 
-    override suspend fun peek(): T? {
+    override suspend fun peek(): Output<T> {
       val deferred: Deferred<ByteBuffer> =
           suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<ByteBuffer>> ->
             syscalls.peekPromise(key.name(), completingContinuation(cont))
@@ -259,24 +259,9 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
         throw readyResult.failure!!
       }
       if (readyResult.isEmpty) {
-        return null
+        return Output.notReady()
       }
-      return key.serde().deserializeWrappingException(syscalls, readyResult.value!!)!!
-    }
-
-    override suspend fun isCompleted(): Boolean {
-      val deferred: Deferred<ByteBuffer> =
-          suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<ByteBuffer>> ->
-            syscalls.peekPromise(key.name(), completingContinuation(cont))
-          }
-
-      if (!deferred.isCompleted) {
-        suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-          syscalls.resolveDeferred(deferred, completingUnitContinuation(cont))
-        }
-      }
-
-      return !deferred.toResult()!!.isEmpty
+      return Output.ready(key.serde().deserializeWrappingException(syscalls, readyResult.value!!))
     }
   }
 

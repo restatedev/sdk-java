@@ -122,7 +122,8 @@ public class CodegenTest implements TestSuite {
       CodegenTestWorkflowCornerCasesClient.connect("invalid", request).submit("my_send");
       return CodegenTestWorkflowCornerCasesClient.connect("invalid", request)
           .workflowHandle()
-          .getOutput();
+          .getOutput()
+          .getValue();
     }
   }
 

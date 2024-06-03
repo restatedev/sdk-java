@@ -9,6 +9,7 @@
 package dev.restate.sdk;
 
 import dev.restate.sdk.common.AbortedExecutionException;
+import dev.restate.sdk.common.Output;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.function.ThrowingFunction;
 import dev.restate.sdk.common.syscalls.Deferred;
@@ -66,6 +67,16 @@ class Util {
       return Optional.empty();
     }
     return Optional.of(res.getValue());
+  }
+
+  static <T> Output<T> unwrapOutputReadyResult(Result<T> res) {
+    if (!res.isSuccess()) {
+      throw res.getFailure();
+    }
+    if (res.isEmpty()) {
+      return Output.notReady();
+    }
+    return Output.ready(res.getValue());
   }
 
   static <T, R> R executeMappingException(Syscalls syscalls, ThrowingFunction<T, R> fn, T t) {

@@ -8,6 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.client;
 
+import dev.restate.sdk.common.Output;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.Target;
 import java.net.http.HttpClient;
@@ -188,13 +189,13 @@ public interface Client {
       return attach(RequestOptions.DEFAULT);
     }
 
-    CompletableFuture<Res> getOutputAsync(RequestOptions options);
+    CompletableFuture<Output<Res>> getOutputAsync(RequestOptions options);
 
-    default CompletableFuture<Res> getOutputAsync() {
+    default CompletableFuture<Output<Res>> getOutputAsync() {
       return getOutputAsync(RequestOptions.DEFAULT);
     }
 
-    default Res getOutput(RequestOptions options) throws IngressException {
+    default Output<Res> getOutput(RequestOptions options) throws IngressException {
       try {
         return getOutputAsync(options).join();
       } catch (CompletionException e) {
@@ -205,7 +206,7 @@ public interface Client {
       }
     }
 
-    default Res getOutput() throws IngressException {
+    default Output<Res> getOutput() throws IngressException {
       return getOutput(RequestOptions.DEFAULT);
     }
   }
@@ -235,13 +236,13 @@ public interface Client {
       return attach(RequestOptions.DEFAULT);
     }
 
-    CompletableFuture<Res> getOutputAsync(RequestOptions options);
+    CompletableFuture<Output<Res>> getOutputAsync(RequestOptions options);
 
-    default CompletableFuture<Res> getOutputAsync() {
+    default CompletableFuture<Output<Res>> getOutputAsync() {
       return getOutputAsync(RequestOptions.DEFAULT);
     }
 
-    default Res getOutput(RequestOptions options) throws IngressException {
+    default Output<Res> getOutput(RequestOptions options) throws IngressException {
       try {
         return getOutputAsync(options).join();
       } catch (CompletionException e) {
@@ -252,7 +253,7 @@ public interface Client {
       }
     }
 
-    default Res getOutput() throws IngressException {
+    default Output<Res> getOutput() throws IngressException {
       return getOutput(RequestOptions.DEFAULT);
     }
   }

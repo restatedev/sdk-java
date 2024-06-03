@@ -227,7 +227,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
       }
 
       @Override
-      public Optional<T> peek() {
+      public Output<T> peek() {
         Deferred<ByteBuffer> deferred =
             Util.blockOnSyscall(cb -> syscalls.peekPromise(key.name(), cb));
 
@@ -235,20 +235,8 @@ class ContextImpl implements ObjectContext, WorkflowContext {
           Util.<Void>blockOnSyscall(cb -> syscalls.resolveDeferred(deferred, cb));
         }
 
-        return Util.unwrapOptionalReadyResult(deferred.toResult())
+        return Util.unwrapOutputReadyResult(deferred.toResult())
             .map(bs -> Util.deserializeWrappingException(syscalls, key.serde(), bs));
-      }
-
-      @Override
-      public boolean isCompleted() {
-        Deferred<ByteBuffer> deferred =
-            Util.blockOnSyscall(cb -> syscalls.peekPromise(key.name(), cb));
-
-        if (!deferred.isCompleted()) {
-          Util.<Void>blockOnSyscall(cb -> syscalls.resolveDeferred(deferred, cb));
-        }
-
-        return !deferred.toResult().isEmpty();
       }
     };
   }
