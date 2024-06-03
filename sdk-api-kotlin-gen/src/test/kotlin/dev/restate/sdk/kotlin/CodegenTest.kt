@@ -16,9 +16,9 @@ import dev.restate.sdk.core.ProtoUtils.*
 import dev.restate.sdk.core.TestDefinitions
 import dev.restate.sdk.core.TestDefinitions.TestDefinition
 import dev.restate.sdk.core.TestDefinitions.testInvocation
-import kotlinx.serialization.Serializable
 import dev.restate.sdk.core.TestSerdes
 import java.util.stream.Stream
+import kotlinx.serialization.Serializable
 
 class CodegenTest : TestDefinitions.TestSuite {
   @Service
@@ -44,13 +44,22 @@ class CodegenTest : TestDefinitions.TestSuite {
   }
 
   @VirtualObject
-  class SerializableDataClassInputOutput {
+  class NestedDataClass {
     @Serializable data class Input(val a: String)
+
     @Serializable data class Output(val a: String)
 
     @Exclusive
     suspend fun greet(context: ObjectContext, request: Input): Output {
       return Output(request.a)
+    }
+
+    @Exclusive
+    suspend fun complexType(
+        context: ObjectContext,
+        request: Map<Output, List<out Input>>
+    ): Map<Input, List<out Output>> {
+      return mapOf()
     }
   }
 
@@ -206,10 +215,13 @@ class CodegenTest : TestDefinitions.TestSuite {
             .withInput(startMessage(1, "slinkydeveloper"), inputMessage("Francesco"))
             .onlyUnbuffered()
             .expectingOutput(outputMessage("Francesco"), END_MESSAGE),
-        testInvocation({ SerializableDataClassInputOutput() }, "greet")
-                .withInput(startMessage(1, "slinkydeveloper"), inputMessage(KtSerdes.json(), SerializableDataClassInputOutput.Input("123")))
-                .onlyUnbuffered()
-                .expectingOutput(outputMessage(KtSerdes.json(), SerializableDataClassInputOutput.Output("123")), END_MESSAGE),
+        testInvocation({ NestedDataClass() }, "greet")
+            .withInput(
+                startMessage(1, "slinkydeveloper"),
+                inputMessage(KtSerdes.json(), NestedDataClass.Input("123")))
+            .onlyUnbuffered()
+            .expectingOutput(
+                outputMessage(KtSerdes.json(), NestedDataClass.Output("123")), END_MESSAGE),
         testInvocation({ ObjectGreeterImplementedFromInterface() }, "greet")
             .withInput(startMessage(1, "slinkydeveloper"), inputMessage("Francesco"))
             .onlyUnbuffered()

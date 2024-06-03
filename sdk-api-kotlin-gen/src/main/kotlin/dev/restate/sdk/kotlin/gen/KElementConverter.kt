@@ -231,8 +231,13 @@ class KElementConverter(
     if (rawAnnotation != null && ty != byteArrayType) {
       logger.error("A parameter annotated with @Raw MUST be of type byte[], was $ty", relatedNode)
     }
+    if (ty.isFunctionType || ty.isSuspendFunctionType) {
+      logger.error("Cannot use fun as parameter or return type", relatedNode)
+    }
 
-    var serdeDecl: String = if (rawAnnotation != null) RAW_SERDE else jsonSerdeDecl(ty)
+    val qualifiedTypeName = qualifiedTypeName(ty)
+    var serdeDecl: String =
+        if (rawAnnotation != null) RAW_SERDE else jsonSerdeDecl(ty, qualifiedTypeName)
     if (rawAnnotation != null &&
         rawAnnotation.contentType != getAnnotationDefaultValue(Raw::class.java, "contentType")) {
       serdeDecl = contentTypeDecoratedSerdeDecl(serdeDecl, rawAnnotation.contentType)
@@ -242,7 +247,7 @@ class KElementConverter(
       serdeDecl = contentTypeDecoratedSerdeDecl(serdeDecl, jsonAnnotation.contentType)
     }
 
-    return PayloadType(false, ty.toString(), boxedType(ty), serdeDecl)
+    return PayloadType(false, qualifiedTypeName, boxedType(ty, qualifiedTypeName), serdeDecl)
   }
 
   private fun contentTypeDecoratedSerdeDecl(serdeDecl: String, contentType: String): String {
@@ -311,17 +316,40 @@ class KElementConverter(
     }
   }
 
-  private fun jsonSerdeDecl(ty: KSType): String {
+  private fun jsonSerdeDecl(ty: KSType, qualifiedTypeName: String): String {
     return when (ty) {
       builtIns.unitType -> "dev.restate.sdk.kotlin.KtSerdes.UNIT"
-      else -> "dev.restate.sdk.kotlin.KtSerdes.json<${boxedType(ty)}>()"
+      else -> "dev.restate.sdk.kotlin.KtSerdes.json<${boxedType(ty, qualifiedTypeName)}>()"
     }
   }
 
-  private fun boxedType(ty: KSType): String {
+  private fun boxedType(ty: KSType, qualifiedTypeName: String): String {
     return when (ty) {
       builtIns.unitType -> "Unit"
-      else -> ty.toString()
+      else -> qualifiedTypeName
     }
+  }
+
+  private fun qualifiedTypeName(ksType: KSType): String {
+    var typeName = ksType.declaration.qualifiedName?.asString() ?: ksType.toString()
+
+    if (ksType.arguments.isNotEmpty()) {
+      typeName =
+          "$typeName<${
+                ksType.arguments.joinToString(separator = ", ") {
+                    if (it.variance == Variance.STAR) {
+                        it.variance.label
+                    } else {
+                        "${it.variance.label} ${qualifiedTypeName(it.type!!.resolve())}"
+                    }
+                }
+            }>"
+    }
+
+    if (ksType.isMarkedNullable) {
+      typeName = "$typeName?"
+    }
+
+    return typeName
   }
 }
