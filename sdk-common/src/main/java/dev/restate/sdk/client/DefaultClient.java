@@ -251,12 +251,12 @@ public class DefaultClient implements Client {
                     throw new IngressException("Error when executing the request", throwable);
                   }
 
-                  if (response.statusCode() >= 300) {
-                    handleNonSuccessResponse(response);
-                  }
-
                   if (response.statusCode() == 470) {
                     return Output.notReady();
+                  }
+
+                  if (response.statusCode() >= 300) {
+                    handleNonSuccessResponse(response);
                   }
 
                   try {
@@ -347,12 +347,12 @@ public class DefaultClient implements Client {
                     throw new IngressException("Error when executing the request", throwable);
                   }
 
-                  if (response.statusCode() >= 300) {
-                    handleNonSuccessResponse(response);
-                  }
-
                   if (response.statusCode() == 470) {
                     return Output.notReady();
+                  }
+
+                  if (response.statusCode() >= 300) {
+                    handleNonSuccessResponse(response);
                   }
 
                   try {
