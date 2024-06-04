@@ -9,11 +9,10 @@
 package dev.restate.sdk.core;
 
 import com.google.protobuf.ByteString;
+import dev.restate.generated.service.protocol.Protocol;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 final class UserStateStore {
 
@@ -46,14 +45,13 @@ final class UserStateStore {
   private boolean isPartial;
   private final HashMap<ByteString, State> map;
 
-  UserStateStore(boolean isPartial, Map<ByteString, ByteString> map) {
-    this.isPartial = isPartial;
-    this.map =
-        new HashMap<>(
-            map.entrySet().stream()
-                .collect(
-                    Collectors.toMap(
-                        Map.Entry::getKey, e -> new Value(e.getValue().asReadOnlyByteBuffer()))));
+  UserStateStore(Protocol.StartMessage startMessage) {
+    this.isPartial = startMessage.getPartialState();
+    this.map = new HashMap<>(startMessage.getStateMapCount());
+    for (int i = 0; i < startMessage.getStateMapCount(); i++) {
+      Protocol.StartMessage.StateEntry entry = startMessage.getStateMap(i);
+      this.map.put(entry.getKey(), new Value(entry.getValue().asReadOnlyByteBuffer()));
+    }
   }
 
   public State get(ByteString key) {
