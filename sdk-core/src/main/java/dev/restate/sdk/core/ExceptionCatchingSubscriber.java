@@ -10,13 +10,11 @@ package dev.restate.sdk.core;
 
 import java.util.concurrent.Flow;
 
-class ExceptionCatchingInvocationInputSubscriber
-    implements InvocationFlow.InvocationInputSubscriber {
+class ExceptionCatchingSubscriber<T> implements Flow.Subscriber<T> {
 
-  InvocationFlow.InvocationInputSubscriber invocationInputSubscriber;
+  Flow.Subscriber<T> invocationInputSubscriber;
 
-  public ExceptionCatchingInvocationInputSubscriber(
-      InvocationFlow.InvocationInputSubscriber invocationInputSubscriber) {
+  public ExceptionCatchingSubscriber(Flow.Subscriber<T> invocationInputSubscriber) {
     this.invocationInputSubscriber = invocationInputSubscriber;
   }
 
@@ -31,9 +29,9 @@ class ExceptionCatchingInvocationInputSubscriber
   }
 
   @Override
-  public void onNext(InvocationFlow.InvocationInput invocationInput) {
+  public void onNext(T t) {
     try {
-      invocationInputSubscriber.onNext(invocationInput);
+      invocationInputSubscriber.onNext(t);
     } catch (Throwable throwable) {
       invocationInputSubscriber.onError(throwable);
       throw throwable;

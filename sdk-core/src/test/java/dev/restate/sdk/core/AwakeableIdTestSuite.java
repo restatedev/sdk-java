@@ -36,7 +36,7 @@ public abstract class AwakeableIdTestSuite implements TestSuite {
     ByteBuffer expectedAwakeableId = ByteBuffer.allocate(serializedId.length + 4);
     expectedAwakeableId.put(serializedId);
     expectedAwakeableId.putInt(1);
-    expectedAwakeableId.rewind();
+    expectedAwakeableId.flip();
     String base64ExpectedAwakeableId =
         Entries.AWAKEABLE_IDENTIFIER_PREFIX
             + Base64.getUrlEncoder().encodeToString(expectedAwakeableId.array());
@@ -66,7 +66,7 @@ public abstract class AwakeableIdTestSuite implements TestSuite {
     ByteBuffer serializedId = ByteBuffer.allocate(16);
     serializedId.putLong(uuid.getMostSignificantBits());
     serializedId.putLong(uuid.getLeastSignificantBits());
-    serializedId.rewind();
+    serializedId.flip();
     return serializedId.array();
   }
 }

@@ -11,6 +11,9 @@ package dev.restate.sdk.http.vertx;
 import dev.restate.sdk.core.InvocationFlow;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
+import java.nio.ByteBuffer;
+import java.util.ArrayDeque;
+import java.util.Queue;
 import java.util.concurrent.Flow;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -20,19 +23,18 @@ class HttpRequestFlowAdapter implements InvocationFlow.InvocationInputPublisher 
   private static final Logger LOG = LogManager.getLogger(HttpRequestFlowAdapter.class);
 
   private final HttpServerRequest httpServerRequest;
-  private final MessageDecoder decoder;
 
-  private Flow.Subscriber<? super InvocationFlow.InvocationInput> inputMessagesSubscriber;
+  private Flow.Subscriber<? super ByteBuffer> inputMessagesSubscriber;
   private long subscriberRequest = 0;
+  private final Queue<ByteBuffer> buffers;
 
   HttpRequestFlowAdapter(HttpServerRequest httpServerRequest) {
     this.httpServerRequest = httpServerRequest;
-
-    this.decoder = new MessageDecoder();
+    this.buffers = new ArrayDeque<>();
   }
 
   @Override
-  public void subscribe(Flow.Subscriber<? super InvocationFlow.InvocationInput> subscriber) {
+  public void subscribe(Flow.Subscriber<? super ByteBuffer> subscriber) {
     this.inputMessagesSubscriber = subscriber;
     this.inputMessagesSubscriber.onSubscribe(
         new Flow.Subscription() {
@@ -74,8 +76,14 @@ class HttpRequestFlowAdapter implements InvocationFlow.InvocationInputPublisher 
   }
 
   private void handleIncomingBuffer(Buffer buffer) {
-    this.decoder.offer(buffer);
+    // Fast path
+    if (this.buffers.isEmpty() && this.subscriberRequest > 0) {
+      this.inputMessagesSubscriber.onNext(buffer.getByteBuf().nioBuffer());
+      this.subscriberRequest--;
+      return;
+    }
 
+    this.buffers.add(buffer.getByteBuf().nioBuffer());
     tryProgress();
   }
 
@@ -92,17 +100,10 @@ class HttpRequestFlowAdapter implements InvocationFlow.InvocationInputPublisher 
 
   private void tryProgress() {
     while (this.subscriberRequest > 0) {
-      InvocationFlow.InvocationInput input;
-      try {
-        input = this.decoder.poll();
-      } catch (RuntimeException e) {
-        inputMessagesSubscriber.onError(e);
-        return;
-      }
+      ByteBuffer input = this.buffers.poll();
       if (input == null) {
         return;
       }
-      LOG.trace("Received input " + input);
       this.subscriberRequest--;
       inputMessagesSubscriber.onNext(input);
     }

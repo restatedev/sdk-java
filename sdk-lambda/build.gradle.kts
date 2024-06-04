@@ -13,8 +13,6 @@ dependencies {
   api(lambdaLibs.core)
   api(lambdaLibs.events)
 
-  implementation(coreLibs.protobuf.java)
-
   implementation(platform(coreLibs.opentelemetry.bom))
   implementation(coreLibs.opentelemetry.api)
 

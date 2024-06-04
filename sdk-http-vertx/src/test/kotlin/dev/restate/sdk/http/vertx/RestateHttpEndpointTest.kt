@@ -11,14 +11,13 @@ package dev.restate.sdk.http.vertx
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.protobuf.ByteString
 import com.google.protobuf.MessageLite
-import dev.restate.generated.service.discovery.Discovery
 import dev.restate.generated.service.protocol.Protocol.*
 import dev.restate.sdk.JsonSerdes
 import dev.restate.sdk.core.ProtoUtils.*
-import dev.restate.sdk.core.ServiceProtocol
 import dev.restate.sdk.core.manifest.EndpointManifestSchema
 import dev.restate.sdk.http.vertx.testservices.BlockingGreeter
 import dev.restate.sdk.http.vertx.testservices.greeter
+import io.netty.buffer.Unpooled
 import io.netty.handler.codec.http.HttpResponseStatus
 import io.vertx.core.Vertx
 import io.vertx.core.buffer.Buffer
@@ -28,6 +27,7 @@ import io.vertx.junit5.VertxExtension
 import io.vertx.kotlin.coroutines.coAwait
 import io.vertx.kotlin.coroutines.dispatcher
 import io.vertx.kotlin.coroutines.receiveChannelHandler
+import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.delay
@@ -86,9 +86,7 @@ internal class RestateHttpEndpointTest {
         // Prepare request header
         request
             .setChunked(true)
-            .putHeader(
-                HttpHeaders.CONTENT_TYPE,
-                ServiceProtocol.serviceProtocolVersionToHeaderValue(ServiceProtocolVersion.V1))
+            .putHeader(HttpHeaders.CONTENT_TYPE, serviceProtocolContentTypeHeader())
 
         // Send start message and PollInputStreamEntry
         request.write(encode(startMessage(1).build()))
@@ -98,13 +96,8 @@ internal class RestateHttpEndpointTest {
 
         // Start the input decoder
         val inputChannel = vertx.receiveChannelHandler<MessageLite>()
-        val decoder = MessageDecoder()
         response.handler {
-          decoder.offer(it)
-          while (true) {
-            val m = decoder.poll() ?: break
-            inputChannel.handle(m.message())
-          }
+          bufferToMessages(listOf(ByteBuffer.wrap(it.bytes))).forEach(inputChannel::handle)
         }
         response.resume()
 
@@ -180,12 +173,8 @@ internal class RestateHttpEndpointTest {
         // Prepare request header
         request
             .setChunked(true)
-            .putHeader(
-                HttpHeaders.CONTENT_TYPE,
-                ServiceProtocol.serviceProtocolVersionToHeaderValue(ServiceProtocolVersion.V1))
-            .putHeader(
-                HttpHeaders.ACCEPT,
-                ServiceProtocol.serviceProtocolVersionToHeaderValue(ServiceProtocolVersion.V1))
+            .putHeader(HttpHeaders.CONTENT_TYPE, serviceProtocolContentTypeHeader())
+            .putHeader(HttpHeaders.ACCEPT, serviceProtocolContentTypeHeader())
         request.write(encode(startMessage(0).build()))
 
         val response = request.response().coAwait()
@@ -213,10 +202,7 @@ internal class RestateHttpEndpointTest {
         // Send request
         val request =
             client.request(HttpMethod.GET, endpointPort, "localhost", "/discover").coAwait()
-        request.putHeader(
-            HttpHeaders.ACCEPT,
-            ServiceProtocol.serviceDiscoveryProtocolVersionToHeaderValue(
-                Discovery.ServiceDiscoveryProtocolVersion.V1))
+        request.putHeader(HttpHeaders.ACCEPT, serviceProtocolDiscoveryContentTypeHeader())
         request.end().coAwait()
 
         // Assert response
@@ -225,9 +211,7 @@ internal class RestateHttpEndpointTest {
         // Response status and content type header
         assertThat(response.statusCode()).isEqualTo(HttpResponseStatus.OK.code())
         assertThat(response.getHeader(HttpHeaders.CONTENT_TYPE))
-            .isEqualTo(
-                ServiceProtocol.serviceDiscoveryProtocolVersionToHeaderValue(
-                    Discovery.ServiceDiscoveryProtocolVersion.V1))
+            .isEqualTo(serviceProtocolDiscoveryContentTypeHeader())
 
         // Parse response
         val responseBody = response.body().coAwait()
@@ -240,11 +224,7 @@ internal class RestateHttpEndpointTest {
             .containsOnly(BlockingGreeter::class.java.simpleName)
       }
 
-  fun encode(msg: MessageLite): Buffer {
-    val buffer = Buffer.buffer(MessageEncoder.encodeLength(msg))
-    val header = headerFromMessage(msg)
-    buffer.appendLong(header.encode())
-    buffer.appendBytes(msg.toByteArray())
-    return buffer
+  private fun encode(msg: MessageLite): Buffer {
+    return Buffer.buffer(Unpooled.wrappedBuffer(messageToByteString(msg)))
   }
 }

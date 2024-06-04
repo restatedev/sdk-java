@@ -8,6 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
+import dev.restate.generated.service.discovery.Discovery;
+import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.auth.RequestIdentityVerifier;
 import dev.restate.sdk.common.syscalls.HandlerDefinition;
 import dev.restate.sdk.common.syscalls.ServiceDefinition;
@@ -47,10 +49,11 @@ public class RestateEndpoint {
     this.deploymentManifest =
         new EndpointManifest(protocolMode, services.values().stream().map(c -> c.service));
 
-    this.logCreation();
+    LOG.info("Registered services: {}", this.services.keySet());
   }
 
   public ResolvedEndpointHandler resolve(
+      String contentType,
       String componentName,
       String handlerName,
       RequestIdentityVerifier.Headers headers,
@@ -58,6 +61,16 @@ public class RestateEndpoint {
       LoggingContextSetter loggingContextSetter,
       @Nullable Executor syscallExecutor)
       throws ProtocolException {
+    final Protocol.ServiceProtocolVersion serviceProtocolVersion =
+        ServiceProtocol.parseServiceProtocolVersion(contentType);
+
+    if (!ServiceProtocol.isSupported(serviceProtocolVersion)) {
+      throw new ProtocolException(
+          String.format(
+              "Service endpoint does not support the service protocol version '%s'.", contentType),
+          ProtocolException.UNSUPPORTED_MEDIA_TYPE_CODE);
+    }
+
     // Resolve the service method definition
     @SuppressWarnings("unchecked")
     ServiceAndOptions<Object> svc = (ServiceAndOptions<Object>) this.services.get(componentName);
@@ -96,19 +109,29 @@ public class RestateEndpoint {
         new InvocationStateMachine(
             componentName, fullyQualifiedServiceMethod, span, loggingContextSetter);
 
-    return new ResolvedEndpointHandlerImpl(stateMachine, handler, svc.options, syscallExecutor);
+    return new ResolvedEndpointHandlerImpl(
+        serviceProtocolVersion, stateMachine, handler, svc.options, syscallExecutor);
   }
 
-  public EndpointManifestSchema handleDiscoveryRequest() {
+  public DiscoveryResponse handleDiscoveryRequest(String acceptContentType)
+      throws ProtocolException {
+    Discovery.ServiceDiscoveryProtocolVersion version =
+        ServiceProtocol.selectSupportedServiceDiscoveryProtocolVersion(acceptContentType);
+    if (!ServiceProtocol.isSupported(version)) {
+      throw new ProtocolException(
+          String.format(
+              "Unsupported Discovery version in the Accept header '%s'", acceptContentType),
+          ProtocolException.UNSUPPORTED_MEDIA_TYPE_CODE);
+    }
+
     EndpointManifestSchema response = this.deploymentManifest.manifest();
     LOG.info(
         "Replying to discovery request with services [{}]",
         response.getServices().stream().map(Service::getName).collect(Collectors.joining(",")));
-    return response;
-  }
 
-  private void logCreation() {
-    LOG.info("Registered services: {}", this.services.keySet());
+    return new DiscoveryResponse(
+        ServiceProtocol.serviceDiscoveryProtocolVersionToHeaderValue(version),
+        ServiceProtocol.serializeManifest(version, response));
   }
 
   // -- Builder
@@ -220,6 +243,24 @@ public class RestateEndpoint {
     ServiceAndOptions(ServiceDefinition<O> service, O options) {
       this.service = service;
       this.options = options;
+    }
+  }
+
+  public static class DiscoveryResponse {
+    private final String contentType;
+    private final byte[] serializedManifest;
+
+    private DiscoveryResponse(String contentType, byte[] serializedManifest) {
+      this.contentType = contentType;
+      this.serializedManifest = serializedManifest;
+    }
+
+    public String getContentType() {
+      return contentType;
+    }
+
+    public byte[] getSerializedManifest() {
+      return serializedManifest;
     }
   }
 }

@@ -8,11 +8,12 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.http.vertx;
 
-import com.google.protobuf.MessageLite;
 import dev.restate.sdk.core.InvocationFlow;
 import dev.restate.sdk.core.Util;
+import io.netty.buffer.Unpooled;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerResponse;
+import java.nio.ByteBuffer;
 import java.util.concurrent.Flow;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -38,8 +39,14 @@ class HttpResponseFlowAdapter implements InvocationFlow.InvocationOutputSubscrib
   }
 
   @Override
-  public void onNext(MessageLite messageLite) {
-    write(messageLite);
+  public void onNext(ByteBuffer byteBuffer) {
+    if (this.httpServerResponse.closed()) {
+      cancelSubscription();
+      return;
+    }
+
+    // If HTTP HEADERS frame have not been sent, Vert.x will send them
+    this.httpServerResponse.write(Buffer.buffer(Unpooled.wrappedBuffer(byteBuffer)));
   }
 
   @Override
@@ -53,22 +60,6 @@ class HttpResponseFlowAdapter implements InvocationFlow.InvocationOutputSubscrib
   }
 
   // --- Private operations
-
-  private void write(MessageLite message) {
-    if (this.httpServerResponse.closed()) {
-      cancelSubscription();
-      return;
-    }
-
-    LOG.trace("Writing response message " + message);
-
-    // Could be pooled
-    Buffer buffer = Buffer.buffer(MessageEncoder.encodeLength(message));
-    MessageEncoder.encode(buffer, message);
-
-    // If HTTP HEADERS frame have not been sent, Vert.x will send them
-    this.httpServerResponse.write(buffer);
-  }
 
   private void propagateWireFailure(Throwable e) {
     LOG.warn("Error from wire", e);

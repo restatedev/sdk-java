@@ -27,6 +27,7 @@ dependencies {
   implementation(coreLibs.opentelemetry.api)
 
   testCompileOnly(coreLibs.jspecify)
+  testImplementation("io.smallrye.reactive:mutiny:2.6.0")
   testImplementation(testingLibs.junit.jupiter)
   testImplementation(testingLibs.assertj)
   testImplementation(coreLibs.log4j.core)

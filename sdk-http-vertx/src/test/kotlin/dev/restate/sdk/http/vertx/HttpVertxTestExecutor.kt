@@ -8,12 +8,11 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.http.vertx
 
-import com.google.protobuf.MessageLite
-import dev.restate.generated.service.protocol.Protocol
 import dev.restate.sdk.common.syscalls.ServiceDefinition
-import dev.restate.sdk.core.ServiceProtocol
+import dev.restate.sdk.core.ProtoUtils
 import dev.restate.sdk.core.TestDefinitions.TestDefinition
 import dev.restate.sdk.core.TestDefinitions.TestExecutor
+import io.netty.buffer.Unpooled
 import io.vertx.core.Vertx
 import io.vertx.core.buffer.Buffer
 import io.vertx.core.http.HttpHeaders
@@ -21,6 +20,7 @@ import io.vertx.core.http.HttpMethod
 import io.vertx.core.http.HttpServerOptions
 import io.vertx.kotlin.coroutines.coAwait
 import io.vertx.kotlin.coroutines.dispatcher
+import java.nio.ByteBuffer
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.toList
@@ -58,22 +58,17 @@ class HttpVertxTestExecutor(private val vertx: Vertx) : TestExecutor {
       // Prepare request header and send them
       request
           .setChunked(true)
-          .putHeader(
-              HttpHeaders.CONTENT_TYPE,
-              ServiceProtocol.serviceProtocolVersionToHeaderValue(
-                  Protocol.ServiceProtocolVersion.V1))
-          .putHeader(
-              HttpHeaders.ACCEPT,
-              ServiceProtocol.serviceProtocolVersionToHeaderValue(
-                  Protocol.ServiceProtocolVersion.V1))
+          .putHeader(HttpHeaders.CONTENT_TYPE, ProtoUtils.serviceProtocolContentTypeHeader())
+          .putHeader(HttpHeaders.ACCEPT, ProtoUtils.serviceProtocolContentTypeHeader())
       request.sendHead().coAwait()
 
       launch {
         for (msg in definition.input) {
-          val buffer = Buffer.buffer(MessageEncoder.encodeLength(msg.message()))
-          buffer.appendLong(msg.header().encode())
-          buffer.appendBytes(msg.message().toByteArray())
-          request.write(buffer).coAwait()
+          request
+              .write(
+                  Buffer.buffer(
+                      Unpooled.wrappedBuffer(ProtoUtils.invocationInputToByteString(msg))))
+              .coAwait()
           yield()
         }
 
@@ -82,24 +77,17 @@ class HttpVertxTestExecutor(private val vertx: Vertx) : TestExecutor {
 
       val response = request.response().coAwait()
 
-      // Start the coroutine to send input messages
-
       // Start the response receiver
-      val inputChannel = Channel<MessageLite>()
-      val decoder = MessageDecoder()
-      response.handler {
-        decoder.offer(it)
-        while (true) {
-          val m = decoder.poll() ?: break
-          launch(vertx.dispatcher()) { inputChannel.send(m.message()) }
-        }
-      }
+      val inputChannel = Channel<Buffer>()
+      response.handler { launch(vertx.dispatcher()) { inputChannel.send(it) } }
       response.endHandler { inputChannel.close() }
       response.resume()
 
       // Collect all the output messages
-      val messages = inputChannel.receiveAsFlow().toList()
-      definition.outputAssert.accept(messages)
+      val buffers = inputChannel.receiveAsFlow().toList()
+
+      definition.outputAssert.accept(
+          ProtoUtils.bufferToMessages(buffers.map { ByteBuffer.wrap(it.bytes) }))
 
       // Close the server
       server.close().coAwait()

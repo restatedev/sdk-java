@@ -281,7 +281,7 @@ public final class SyscallsImpl implements SyscallsInternal {
                                         .putInt(
                                             ((SingleDeferredInternal<ByteBuffer>) deferredResult)
                                                 .entryIndex())
-                                        .rewind()));
+                                        .flip()));
 
                     return new AbstractMap.SimpleImmutableEntry<>(
                         Entries.AWAKEABLE_IDENTIFIER_PREFIX

@@ -35,7 +35,7 @@ public final class TestDefinitions {
 
     boolean isOnlyUnbuffered();
 
-    List<InvocationFlow.InvocationInput> getInput();
+    List<InvocationInput> getInput();
 
     Consumer<List<MessageLite>> getOutputAssert();
 
@@ -123,14 +123,14 @@ public final class TestDefinitions {
               .map(
                   msgOrBuilder -> {
                     MessageLite msg = ProtoUtils.build(msgOrBuilder);
-                    return InvocationFlow.InvocationInput.of(headerFromMessage(msg), msg);
+                    return InvocationInput.of(headerFromMessage(msg), msg);
                   })
               .collect(Collectors.toList()));
     }
   }
 
   public static class WithInputBuilder extends TestInvocationBuilder {
-    private final List<InvocationFlow.InvocationInput> input;
+    private final List<InvocationInput> input;
     private boolean onlyUnbuffered = false;
 
     WithInputBuilder(@Nullable String invalidReason) {
@@ -142,7 +142,7 @@ public final class TestDefinitions {
         ServiceDefinition<?> service,
         @Nullable Object options,
         String method,
-        List<InvocationFlow.InvocationInput> input) {
+        List<InvocationInput> input) {
       super(service, options, method);
       this.input = new ArrayList<>(input);
     }
@@ -155,7 +155,7 @@ public final class TestDefinitions {
                 .map(
                     msgOrBuilder -> {
                       MessageLite msg = ProtoUtils.build(msgOrBuilder);
-                      return InvocationFlow.InvocationInput.of(headerFromMessage(msg), msg);
+                      return InvocationInput.of(headerFromMessage(msg), msg);
                     })
                 .collect(Collectors.toList()));
       }
@@ -184,7 +184,7 @@ public final class TestDefinitions {
     protected final @Nullable Object options;
     protected final @Nullable String invalidReason;
     protected final String method;
-    protected final List<InvocationFlow.InvocationInput> input;
+    protected final List<InvocationInput> input;
     protected final boolean onlyUnbuffered;
     protected final String named;
 
@@ -193,7 +193,7 @@ public final class TestDefinitions {
         @Nullable Object options,
         @Nullable String invalidReason,
         String method,
-        List<InvocationFlow.InvocationInput> input,
+        List<InvocationInput> input,
         boolean onlyUnbuffered,
         String named) {
       this.service = service;
@@ -221,7 +221,7 @@ public final class TestDefinitions {
     }
 
     @Override
-    public List<InvocationFlow.InvocationInput> getInput() {
+    public List<InvocationInput> getInput() {
       return input;
     }
 
@@ -250,7 +250,7 @@ public final class TestDefinitions {
         @Nullable Object options,
         @Nullable String invalidReason,
         String method,
-        List<InvocationFlow.InvocationInput> input,
+        List<InvocationInput> input,
         boolean onlyUnbuffered,
         Consumer<List<MessageLite>> messagesAssert) {
       super(
@@ -269,7 +269,7 @@ public final class TestDefinitions {
         @Nullable Object options,
         @Nullable String invalidReason,
         String method,
-        List<InvocationFlow.InvocationInput> input,
+        List<InvocationInput> input,
         boolean onlyUnbuffered,
         Consumer<List<MessageLite>> messagesAssert,
         String named) {

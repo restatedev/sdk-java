@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
+class InvocationStateMachine implements Flow.Processor<InvocationInput, MessageLite> {
 
   private static final Logger LOG = LogManager.getLogger(InvocationStateMachine.class);
 
@@ -131,7 +131,7 @@ class InvocationStateMachine implements InvocationFlow.InvocationProcessor {
   }
 
   @Override
-  public void onNext(InvocationFlow.InvocationInput invocationInput) {
+  public void onNext(InvocationInput invocationInput) {
     MessageLite msg = invocationInput.message();
     LOG.trace("Received input message {} {}", msg.getClass(), msg);
     if (this.invocationState == InvocationState.WAITING_START) {
