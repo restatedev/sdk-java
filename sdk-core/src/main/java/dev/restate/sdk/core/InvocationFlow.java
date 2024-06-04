@@ -8,46 +8,16 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import com.google.protobuf.MessageLite;
+import java.nio.ByteBuffer;
 import java.util.concurrent.Flow;
 
 public interface InvocationFlow {
 
-  interface InvocationInput {
-    MessageHeader header();
+  interface InvocationInputPublisher extends Flow.Publisher<ByteBuffer> {}
 
-    MessageLite message();
+  interface InvocationOutputPublisher extends Flow.Publisher<ByteBuffer> {}
 
-    static InvocationInput of(MessageHeader header, MessageLite message) {
-      return new InvocationInput() {
-        @Override
-        public MessageHeader header() {
-          return header;
-        }
+  interface InvocationInputSubscriber extends Flow.Subscriber<ByteBuffer> {}
 
-        @Override
-        public MessageLite message() {
-          return message;
-        }
-
-        @Override
-        public String toString() {
-          return header.toString() + " " + message.toString();
-        }
-      };
-    }
-  }
-
-  interface InvocationInputPublisher extends Flow.Publisher<InvocationInput> {}
-
-  interface InvocationOutputPublisher extends Flow.Publisher<MessageLite> {}
-
-  interface InvocationInputSubscriber extends Flow.Subscriber<InvocationInput> {}
-
-  interface InvocationOutputSubscriber extends Flow.Subscriber<MessageLite> {}
-
-  interface InvocationProcessor
-      extends Flow.Processor<InvocationInput, MessageLite>,
-          InvocationInputSubscriber,
-          InvocationOutputPublisher {}
+  interface InvocationOutputSubscriber extends Flow.Subscriber<ByteBuffer> {}
 }

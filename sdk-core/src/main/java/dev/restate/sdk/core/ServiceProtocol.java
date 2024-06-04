@@ -8,6 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.generated.service.protocol.Protocol;
@@ -15,18 +16,18 @@ import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import java.util.Objects;
 import java.util.Optional;
 
-public class ServiceProtocol {
-  public static final Protocol.ServiceProtocolVersion MIN_SERVICE_PROTOCOL_VERSION =
+class ServiceProtocol {
+  static final Protocol.ServiceProtocolVersion MIN_SERVICE_PROTOCOL_VERSION =
       Protocol.ServiceProtocolVersion.V1;
-  public static final Protocol.ServiceProtocolVersion MAX_SERVICE_PROTOCOL_VERSION =
+  static final Protocol.ServiceProtocolVersion MAX_SERVICE_PROTOCOL_VERSION =
       Protocol.ServiceProtocolVersion.V1;
 
-  public static final Discovery.ServiceDiscoveryProtocolVersion
-      MIN_SERVICE_DISCOVERY_PROTOCOL_VERSION = Discovery.ServiceDiscoveryProtocolVersion.V1;
-  public static final Discovery.ServiceDiscoveryProtocolVersion
-      MAX_SERVICE_DISCOVERY_PROTOCOL_VERSION = Discovery.ServiceDiscoveryProtocolVersion.V1;
+  static final Discovery.ServiceDiscoveryProtocolVersion MIN_SERVICE_DISCOVERY_PROTOCOL_VERSION =
+      Discovery.ServiceDiscoveryProtocolVersion.V1;
+  static final Discovery.ServiceDiscoveryProtocolVersion MAX_SERVICE_DISCOVERY_PROTOCOL_VERSION =
+      Discovery.ServiceDiscoveryProtocolVersion.V1;
 
-  public static Protocol.ServiceProtocolVersion parseServiceProtocolVersion(String version) {
+  static Protocol.ServiceProtocolVersion parseServiceProtocolVersion(String version) {
     version = version.trim();
 
     if (version.equals("application/vnd.restate.invocation.v1")) {
@@ -35,8 +36,7 @@ public class ServiceProtocol {
     return Protocol.ServiceProtocolVersion.SERVICE_PROTOCOL_VERSION_UNSPECIFIED;
   }
 
-  public static String serviceProtocolVersionToHeaderValue(
-      Protocol.ServiceProtocolVersion version) {
+  static String serviceProtocolVersionToHeaderValue(Protocol.ServiceProtocolVersion version) {
     if (Objects.requireNonNull(version) == Protocol.ServiceProtocolVersion.V1) {
       return "application/vnd.restate.invocation.v1";
     }
@@ -44,12 +44,12 @@ public class ServiceProtocol {
         String.format("Service protocol version '%s' has no header value", version.getNumber()));
   }
 
-  public static boolean is_supported(Protocol.ServiceProtocolVersion serviceProtocolVersion) {
+  static boolean isSupported(Protocol.ServiceProtocolVersion serviceProtocolVersion) {
     return MIN_SERVICE_PROTOCOL_VERSION.getNumber() <= serviceProtocolVersion.getNumber()
         && serviceProtocolVersion.getNumber() <= MAX_SERVICE_PROTOCOL_VERSION.getNumber();
   }
 
-  public static boolean is_supported(
+  static boolean isSupported(
       Discovery.ServiceDiscoveryProtocolVersion serviceDiscoveryProtocolVersion) {
     return MIN_SERVICE_DISCOVERY_PROTOCOL_VERSION.getNumber()
             <= serviceDiscoveryProtocolVersion.getNumber()
@@ -64,8 +64,8 @@ public class ServiceProtocol {
    * @return The highest supported service protocol version, otherwise
    *     Protocol.ServiceProtocolVersion.SERVICE_PROTOCOL_VERSION_UNSPECIFIED
    */
-  public static Discovery.ServiceDiscoveryProtocolVersion
-      selectSupportedServiceDiscoveryProtocolVersion(String acceptedVersionsString) {
+  static Discovery.ServiceDiscoveryProtocolVersion selectSupportedServiceDiscoveryProtocolVersion(
+      String acceptedVersionsString) {
     // assume V1 in case nothing was set
     if (acceptedVersionsString == null || acceptedVersionsString.isEmpty()) {
       return Discovery.ServiceDiscoveryProtocolVersion.V1;
@@ -82,7 +82,7 @@ public class ServiceProtocol {
 
       if (optionalVersion.isPresent()) {
         final Discovery.ServiceDiscoveryProtocolVersion version = optionalVersion.get();
-        if (is_supported(version) && version.getNumber() > maxVersion.getNumber()) {
+        if (isSupported(version) && version.getNumber() > maxVersion.getNumber()) {
           maxVersion = version;
         }
       }
@@ -91,8 +91,8 @@ public class ServiceProtocol {
     return maxVersion;
   }
 
-  public static Optional<Discovery.ServiceDiscoveryProtocolVersion>
-      parseServiceDiscoveryProtocolVersion(String versionString) {
+  static Optional<Discovery.ServiceDiscoveryProtocolVersion> parseServiceDiscoveryProtocolVersion(
+      String versionString) {
     versionString = versionString.trim();
 
     if (versionString.equals("application/vnd.restate.endpointmanifest.v1+json")) {
@@ -101,7 +101,7 @@ public class ServiceProtocol {
     return Optional.empty();
   }
 
-  public static String serviceDiscoveryProtocolVersionToHeaderValue(
+  static String serviceDiscoveryProtocolVersionToHeaderValue(
       Discovery.ServiceDiscoveryProtocolVersion version) {
     if (Objects.requireNonNull(version) == Discovery.ServiceDiscoveryProtocolVersion.V1) {
       return "application/vnd.restate.endpointmanifest.v1+json";
@@ -111,29 +111,25 @@ public class ServiceProtocol {
             "Service discovery protocol version '%s' has no header value", version.getNumber()));
   }
 
-  public static class DiscoveryResponseSerializer {
-    private static final ObjectMapper MANIFEST_OBJECT_MAPPER = new ObjectMapper();
+  private static final ObjectMapper MANIFEST_OBJECT_MAPPER = new ObjectMapper();
 
-    private final Discovery.ServiceDiscoveryProtocolVersion serviceDiscoveryProtocolVersion;
-
-    public DiscoveryResponseSerializer(
-        Discovery.ServiceDiscoveryProtocolVersion serviceDiscoveryProtocolVersion) {
-      if (!is_supported(serviceDiscoveryProtocolVersion)) {
-        throw new IllegalArgumentException("Unsupported service discovery protocol version");
-      }
-
-      this.serviceDiscoveryProtocolVersion = serviceDiscoveryProtocolVersion;
-    }
-
-    public byte[] serialize(EndpointManifestSchema response) throws Exception {
-      if (this.serviceDiscoveryProtocolVersion == Discovery.ServiceDiscoveryProtocolVersion.V1) {
+  static byte[] serializeManifest(
+      Discovery.ServiceDiscoveryProtocolVersion serviceDiscoveryProtocolVersion,
+      EndpointManifestSchema response)
+      throws ProtocolException {
+    if (serviceDiscoveryProtocolVersion == Discovery.ServiceDiscoveryProtocolVersion.V1) {
+      try {
         return MANIFEST_OBJECT_MAPPER.writeValueAsBytes(response);
+      } catch (JsonProcessingException e) {
+        throw new ProtocolException(
+            "Error when serializing the manifest", ProtocolException.INTERNAL_CODE, e);
       }
-
-      throw new IllegalStateException(
-          String.format(
-              "DiscoveryResponseSerializer does not support service discovery protocol '%s'",
-              this.serviceDiscoveryProtocolVersion.getNumber()));
     }
+
+    throw new ProtocolException(
+        String.format(
+            "DiscoveryResponseSerializer does not support service discovery protocol '%s'",
+            serviceDiscoveryProtocolVersion.getNumber()),
+        ProtocolException.UNSUPPORTED_MEDIA_TYPE_CODE);
   }
 }

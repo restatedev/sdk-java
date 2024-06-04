@@ -12,16 +12,29 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.MessageLiteOrBuilder;
 import dev.restate.generated.sdk.java.Java;
+import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.generated.service.protocol.Protocol.StartMessage.StateEntry;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.Target;
+import io.smallrye.mutiny.Multi;
+import io.smallrye.mutiny.helpers.test.AssertSubscriber;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 public class ProtoUtils {
+
+  public static String serviceProtocolContentTypeHeader() {
+    return ServiceProtocol.serviceProtocolVersionToHeaderValue(Protocol.ServiceProtocolVersion.V1);
+  }
+
+  public static String serviceProtocolDiscoveryContentTypeHeader() {
+    return ServiceProtocol.serviceDiscoveryProtocolVersionToHeaderValue(
+        Discovery.ServiceDiscoveryProtocolVersion.V1);
+  }
 
   /**
    * Variant of {@link MessageHeader#fromMessage(MessageLite)} supporting StartMessage and
@@ -34,6 +47,30 @@ public class ProtoUtils {
       return new MessageHeader(MessageType.CompletionMessage, (short) 0, msg.getSerializedSize());
     }
     return MessageHeader.fromMessage(msg);
+  }
+
+  public static ByteBuffer invocationInputToByteString(InvocationInput invocationInput) {
+    ByteBuffer buffer = ByteBuffer.allocate(MessageEncoder.encodeLength(invocationInput.message()));
+
+    buffer.putLong(invocationInput.header().encode());
+    buffer.put(invocationInput.message().toByteString().asReadOnlyByteBuffer());
+
+    buffer.flip();
+    return buffer;
+  }
+
+  public static ByteBuffer messageToByteString(MessageLiteOrBuilder msgOrBuilder) {
+    var msg = build(msgOrBuilder);
+    return invocationInputToByteString(InvocationInput.of(headerFromMessage(msg), msg));
+  }
+
+  public static List<MessageLite> bufferToMessages(List<ByteBuffer> byteBuffers) {
+    AssertSubscriber<InvocationInput> subscriber = AssertSubscriber.create(Long.MAX_VALUE);
+    Multi.createFrom().iterable(byteBuffers).subscribe(new MessageDecoder(subscriber));
+    subscriber.awaitCompletion();
+    return subscriber.getItems().stream()
+        .map(InvocationInput::message)
+        .collect(Collectors.toList());
   }
 
   public static Protocol.StartMessage.Builder startMessage(int entries) {

@@ -16,6 +16,8 @@ public class ProtocolException extends RuntimeException {
 
   static final int UNAUTHORIZED_CODE = 401;
   static final int NOT_FOUND_CODE = 404;
+  static final int UNSUPPORTED_MEDIA_TYPE_CODE = 415;
+  static final int INTERNAL_CODE = 500;
   static final int JOURNAL_MISMATCH_CODE = 570;
   static final int PROTOCOL_VIOLATION_CODE = 571;
 
@@ -28,7 +30,7 @@ public class ProtocolException extends RuntimeException {
     this(message, TerminalException.INTERNAL_SERVER_ERROR_CODE);
   }
 
-  private ProtocolException(String message, int code) {
+  ProtocolException(String message, int code) {
     this(message, code, null);
   }
 

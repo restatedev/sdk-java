@@ -24,6 +24,7 @@ dependencies {
   testImplementation(coreLibs.log4j.core)
   testImplementation(kotlinLibs.kotlinx.coroutines)
   testImplementation(kotlinLibs.kotlinx.serialization.core)
+  testImplementation("io.smallrye.reactive:mutiny:2.6.0")
 
   // Import test suites from sdk-core
   testImplementation(project(":sdk-core", "testArchive"))

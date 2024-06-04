@@ -8,10 +8,12 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
+import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.common.syscalls.*;
 import java.nio.ByteBuffer;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Flow;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
@@ -20,7 +22,10 @@ final class ResolvedEndpointHandlerImpl implements ResolvedEndpointHandler {
 
   private static final Logger LOG = LogManager.getLogger(ResolvedEndpointHandlerImpl.class);
 
+  private final Protocol.ServiceProtocolVersion serviceProtocolVersion;
   private final InvocationStateMachine stateMachine;
+  private final InvocationFlow.InvocationInputSubscriber input;
+  private final InvocationFlow.InvocationOutputPublisher output;
   private final HandlerSpecification<Object, Object> spec;
   private final HandlerRunner<Object, Object, Object> wrappedHandler;
   private final @Nullable Object serviceOptions;
@@ -28,11 +33,15 @@ final class ResolvedEndpointHandlerImpl implements ResolvedEndpointHandler {
 
   @SuppressWarnings("unchecked")
   public ResolvedEndpointHandlerImpl(
+      Protocol.ServiceProtocolVersion serviceProtocolVersion,
       InvocationStateMachine stateMachine,
       HandlerDefinition<?, ?, Object> handler,
       @Nullable Object serviceOptions,
       @Nullable Executor syscallExecutor) {
+    this.serviceProtocolVersion = serviceProtocolVersion;
     this.stateMachine = stateMachine;
+    this.input = new MessageDecoder(new ExceptionCatchingSubscriber<>(stateMachine));
+    this.output = new MessageEncoder(stateMachine);
     this.spec = (HandlerSpecification<Object, Object>) handler.getSpec();
     this.wrappedHandler =
         new HandlerRunnerWrapper<>((HandlerRunner<Object, Object, Object>) handler.getRunner());
@@ -40,19 +49,12 @@ final class ResolvedEndpointHandlerImpl implements ResolvedEndpointHandler {
     this.syscallsExecutor = syscallExecutor;
   }
 
-  @Override
-  public InvocationFlow.InvocationInputSubscriber input() {
-    return new ExceptionCatchingInvocationInputSubscriber(stateMachine);
-  }
+  // Flow methods implementation
 
   @Override
-  public InvocationFlow.InvocationOutputPublisher output() {
-    return stateMachine;
-  }
-
-  @Override
-  public void start() {
+  public void subscribe(Flow.Subscriber<? super ByteBuffer> subscriber) {
     LOG.trace("Start processing invocation");
+    this.output.subscribe(subscriber);
     stateMachine.startAndConsumeInput(
         SyscallCallback.of(
             request -> {
@@ -72,6 +74,31 @@ final class ResolvedEndpointHandlerImpl implements ResolvedEndpointHandler {
                       o -> this.writeOutputAndEnd(syscalls, o), t -> this.end(syscalls, t)));
             },
             t -> {}));
+  }
+
+  @Override
+  public void onSubscribe(Flow.Subscription subscription) {
+    this.input.onSubscribe(subscription);
+  }
+
+  @Override
+  public void onNext(ByteBuffer item) {
+    this.input.onNext(item);
+  }
+
+  @Override
+  public void onError(Throwable throwable) {
+    this.input.onError(throwable);
+  }
+
+  @Override
+  public void onComplete() {
+    this.input.onComplete();
+  }
+
+  @Override
+  public String responseContentType() {
+    return ServiceProtocol.serviceProtocolVersionToHeaderValue(serviceProtocolVersion);
   }
 
   private void writeOutputAndEnd(SyscallsInternal syscalls, ByteBuffer output) {

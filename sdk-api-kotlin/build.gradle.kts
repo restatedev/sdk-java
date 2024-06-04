@@ -23,6 +23,7 @@ dependencies {
   testImplementation(testingLibs.assertj)
   testImplementation(coreLibs.log4j.core)
   testImplementation(coreLibs.protobuf.java)
+  testImplementation("io.smallrye.reactive:mutiny:2.6.0")
 
   testImplementation(project(":sdk-core", "testArchive"))
 }

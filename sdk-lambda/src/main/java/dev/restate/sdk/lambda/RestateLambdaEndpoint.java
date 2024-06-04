@@ -8,20 +8,14 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.lambda;
 
-import static dev.restate.sdk.core.ServiceProtocol.selectSupportedServiceDiscoveryProtocolVersion;
-import static dev.restate.sdk.core.ServiceProtocol.serviceDiscoveryProtocolVersionToHeaderValue;
 import static dev.restate.sdk.lambda.LambdaFlowAdapters.*;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
-import dev.restate.generated.service.discovery.Discovery;
-import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.ResolvedEndpointHandler;
 import dev.restate.sdk.core.RestateEndpoint;
-import dev.restate.sdk.core.ServiceProtocol;
-import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import dev.restate.sdk.version.Version;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.context.propagation.TextMapGetter;
@@ -79,37 +73,25 @@ public final class RestateLambdaEndpoint {
             ? input.getPath().substring(0, input.getPath().length() - 1)
             : input.getPath();
 
-    if (path.endsWith(DISCOVER_PATH)) {
-      return this.handleDiscovery(input.getHeaders().get("accept"));
+    try {
+      if (path.endsWith(DISCOVER_PATH)) {
+        return this.handleDiscovery(input.getHeaders().get("accept"));
+      }
+      return this.handleInvoke(input);
+    } catch (ProtocolException e) {
+      // We can handle protocol exceptions by returning back the correct response
+      LOG.warn("Error when handling the request", e);
+      return new APIGatewayProxyResponseEvent()
+          .withStatusCode(e.getCode())
+          .withHeaders(
+              Map.of("content-type", "text/plain", "x-restate-server", Version.X_RESTATE_SERVER))
+          .withBody(e.getMessage());
     }
-
-    return this.handleInvoke(input);
   }
 
   // --- Invoke request
 
   private APIGatewayProxyResponseEvent handleInvoke(APIGatewayProxyRequestEvent input) {
-    // check protocol version
-    final String protocolVersionString = input.getHeaders().get("content-type");
-
-    final Protocol.ServiceProtocolVersion serviceProtocolVersion =
-        ServiceProtocol.parseServiceProtocolVersion(protocolVersionString);
-
-    if (!ServiceProtocol.is_supported(serviceProtocolVersion)) {
-      final String errorMessage =
-          String.format(
-              "Service endpoint does not support the service protocol version '%s'.",
-              protocolVersionString);
-      LOG.warn(errorMessage);
-
-      final APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent();
-      response.setStatusCode(415);
-      response.setHeaders(
-          Map.of("content-type", "text/plain", "x-restate-server", Version.X_RESTATE_SERVER));
-      response.setBody(errorMessage);
-      return response;
-    }
-
     // Parse request
     String[] pathSegments = SLASH.split(input.getPath());
     if (pathSegments.length < 3
@@ -138,6 +120,7 @@ public final class RestateLambdaEndpoint {
     try {
       handler =
           this.restateEndpoint.resolve(
+              input.getHeaders().get("content-type"),
               serviceName,
               handlerName,
               input.getHeaders()::get,
@@ -153,11 +136,8 @@ public final class RestateLambdaEndpoint {
     ResultSubscriber subscriber = new ResultSubscriber();
 
     // Wire handler
-    publisher.subscribe(handler.input());
-    handler.output().subscribe(subscriber);
-
-    // Start
-    handler.start();
+    publisher.subscribe(handler);
+    handler.subscribe(subscriber);
 
     // Await the result
     byte[] responseBody;
@@ -176,7 +156,7 @@ public final class RestateLambdaEndpoint {
     response.setHeaders(
         Map.of(
             "content-type",
-            ServiceProtocol.serviceProtocolVersionToHeaderValue(serviceProtocolVersion),
+            handler.responseContentType(),
             "x-restate-server",
             Version.X_RESTATE_SERVER));
     response.setIsBase64Encoded(true);
@@ -188,50 +168,20 @@ public final class RestateLambdaEndpoint {
   // --- Service discovery
 
   private APIGatewayProxyResponseEvent handleDiscovery(String acceptVersionsString) {
-    final Discovery.ServiceDiscoveryProtocolVersion serviceDiscoveryProtocolVersion =
-        selectSupportedServiceDiscoveryProtocolVersion(acceptVersionsString);
+    RestateEndpoint.DiscoveryResponse discoveryResponse =
+        this.restateEndpoint.handleDiscoveryRequest(acceptVersionsString);
 
-    if (serviceDiscoveryProtocolVersion
-        == Discovery.ServiceDiscoveryProtocolVersion
-            .SERVICE_DISCOVERY_PROTOCOL_VERSION_UNSPECIFIED) {
-      final String errorMessage =
-          String.format(
-              "Unsupported service discovery protocol version: '%s'", acceptVersionsString);
-      LOG.warn(errorMessage);
-      APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent();
-      response.setStatusCode(415);
-      response.setHeaders(
-          Map.of("content-type", "text/plain", "x-restate-server", Version.X_RESTATE_SERVER));
-      response.setBody(errorMessage);
-      return response;
-    } else {
-      // Compute response and write it back
-      EndpointManifestSchema responseManifest = this.restateEndpoint.handleDiscoveryRequest();
-      byte[] serializedManifest;
-      try {
-        serializedManifest =
-            new ServiceProtocol.DiscoveryResponseSerializer(serviceDiscoveryProtocolVersion)
-                .serialize(responseManifest);
-      } catch (Exception e) {
-        LOG.warn("Error when writing out the manifest POJO", e);
-        final APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent();
-        response.setStatusCode(500);
-        response.setBody(e.getMessage());
-        return response;
-      }
-
-      final APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent();
-      response.setHeaders(
-          Map.of(
-              "content-type",
-              serviceDiscoveryProtocolVersionToHeaderValue(serviceDiscoveryProtocolVersion),
-              "x-restate-server",
-              Version.X_RESTATE_SERVER));
-      response.setIsBase64Encoded(true);
-      response.setStatusCode(200);
-      response.setBody(Base64.getEncoder().encodeToString(serializedManifest));
-      return response;
-    }
+    final APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent();
+    response.setHeaders(
+        Map.of(
+            "content-type",
+            discoveryResponse.getContentType(),
+            "x-restate-server",
+            Version.X_RESTATE_SERVER));
+    response.setIsBase64Encoded(true);
+    response.setStatusCode(200);
+    response.setBody(Base64.getEncoder().encodeToString(discoveryResponse.getSerializedManifest()));
+    return response;
   }
 
   // --- Utils

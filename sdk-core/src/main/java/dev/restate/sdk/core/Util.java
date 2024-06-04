@@ -165,6 +165,6 @@ public final class Util {
 
   /** NOTE! This method rewinds the buffer!!! */
   static ByteString nioBufferToProtobufBuffer(ByteBuffer nioBuffer) {
-    return UnsafeByteOperations.unsafeWrap(nioBuffer.rewind());
+    return UnsafeByteOperations.unsafeWrap(nioBuffer);
   }
 }

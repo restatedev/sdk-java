@@ -8,19 +8,13 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.http.vertx;
 
-import static dev.restate.sdk.core.ServiceProtocol.selectSupportedServiceDiscoveryProtocolVersion;
-import static dev.restate.sdk.core.ServiceProtocol.serviceDiscoveryProtocolVersionToHeaderValue;
 import static io.netty.handler.codec.http.HttpHeaderNames.ACCEPT;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 
-import dev.restate.generated.service.discovery.Discovery;
-import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.ResolvedEndpointHandler;
 import dev.restate.sdk.core.RestateEndpoint;
-import dev.restate.sdk.core.ServiceProtocol;
-import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import dev.restate.sdk.version.Version;
 import io.netty.util.AsciiString;
 import io.opentelemetry.api.OpenTelemetry;
@@ -87,27 +81,6 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
       return;
     }
 
-    // check protocol version
-    final String protocolVersionString = request.getHeader(CONTENT_TYPE);
-
-    final Protocol.ServiceProtocolVersion serviceProtocolVersion =
-        ServiceProtocol.parseServiceProtocolVersion(protocolVersionString);
-
-    if (!ServiceProtocol.is_supported(serviceProtocolVersion)) {
-      final String errorMessage =
-          String.format(
-              "Service endpoint does not support the service protocol version '%s'.",
-              protocolVersionString);
-      LOG.warn(errorMessage);
-      request
-          .response()
-          .setStatusCode(UNSUPPORTED_MEDIA_TYPE.code())
-          .putHeader(CONTENT_TYPE, "text/plain")
-          .putHeader(X_RESTATE_SERVER_KEY, X_RESTATE_SERVER_VALUE)
-          .end(errorMessage);
-      return;
-    }
-
     // Parse request
     String[] pathSegments = SLASH.split(uri.getPath());
     if (pathSegments.length < 3) {
@@ -136,6 +109,7 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
     try {
       handler =
           restateEndpoint.resolve(
+              request.getHeader(CONTENT_TYPE),
               serviceName,
               handlerName,
               request::getHeader,
@@ -143,8 +117,13 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
               ContextualData::put,
               currentContextExecutor(vertxCurrentContext));
     } catch (ProtocolException e) {
-      LOG.warn("Error when resolving the handler", e);
-      request.response().setStatusCode(e.getCode()).end();
+      LOG.warn("Error when handling the request", e);
+      request
+          .response()
+          .setStatusCode(e.getCode())
+          .putHeader(CONTENT_TYPE, "text/plain")
+          .putHeader(X_RESTATE_SERVER_KEY, X_RESTATE_SERVER_VALUE)
+          .end(e.getMessage());
       return;
     }
 
@@ -155,9 +134,7 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
     HttpServerResponse response = request.response();
     response.setStatusCode(OK.code());
     response
-        .putHeader(
-            CONTENT_TYPE,
-            ServiceProtocol.serviceProtocolVersionToHeaderValue(serviceProtocolVersion))
+        .putHeader(CONTENT_TYPE, handler.responseContentType())
         .putHeader(X_RESTATE_SERVER_KEY, X_RESTATE_SERVER_VALUE);
     // This is No-op for HTTP2
     response.setChunked(true);
@@ -165,10 +142,8 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
     HttpRequestFlowAdapter requestFlowAdapter = new HttpRequestFlowAdapter(request);
     HttpResponseFlowAdapter responseFlowAdapter = new HttpResponseFlowAdapter(response);
 
-    requestFlowAdapter.subscribe(handler.input());
-    handler.output().subscribe(responseFlowAdapter);
-
-    handler.start();
+    requestFlowAdapter.subscribe(handler);
+    handler.subscribe(responseFlowAdapter);
   }
 
   private Executor currentContextExecutor(Context currentContext) {
@@ -176,48 +151,25 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
   }
 
   private void handleDiscoveryRequest(HttpServerRequest request) {
-    final String acceptVersionsString = request.getHeader(ACCEPT);
-
-    final Discovery.ServiceDiscoveryProtocolVersion serviceDiscoveryProtocolVersion =
-        selectSupportedServiceDiscoveryProtocolVersion(acceptVersionsString);
-
-    if (serviceDiscoveryProtocolVersion
-        == Discovery.ServiceDiscoveryProtocolVersion
-            .SERVICE_DISCOVERY_PROTOCOL_VERSION_UNSPECIFIED) {
-      final String errorMessage =
-          String.format(
-              "Unsupported service discovery protocol version: '%s'", acceptVersionsString);
-      LOG.warn(errorMessage);
+    RestateEndpoint.DiscoveryResponse discoveryResponse;
+    try {
+      discoveryResponse = restateEndpoint.handleDiscoveryRequest(request.getHeader(ACCEPT));
+    } catch (ProtocolException e) {
+      LOG.warn("Error when handling the discovery request", e);
       request
           .response()
-          .setStatusCode(UNSUPPORTED_MEDIA_TYPE.code())
+          .setStatusCode(e.getCode())
           .putHeader(CONTENT_TYPE, "text/plain")
           .putHeader(X_RESTATE_SERVER_KEY, X_RESTATE_SERVER_VALUE)
-          .end(errorMessage);
-    } else {
-      // Compute response and write it back
-      EndpointManifestSchema response = this.restateEndpoint.handleDiscoveryRequest();
-
-      Buffer responseBuffer;
-      try {
-        responseBuffer =
-            Buffer.buffer(
-                new ServiceProtocol.DiscoveryResponseSerializer(serviceDiscoveryProtocolVersion)
-                    .serialize(response));
-      } catch (Exception e) {
-        LOG.warn("Error when writing out the manifest POJO", e);
-        request.response().setStatusCode(INTERNAL_SERVER_ERROR.code()).end(e.getMessage());
-        return;
-      }
-
-      request
-          .response()
-          .setStatusCode(OK.code())
-          .putHeader(X_RESTATE_SERVER_KEY, X_RESTATE_SERVER_VALUE)
-          .putHeader(
-              CONTENT_TYPE,
-              serviceDiscoveryProtocolVersionToHeaderValue(serviceDiscoveryProtocolVersion))
-          .end(responseBuffer);
+          .end(e.getMessage());
+      return;
     }
+
+    request
+        .response()
+        .setStatusCode(OK.code())
+        .putHeader(X_RESTATE_SERVER_KEY, X_RESTATE_SERVER_VALUE)
+        .putHeader(CONTENT_TYPE, discoveryResponse.getContentType())
+        .end(Buffer.buffer(discoveryResponse.getSerializedManifest()));
   }
 }

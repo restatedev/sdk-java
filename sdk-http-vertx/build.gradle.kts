@@ -12,8 +12,6 @@ dependencies {
   api(project(":sdk-common"))
   implementation(project(":sdk-core"))
 
-  implementation(coreLibs.protobuf.java)
-
   // Vert.x
   implementation(platform(vertxLibs.vertx.bom))
   implementation(vertxLibs.vertx.core)
@@ -37,6 +35,7 @@ dependencies {
   testImplementation(testingLibs.junit.jupiter)
   testImplementation(testingLibs.assertj)
   testImplementation(vertxLibs.vertx.junit5)
+  testImplementation("io.smallrye.reactive:mutiny:2.6.0")
 
   testImplementation(coreLibs.protobuf.java)
   testImplementation(coreLibs.protobuf.kotlin)

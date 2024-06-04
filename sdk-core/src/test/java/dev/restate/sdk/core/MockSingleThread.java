@@ -11,11 +11,15 @@ package dev.restate.sdk.core;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.protobuf.MessageLite;
+import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.common.syscalls.ServiceDefinition;
 import dev.restate.sdk.core.TestDefinitions.TestDefinition;
 import dev.restate.sdk.core.TestDefinitions.TestExecutor;
 import dev.restate.sdk.core.manifest.EndpointManifestSchema;
+import io.smallrye.mutiny.Multi;
+import io.smallrye.mutiny.helpers.test.AssertSubscriber;
 import java.time.Duration;
+import java.util.List;
 import org.apache.logging.log4j.ThreadContext;
 
 public final class MockSingleThread implements TestExecutor {
@@ -31,9 +35,6 @@ public final class MockSingleThread implements TestExecutor {
 
   @Override
   public void executeTest(TestDefinition definition) {
-    // Output subscriber buffers all the output messages and provides a completion future
-    FlowUtils.FutureSubscriber<MessageLite> outputSubscriber = new FlowUtils.FutureSubscriber<>();
-
     ServiceDefinition<?> serviceDefinition = definition.getServiceDefinition();
 
     // Prepare server
@@ -48,6 +49,7 @@ public final class MockSingleThread implements TestExecutor {
     // Start invocation
     ResolvedEndpointHandler handler =
         server.resolve(
+            ServiceProtocol.serviceProtocolVersionToHeaderValue(Protocol.ServiceProtocolVersion.V1),
             serviceDefinition.getServiceName(),
             definition.getMethod(),
             k -> null,
@@ -55,22 +57,21 @@ public final class MockSingleThread implements TestExecutor {
             RestateEndpoint.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
             null);
 
-    // Create publisher
-    FlowUtils.BufferedMockPublisher<InvocationFlow.InvocationInput> inputPublisher =
-        new FlowUtils.BufferedMockPublisher<>(definition.getInput());
-
     // Wire invocation
-    handler.output().subscribe(outputSubscriber);
-    inputPublisher.subscribe(handler.input());
-
-    // Start invocation
-    handler.start();
+    AssertSubscriber<InvocationInput> assertSubscriber = AssertSubscriber.create(Long.MAX_VALUE);
+    Multi.createFrom()
+        .iterable(definition.getInput())
+        .map(ProtoUtils::invocationInputToByteString)
+        .subscribe(handler);
+    Multi.createFrom().publisher(handler).subscribe(new MessageDecoder(assertSubscriber));
 
     // Check completed
-    assertThat(outputSubscriber.getFuture())
-        .succeedsWithin(Duration.ofSeconds(1))
-        .satisfies(definition.getOutputAssert());
-    assertThat(inputPublisher.isSubscriptionCancelled()).isTrue();
+    assertSubscriber.awaitCompletion(Duration.ofSeconds(1));
+    // Unwrap messages
+    //noinspection unchecked
+    assertThat(assertSubscriber.getItems())
+        .map(InvocationInput::message)
+        .satisfies(l -> definition.getOutputAssert().accept((List<MessageLite>) l));
 
     // Clean logging
     ThreadContext.clearAll();

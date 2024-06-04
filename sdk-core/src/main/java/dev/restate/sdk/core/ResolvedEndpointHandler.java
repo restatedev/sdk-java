@@ -8,17 +8,10 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-/**
- * Resolved handler for an invocation.
- *
- * <p>You MUST first wire up the subscriber and publisher returned by {@link #input()} and {@link
- * #output()} and then {@link #start()} the invocation.
- */
-public interface ResolvedEndpointHandler {
+import java.nio.ByteBuffer;
+import java.util.concurrent.Flow;
 
-  InvocationFlow.InvocationInputSubscriber input();
-
-  InvocationFlow.InvocationOutputPublisher output();
-
-  void start();
+/** Resolved handler for an invocation. */
+public interface ResolvedEndpointHandler extends Flow.Processor<ByteBuffer, ByteBuffer> {
+  String responseContentType();
 }

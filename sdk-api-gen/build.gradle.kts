@@ -22,6 +22,7 @@ dependencies {
   testImplementation(platform(jacksonLibs.jackson.bom))
   testImplementation(jacksonLibs.jackson.databind)
   testImplementation(project(":sdk-serde-jackson"))
+  testImplementation("io.smallrye.reactive:mutiny:2.6.0")
 
   // Import test suites from sdk-core
   testImplementation(project(":sdk-core", "testArchive"))
