@@ -183,14 +183,7 @@ class InvocationStateMachine implements Flow.Processor<InvocationInput, MessageL
     this.entriesToReplay = startMessage.getKnownEntries();
 
     // Set up the state cache
-    this.userStateStore =
-        new UserStateStore(
-            startMessage.getPartialState(),
-            startMessage.getStateMapList().stream()
-                .collect(
-                    Collectors.toMap(
-                        Protocol.StartMessage.StateEntry::getKey,
-                        Protocol.StartMessage.StateEntry::getValue)));
+    this.userStateStore = new UserStateStore(startMessage);
 
     // Tracing and logging setup
     this.loggingContextSetter.set(
