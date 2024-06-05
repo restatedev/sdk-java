@@ -2,11 +2,10 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import com.github.jengelman.gradle.plugins.shadow.transformers.ServiceFileTransformer
 
 plugins {
-  java
-  kotlin("jvm")
-  kotlin("plugin.serialization")
-  application
+  `java-conventions`
+  `kotlin-conventions`
   alias(kotlinLibs.plugins.ksp)
+  application
   id("com.github.johnrengelman.shadow").version("8.1.1")
 }
 
@@ -28,6 +27,8 @@ dependencies {
   implementation(kotlinLibs.kotlinx.serialization.json)
 
   implementation(coreLibs.log4j.core)
+  implementation(platform(vertxLibs.vertx.bom))
+  implementation(vertxLibs.vertx.core)
 }
 
 application {

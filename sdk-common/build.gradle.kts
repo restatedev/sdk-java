@@ -1,5 +1,6 @@
 plugins {
   `java-library`
+  `java-conventions`
   `library-publishing-conventions`
 }
 
