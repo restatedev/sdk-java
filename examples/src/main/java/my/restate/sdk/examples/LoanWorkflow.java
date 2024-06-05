@@ -33,7 +33,7 @@ import org.apache.logging.log4j.Logger;
 @Workflow
 public class LoanWorkflow {
 
-  // --- Data types used by the Loan Worfklow
+  // --- Data types used by the Loan Workflow
 
   public enum Status {
     UNKNOWN,

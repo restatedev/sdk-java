@@ -40,6 +40,11 @@ You can modify the class to run setting `-PmainClass=<FQCN>`, for example, in or
 
 ## Invoking the Counter
 
+Make sure your handlers are registered with your restate server. When you run the example above it'll start a deployment listening on port `9080`. Use the `restate` CLI to let the server know to reach it:
+```shell
+restate deployment register localhost:9080
+```
+
 If you want to invoke the counter virtual object via curl:
 
 ```shell
