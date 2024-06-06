@@ -293,6 +293,16 @@ export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://localhost:14250
 
 Please refer to the [Opentelemetry manual instrumentation documentation](https://opentelemetry.io/docs/instrumentation/java/manual/#manual-instrumentation-setup) and the [autoconfigure documentation](https://github.com/open-telemetry/opentelemetry-java/blob/main/sdk-extensions/autoconfigure/README.md) for more info.
 
+## Versions
+
+This library follows [Semantic Versioning](https://semver.org/).
+
+The compatibility with Restate is described in the following table:
+
+| Restate Server\sdk-java | 1.0 |
+|-------------------------|-----|
+| 1.0                     | ✅   |
+
 ## Contributing
 
 We’re excited if you join the Restate community and start contributing!
