@@ -42,8 +42,8 @@ gradle init --type java-application
 Add the runtime dependency [sdk-api](sdk-api) and the annotation processor dependency [sdk-api-gen](sdk-api-gen):
 
 ```
-annotationProcessor("dev.restate:sdk-api-gen:0.9.0")
-implementation("dev.restate:sdk-api:0.9.0")
+annotationProcessor("dev.restate:sdk-api-gen:1.0.0")
+implementation("dev.restate:sdk-api:1.0.0")
 ```
 
 ### Setup a project (Kotlin)
@@ -58,15 +58,15 @@ Add the [Kotlin symbol processing](https://kotlinlang.org/docs/ksp-quickstart.ht
 
 ```
 plugins {
-    id("com.google.devtools.ksp") version "1.9.22-1.0.18"
+    id("com.google.devtools.ksp") version "2.0.0-1.0.21"
 }
 ```
 
 Add the runtime dependency [sdk-api-kotlin](sdk-api-kotlin) and the ksp dependency [sdk-api-gen](sdk-api-kotlin-gen):
 
 ```
-ksp("dev.restate:sdk-api-kotlin-gen:0.9.0")
-implementation("dev.restate:sdk-api-kotlin:0.9.0")
+ksp("dev.restate:sdk-api-kotlin-gen:1.0.0")
+implementation("dev.restate:sdk-api-kotlin:1.0.0")
 ```
 
 ### Implement your first Restate component (Java)
@@ -98,7 +98,7 @@ public class Greeter {
 When using composite types/POJOs for input/output, [Jackson Databind](https://github.com/FasterXML/jackson) will be used. The Jackson dependency is not automatically included, you must add it with [`sdk-serde-jackson`](sdk-serde-jackson):
 
 ```
-implementation("dev.restate:sdk-serde-jackson:0.9.0")
+implementation("dev.restate:sdk-serde-jackson:1.0.0")
 ```
 
 If you want to store types/POJOs in state, use `JacksonSerdes`:
@@ -114,14 +114,12 @@ Implement your first virtual object in a new class, for example:
 ```kotlin
 import dev.restate.sdk.annotation.Handler
 import dev.restate.sdk.annotation.VirtualObject
-import dev.restate.sdk.common.StateKey
-import dev.restate.sdk.kotlin.KtSerdes
-import dev.restate.sdk.kotlin.ObjectContext
+import dev.restate.sdk.kotlin.*
 
 @VirtualObject
 class Greeter {
   companion object {
-    private val COUNT = StateKey.of<Long>("total", KtSerdes.json())
+    private val COUNT = KtStateKey.json<Long>("total")
   }
 
   @Handler
@@ -140,7 +138,7 @@ When using composite data types for input/output, [`kotlinx.serialization`](http
 To deploy the Restate service as HTTP server, add [`sdk-http-vertx`](sdk-http-vertx) to the dependencies. For example, in Gradle:
 
 ```
-implementation("dev.restate:sdk-http-vertx:0.9.0")
+implementation("dev.restate:sdk-http-vertx:1.0.0")
 ```
 
 To deploy the service, add the following code to the `main`. For example in Java:
@@ -174,7 +172,7 @@ gradle run
 To deploy the Restate service as Lambda, add [`sdk-lambda`](sdk-lambda) to the dependencies. For example, in Gradle:
 
 ```
-implementation("dev.restate:sdk-lambda:0.9.0")
+implementation("dev.restate:sdk-lambda:1.0.0")
 ```
 
 Configure the build tool to generate Fat-JARs, which are required by AWS Lambda to correctly load the JAR. For example, using Gradle:
@@ -224,7 +222,7 @@ You can now upload the generated Jar in AWS Lambda, and configure `MyLambdaHandl
 The SDK uses log4j2 as logging facade. To enable logging, add the `log4j2` implementation to the dependencies:
 
 ```
-implementation("org.apache.logging.log4j:log4j-core:2.20.0")
+implementation("org.apache.logging.log4j:log4j-core:2.23.0")
 ```
 
 And configure the logging adding the file `resources/log4j2.properties`:
@@ -275,8 +273,8 @@ You can the additional SDK tracing information by configuring the `OpenTelemetry
 For example, to set up tracing using environment variables, add the following modules to your dependencies:
 
 ```
-implementation("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure:1.31.0")
-implementation("io.opentelemetry:opentelemetry-exporter-otlp:1.31.0")
+implementation("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure:1.38.0")
+implementation("io.opentelemetry:opentelemetry-exporter-otlp:1.38.0")
 ```
 
 And then configure it in the Restate builder:
@@ -294,6 +292,16 @@ export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://localhost:14250
 ```
 
 Please refer to the [Opentelemetry manual instrumentation documentation](https://opentelemetry.io/docs/instrumentation/java/manual/#manual-instrumentation-setup) and the [autoconfigure documentation](https://github.com/open-telemetry/opentelemetry-java/blob/main/sdk-extensions/autoconfigure/README.md) for more info.
+
+## Versions
+
+This library follows [Semantic Versioning](https://semver.org/).
+
+The compatibility with Restate is described in the following table:
+
+| Restate Server\sdk-java | 1.0 |
+|-------------------------|-----|
+| 1.0                     | ✅   |
 
 ## Contributing
 
