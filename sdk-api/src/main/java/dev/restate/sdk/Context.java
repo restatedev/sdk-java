@@ -106,10 +106,8 @@ public interface Context {
    * <p>The closure should tolerate retries, that is Restate might re-execute the closure multiple
    * times until it records a result.
    *
-   * <h2>Error handling</h2>
-   *
-   * Errors occurring within this closure won't be propagated to the caller, unless they are {@link
-   * TerminalException}. Consider the following code:
+   * <p><b>Error handling</b>: Errors occurring within this closure won't be propagated to the
+   * caller, unless they are {@link TerminalException}. Consider the following code:
    *
    * <pre>{@code
    * // Bad usage of try-catch outside the run
