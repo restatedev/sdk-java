@@ -1,6 +1,9 @@
+import org.jetbrains.dokka.gradle.AbstractDokkaTask
+
 plugins {
   `java-library`
   `java-conventions`
+  `kotlin-conventions`
   `test-jar-conventions`
   `library-publishing-conventions`
   id("org.jsonschema2pojo") version "1.2.1"
@@ -71,6 +74,7 @@ protobuf { protoc { artifact = "com.google.protobuf:protoc:$protobufVersion" } }
 tasks {
   withType<JavaCompile> { dependsOn(generateJsonSchema2Pojo, generateProto) }
   withType<Jar> { dependsOn(generateJsonSchema2Pojo, generateProto) }
+  withType<AbstractDokkaTask>().configureEach { dependsOn(generateJsonSchema2Pojo, generateProto) }
 }
 
 // spotless configuration for protobuf

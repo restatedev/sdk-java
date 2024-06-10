@@ -1,6 +1,9 @@
+import org.jetbrains.dokka.gradle.AbstractDokkaTask
+
 plugins {
   `java-library`
   `java-conventions`
+  `kotlin-conventions`
   `library-publishing-conventions`
 }
 
@@ -81,4 +84,5 @@ val generateVersionClass =
 tasks {
   withType<JavaCompile>().configureEach { dependsOn(generateVersionClass) }
   withType<Jar>().configureEach { dependsOn(generateVersionClass) }
+  withType<AbstractDokkaTask>().configureEach { dependsOn(generateVersionClass) }
 }

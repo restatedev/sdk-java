@@ -21,7 +21,7 @@ import kotlinx.coroutines.asContextElement
 import kotlinx.coroutines.launch
 import org.apache.logging.log4j.LogManager
 
-/** Adapter class for {@link InvocationHandler} to use the Kotlin API. */
+/** Adapter class for [dev.restate.sdk.common.syscalls.HandlerRunner] to use the Kotlin API. */
 class HandlerRunner<REQ, RES, CTX : Context>
 internal constructor(
     private val runner: suspend (CTX, REQ) -> RES,
