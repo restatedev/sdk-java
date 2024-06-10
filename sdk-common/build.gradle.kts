@@ -83,6 +83,6 @@ val generateVersionClass =
 
 tasks {
   withType<JavaCompile>().configureEach { dependsOn(generateVersionClass) }
-  withType<Jar>().configureEach { dependsOn(generateVersionClass) }
+  withType<org.gradle.jvm.tasks.Jar>().configureEach { dependsOn(generateVersionClass) }
   withType<AbstractDokkaTask>().configureEach { dependsOn(generateVersionClass) }
 }

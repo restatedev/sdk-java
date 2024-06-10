@@ -73,7 +73,9 @@ protobuf { protoc { artifact = "com.google.protobuf:protoc:$protobufVersion" } }
 
 tasks {
   withType<JavaCompile> { dependsOn(generateJsonSchema2Pojo, generateProto) }
-  withType<Jar> { dependsOn(generateJsonSchema2Pojo, generateProto) }
+  withType<org.gradle.jvm.tasks.Jar>().configureEach {
+    dependsOn(generateJsonSchema2Pojo, generateProto)
+  }
   withType<AbstractDokkaTask>().configureEach { dependsOn(generateJsonSchema2Pojo, generateProto) }
 }
 
