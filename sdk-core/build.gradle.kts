@@ -1,8 +1,16 @@
+import org.jetbrains.dokka.gradle.AbstractDokkaTask
+
 plugins {
   `java-library`
+  `java-conventions`
+  `kotlin-conventions`
+  `test-jar-conventions`
   `library-publishing-conventions`
   id("org.jsonschema2pojo") version "1.2.1"
   alias(pluginLibs.plugins.protobuf)
+
+  // https://github.com/gradle/gradle/issues/20084#issuecomment-1060822638
+  id(pluginLibs.plugins.spotless.get().pluginId) apply false
 }
 
 description = "Restate SDK Core"
@@ -66,17 +74,21 @@ protobuf { protoc { artifact = "com.google.protobuf:protoc:$protobufVersion" } }
 tasks {
   withType<JavaCompile> { dependsOn(generateJsonSchema2Pojo, generateProto) }
   withType<Jar> { dependsOn(generateJsonSchema2Pojo, generateProto) }
+  withType<AbstractDokkaTask>().configureEach { dependsOn(generateJsonSchema2Pojo, generateProto) }
 }
 
-// Generate test jar
+// spotless configuration for protobuf
 
-configurations { register("testArchive") }
+configure<com.diffplug.gradle.spotless.SpotlessExtension> {
+  format("proto") {
+    target("**/*.proto")
 
-tasks.register<Jar>("testJar") {
-  archiveClassifier.set("tests")
+    // Exclude proto and service-protocol directories because those get the license header from
+    // their repos.
+    targetExclude(
+        fileTree("$rootDir/sdk-common/src/main/proto") { include("**/*.*") },
+        fileTree("$rootDir/sdk-core/src/main/service-protocol") { include("**/*.*") })
 
-  from(project.the<SourceSetContainer>()["test"].output)
-  exclude("junit-platform.properties")
+    licenseHeaderFile("$rootDir/config/license-header", "syntax")
+  }
 }
-
-artifacts { add("testArchive", tasks["testJar"]) }

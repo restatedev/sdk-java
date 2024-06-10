@@ -1,6 +1,7 @@
 plugins {
+  `java-conventions`
+  `kotlin-conventions`
   `java-library`
-  kotlin("jvm")
   `library-publishing-conventions`
 }
 

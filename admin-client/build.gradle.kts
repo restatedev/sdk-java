@@ -3,6 +3,7 @@ import org.openapitools.generator.gradle.plugin.tasks.GenerateTask
 
 plugins {
   `java-library`
+  `java-conventions`
   id("org.openapi.generator") version "7.5.0"
   `library-publishing-conventions`
 }

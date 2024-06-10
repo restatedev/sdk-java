@@ -1,7 +1,6 @@
 plugins {
-  java
-  kotlin("jvm")
-  kotlin("plugin.serialization")
+  `kotlin-conventions`
+  `test-jar-conventions`
   `library-publishing-conventions`
   alias(kotlinLibs.plugins.ksp)
 }
@@ -29,15 +28,3 @@ dependencies {
   // Import test suites from sdk-core
   testImplementation(project(":sdk-core", "testArchive"))
 }
-
-// Generate test jar
-
-configurations { register("testArchive") }
-
-tasks.register<Jar>("testJar") {
-  archiveClassifier.set("tests")
-
-  from(project.the<SourceSetContainer>()["test"].output)
-}
-
-artifacts { add("testArchive", tasks["testJar"]) }
