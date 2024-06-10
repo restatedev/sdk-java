@@ -13,12 +13,13 @@ import dev.restate.sdk.common.syscalls.ServiceDefinition;
 import dev.restate.sdk.core.RestateEndpoint;
 import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import io.opentelemetry.api.OpenTelemetry;
-import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.Http2Settings;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import java.util.*;
+import java.util.concurrent.CompletionException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -120,17 +121,29 @@ public class RestateHttpEndpointBuilder {
     return this;
   }
 
-  /** Build and listen on the specified port. */
-  public void buildAndListen(int port) {
-    build().listen(port).onComplete(RestateHttpEndpointBuilder::handleStart);
+  /**
+   * Build and listen on the specified port.
+   *
+   * <p>NOTE: this method will block for opening the socket and reserving the port. If you need a
+   * non-blocking variant, manually {@link #build()} the server and start listening it.
+   *
+   * @return The listening port
+   */
+  public int buildAndListen(int port) {
+    return handleStart(build().listen(port));
   }
 
   /**
    * Build and listen on the port specified by the environment variable {@code PORT}, or
    * alternatively on the default {@code 9080} port.
+   *
+   * <p>NOTE: this method will block for opening the socket and reserving the port. If you need a
+   * non-blocking variant, manually {@link #build()} the server and start listening it.
+   *
+   * @return The listening port
    */
-  public void buildAndListen() {
-    build().listen().onComplete(RestateHttpEndpointBuilder::handleStart);
+  public int buildAndListen() {
+    return handleStart(build().listen());
   }
 
   /** Build the {@link HttpServer} serving the Restate service endpoint. */
@@ -145,11 +158,21 @@ public class RestateHttpEndpointBuilder {
     return server;
   }
 
-  private static void handleStart(AsyncResult<HttpServer> ar) {
-    if (ar.succeeded()) {
-      LOG.info("Restate HTTP Endpoint server started on port {}", ar.result().actualPort());
-    } else {
-      LOG.error("Restate HTTP Endpoint server start failed", ar.cause());
+  private static int handleStart(Future<HttpServer> fut) {
+    try {
+      HttpServer server = fut.toCompletionStage().toCompletableFuture().join();
+      LOG.info("Restate HTTP Endpoint server started on port {}", server.actualPort());
+      return server.actualPort();
+    } catch (CompletionException e) {
+      LOG.error("Restate HTTP Endpoint server start failed", e.getCause());
+      sneakyThrow(e.getCause());
+      // This is never reached
+      return -1;
     }
+  }
+
+  @SuppressWarnings("unchecked")
+  private static <E extends Throwable> void sneakyThrow(Throwable e) throws E {
+    throw (E) e;
   }
 }
