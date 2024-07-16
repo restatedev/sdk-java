@@ -37,6 +37,8 @@ public final class TestDefinitions {
 
     List<InvocationInput> getInput();
 
+    List<MessageLite> getOutput();
+
     Consumer<List<MessageLite>> getOutputAssert();
 
     String getTestCaseName();
@@ -170,12 +172,13 @@ public final class TestDefinitions {
     public ExpectingOutputMessages expectingOutput(MessageLiteOrBuilder... messages) {
       List<MessageLite> builtMessages =
           Arrays.stream(messages).map(ProtoUtils::build).collect(Collectors.toList());
-      return assertingOutput(actual -> assertThat(actual).asList().isEqualTo(builtMessages));
+      return new ExpectingOutputMessages(
+              service, options, invalidReason, handler, input, onlyUnbuffered, actual -> assertThat(actual).asList().isEqualTo(builtMessages), builtMessages);
     }
 
-    public ExpectingOutputMessages assertingOutput(Consumer<List<MessageLite>> messages) {
+    public ExpectingOutputMessages assertingOutput(Consumer<List<MessageLite>> assertion) {
       return new ExpectingOutputMessages(
-          service, options, invalidReason, handler, input, onlyUnbuffered, messages);
+          service, options, invalidReason, handler, input, onlyUnbuffered, assertion, null);
     }
   }
 
@@ -244,6 +247,7 @@ public final class TestDefinitions {
 
   public static class ExpectingOutputMessages extends BaseTestDefinition {
     private final Consumer<List<MessageLite>> messagesAssert;
+    private final List<MessageLite> messages;
 
     private ExpectingOutputMessages(
         @Nullable ServiceDefinition<?> service,
@@ -252,7 +256,8 @@ public final class TestDefinitions {
         String method,
         List<InvocationInput> input,
         boolean onlyUnbuffered,
-        Consumer<List<MessageLite>> messagesAssert) {
+        Consumer<List<MessageLite>> messagesAssert,
+        List<MessageLite> messages) {
       super(
           service,
           options,
@@ -262,6 +267,7 @@ public final class TestDefinitions {
           onlyUnbuffered,
           service != null ? service.getServiceName() + "#" + method : "Unknown");
       this.messagesAssert = messagesAssert;
+      this.messages = messages;
     }
 
     ExpectingOutputMessages(
@@ -272,9 +278,11 @@ public final class TestDefinitions {
         List<InvocationInput> input,
         boolean onlyUnbuffered,
         Consumer<List<MessageLite>> messagesAssert,
+        List<MessageLite> messages,
         String named) {
       super(service, options, invalidReason, method, input, onlyUnbuffered, named);
       this.messagesAssert = messagesAssert;
+      this.messages = messages;
     }
 
     public ExpectingOutputMessages named(String name) {
@@ -286,7 +294,13 @@ public final class TestDefinitions {
           input,
           onlyUnbuffered,
           messagesAssert,
+          messages,
           this.named + ": " + name);
+    }
+
+    @Override
+    public List<MessageLite> getOutput() {
+      return this.messages;
     }
 
     @Override
