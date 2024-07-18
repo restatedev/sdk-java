@@ -67,6 +67,18 @@ suspend fun <T : Any?> Client.InvocationHandle<T>.getOutputSuspend(
   return this.getOutputAsync(options).await()
 }
 
+suspend fun <T> Client.IdempotentInvocationHandle<T>.attachSuspend(
+    options: RequestOptions = RequestOptions.DEFAULT
+): T {
+  return this.attachAsync(options).await()
+}
+
+suspend fun <T> Client.IdempotentInvocationHandle<T>.getOutputSuspend(
+    options: RequestOptions = RequestOptions.DEFAULT
+): Output<T> {
+  return this.getOutputAsync(options).await()
+}
+
 suspend fun <T> Client.WorkflowHandle<T>.attachSuspend(
     options: RequestOptions = RequestOptions.DEFAULT
 ): T {
