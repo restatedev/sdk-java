@@ -211,6 +211,54 @@ public interface Client {
     }
   }
 
+  <Res> IdempotentInvocationHandle<Res> idempotentInvocationHandle(
+      Target target, String idempotencyKey, Serde<Res> resSerde);
+
+  interface IdempotentInvocationHandle<Res> {
+
+    CompletableFuture<Res> attachAsync(RequestOptions options);
+
+    default CompletableFuture<Res> attachAsync() {
+      return attachAsync(RequestOptions.DEFAULT);
+    }
+
+    default Res attach(RequestOptions options) throws IngressException {
+      try {
+        return attachAsync(options).join();
+      } catch (CompletionException e) {
+        if (e.getCause() instanceof RuntimeException) {
+          throw (RuntimeException) e.getCause();
+        }
+        throw new RuntimeException(e.getCause());
+      }
+    }
+
+    default Res attach() throws IngressException {
+      return attach(RequestOptions.DEFAULT);
+    }
+
+    CompletableFuture<Output<Res>> getOutputAsync(RequestOptions options);
+
+    default CompletableFuture<Output<Res>> getOutputAsync() {
+      return getOutputAsync(RequestOptions.DEFAULT);
+    }
+
+    default Output<Res> getOutput(RequestOptions options) throws IngressException {
+      try {
+        return getOutputAsync(options).join();
+      } catch (CompletionException e) {
+        if (e.getCause() instanceof RuntimeException) {
+          throw (RuntimeException) e.getCause();
+        }
+        throw new RuntimeException(e.getCause());
+      }
+    }
+
+    default Output<Res> getOutput() throws IngressException {
+      return getOutput(RequestOptions.DEFAULT);
+    }
+  }
+
   <Res> WorkflowHandle<Res> workflowHandle(
       String workflowName, String workflowId, Serde<Res> resSerde);
 

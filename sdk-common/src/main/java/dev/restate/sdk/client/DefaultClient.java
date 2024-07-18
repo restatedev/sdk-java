@@ -26,6 +26,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiFunction;
+import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.NonNull;
 
 public class DefaultClient implements Client {
@@ -116,21 +118,29 @@ public class DefaultClient implements Client {
   @Override
   public AwakeableHandle awakeableHandle(String id) {
     return new AwakeableHandle() {
+      private Void handleVoidResponse(HttpResponse<byte[]> response, Throwable throwable) {
+        if (throwable != null) {
+          throw new IngressException("Error when executing the request", throwable);
+        }
+
+        if (response.statusCode() >= 300) {
+          handleNonSuccessResponse(response);
+        }
+
+        return null;
+      }
+
       @Override
       public <T> CompletableFuture<Void> resolveAsync(
           Serde<T> serde, @NonNull T payload, RequestOptions options) {
         // Prepare request
         var reqBuilder =
-            HttpRequest.newBuilder().uri(baseUri.resolve("/restate/awakeables/" + id + "/resolve"));
+            prepareBuilder(options).uri(baseUri.resolve("/restate/awakeables/" + id + "/resolve"));
 
         // Add content-type
         if (serde.contentType() != null) {
           reqBuilder.header("content-type", serde.contentType());
         }
-
-        // Add headers
-        headers.forEach(reqBuilder::header);
-        options.getAdditionalHeaders().forEach(reqBuilder::header);
 
         // Build and Send request
         HttpRequest request =
@@ -139,18 +149,7 @@ public class DefaultClient implements Client {
                 .build();
         return httpClient
             .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
-            .handle(
-                (response, throwable) -> {
-                  if (throwable != null) {
-                    throw new IngressException("Error when executing the request", throwable);
-                  }
-
-                  if (response.statusCode() >= 300) {
-                    handleNonSuccessResponse(response);
-                  }
-
-                  return null;
-                });
+            .handle(this::handleVoidResponse);
       }
 
       @Override
@@ -169,18 +168,7 @@ public class DefaultClient implements Client {
         HttpRequest request = reqBuilder.POST(HttpRequest.BodyPublishers.ofString(reason)).build();
         return httpClient
             .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
-            .handle(
-                (response, throwable) -> {
-                  if (throwable != null) {
-                    throw new IngressException("Error when executing the request", throwable);
-                  }
-
-                  if (response.statusCode() >= 300) {
-                    handleNonSuccessResponse(response);
-                  }
-
-                  return null;
-                });
+            .handle(this::handleVoidResponse);
       }
     };
   }
@@ -197,78 +185,72 @@ public class DefaultClient implements Client {
       public CompletableFuture<Res> attachAsync(RequestOptions options) {
         // Prepare request
         var reqBuilder =
-            HttpRequest.newBuilder()
+            prepareBuilder(options)
                 .uri(baseUri.resolve("/restate/invocation/" + invocationId + "/attach"));
-
-        // Add headers
-        headers.forEach(reqBuilder::header);
-        options.getAdditionalHeaders().forEach(reqBuilder::header);
 
         // Build and Send request
         HttpRequest request = reqBuilder.GET().build();
         return httpClient
             .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
-            .handle(
-                (response, throwable) -> {
-                  if (throwable != null) {
-                    throw new IngressException("Error when executing the request", throwable);
-                  }
-
-                  if (response.statusCode() >= 300) {
-                    handleNonSuccessResponse(response);
-                  }
-
-                  try {
-                    return resSerde.deserialize(response.body());
-                  } catch (Exception e) {
-                    throw new IngressException(
-                        "Cannot deserialize the response",
-                        response.statusCode(),
-                        response.body(),
-                        e);
-                  }
-                });
+            .handle(handleAttachResponse(resSerde));
       }
 
       @Override
       public CompletableFuture<Output<Res>> getOutputAsync(RequestOptions options) {
         // Prepare request
         var reqBuilder =
-            HttpRequest.newBuilder()
+            prepareBuilder(options)
                 .uri(baseUri.resolve("/restate/invocation/" + invocationId + "/output"));
-
-        // Add headers
-        headers.forEach(reqBuilder::header);
-        options.getAdditionalHeaders().forEach(reqBuilder::header);
 
         // Build and Send request
         HttpRequest request = reqBuilder.GET().build();
         return httpClient
             .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
-            .handle(
-                (response, throwable) -> {
-                  if (throwable != null) {
-                    throw new IngressException("Error when executing the request", throwable);
-                  }
+            .handle(handleGetOutputResponse(resSerde));
+      }
+    };
+  }
 
-                  if (response.statusCode() == 470) {
-                    return Output.notReady();
-                  }
+  @Override
+  public <Res> IdempotentInvocationHandle<Res> idempotentInvocationHandle(
+      Target target, String idempotencyKey, Serde<Res> resSerde) {
+    return new IdempotentInvocationHandle<>() {
+      @Override
+      public CompletableFuture<Res> attachAsync(RequestOptions options) {
+        // Prepare request
+        var uri =
+            baseUri.resolve(
+                "/restate/invocation"
+                    + targetToURI(target)
+                    + "/"
+                    + URLEncoder.encode(idempotencyKey, StandardCharsets.UTF_8)
+                    + "/attach");
+        var reqBuilder = prepareBuilder(options).uri(uri);
 
-                  if (response.statusCode() >= 300) {
-                    handleNonSuccessResponse(response);
-                  }
+        // Build and Send request
+        HttpRequest request = reqBuilder.GET().build();
+        return httpClient
+            .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
+            .handle(handleAttachResponse(resSerde));
+      }
 
-                  try {
-                    return Output.ready(resSerde.deserialize(response.body()));
-                  } catch (Exception e) {
-                    throw new IngressException(
-                        "Cannot deserialize the response",
-                        response.statusCode(),
-                        response.body(),
-                        e);
-                  }
-                });
+      @Override
+      public CompletableFuture<Output<Res>> getOutputAsync(RequestOptions options) {
+        // Prepare request
+        var uri =
+            baseUri.resolve(
+                "/restate/invocation"
+                    + targetToURI(target)
+                    + "/"
+                    + URLEncoder.encode(idempotencyKey, StandardCharsets.UTF_8)
+                    + "/output");
+        var reqBuilder = prepareBuilder(options).uri(uri);
+
+        // Build and Send request
+        HttpRequest request = reqBuilder.GET().build();
+        return httpClient
+            .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
+            .handle(handleGetOutputResponse(resSerde));
       }
     };
   }
@@ -281,7 +263,7 @@ public class DefaultClient implements Client {
       public CompletableFuture<Res> attachAsync(RequestOptions options) {
         // Prepare request
         var reqBuilder =
-            HttpRequest.newBuilder()
+            prepareBuilder(options)
                 .uri(
                     baseUri.resolve(
                         "/restate/workflow/"
@@ -290,41 +272,18 @@ public class DefaultClient implements Client {
                             + URLEncoder.encode(workflowId, StandardCharsets.UTF_8)
                             + "/attach"));
 
-        // Add headers
-        headers.forEach(reqBuilder::header);
-        options.getAdditionalHeaders().forEach(reqBuilder::header);
-
         // Build and Send request
         HttpRequest request = reqBuilder.GET().build();
         return httpClient
             .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
-            .handle(
-                (response, throwable) -> {
-                  if (throwable != null) {
-                    throw new IngressException("Error when executing the request", throwable);
-                  }
-
-                  if (response.statusCode() >= 300) {
-                    handleNonSuccessResponse(response);
-                  }
-
-                  try {
-                    return resSerde.deserialize(response.body());
-                  } catch (Exception e) {
-                    throw new IngressException(
-                        "Cannot deserialize the response",
-                        response.statusCode(),
-                        response.body(),
-                        e);
-                  }
-                });
+            .handle(handleAttachResponse(resSerde));
       }
 
       @Override
       public CompletableFuture<Output<Res>> getOutputAsync(RequestOptions options) {
         // Prepare request
         var reqBuilder =
-            HttpRequest.newBuilder()
+            prepareBuilder(options)
                 .uri(
                     baseUri.resolve(
                         "/restate/workflow/"
@@ -333,49 +292,73 @@ public class DefaultClient implements Client {
                             + URLEncoder.encode(workflowId, StandardCharsets.UTF_8)
                             + "/output"));
 
-        // Add headers
-        headers.forEach(reqBuilder::header);
-        options.getAdditionalHeaders().forEach(reqBuilder::header);
-
         // Build and Send request
         HttpRequest request = reqBuilder.GET().build();
         return httpClient
             .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
-            .handle(
-                (response, throwable) -> {
-                  if (throwable != null) {
-                    throw new IngressException("Error when executing the request", throwable);
-                  }
-
-                  if (response.statusCode() == 470) {
-                    return Output.notReady();
-                  }
-
-                  if (response.statusCode() >= 300) {
-                    handleNonSuccessResponse(response);
-                  }
-
-                  try {
-                    return Output.ready(resSerde.deserialize(response.body()));
-                  } catch (Exception e) {
-                    throw new IngressException(
-                        "Cannot deserialize the response",
-                        response.statusCode(),
-                        response.body(),
-                        e);
-                  }
-                });
+            .handle(handleGetOutputResponse(resSerde));
       }
     };
   }
 
-  private URI toRequestURI(Target target, boolean isSend, Duration delay) {
+  private <Res> @NotNull
+      BiFunction<HttpResponse<byte[]>, Throwable, Output<Res>> handleGetOutputResponse(
+          Serde<Res> resSerde) {
+    return (response, throwable) -> {
+      if (throwable != null) {
+        throw new IngressException("Error when executing the request", throwable);
+      }
+
+      if (response.statusCode() == 470) {
+        return Output.notReady();
+      }
+
+      if (response.statusCode() >= 300) {
+        handleNonSuccessResponse(response);
+      }
+
+      try {
+        return Output.ready(resSerde.deserialize(response.body()));
+      } catch (Exception e) {
+        throw new IngressException(
+            "Cannot deserialize the response", response.statusCode(), response.body(), e);
+      }
+    };
+  }
+
+  private <Res> @NotNull BiFunction<HttpResponse<byte[]>, Throwable, Res> handleAttachResponse(
+      Serde<Res> resSerde) {
+    return (response, throwable) -> {
+      if (throwable != null) {
+        throw new IngressException("Error when executing the request", throwable);
+      }
+
+      if (response.statusCode() >= 300) {
+        handleNonSuccessResponse(response);
+      }
+
+      try {
+        return resSerde.deserialize(response.body());
+      } catch (Exception e) {
+        throw new IngressException(
+            "Cannot deserialize the response", response.statusCode(), response.body(), e);
+      }
+    };
+  }
+
+  /** Contains prefix / but not postfix / */
+  private String targetToURI(Target target) {
     StringBuilder builder = new StringBuilder();
     builder.append("/").append(target.getService());
     if (target.getKey() != null) {
       builder.append("/").append(URLEncoder.encode(target.getKey(), StandardCharsets.UTF_8));
     }
     builder.append("/").append(target.getHandler());
+    return builder.toString();
+  }
+
+  private URI toRequestURI(Target target, boolean isSend, Duration delay) {
+    StringBuilder builder = new StringBuilder(targetToURI(target));
     if (isSend) {
       builder.append("/send");
     }
@@ -386,19 +369,8 @@ public class DefaultClient implements Client {
     return this.baseUri.resolve(builder.toString());
   }
 
-  private <Req> HttpRequest prepareHttpRequest(
-      Target target,
-      boolean isSend,
-      Serde<Req> reqSerde,
-      Req req,
-      Duration delay,
-      RequestOptions options) {
-    var reqBuilder = HttpRequest.newBuilder().uri(toRequestURI(target, isSend, delay));
-
-    // Add content-type
-    if (reqSerde.contentType() != null) {
-      reqBuilder.header("content-type", reqSerde.contentType());
-    }
+  private HttpRequest.Builder prepareBuilder(RequestOptions options) {
+    var reqBuilder = HttpRequest.newBuilder();
 
     // Add headers
     this.headers.forEach(reqBuilder::header);
@@ -412,6 +384,23 @@ public class DefaultClient implements Client {
 
     // Add additional headers
     options.getAdditionalHeaders().forEach(reqBuilder::header);
+
+    return reqBuilder;
+  }
+
+  private <Req> HttpRequest prepareHttpRequest(
+      Target target,
+      boolean isSend,
+      Serde<Req> reqSerde,
+      Req req,
+      Duration delay,
+      RequestOptions options) {
+    var reqBuilder = prepareBuilder(options).uri(toRequestURI(target, isSend, delay));
+
+    // Add content-type
+    if (reqSerde.contentType() != null) {
+      reqBuilder.header("content-type", reqSerde.contentType());
+    }
 
     return reqBuilder.POST(HttpRequest.BodyPublishers.ofByteArray(reqSerde.serialize(req))).build();
   }
