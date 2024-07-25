@@ -260,9 +260,10 @@ public class ElementConverter {
   }
 
   private void validateFirstParameterType(Class<?> clazz, ExecutableElement element) {
-    if (!types.isSameType(
-        element.getParameters().get(0).asType(),
-        elements.getTypeElement(clazz.getCanonicalName()).asType())) {
+    if (element.getParameters().isEmpty()
+        || !types.isSameType(
+            element.getParameters().get(0).asType(),
+            elements.getTypeElement(clazz.getCanonicalName()).asType())) {
       messager.printMessage(
           Diagnostic.Kind.ERROR,
           "The method signature must have " + clazz.getCanonicalName() + " as first parameter",
