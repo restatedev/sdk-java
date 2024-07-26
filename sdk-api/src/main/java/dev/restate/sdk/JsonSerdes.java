@@ -18,7 +18,7 @@ import dev.restate.sdk.common.function.ThrowingFunction;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Collection of common serializers/deserializers.
@@ -30,7 +30,7 @@ public abstract class JsonSerdes {
   private JsonSerdes() {}
 
   /** {@link Serde} for {@link String}. This writes and reads {@link String} as JSON value. */
-  public static Serde<String> STRING =
+  public static Serde<@NonNull String> STRING =
       usingJackson(
           JsonGenerator::writeString,
           p -> {
@@ -42,7 +42,7 @@ public abstract class JsonSerdes {
           });
 
   /** {@link Serde} for {@link Boolean}. This writes and reads {@link Boolean} as JSON value. */
-  public static Serde<Boolean> BOOLEAN =
+  public static Serde<@NonNull Boolean> BOOLEAN =
       usingJackson(
           JsonGenerator::writeBoolean,
           p -> {
@@ -51,7 +51,7 @@ public abstract class JsonSerdes {
           });
 
   /** {@link Serde} for {@link Byte}. This writes and reads {@link Byte} as JSON value. */
-  public static Serde<Byte> BYTE =
+  public static Serde<@NonNull Byte> BYTE =
       usingJackson(
           JsonGenerator::writeNumber,
           p -> {
@@ -60,7 +60,7 @@ public abstract class JsonSerdes {
           });
 
   /** {@link Serde} for {@link Short}. This writes and reads {@link Short} as JSON value. */
-  public static Serde<Short> SHORT =
+  public static Serde<@NonNull Short> SHORT =
       usingJackson(
           JsonGenerator::writeNumber,
           p -> {
@@ -69,7 +69,7 @@ public abstract class JsonSerdes {
           });
 
   /** {@link Serde} for {@link Integer}. This writes and reads {@link Integer} as JSON value. */
-  public static Serde<Integer> INT =
+  public static Serde<@NonNull Integer> INT =
       usingJackson(
           JsonGenerator::writeNumber,
           p -> {
@@ -78,7 +78,7 @@ public abstract class JsonSerdes {
           });
 
   /** {@link Serde} for {@link Long}. This writes and reads {@link Long} as JSON value. */
-  public static Serde<Long> LONG =
+  public static Serde<@NonNull Long> LONG =
       usingJackson(
           JsonGenerator::writeNumber,
           p -> {
@@ -87,7 +87,7 @@ public abstract class JsonSerdes {
           });
 
   /** {@link Serde} for {@link Float}. This writes and reads {@link Float} as JSON value. */
-  public static Serde<Float> FLOAT =
+  public static Serde<@NonNull Float> FLOAT =
       usingJackson(
           JsonGenerator::writeNumber,
           p -> {
@@ -96,7 +96,7 @@ public abstract class JsonSerdes {
           });
 
   /** {@link Serde} for {@link Double}. This writes and reads {@link Double} as JSON value. */
-  public static Serde<Double> DOUBLE =
+  public static Serde<@NonNull Double> DOUBLE =
       usingJackson(
           JsonGenerator::writeNumber,
           p -> {
@@ -108,12 +108,12 @@ public abstract class JsonSerdes {
 
   private static final JsonFactory JSON_FACTORY = new JsonFactory();
 
-  private static <T> Serde<T> usingJackson(
+  private static <T extends @NonNull Object> Serde<T> usingJackson(
       ThrowingBiConsumer<JsonGenerator, T> serializer,
       ThrowingFunction<JsonParser, T> deserializer) {
     return new Serde<>() {
       @Override
-      public byte[] serialize(@Nullable T value) {
+      public byte[] serialize(T value) {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         try (JsonGenerator gen = JSON_FACTORY.createGenerator(outputStream)) {
           serializer.asBiConsumer().accept(gen, value);

@@ -9,7 +9,6 @@
 package dev.restate.sdk;
 
 import dev.restate.sdk.common.Serde;
-import org.jspecify.annotations.NonNull;
 
 /** This class represents a handle to an {@link Awakeable} created in another service. */
 public interface AwakeableHandle {
@@ -21,7 +20,7 @@ public interface AwakeableHandle {
    * @param payload the result payload. MUST NOT be null.
    * @see Awakeable
    */
-  <T> void resolve(Serde<T> serde, @NonNull T payload);
+  <T> void resolve(Serde<T> serde, T payload);
 
   /**
    * Complete with failure the {@link Awakeable}.

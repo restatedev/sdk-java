@@ -13,7 +13,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.restate.sdk.common.Serde;
 import java.io.IOException;
-import org.jspecify.annotations.Nullable;
 
 /**
  * {@link Serde} implementations for Jackson.
@@ -57,7 +56,7 @@ public final class JacksonSerdes {
   public static <T> Serde<T> of(ObjectMapper mapper, Class<T> clazz) {
     return new Serde<>() {
       @Override
-      public byte[] serialize(@Nullable T value) {
+      public byte[] serialize(T value) {
         try {
           return mapper.writeValueAsBytes(value);
         } catch (JsonProcessingException e) {
@@ -92,7 +91,7 @@ public final class JacksonSerdes {
   public static <T> Serde<T> of(ObjectMapper mapper, TypeReference<T> typeReference) {
     return new Serde<>() {
       @Override
-      public byte[] serialize(@Nullable T value) {
+      public byte[] serialize(T value) {
         try {
           return mapper.writeValueAsBytes(value);
         } catch (JsonProcessingException e) {

@@ -51,7 +51,7 @@ dependencyResolutionManagement {
       library("opentelemetry-kotlin", "io.opentelemetry", "opentelemetry-extension-kotlin")
           .withoutVersion()
 
-      library("jspecify", "org.jspecify", "jspecify").version("0.3.0")
+      library("jspecify", "org.jspecify", "jspecify").version("1.0.0")
 
       library("jwt", "com.nimbusds:nimbus-jose-jwt:9.37.3")
       library("tink", "com.google.crypto.tink:tink:1.13.0")
