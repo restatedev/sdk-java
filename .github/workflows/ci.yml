@@ -77,7 +77,7 @@ jobs:
     name: "Integration Test (Test tool ${{ matrix.sdk-test-suite }})"
     strategy:
       matrix:
-        sdk-test-suite: [ "1.0" ]
+        sdk-test-suite: [ "1.1" ]
 
     steps:
       - uses: actions/checkout@v4
