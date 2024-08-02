@@ -72,7 +72,13 @@ allprojects {
 // Dokka configuration
 subprojects
     .filter {
-      !setOf("sdk-api", "sdk-api-gen", "examples", "sdk-aggregated-javadocs", "admin-client")
+      !setOf(
+              "sdk-api",
+              "sdk-api-gen",
+              "examples",
+              "sdk-aggregated-javadocs",
+              "admin-client",
+              "test-services")
           .contains(it.name)
     }
     .forEach { p -> p.plugins.apply("org.jetbrains.dokka") }
