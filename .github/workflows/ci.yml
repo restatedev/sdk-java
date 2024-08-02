@@ -71,6 +71,48 @@ jobs:
           name: Event File
           path: ${{ github.event_path }}
 
+
+  sdk-test-suite:
+    runs-on: ubuntu-latest
+    name: "Integration Test (Test tool ${{ matrix.sdk-test-suite }})"
+    strategy:
+      matrix:
+        sdk-test-suite: [ "1.1" ]
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Setup sdk-test-suite
+        run: wget --no-verbose https://github.com/restatedev/sdk-test-suite/releases/download/v${{ matrix.sdk-test-suite }}/restate-sdk-test-suite.jar
+
+      - name: Build restatedev/java-test-services image
+        run: ./gradlew :test-services:jibDockerBuild
+
+      # Run test suite
+      - name: Run test suite
+        run: java -jar restate-sdk-test-suite.jar run --report-dir=test-report restatedev/java-test-services
+
+      # Upload logs and publish test result
+      - uses: actions/upload-artifact@v4
+        if: always() # Make sure this is run even when test fails
+        with:
+          name: test-report
+          path: test-report
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: |
+            test-report/*/*.xml
+
+  # TODO remove once we don't need it anymore
   e2e:
     permissions:
       contents: read

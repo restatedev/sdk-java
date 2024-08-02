@@ -27,7 +27,8 @@ include(
     "sdk-api-gen",
     "sdk-api-kotlin-gen",
     "examples",
-    "sdk-aggregated-javadocs")
+    "sdk-aggregated-javadocs",
+    "test-services")
 
 dependencyResolutionManagement {
   repositories { mavenCentral() }
