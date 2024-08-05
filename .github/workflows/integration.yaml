@@ -76,7 +76,7 @@ jobs:
         if: ${{ inputs.restateCommit != '' }}
         run: |
           output=$(docker load --input restate.tar)
-          docker tag "${output#*: }" "restatedev/restate-commit-download:latest"
+          docker tag "${output#*: }" "localhost/restatedev/restate-commit-download:latest"
           docker image ls -a
 
       - name: Setup Java
@@ -96,7 +96,7 @@ jobs:
       # Run test suite
       - name: Run test suite
         env:
-          RESTATE_CONTAINER_IMAGE: ${{ inputs.restateCommit != '' && 'restatedev/restate-commit-download:latest' || (inputs.restateImage != '' && inputs.restateImage || 'ghcr.io/restatedev/restate:main') }}
+          RESTATE_CONTAINER_IMAGE: ${{ inputs.restateCommit != '' && 'localhost/restatedev/restate-commit-download:latest' || (inputs.restateImage != '' && inputs.restateImage || 'ghcr.io/restatedev/restate:main') }}
         run: java -jar restate-sdk-test-suite.jar run --report-dir=test-report restatedev/java-test-services
 
       # Upload logs and publish test result
