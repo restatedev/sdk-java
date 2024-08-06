@@ -57,7 +57,7 @@ public class DefaultClient implements Client {
         .handle(
             (response, throwable) -> {
               if (throwable != null) {
-                throw new IngressException("Error when executing the request", throwable);
+                throw new IngressException("Error when executing the request", response, throwable);
               }
 
               if (response.statusCode() >= 300) {
@@ -67,8 +67,7 @@ public class DefaultClient implements Client {
               try {
                 return resSerde.deserialize(response.body());
               } catch (Exception e) {
-                throw new IngressException(
-                    "Cannot deserialize the response", response.statusCode(), response.body(), e);
+                throw new IngressException("Cannot deserialize the response", response, e);
               }
             });
   }
@@ -82,7 +81,7 @@ public class DefaultClient implements Client {
         .handle(
             (response, throwable) -> {
               if (throwable != null) {
-                throw new IngressException("Error when executing the request", throwable);
+                throw new IngressException("Error when executing the request", response, throwable);
               }
               if (response.statusCode() >= 300) {
                 handleNonSuccessResponse(response);
@@ -94,8 +93,7 @@ public class DefaultClient implements Client {
                     findStringFieldsInJsonObject(
                         new ByteArrayInputStream(response.body()), "invocationId", "status");
               } catch (Exception e) {
-                throw new IngressException(
-                    "Cannot deserialize the response", response.statusCode(), response.body(), e);
+                throw new IngressException("Cannot deserialize the response", response, e);
               }
 
               String statusField = fields.get("status");
@@ -106,9 +104,7 @@ public class DefaultClient implements Client {
                 status = SendResponse.SendStatus.PREVIOUSLY_ACCEPTED;
               } else {
                 throw new IngressException(
-                    "Cannot deserialize the response status, got " + statusField,
-                    response.statusCode(),
-                    response.body());
+                    "Cannot deserialize the response status, got " + statusField, response);
               }
 
               return new SendResponse(status, fields.get("invocationId"));
@@ -120,7 +116,7 @@ public class DefaultClient implements Client {
     return new AwakeableHandle() {
       private Void handleVoidResponse(HttpResponse<byte[]> response, Throwable throwable) {
         if (throwable != null) {
-          throw new IngressException("Error when executing the request", throwable);
+          throw new IngressException("Error when executing the request", response, throwable);
         }
 
         if (response.statusCode() >= 300) {
@@ -306,7 +302,7 @@ public class DefaultClient implements Client {
           Serde<Res> resSerde) {
     return (response, throwable) -> {
       if (throwable != null) {
-        throw new IngressException("Error when executing the request", throwable);
+        throw new IngressException("Error when executing the request", response, throwable);
       }
 
       if (response.statusCode() == 470) {
@@ -320,8 +316,7 @@ public class DefaultClient implements Client {
       try {
         return Output.ready(resSerde.deserialize(response.body()));
       } catch (Exception e) {
-        throw new IngressException(
-            "Cannot deserialize the response", response.statusCode(), response.body(), e);
+        throw new IngressException("Cannot deserialize the response", response, e);
       }
     };
   }
@@ -330,7 +325,7 @@ public class DefaultClient implements Client {
       Serde<Res> resSerde) {
     return (response, throwable) -> {
       if (throwable != null) {
-        throw new IngressException("Error when executing the request", throwable);
+        throw new IngressException("Error when executing the request", response, throwable);
       }
 
       if (response.statusCode() >= 300) {
@@ -340,8 +335,7 @@ public class DefaultClient implements Client {
       try {
         return resSerde.deserialize(response.body());
       } catch (Exception e) {
-        throw new IngressException(
-            "Cannot deserialize the response", response.statusCode(), response.body(), e);
+        throw new IngressException("Cannot deserialize the response", response, e);
       }
     };
   }
@@ -413,15 +407,13 @@ public class DefaultClient implements Client {
         errorMessage =
             findStringFieldInJsonObject(new ByteArrayInputStream(response.body()), "message");
       } catch (Exception e) {
-        throw new IngressException(
-            "Can't decode error response from ingress", response.statusCode(), response.body(), e);
+        throw new IngressException("Can't decode error response from ingress", response, e);
       }
-      throw new IngressException(errorMessage, response.statusCode(), response.body());
+      throw new IngressException(errorMessage, response);
     }
 
     // Fallback error
-    throw new IngressException(
-        "Received non success status code", response.statusCode(), response.body());
+    throw new IngressException("Received non success status code", response);
   }
 
   private static String findStringFieldInJsonObject(InputStream body, String fieldName)
