@@ -57,7 +57,7 @@ public class DefaultClient implements Client {
         .handle(
             (response, throwable) -> {
               if (throwable != null) {
-                throw new IngressException("Error when executing the request", response, throwable);
+                throw new IngressException("Error when executing the request", request, throwable);
               }
 
               if (response.statusCode() >= 300) {
@@ -81,7 +81,7 @@ public class DefaultClient implements Client {
         .handle(
             (response, throwable) -> {
               if (throwable != null) {
-                throw new IngressException("Error when executing the request", response, throwable);
+                throw new IngressException("Error when executing the request", request, throwable);
               }
               if (response.statusCode() >= 300) {
                 handleNonSuccessResponse(response);
@@ -114,9 +114,10 @@ public class DefaultClient implements Client {
   @Override
   public AwakeableHandle awakeableHandle(String id) {
     return new AwakeableHandle() {
-      private Void handleVoidResponse(HttpResponse<byte[]> response, Throwable throwable) {
+      private Void handleVoidResponse(
+          HttpRequest request, HttpResponse<byte[]> response, Throwable throwable) {
         if (throwable != null) {
-          throw new IngressException("Error when executing the request", response, throwable);
+          throw new IngressException("Error when executing the request", request, throwable);
         }
 
         if (response.statusCode() >= 300) {
@@ -145,7 +146,7 @@ public class DefaultClient implements Client {
                 .build();
         return httpClient
             .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
-            .handle(this::handleVoidResponse);
+            .handle((res, t) -> this.handleVoidResponse(request, res, t));
       }
 
       @Override
@@ -164,7 +165,7 @@ public class DefaultClient implements Client {
         HttpRequest request = reqBuilder.POST(HttpRequest.BodyPublishers.ofString(reason)).build();
         return httpClient
             .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
-            .handle(this::handleVoidResponse);
+            .handle((res, t) -> this.handleVoidResponse(request, res, t));
       }
     };
   }
@@ -188,7 +189,7 @@ public class DefaultClient implements Client {
         HttpRequest request = reqBuilder.GET().build();
         return httpClient
             .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
-            .handle(handleAttachResponse(resSerde));
+            .handle(handleAttachResponse(request, resSerde));
       }
 
       @Override
@@ -202,7 +203,7 @@ public class DefaultClient implements Client {
         HttpRequest request = reqBuilder.GET().build();
         return httpClient
             .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
-            .handle(handleGetOutputResponse(resSerde));
+            .handle(handleGetOutputResponse(request, resSerde));
       }
     };
   }
@@ -227,7 +228,7 @@ public class DefaultClient implements Client {
         HttpRequest request = reqBuilder.GET().build();
         return httpClient
             .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
-            .handle(handleAttachResponse(resSerde));
+            .handle(handleAttachResponse(request, resSerde));
       }
 
       @Override
@@ -246,7 +247,7 @@ public class DefaultClient implements Client {
         HttpRequest request = reqBuilder.GET().build();
         return httpClient
             .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
-            .handle(handleGetOutputResponse(resSerde));
+            .handle(handleGetOutputResponse(request, resSerde));
       }
     };
   }
@@ -272,7 +273,7 @@ public class DefaultClient implements Client {
         HttpRequest request = reqBuilder.GET().build();
         return httpClient
             .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
-            .handle(handleAttachResponse(resSerde));
+            .handle(handleAttachResponse(request, resSerde));
       }
 
       @Override
@@ -292,17 +293,17 @@ public class DefaultClient implements Client {
         HttpRequest request = reqBuilder.GET().build();
         return httpClient
             .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
-            .handle(handleGetOutputResponse(resSerde));
+            .handle(handleGetOutputResponse(request, resSerde));
       }
     };
   }
 
   private <Res> @NotNull
       BiFunction<HttpResponse<byte[]>, Throwable, Output<Res>> handleGetOutputResponse(
-          Serde<Res> resSerde) {
+          HttpRequest request, Serde<Res> resSerde) {
     return (response, throwable) -> {
       if (throwable != null) {
-        throw new IngressException("Error when executing the request", response, throwable);
+        throw new IngressException("Error when executing the request", request, throwable);
       }
 
       if (response.statusCode() == 470) {
@@ -322,10 +323,10 @@ public class DefaultClient implements Client {
   }
 
   private <Res> @NotNull BiFunction<HttpResponse<byte[]>, Throwable, Res> handleAttachResponse(
-      Serde<Res> resSerde) {
+      HttpRequest request, Serde<Res> resSerde) {
     return (response, throwable) -> {
       if (throwable != null) {
-        throw new IngressException("Error when executing the request", response, throwable);
+        throw new IngressException("Error when executing the request", request, throwable);
       }
 
       if (response.statusCode() >= 300) {
