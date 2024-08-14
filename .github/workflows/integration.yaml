@@ -32,6 +32,10 @@ on:
         required: false
         default: 'ghcr.io/restatedev/restate:main'
         type: string
+      env_vars:
+        required: true
+        type: string
+        description: list of vars and values
 
 jobs:
 
@@ -92,6 +96,14 @@ jobs:
 
       - name: Build restatedev/java-test-services image
         run: ./gradlew -Djib.console=plain :test-services:jibDockerBuild
+
+      - name: set environment variables
+        if: ${{ inputs.env_vars }}
+        run: |
+          for env in "${{ inputs.env_vars }}"
+          do
+            printf "%s\n" $env >> $GITHUB_ENV
+          done
 
       # Run test suite
       - name: Run test suite
