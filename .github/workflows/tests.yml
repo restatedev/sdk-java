@@ -70,17 +70,3 @@ jobs:
         with:
           name: Event File
           path: ${{ github.event_path }}
-
-  # TODO remove once we don't need it anymore
-  e2e:
-    permissions:
-      contents: read
-      issues: read
-      checks: write
-      pull-requests: write
-      actions: read
-    secrets: inherit
-    uses: restatedev/e2e/.github/workflows/e2e.yaml@main
-    with:
-      sdkJavaCommit: ${{ github.event.pull_request.head.sha || github.sha }}
-      e2eRef: main
