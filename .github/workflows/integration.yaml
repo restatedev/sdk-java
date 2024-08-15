@@ -32,10 +32,14 @@ on:
         required: false
         default: 'ghcr.io/restatedev/restate:main'
         type: string
-      env_vars:
-        required: true
+      envVars:
+        required: false
         type: string
-        description: list of vars and values
+        description: list of vars and values used when running the test tool
+      testArtifactOutput:
+        required: false
+        type: string
+        description: name of the test artifact output
 
 jobs:
 
@@ -97,10 +101,10 @@ jobs:
       - name: Build restatedev/java-test-services image
         run: ./gradlew -Djib.console=plain :test-services:jibDockerBuild
 
-      - name: set environment variables
-        if: ${{ inputs.env_vars }}
+      - name: Set environment variables
+        if: ${{ inputs.envVars }}
         run: |
-          for env in "${{ inputs.env_vars }}"
+          for env in "${{ inputs.envVars }}"
           do
             printf "%s\n" $env >> $GITHUB_ENV
           done
@@ -115,7 +119,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always() # Make sure this is run even when test fails
         with:
-          name: sdk-java-integration-test-report
+          name: ${{ inputs.testArtifactOutput != '' && inputs.testArtifactOutput || 'sdk-java-integration-test-report' }}
           path: test-report
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
