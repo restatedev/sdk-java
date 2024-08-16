@@ -11,9 +11,9 @@ package dev.restate.sdk.testservices
 import dev.restate.sdk.common.Serde
 import dev.restate.sdk.kotlin.Context
 import dev.restate.sdk.kotlin.ObjectContext
-import dev.restate.sdktesting.contracts.AwakeableHolderClient
-import dev.restate.sdktesting.contracts.KillTest
-import dev.restate.sdktesting.contracts.KillTestSingletonClient
+import dev.restate.sdk.testservices.contracts.AwakeableHolderClient
+import dev.restate.sdk.testservices.contracts.KillTest
+import dev.restate.sdk.testservices.contracts.KillTestSingletonClient
 
 class KillTestImpl {
   class RunnerImpl : KillTest.Runner {

@@ -15,7 +15,7 @@ import dev.restate.sdk.kotlin.KtSerdes
 import dev.restate.sdk.kotlin.KtStateKey
 import dev.restate.sdk.kotlin.SharedWorkflowContext
 import dev.restate.sdk.kotlin.WorkflowContext
-import dev.restate.sdktesting.contracts.BlockAndWaitWorkflow
+import dev.restate.sdk.testservices.contracts.BlockAndWaitWorkflow
 
 class BlockAndWaitWorkflowImpl : BlockAndWaitWorkflow {
   companion object {

@@ -10,7 +10,7 @@ package dev.restate.sdk.testservices
 
 import dev.restate.sdk.auth.signing.RestateRequestIdentityVerifier
 import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder
-import dev.restate.sdktesting.contracts.*
+import dev.restate.sdk.testservices.contracts.*
 
 val KNOWN_SERVICES_FACTORIES: Map<String, () -> Any> =
     mapOf(
@@ -27,7 +27,7 @@ val KNOWN_SERVICES_FACTORIES: Map<String, () -> Any> =
         NonDeterministicDefinitions.SERVICE_NAME to { NonDeterministicImpl() },
         ProxyDefinitions.SERVICE_NAME to { ProxyImpl() },
         TestUtilsServiceDefinitions.SERVICE_NAME to { TestUtilsServiceImpl() },
-        UpgradeTestDefinitions.SERVICE_NAME to { UpgradeTestImpl() })
+    )
 
 fun main(args: Array<String>) {
   var env = System.getenv("SERVICES")

@@ -14,10 +14,10 @@ import dev.restate.sdk.kotlin.Awakeable
 import dev.restate.sdk.kotlin.KtStateKey
 import dev.restate.sdk.kotlin.ObjectContext
 import dev.restate.sdk.kotlin.awakeable
-import dev.restate.sdktesting.contracts.AwakeableHolderClient
-import dev.restate.sdktesting.contracts.BlockingOperation
-import dev.restate.sdktesting.contracts.CancelTest
-import dev.restate.sdktesting.contracts.CancelTestBlockingServiceClient
+import dev.restate.sdk.testservices.contracts.AwakeableHolderClient
+import dev.restate.sdk.testservices.contracts.BlockingOperation
+import dev.restate.sdk.testservices.contracts.CancelTest
+import dev.restate.sdk.testservices.contracts.CancelTestBlockingServiceClient
 import kotlin.time.Duration.Companion.days
 
 class CancelTestImpl {

@@ -10,8 +10,8 @@ package dev.restate.sdk.testservices
 
 import dev.restate.sdk.kotlin.KtStateKey
 import dev.restate.sdk.kotlin.ObjectContext
-import dev.restate.sdktesting.contracts.Entry
-import dev.restate.sdktesting.contracts.MapObject
+import dev.restate.sdk.testservices.contracts.Entry
+import dev.restate.sdk.testservices.contracts.MapObject
 
 class MapObjectImpl : MapObject {
   override suspend fun set(context: ObjectContext, entry: Entry) {

@@ -13,9 +13,9 @@ import dev.restate.sdk.common.Target
 import dev.restate.sdk.kotlin.Awaitable
 import dev.restate.sdk.kotlin.Context
 import dev.restate.sdk.kotlin.awaitAll
-import dev.restate.sdktesting.contracts.ManyCallRequest
-import dev.restate.sdktesting.contracts.Proxy
-import dev.restate.sdktesting.contracts.ProxyRequest
+import dev.restate.sdk.testservices.contracts.ManyCallRequest
+import dev.restate.sdk.testservices.contracts.Proxy
+import dev.restate.sdk.testservices.contracts.ProxyRequest
 
 class ProxyImpl : Proxy {
   private fun ProxyRequest.toTarget(): Target {

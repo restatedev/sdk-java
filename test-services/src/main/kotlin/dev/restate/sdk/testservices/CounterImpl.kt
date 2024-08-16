@@ -13,8 +13,8 @@ import dev.restate.sdk.common.TerminalException
 import dev.restate.sdk.kotlin.KtStateKey
 import dev.restate.sdk.kotlin.ObjectContext
 import dev.restate.sdk.kotlin.SharedObjectContext
-import dev.restate.sdktesting.contracts.Counter
-import dev.restate.sdktesting.contracts.CounterUpdateResponse
+import dev.restate.sdk.testservices.contracts.Counter
+import dev.restate.sdk.testservices.contracts.CounterUpdateResponse
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 
