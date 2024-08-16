@@ -9,7 +9,7 @@
 package dev.restate.sdk.testservices
 
 import dev.restate.sdk.kotlin.*
-import dev.restate.sdktesting.contracts.*
+import dev.restate.sdk.testservices.contracts.*
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
@@ -59,5 +59,23 @@ class TestUtilsServiceImpl : TestUtilsService {
     }
 
     return invokedSideEffects.get()
+  }
+
+  override suspend fun getEnvVariable(context: Context, env: String): String {
+    return context.runBlock { System.getenv(env) ?: "" }
+  }
+
+  override suspend fun interpretCommands(context: Context, req: InterpretRequest) {
+    val listClient = ListObjectClient.fromContext(context, req.listName).send()
+    req.commands.forEach {
+      when (it) {
+        is CreateAwakeableAndAwaitIt -> {
+          val awakeable = context.awakeable<String>()
+          AwakeableHolderClient.fromContext(context, it.awakeableKey).hold(awakeable.id)
+          listClient.append(awakeable.await())
+        }
+        is GetEnvVariable -> listClient.append(getEnvVariable(context, it.envName))
+      }
+    }
   }
 }

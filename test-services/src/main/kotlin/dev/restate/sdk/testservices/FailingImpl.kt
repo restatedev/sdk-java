@@ -11,8 +11,8 @@ package dev.restate.sdk.testservices
 import dev.restate.sdk.common.TerminalException
 import dev.restate.sdk.kotlin.ObjectContext
 import dev.restate.sdk.kotlin.runBlock
-import dev.restate.sdktesting.contracts.Failing
-import dev.restate.sdktesting.contracts.FailingClient
+import dev.restate.sdk.testservices.contracts.Failing
+import dev.restate.sdk.testservices.contracts.FailingClient
 import java.util.concurrent.atomic.AtomicInteger
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger

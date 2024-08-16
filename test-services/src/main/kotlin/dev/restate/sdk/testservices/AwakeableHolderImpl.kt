@@ -13,7 +13,7 @@ import dev.restate.sdk.common.TerminalException
 import dev.restate.sdk.kotlin.KtStateKey
 import dev.restate.sdk.kotlin.ObjectContext
 import dev.restate.sdk.kotlin.resolve
-import dev.restate.sdktesting.contracts.AwakeableHolder
+import dev.restate.sdk.testservices.contracts.AwakeableHolder
 
 class AwakeableHolderImpl : AwakeableHolder {
   companion object {
