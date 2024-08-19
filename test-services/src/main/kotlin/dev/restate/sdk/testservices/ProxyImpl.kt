@@ -16,6 +16,8 @@ import dev.restate.sdk.kotlin.awaitAll
 import dev.restate.sdk.testservices.contracts.ManyCallRequest
 import dev.restate.sdk.testservices.contracts.Proxy
 import dev.restate.sdk.testservices.contracts.ProxyRequest
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 class ProxyImpl : Proxy {
   private fun ProxyRequest.toTarget(): Target {
@@ -31,7 +33,11 @@ class ProxyImpl : Proxy {
   }
 
   override suspend fun oneWayCall(context: Context, request: ProxyRequest) {
-    context.send(request.toTarget(), Serde.RAW, request.message)
+    context.send(
+        request.toTarget(),
+        Serde.RAW,
+        request.message,
+        request.delayMillis?.milliseconds ?: Duration.ZERO)
   }
 
   override suspend fun manyCalls(context: Context, requests: List<ManyCallRequest>) {
@@ -39,7 +45,11 @@ class ProxyImpl : Proxy {
 
     for (request in requests) {
       if (request.oneWayCall) {
-        context.send(request.proxyRequest.toTarget(), Serde.RAW, request.proxyRequest.message)
+        context.send(
+            request.proxyRequest.toTarget(),
+            Serde.RAW,
+            request.proxyRequest.message,
+            request.proxyRequest.delayMillis?.milliseconds ?: Duration.ZERO)
       } else {
         val awaitable =
             context.callAsync(
