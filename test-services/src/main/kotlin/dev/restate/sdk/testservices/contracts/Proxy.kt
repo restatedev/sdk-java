@@ -16,30 +16,11 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ProxyRequest(
     val serviceName: String,
-    val virtualObjectKey: String?, // If null, the request is to a service
+    val virtualObjectKey: String? = null, // If null, the request is to a service
     val handlerName: String,
-    val message: ByteArray
-) {
-  override fun equals(other: Any?): Boolean {
-    if (this === other) return true
-    if (other !is ProxyRequest) return false
-
-    if (serviceName != other.serviceName) return false
-    if (virtualObjectKey != other.virtualObjectKey) return false
-    if (handlerName != other.handlerName) return false
-    if (!message.contentEquals(other.message)) return false
-
-    return true
-  }
-
-  override fun hashCode(): Int {
-    var result = serviceName.hashCode()
-    result = 31 * result + (virtualObjectKey?.hashCode() ?: 0)
-    result = 31 * result + handlerName.hashCode()
-    result = 31 * result + message.contentHashCode()
-    return result
-  }
-}
+    val message: ByteArray,
+    val delayMillis: Int? = null
+)
 
 @Serializable
 data class ManyCallRequest(
