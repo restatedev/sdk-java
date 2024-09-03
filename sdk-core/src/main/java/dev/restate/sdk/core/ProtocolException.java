@@ -87,4 +87,15 @@ public class ProtocolException extends RuntimeException {
   static ProtocolException unauthorized(Throwable e) {
     return new ProtocolException("Unauthorized", UNAUTHORIZED_CODE, e);
   }
+
+  static ProtocolException unsupportedFeature(
+      Protocol.ServiceProtocolVersion version, String name) {
+    return new ProtocolException(
+        "The feature \""
+            + name
+            + "\" is not supported by the negotiated protocol version \""
+            + version.getNumber()
+            + "\". This might be caused by rolling back a Restate setup to a previous version, while using the experimental context.",
+        UNSUPPORTED_MEDIA_TYPE_CODE);
+  }
 }

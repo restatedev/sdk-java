@@ -35,6 +35,8 @@ public final class TestDefinitions {
 
     boolean isOnlyUnbuffered();
 
+    boolean isEnablePreviewContext();
+
     List<InvocationInput> getInput();
 
     Consumer<List<MessageLite>> getOutputAssert();
@@ -132,6 +134,7 @@ public final class TestDefinitions {
   public static class WithInputBuilder extends TestInvocationBuilder {
     private final List<InvocationInput> input;
     private boolean onlyUnbuffered = false;
+    private boolean enablePreviewContext = false;
 
     WithInputBuilder(@Nullable String invalidReason) {
       super(invalidReason);
@@ -167,6 +170,11 @@ public final class TestDefinitions {
       return this;
     }
 
+    public WithInputBuilder enablePreviewContext() {
+      this.enablePreviewContext = true;
+      return this;
+    }
+
     public ExpectingOutputMessages expectingOutput(MessageLiteOrBuilder... messages) {
       List<MessageLite> builtMessages =
           Arrays.stream(messages).map(ProtoUtils::build).collect(Collectors.toList());
@@ -175,7 +183,14 @@ public final class TestDefinitions {
 
     public ExpectingOutputMessages assertingOutput(Consumer<List<MessageLite>> messages) {
       return new ExpectingOutputMessages(
-          service, options, invalidReason, handler, input, onlyUnbuffered, messages);
+          service,
+          options,
+          invalidReason,
+          handler,
+          input,
+          onlyUnbuffered,
+          enablePreviewContext,
+          messages);
     }
   }
 
@@ -186,6 +201,7 @@ public final class TestDefinitions {
     protected final String method;
     protected final List<InvocationInput> input;
     protected final boolean onlyUnbuffered;
+    protected final boolean enablePreviewContext;
     protected final String named;
 
     private BaseTestDefinition(
@@ -195,6 +211,7 @@ public final class TestDefinitions {
         String method,
         List<InvocationInput> input,
         boolean onlyUnbuffered,
+        boolean enablePreviewContext,
         String named) {
       this.service = service;
       this.options = options;
@@ -202,6 +219,7 @@ public final class TestDefinitions {
       this.method = method;
       this.input = input;
       this.onlyUnbuffered = onlyUnbuffered;
+      this.enablePreviewContext = enablePreviewContext;
       this.named = named;
     }
 
@@ -231,6 +249,11 @@ public final class TestDefinitions {
     }
 
     @Override
+    public boolean isEnablePreviewContext() {
+      return enablePreviewContext;
+    }
+
+    @Override
     public String getTestCaseName() {
       return this.named;
     }
@@ -252,6 +275,7 @@ public final class TestDefinitions {
         String method,
         List<InvocationInput> input,
         boolean onlyUnbuffered,
+        boolean enablePreviewContext,
         Consumer<List<MessageLite>> messagesAssert) {
       super(
           service,
@@ -260,6 +284,7 @@ public final class TestDefinitions {
           method,
           input,
           onlyUnbuffered,
+          enablePreviewContext,
           service != null ? service.getServiceName() + "#" + method : "Unknown");
       this.messagesAssert = messagesAssert;
     }
@@ -271,9 +296,18 @@ public final class TestDefinitions {
         String method,
         List<InvocationInput> input,
         boolean onlyUnbuffered,
+        boolean enablePreviewContext,
         Consumer<List<MessageLite>> messagesAssert,
         String named) {
-      super(service, options, invalidReason, method, input, onlyUnbuffered, named);
+      super(
+          service,
+          options,
+          invalidReason,
+          method,
+          input,
+          onlyUnbuffered,
+          enablePreviewContext,
+          named);
       this.messagesAssert = messagesAssert;
     }
 
@@ -285,6 +319,7 @@ public final class TestDefinitions {
           method,
           input,
           onlyUnbuffered,
+          enablePreviewContext,
           messagesAssert,
           this.named + ": " + name);
     }

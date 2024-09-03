@@ -89,7 +89,7 @@ dependencyResolutionManagement {
       library("kotlinx-serialization-json", "org.jetbrains.kotlinx", "kotlinx-serialization-json")
           .version("1.6.3")
 
-      version("ksp", "2.0.0-1.0.21")
+      version("ksp", "2.0.0-1.0.24")
       library("symbol-processing-api", "com.google.devtools.ksp", "symbol-processing-api")
           .versionRef("ksp")
       plugin("ksp", "com.google.devtools.ksp").versionRef("ksp")

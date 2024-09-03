@@ -36,12 +36,17 @@ class HttpVertxTestExecutor(private val vertx: Vertx) : TestExecutor {
   override fun executeTest(definition: TestDefinition) {
     runBlocking(vertx.dispatcher()) {
       // Build server
-      val server =
+      val serverBuilder =
           RestateHttpEndpointBuilder.builder(vertx)
               .withOptions(HttpServerOptions().setPort(0))
               .bind(
                   definition.serviceDefinition as ServiceDefinition<Any>, definition.serviceOptions)
-              .build()
+      if (definition.isEnablePreviewContext()) {
+        serverBuilder.enablePreviewContext()
+      }
+
+      // Start server
+      val server = serverBuilder.build()
       server.listen().coAwait()
 
       val client = vertx.createHttpClient(RestateHttpEndpointTest.HTTP_CLIENT_OPTIONS)
@@ -58,8 +63,12 @@ class HttpVertxTestExecutor(private val vertx: Vertx) : TestExecutor {
       // Prepare request header and send them
       request
           .setChunked(true)
-          .putHeader(HttpHeaders.CONTENT_TYPE, ProtoUtils.serviceProtocolContentTypeHeader())
-          .putHeader(HttpHeaders.ACCEPT, ProtoUtils.serviceProtocolContentTypeHeader())
+          .putHeader(
+              HttpHeaders.CONTENT_TYPE,
+              ProtoUtils.serviceProtocolContentTypeHeader(definition.isEnablePreviewContext))
+          .putHeader(
+              HttpHeaders.ACCEPT,
+              ProtoUtils.serviceProtocolContentTypeHeader(definition.isEnablePreviewContext))
       request.sendHead().coAwait()
 
       launch {

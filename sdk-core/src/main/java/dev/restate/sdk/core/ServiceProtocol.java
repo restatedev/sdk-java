@@ -19,7 +19,7 @@ import java.util.Optional;
 class ServiceProtocol {
   static final Protocol.ServiceProtocolVersion MIN_SERVICE_PROTOCOL_VERSION =
       Protocol.ServiceProtocolVersion.V1;
-  static final Protocol.ServiceProtocolVersion MAX_SERVICE_PROTOCOL_VERSION =
+  private static final Protocol.ServiceProtocolVersion MAX_SERVICE_PROTOCOL_VERSION =
       Protocol.ServiceProtocolVersion.V1;
 
   static final Discovery.ServiceDiscoveryProtocolVersion MIN_SERVICE_DISCOVERY_PROTOCOL_VERSION =
@@ -33,6 +33,9 @@ class ServiceProtocol {
     if (version.equals("application/vnd.restate.invocation.v1")) {
       return Protocol.ServiceProtocolVersion.V1;
     }
+    if (version.equals("application/vnd.restate.invocation.v2")) {
+      return Protocol.ServiceProtocolVersion.V2;
+    }
     return Protocol.ServiceProtocolVersion.SERVICE_PROTOCOL_VERSION_UNSPECIFIED;
   }
 
@@ -40,13 +43,25 @@ class ServiceProtocol {
     if (Objects.requireNonNull(version) == Protocol.ServiceProtocolVersion.V1) {
       return "application/vnd.restate.invocation.v1";
     }
+    if (Objects.requireNonNull(version) == Protocol.ServiceProtocolVersion.V2) {
+      return "application/vnd.restate.invocation.v2";
+    }
     throw new IllegalArgumentException(
         String.format("Service protocol version '%s' has no header value", version.getNumber()));
   }
 
-  static boolean isSupported(Protocol.ServiceProtocolVersion serviceProtocolVersion) {
+  static Protocol.ServiceProtocolVersion maxServiceProtocolVersion(
+      boolean experimentalContextEnabled) {
+    return experimentalContextEnabled
+        ? Protocol.ServiceProtocolVersion.V2
+        : Protocol.ServiceProtocolVersion.V1;
+  }
+
+  static boolean isSupported(
+      Protocol.ServiceProtocolVersion serviceProtocolVersion, boolean experimentalContextEnabled) {
     return MIN_SERVICE_PROTOCOL_VERSION.getNumber() <= serviceProtocolVersion.getNumber()
-        && serviceProtocolVersion.getNumber() <= MAX_SERVICE_PROTOCOL_VERSION.getNumber();
+        && serviceProtocolVersion.getNumber()
+            <= maxServiceProtocolVersion(experimentalContextEnabled).getNumber();
   }
 
   static boolean isSupported(

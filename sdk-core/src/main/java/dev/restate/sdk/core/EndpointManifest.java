@@ -8,8 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import static dev.restate.sdk.core.ServiceProtocol.MAX_SERVICE_PROTOCOL_VERSION;
-import static dev.restate.sdk.core.ServiceProtocol.MIN_SERVICE_PROTOCOL_VERSION;
+import static dev.restate.sdk.core.ServiceProtocol.*;
 
 import dev.restate.sdk.common.HandlerType;
 import dev.restate.sdk.common.ServiceType;
@@ -28,11 +27,14 @@ final class EndpointManifest {
   private final EndpointManifestSchema manifest;
 
   public EndpointManifest(
-      EndpointManifestSchema.ProtocolMode protocolMode, Stream<ServiceDefinition<?>> components) {
+      EndpointManifestSchema.ProtocolMode protocolMode,
+      Stream<ServiceDefinition<?>> components,
+      boolean experimentalContextEnabled) {
     this.manifest =
         new EndpointManifestSchema()
             .withMinProtocolVersion(MIN_SERVICE_PROTOCOL_VERSION.getNumber())
-            .withMaxProtocolVersion(MAX_SERVICE_PROTOCOL_VERSION.getNumber())
+            .withMaxProtocolVersion(
+                maxServiceProtocolVersion(experimentalContextEnabled).getNumber())
             .withProtocolMode(protocolMode)
             .withServices(
                 components

@@ -18,6 +18,7 @@ import dev.restate.sdk.common.TerminalException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
@@ -166,5 +167,9 @@ public final class Util {
   /** NOTE! This method rewinds the buffer!!! */
   static ByteString nioBufferToProtobufBuffer(ByteBuffer nioBuffer) {
     return UnsafeByteOperations.unsafeWrap(nioBuffer);
+  }
+
+  static Duration durationMin(Duration a, Duration b) {
+    return (a.compareTo(b) <= 0) ? a : b;
   }
 }

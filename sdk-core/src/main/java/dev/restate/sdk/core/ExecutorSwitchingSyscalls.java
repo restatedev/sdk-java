@@ -9,6 +9,7 @@
 package dev.restate.sdk.core;
 
 import dev.restate.sdk.common.Request;
+import dev.restate.sdk.common.RetryPolicy;
 import dev.restate.sdk.common.Target;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.common.syscalls.Deferred;
@@ -102,6 +103,15 @@ class ExecutorSwitchingSyscalls implements SyscallsInternal {
       TerminalException toWrite, ExitSideEffectSyscallCallback callback) {
     syscallsExecutor.execute(
         () -> syscalls.exitSideEffectBlockWithTerminalException(toWrite, callback));
+  }
+
+  @Override
+  public void exitSideEffectBlockWithException(
+      Throwable toWrite,
+      @Nullable RetryPolicy retryPolicy,
+      ExitSideEffectSyscallCallback callback) {
+    syscallsExecutor.execute(
+        () -> syscalls.exitSideEffectBlockWithException(toWrite, retryPolicy, callback));
   }
 
   @Override

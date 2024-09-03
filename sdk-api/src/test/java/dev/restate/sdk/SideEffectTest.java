@@ -11,6 +11,7 @@ package dev.restate.sdk;
 import static dev.restate.sdk.JavaBlockingTests.testDefinitionForService;
 import static dev.restate.sdk.core.ProtoUtils.GREETER_SERVICE_TARGET;
 
+import dev.restate.sdk.common.RetryPolicy;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.core.SideEffectTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
@@ -101,6 +102,24 @@ public class SideEffectTest extends SideEffectTestSuite {
         (ctx, unused) -> {
           ctx.run(
               name,
+              () -> {
+                throw new IllegalStateException(reason);
+              });
+          return null;
+        });
+  }
+
+  @Override
+  protected TestInvocationBuilder failingSideEffectWithRetryPolicy(
+      String reason, RetryPolicy retryPolicy) {
+    return testDefinitionForService(
+        "FailingSideEffectWithRetryPolicy",
+        Serde.VOID,
+        JsonSerdes.STRING,
+        (ctx, unused) -> {
+          PreviewContext.run(
+              ctx,
+              retryPolicy,
               () -> {
                 throw new IllegalStateException(reason);
               });

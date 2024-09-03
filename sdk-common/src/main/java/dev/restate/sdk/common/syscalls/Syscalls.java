@@ -9,6 +9,7 @@
 package dev.restate.sdk.common.syscalls;
 
 import dev.restate.sdk.common.Request;
+import dev.restate.sdk.common.RetryPolicy;
 import dev.restate.sdk.common.Target;
 import dev.restate.sdk.common.TerminalException;
 import java.nio.ByteBuffer;
@@ -72,8 +73,16 @@ public interface Syscalls {
 
   void exitSideEffectBlock(ByteBuffer toWrite, ExitSideEffectSyscallCallback callback);
 
+  /**
+   * @deprecated use {@link #exitSideEffectBlockWithException(Throwable, RetryPolicy,
+   *     ExitSideEffectSyscallCallback)} instead.
+   */
+  @Deprecated(since = "1.1.0", forRemoval = true)
   void exitSideEffectBlockWithTerminalException(
       TerminalException toWrite, ExitSideEffectSyscallCallback callback);
+
+  void exitSideEffectBlockWithException(
+      Throwable toWrite, @Nullable RetryPolicy retryPolicy, ExitSideEffectSyscallCallback callback);
 
   void awakeable(SyscallCallback<Map.Entry<String, Deferred<ByteBuffer>>> callback);
 

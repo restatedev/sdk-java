@@ -1,11 +1,11 @@
-# Java services
+# Java SDK test services
 
 ## Running the services
 
-The Java services can be run via:
+The services can be run via:
 
 ```shell
 SERVICES=<COMMA_SEPARATED_LIST_OF_SERVICES> gradle run 
 ```
 
-For the list of supported services see [here](src/main/java/my/restate/e2e/services/Main.java).
+For the list of supported services see [here](src/main/kotlin/dev/restate/sdk/testservices/Main.kt).

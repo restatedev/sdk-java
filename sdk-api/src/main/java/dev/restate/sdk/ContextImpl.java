@@ -25,7 +25,7 @@ import org.jspecify.annotations.Nullable;
 
 class ContextImpl implements ObjectContext, WorkflowContext {
 
-  private final Syscalls syscalls;
+  final Syscalls syscalls;
 
   ContextImpl(Syscalls syscalls) {
     this.syscalls = syscalls;
@@ -163,18 +163,15 @@ class ContextImpl implements ObjectContext, WorkflowContext {
         };
 
     T res = null;
-    TerminalException failure = null;
+    Throwable failure = null;
     try {
       res = action.get();
-    } catch (TerminalException e) {
-      failure = e;
     } catch (Throwable e) {
-      syscalls.fail(e);
-      AbortedExecutionException.sneakyThrow();
+      failure = e;
     }
 
     if (failure != null) {
-      syscalls.exitSideEffectBlockWithTerminalException(failure, exitCallback);
+      syscalls.exitSideEffectBlockWithException(failure, null, exitCallback);
     } else {
       syscalls.exitSideEffectBlock(
           Util.serializeWrappingException(syscalls, serde, res), exitCallback);

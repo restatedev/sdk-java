@@ -37,17 +37,23 @@ public class RestateEndpoint {
   private final Tracer tracer;
   private final RequestIdentityVerifier requestIdentityVerifier;
   private final EndpointManifest deploymentManifest;
+  private final boolean experimentalContextEnabled;
 
   private RestateEndpoint(
       EndpointManifestSchema.ProtocolMode protocolMode,
       Map<String, ServiceAndOptions<?>> services,
       Tracer tracer,
-      RequestIdentityVerifier requestIdentityVerifier) {
+      RequestIdentityVerifier requestIdentityVerifier,
+      boolean experimentalContextEnabled) {
     this.services = services;
     this.tracer = tracer;
     this.requestIdentityVerifier = requestIdentityVerifier;
     this.deploymentManifest =
-        new EndpointManifest(protocolMode, services.values().stream().map(c -> c.service));
+        new EndpointManifest(
+            protocolMode,
+            services.values().stream().map(c -> c.service),
+            experimentalContextEnabled);
+    this.experimentalContextEnabled = experimentalContextEnabled;
 
     LOG.info("Registered services: {}", this.services.keySet());
   }
@@ -64,7 +70,7 @@ public class RestateEndpoint {
     final Protocol.ServiceProtocolVersion serviceProtocolVersion =
         ServiceProtocol.parseServiceProtocolVersion(contentType);
 
-    if (!ServiceProtocol.isSupported(serviceProtocolVersion)) {
+    if (!ServiceProtocol.isSupported(serviceProtocolVersion, this.experimentalContextEnabled)) {
       throw new ProtocolException(
           String.format(
               "Service endpoint does not support the service protocol version '%s'.", contentType),
@@ -107,7 +113,11 @@ public class RestateEndpoint {
     // Instantiate state machine, syscall and grpc bridge
     InvocationStateMachine stateMachine =
         new InvocationStateMachine(
-            componentName, fullyQualifiedServiceMethod, span, loggingContextSetter);
+            componentName,
+            fullyQualifiedServiceMethod,
+            span,
+            loggingContextSetter,
+            serviceProtocolVersion);
 
     return new ResolvedEndpointHandlerImpl(
         serviceProtocolVersion, stateMachine, handler, svc.options, syscallExecutor);
@@ -146,6 +156,7 @@ public class RestateEndpoint {
     private final EndpointManifestSchema.ProtocolMode protocolMode;
     private RequestIdentityVerifier requestIdentityVerifier;
     private Tracer tracer = OpenTelemetry.noop().getTracer("NOOP");
+    private boolean experimentalContextEnabled = false;
 
     public Builder(EndpointManifestSchema.ProtocolMode protocolMode) {
       this.protocolMode = protocolMode;
@@ -166,13 +177,19 @@ public class RestateEndpoint {
       return this;
     }
 
+    public Builder enablePreviewContext() {
+      this.experimentalContextEnabled = true;
+      return this;
+    }
+
     public RestateEndpoint build() {
       return new RestateEndpoint(
           this.protocolMode,
           this.services.stream()
               .collect(Collectors.toMap(c -> c.service.getServiceName(), Function.identity())),
           tracer,
-          requestIdentityVerifier);
+          requestIdentityVerifier,
+          experimentalContextEnabled);
     }
   }
 

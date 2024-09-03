@@ -71,6 +71,11 @@ public final class RestateLambdaEndpointBuilder {
     return this;
   }
 
+  public RestateLambdaEndpointBuilder enablePreviewContext() {
+    this.restateEndpoint.enablePreviewContext();
+    return this;
+  }
+
   /** Build the {@link RestateLambdaEndpoint} serving the Restate service endpoint. */
   public RestateLambdaEndpoint build() {
     return new RestateLambdaEndpoint(this.restateEndpoint.build(), this.openTelemetry);

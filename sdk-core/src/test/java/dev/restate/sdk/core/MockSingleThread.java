@@ -11,7 +11,6 @@ package dev.restate.sdk.core;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.protobuf.MessageLite;
-import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.common.syscalls.ServiceDefinition;
 import dev.restate.sdk.core.TestDefinitions.TestDefinition;
 import dev.restate.sdk.core.TestDefinitions.TestExecutor;
@@ -44,12 +43,16 @@ public final class MockSingleThread implements TestExecutor {
             .bind(
                 (ServiceDefinition<? super Object>) serviceDefinition,
                 definition.getServiceOptions());
+    if (definition.isEnablePreviewContext()) {
+      builder.enablePreviewContext();
+    }
     RestateEndpoint server = builder.build();
 
     // Start invocation
     ResolvedEndpointHandler handler =
         server.resolve(
-            ServiceProtocol.serviceProtocolVersionToHeaderValue(Protocol.ServiceProtocolVersion.V1),
+            ServiceProtocol.serviceProtocolVersionToHeaderValue(
+                ServiceProtocol.maxServiceProtocolVersion(definition.isEnablePreviewContext())),
             serviceDefinition.getServiceName(),
             definition.getMethod(),
             k -> null,

@@ -8,24 +8,26 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
+import static dev.restate.sdk.core.Util.durationMin;
+
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.common.AbortedExecutionException;
-import dev.restate.sdk.common.InvocationId;
-import dev.restate.sdk.common.Request;
-import dev.restate.sdk.common.TerminalException;
+import dev.restate.sdk.common.*;
 import dev.restate.sdk.common.syscalls.*;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Context;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.Flow;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jspecify.annotations.Nullable;
 
 class InvocationStateMachine implements Flow.Processor<InvocationInput, MessageLite> {
 
@@ -35,10 +37,12 @@ class InvocationStateMachine implements Flow.Processor<InvocationInput, MessageL
   private final String fullyQualifiedHandlerName;
   private final Span span;
   private final RestateEndpoint.LoggingContextSetter loggingContextSetter;
+  private final Protocol.ServiceProtocolVersion negotiatedProtocolVersion;
 
   private volatile InvocationState invocationState = InvocationState.WAITING_START;
 
   // Used for the side effect guard
+  private Long sideEffectStart;
   private volatile boolean insideSideEffect = false;
 
   // Obtained after WAITING_START
@@ -47,6 +51,10 @@ class InvocationStateMachine implements Flow.Processor<InvocationInput, MessageL
   private String key;
   private int entriesToReplay;
   private UserStateStore userStateStore;
+
+  // Used inside syscalls.shouldRetry, which doesn't run on the syscalls executor sometimes
+  private Duration startMessageDurationSinceLastStoredEntry;
+  private int startMessageRetryCountSinceLastStoredEntry;
 
   // Those values track the progress in the journal
   private int currentJournalEntryIndex = -1;
@@ -67,11 +75,13 @@ class InvocationStateMachine implements Flow.Processor<InvocationInput, MessageL
       String serviceName,
       String fullyQualifiedHandlerName,
       Span span,
-      RestateEndpoint.LoggingContextSetter loggingContextSetter) {
+      RestateEndpoint.LoggingContextSetter loggingContextSetter,
+      Protocol.ServiceProtocolVersion negotiatedProtocolVersion) {
     this.serviceName = serviceName;
     this.fullyQualifiedHandlerName = fullyQualifiedHandlerName;
     this.span = span;
     this.loggingContextSetter = loggingContextSetter;
+    this.negotiatedProtocolVersion = negotiatedProtocolVersion;
 
     this.incomingEntriesStateMachine = new IncomingEntriesStateMachine();
     this.readyResultStateMachine = new ReadyResultStateMachine();
@@ -181,6 +191,10 @@ class InvocationStateMachine implements Flow.Processor<InvocationInput, MessageL
     InvocationId invocationId = new InvocationIdImpl(startMessage.getDebugId());
     this.key = startMessage.getKey();
     this.entriesToReplay = startMessage.getKnownEntries();
+    this.startMessageDurationSinceLastStoredEntry =
+        Duration.ofMillis(startMessage.getDurationSinceLastStoredEntry());
+    this.startMessageRetryCountSinceLastStoredEntry =
+        startMessage.getRetryCountSinceLastStoredEntry();
 
     // Set up the state cache
     this.userStateStore = new UserStateStore(startMessage);
@@ -258,6 +272,22 @@ class InvocationStateMachine implements Flow.Processor<InvocationInput, MessageL
               this.currentJournalEntryIndex,
               this.currentJournalEntryName,
               this.currentJournalEntryType),
+          cause);
+    }
+  }
+
+  void failWithNextRetryDelay(Throwable cause, Duration nextRetryDelay) {
+    if (this.invocationState != InvocationState.CLOSED) {
+      LOG.warn("Invocation failed, will retry in {}", nextRetryDelay, cause);
+      this.closeWithMessage(
+          Util.toErrorMessage(
+                  cause,
+                  this.currentJournalEntryIndex,
+                  this.currentJournalEntryName,
+                  this.currentJournalEntryType)
+              .toBuilder()
+              .setNextRetryDelay(nextRetryDelay.toMillis())
+              .build(),
           cause);
     }
   }
@@ -418,6 +448,7 @@ class InvocationStateMachine implements Flow.Processor<InvocationInput, MessageL
           callback::onCancel);
     } else if (this.invocationState == InvocationState.PROCESSING) {
       insideSideEffect = true;
+      sideEffectStart = System.currentTimeMillis();
       if (span.isRecording()) {
         span.addEvent("Enter SideEffect");
       }
@@ -431,6 +462,7 @@ class InvocationStateMachine implements Flow.Processor<InvocationInput, MessageL
   void exitSideEffectBlock(
       Protocol.RunEntryMessage sideEffectEntry, ExitSideEffectSyscallCallback callback) {
     this.insideSideEffect = false;
+    this.sideEffectStart = null;
     if (this.invocationState == InvocationState.CLOSED) {
       callback.onCancel(AbortedExecutionException.INSTANCE);
     } else if (this.invocationState == InvocationState.REPLAYING) {
@@ -475,6 +507,91 @@ class InvocationStateMachine implements Flow.Processor<InvocationInput, MessageL
       throw new IllegalStateException(
           "This method was invoked when the state machine is not ready to process user code. This is probably an SDK bug");
     }
+  }
+
+  void exitSideEffectBlockWithThrowable(
+      Throwable runException,
+      @Nullable RetryPolicy retryPolicy,
+      ExitSideEffectSyscallCallback callback)
+      throws Throwable {
+    TerminalException toWrite;
+    if (runException instanceof TerminalException) {
+      LOG.trace("The run completed with a terminal exception");
+      toWrite = (TerminalException) runException;
+    } else {
+      toWrite = this.rethrowOrConvertToTerminal(retryPolicy, runException);
+    }
+
+    LOG.trace("exitSideEffectBlock with exception");
+    this.exitSideEffectBlock(
+        Protocol.RunEntryMessage.newBuilder().setFailure(Util.toProtocolFailure(toWrite)).build(),
+        callback);
+  }
+
+  private Duration getDurationSinceLastStoredEntry() {
+    // We need to check if this is the first entry we try to commit after replay, and only in this
+    // case we need to return the info we got from the start message
+    //
+    // Moreover, when the retry count is == 0, the durationSinceLastStoredEntry might not be zero.
+    // In fact, in that case the duration is the interval between the previously stored entry and
+    // the time to start/resume the invocation.
+    // For the sake of entry retries though, we're not interested in that time elapsed, so we 0 it
+    // here for simplicity of the downstream consumer (the retry policy).
+    return this.currentJournalEntryIndex == this.entriesToReplay
+            && startMessageRetryCountSinceLastStoredEntry > 0
+        ? this.startMessageDurationSinceLastStoredEntry
+        : Duration.ZERO;
+  }
+
+  private int getRetryCountSinceLastStoredEntry() {
+    // We need to check if this is the first entry we try to commit after replay, and only in this
+    // case we need to return the info we got from the start message
+    return this.currentJournalEntryIndex == this.entriesToReplay
+        ? this.startMessageRetryCountSinceLastStoredEntry
+        : 0;
+  }
+
+  // This function rethrows the exception if a retry needs to happen.
+  private TerminalException rethrowOrConvertToTerminal(
+      @Nullable RetryPolicy retryPolicy, Throwable t) throws Throwable {
+    if (retryPolicy != null
+        && this.negotiatedProtocolVersion.getNumber()
+            < Protocol.ServiceProtocolVersion.V2.getNumber()) {
+      throw ProtocolException.unsupportedFeature(
+          this.negotiatedProtocolVersion, "run retry policy");
+    }
+
+    if (retryPolicy == null) {
+      LOG.trace("The run completed with an exception and no retry policy was provided");
+      // Default behavior is always retry
+      throw t;
+    }
+
+    Duration retryLoopDuration =
+        this.getDurationSinceLastStoredEntry()
+            .plus(Duration.between(Instant.ofEpochMilli(this.sideEffectStart), Instant.now()));
+    int retryCount = this.getRetryCountSinceLastStoredEntry() + 1;
+
+    if ((retryPolicy.getMaxAttempts() != null && retryPolicy.getMaxAttempts() <= retryCount)
+        || (retryPolicy.getMaxDuration() != null
+            && retryPolicy.getMaxDuration().compareTo(retryLoopDuration) <= 0)) {
+      LOG.trace("The run completed with a retryable exception, but all attempts were exhausted");
+      // We need to convert it to TerminalException
+      return new TerminalException(t.toString());
+    }
+
+    // Compute next retry delay and throw it!
+    Duration nextComputedDelay =
+        retryPolicy
+            .getInitialDelay()
+            .multipliedBy((long) Math.pow(retryPolicy.getExponentiationFactor(), retryCount));
+    Duration nextRetryDelay =
+        retryPolicy.getMaxDelay() != null
+            ? durationMin(retryPolicy.getMaxDelay(), nextComputedDelay)
+            : nextComputedDelay;
+
+    this.failWithNextRetryDelay(t, nextRetryDelay);
+    throw t;
   }
 
   void completeSideEffectCallbackWithEntry(

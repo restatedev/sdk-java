@@ -23,7 +23,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.suspendCancellableCoroutine
 
-internal class ContextImpl internal constructor(private val syscalls: Syscalls) : WorkflowContext {
+internal class ContextImpl internal constructor(internal val syscalls: Syscalls) : WorkflowContext {
   override fun key(): String {
     return this.syscalls.objectKey()
   }
@@ -168,14 +168,11 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
     }
 
     var actionReturnValue: T? = null
-    var actionFailure: TerminalException? = null
+    var actionFailure: Throwable? = null
     try {
       actionReturnValue = block()
-    } catch (e: TerminalException) {
-      actionFailure = e
     } catch (t: Throwable) {
-      syscalls.fail(t)
-      throw CancellationException("Side effect failure", t)
+      actionFailure = t
     }
 
     val exitCallback =
@@ -189,12 +186,92 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
           }
 
           override fun onCancel(t: Throwable?) {
-            exitResult.cancel(CancellationException("Suspended", t))
+            exitResult.cancel(CancellationException(message = null, cause = t))
           }
         }
 
     if (actionFailure != null) {
-      syscalls.exitSideEffectBlockWithTerminalException(actionFailure, exitCallback)
+      syscalls.exitSideEffectBlockWithException(actionFailure, null, exitCallback)
+    } else {
+      syscalls.exitSideEffectBlock(
+          serde.serializeWrappingException(syscalls, actionReturnValue), exitCallback)
+    }
+
+    return serde.deserializeWrappingException(syscalls, exitResult.await())
+  }
+
+  @UsePreviewContext
+  override suspend fun <T : Any?> runBlock(
+      serde: Serde<T>,
+      name: String,
+      retryPolicy: RetryPolicy?,
+      block: suspend () -> T
+  ): T {
+    val exitResult =
+        suspendCancellableCoroutine { cont: CancellableContinuation<CompletableDeferred<ByteBuffer>>
+          ->
+          syscalls.enterSideEffectBlock(
+              name,
+              object : EnterSideEffectSyscallCallback {
+                override fun onSuccess(t: ByteBuffer?) {
+                  val deferred: CompletableDeferred<ByteBuffer> = CompletableDeferred()
+                  deferred.complete(t!!)
+                  cont.resume(deferred)
+                }
+
+                override fun onFailure(t: TerminalException) {
+                  val deferred: CompletableDeferred<ByteBuffer> = CompletableDeferred()
+                  deferred.completeExceptionally(t)
+                  cont.resume(deferred)
+                }
+
+                override fun onCancel(t: Throwable?) {
+                  cont.cancel(t)
+                }
+
+                override fun onNotExecuted() {
+                  cont.resume(CompletableDeferred())
+                }
+              })
+        }
+
+    if (exitResult.isCompleted) {
+      return serde.deserializeWrappingException(syscalls, exitResult.await())!!
+    }
+
+    var actionReturnValue: T? = null
+    var actionFailure: Throwable? = null
+    try {
+      actionReturnValue = block()
+    } catch (t: Throwable) {
+      actionFailure = t
+    }
+
+    val exitCallback =
+        object : ExitSideEffectSyscallCallback {
+          override fun onSuccess(t: ByteBuffer?) {
+            exitResult.complete(t!!)
+          }
+
+          override fun onFailure(t: TerminalException) {
+            exitResult.completeExceptionally(t)
+          }
+
+          override fun onCancel(t: Throwable?) {
+            exitResult.cancel(CancellationException(message = null, cause = t))
+          }
+        }
+
+    if (actionFailure != null) {
+      val javaRetryPolicy =
+          retryPolicy?.let {
+            dev.restate.sdk.common.RetryPolicy.exponential(
+                    it.initialDelay.toJavaDuration(), it.exponentiationFactor)
+                .setMaxAttempts(it.maxAttempts)
+                .setMaxDelay(it.maxDelay?.toJavaDuration())
+                .setMaxDuration(it.maxDuration?.toJavaDuration())
+          }
+      syscalls.exitSideEffectBlockWithException(actionFailure, javaRetryPolicy, exitCallback)
     } else {
       syscalls.exitSideEffectBlock(
           serde.serializeWrappingException(syscalls, actionReturnValue), exitCallback)

@@ -121,6 +121,11 @@ public class RestateHttpEndpointBuilder {
     return this;
   }
 
+  public RestateHttpEndpointBuilder enablePreviewContext() {
+    this.endpointBuilder.enablePreviewContext();
+    return this;
+  }
+
   /**
    * Build and listen on the specified port.
    *

@@ -80,7 +80,8 @@ public class AssertUtils {
                           }
 
                           return RestateEndpoint.discoverServiceDefinitionFactory(svc).create(svc);
-                        }))
+                        }),
+                false)
             .manifest(),
         EndpointManifestSchemaAssert.class);
   }

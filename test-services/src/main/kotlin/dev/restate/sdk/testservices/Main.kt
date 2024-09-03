@@ -29,6 +29,8 @@ val KNOWN_SERVICES_FACTORIES: Map<String, () -> Any> =
         TestUtilsServiceDefinitions.SERVICE_NAME to { TestUtilsServiceImpl() },
     )
 
+val NEEDS_EXPERIMENTAL_CONTEXT: Set<String> = setOf(FailingDefinitions.SERVICE_NAME)
+
 fun main(args: Array<String>) {
   var env = System.getenv("SERVICES")
   if (env == null) {
@@ -50,6 +52,10 @@ fun main(args: Array<String>) {
   if (requestSigningKey != null) {
     restateHttpEndpointBuilder.withRequestIdentityVerifier(
         RestateRequestIdentityVerifier.fromKey(requestSigningKey))
+  }
+
+  if (env == "*" || NEEDS_EXPERIMENTAL_CONTEXT.any { env.contains(it) }) {
+    restateHttpEndpointBuilder.enablePreviewContext()
   }
 
   restateHttpEndpointBuilder.buildAndListen()
