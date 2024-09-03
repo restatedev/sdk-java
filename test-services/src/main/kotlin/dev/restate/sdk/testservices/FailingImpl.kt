@@ -10,10 +10,13 @@ package dev.restate.sdk.testservices
 
 import dev.restate.sdk.common.TerminalException
 import dev.restate.sdk.kotlin.ObjectContext
+import dev.restate.sdk.kotlin.UsePreviewContext
+import dev.restate.sdk.kotlin.retryPolicy
 import dev.restate.sdk.kotlin.runBlock
 import dev.restate.sdk.testservices.contracts.Failing
 import dev.restate.sdk.testservices.contracts.FailingClient
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.milliseconds
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 
@@ -24,6 +27,7 @@ class FailingImpl : Failing {
 
   private val eventualSuccessCalls = AtomicInteger(0)
   private val eventualSuccessSideEffectCalls = AtomicInteger(0)
+  private val eventualFailureSideEffectCalls = AtomicInteger(0)
 
   override suspend fun terminallyFailingCall(context: ObjectContext, errorMessage: String) {
     LOG.info("Invoked fail")
@@ -55,24 +59,54 @@ class FailingImpl : Failing {
     }
   }
 
-  override suspend fun failingSideEffectWithEventualSuccess(context: ObjectContext): Int {
-    val successAttempt: Int =
-        context.runBlock {
-          val currentAttempt = eventualSuccessSideEffectCalls.incrementAndGet()
-          if (currentAttempt >= 4) {
-            eventualSuccessSideEffectCalls.set(0)
-            return@runBlock currentAttempt
-          } else {
-            throw IllegalArgumentException("Failed at attempt: $currentAttempt")
-          }
-        }
-
-    return successAttempt
-  }
-
   override suspend fun terminallyFailingSideEffect(context: ObjectContext, errorMessage: String) {
     context.runBlock<Unit> { throw TerminalException(errorMessage) }
 
     throw IllegalStateException("Should not be reached.")
+  }
+
+  @OptIn(UsePreviewContext::class)
+  override suspend fun sideEffectSucceedsAfterGivenAttempts(
+      context: ObjectContext,
+      minimumAttempts: Int
+  ): Int =
+      context.runBlock(
+          name = "failing_side_effect",
+          retryPolicy =
+              retryPolicy {
+                initialDelay = 10.milliseconds
+                exponentiationFactor = 1.0f
+              }) {
+            val currentAttempt = eventualSuccessSideEffectCalls.incrementAndGet()
+            if (currentAttempt >= 4) {
+              eventualSuccessSideEffectCalls.set(0)
+              return@runBlock currentAttempt
+            } else {
+              throw IllegalArgumentException("Failed at attempt: $currentAttempt")
+            }
+          }
+
+  @OptIn(UsePreviewContext::class)
+  override suspend fun sideEffectFailsAfterGivenAttempts(
+      context: ObjectContext,
+      retryPolicyMaxRetryCount: Int
+  ): Int {
+    try {
+      context.runBlock<Unit>(
+          name = "failing_side_effect",
+          retryPolicy =
+              retryPolicy {
+                initialDelay = 10.milliseconds
+                exponentiationFactor = 1.0f
+                maxAttempts = retryPolicyMaxRetryCount
+              }) {
+            val currentAttempt = eventualFailureSideEffectCalls.incrementAndGet()
+            throw IllegalArgumentException("Failed at attempt: $currentAttempt")
+          }
+    } catch (_: TerminalException) {
+      return eventualFailureSideEffectCalls.get()
+    }
+    // If I reach this point, the side effect succeeded...
+    throw TerminalException("Expecting the side effect to fail!")
   }
 }

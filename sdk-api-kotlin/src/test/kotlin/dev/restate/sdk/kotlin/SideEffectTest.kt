@@ -20,6 +20,7 @@ import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder
 import dev.restate.sdk.kotlin.KotlinCoroutinesTests.Companion.testDefinitionForService
 import java.util.*
 import kotlin.coroutines.coroutineContext
+import kotlin.time.toKotlinDuration
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 
@@ -74,5 +75,25 @@ class SideEffectTest : SideEffectTestSuite() {
   override fun failingSideEffect(name: String, reason: String): TestInvocationBuilder =
       testDefinitionForService<Unit, String>("FailingSideEffect") { ctx, _: Unit ->
         ctx.runBlock(name) { throw IllegalStateException(reason) }
+      }
+
+  @OptIn(UsePreviewContext::class)
+  override fun failingSideEffectWithRetryPolicy(
+      reason: String,
+      retryPolicy: dev.restate.sdk.common.RetryPolicy?
+  ) =
+      testDefinitionForService<Unit, String>("FailingSideEffectWithRetryPolicy") { ctx, _: Unit ->
+        ctx.runBlock(
+            retryPolicy =
+                retryPolicy?.let {
+                  RetryPolicy(
+                      initialDelay = it.initialDelay.toKotlinDuration(),
+                      exponentiationFactor = it.exponentiationFactor,
+                      maxDelay = it.maxDelay?.toKotlinDuration(),
+                      maxDuration = it.maxDuration?.toKotlinDuration(),
+                      maxAttempts = it.maxAttempts)
+                }) {
+              throw IllegalStateException(reason)
+            }
       }
 }

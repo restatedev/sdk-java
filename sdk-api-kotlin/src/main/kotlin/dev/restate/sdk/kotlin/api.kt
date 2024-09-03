@@ -8,7 +8,11 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.common.*
+import dev.restate.sdk.common.DurablePromiseKey
+import dev.restate.sdk.common.Output
+import dev.restate.sdk.common.Request
+import dev.restate.sdk.common.Serde
+import dev.restate.sdk.common.StateKey
 import dev.restate.sdk.common.Target
 import dev.restate.sdk.common.syscalls.Syscalls
 import java.util.*
@@ -146,6 +150,21 @@ sealed interface Context {
   suspend fun <T : Any?> runBlock(serde: Serde<T>, name: String = "", block: suspend () -> T): T
 
   /**
+   * Like [runBlock], but using a custom retry policy.
+   *
+   * When a retry policy is not specified, the `runBlock` will be retried using the
+   * [Restate invoker retry policy](https://docs.restate.dev/operate/configuration/server), which by
+   * default retries indefinitely.
+   */
+  @UsePreviewContext
+  suspend fun <T : Any?> runBlock(
+      serde: Serde<T>,
+      name: String = "",
+      retryPolicy: RetryPolicy? = null,
+      block: suspend () -> T
+  ): T
+
+  /**
    * Create an [Awakeable], addressable through [Awakeable.id].
    *
    * You can use this feature to implement external asynchronous systems interactions, for example
@@ -227,6 +246,15 @@ suspend inline fun <reified T : Any> Context.runBlock(
     noinline block: suspend () -> T
 ): T {
   return this.runBlock(KtSerdes.json(), name, block)
+}
+
+@UsePreviewContext
+suspend inline fun <reified T : Any> Context.runBlock(
+    name: String = "",
+    retryPolicy: RetryPolicy? = null,
+    noinline block: suspend () -> T
+): T {
+  return this.runBlock(KtSerdes.json(), name, retryPolicy, block)
 }
 
 /**

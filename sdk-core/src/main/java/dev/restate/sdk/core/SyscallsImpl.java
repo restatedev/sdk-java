@@ -13,8 +13,10 @@ import static dev.restate.sdk.core.Util.nioBufferToProtobufBuffer;
 import com.google.protobuf.ByteString;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.common.Request;
+import dev.restate.sdk.common.RetryPolicy;
 import dev.restate.sdk.common.Target;
 import dev.restate.sdk.common.TerminalException;
+import dev.restate.sdk.common.function.ThrowingRunnable;
 import dev.restate.sdk.common.syscalls.*;
 import dev.restate.sdk.core.DeferredResults.SingleDeferredInternal;
 import dev.restate.sdk.core.Entries.*;
@@ -262,6 +264,19 @@ public final class SyscallsImpl implements SyscallsInternal {
   }
 
   @Override
+  public void exitSideEffectBlockWithException(
+      Throwable runException,
+      @Nullable RetryPolicy retryPolicy,
+      ExitSideEffectSyscallCallback callback) {
+    wrapAndPropagateExceptions(
+        () -> {
+          LOG.trace("exitSideEffectBlock with exception");
+          this.stateMachine.exitSideEffectBlockWithThrowable(runException, retryPolicy, callback);
+        },
+        callback);
+  }
+
+  @Override
   public void awakeable(SyscallCallback<Map.Entry<String, Deferred<ByteBuffer>>> callback) {
     wrapAndPropagateExceptions(
         () -> {
@@ -428,7 +443,7 @@ public final class SyscallsImpl implements SyscallsInternal {
 
   // -- Wrapper for failure propagation
 
-  private void wrapAndPropagateExceptions(Runnable r, SyscallCallback<?> handler) {
+  private void wrapAndPropagateExceptions(ThrowingRunnable r, SyscallCallback<?> handler) {
     try {
       r.run();
     } catch (Throwable e) {

@@ -12,7 +12,7 @@ import dev.restate.sdk.annotation.Handler
 import dev.restate.sdk.annotation.VirtualObject
 import dev.restate.sdk.kotlin.ObjectContext
 
-@VirtualObject
+@VirtualObject(name = "Failing")
 interface Failing {
   @Handler suspend fun terminallyFailingCall(context: ObjectContext, errorMessage: String)
 
@@ -21,7 +21,30 @@ interface Failing {
 
   @Handler suspend fun failingCallWithEventualSuccess(context: ObjectContext): Int
 
-  @Handler suspend fun failingSideEffectWithEventualSuccess(context: ObjectContext): Int
-
   @Handler suspend fun terminallyFailingSideEffect(context: ObjectContext, errorMessage: String)
+
+  /**
+   * `minimumAttempts` should be used to check when to succeed. The retry policy should be
+   * configured to be infinite.
+   *
+   * @return the number of executed attempts. In order to implement this count, an atomic counter in
+   *   the service should be used.
+   */
+  @Handler
+  suspend fun sideEffectSucceedsAfterGivenAttempts(
+      context: ObjectContext,
+      minimumAttempts: Int
+  ): Int
+
+  /**
+   * `retryPolicyMaxRetryCount` should be used to configure the retry policy.
+   *
+   * @return the number of executed attempts. In order to implement this count, an atomic counter in
+   *   the service should be used.
+   */
+  @Handler
+  suspend fun sideEffectFailsAfterGivenAttempts(
+      context: ObjectContext,
+      retryPolicyMaxRetryCount: Int
+  ): Int
 }

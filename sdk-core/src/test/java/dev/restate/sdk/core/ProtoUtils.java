@@ -31,6 +31,11 @@ public class ProtoUtils {
     return ServiceProtocol.serviceProtocolVersionToHeaderValue(Protocol.ServiceProtocolVersion.V1);
   }
 
+  public static String serviceProtocolContentTypeHeader(boolean enableContextPreview) {
+    return ServiceProtocol.serviceProtocolVersionToHeaderValue(
+        ServiceProtocol.maxServiceProtocolVersion(enableContextPreview));
+  }
+
   public static String serviceProtocolDiscoveryContentTypeHeader() {
     return ServiceProtocol.serviceDiscoveryProtocolVersionToHeaderValue(
         Discovery.ServiceDiscoveryProtocolVersion.V1);

@@ -37,7 +37,8 @@ class ComponentDiscoveryHandlerTest {
                         HandlerDefinition.of(
                             HandlerSpecification.of(
                                 "greet", HandlerType.EXCLUSIVE, Serde.VOID, Serde.VOID),
-                            null)))));
+                            null)))),
+            false);
 
     EndpointManifestSchema manifest = deploymentManifest.manifest();
 
