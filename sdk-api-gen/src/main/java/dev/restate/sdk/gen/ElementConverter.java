@@ -162,6 +162,9 @@ public class ElementConverter {
       messager.printMessage(
           Diagnostic.Kind.ERROR, "You cannot annotate a static init as Restate method");
     }
+    if (element.getModifiers().contains(Modifier.PRIVATE)) {
+      messager.printMessage(Diagnostic.Kind.ERROR, "The annotated method is private");
+    }
 
     boolean isAnnotatedWithShared = element.getAnnotation(Shared.class) != null;
     boolean isAnnotatedWithExclusive = element.getAnnotation(Exclusive.class) != null;

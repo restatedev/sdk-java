@@ -135,6 +135,9 @@ class KElementConverter(
     if (function.functionKind != FunctionKind.MEMBER) {
       logger.error("Only member function declarations are supported as Restate handlers")
     }
+    if (function.getVisibility() == Visibility.PRIVATE) {
+      logger.error("The annotated function is private", function)
+    }
 
     val isAnnotatedWithShared =
         function.isAnnotationPresent(dev.restate.sdk.annotation.Shared::class)
