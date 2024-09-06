@@ -173,8 +173,6 @@ internal class ContextImpl internal constructor(private val syscalls: Syscalls) 
       actionReturnValue = block()
     } catch (e: TerminalException) {
       actionFailure = e
-    } catch (e: Error) {
-      throw e
     } catch (t: Throwable) {
       syscalls.fail(t)
       throw CancellationException("Side effect failure", t)

@@ -168,8 +168,6 @@ class ContextImpl implements ObjectContext, WorkflowContext {
       res = action.get();
     } catch (TerminalException e) {
       failure = e;
-    } catch (Error e) {
-      throw e;
     } catch (Throwable e) {
       syscalls.fail(e);
       AbortedExecutionException.sneakyThrow();

@@ -69,8 +69,6 @@ public class HandlerRunner<REQ, RES>
           try {
             req =
                 handlerSpecification.getRequestSerde().deserialize(syscalls.request().bodyBuffer());
-          } catch (Error e) {
-            throw e;
           } catch (Throwable e) {
             LOG.warn("Cannot deserialize input", e);
             callback.onCancel(
@@ -84,8 +82,6 @@ public class HandlerRunner<REQ, RES>
           RES res;
           try {
             res = this.runner.apply(ctx, req);
-          } catch (Error e) {
-            throw e;
           } catch (Throwable e) {
             callback.onCancel(e);
             return;
@@ -95,8 +91,6 @@ public class HandlerRunner<REQ, RES>
           ByteBuffer serializedResult;
           try {
             serializedResult = handlerSpecification.getResponseSerde().serializeToByteBuffer(res);
-          } catch (Error e) {
-            throw e;
           } catch (Throwable e) {
             LOG.warn("Cannot serialize output", e);
             callback.onCancel(
