@@ -63,8 +63,6 @@ internal constructor(
         val req: REQ
         try {
           req = handlerSpecification.requestSerde.deserialize(syscalls.request().bodyBuffer())
-        } catch (e: Error) {
-          throw e
         } catch (e: Throwable) {
           LOG.warn("Error when deserializing input", e)
           throw TerminalException(
@@ -77,8 +75,6 @@ internal constructor(
         // Serialize output
         try {
           serializedResult = handlerSpecification.responseSerde.serializeToByteBuffer(res)
-        } catch (e: Error) {
-          throw e
         } catch (e: Throwable) {
           LOG.warn("Error when serializing input", e)
           throw TerminalException(
