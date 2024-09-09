@@ -4,8 +4,11 @@ plugins {
     id("com.diffplug.spotless")
 }
 
-kotlin {
-    jvmToolchain(11)
+java {
+    toolchain { languageVersion = JavaLanguageVersion.of(11) }
+
+    withJavadocJar()
+    withSourcesJar()
 }
 
 tasks.withType<Test> { useJUnitPlatform() }
