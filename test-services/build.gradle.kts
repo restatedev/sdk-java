@@ -20,6 +20,8 @@ dependencies {
   implementation(kotlinLibs.kotlinx.serialization.json)
 
   implementation(coreLibs.log4j.core)
+
+  implementation(kotlinLibs.kotlinx.coroutines)
 }
 
 // Configuration of jib container images parameters
