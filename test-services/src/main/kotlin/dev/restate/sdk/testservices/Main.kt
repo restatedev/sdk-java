@@ -27,7 +27,10 @@ val KNOWN_SERVICES_FACTORIES: Map<String, () -> Any> =
         NonDeterministicDefinitions.SERVICE_NAME to { NonDeterministicImpl() },
         ProxyDefinitions.SERVICE_NAME to { ProxyImpl() },
         TestUtilsServiceDefinitions.SERVICE_NAME to { TestUtilsServiceImpl() },
-    )
+        interpreterName(0) to { ObjectInterpreterImpl.getInterpreterDefinition(0) },
+        interpreterName(1) to { ObjectInterpreterImpl.getInterpreterDefinition(1) },
+        interpreterName(2) to { ObjectInterpreterImpl.getInterpreterDefinition(2) },
+        ServiceInterpreterHelperDefinitions.SERVICE_NAME to { ServiceInterpreterHelperImpl() })
 
 val NEEDS_EXPERIMENTAL_CONTEXT: Set<String> = setOf(FailingDefinitions.SERVICE_NAME)
 
