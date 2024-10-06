@@ -37,6 +37,4 @@ application {
   mainClass.set(mainClassValue)
 }
 
-tasks.withType<Jar> { this.enabled = false }
-
 tasks.withType<ShadowJar> { transform(ServiceFileTransformer::class.java) }
