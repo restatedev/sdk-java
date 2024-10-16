@@ -219,7 +219,7 @@ public final class SyscallsImpl implements SyscallsInternal {
           }
 
           this.stateMachine.processJournalEntry(
-              builder.build(), BackgroundInvokeEntry.INSTANCE, callback);
+              builder.build(), OneWayCallEntry.INSTANCE, callback);
         },
         callback);
   }
