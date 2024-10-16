@@ -19,6 +19,7 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
 import java.nio.ByteBuffer;
 import java.util.Collection;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -425,9 +426,10 @@ final class Entries {
       }
       CallEntryMessage actualInvoke = (CallEntryMessage) actual;
 
-      if (!(expected.getServiceName().equals(actualInvoke.getServiceName())
-          && expected.getHandlerName().equals(actualInvoke.getHandlerName())
-          && expected.getParameter().equals(actualInvoke.getParameter()))) {
+      if (!(Objects.equals(expected.getServiceName(), actualInvoke.getServiceName())
+          && Objects.equals(expected.getHandlerName(), actualInvoke.getHandlerName())
+          && Objects.equals(expected.getParameter(), actualInvoke.getParameter())
+          && Objects.equals(expected.getKey(), actualInvoke.getKey()))) {
         throw ProtocolException.entryDoesNotMatch(expected, actualInvoke);
       }
     }
@@ -452,11 +454,11 @@ final class Entries {
     }
   }
 
-  static final class BackgroundInvokeEntry extends JournalEntry<OneWayCallEntryMessage> {
+  static final class OneWayCallEntry extends JournalEntry<OneWayCallEntryMessage> {
 
-    static final BackgroundInvokeEntry INSTANCE = new BackgroundInvokeEntry();
+    static final OneWayCallEntry INSTANCE = new OneWayCallEntry();
 
-    private BackgroundInvokeEntry() {}
+    private OneWayCallEntry() {}
 
     @Override
     public void trace(OneWayCallEntryMessage expected, Span span) {
@@ -477,7 +479,17 @@ final class Entries {
     @Override
     void checkEntryHeader(OneWayCallEntryMessage expected, MessageLite actual)
         throws ProtocolException {
-      Util.assertEntryEquals(expected, actual);
+      if (!(actual instanceof OneWayCallEntryMessage)) {
+        throw ProtocolException.entryDoesNotMatch(expected, actual);
+      }
+      OneWayCallEntryMessage actualInvoke = (OneWayCallEntryMessage) actual;
+
+      if (!(Objects.equals(expected.getServiceName(), actualInvoke.getServiceName())
+          && Objects.equals(expected.getHandlerName(), actualInvoke.getHandlerName())
+          && Objects.equals(expected.getParameter(), actualInvoke.getParameter())
+          && Objects.equals(expected.getKey(), actualInvoke.getKey()))) {
+        throw ProtocolException.entryDoesNotMatch(expected, actualInvoke);
+      }
     }
   }
 
