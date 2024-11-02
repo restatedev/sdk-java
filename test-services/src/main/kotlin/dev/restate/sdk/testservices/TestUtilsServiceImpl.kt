@@ -27,6 +27,10 @@ class TestUtilsServiceImpl : TestUtilsService {
     return context.request().headers()
   }
 
+  override suspend fun rawEcho(context: Context, input: ByteArray): ByteArray {
+    return input
+  }
+
   override suspend fun createAwakeableAndAwaitIt(
       ctx: Context,
       req: CreateAwakeableAndAwaitItRequest
