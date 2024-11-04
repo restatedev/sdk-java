@@ -29,6 +29,9 @@ public final class RestateLambdaEndpointBuilder {
    * #bind(ServiceDefinition)}.
    */
   public RestateLambdaEndpointBuilder bind(Object service) {
+    if (service instanceof ServiceDefinition) {
+      return this.bind((ServiceDefinition<?>) service);
+    }
     return this.bind(RestateEndpoint.discoverServiceDefinitionFactory(service).create(service));
   }
 

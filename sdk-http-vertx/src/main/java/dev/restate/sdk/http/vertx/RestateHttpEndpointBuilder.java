@@ -10,6 +10,7 @@ package dev.restate.sdk.http.vertx;
 
 import dev.restate.sdk.auth.RequestIdentityVerifier;
 import dev.restate.sdk.common.syscalls.ServiceDefinition;
+import dev.restate.sdk.common.syscalls.ServiceDefinitionFactory;
 import dev.restate.sdk.core.RestateEndpoint;
 import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import io.opentelemetry.api.OpenTelemetry;
@@ -79,6 +80,9 @@ public class RestateHttpEndpointBuilder {
    * #bind(ServiceDefinition)}.
    */
   public RestateHttpEndpointBuilder bind(Object service) {
+    if (service instanceof ServiceDefinition) {
+      return this.bind((ServiceDefinition<?>) service);
+    }
     return this.bind(RestateEndpoint.discoverServiceDefinitionFactory(service).create(service));
   }
 
