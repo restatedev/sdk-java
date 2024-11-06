@@ -29,8 +29,8 @@ class CounterTest {
   @Timeout(value = 10)
   void testGreet(@RestateClient Client ingressClient) {
     var client = CounterClient.fromClient(ingressClient, "my-counter");
-    long response = client.get();
 
+    long response = client.get();
     assertThat(response).isEqualTo(0L);
   }
 }

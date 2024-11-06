@@ -30,7 +30,15 @@ import org.testcontainers.containers.wait.strategy.WaitAllStrategy;
 import org.testcontainers.images.builder.Transferable;
 import org.testcontainers.utility.DockerImageName;
 
-/** Manual runner for Restate. We recommend using {@link RestateRunner} with JUnit 5. */
+/**
+ * Manual runner for the Restate test infra, starting the Restate server container together with the
+ * provided services and automatically registering them. To start the infra use {@link #run()} and
+ * to stop it use {@link #stop()}.
+ *
+ * <p>Use {@link RestateRunnerBuilder#buildManualRunner()} to build an instance of this class.
+ *
+ * <p>If you use JUnit 5, we suggest using {@link RestateRunner} instead.
+ */
 public class ManualRestateRunner
     implements AutoCloseable, ExtensionContext.Store.CloseableResource {
 
@@ -75,6 +83,12 @@ public class ManualRestateRunner
   }
 
   /** Run restate, run the embedded service endpoint server, and register the services. */
+  public void start() {}
+
+  /**
+   * @deprecated Use {@link #start()} instead.
+   */
+  @Deprecated(forRemoval = true)
   public void run() {
     // Start listening the local server
     try {

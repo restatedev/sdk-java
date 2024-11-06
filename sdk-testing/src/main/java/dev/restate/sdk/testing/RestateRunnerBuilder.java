@@ -13,7 +13,11 @@ import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder;
 import java.util.HashMap;
 import java.util.Map;
 
-/** Builder for {@link RestateRunner}. See {@link RestateRunner} for more details. */
+/**
+ * Builder for {@link RestateRunner}.
+ *
+ * @see RestateRunner
+ */
 public class RestateRunnerBuilder {
 
   private static final String DEFAULT_RESTATE_CONTAINER = "docker.io/restatedev/restate";
@@ -73,6 +77,9 @@ public class RestateRunnerBuilder {
     return this;
   }
 
+  /**
+   * @return a {@link ManualRestateRunner} to start and stop the test infra manually.
+   */
   public ManualRestateRunner buildManualRunner() {
     return new ManualRestateRunner(
         this.endpointBuilder.build(),
@@ -81,6 +88,9 @@ public class RestateRunnerBuilder {
         this.configFile);
   }
 
+  /**
+   * @return a {@link RestateRunner} to be used as JUnit 5 Extension.
+   */
   public RestateRunner buildRunner() {
     return new RestateRunner(this.buildManualRunner());
   }

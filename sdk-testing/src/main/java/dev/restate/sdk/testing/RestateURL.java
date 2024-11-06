@@ -15,8 +15,7 @@ import java.lang.annotation.Target;
 import java.net.URL;
 
 /**
- * Inject Restate's URL (either {@link String} or {@link URL}) to interact with the deployed
- * runtime.
+ * Inject Restate's URL (either {@link String} or {@link URL}) to interact with the deployed server.
  */
 @Target(value = ElementType.PARAMETER)
 @Retention(RetentionPolicy.RUNTIME)
