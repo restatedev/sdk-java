@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: [ 11 ]
+        java: [ 11, 17, 21 ]
     steps:
       - uses: actions/checkout@v4
       - name: Set up JDK ${{ matrix.java }}
@@ -31,8 +31,7 @@ jobs:
         uses: gradle/actions/wrapper-validation@v3
 
       - name: Build with Gradle
-        # Javadoc 11 won't work with our Javadocs, they need 21
-        run: ./gradlew build -x javadoc
+        run: ./gradlew build
 
       - name: Upload test results
         if: always()
@@ -42,7 +41,7 @@ jobs:
           path: "**/test-results/test/*.xml"
 
   test-javadocs:
-    name: Test Javadocs
+    name: Test Javadocs and dokka
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
