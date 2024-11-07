@@ -82,14 +82,16 @@ public class ManualRestateRunner
     }
   }
 
-  /** Run restate, run the embedded service endpoint server, and register the services. */
-  public void start() {}
-
   /**
    * @deprecated Use {@link #start()} instead.
    */
   @Deprecated(forRemoval = true)
   public void run() {
+    this.start();
+  }
+
+  /** Run restate, run the embedded service endpoint server, and register the services. */
+  public void start() {
     // Start listening the local server
     try {
       server.listen(0).toCompletionStage().toCompletableFuture().get();

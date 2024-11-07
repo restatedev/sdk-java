@@ -14,12 +14,12 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 /**
  * Restate runner for JUnit 5. Example:
  *
- * <pre>{@code
- * @RegisterExtension
+ * <pre>
+ * {@code @RegisterExtension}
  * private final static RestateRunner restateRunner = RestateRunnerBuilder.create()
  *         .withService(new MyService())
  *         .buildRunner();
- * }</pre>
+ * </pre>
  *
  * <p>The runner will deploy the services locally, execute Restate as container using <a
  * href="https://java.testcontainers.org/">Testcontainers</a>, and register the services.
@@ -30,15 +30,14 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  * <p>Use the annotations {@link RestateClient}, {@link RestateURL} and {@link RestateAdminClient}
  * to interact with the deployed server:
  *
- * <pre>{@code
- * @Test
- * void initialCountIsZero(@RestateClient Client client) {
+ * <pre>
+ * {@code @Test}
+ * void initialCountIsZero({@code @RestateClient} Client client) {
  *     var client = CounterClient.fromClient(ingressClient, "my-counter");
  *
  *     // Use client as usual
  *     long response = client.get();
  *     assertThat(response).isEqualTo(0L);
- * }
  * }</pre>
  */
 public class RestateRunner extends BaseRestateRunner implements BeforeAllCallback {
@@ -50,7 +49,7 @@ public class RestateRunner extends BaseRestateRunner implements BeforeAllCallbac
 
   @Override
   public void beforeAll(ExtensionContext context) {
-    deployer.run();
+    deployer.start();
     context.getStore(NAMESPACE).put(DEPLOYER_KEY, deployer);
   }
 }
