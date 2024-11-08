@@ -7,6 +7,11 @@ repositories {
     gradlePluginPortal()
 }
 
+java {
+    // Pin to a version that is also supported by Kotlin
+    toolchain { languageVersion = JavaLanguageVersion.of(11) }
+}
+
 
 dependencies {
     implementation("net.ltgt.gradle:gradle-errorprone-plugin:4.0.0")
