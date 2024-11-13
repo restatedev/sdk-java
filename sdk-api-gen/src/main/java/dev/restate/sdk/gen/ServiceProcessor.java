@@ -27,11 +27,7 @@ import javax.lang.model.element.TypeElement;
 import javax.tools.FileObject;
 import javax.tools.StandardLocation;
 
-@SupportedAnnotationTypes({
-  "dev.restate.sdk.annotation.Service",
-  "dev.restate.sdk.annotation.Workflow",
-  "dev.restate.sdk.annotation.VirtualObject"
-})
+@SupportedAnnotationTypes("*")
 @SupportedSourceVersion(SourceVersion.RELEASE_11)
 public class ServiceProcessor extends AbstractProcessor {
 
@@ -97,9 +93,19 @@ public class ServiceProcessor extends AbstractProcessor {
     // Parsing phase
     List<Map.Entry<Element, Service>> parsedServices =
         annotations.stream()
-            .flatMap(annotation -> roundEnv.getElementsAnnotatedWith(annotation).stream())
-            .filter(e -> e.getKind().isClass() || e.getKind().isInterface())
-            .map(e -> Map.entry((Element) e, converter.fromTypeElement((TypeElement) e)))
+            .map(MetaRestateAnnotation::metaRestateAnnotationOrNull)
+            .filter(Objects::nonNull)
+            .flatMap(
+                metaAnnotation ->
+                    roundEnv
+                        .getElementsAnnotatedWith(metaAnnotation.getAnnotationTypeElement())
+                        .stream()
+                        .filter(e -> e.getKind().isClass() || e.getKind().isInterface())
+                        .map(
+                            e ->
+                                Map.entry(
+                                    (Element) e,
+                                    converter.fromTypeElement(metaAnnotation, (TypeElement) e))))
             .collect(Collectors.toList());
 
     Filer filer = processingEnv.getFiler();

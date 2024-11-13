@@ -52,6 +52,6 @@ public class RestateHttpEndpointBeanTest {
 
     assertThat(endpointManifest.getServices())
         .map(dev.restate.sdk.core.manifest.Service::getName)
-        .containsOnly("Greeter");
+        .containsOnly("greeter");
   }
 }
