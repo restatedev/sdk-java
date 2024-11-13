@@ -31,7 +31,7 @@ import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import org.jspecify.annotations.Nullable;
 
-public class ElementConverter {
+class ElementConverter {
 
   private static final PayloadType EMPTY_PAYLOAD =
       new PayloadType(true, "", "Void", "dev.restate.sdk.common.Serde.VOID");
@@ -47,49 +47,29 @@ public class ElementConverter {
     this.types = types;
   }
 
-  public Service fromTypeElement(TypeElement element) {
+  Service fromTypeElement(MetaRestateAnnotation metaAnnotation, TypeElement element) {
     validateType(element);
 
-    dev.restate.sdk.annotation.Service serviceAnnotation =
-        element.getAnnotation(dev.restate.sdk.annotation.Service.class);
-    dev.restate.sdk.annotation.VirtualObject virtualObjectAnnotation =
-        element.getAnnotation(dev.restate.sdk.annotation.VirtualObject.class);
-    dev.restate.sdk.annotation.Workflow workflowAnnotation =
-        element.getAnnotation(dev.restate.sdk.annotation.Workflow.class);
-    boolean isAnnotatedWithService = serviceAnnotation != null;
-    boolean isAnnotatedWithVirtualObject = virtualObjectAnnotation != null;
-    boolean isAnnotatedWithWorkflow = workflowAnnotation != null;
-
-    // Should be guaranteed by the caller
-    assert isAnnotatedWithWorkflow || isAnnotatedWithVirtualObject || isAnnotatedWithService;
-
-    // Check there's no more than one annotation
-    if (!Boolean.logicalXor(
-        isAnnotatedWithService,
-        Boolean.logicalXor(isAnnotatedWithWorkflow, isAnnotatedWithVirtualObject))) {
-      messager.printMessage(
-          Diagnostic.Kind.ERROR,
-          "The type can be annotated only with one annotation between @VirtualObject, @Workflow and @Service",
-          element);
-    }
-
-    ServiceType type =
-        isAnnotatedWithWorkflow
-            ? ServiceType.WORKFLOW
-            : isAnnotatedWithService ? ServiceType.SERVICE : ServiceType.VIRTUAL_OBJECT;
+    // Find annotation mirror
+    AnnotationMirror metaAnnotationMirror =
+        element.getAnnotationMirrors().stream()
+            .filter(
+                a ->
+                    a.getAnnotationType()
+                        .asElement()
+                        .equals(metaAnnotation.getAnnotationTypeElement()))
+            .findFirst()
+            .orElseThrow(
+                () ->
+                    new IllegalStateException(
+                        "Cannot find the annotation mirror for meta annotation "
+                            + metaAnnotation.getAnnotationTypeElement().getQualifiedName()));
 
     // Infer names
-
     CharSequence targetPkg = elements.getPackageOf(element).getQualifiedName();
     CharSequence targetFqcn = element.getQualifiedName();
-
-    String serviceName =
-        isAnnotatedWithService
-            ? serviceAnnotation.name()
-            : isAnnotatedWithVirtualObject
-                ? virtualObjectAnnotation.name()
-                : workflowAnnotation.name();
-    if (serviceName.isEmpty()) {
+    String serviceName = metaAnnotation.resolveName(metaAnnotationMirror);
+    if (serviceName == null || serviceName.isEmpty()) {
       // Use simple class name, flattening subclasses names
       serviceName =
           targetFqcn.toString().substring(targetPkg.length()).replaceAll(Pattern.quote("."), "");
@@ -105,7 +85,9 @@ public class ElementConverter {
                         || e.getAnnotation(Workflow.class) != null
                         || e.getAnnotation(Exclusive.class) != null
                         || e.getAnnotation(Shared.class) != null)
-            .map(e -> fromExecutableElement(type, ((ExecutableElement) e)))
+            .map(
+                e ->
+                    fromExecutableElement(metaAnnotation.getServiceType(), ((ExecutableElement) e)))
             .collect(Collectors.toList());
 
     if (handlers.isEmpty()) {
@@ -118,7 +100,7 @@ public class ElementConverter {
           .withTargetPkg(targetPkg)
           .withTargetFqcn(targetFqcn)
           .withServiceName(serviceName)
-          .withServiceType(type)
+          .withServiceType(metaAnnotation.getServiceType())
           .withHandlers(handlers)
           .validateAndBuild();
     } catch (Exception e) {

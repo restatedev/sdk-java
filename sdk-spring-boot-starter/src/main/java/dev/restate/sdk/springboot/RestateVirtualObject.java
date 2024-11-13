@@ -6,19 +6,25 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-package dev.restate.sdk.annotation;
+package dev.restate.sdk.springboot;
 
-import java.lang.annotation.*;
+import dev.restate.sdk.annotation.Service;
+import dev.restate.sdk.annotation.VirtualObject;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
- * Annotation to define a class/interface as Restate VirtualObject. This triggers the code
- * generation of the related Client class and the {@link
- * dev.restate.sdk.common.syscalls.ServiceDefinitionFactory}.
+ * Proxy annotation for {@link VirtualObject}.
+ *
+ * @see Service
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-@Documented
-public @interface VirtualObject {
+@VirtualObject
+@RestateComponent
+public @interface RestateVirtualObject {
   /**
    * Name of the VirtualObject for Restate. If not provided, it will be the simple class name of the
    * annotated element.
