@@ -8,8 +8,11 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testing;
 
-import org.junit.jupiter.api.extension.BeforeAllCallback;
-import org.junit.jupiter.api.extension.ExtensionContext;
+import dev.restate.sdk.client.Client;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import org.junit.jupiter.api.extension.*;
 
 /**
  * Restate runner for JUnit 5. Example:
@@ -39,8 +42,16 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  *     long response = client.get();
  *     assertThat(response).isEqualTo(0L);
  * }</pre>
+ *
+ * @deprecated We now recommend using {@link RestateTest}.
  */
-public class RestateRunner extends BaseRestateRunner implements BeforeAllCallback {
+@Deprecated
+public class RestateRunner implements BeforeAllCallback, ParameterResolver {
+
+  static final ExtensionContext.Namespace NAMESPACE =
+      ExtensionContext.Namespace.create(RestateRunner.class);
+  static final String DEPLOYER_KEY = "Deployer";
+
   private final ManualRestateRunner deployer;
 
   RestateRunner(ManualRestateRunner deployer) {
@@ -51,5 +62,57 @@ public class RestateRunner extends BaseRestateRunner implements BeforeAllCallbac
   public void beforeAll(ExtensionContext context) {
     deployer.start();
     context.getStore(NAMESPACE).put(DEPLOYER_KEY, deployer);
+  }
+
+  @Override
+  public boolean supportsParameter(
+      ParameterContext parameterContext, ExtensionContext extensionContext)
+      throws ParameterResolutionException {
+    return supportsParameter(parameterContext);
+  }
+
+  static boolean supportsParameter(ParameterContext parameterContext) {
+    return (parameterContext.isAnnotated(RestateAdminClient.class)
+            && dev.restate.admin.client.ApiClient.class.isAssignableFrom(
+                parameterContext.getParameter().getType()))
+        || (parameterContext.isAnnotated(RestateClient.class)
+            && Client.class.isAssignableFrom(parameterContext.getParameter().getType()))
+        || (parameterContext.isAnnotated(RestateURL.class)
+            && (String.class.isAssignableFrom(parameterContext.getParameter().getType())
+                || URL.class.isAssignableFrom(parameterContext.getParameter().getType())));
+  }
+
+  @Override
+  public Object resolveParameter(
+      ParameterContext parameterContext, ExtensionContext extensionContext)
+      throws ParameterResolutionException {
+    if (parameterContext.isAnnotated(RestateAdminClient.class)) {
+      return getDeployer(extensionContext).getAdminClient();
+    } else if (parameterContext.isAnnotated(RestateClient.class)) {
+      return resolveClient(extensionContext);
+    } else if (parameterContext.isAnnotated(RestateURL.class)) {
+      URL url = getDeployer(extensionContext).getIngressUrl();
+      if (parameterContext.getParameter().getType().equals(String.class)) {
+        return url.toString();
+      }
+      if (parameterContext.getParameter().getType().equals(URI.class)) {
+        try {
+          return url.toURI();
+        } catch (URISyntaxException e) {
+          throw new RuntimeException(e);
+        }
+      }
+      return url;
+    }
+    throw new ParameterResolutionException("The parameter is not supported");
+  }
+
+  private Client resolveClient(ExtensionContext extensionContext) {
+    URL url = getDeployer(extensionContext).getIngressUrl();
+    return Client.connect(url.toString());
+  }
+
+  private ManualRestateRunner getDeployer(ExtensionContext extensionContext) {
+    return (ManualRestateRunner) extensionContext.getStore(NAMESPACE).get(DEPLOYER_KEY);
   }
 }

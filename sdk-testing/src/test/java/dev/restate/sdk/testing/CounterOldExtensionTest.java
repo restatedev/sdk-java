@@ -13,11 +13,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import dev.restate.sdk.client.Client;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
-@RestateTest(restateContainerImage = "ghcr.io/restatedev/restate:main")
-class CounterTest {
+class CounterOldExtensionTest {
 
-  @BindService private final Counter counter = new Counter();
+  @RegisterExtension
+  private static final RestateRunner RESTATE_RUNNER =
+      RestateRunnerBuilder.create()
+          .withRestateContainerImage(
+              "ghcr.io/restatedev/restate:main") // test against the latest main Restate image
+          .bind(new Counter())
+          .buildRunner();
 
   @Test
   @Timeout(value = 10)
