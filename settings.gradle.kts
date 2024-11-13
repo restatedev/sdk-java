@@ -26,6 +26,7 @@ include(
     "sdk-api-gen-common",
     "sdk-api-gen",
     "sdk-api-kotlin-gen",
+    "sdk-spring-boot-starter",
     "examples",
     "sdk-aggregated-javadocs",
     "test-services")
