@@ -20,7 +20,7 @@ import java.util.Map;
  */
 public class RestateRunnerBuilder {
 
-  private static final String DEFAULT_RESTATE_CONTAINER = "docker.io/restatedev/restate";
+  private static final String DEFAULT_RESTATE_CONTAINER = "docker.io/restatedev/restate:latest";
   private final RestateHttpEndpointBuilder endpointBuilder;
   private String restateContainerImage = DEFAULT_RESTATE_CONTAINER;
   private final Map<String, String> additionalEnv = new HashMap<>();
@@ -90,7 +90,9 @@ public class RestateRunnerBuilder {
 
   /**
    * @return a {@link RestateRunner} to be used as JUnit 5 Extension.
+   * @deprecated If you use JUnit 5, use {@link RestateTest}
    */
+  @Deprecated
   public RestateRunner buildRunner() {
     return new RestateRunner(this.buildManualRunner());
   }

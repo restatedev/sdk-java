@@ -12,13 +12,10 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import java.net.URI;
-import java.net.URL;
 
 /**
- * Inject Restate's URL (either {@link String} or {@link URL} or {@link URI}) to interact with the
- * deployed server.
+ * @see RestateTest
  */
-@Target(value = ElementType.PARAMETER)
+@Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface RestateURL {}
+public @interface BindService {}

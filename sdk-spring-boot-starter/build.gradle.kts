@@ -67,6 +67,7 @@ dependencies {
 
   testAnnotationProcessor(project(":sdk-api-gen"))
   testImplementation(project(":sdk-serde-jackson"))
+  testImplementation(project(":sdk-testing"))
 
   testImplementation("org.springframework.boot:spring-boot-starter-test:$springBootVersion")
 }
