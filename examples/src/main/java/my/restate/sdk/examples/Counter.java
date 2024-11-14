@@ -19,6 +19,7 @@ import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+/** Counter virtual object */
 @VirtualObject(name = "Counter")
 public class Counter {
 
@@ -26,11 +27,13 @@ public class Counter {
 
   private static final StateKey<Long> TOTAL = StateKey.of("total", JsonSerdes.LONG);
 
+  /** Reset the counter. */
   @Handler
   public void reset(ObjectContext ctx) {
     ctx.clearAll();
   }
 
+  /** Add the given value to the count. */
   @Handler
   public void add(ObjectContext ctx, long request) {
     long currentValue = ctx.get(TOTAL).orElse(0L);
@@ -38,12 +41,14 @@ public class Counter {
     ctx.set(TOTAL, newValue);
   }
 
+  /** Get the current counter value. */
   @Shared
   @Handler
   public long get(SharedObjectContext ctx) {
     return ctx.get(TOTAL).orElse(0L);
   }
 
+  /** Add a value, and get both the previous value and the new value. */
   @Handler
   public CounterUpdateResult getAndAdd(ObjectContext ctx, long request) {
     LOG.info("Invoked get and add with {}", request);

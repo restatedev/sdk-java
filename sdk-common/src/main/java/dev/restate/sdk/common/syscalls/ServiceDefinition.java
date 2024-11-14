@@ -12,19 +12,27 @@ import dev.restate.sdk.common.ServiceType;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.Nullable;
 
 public final class ServiceDefinition<O> {
 
   private final String serviceName;
   private final ServiceType serviceType;
   private final Map<String, HandlerDefinition<?, ?, O>> handlers;
+  private final @Nullable String documentation;
+  private final Map<String, String> metadata;
 
-  ServiceDefinition(String name, ServiceType ty, Collection<HandlerDefinition<?, ?, O>> handlers) {
-    this.serviceName = name;
-    this.serviceType = ty;
-    this.handlers =
-        handlers.stream()
-            .collect(Collectors.toMap(h -> h.getSpec().getName(), Function.identity()));
+  private ServiceDefinition(
+      String serviceName,
+      ServiceType serviceType,
+      Map<String, HandlerDefinition<?, ?, O>> handlers,
+      @Nullable String documentation,
+      Map<String, String> metadata) {
+    this.serviceName = serviceName;
+    this.serviceType = serviceType;
+    this.handlers = handlers;
+    this.documentation = documentation;
+    this.metadata = metadata;
   }
 
   public String getServiceName() {
@@ -41,6 +49,22 @@ public final class ServiceDefinition<O> {
 
   public HandlerDefinition<?, ?, O> getHandler(String name) {
     return handlers.get(name);
+  }
+
+  public @Nullable String getDocumentation() {
+    return documentation;
+  }
+
+  public Map<String, String> getMetadata() {
+    return metadata;
+  }
+
+  public ServiceDefinition<O> withDocumentation(@Nullable String documentation) {
+    return new ServiceDefinition<>(serviceName, serviceType, handlers, documentation, metadata);
+  }
+
+  public ServiceDefinition<O> withMetadata(Map<String, String> metadata) {
+    return new ServiceDefinition<>(serviceName, serviceType, handlers, documentation, metadata);
   }
 
   @Override
@@ -60,6 +84,12 @@ public final class ServiceDefinition<O> {
 
   public static <O> ServiceDefinition<O> of(
       String name, ServiceType ty, Collection<HandlerDefinition<?, ?, O>> handlers) {
-    return new ServiceDefinition<>(name, ty, handlers);
+    return new ServiceDefinition<>(
+        name,
+        ty,
+        handlers.stream()
+            .collect(Collectors.toMap(h -> h.getSpec().getName(), Function.identity())),
+        null,
+        Collections.emptyMap());
   }
 }

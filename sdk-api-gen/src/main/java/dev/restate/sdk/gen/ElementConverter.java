@@ -100,6 +100,7 @@ class ElementConverter {
           .withTargetPkg(targetPkg)
           .withTargetFqcn(targetFqcn)
           .withServiceName(serviceName)
+          .withDocumentation(sanitizeJavadoc(elements.getDocComment(element)))
           .withServiceType(metaAnnotation.getServiceType())
           .withHandlers(handlers)
           .validateAndBuild();
@@ -181,6 +182,7 @@ class ElementConverter {
       return new Handler.Builder()
           .withName(element.getSimpleName())
           .withHandlerType(handlerType)
+          .withDocumentation(sanitizeJavadoc(elements.getDocComment(element)))
           .withInputAccept(inputAcceptFromParameterList(element.getParameters()))
           .withInputType(inputPayloadFromParameterList(element.getParameters()))
           .withOutputType(outputPayloadFromExecutableElement(element))
@@ -389,5 +391,11 @@ class ElementConverter {
       default:
         return ty.toString();
     }
+  }
+
+  private static String sanitizeJavadoc(String documentation) {
+    // TODO this needs probably a bit more work, but eventually people will use markdown for
+    // javadocs anyway!
+    return documentation == null ? null : documentation.trim().replaceAll("[\t\n\r] *", "\n");
   }
 }

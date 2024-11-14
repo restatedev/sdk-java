@@ -8,11 +8,16 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
+import com.fasterxml.jackson.annotation.JsonFilter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ser.impl.SimpleBeanPropertyFilter;
+import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
 import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.manifest.EndpointManifestSchema;
+import dev.restate.sdk.core.manifest.Handler;
+import dev.restate.sdk.core.manifest.Service;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -25,7 +30,7 @@ class ServiceProtocol {
   static final Discovery.ServiceDiscoveryProtocolVersion MIN_SERVICE_DISCOVERY_PROTOCOL_VERSION =
       Discovery.ServiceDiscoveryProtocolVersion.V1;
   static final Discovery.ServiceDiscoveryProtocolVersion MAX_SERVICE_DISCOVERY_PROTOCOL_VERSION =
-      Discovery.ServiceDiscoveryProtocolVersion.V1;
+      Discovery.ServiceDiscoveryProtocolVersion.V2;
 
   static Protocol.ServiceProtocolVersion parseServiceProtocolVersion(String version) {
     version = version.trim();
@@ -113,6 +118,9 @@ class ServiceProtocol {
     if (versionString.equals("application/vnd.restate.endpointmanifest.v1+json")) {
       return Optional.of(Discovery.ServiceDiscoveryProtocolVersion.V1);
     }
+    if (versionString.equals("application/vnd.restate.endpointmanifest.v2+json")) {
+      return Optional.of(Discovery.ServiceDiscoveryProtocolVersion.V2);
+    }
     return Optional.empty();
   }
 
@@ -121,6 +129,9 @@ class ServiceProtocol {
     if (Objects.requireNonNull(version) == Discovery.ServiceDiscoveryProtocolVersion.V1) {
       return "application/vnd.restate.endpointmanifest.v1+json";
     }
+    if (Objects.requireNonNull(version) == Discovery.ServiceDiscoveryProtocolVersion.V2) {
+      return "application/vnd.restate.endpointmanifest.v2+json";
+    }
     throw new IllegalArgumentException(
         String.format(
             "Service discovery protocol version '%s' has no header value", version.getNumber()));
@@ -128,23 +139,31 @@ class ServiceProtocol {
 
   private static final ObjectMapper MANIFEST_OBJECT_MAPPER = new ObjectMapper();
 
+  @JsonFilter("V2FieldsFilter")
+  interface V2Mixin {}
+
+  static {
+    // Mixin to add fields filter, used to filter v2 fields
+    MANIFEST_OBJECT_MAPPER.addMixIn(Service.class, V2Mixin.class);
+    MANIFEST_OBJECT_MAPPER.addMixIn(Handler.class, V2Mixin.class);
+  }
+
   static byte[] serializeManifest(
       Discovery.ServiceDiscoveryProtocolVersion serviceDiscoveryProtocolVersion,
       EndpointManifestSchema response)
       throws ProtocolException {
-    if (serviceDiscoveryProtocolVersion == Discovery.ServiceDiscoveryProtocolVersion.V1) {
-      try {
-        return MANIFEST_OBJECT_MAPPER.writeValueAsBytes(response);
-      } catch (JsonProcessingException e) {
-        throw new ProtocolException(
-            "Error when serializing the manifest", ProtocolException.INTERNAL_CODE, e);
-      }
+    try {
+      // Don't serialize the documentation and metadata fields for V1!
+      SimpleBeanPropertyFilter filter =
+          serviceDiscoveryProtocolVersion == Discovery.ServiceDiscoveryProtocolVersion.V1
+              ? SimpleBeanPropertyFilter.serializeAllExcept("documentation", "metadata")
+              : SimpleBeanPropertyFilter.serializeAll();
+      return MANIFEST_OBJECT_MAPPER
+          .writer(new SimpleFilterProvider().addFilter("V2FieldsFilter", filter))
+          .writeValueAsBytes(response);
+    } catch (JsonProcessingException e) {
+      throw new ProtocolException(
+          "Error when serializing the manifest", ProtocolException.INTERNAL_CODE, e);
     }
-
-    throw new ProtocolException(
-        String.format(
-            "DiscoveryResponseSerializer does not support service discovery protocol '%s'",
-            serviceDiscoveryProtocolVersion.getNumber()),
-        ProtocolException.UNSUPPORTED_MEDIA_TYPE_CODE);
   }
 }

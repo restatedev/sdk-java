@@ -14,6 +14,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.Nullable;
 
 public class Service {
 
@@ -22,19 +23,22 @@ public class Service {
   private final String serviceName;
   private final ServiceType serviceType;
   private final List<Handler> handlers;
+  private final @Nullable String documentation;
 
   public Service(
       CharSequence targetPkg,
       CharSequence targetFqcn,
       String serviceName,
       ServiceType serviceType,
-      List<Handler> handlers) {
+      List<Handler> handlers,
+      @Nullable String documentation) {
     this.targetPkg = targetPkg;
     this.targetFqcn = targetFqcn;
     this.serviceName = serviceName;
 
     this.serviceType = serviceType;
     this.handlers = handlers;
+    this.documentation = documentation;
   }
 
   public CharSequence getTargetPkg() {
@@ -68,6 +72,10 @@ public class Service {
     return handlers;
   }
 
+  public @Nullable String getDocumentation() {
+    return documentation;
+  }
+
   public static Builder builder() {
     return new Builder();
   }
@@ -78,6 +86,7 @@ public class Service {
     private String serviceName;
     private ServiceType serviceType;
     private final List<Handler> handlers = new ArrayList<>();
+    private String documentation;
 
     public Builder withTargetPkg(CharSequence targetPkg) {
       this.targetPkg = targetPkg;
@@ -106,6 +115,11 @@ public class Service {
 
     public Builder withHandler(Handler handler) {
       this.handlers.add(handler);
+      return this;
+    }
+
+    public Builder withDocumentation(String documentation) {
+      this.documentation = documentation;
       return this;
     }
 
@@ -155,7 +169,8 @@ public class Service {
           Objects.requireNonNull(targetFqcn),
           Objects.requireNonNull(serviceName),
           Objects.requireNonNull(serviceType),
-          handlers);
+          handlers,
+          documentation);
     }
   }
 }
