@@ -21,6 +21,7 @@ dependencies {
 
   implementation(platform(jacksonLibs.jackson.bom))
   implementation(jacksonLibs.jackson.jsr310)
+  implementation(jacksonLibs.jackson.parameter.names)
 
   implementation(kotlinLibs.kotlinx.coroutines)
   implementation(kotlinLibs.kotlinx.serialization.core)
@@ -40,3 +41,5 @@ application {
 tasks.withType<Jar> { this.enabled = false }
 
 tasks.withType<ShadowJar> { transform(ServiceFileTransformer::class.java) }
+
+tasks.withType<JavaCompile> { options.compilerArgs.add("-parameters") }

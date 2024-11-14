@@ -11,11 +11,13 @@ package dev.restate.sdk.core;
 import static dev.restate.sdk.core.ServiceProtocol.*;
 
 import dev.restate.sdk.common.HandlerType;
+import dev.restate.sdk.common.RichSerde;
 import dev.restate.sdk.common.ServiceType;
 import dev.restate.sdk.common.syscalls.HandlerDefinition;
 import dev.restate.sdk.common.syscalls.HandlerSpecification;
 import dev.restate.sdk.common.syscalls.ServiceDefinition;
 import dev.restate.sdk.core.manifest.*;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -68,24 +70,45 @@ final class EndpointManifest {
 
   private static Handler convertHandler(HandlerDefinition<?, ?, ?> handler) {
     HandlerSpecification<?, ?> spec = handler.getSpec();
+    return new Handler()
+        .withName(spec.getName())
+        .withTy(convertHandlerType(spec.getHandlerType()))
+        .withInput(convertHandlerInput(spec))
+        .withOutput(convertHandlerOutput(spec));
+  }
+
+  private static Input convertHandlerInput(HandlerSpecification<?, ?> spec) {
     String acceptContentType =
         spec.getAcceptContentType() != null
             ? spec.getAcceptContentType()
             : spec.getRequestSerde().contentType();
 
-    return new Handler()
-        .withName(spec.getName())
-        .withTy(convertHandlerType(spec.getHandlerType()))
-        .withInput(
-            acceptContentType == null
-                ? EMPTY_INPUT
-                : new Input().withRequired(true).withContentType(acceptContentType))
-        .withOutput(
-            spec.getResponseSerde().contentType() == null
-                ? EMPTY_OUTPUT
-                : new Output()
-                    .withContentType(spec.getResponseSerde().contentType())
-                    .withSetContentTypeIfEmpty(false));
+    Input input =
+        acceptContentType == null
+            ? EMPTY_INPUT
+            : new Input().withRequired(true).withContentType(acceptContentType);
+
+    if (spec.getRequestSerde() instanceof RichSerde) {
+      input.setJsonSchema(
+          Objects.requireNonNull(((RichSerde<?>) spec.getRequestSerde()).jsonSchema()));
+    }
+    return input;
+  }
+
+  private static Output convertHandlerOutput(HandlerSpecification<?, ?> spec) {
+    Output output =
+        spec.getResponseSerde().contentType() == null
+            ? EMPTY_OUTPUT
+            : new Output()
+                .withContentType(spec.getResponseSerde().contentType())
+                .withSetContentTypeIfEmpty(false);
+
+    if (spec.getResponseSerde() instanceof RichSerde) {
+      output.setJsonSchema(
+          Objects.requireNonNull(((RichSerde<?>) spec.getResponseSerde()).jsonSchema()));
+    }
+
+    return output;
   }
 
   private static Handler.Ty convertHandlerType(HandlerType handlerType) {
