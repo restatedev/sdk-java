@@ -81,6 +81,11 @@ dependencyResolutionManagement {
           .withoutVersion()
       library("jackson-jdk8", "com.fasterxml.jackson.datatype", "jackson-datatype-jdk8")
           .withoutVersion()
+      library(
+              "jackson-parameter-names",
+              "com.fasterxml.jackson.module",
+              "jackson-module-parameter-names")
+          .withoutVersion()
     }
     create("kotlinLibs") {
       library("kotlinx-coroutines", "org.jetbrains.kotlinx", "kotlinx-coroutines-core")
