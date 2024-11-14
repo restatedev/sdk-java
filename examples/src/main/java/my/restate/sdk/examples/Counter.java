@@ -32,7 +32,7 @@ public class Counter {
   }
 
   @Handler
-  public void add(ObjectContext ctx, Long request) {
+  public void add(ObjectContext ctx, long request) {
     long currentValue = ctx.get(TOTAL).orElse(0L);
     long newValue = currentValue + request;
     ctx.set(TOTAL, newValue);
@@ -40,12 +40,12 @@ public class Counter {
 
   @Shared
   @Handler
-  public Long get(SharedObjectContext ctx) {
+  public long get(SharedObjectContext ctx) {
     return ctx.get(TOTAL).orElse(0L);
   }
 
   @Handler
-  public CounterUpdateResult getAndAdd(ObjectContext ctx, Long request) {
+  public CounterUpdateResult getAndAdd(ObjectContext ctx, long request) {
     LOG.info("Invoked get and add with {}", request);
 
     long currentValue = ctx.get(TOTAL).orElse(0L);
@@ -60,19 +60,19 @@ public class Counter {
   }
 
   public static class CounterUpdateResult {
-    private final Long newValue;
-    private final Long oldValue;
+    private final long newValue;
+    private final long oldValue;
 
-    public CounterUpdateResult(Long newValue, Long oldValue) {
+    public CounterUpdateResult(long newValue, long oldValue) {
       this.newValue = newValue;
       this.oldValue = oldValue;
     }
 
-    public Long getNewValue() {
+    public long getNewValue() {
       return newValue;
     }
 
-    public Long getOldValue() {
+    public long getOldValue() {
       return oldValue;
     }
   }
