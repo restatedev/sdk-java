@@ -45,7 +45,7 @@ jobs:
   sdk-test-suite:
     if: github.repository_owner == 'restatedev'
     runs-on: ubuntu-latest
-    name: "Features integration test (sdk-test-suite version 2.2)"
+    name: "Features integration test"
     permissions:
       contents: read
       issues: read
