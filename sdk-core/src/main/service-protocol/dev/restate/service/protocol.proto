@@ -22,6 +22,11 @@ enum ServiceProtocolVersion {
   // Added
   // * Entry retry mechanism: ErrorMessage.next_retry_delay, StartMessage.retry_count_since_last_stored_entry and StartMessage.duration_since_last_stored_entry
   V2 = 2;
+  // Added
+  // * New entry to cancel invocations: CancelInvocationEntryMessage
+  // * New entry to retrieve the invocation id: GetCallInvocationIdEntryMessage
+  // * New field to set idempotency key for Call entries
+  V3 = 3;
 }
 
 // --- Core frames ---
@@ -313,6 +318,9 @@ message CallEntryMessage {
   // If this invocation has a key associated (e.g. for objects and workflows), then this key is filled in. Empty otherwise.
   string key = 5;
 
+  // If present, it must be non empty.
+  optional string idempotency_key = 6;
+
   oneof result {
     bytes value = 14;
     Failure failure = 15;
@@ -341,6 +349,9 @@ message OneWayCallEntryMessage {
 
   // If this invocation has a key associated (e.g. for objects and workflows), then this key is filled in. Empty otherwise.
   string key = 6;
+
+  // If present, it must be non empty.
+  optional string idempotency_key = 7;
 
   // Entry name
   string name = 12;
@@ -383,17 +394,47 @@ message CompleteAwakeableEntryMessage {
 message RunEntryMessage {
   oneof result {
     bytes value = 14;
-    dev.restate.service.protocol.Failure failure = 15;
+    Failure failure = 15;
   };
 
   // Entry name
   string name = 12;
 }
 
+// Completable: No
+// Fallible: Yes
+// Type: 0x0C00 + 6
+message CancelInvocationEntryMessage {
+  oneof target {
+    // Target invocation id to cancel
+    string invocation_id = 1;
+    // Target index of the call/one way call journal entry in this journal.
+    uint32 call_entry_index = 2;
+  }
+
+  // Entry name
+  string name = 12;
+}
+
+// Completable: Yes
+// Fallible: Yes
+// Type: 0x0C00 + 7
+message GetCallInvocationIdEntryMessage {
+  // Index of the call/one way call journal entry in this journal.
+  uint32 call_entry_index = 1;
+
+  oneof result {
+    string value = 14;
+    Failure failure = 15;
+  };
+
+  string name = 12;
+}
+
 // --- Nested messages
 
 // This failure object carries user visible errors,
-// e.g. invocation failure return value or failure result of an CallEntryMessage.
+// e.g. invocation failure return value or failure result of an InvokeEntryMessage.
 message Failure {
   // The code can be any HTTP status code, as described https://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml.
   uint32 code = 1;
