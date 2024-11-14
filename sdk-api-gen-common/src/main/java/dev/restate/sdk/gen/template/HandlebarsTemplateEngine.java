@@ -13,6 +13,7 @@ import com.github.jknack.handlebars.Handlebars;
 import com.github.jknack.handlebars.Template;
 import com.github.jknack.handlebars.context.FieldValueResolver;
 import com.github.jknack.handlebars.helper.StringHelpers;
+import com.github.jknack.handlebars.internal.text.StringEscapeUtils;
 import com.github.jknack.handlebars.io.TemplateLoader;
 import dev.restate.sdk.common.ServiceType;
 import dev.restate.sdk.common.function.ThrowingFunction;
@@ -60,6 +61,7 @@ public class HandlebarsTemplateEngine {
           }
           throw new IllegalStateException();
         });
+    handlebars.registerHelpers(StringEscapeUtils.class);
 
     this.templates =
         templates.entrySet().stream()
@@ -104,6 +106,8 @@ public class HandlebarsTemplateEngine {
     public final String generatedClassSimpleNamePrefix;
     public final String generatedClassSimpleName;
     public final String serviceName;
+    public final String documentation;
+
     public final String serviceType;
     public final boolean isWorkflow;
     public final boolean isObject;
@@ -118,6 +122,8 @@ public class HandlebarsTemplateEngine {
       this.generatedClassSimpleNamePrefix = inner.getSimpleServiceName();
       this.generatedClassSimpleName = this.generatedClassSimpleNamePrefix + baseTemplateName;
       this.serviceName = inner.getFullyQualifiedServiceName();
+
+      this.documentation = inner.getDocumentation();
 
       this.serviceType = inner.getServiceType().toString();
       this.isWorkflow = inner.getServiceType() == ServiceType.WORKFLOW;
@@ -149,6 +155,7 @@ public class HandlebarsTemplateEngine {
 
     private final ServiceType serviceType;
     private final String definitionsClass;
+    public final String documentation;
 
     public final boolean inputEmpty;
     public final String inputFqcn;
@@ -180,6 +187,7 @@ public class HandlebarsTemplateEngine {
 
       this.serviceType = serviceType;
       this.definitionsClass = definitionsClass;
+      this.documentation = inner.getDocumentation();
 
       this.inputEmpty = inner.getInputType().isEmpty();
       this.inputFqcn = inner.getInputType().getName();

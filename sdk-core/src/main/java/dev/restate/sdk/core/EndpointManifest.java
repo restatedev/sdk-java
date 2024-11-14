@@ -45,6 +45,19 @@ final class EndpointManifest {
                             new Service()
                                 .withName(svc.getServiceName())
                                 .withTy(convertServiceType(svc.getServiceType()))
+                                .withDocumentation(svc.getDocumentation())
+                                .withMetadata(
+                                    svc.getMetadata().entrySet().stream()
+                                        .reduce(
+                                            new Metadata__1(),
+                                            (meta, entry) ->
+                                                meta.withAdditionalProperty(
+                                                    entry.getKey(), entry.getValue()),
+                                            (m1, m2) -> {
+                                              m2.getAdditionalProperties()
+                                                  .forEach(m1::setAdditionalProperty);
+                                              return m1;
+                                            }))
                                 .withHandlers(
                                     svc.getHandlers().stream()
                                         .map(EndpointManifest::convertHandler)
@@ -74,7 +87,17 @@ final class EndpointManifest {
         .withName(spec.getName())
         .withTy(convertHandlerType(spec.getHandlerType()))
         .withInput(convertHandlerInput(spec))
-        .withOutput(convertHandlerOutput(spec));
+        .withOutput(convertHandlerOutput(spec))
+        .withDocumentation(spec.getDocumentation())
+        .withMetadata(
+            spec.getMetadata().entrySet().stream()
+                .reduce(
+                    new Metadata(),
+                    (meta, entry) -> meta.withAdditionalProperty(entry.getKey(), entry.getValue()),
+                    (m1, m2) -> {
+                      m2.getAdditionalProperties().forEach(m1::setAdditionalProperty);
+                      return m1;
+                    }));
   }
 
   private static Input convertHandlerInput(HandlerSpecification<?, ?> spec) {

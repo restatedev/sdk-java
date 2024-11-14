@@ -18,18 +18,21 @@ public class Handler {
   private final @Nullable String inputAccept;
   private final PayloadType inputType;
   private final PayloadType outputType;
+  private final @Nullable String documentation;
 
   public Handler(
       CharSequence name,
       HandlerType handlerType,
       @Nullable String inputAccept,
       PayloadType inputType,
-      PayloadType outputType) {
+      PayloadType outputType,
+      @Nullable String documentation) {
     this.name = name;
     this.handlerType = handlerType;
     this.inputAccept = inputAccept;
     this.inputType = inputType;
     this.outputType = outputType;
+    this.documentation = documentation;
   }
 
   public CharSequence getName() {
@@ -40,6 +43,7 @@ public class Handler {
     return handlerType;
   }
 
+  @Nullable
   public String getInputAccept() {
     return inputAccept;
   }
@@ -52,6 +56,10 @@ public class Handler {
     return outputType;
   }
 
+  public @Nullable String getDocumentation() {
+    return documentation;
+  }
+
   public static Builder builder() {
     return new Builder();
   }
@@ -62,6 +70,7 @@ public class Handler {
     private String inputAccept;
     private PayloadType inputType;
     private PayloadType outputType;
+    private String documentation;
 
     public Builder withName(CharSequence name) {
       this.name = name;
@@ -85,6 +94,11 @@ public class Handler {
 
     public Builder withOutputType(PayloadType outputType) {
       this.outputType = outputType;
+      return this;
+    }
+
+    public Builder withDocumentation(String documentation) {
+      this.documentation = documentation;
       return this;
     }
 
@@ -117,7 +131,8 @@ public class Handler {
           Objects.requireNonNull(handlerType),
           inputAccept,
           inputType,
-          outputType);
+          outputType,
+          documentation);
     }
   }
 }

@@ -15,12 +15,12 @@ public class {{generatedClassSimpleName}} implements dev.restate.sdk.common.sysc
                 {{#if isExclusive}}dev.restate.sdk.common.HandlerType.EXCLUSIVE{{else if isWorkflow}}dev.restate.sdk.common.HandlerType.WORKFLOW{{else}}dev.restate.sdk.common.HandlerType.SHARED{{/if}},
                 {{inputSerdeRef}},
                 {{outputSerdeRef}}
-                ){{#if inputAcceptContentType}}.withAcceptContentType("{{inputAcceptContentType}}"){{/if}},
+                ){{#if inputAcceptContentType}}.withAcceptContentType("{{inputAcceptContentType}}"){{/if}}{{#if documentation}}.withDocumentation("{{escapeJava documentation}}"){{/if}},
                 dev.restate.sdk.HandlerRunner.of(bindableService::{{name}})
                 ){{#unless @last}},{{/unless}}
             {{/handlers}}
             )
-        );
+        ){{#if documentation}}.withDocumentation("{{escapeJava documentation}}"){{/if}};
     }
 
     @java.lang.Override
