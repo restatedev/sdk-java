@@ -11,8 +11,13 @@ package dev.restate.sdk.serde.jackson;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.victools.jsonschema.generator.*;
+import com.github.victools.jsonschema.module.jackson.JacksonModule;
+import com.github.victools.jsonschema.module.jackson.JacksonOption;
+import dev.restate.sdk.common.RichSerde;
 import dev.restate.sdk.common.Serde;
 import java.io.IOException;
+import org.jspecify.annotations.Nullable;
 
 /**
  * {@link Serde} implementations for Jackson.
@@ -40,11 +45,21 @@ public final class JacksonSerdes {
   private JacksonSerdes() {}
 
   private static final ObjectMapper defaultMapper;
+  private static final SchemaGenerator schemaGenerator;
 
   static {
     defaultMapper = new ObjectMapper();
     // Find modules through SPI (e.g. jackson-datatype-jsr310)
     defaultMapper.findAndRegisterModules();
+
+    JacksonModule module =
+        new JacksonModule(
+            JacksonOption.RESPECT_JSONPROPERTY_REQUIRED, JacksonOption.INLINE_TRANSFORMED_SUBTYPES);
+    SchemaGeneratorConfigBuilder configBuilder =
+        new SchemaGeneratorConfigBuilder(
+                defaultMapper, SchemaVersion.DRAFT_2020_12, OptionPreset.PLAIN_JSON)
+            .with(module);
+    schemaGenerator = new SchemaGenerator(configBuilder.build());
   }
 
   /** Serialize/Deserialize class using the default object mapper. */
@@ -54,7 +69,12 @@ public final class JacksonSerdes {
 
   /** Serialize/Deserialize class using the provided object mapper. */
   public static <T> Serde<T> of(ObjectMapper mapper, Class<T> clazz) {
-    return new Serde<>() {
+    return new RichSerde<>() {
+      @Override
+      public @Nullable Object jsonSchema() {
+        return schemaGenerator.generateSchema(clazz);
+      }
+
       @Override
       public byte[] serialize(T value) {
         try {
@@ -89,7 +109,12 @@ public final class JacksonSerdes {
 
   /** Serialize/Deserialize {@link TypeReference} using the default object mapper. */
   public static <T> Serde<T> of(ObjectMapper mapper, TypeReference<T> typeReference) {
-    return new Serde<>() {
+    return new RichSerde<>() {
+      @Override
+      public @Nullable Object jsonSchema() {
+        return schemaGenerator.generateSchema(typeReference.getType());
+      }
+
       @Override
       public byte[] serialize(T value) {
         try {
