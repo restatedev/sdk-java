@@ -42,7 +42,7 @@ public class Counter {
 
   @Handler
   public CounterUpdateResult getAndAdd(ObjectContext ctx, Long request) {
-    LOG.info("Invoked get and add with " + request);
+    LOG.info("Invoked get and add with {}", request);
 
     long currentValue = ctx.get(TOTAL).orElse(0L);
     long newValue = currentValue + request;
@@ -51,21 +51,5 @@ public class Counter {
     return new CounterUpdateResult(newValue, currentValue);
   }
 
-  public static class CounterUpdateResult {
-    private final Long newValue;
-    private final Long oldValue;
-
-    public CounterUpdateResult(Long newValue, Long oldValue) {
-      this.newValue = newValue;
-      this.oldValue = oldValue;
-    }
-
-    public Long getNewValue() {
-      return newValue;
-    }
-
-    public Long getOldValue() {
-      return oldValue;
-    }
-  }
+  public record CounterUpdateResult(Long newValue, Long oldValue) {}
 }

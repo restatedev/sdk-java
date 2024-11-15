@@ -32,7 +32,7 @@ public abstract class JsonSerdes {
   private JsonSerdes() {}
 
   /** {@link Serde} for {@link String}. This writes and reads {@link String} as JSON value. */
-  public static Serde<@NonNull String> STRING =
+  public static final Serde<@NonNull String> STRING =
       usingJackson(
           "string",
           JsonGenerator::writeString,
@@ -45,7 +45,7 @@ public abstract class JsonSerdes {
           });
 
   /** {@link Serde} for {@link Boolean}. This writes and reads {@link Boolean} as JSON value. */
-  public static Serde<@NonNull Boolean> BOOLEAN =
+  public static final Serde<@NonNull Boolean> BOOLEAN =
       usingJackson(
           "boolean",
           JsonGenerator::writeBoolean,
@@ -55,7 +55,7 @@ public abstract class JsonSerdes {
           });
 
   /** {@link Serde} for {@link Byte}. This writes and reads {@link Byte} as JSON value. */
-  public static Serde<@NonNull Byte> BYTE =
+  public static final Serde<@NonNull Byte> BYTE =
       usingJackson(
           "number",
           JsonGenerator::writeNumber,
@@ -65,7 +65,7 @@ public abstract class JsonSerdes {
           });
 
   /** {@link Serde} for {@link Short}. This writes and reads {@link Short} as JSON value. */
-  public static Serde<@NonNull Short> SHORT =
+  public static final Serde<@NonNull Short> SHORT =
       usingJackson(
           "number",
           JsonGenerator::writeNumber,
@@ -75,7 +75,7 @@ public abstract class JsonSerdes {
           });
 
   /** {@link Serde} for {@link Integer}. This writes and reads {@link Integer} as JSON value. */
-  public static Serde<@NonNull Integer> INT =
+  public static final Serde<@NonNull Integer> INT =
       usingJackson(
           "number",
           JsonGenerator::writeNumber,
@@ -85,7 +85,7 @@ public abstract class JsonSerdes {
           });
 
   /** {@link Serde} for {@link Long}. This writes and reads {@link Long} as JSON value. */
-  public static Serde<@NonNull Long> LONG =
+  public static final Serde<@NonNull Long> LONG =
       usingJackson(
           "number",
           JsonGenerator::writeNumber,
@@ -95,7 +95,7 @@ public abstract class JsonSerdes {
           });
 
   /** {@link Serde} for {@link Float}. This writes and reads {@link Float} as JSON value. */
-  public static Serde<@NonNull Float> FLOAT =
+  public static final Serde<@NonNull Float> FLOAT =
       usingJackson(
           "number",
           JsonGenerator::writeNumber,
@@ -105,7 +105,7 @@ public abstract class JsonSerdes {
           });
 
   /** {@link Serde} for {@link Double}. This writes and reads {@link Double} as JSON value. */
-  public static Serde<@NonNull Double> DOUBLE =
+  public static final Serde<@NonNull Double> DOUBLE =
       usingJackson(
           "number",
           JsonGenerator::writeNumber,

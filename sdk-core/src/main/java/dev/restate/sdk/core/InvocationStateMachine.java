@@ -179,13 +179,12 @@ class InvocationStateMachine implements Flow.Processor<InvocationInput, MessageL
   }
 
   void onStartMessage(MessageLite msg) {
-    if (!(msg instanceof Protocol.StartMessage)) {
+    if (!(msg instanceof Protocol.StartMessage startMessage)) {
       this.fail(ProtocolException.unexpectedMessage(Protocol.StartMessage.class, msg));
       return;
     }
 
     // Unpack the StartMessage
-    Protocol.StartMessage startMessage = (Protocol.StartMessage) msg;
     this.id = startMessage.getId();
     this.debugId = startMessage.getDebugId();
     InvocationId invocationId = new InvocationIdImpl(startMessage.getDebugId());
@@ -225,10 +224,9 @@ class InvocationStateMachine implements Flow.Processor<InvocationInput, MessageL
     this.nextJournalEntry(null, MessageType.InputEntryMessage);
     this.readEntry(
         inputMsg -> {
-          if (!(inputMsg instanceof Protocol.InputEntryMessage)) {
+          if (!(inputMsg instanceof Protocol.InputEntryMessage inputEntry)) {
             throw ProtocolException.unexpectedMessage(Protocol.InputEntryMessage.class, inputMsg);
           }
-          Protocol.InputEntryMessage inputEntry = (Protocol.InputEntryMessage) inputMsg;
 
           Request request =
               new Request(

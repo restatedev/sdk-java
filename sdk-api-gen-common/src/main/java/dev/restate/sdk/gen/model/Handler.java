@@ -11,54 +11,13 @@ package dev.restate.sdk.gen.model;
 import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
-public class Handler {
-
-  private final CharSequence name;
-  private final HandlerType handlerType;
-  private final @Nullable String inputAccept;
-  private final PayloadType inputType;
-  private final PayloadType outputType;
-  private final @Nullable String documentation;
-
-  public Handler(
-      CharSequence name,
-      HandlerType handlerType,
-      @Nullable String inputAccept,
-      PayloadType inputType,
-      PayloadType outputType,
-      @Nullable String documentation) {
-    this.name = name;
-    this.handlerType = handlerType;
-    this.inputAccept = inputAccept;
-    this.inputType = inputType;
-    this.outputType = outputType;
-    this.documentation = documentation;
-  }
-
-  public CharSequence getName() {
-    return name;
-  }
-
-  public HandlerType getHandlerType() {
-    return handlerType;
-  }
-
-  @Nullable
-  public String getInputAccept() {
-    return inputAccept;
-  }
-
-  public PayloadType getInputType() {
-    return inputType;
-  }
-
-  public PayloadType getOutputType() {
-    return outputType;
-  }
-
-  public @Nullable String getDocumentation() {
-    return documentation;
-  }
+public record Handler(
+    CharSequence name,
+    HandlerType handlerType,
+    @Nullable String inputAccept,
+    PayloadType inputType,
+    PayloadType outputType,
+    @Nullable String documentation) {
 
   public static Builder builder() {
     return new Builder();

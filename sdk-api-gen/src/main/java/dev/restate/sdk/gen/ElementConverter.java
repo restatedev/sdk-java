@@ -194,15 +194,11 @@ class ElementConverter {
   }
 
   private HandlerType defaultHandlerType(ServiceType serviceType) {
-    switch (serviceType) {
-      case SERVICE:
-        return HandlerType.STATELESS;
-      case VIRTUAL_OBJECT:
-        return HandlerType.EXCLUSIVE;
-      case WORKFLOW:
-        return HandlerType.SHARED;
-    }
-    throw new IllegalStateException("Unexpected");
+    return switch (serviceType) {
+      case SERVICE -> HandlerType.STATELESS;
+      case VIRTUAL_OBJECT -> HandlerType.EXCLUSIVE;
+      case WORKFLOW -> HandlerType.SHARED;
+    };
   }
 
   private void validateMethodSignature(
@@ -341,56 +337,37 @@ class ElementConverter {
   }
 
   private static String jsonSerdeDecl(TypeMirror ty) {
-    switch (ty.getKind()) {
-      case BOOLEAN:
-        return "dev.restate.sdk.JsonSerdes.BOOLEAN";
-      case BYTE:
-        return "dev.restate.sdk.JsonSerdes.BYTE";
-      case SHORT:
-        return "dev.restate.sdk.JsonSerdes.SHORT";
-      case INT:
-        return "dev.restate.sdk.JsonSerdes.INT";
-      case LONG:
-        return "dev.restate.sdk.JsonSerdes.LONG";
-      case CHAR:
-        return "dev.restate.sdk.JsonSerdes.CHAR";
-      case FLOAT:
-        return "dev.restate.sdk.JsonSerdes.FLOAT";
-      case DOUBLE:
-        return "dev.restate.sdk.JsonSerdes.DOUBLE";
-      case VOID:
-        return "dev.restate.sdk.common.Serde.VOID";
-      default:
-        // Default to Jackson type reference serde
-        return "dev.restate.sdk.serde.jackson.JacksonSerdes.of(new com.fasterxml.jackson.core.type.TypeReference<"
-            + ty
-            + ">() {})";
-    }
+    return switch (ty.getKind()) {
+      case BOOLEAN -> "dev.restate.sdk.JsonSerdes.BOOLEAN";
+      case BYTE -> "dev.restate.sdk.JsonSerdes.BYTE";
+      case SHORT -> "dev.restate.sdk.JsonSerdes.SHORT";
+      case INT -> "dev.restate.sdk.JsonSerdes.INT";
+      case LONG -> "dev.restate.sdk.JsonSerdes.LONG";
+      case CHAR -> "dev.restate.sdk.JsonSerdes.CHAR";
+      case FLOAT -> "dev.restate.sdk.JsonSerdes.FLOAT";
+      case DOUBLE -> "dev.restate.sdk.JsonSerdes.DOUBLE";
+      case VOID -> "dev.restate.sdk.common.Serde.VOID";
+      default ->
+          // Default to Jackson type reference serde
+          "dev.restate.sdk.serde.jackson.JacksonSerdes.of(new com.fasterxml.jackson.core.type.TypeReference<"
+              + ty
+              + ">() {})";
+    };
   }
 
   private static String boxedType(TypeMirror ty) {
-    switch (ty.getKind()) {
-      case BOOLEAN:
-        return "Boolean";
-      case BYTE:
-        return "Byte";
-      case SHORT:
-        return "Short";
-      case INT:
-        return "Integer";
-      case LONG:
-        return "Long";
-      case CHAR:
-        return "Char";
-      case FLOAT:
-        return "Float";
-      case DOUBLE:
-        return "Double";
-      case VOID:
-        return "Void";
-      default:
-        return ty.toString();
-    }
+    return switch (ty.getKind()) {
+      case BOOLEAN -> "Boolean";
+      case BYTE -> "Byte";
+      case SHORT -> "Short";
+      case INT -> "Integer";
+      case LONG -> "Long";
+      case CHAR -> "Char";
+      case FLOAT -> "Float";
+      case DOUBLE -> "Double";
+      case VOID -> "Void";
+      default -> ty.toString();
+    };
   }
 
   private static String sanitizeJavadoc(String documentation) {

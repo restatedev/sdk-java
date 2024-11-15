@@ -314,7 +314,7 @@ We know that your time is precious and, therefore, deeply value any effort to co
 
 Prerequisites:
 
-- JDK >= 11
+- JDK >= 17
 - Docker or Podman
 
 To build the SDK:

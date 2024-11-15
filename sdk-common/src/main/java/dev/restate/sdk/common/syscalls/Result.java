@@ -86,7 +86,7 @@ public abstract class Result<T> {
 
   static class Empty<T> extends Result<T> {
 
-    public static Empty<?> INSTANCE = new Empty<>();
+    public static final Empty<?> INSTANCE = new Empty<>();
 
     private Empty() {}
 

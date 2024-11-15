@@ -24,7 +24,7 @@ public interface RichSerde<T extends @Nullable Object> extends Serde<T> {
   Object jsonSchema();
 
   static <T> RichSerde<T> withSchema(Object jsonSchema, Serde<T> inner) {
-    return new RichSerde<T>() {
+    return new RichSerde<>() {
       @Override
       public byte[] serialize(T value) {
         return inner.serialize(value);

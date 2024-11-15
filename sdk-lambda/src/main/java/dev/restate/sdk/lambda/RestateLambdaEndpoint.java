@@ -35,7 +35,7 @@ public final class RestateLambdaEndpoint {
   private static final String INVOKE_PATH_SEGMENT = "invoke";
   private static final String DISCOVER_PATH = "/discover";
 
-  private static TextMapGetter<Map<String, String>> OTEL_HEADERS_GETTER =
+  private static final TextMapGetter<Map<String, String>> OTEL_HEADERS_GETTER =
       new TextMapGetter<>() {
         @Override
         public Iterable<String> keys(Map<String, String> carrier) {

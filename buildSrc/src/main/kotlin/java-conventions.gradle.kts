@@ -11,7 +11,7 @@ dependencies { errorprone("com.google.errorprone:error_prone_core:2.28.0") }
 
 // Configure the java toolchain to use. If not found, it will be downloaded automatically
 java {
-    toolchain { languageVersion = JavaLanguageVersion.of(11) }
+    toolchain { languageVersion = JavaLanguageVersion.of(17) }
 
     withJavadocJar()
     withSourcesJar()

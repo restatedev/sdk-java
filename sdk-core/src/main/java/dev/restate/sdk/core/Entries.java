@@ -421,10 +421,9 @@ final class Entries {
 
     @Override
     void checkEntryHeader(CallEntryMessage expected, MessageLite actual) throws ProtocolException {
-      if (!(actual instanceof CallEntryMessage)) {
+      if (!(actual instanceof CallEntryMessage actualInvoke)) {
         throw ProtocolException.entryDoesNotMatch(expected, actual);
       }
-      CallEntryMessage actualInvoke = (CallEntryMessage) actual;
 
       if (!(Objects.equals(expected.getServiceName(), actualInvoke.getServiceName())
           && Objects.equals(expected.getHandlerName(), actualInvoke.getHandlerName())
@@ -479,10 +478,9 @@ final class Entries {
     @Override
     void checkEntryHeader(OneWayCallEntryMessage expected, MessageLite actual)
         throws ProtocolException {
-      if (!(actual instanceof OneWayCallEntryMessage)) {
+      if (!(actual instanceof OneWayCallEntryMessage actualInvoke)) {
         throw ProtocolException.entryDoesNotMatch(expected, actual);
       }
-      OneWayCallEntryMessage actualInvoke = (OneWayCallEntryMessage) actual;
 
       if (!(Objects.equals(expected.getServiceName(), actualInvoke.getServiceName())
           && Objects.equals(expected.getHandlerName(), actualInvoke.getHandlerName())

@@ -253,15 +253,7 @@ public class RestateEndpoint {
                 + ServiceDefinitionFactorySingleton.INSTANCE.factories);
   }
 
-  private static class ServiceAndOptions<O> {
-    private final ServiceDefinition<O> service;
-    private final O options;
-
-    ServiceAndOptions(ServiceDefinition<O> service, O options) {
-      this.service = service;
-      this.options = options;
-    }
-  }
+  private record ServiceAndOptions<O>(ServiceDefinition<O> service, O options) {}
 
   public static class DiscoveryResponse {
     private final String contentType;

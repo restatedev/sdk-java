@@ -8,8 +8,6 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package my.restate.sdk.examples;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import dev.restate.sdk.Context;
 import dev.restate.sdk.JsonSerdes;
 import dev.restate.sdk.SharedWorkflowContext;
@@ -45,41 +43,8 @@ public class LoanWorkflow {
     TRANSFER_FAILED
   }
 
-  public static class LoanRequest {
-
-    private final String customerName;
-    private final String customerId;
-    private final String customerBankAccount;
-    private final BigDecimal amount;
-
-    @JsonCreator
-    public LoanRequest(
-        @JsonProperty("customerName") String customerName,
-        @JsonProperty("customerId") String customerId,
-        @JsonProperty("customerBankAccount") String customerBankAccount,
-        @JsonProperty("amount") BigDecimal amount) {
-      this.customerName = customerName;
-      this.customerId = customerId;
-      this.customerBankAccount = customerBankAccount;
-      this.amount = amount;
-    }
-
-    public String getCustomerName() {
-      return customerName;
-    }
-
-    public String getCustomerId() {
-      return customerId;
-    }
-
-    public String getCustomerBankAccount() {
-      return customerBankAccount;
-    }
-
-    public BigDecimal getAmount() {
-      return amount;
-    }
-  }
+  public record LoanRequest(
+      String customerName, String customerId, String customerBankAccount, BigDecimal amount) {}
 
   private static final Logger LOG = LogManager.getLogger(LoanWorkflow.class);
 
@@ -123,8 +88,7 @@ public class LoanWorkflow {
       executionTime =
           bankClient
               .transfer(
-                  new TransferRequest(
-                      loanRequest.getCustomerBankAccount(), loanRequest.getAmount()))
+                  new TransferRequest(loanRequest.customerBankAccount(), loanRequest.amount()))
               .await(Duration.ofDays(7));
     } catch (TerminalException | TimeoutException e) {
       LOG.warn("Transaction failed", e);
@@ -223,24 +187,5 @@ public class LoanWorkflow {
     }
   }
 
-  public static class TransferRequest {
-    private final String bankAccount;
-    private final BigDecimal amount;
-
-    @JsonCreator
-    public TransferRequest(
-        @JsonProperty("bankAccount") String bankAccount,
-        @JsonProperty("amount") BigDecimal amount) {
-      this.bankAccount = bankAccount;
-      this.amount = amount;
-    }
-
-    public String getBankAccount() {
-      return bankAccount;
-    }
-
-    public BigDecimal getAmount() {
-      return amount;
-    }
-  }
+  public record TransferRequest(String bankAccount, BigDecimal amount) {}
 }

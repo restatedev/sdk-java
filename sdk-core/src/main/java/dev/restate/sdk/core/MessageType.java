@@ -71,159 +71,88 @@ public enum MessageType {
   public static final short SIDE_EFFECT_ENTRY_MESSAGE_TYPE = (short) 0x0C05;
 
   public Parser<? extends MessageLite> messageParser() {
-    switch (this) {
-      case StartMessage:
-        return Protocol.StartMessage.parser();
-      case CompletionMessage:
-        return Protocol.CompletionMessage.parser();
-      case SuspensionMessage:
-        return Protocol.SuspensionMessage.parser();
-      case EndMessage:
-        return Protocol.EndMessage.parser();
-      case ErrorMessage:
-        return Protocol.ErrorMessage.parser();
-      case EntryAckMessage:
-        return Protocol.EntryAckMessage.parser();
-      case InputEntryMessage:
-        return Protocol.InputEntryMessage.parser();
-      case OutputEntryMessage:
-        return Protocol.OutputEntryMessage.parser();
-      case GetStateEntryMessage:
-        return Protocol.GetStateEntryMessage.parser();
-      case SetStateEntryMessage:
-        return Protocol.SetStateEntryMessage.parser();
-      case ClearStateEntryMessage:
-        return Protocol.ClearStateEntryMessage.parser();
-      case ClearAllStateEntryMessage:
-        return Protocol.ClearAllStateEntryMessage.parser();
-      case GetStateKeysEntryMessage:
-        return Protocol.GetStateKeysEntryMessage.parser();
-      case GetPromiseEntryMessage:
-        return Protocol.GetPromiseEntryMessage.parser();
-      case PeekPromiseEntryMessage:
-        return Protocol.PeekPromiseEntryMessage.parser();
-      case CompletePromiseEntryMessage:
-        return Protocol.CompletePromiseEntryMessage.parser();
-      case SleepEntryMessage:
-        return Protocol.SleepEntryMessage.parser();
-      case CallEntryMessage:
-        return Protocol.CallEntryMessage.parser();
-      case OneWayCallEntryMessage:
-        return Protocol.OneWayCallEntryMessage.parser();
-      case AwakeableEntryMessage:
-        return Protocol.AwakeableEntryMessage.parser();
-      case CompleteAwakeableEntryMessage:
-        return Protocol.CompleteAwakeableEntryMessage.parser();
-      case CombinatorAwaitableEntryMessage:
-        return Java.CombinatorAwaitableEntryMessage.parser();
-      case RunEntryMessage:
-        return Protocol.RunEntryMessage.parser();
-    }
-    throw new IllegalStateException();
+    return switch (this) {
+      case StartMessage -> Protocol.StartMessage.parser();
+      case CompletionMessage -> Protocol.CompletionMessage.parser();
+      case SuspensionMessage -> Protocol.SuspensionMessage.parser();
+      case EndMessage -> Protocol.EndMessage.parser();
+      case ErrorMessage -> Protocol.ErrorMessage.parser();
+      case EntryAckMessage -> Protocol.EntryAckMessage.parser();
+      case InputEntryMessage -> Protocol.InputEntryMessage.parser();
+      case OutputEntryMessage -> Protocol.OutputEntryMessage.parser();
+      case GetStateEntryMessage -> Protocol.GetStateEntryMessage.parser();
+      case SetStateEntryMessage -> Protocol.SetStateEntryMessage.parser();
+      case ClearStateEntryMessage -> Protocol.ClearStateEntryMessage.parser();
+      case ClearAllStateEntryMessage -> Protocol.ClearAllStateEntryMessage.parser();
+      case GetStateKeysEntryMessage -> Protocol.GetStateKeysEntryMessage.parser();
+      case GetPromiseEntryMessage -> Protocol.GetPromiseEntryMessage.parser();
+      case PeekPromiseEntryMessage -> Protocol.PeekPromiseEntryMessage.parser();
+      case CompletePromiseEntryMessage -> Protocol.CompletePromiseEntryMessage.parser();
+      case SleepEntryMessage -> Protocol.SleepEntryMessage.parser();
+      case CallEntryMessage -> Protocol.CallEntryMessage.parser();
+      case OneWayCallEntryMessage -> Protocol.OneWayCallEntryMessage.parser();
+      case AwakeableEntryMessage -> Protocol.AwakeableEntryMessage.parser();
+      case CompleteAwakeableEntryMessage -> Protocol.CompleteAwakeableEntryMessage.parser();
+      case CombinatorAwaitableEntryMessage -> Java.CombinatorAwaitableEntryMessage.parser();
+      case RunEntryMessage -> Protocol.RunEntryMessage.parser();
+    };
   }
 
   public short encode() {
-    switch (this) {
-      case StartMessage:
-        return START_MESSAGE_TYPE;
-      case CompletionMessage:
-        return COMPLETION_MESSAGE_TYPE;
-      case SuspensionMessage:
-        return SUSPENSION_MESSAGE_TYPE;
-      case EndMessage:
-        return END_MESSAGE_TYPE;
-      case ErrorMessage:
-        return ERROR_MESSAGE_TYPE;
-      case EntryAckMessage:
-        return ENTRY_ACK_MESSAGE_TYPE;
-      case InputEntryMessage:
-        return INPUT_ENTRY_MESSAGE_TYPE;
-      case OutputEntryMessage:
-        return OUTPUT_ENTRY_MESSAGE_TYPE;
-      case GetStateEntryMessage:
-        return GET_STATE_ENTRY_MESSAGE_TYPE;
-      case SetStateEntryMessage:
-        return SET_STATE_ENTRY_MESSAGE_TYPE;
-      case ClearStateEntryMessage:
-        return CLEAR_STATE_ENTRY_MESSAGE_TYPE;
-      case ClearAllStateEntryMessage:
-        return CLEAR_ALL_STATE_ENTRY_MESSAGE_TYPE;
-      case GetStateKeysEntryMessage:
-        return GET_STATE_KEYS_ENTRY_MESSAGE_TYPE;
-      case GetPromiseEntryMessage:
-        return GET_PROMISE_ENTRY_MESSAGE_TYPE;
-      case PeekPromiseEntryMessage:
-        return PEEK_PROMISE_ENTRY_MESSAGE_TYPE;
-      case CompletePromiseEntryMessage:
-        return COMPLETE_PROMISE_ENTRY_MESSAGE_TYPE;
-      case SleepEntryMessage:
-        return SLEEP_ENTRY_MESSAGE_TYPE;
-      case CallEntryMessage:
-        return INVOKE_ENTRY_MESSAGE_TYPE;
-      case OneWayCallEntryMessage:
-        return BACKGROUND_INVOKE_ENTRY_MESSAGE_TYPE;
-      case AwakeableEntryMessage:
-        return AWAKEABLE_ENTRY_MESSAGE_TYPE;
-      case CompleteAwakeableEntryMessage:
-        return COMPLETE_AWAKEABLE_ENTRY_MESSAGE_TYPE;
-      case CombinatorAwaitableEntryMessage:
-        return COMBINATOR_AWAITABLE_ENTRY_MESSAGE_TYPE;
-      case RunEntryMessage:
-        return SIDE_EFFECT_ENTRY_MESSAGE_TYPE;
-    }
-    throw new IllegalStateException();
+    return switch (this) {
+      case StartMessage -> START_MESSAGE_TYPE;
+      case CompletionMessage -> COMPLETION_MESSAGE_TYPE;
+      case SuspensionMessage -> SUSPENSION_MESSAGE_TYPE;
+      case EndMessage -> END_MESSAGE_TYPE;
+      case ErrorMessage -> ERROR_MESSAGE_TYPE;
+      case EntryAckMessage -> ENTRY_ACK_MESSAGE_TYPE;
+      case InputEntryMessage -> INPUT_ENTRY_MESSAGE_TYPE;
+      case OutputEntryMessage -> OUTPUT_ENTRY_MESSAGE_TYPE;
+      case GetStateEntryMessage -> GET_STATE_ENTRY_MESSAGE_TYPE;
+      case SetStateEntryMessage -> SET_STATE_ENTRY_MESSAGE_TYPE;
+      case ClearStateEntryMessage -> CLEAR_STATE_ENTRY_MESSAGE_TYPE;
+      case ClearAllStateEntryMessage -> CLEAR_ALL_STATE_ENTRY_MESSAGE_TYPE;
+      case GetStateKeysEntryMessage -> GET_STATE_KEYS_ENTRY_MESSAGE_TYPE;
+      case GetPromiseEntryMessage -> GET_PROMISE_ENTRY_MESSAGE_TYPE;
+      case PeekPromiseEntryMessage -> PEEK_PROMISE_ENTRY_MESSAGE_TYPE;
+      case CompletePromiseEntryMessage -> COMPLETE_PROMISE_ENTRY_MESSAGE_TYPE;
+      case SleepEntryMessage -> SLEEP_ENTRY_MESSAGE_TYPE;
+      case CallEntryMessage -> INVOKE_ENTRY_MESSAGE_TYPE;
+      case OneWayCallEntryMessage -> BACKGROUND_INVOKE_ENTRY_MESSAGE_TYPE;
+      case AwakeableEntryMessage -> AWAKEABLE_ENTRY_MESSAGE_TYPE;
+      case CompleteAwakeableEntryMessage -> COMPLETE_AWAKEABLE_ENTRY_MESSAGE_TYPE;
+      case CombinatorAwaitableEntryMessage -> COMBINATOR_AWAITABLE_ENTRY_MESSAGE_TYPE;
+      case RunEntryMessage -> SIDE_EFFECT_ENTRY_MESSAGE_TYPE;
+    };
   }
 
   public static MessageType decode(short value) throws ProtocolException {
-    switch (value) {
-      case START_MESSAGE_TYPE:
-        return StartMessage;
-      case COMPLETION_MESSAGE_TYPE:
-        return CompletionMessage;
-      case SUSPENSION_MESSAGE_TYPE:
-        return SuspensionMessage;
-      case END_MESSAGE_TYPE:
-        return EndMessage;
-      case ERROR_MESSAGE_TYPE:
-        return ErrorMessage;
-      case ENTRY_ACK_MESSAGE_TYPE:
-        return EntryAckMessage;
-      case INPUT_ENTRY_MESSAGE_TYPE:
-        return InputEntryMessage;
-      case OUTPUT_ENTRY_MESSAGE_TYPE:
-        return OutputEntryMessage;
-      case GET_STATE_ENTRY_MESSAGE_TYPE:
-        return GetStateEntryMessage;
-      case SET_STATE_ENTRY_MESSAGE_TYPE:
-        return SetStateEntryMessage;
-      case CLEAR_STATE_ENTRY_MESSAGE_TYPE:
-        return ClearStateEntryMessage;
-      case CLEAR_ALL_STATE_ENTRY_MESSAGE_TYPE:
-        return ClearAllStateEntryMessage;
-      case GET_STATE_KEYS_ENTRY_MESSAGE_TYPE:
-        return GetStateKeysEntryMessage;
-      case GET_PROMISE_ENTRY_MESSAGE_TYPE:
-        return GetPromiseEntryMessage;
-      case PEEK_PROMISE_ENTRY_MESSAGE_TYPE:
-        return PeekPromiseEntryMessage;
-      case COMPLETE_PROMISE_ENTRY_MESSAGE_TYPE:
-        return CompletePromiseEntryMessage;
-      case SLEEP_ENTRY_MESSAGE_TYPE:
-        return SleepEntryMessage;
-      case INVOKE_ENTRY_MESSAGE_TYPE:
-        return CallEntryMessage;
-      case BACKGROUND_INVOKE_ENTRY_MESSAGE_TYPE:
-        return OneWayCallEntryMessage;
-      case AWAKEABLE_ENTRY_MESSAGE_TYPE:
-        return AwakeableEntryMessage;
-      case COMPLETE_AWAKEABLE_ENTRY_MESSAGE_TYPE:
-        return CompleteAwakeableEntryMessage;
-      case COMBINATOR_AWAITABLE_ENTRY_MESSAGE_TYPE:
-        return CombinatorAwaitableEntryMessage;
-      case SIDE_EFFECT_ENTRY_MESSAGE_TYPE:
-        return RunEntryMessage;
-    }
-    throw ProtocolException.unknownMessageType(value);
+    return switch (value) {
+      case START_MESSAGE_TYPE -> StartMessage;
+      case COMPLETION_MESSAGE_TYPE -> CompletionMessage;
+      case SUSPENSION_MESSAGE_TYPE -> SuspensionMessage;
+      case END_MESSAGE_TYPE -> EndMessage;
+      case ERROR_MESSAGE_TYPE -> ErrorMessage;
+      case ENTRY_ACK_MESSAGE_TYPE -> EntryAckMessage;
+      case INPUT_ENTRY_MESSAGE_TYPE -> InputEntryMessage;
+      case OUTPUT_ENTRY_MESSAGE_TYPE -> OutputEntryMessage;
+      case GET_STATE_ENTRY_MESSAGE_TYPE -> GetStateEntryMessage;
+      case SET_STATE_ENTRY_MESSAGE_TYPE -> SetStateEntryMessage;
+      case CLEAR_STATE_ENTRY_MESSAGE_TYPE -> ClearStateEntryMessage;
+      case CLEAR_ALL_STATE_ENTRY_MESSAGE_TYPE -> ClearAllStateEntryMessage;
+      case GET_STATE_KEYS_ENTRY_MESSAGE_TYPE -> GetStateKeysEntryMessage;
+      case GET_PROMISE_ENTRY_MESSAGE_TYPE -> GetPromiseEntryMessage;
+      case PEEK_PROMISE_ENTRY_MESSAGE_TYPE -> PeekPromiseEntryMessage;
+      case COMPLETE_PROMISE_ENTRY_MESSAGE_TYPE -> CompletePromiseEntryMessage;
+      case SLEEP_ENTRY_MESSAGE_TYPE -> SleepEntryMessage;
+      case INVOKE_ENTRY_MESSAGE_TYPE -> CallEntryMessage;
+      case BACKGROUND_INVOKE_ENTRY_MESSAGE_TYPE -> OneWayCallEntryMessage;
+      case AWAKEABLE_ENTRY_MESSAGE_TYPE -> AwakeableEntryMessage;
+      case COMPLETE_AWAKEABLE_ENTRY_MESSAGE_TYPE -> CompleteAwakeableEntryMessage;
+      case COMBINATOR_AWAITABLE_ENTRY_MESSAGE_TYPE -> CombinatorAwaitableEntryMessage;
+      case SIDE_EFFECT_ENTRY_MESSAGE_TYPE -> RunEntryMessage;
+      default -> throw ProtocolException.unknownMessageType(value);
+    };
   }
 
   public static MessageType fromMessage(MessageLite msg) {

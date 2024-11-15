@@ -10,8 +10,6 @@ description = "Restate SDK Spring Boot starter"
 
 val springBootVersion = "3.3.5"
 
-java { toolchain { languageVersion = JavaLanguageVersion.of(17) } }
-
 dependencies {
   compileOnly(coreLibs.jspecify)
 

@@ -56,9 +56,12 @@ class JacksonSerdesTest {
     }
   }
 
+  public record PersonRecord(String name) {}
+
   private static Stream<Arguments> roundtripTestCases() {
     return Stream.of(
         Arguments.of(new Person("Francesco"), JacksonSerdes.of(Person.class)),
+        Arguments.of(new PersonRecord("Francesco"), JacksonSerdes.of(PersonRecord.class)),
         Arguments.of(
             List.of(new Person("Francesco"), new Person("Till")),
             JacksonSerdes.of(new TypeReference<List<Person>>() {})),
