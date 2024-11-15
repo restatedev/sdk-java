@@ -57,8 +57,8 @@ class CodegenTest : TestDefinitions.TestSuite {
     @Exclusive
     suspend fun complexType(
         context: ObjectContext,
-        request: Map<Output, List<out Input>>
-    ): Map<Input, List<out Output>> {
+        request: Map<String, List<out Input>>
+    ): Map<String, List<out Output>> {
       return mapOf()
     }
   }

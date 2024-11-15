@@ -135,7 +135,7 @@ class ServiceProtocol {
             "Service discovery protocol version '%s' has no header value", version.getNumber()));
   }
 
-  private static final ObjectMapper MANIFEST_OBJECT_MAPPER = new ObjectMapper();
+  static final ObjectMapper MANIFEST_OBJECT_MAPPER = new ObjectMapper();
 
   @JsonFilter("V2FieldsFilter")
   interface V2Mixin {}

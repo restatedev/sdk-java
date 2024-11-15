@@ -9,8 +9,12 @@
 package dev.restate.sdk.kotlin
 
 import dev.restate.sdk.common.DurablePromiseKey
+import dev.restate.sdk.common.RichSerde
 import dev.restate.sdk.common.Serde
 import dev.restate.sdk.common.StateKey
+import io.bkbn.kompendium.json.schema.KotlinXSchemaConfigurator
+import io.bkbn.kompendium.json.schema.SchemaGenerator
+import io.bkbn.kompendium.json.schema.definition.JsonSchema
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import kotlin.reflect.typeOf
@@ -70,12 +74,13 @@ object KtSerdes {
       }
 
   /** Creates a [Serde] implementation using the `kotlinx.serialization` json module. */
-  fun <T : Any?> json(serializer: KSerializer<T>): Serde<T> {
-    return object : Serde<T> {
+  inline fun <reified T : Any?> json(serializer: KSerializer<T>): Serde<T> {
+    return object : RichSerde<T> {
       override fun serialize(value: T?): ByteArray {
         if (value == null) {
           return Json.encodeToString(JsonNull.serializer(), JsonNull).encodeToByteArray()
         }
+
         return Json.encodeToString(serializer, value).encodeToByteArray()
       }
 
@@ -85,6 +90,17 @@ object KtSerdes {
 
       override fun contentType(): String {
         return "application/json"
+      }
+
+      override fun jsonSchema(): String {
+        val schema =
+            SchemaGenerator.fromTypeToSchema(
+                type = typeOf<T>(),
+                cache = mutableMapOf(),
+                schemaConfigurator = KotlinXSchemaConfigurator(),
+            )
+
+        return Json.encodeToString(JsonSchema.serializer(), schema)
       }
     }
   }

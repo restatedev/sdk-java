@@ -13,6 +13,8 @@ dependencies {
   implementation(kotlinLibs.kotlinx.serialization.core)
   implementation(kotlinLibs.kotlinx.serialization.json)
 
+  implementation("io.bkbn:kompendium-json-schema:4.0.0-alpha")
+
   implementation(coreLibs.log4j.api)
   implementation(platform(coreLibs.opentelemetry.bom))
   implementation(coreLibs.opentelemetry.kotlin)
