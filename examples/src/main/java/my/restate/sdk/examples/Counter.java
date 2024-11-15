@@ -48,6 +48,13 @@ public class Counter {
     return ctx.get(TOTAL).orElse(0L);
   }
 
+  /** Get the current counter value. */
+  @Shared
+  @Handler
+  public Node getNode(SharedObjectContext ctx) {
+    return null;
+  }
+
   /** Add a value, and get both the previous value and the new value. */
   @Handler
   public CounterUpdateResult getAndAdd(ObjectContext ctx, long request) {
@@ -62,6 +69,24 @@ public class Counter {
 
   public static void main(String[] args) {
     RestateHttpEndpointBuilder.builder().bind(new Counter()).buildAndListen();
+  }
+
+  public static class Node {
+    private final String data;
+    private final Node inner;
+
+    public Node(String data, Node inner) {
+      this.data = data;
+      this.inner = inner;
+    }
+
+    public String getData() {
+      return data;
+    }
+
+    public Node getInner() {
+      return inner;
+    }
   }
 
   public static class CounterUpdateResult {
