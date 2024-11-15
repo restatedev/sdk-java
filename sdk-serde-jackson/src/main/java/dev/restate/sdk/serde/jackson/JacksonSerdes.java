@@ -10,6 +10,7 @@ package dev.restate.sdk.serde.jackson;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.victools.jsonschema.generator.*;
 import com.github.victools.jsonschema.module.jackson.JacksonModule;
@@ -17,6 +18,7 @@ import com.github.victools.jsonschema.module.jackson.JacksonOption;
 import dev.restate.sdk.common.RichSerde;
 import dev.restate.sdk.common.Serde;
 import java.io.IOException;
+import java.util.stream.StreamSupport;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -59,6 +61,37 @@ public final class JacksonSerdes {
         new SchemaGeneratorConfigBuilder(
                 defaultMapper, SchemaVersion.DRAFT_2020_12, OptionPreset.PLAIN_JSON)
             .with(module);
+
+    // Make sure we use `title` for types
+    configBuilder
+        .forTypesInGeneral()
+        .withTypeAttributeOverride(
+            (schema, scope, context) -> {
+              if (schema.isObject()
+                  && !schema.hasNonNull(
+                      SchemaKeyword.TAG_TITLE.forVersion(
+                          context.getGeneratorConfig().getSchemaVersion()))) {
+                JsonNode typeKeyword =
+                    schema.get(
+                        SchemaKeyword.TAG_TYPE.forVersion(
+                            context.getGeneratorConfig().getSchemaVersion()));
+                boolean isObjectSchema =
+                    typeKeyword != null
+                        && ((typeKeyword.isTextual() && "object".equals(typeKeyword.textValue()))
+                            || (typeKeyword.isArray()
+                                && StreamSupport.stream(typeKeyword.spliterator(), false)
+                                    .anyMatch(
+                                        el -> el.isTextual() && "object".equals(el.textValue()))));
+                if (isObjectSchema) {
+                  schema.put(
+                      SchemaKeyword.TAG_TITLE.forVersion(
+                          context.getGeneratorConfig().getSchemaVersion()),
+                      scope.getSimpleTypeDescription());
+                }
+              }
+            });
+    ;
+
     schemaGenerator = new SchemaGenerator(configBuilder.build());
   }
 
