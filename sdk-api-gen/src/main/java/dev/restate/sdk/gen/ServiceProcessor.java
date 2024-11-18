@@ -39,6 +39,11 @@ public class ServiceProcessor extends AbstractProcessor {
       Set.of("send", "submit", "workflowHandle");
 
   @Override
+  public SourceVersion getSupportedSourceVersion() {
+    return SourceVersion.RELEASE_17;
+  }
+
+  @Override
   public synchronized void init(ProcessingEnvironment processingEnv) {
     super.init(processingEnv);
 
