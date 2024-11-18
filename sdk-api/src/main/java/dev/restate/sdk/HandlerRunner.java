@@ -9,6 +9,10 @@
 package dev.restate.sdk;
 
 import dev.restate.sdk.common.TerminalException;
+import dev.restate.sdk.common.function.ThrowingBiConsumer;
+import dev.restate.sdk.common.function.ThrowingBiFunction;
+import dev.restate.sdk.common.function.ThrowingConsumer;
+import dev.restate.sdk.common.function.ThrowingFunction;
 import dev.restate.sdk.common.syscalls.HandlerSpecification;
 import dev.restate.sdk.common.syscalls.SyscallCallback;
 import dev.restate.sdk.common.syscalls.Syscalls;
@@ -16,10 +20,6 @@ import io.opentelemetry.context.Scope;
 import java.nio.ByteBuffer;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
-import java.util.function.Function;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
@@ -27,13 +27,13 @@ import org.jspecify.annotations.Nullable;
 /** Adapter class for {@link dev.restate.sdk.common.syscalls.HandlerRunner} to use the Java API. */
 public class HandlerRunner<REQ, RES>
     implements dev.restate.sdk.common.syscalls.HandlerRunner<REQ, RES, HandlerRunner.Options> {
-  private final BiFunction<Context, REQ, RES> runner;
+  private final ThrowingBiFunction<Context, REQ, RES> runner;
 
   private static final Logger LOG = LogManager.getLogger(HandlerRunner.class);
 
-  HandlerRunner(BiFunction<? extends Context, REQ, RES> runner) {
+  HandlerRunner(ThrowingBiFunction<? extends Context, REQ, RES> runner) {
     //noinspection unchecked
-    this.runner = (BiFunction<Context, REQ, RES>) runner;
+    this.runner = (ThrowingBiFunction<Context, REQ, RES>) runner;
   }
 
   @Override
@@ -106,18 +106,19 @@ public class HandlerRunner<REQ, RES>
   }
 
   public static <CTX extends Context, REQ, RES> HandlerRunner<REQ, RES> of(
-      BiFunction<CTX, REQ, RES> runner) {
+      ThrowingBiFunction<CTX, REQ, RES> runner) {
     return new HandlerRunner<>(runner);
   }
 
   @SuppressWarnings("unchecked")
-  public static <CTX extends Context, RES> HandlerRunner<Void, RES> of(Function<CTX, RES> runner) {
+  public static <CTX extends Context, RES> HandlerRunner<Void, RES> of(
+      ThrowingFunction<CTX, RES> runner) {
     return new HandlerRunner<>((context, o) -> runner.apply((CTX) context));
   }
 
   @SuppressWarnings("unchecked")
   public static <CTX extends Context, REQ> HandlerRunner<REQ, Void> of(
-      BiConsumer<CTX, REQ> runner) {
+      ThrowingBiConsumer<CTX, REQ> runner) {
     return new HandlerRunner<>(
         (context, o) -> {
           runner.accept((CTX) context, o);
@@ -126,7 +127,7 @@ public class HandlerRunner<REQ, RES>
   }
 
   @SuppressWarnings("unchecked")
-  public static <CTX extends Context> HandlerRunner<Void, Void> of(Consumer<CTX> runner) {
+  public static <CTX extends Context> HandlerRunner<Void, Void> of(ThrowingConsumer<CTX> runner) {
     return new HandlerRunner<>(
         (ctx, o) -> {
           runner.accept((CTX) ctx);

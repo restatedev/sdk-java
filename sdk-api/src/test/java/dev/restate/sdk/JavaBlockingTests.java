@@ -13,6 +13,7 @@ import static dev.restate.sdk.core.ProtoUtils.GREETER_SERVICE_TARGET;
 import dev.restate.sdk.common.HandlerType;
 import dev.restate.sdk.common.Serde;
 import dev.restate.sdk.common.ServiceType;
+import dev.restate.sdk.common.function.ThrowingBiFunction;
 import dev.restate.sdk.common.syscalls.HandlerDefinition;
 import dev.restate.sdk.common.syscalls.HandlerSpecification;
 import dev.restate.sdk.common.syscalls.ServiceDefinition;
@@ -24,7 +25,6 @@ import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
 import dev.restate.sdk.core.TestRunner;
 import java.util.List;
-import java.util.function.BiFunction;
 import java.util.stream.Stream;
 
 public class JavaBlockingTests extends TestRunner {
@@ -52,7 +52,7 @@ public class JavaBlockingTests extends TestRunner {
   }
 
   public static <T, R> TestInvocationBuilder testDefinitionForService(
-      String name, Serde<T> reqSerde, Serde<R> resSerde, BiFunction<Context, T, R> runner) {
+      String name, Serde<T> reqSerde, Serde<R> resSerde, ThrowingBiFunction<Context, T, R> runner) {
     return TestDefinitions.testInvocation(
         ServiceDefinition.of(
             name,
@@ -65,7 +65,10 @@ public class JavaBlockingTests extends TestRunner {
   }
 
   public static <T, R> TestInvocationBuilder testDefinitionForVirtualObject(
-      String name, Serde<T> reqSerde, Serde<R> resSerde, BiFunction<ObjectContext, T, R> runner) {
+      String name,
+      Serde<T> reqSerde,
+      Serde<R> resSerde,
+      ThrowingBiFunction<ObjectContext, T, R> runner) {
     return TestDefinitions.testInvocation(
         ServiceDefinition.of(
             name,
@@ -78,7 +81,10 @@ public class JavaBlockingTests extends TestRunner {
   }
 
   public static <T, R> TestInvocationBuilder testDefinitionForWorkflow(
-      String name, Serde<T> reqSerde, Serde<R> resSerde, BiFunction<WorkflowContext, T, R> runner) {
+      String name,
+      Serde<T> reqSerde,
+      Serde<R> resSerde,
+      ThrowingBiFunction<WorkflowContext, T, R> runner) {
     return TestDefinitions.testInvocation(
         ServiceDefinition.of(
             name,
