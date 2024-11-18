@@ -14,13 +14,22 @@ import dev.restate.sdk.common.Serde
 import dev.restate.sdk.common.StateKey
 import io.bkbn.kompendium.json.schema.KotlinXSchemaConfigurator
 import io.bkbn.kompendium.json.schema.SchemaGenerator
+import io.bkbn.kompendium.json.schema.definition.AnyOfDefinition
+import io.bkbn.kompendium.json.schema.definition.ArrayDefinition
 import io.bkbn.kompendium.json.schema.definition.JsonSchema
+import io.bkbn.kompendium.json.schema.definition.MapDefinition
+import io.bkbn.kompendium.json.schema.definition.OneOfDefinition
+import io.bkbn.kompendium.json.schema.definition.ReferenceDefinition
+import io.bkbn.kompendium.json.schema.definition.TypeDefinition
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import kotlin.reflect.typeOf
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.serializer
 
 object KtStateKey {
@@ -93,14 +102,36 @@ object KtSerdes {
       }
 
       override fun jsonSchema(): String {
-        val schema =
+        fun JsonSchema.sanitizeRefs(): JsonSchema {
+          return when (this) {
+            is AnyOfDefinition -> this.copy(anyOf = this.anyOf.map { it.sanitizeRefs() }.toSet())
+            is ArrayDefinition -> this.items.sanitizeRefs()
+            is MapDefinition ->
+                this.copy(additionalProperties = this.additionalProperties.sanitizeRefs())
+            is OneOfDefinition -> this.copy(oneOf = this.oneOf.map { it.sanitizeRefs() }.toSet())
+            is ReferenceDefinition ->
+                this.copy(`$ref` = this.`$ref`.replaceFirst("#/components/schemas", "#/\$defs"))
+            is TypeDefinition ->
+                this.copy(properties = this.properties?.mapValues { it.value.sanitizeRefs() })
+            else -> this
+          }
+        }
+
+        val nestedSchemas = mutableMapOf<String, JsonSchema>()
+        val rootSchema =
             SchemaGenerator.fromTypeToSchema(
                 type = typeOf<T>(),
-                cache = mutableMapOf(),
+                cache = nestedSchemas,
                 schemaConfigurator = KotlinXSchemaConfigurator(),
             )
 
-        return Json.encodeToString(JsonSchema.serializer(), schema)
+        val defsSchemas: Map<String, JsonSchema> =
+            nestedSchemas.mapValues { e -> e.value.sanitizeRefs() }
+        val rootElement =
+            Json.encodeToJsonElement(JsonSchema.serializer(), rootSchema.sanitizeRefs())
+                .jsonObject + ("\$defs" to Json.encodeToJsonElement(defsSchemas))
+
+        return Json.encodeToString(rootElement)
       }
     }
   }

@@ -70,4 +70,9 @@ jib {
 
 tasks.jar { manifest { attributes["Main-Class"] = "dev.restate.sdk.testservices.MainKt" } }
 
-application { mainClass.set("dev.restate.sdk.testservices.MainKt") }
+tasks.withType<JavaExec> {
+  classpath("$projectDir/generated/ksp/main/resources")
+}
+
+application {
+  mainClass.set("dev.restate.sdk.testservices.MainKt") }
