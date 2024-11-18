@@ -19,6 +19,7 @@ import dev.restate.sdk.common.Target;
 import dev.restate.sdk.core.ProtoUtils;
 import dev.restate.sdk.core.TestDefinitions;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Stream;
 
@@ -179,6 +180,14 @@ public class CodegenTest implements TestSuite {
     public String sharedHandler(SharedWorkflowContext context, String myInput) {
       var client = MyWorkflowClient.fromContext(context, context.key());
       return client.sharedHandler(myInput).await();
+    }
+  }
+
+  @Service
+  static class CheckedException {
+    @Handler
+    String greet(Context context, String request) throws IOException {
+      return request;
     }
   }
 

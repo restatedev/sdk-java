@@ -117,8 +117,7 @@ public class SideEffectTest extends SideEffectTestSuite {
         Serde.VOID,
         JsonSerdes.STRING,
         (ctx, unused) -> {
-          PreviewContext.run(
-              ctx,
+          ctx.run(
               retryPolicy,
               () -> {
                 throw new IllegalStateException(reason);
