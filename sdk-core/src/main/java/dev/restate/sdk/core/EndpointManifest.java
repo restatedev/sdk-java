@@ -70,15 +70,11 @@ final class EndpointManifest {
   }
 
   private static Service.Ty convertServiceType(ServiceType serviceType) {
-    switch (serviceType) {
-      case WORKFLOW:
-        return Service.Ty.WORKFLOW;
-      case SERVICE:
-        return Service.Ty.SERVICE;
-      case VIRTUAL_OBJECT:
-        return Service.Ty.VIRTUAL_OBJECT;
-    }
-    throw new IllegalStateException();
+    return switch (serviceType) {
+      case WORKFLOW -> Service.Ty.WORKFLOW;
+      case SERVICE -> Service.Ty.SERVICE;
+      case VIRTUAL_OBJECT -> Service.Ty.VIRTUAL_OBJECT;
+    };
   }
 
   private static Handler convertHandler(HandlerDefinition<?, ?, ?> handler) {
@@ -135,14 +131,10 @@ final class EndpointManifest {
   }
 
   private static Handler.Ty convertHandlerType(HandlerType handlerType) {
-    switch (handlerType) {
-      case WORKFLOW:
-        return Handler.Ty.WORKFLOW;
-      case EXCLUSIVE:
-        return Handler.Ty.EXCLUSIVE;
-      case SHARED:
-        return Handler.Ty.SHARED;
-    }
-    throw new IllegalStateException();
+    return switch (handlerType) {
+      case WORKFLOW -> Handler.Ty.WORKFLOW;
+      case EXCLUSIVE -> Handler.Ty.EXCLUSIVE;
+      case SHARED -> Handler.Ty.SHARED;
+    };
   }
 }

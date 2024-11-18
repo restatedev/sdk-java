@@ -58,7 +58,7 @@ public class Service {
   }
 
   public CharSequence getGeneratedClassFqcnPrefix() {
-    if (this.targetPkg == null || this.targetPkg.length() == 0) {
+    if (this.targetPkg == null || this.targetPkg.isEmpty()) {
       return getSimpleServiceName();
     }
     return this.targetPkg + "." + getSimpleServiceName();
@@ -152,7 +152,7 @@ public class Service {
       }
 
       if (serviceType.equals(ServiceType.WORKFLOW)) {
-        if (handlers.stream().filter(m -> m.getHandlerType().equals(HandlerType.WORKFLOW)).count()
+        if (handlers.stream().filter(m -> m.handlerType().equals(HandlerType.WORKFLOW)).count()
             != 1) {
           throw new IllegalArgumentException(
               "Workflow services must have exactly one method annotated as @Workflow");
@@ -160,7 +160,7 @@ public class Service {
       }
 
       if (handlers.size()
-          != handlers.stream().map(Handler::getName).collect(Collectors.toSet()).size()) {
+          != handlers.stream().map(Handler::name).collect(Collectors.toSet()).size()) {
         throw new IllegalArgumentException("Cannot have two handlers with the same name");
       }
 

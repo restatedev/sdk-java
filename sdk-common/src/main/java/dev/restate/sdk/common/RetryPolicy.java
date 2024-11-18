@@ -116,8 +116,7 @@ public final class RetryPolicy {
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
-    if (!(o instanceof RetryPolicy)) return false;
-    RetryPolicy that = (RetryPolicy) o;
+    if (!(o instanceof RetryPolicy that)) return false;
     return Float.compare(exponentiationFactor, that.exponentiationFactor) == 0
         && Objects.equals(initialDelay, that.initialDelay)
         && Objects.equals(maxDelay, that.maxDelay)

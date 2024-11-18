@@ -310,9 +310,9 @@ public class ProtoUtils {
         .build();
   }
 
-  public static Protocol.EndMessage END_MESSAGE = Protocol.EndMessage.getDefaultInstance();
+  public static final Protocol.EndMessage END_MESSAGE = Protocol.EndMessage.getDefaultInstance();
 
-  public static Target GREETER_SERVICE_TARGET = Target.service("Greeter", "greeter");
+  public static final Target GREETER_SERVICE_TARGET = Target.service("Greeter", "greeter");
   public static Target GREETER_VIRTUAL_OBJECT_TARGET =
       Target.virtualObject("Greeter", "Francesco", "greeter");
 

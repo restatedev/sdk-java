@@ -46,20 +46,19 @@ public class HandlebarsTemplateEngine {
     handlebars.<HandlerTemplateModel>registerHelper(
         "targetExpr",
         (h, options) -> {
-          switch (h.serviceType) {
-            case SERVICE:
-              return String.format(
-                  "Target.service(%s.SERVICE_NAME, \"%s\")", h.definitionsClass, h.name);
-            case VIRTUAL_OBJECT:
-              return String.format(
-                  "Target.virtualObject(%s.SERVICE_NAME, %s, \"%s\")",
-                  h.definitionsClass, options.param(0), h.name);
-            case WORKFLOW:
-              return String.format(
-                  "Target.workflow(%s.SERVICE_NAME, %s, \"%s\")",
-                  h.definitionsClass, options.param(0), h.name);
-          }
-          throw new IllegalStateException();
+          return switch (h.serviceType) {
+            case SERVICE ->
+                String.format(
+                    "Target.service(%s.SERVICE_NAME, \"%s\")", h.definitionsClass, h.name);
+            case VIRTUAL_OBJECT ->
+                String.format(
+                    "Target.virtualObject(%s.SERVICE_NAME, %s, \"%s\")",
+                    h.definitionsClass, options.param(0), h.name);
+            case WORKFLOW ->
+                String.format(
+                    "Target.workflow(%s.SERVICE_NAME, %s, \"%s\")",
+                    h.definitionsClass, options.param(0), h.name);
+          };
         });
     handlebars.registerHelpers(StringEscapeUtils.class);
 
@@ -177,30 +176,30 @@ public class HandlebarsTemplateEngine {
         ServiceType serviceType,
         String definitionsClass,
         Set<String> handlerNamesToPrefix) {
-      this.name = inner.getName().toString();
+      this.name = inner.name().toString();
       this.methodName = (handlerNamesToPrefix.contains(this.name) ? "_" : "") + this.name;
-      this.handlerType = inner.getHandlerType().toString();
-      this.isWorkflow = inner.getHandlerType() == HandlerType.WORKFLOW;
-      this.isShared = inner.getHandlerType() == HandlerType.SHARED;
-      this.isExclusive = inner.getHandlerType() == HandlerType.EXCLUSIVE;
-      this.isStateless = inner.getHandlerType() == HandlerType.STATELESS;
+      this.handlerType = inner.handlerType().toString();
+      this.isWorkflow = inner.handlerType() == HandlerType.WORKFLOW;
+      this.isShared = inner.handlerType() == HandlerType.SHARED;
+      this.isExclusive = inner.handlerType() == HandlerType.EXCLUSIVE;
+      this.isStateless = inner.handlerType() == HandlerType.STATELESS;
 
       this.serviceType = serviceType;
       this.definitionsClass = definitionsClass;
-      this.documentation = inner.getDocumentation();
+      this.documentation = inner.documentation();
 
-      this.inputEmpty = inner.getInputType().isEmpty();
-      this.inputFqcn = inner.getInputType().getName();
-      this.inputSerdeDecl = inner.getInputType().getSerdeDecl();
-      this.boxedInputFqcn = inner.getInputType().getBoxed();
+      this.inputEmpty = inner.inputType().isEmpty();
+      this.inputFqcn = inner.inputType().name();
+      this.inputSerdeDecl = inner.inputType().serdeDecl();
+      this.boxedInputFqcn = inner.inputType().boxed();
       this.inputSerdeFieldName = this.name.toUpperCase() + "_INPUT";
-      this.inputAcceptContentType = inner.getInputAccept();
+      this.inputAcceptContentType = inner.inputAccept();
       this.inputSerdeRef = definitionsClass + ".Serde." + this.inputSerdeFieldName;
 
-      this.outputEmpty = inner.getOutputType().isEmpty();
-      this.outputFqcn = inner.getOutputType().getName();
-      this.outputSerdeDecl = inner.getOutputType().getSerdeDecl();
-      this.boxedOutputFqcn = inner.getOutputType().getBoxed();
+      this.outputEmpty = inner.outputType().isEmpty();
+      this.outputFqcn = inner.outputType().name();
+      this.outputSerdeDecl = inner.outputType().serdeDecl();
+      this.boxedOutputFqcn = inner.outputType().boxed();
       this.outputSerdeFieldName = this.name.toUpperCase() + "_OUTPUT";
       this.outputSerdeRef = definitionsClass + ".Serde." + this.outputSerdeFieldName;
     }

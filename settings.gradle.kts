@@ -36,7 +36,7 @@ dependencyResolutionManagement {
 
   versionCatalogs {
     create("coreLibs") {
-      version("protobuf", "4.27.0")
+      version("protobuf", "4.28.3")
       version("log4j", "2.23.0")
       version("opentelemetry", "1.38.0")
 
@@ -59,7 +59,7 @@ dependencyResolutionManagement {
       library("tink", "com.google.crypto.tink:tink:1.13.0")
     }
     create("vertxLibs") {
-      library("vertx-bom", "io.vertx:vertx-stack-depchain:4.5.8")
+      library("vertx-bom", "io.vertx:vertx-stack-depchain:4.5.11")
       library("vertx-core", "io.vertx", "vertx-core").withoutVersion()
       library("vertx-kotlin-coroutines", "io.vertx", "vertx-lang-kotlin-coroutines")
           .withoutVersion()
@@ -70,7 +70,7 @@ dependencyResolutionManagement {
       library("events", "com.amazonaws:aws-lambda-java-events:3.11.5")
     }
     create("jacksonLibs") {
-      version("jackson", "2.17.1")
+      version("jackson", "2.18.1")
 
       library("jackson-bom", "com.fasterxml.jackson", "jackson-bom").versionRef("jackson")
       library("jackson-annotations", "com.fasterxml.jackson.core", "jackson-annotations")
@@ -89,13 +89,13 @@ dependencyResolutionManagement {
     }
     create("kotlinLibs") {
       library("kotlinx-coroutines", "org.jetbrains.kotlinx", "kotlinx-coroutines-core")
-          .version("1.9.0-RC")
+          .version("1.9.0")
       library("kotlinx-serialization-core", "org.jetbrains.kotlinx", "kotlinx-serialization-core")
-          .version("1.6.3")
+          .version("1.7.3")
       library("kotlinx-serialization-json", "org.jetbrains.kotlinx", "kotlinx-serialization-json")
-          .version("1.6.3")
+          .version("1.7.3")
 
-      version("ksp", "2.0.0-1.0.24")
+      version("ksp", "2.0.21-1.0.28")
       library("symbol-processing-api", "com.google.devtools.ksp", "symbol-processing-api")
           .versionRef("ksp")
       plugin("ksp", "com.google.devtools.ksp").versionRef("ksp")

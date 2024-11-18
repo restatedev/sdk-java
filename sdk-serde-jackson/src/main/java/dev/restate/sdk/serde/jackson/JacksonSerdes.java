@@ -90,7 +90,6 @@ public final class JacksonSerdes {
                 }
               }
             });
-    ;
 
     schemaGenerator = new SchemaGenerator(configBuilder.build());
   }

@@ -48,8 +48,7 @@ public class RequestOptions {
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
-    if (!(o instanceof RequestOptions)) return false;
-    RequestOptions that = (RequestOptions) o;
+    if (!(o instanceof RequestOptions that)) return false;
     return Objects.equals(additionalHeaders, that.additionalHeaders);
   }
 

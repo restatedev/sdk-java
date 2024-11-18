@@ -12,5 +12,5 @@ public enum InvocationState {
   WAITING_START,
   REPLAYING,
   PROCESSING,
-  CLOSED;
+  CLOSED
 }

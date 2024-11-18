@@ -29,7 +29,7 @@ public abstract class TestSerdes {
   private TestSerdes() {}
 
   /** {@link Serde} for {@link String}. This writes and reads {@link String} as JSON value. */
-  public static Serde<String> STRING =
+  public static final Serde<String> STRING =
       usingJackson(
           JsonGenerator::writeString,
           p -> {
@@ -41,7 +41,7 @@ public abstract class TestSerdes {
           });
 
   /** {@link Serde} for {@link Boolean}. This writes and reads {@link Boolean} as JSON value. */
-  public static Serde<Boolean> BOOLEAN =
+  public static final Serde<Boolean> BOOLEAN =
       usingJackson(
           JsonGenerator::writeBoolean,
           p -> {
@@ -68,7 +68,7 @@ public abstract class TestSerdes {
           });
 
   /** {@link Serde} for {@link Integer}. This writes and reads {@link Integer} as JSON value. */
-  public static Serde<Integer> INT =
+  public static final Serde<Integer> INT =
       usingJackson(
           JsonGenerator::writeNumber,
           p -> {

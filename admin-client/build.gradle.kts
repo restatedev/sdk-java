@@ -1,4 +1,3 @@
-import net.ltgt.gradle.errorprone.errorprone
 import org.openapitools.generator.gradle.plugin.tasks.GenerateTask
 
 plugins {
@@ -46,11 +45,6 @@ tasks.withType<GenerateTask> {
   configOptions.put("openApiNullable", "false")
 
   finalizedBy("spotlessJava")
-}
-
-tasks.withType<JavaCompile>().configureEach {
-  // Disable errorprone for this module
-  options.errorprone.disableAllChecks.set(true)
 }
 
 configure<com.diffplug.gradle.spotless.SpotlessExtension> {

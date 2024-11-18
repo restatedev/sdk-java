@@ -82,8 +82,7 @@ public final class Output<T> {
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
-    if (!(o instanceof Output)) return false;
-    Output<?> output = (Output<?>) o;
+    if (!(o instanceof Output<?> output)) return false;
     return isReady == output.isReady && Objects.equals(value, output.value);
   }
 

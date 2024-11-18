@@ -23,7 +23,7 @@ import java.util.stream.Stream;
 
 public abstract class SleepTestSuite implements TestDefinitions.TestSuite {
 
-  Long startTime = System.currentTimeMillis();
+  final Long startTime = System.currentTimeMillis();
 
   protected abstract TestInvocationBuilder sleepGreeter();
 

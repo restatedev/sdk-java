@@ -46,7 +46,7 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
 
   private static final String DISCOVER_PATH = "/discover";
 
-  static TextMapGetter<MultiMap> OTEL_TEXT_MAP_GETTER =
+  static final TextMapGetter<MultiMap> OTEL_TEXT_MAP_GETTER =
       new TextMapGetter<>() {
         @Override
         public Iterable<String> keys(MultiMap carrier) {
@@ -127,7 +127,7 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
       return;
     }
 
-    LOG.debug("Handling request to " + serviceName + "/" + handlerName);
+    LOG.debug("Handling request to {}/{}", serviceName, handlerName);
 
     // Prepare the header frame to send in the response.
     // Vert.x will send them as soon as we send the first write

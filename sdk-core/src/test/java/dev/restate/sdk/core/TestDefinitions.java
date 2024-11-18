@@ -20,6 +20,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.jspecify.annotations.Nullable;
 
 public final class TestDefinitions {
@@ -178,7 +179,11 @@ public final class TestDefinitions {
     public ExpectingOutputMessages expectingOutput(MessageLiteOrBuilder... messages) {
       List<MessageLite> builtMessages =
           Arrays.stream(messages).map(ProtoUtils::build).collect(Collectors.toList());
-      return assertingOutput(actual -> assertThat(actual).asList().isEqualTo(builtMessages));
+      return assertingOutput(
+          actual ->
+              assertThat(actual)
+                  .asInstanceOf(InstanceOfAssertFactories.LIST)
+                  .isEqualTo(builtMessages));
     }
 
     public ExpectingOutputMessages assertingOutput(Consumer<List<MessageLite>> messages) {

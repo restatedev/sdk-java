@@ -12,7 +12,7 @@ import java.util.concurrent.Flow;
 
 class ExceptionCatchingSubscriber<T> implements Flow.Subscriber<T> {
 
-  Flow.Subscriber<T> invocationInputSubscriber;
+  final Flow.Subscriber<T> invocationInputSubscriber;
 
   public ExceptionCatchingSubscriber(Flow.Subscriber<T> invocationInputSubscriber) {
     this.invocationInputSubscriber = invocationInputSubscriber;

@@ -47,7 +47,7 @@ public final class Util {
 
     while (currentThrowable != null) {
       if (condition.test(currentThrowable)) {
-        return (Optional) Optional.of(currentThrowable);
+        return (Optional<T>) Optional.of(currentThrowable);
       }
 
       if (currentThrowable == currentThrowable.getCause()) {

@@ -12,5 +12,5 @@ public enum HandlerType {
   SHARED,
   EXCLUSIVE,
   STATELESS,
-  WORKFLOW;
+  WORKFLOW
 }

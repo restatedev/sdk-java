@@ -94,8 +94,7 @@ public final class HandlerSpecification<REQ, RES> {
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
-    if (!(o instanceof HandlerSpecification)) return false;
-    HandlerSpecification<?, ?> that = (HandlerSpecification<?, ?>) o;
+    if (!(o instanceof HandlerSpecification<?, ?> that)) return false;
     return Objects.equals(name, that.name)
         && handlerType == that.handlerType
         && Objects.equals(acceptContentType, that.acceptContentType)
