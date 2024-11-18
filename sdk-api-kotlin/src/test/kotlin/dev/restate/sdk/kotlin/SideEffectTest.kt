@@ -77,7 +77,6 @@ class SideEffectTest : SideEffectTestSuite() {
         ctx.runBlock(name) { throw IllegalStateException(reason) }
       }
 
-  @OptIn(UsePreviewContext::class)
   override fun failingSideEffectWithRetryPolicy(
       reason: String,
       retryPolicy: dev.restate.sdk.common.RetryPolicy?

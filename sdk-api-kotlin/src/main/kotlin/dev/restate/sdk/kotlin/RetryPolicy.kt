@@ -12,7 +12,6 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /** Retry policy configuration. */
-@UsePreviewContext
 data class RetryPolicy(
     /** Initial retry delay for the first retry attempt. */
     val initialDelay: Duration,
@@ -46,9 +45,7 @@ data class RetryPolicy(
     val maxDuration: Duration? = null
 ) {
 
-  @UsePreviewContext
-  data class Builder
-  internal constructor(
+  data class Builder(
       var initialDelay: Duration = 100.milliseconds,
       var exponentiationFactor: Float = 2.0f,
       var maxDelay: Duration? = null,
@@ -65,7 +62,6 @@ data class RetryPolicy(
   }
 }
 
-@UsePreviewContext
 fun retryPolicy(init: RetryPolicy.Builder.() -> Unit): RetryPolicy {
   val builder = RetryPolicy.Builder()
   builder.init()

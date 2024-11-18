@@ -111,7 +111,8 @@ sealed interface Context {
    * observability tools.
    *
    * <p>The closure should tolerate retries, that is Restate might re-execute the closure multiple
-   * times until it records a result.
+   * times until it records a result. To control and limit the amount of retries, pass a
+   * [RetryPolicy] to this function.
    *
    * <h2>Error handling</h2>
    *
@@ -147,16 +148,6 @@ sealed interface Context {
    * @param T type of the return value.
    * @return value of the runBlock operation.
    */
-  suspend fun <T : Any?> runBlock(serde: Serde<T>, name: String = "", block: suspend () -> T): T
-
-  /**
-   * Like [runBlock], but using a custom retry policy.
-   *
-   * When a retry policy is not specified, the `runBlock` will be retried using the
-   * [Restate invoker retry policy](https://docs.restate.dev/operate/configuration/server), which by
-   * default retries indefinitely.
-   */
-  @UsePreviewContext
   suspend fun <T : Any?> runBlock(
       serde: Serde<T>,
       name: String = "",
@@ -207,7 +198,8 @@ sealed interface Context {
  * want to perform <b>non-deterministic operations</b>.
  *
  * <p>The closure should tolerate retries, that is Restate might re-execute the closure multiple
- * times until it records a result.
+ * times until it records a result. To control and limit the amount of retries, pass a [RetryPolicy]
+ * to this function.
  *
  * <h2>Error handling</h2>
  *
@@ -241,14 +233,6 @@ sealed interface Context {
  * @param T type of the return value.
  * @return value of the runBlock operation.
  */
-suspend inline fun <reified T : Any> Context.runBlock(
-    name: String = "",
-    noinline block: suspend () -> T
-): T {
-  return this.runBlock(KtSerdes.json(), name, block)
-}
-
-@UsePreviewContext
 suspend inline fun <reified T : Any> Context.runBlock(
     name: String = "",
     retryPolicy: RetryPolicy? = null,

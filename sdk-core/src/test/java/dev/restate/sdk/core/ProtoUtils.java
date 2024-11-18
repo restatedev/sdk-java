@@ -28,7 +28,8 @@ import java.util.stream.Collectors;
 public class ProtoUtils {
 
   public static String serviceProtocolContentTypeHeader() {
-    return ServiceProtocol.serviceProtocolVersionToHeaderValue(Protocol.ServiceProtocolVersion.V1);
+    return ServiceProtocol.serviceProtocolVersionToHeaderValue(
+        ServiceProtocol.MIN_SERVICE_PROTOCOL_VERSION);
   }
 
   public static String serviceProtocolContentTypeHeader(boolean enableContextPreview) {

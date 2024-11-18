@@ -42,8 +42,8 @@ gradle init --type java-application
 Add the runtime dependency [sdk-api](sdk-api) and the annotation processor dependency [sdk-api-gen](sdk-api-gen):
 
 ```
-annotationProcessor("dev.restate:sdk-api-gen:1.0.0")
-implementation("dev.restate:sdk-api:1.0.0")
+annotationProcessor("dev.restate:sdk-api-gen:1.2.0")
+implementation("dev.restate:sdk-api:1.2.0")
 ```
 
 ### Setup a project (Kotlin)
@@ -65,8 +65,8 @@ plugins {
 Add the runtime dependency [sdk-api-kotlin](sdk-api-kotlin) and the ksp dependency [sdk-api-gen](sdk-api-kotlin-gen):
 
 ```
-ksp("dev.restate:sdk-api-kotlin-gen:1.0.0")
-implementation("dev.restate:sdk-api-kotlin:1.0.0")
+ksp("dev.restate:sdk-api-kotlin-gen:1.2.0")
+implementation("dev.restate:sdk-api-kotlin:1.2.0")
 ```
 
 ### Implement your first Restate component (Java)
@@ -98,7 +98,7 @@ public class Greeter {
 When using composite types/POJOs for input/output, [Jackson Databind](https://github.com/FasterXML/jackson) will be used. The Jackson dependency is not automatically included, you must add it with [`sdk-serde-jackson`](sdk-serde-jackson):
 
 ```
-implementation("dev.restate:sdk-serde-jackson:1.0.0")
+implementation("dev.restate:sdk-serde-jackson:1.2.0")
 ```
 
 If you want to store types/POJOs in state, use `JacksonSerdes`:
@@ -138,7 +138,7 @@ When using composite data types for input/output, [`kotlinx.serialization`](http
 To deploy the Restate service as HTTP server, add [`sdk-http-vertx`](sdk-http-vertx) to the dependencies. For example, in Gradle:
 
 ```
-implementation("dev.restate:sdk-http-vertx:1.0.0")
+implementation("dev.restate:sdk-http-vertx:1.2.0")
 ```
 
 To deploy the service, add the following code to the `main`. For example in Java:
@@ -172,7 +172,7 @@ gradle run
 To deploy the Restate service as Lambda, add [`sdk-lambda`](sdk-lambda) to the dependencies. For example, in Gradle:
 
 ```
-implementation("dev.restate:sdk-lambda:1.0.0")
+implementation("dev.restate:sdk-lambda:1.2.0")
 ```
 
 Configure the build tool to generate Fat-JARs, which are required by AWS Lambda to correctly load the JAR. For example, using Gradle:
@@ -299,10 +299,10 @@ This library follows [Semantic Versioning](https://semver.org/).
 
 The compatibility with Restate is described in the following table:
 
-| Restate Server\sdk-java | 1.0 | 1.1 |
-|-------------------------|-----|-----|
-| 1.0                     | ✅   | ✅   |
-| 1.1                     | ✅   | ✅   |
+| Restate Server\sdk-java | 1.0 | 1.1 | 1.2 |
+|-------------------------|-----|-----|-----|
+| 1.0                     | ✅   | ✅   | ❌   |
+| 1.1                     | ✅   | ✅   | ✅   |
 
 ## Contributing
 

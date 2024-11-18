@@ -110,7 +110,8 @@ class ContextImpl implements ObjectContext, WorkflowContext {
   }
 
   @Override
-  public <T> T run(String name, Serde<T> serde, ThrowingSupplier<T> action) {
+  public <T> T run(
+      String name, Serde<T> serde, RetryPolicy retryPolicy, ThrowingSupplier<T> action) {
     CompletableFuture<CompletableFuture<ByteBuffer>> enterFut = new CompletableFuture<>();
     syscalls.enterSideEffectBlock(
         name,
@@ -171,7 +172,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
     }
 
     if (failure != null) {
-      syscalls.exitSideEffectBlockWithException(failure, null, exitCallback);
+      syscalls.exitSideEffectBlockWithException(failure, retryPolicy, exitCallback);
     } else {
       syscalls.exitSideEffectBlock(
           Util.serializeWrappingException(syscalls, serde, res), exitCallback);
