@@ -104,7 +104,8 @@ public interface Context {
    * the observability tools.
    *
    * <p>The closure should tolerate retries, that is Restate might re-execute the closure multiple
-   * times until it records a result.
+   * times until it records a result. You can control and limit the amount of retries using {@link
+   * #run(String, Serde, RetryPolicy, ThrowingSupplier)}.
    *
    * <p><b>Error handling</b>: Errors occurring within this closure won't be propagated to the
    * caller, unless they are {@link TerminalException}. Consider the following code:
@@ -140,7 +141,70 @@ public interface Context {
    * @param <T> type of the return value.
    * @return value of the run operation.
    */
-  <T> T run(String name, Serde<T> serde, ThrowingSupplier<T> action) throws TerminalException;
+  default <T> T run(String name, Serde<T> serde, ThrowingSupplier<T> action)
+      throws TerminalException {
+    return run(name, serde, null, action);
+  }
+
+  /**
+   * Like {@link #run(String, Serde, ThrowingSupplier)}, but using a custom retry policy.
+   *
+   * <p>When a retry policy is not specified, the {@code run} will be retried using the <a
+   * href="https://docs.restate.dev/operate/configuration/server">Restate invoker retry policy</a>,
+   * which by default retries indefinitely.
+   *
+   * @see RetryPolicy
+   */
+  <T> T run(String name, Serde<T> serde, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
+      throws TerminalException;
+
+  /**
+   * Like {@link #run(String, ThrowingRunnable)}, but using a custom retry policy.
+   *
+   * <p>When a retry policy is not specified, the {@code run} will be retried using the <a
+   * href="https://docs.restate.dev/operate/configuration/server">Restate invoker retry policy</a>,
+   * which by default retries indefinitely.
+   *
+   * @see RetryPolicy
+   */
+  default void run(String name, RetryPolicy retryPolicy, ThrowingRunnable runnable)
+      throws TerminalException {
+    run(
+        name,
+        Serde.VOID,
+        retryPolicy,
+        () -> {
+          runnable.run();
+          return null;
+        });
+  }
+
+  /**
+   * Like {@link #run(Serde, ThrowingSupplier)}, but using a custom retry policy.
+   *
+   * <p>When a retry policy is not specified, the {@code run} will be retried using the <a
+   * href="https://docs.restate.dev/operate/configuration/server">Restate invoker retry policy</a>,
+   * which by default retries indefinitely.
+   *
+   * @see RetryPolicy
+   */
+  default <T> T run(Serde<T> serde, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
+      throws TerminalException {
+    return run(null, serde, retryPolicy, action);
+  }
+
+  /**
+   * Like {@link #run(ThrowingRunnable)}, but using a custom retry policy.
+   *
+   * <p>When a retry policy is not specified, the {@code run} will be retried using the <a
+   * href="https://docs.restate.dev/operate/configuration/server">Restate invoker retry policy</a>,
+   * which by default retries indefinitely.
+   *
+   * @see RetryPolicy
+   */
+  default void run(RetryPolicy retryPolicy, ThrowingRunnable runnable) throws TerminalException {
+    run(null, retryPolicy, runnable);
+  }
 
   /** Like {@link #run(String, Serde, ThrowingSupplier)}, but without returning a value. */
   default void run(String name, ThrowingRunnable runnable) throws TerminalException {
@@ -160,7 +224,7 @@ public interface Context {
 
   /** Like {@link #run(String, ThrowingRunnable)}, but without a name. */
   default void run(ThrowingRunnable runnable) throws TerminalException {
-    run(null, runnable);
+    run((String) null, runnable);
   }
 
   /**

@@ -10,7 +10,6 @@ package dev.restate.sdk.testservices
 
 import dev.restate.sdk.common.TerminalException
 import dev.restate.sdk.kotlin.ObjectContext
-import dev.restate.sdk.kotlin.UsePreviewContext
 import dev.restate.sdk.kotlin.retryPolicy
 import dev.restate.sdk.kotlin.runBlock
 import dev.restate.sdk.testservices.contracts.Failing
@@ -65,7 +64,6 @@ class FailingImpl : Failing {
     throw IllegalStateException("Should not be reached.")
   }
 
-  @OptIn(UsePreviewContext::class)
   override suspend fun sideEffectSucceedsAfterGivenAttempts(
       context: ObjectContext,
       minimumAttempts: Int
@@ -86,7 +84,6 @@ class FailingImpl : Failing {
             }
           }
 
-  @OptIn(UsePreviewContext::class)
   override suspend fun sideEffectFailsAfterGivenAttempts(
       context: ObjectContext,
       retryPolicyMaxRetryCount: Int

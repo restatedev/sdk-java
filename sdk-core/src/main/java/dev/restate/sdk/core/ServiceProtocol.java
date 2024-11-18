@@ -23,9 +23,9 @@ import java.util.Optional;
 
 class ServiceProtocol {
   static final Protocol.ServiceProtocolVersion MIN_SERVICE_PROTOCOL_VERSION =
-      Protocol.ServiceProtocolVersion.V1;
+      Protocol.ServiceProtocolVersion.V2;
   private static final Protocol.ServiceProtocolVersion MAX_SERVICE_PROTOCOL_VERSION =
-      Protocol.ServiceProtocolVersion.V1;
+      Protocol.ServiceProtocolVersion.V2;
 
   static final Discovery.ServiceDiscoveryProtocolVersion MIN_SERVICE_DISCOVERY_PROTOCOL_VERSION =
       Discovery.ServiceDiscoveryProtocolVersion.V1;
@@ -56,10 +56,8 @@ class ServiceProtocol {
   }
 
   static Protocol.ServiceProtocolVersion maxServiceProtocolVersion(
-      boolean experimentalContextEnabled) {
-    return experimentalContextEnabled
-        ? Protocol.ServiceProtocolVersion.V2
-        : Protocol.ServiceProtocolVersion.V1;
+      boolean ignoredExperimentalContextEnabled) {
+    return Protocol.ServiceProtocolVersion.V2;
   }
 
   static boolean isSupported(

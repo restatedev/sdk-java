@@ -32,7 +32,7 @@ val KNOWN_SERVICES_FACTORIES: Map<String, () -> Any> =
         interpreterName(2) to { ObjectInterpreterImpl.getInterpreterDefinition(2) },
         ServiceInterpreterHelperDefinitions.SERVICE_NAME to { ServiceInterpreterHelperImpl() })
 
-val NEEDS_EXPERIMENTAL_CONTEXT: Set<String> = setOf(FailingDefinitions.SERVICE_NAME)
+val NEEDS_EXPERIMENTAL_CONTEXT: Set<String> = setOf()
 
 fun main(args: Array<String>) {
   var env = System.getenv("SERVICES")
