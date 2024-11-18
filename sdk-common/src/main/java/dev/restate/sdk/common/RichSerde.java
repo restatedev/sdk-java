@@ -14,12 +14,15 @@ import org.jspecify.annotations.Nullable;
 /**
  * Richer version of {@link Serde} containing schema information.
  *
+ * <p>This API should be considered unstable to implement.
+ *
  * <p>You can create one using {@link #withSchema(Object, Serde)}.
  */
 public interface RichSerde<T extends @Nullable Object> extends Serde<T> {
 
   /**
-   * @return a Draft 2020-12 Json Schema
+   * @return a Draft 2020-12 Json Schema. It should be self-contained, and MUST not contain refs to
+   *     files. If the schema shouldn't be serialized with Jackson, return a {@link String}
    */
   Object jsonSchema();
 
