@@ -238,6 +238,24 @@ public class RestateEndpoint {
   @SuppressWarnings("unchecked")
   public static ServiceDefinitionFactory<Object, Object> discoverServiceDefinitionFactory(
       Object service) {
+    if (service instanceof ServiceDefinitionFactory<?, ?>) {
+      // We got this already
+      return (ServiceDefinitionFactory<Object, Object>) service;
+    }
+    if (service instanceof ServiceDefinition<?>) {
+      // We got this already
+      return new ServiceDefinitionFactory<>() {
+        @Override
+        public ServiceDefinition<Object> create(Object serviceObject) {
+          return (ServiceDefinition<Object>) serviceObject;
+        }
+
+        @Override
+        public boolean supports(Object serviceObject) {
+          return serviceObject == service;
+        }
+      };
+    }
     return Objects.requireNonNull(
         ServiceDefinitionFactorySingleton.INSTANCE.discoverFactory(service),
         () ->
