@@ -11,7 +11,6 @@ dependencies {
   compileOnly(coreLibs.jspecify)
 
   implementation(project(":sdk-api-gen-common"))
-
   implementation(project(":sdk-api"))
 
   testAnnotationProcessor(project(":sdk-api-gen"))
