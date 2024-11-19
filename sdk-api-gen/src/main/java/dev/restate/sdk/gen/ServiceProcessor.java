@@ -28,7 +28,7 @@ import javax.tools.FileObject;
 import javax.tools.StandardLocation;
 
 @SupportedAnnotationTypes("*")
-@SupportedSourceVersion(SourceVersion.RELEASE_11)
+@SupportedSourceVersion(SourceVersion.RELEASE_17)
 public class ServiceProcessor extends AbstractProcessor {
 
   private HandlebarsTemplateEngine definitionsCodegen;
@@ -37,11 +37,6 @@ public class ServiceProcessor extends AbstractProcessor {
 
   private static final Set<String> RESERVED_METHOD_NAMES =
       Set.of("send", "submit", "workflowHandle");
-
-  @Override
-  public SourceVersion getSupportedSourceVersion() {
-    return SourceVersion.RELEASE_17;
-  }
 
   @Override
   public synchronized void init(ProcessingEnvironment processingEnv) {
