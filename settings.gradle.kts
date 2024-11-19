@@ -37,8 +37,8 @@ dependencyResolutionManagement {
   versionCatalogs {
     create("coreLibs") {
       version("protobuf", "4.28.3")
-      version("log4j", "2.23.0")
-      version("opentelemetry", "1.38.0")
+      version("log4j", "2.24.1")
+      version("opentelemetry", "1.44.1")
 
       library("protoc", "com.google.protobuf", "protoc").versionRef("protobuf")
       library("protobuf-java", "com.google.protobuf", "protobuf-java").versionRef("protobuf")
@@ -55,8 +55,8 @@ dependencyResolutionManagement {
 
       library("jspecify", "org.jspecify", "jspecify").version("1.0.0")
 
-      library("jwt", "com.nimbusds:nimbus-jose-jwt:9.37.3")
-      library("tink", "com.google.crypto.tink:tink:1.13.0")
+      library("jwt", "com.nimbusds:nimbus-jose-jwt:9.47")
+      library("tink", "com.google.crypto.tink:tink:1.15.0")
     }
     create("vertxLibs") {
       library("vertx-bom", "io.vertx:vertx-stack-depchain:4.5.11")
@@ -103,7 +103,7 @@ dependencyResolutionManagement {
     create("testingLibs") {
       version("junit-jupiter", "5.10.2")
       version("assertj", "3.26.0")
-      version("testcontainers", "1.19.8")
+      version("testcontainers", "1.20.3")
 
       library("junit-jupiter", "org.junit.jupiter", "junit-jupiter").versionRef("junit-jupiter")
       library("junit-api", "org.junit.jupiter", "junit-jupiter-api").versionRef("junit-jupiter")
