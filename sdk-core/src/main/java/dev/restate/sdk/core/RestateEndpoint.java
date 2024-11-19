@@ -223,10 +223,21 @@ public class RestateEndpoint {
     private final List<ServiceDefinitionFactory> factories;
 
     private ServiceDefinitionFactoryDiscovery() {
-      this.factories =
-          ServiceLoader.load(ServiceDefinitionFactory.class).stream()
-              .map(ServiceLoader.Provider::get)
-              .collect(Collectors.toList());
+      this.factories = new ArrayList<>();
+
+      var serviceLoaderIterator = ServiceLoader.load(ServiceDefinitionFactory.class).iterator();
+      while (serviceLoaderIterator.hasNext()) {
+        try {
+          this.factories.add(serviceLoaderIterator.next());
+        } catch (ServiceConfigurationError | Exception e) {
+          LOG.debug(
+              "Found service that cannot be loaded using service provider. "
+                  + "You can ignore this message during development.\n"
+                  + "This might be the result of using a compiler with incremental builds (e.g. IntelliJ IDEA) "
+                  + "that updated a dirty META-INF file after removing/renaming an annotated service.",
+              e);
+        }
+      }
     }
 
     private @Nullable ServiceDefinitionFactory discoverFactory(Object service) {
