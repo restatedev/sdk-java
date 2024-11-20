@@ -20,7 +20,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 @SpringBootTest(
     classes = Greeter.class,
     properties = {"greetingPrefix=Something something "})
-@RestateTest(restateContainerImage = "ghcr.io/restatedev/restate:main")
+@RestateTest(containerImage = "ghcr.io/restatedev/restate:main")
 public class SdkTestingIntegrationTest {
 
   @Autowired @BindService private Greeter greeter;

@@ -63,6 +63,9 @@ public class ManualRestateRunner
     this.runtimeContainer
         // We expose these ports only to enable port checks
         .withExposedPorts(RESTATE_INGRESS_ENDPOINT_PORT, RESTATE_ADMIN_ENDPOINT_PORT)
+        // Let's have a high logging level by default to avoid spamming too much, it can be
+        // overriden by the user
+        .withEnv("RUST_LOG", "warn")
         .withEnv(additionalEnv)
         // These envs should not be overriden by additionalEnv
         .withEnv("RESTATE_META__REST_ADDRESS", "0.0.0.0:" + RESTATE_ADMIN_ENDPOINT_PORT)
@@ -70,11 +73,19 @@ public class ManualRestateRunner
             "RESTATE_WORKER__INGRESS__BIND_ADDRESS", "0.0.0.0:" + RESTATE_INGRESS_ENDPOINT_PORT)
         .withNetworkAliases(RESTATE_RUNTIME)
         // Configure wait strategy on health paths
-        .setWaitStrategy(
+        .waitingFor(
             new WaitAllStrategy()
                 .withStrategy(Wait.forHttp("/health").forPort(RESTATE_ADMIN_ENDPOINT_PORT))
                 .withStrategy(
-                    Wait.forHttp("/restate/health").forPort(RESTATE_INGRESS_ENDPOINT_PORT)));
+                    Wait.forHttp("/restate/health").forPort(RESTATE_INGRESS_ENDPOINT_PORT)))
+        .withLogConsumer(
+            outputFrame -> {
+              switch (outputFrame.getType()) {
+                case STDOUT, STDERR ->
+                    LOG.debug("[restate] {}", outputFrame.getUtf8StringWithoutLineEnding());
+                case END -> LOG.debug("[restate] END");
+              }
+            });
 
     if (configFile != null) {
       this.runtimeContainer.withCopyToContainer(Transferable.of(configFile), "/config.yaml");

@@ -14,7 +14,7 @@ import dev.restate.sdk.client.Client;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
-@RestateTest(restateContainerImage = "ghcr.io/restatedev/restate:main")
+@RestateTest(containerImage = "ghcr.io/restatedev/restate:main")
 class CounterTest {
 
   @BindService private final Counter counter = new Counter();

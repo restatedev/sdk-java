@@ -9,6 +9,7 @@
 package dev.restate.sdk.testing;
 
 import java.util.List;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.extension.*;
 import org.junit.platform.commons.support.AnnotationSupport;
 
@@ -74,7 +75,19 @@ public class RestateExtension implements BeforeAllCallback, ParameterResolver {
     // Build runner discovering services to bind
     var runnerBuilder = RestateRunnerBuilder.create();
     servicesToBind.forEach(runnerBuilder::bind);
-    runnerBuilder.withRestateContainerImage(testAnnotation.restateContainerImage());
+    runnerBuilder.withRestateContainerImage(testAnnotation.containerImage());
+    if (testAnnotation.environment() != null) {
+      for (String env : testAnnotation.environment()) {
+        String[] splitEnv = env.split(Pattern.quote("="), 2);
+        if (splitEnv.length != 2) {
+          throw new IllegalStateException(
+              "Environment variables should be passed in the form of NAME=VALUE. Found an invalid env: '"
+                  + env
+                  + "'");
+        }
+        runnerBuilder.withAdditionalEnv(splitEnv[0], splitEnv[1]);
+      }
+    }
     return runnerBuilder.buildRunner();
   }
 }

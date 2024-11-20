@@ -42,8 +42,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
  * href="https://java.testcontainers.org/">Testcontainers</a>, and register the services.
  *
  * <p>This extension is scoped per test class, meaning that the restate runner will be shared among
- * test methods. Because of the aforementioned issue, the extension sets the {@link TestInstance}
- * {@link TestInstance.Lifecycle#PER_CLASS} automatically.
+ * test methods. Because of this behaviour, the extension sets the {@link TestInstance} as {@link
+ * TestInstance.Lifecycle#PER_CLASS} automatically.
  *
  * <p>Use the annotations {@link RestateClient}, {@link RestateURL} and {@link RestateAdminClient}
  * to interact with the deployed environment:
@@ -66,6 +66,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public @interface RestateTest {
 
+  /**
+   * Environment variables in form {@literal key=value} that should be added to the deployed Restate
+   * container.
+   *
+   * @return the environment variables to add
+   */
+  String[] environment() default {};
+
   /** Restate container image to use */
-  String restateContainerImage() default "docker.io/restatedev/restate:latest";
+  String containerImage() default "docker.io/restatedev/restate:latest";
 }
