@@ -45,6 +45,7 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
   private static final Pattern SLASH = Pattern.compile(Pattern.quote("/"));
 
   private static final String DISCOVER_PATH = "/discover";
+  private static final String HEALTH_PATH = "/health";
 
   static final TextMapGetter<MultiMap> OTEL_TEXT_MAP_GETTER =
       new TextMapGetter<>() {
@@ -75,7 +76,13 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
   public void handle(HttpServerRequest request) {
     URI uri = URI.create(request.uri());
 
-    // Let's first check if it's a discovery request
+    // health check
+    if (HEALTH_PATH.equalsIgnoreCase(uri.getPath())) {
+      this.handleHealthRequest(request);
+      return;
+    }
+
+    // Discovery request
     if (DISCOVER_PATH.equalsIgnoreCase(uri.getPath())) {
       this.handleDiscoveryRequest(request);
       return;
@@ -85,7 +92,7 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
     String[] pathSegments = SLASH.split(uri.getPath());
     if (pathSegments.length < 3) {
       LOG.warn(
-          "Path doesn't match the pattern /invoke/ServiceName/HandlerName nor /discover: '{}'",
+          "Path doesn't match the pattern /invoke/ServiceName/HandlerName nor /discover nor /health: '{}'",
           request.path());
       request.response().setStatusCode(NOT_FOUND.code()).end();
       return;
@@ -171,5 +178,13 @@ class RequestHttpServerHandler implements Handler<HttpServerRequest> {
         .putHeader(X_RESTATE_SERVER_KEY, X_RESTATE_SERVER_VALUE)
         .putHeader(CONTENT_TYPE, discoveryResponse.getContentType())
         .end(Buffer.buffer(discoveryResponse.getSerializedManifest()));
+  }
+
+  private void handleHealthRequest(HttpServerRequest request) {
+    request
+        .response()
+        .setStatusCode(OK.code())
+        .putHeader(X_RESTATE_SERVER_KEY, X_RESTATE_SERVER_VALUE)
+        .end();
   }
 }
