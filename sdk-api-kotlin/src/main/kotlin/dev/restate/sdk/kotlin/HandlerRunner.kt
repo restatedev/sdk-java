@@ -28,7 +28,7 @@ internal constructor(
 ) : dev.restate.sdk.common.syscalls.HandlerRunner<REQ, RES, HandlerRunner.Options> {
 
   companion object {
-    private val LOG = LogManager.getLogger()
+    private val LOG = LogManager.getLogger(HandlerRunner::class.java)
 
     fun <REQ, RES, CTX : Context> of(
         runner: suspend (CTX, REQ) -> RES
