@@ -6,39 +6,37 @@ plugins {
   `kotlin-conventions`
   `test-jar-conventions`
   `library-publishing-conventions`
-  id("org.jsonschema2pojo") version "1.2.1"
-  alias(pluginLibs.plugins.protobuf)
+  alias(libs.plugins.jsonschema2pojo)
+  alias(libs.plugins.protobuf)
 
   // https://github.com/gradle/gradle/issues/20084#issuecomment-1060822638
-  id(pluginLibs.plugins.spotless.get().pluginId) apply false
+  id(libs.plugins.spotless.get().pluginId) apply false
 }
 
 description = "Restate SDK Core"
 
 dependencies {
-  compileOnly(coreLibs.jspecify)
+  compileOnly(libs.jspecify)
 
   implementation(project(":sdk-common"))
 
-  implementation(coreLibs.protobuf.java)
-  implementation(coreLibs.log4j.api)
+  implementation(libs.protobuf.java)
+  implementation(libs.log4j.api)
 
   // We need this for the manifest
-  implementation(platform(jacksonLibs.jackson.bom))
-  implementation(jacksonLibs.jackson.annotations)
-  implementation(jacksonLibs.jackson.databind)
+  implementation(libs.jackson.annotations)
+  implementation(libs.jackson.databind)
 
   // We don't want a hard-dependency on it
-  compileOnly(coreLibs.log4j.core)
+  compileOnly(libs.log4j.core)
 
-  implementation(platform(coreLibs.opentelemetry.bom))
-  implementation(coreLibs.opentelemetry.api)
+  implementation(libs.opentelemetry.api)
 
-  testCompileOnly(coreLibs.jspecify)
-  testImplementation("io.smallrye.reactive:mutiny:2.6.0")
-  testImplementation(testingLibs.junit.jupiter)
-  testImplementation(testingLibs.assertj)
-  testImplementation(coreLibs.log4j.core)
+  testCompileOnly(libs.jspecify)
+  testImplementation(libs.mutiny)
+  testImplementation(libs.junit.jupiter)
+  testImplementation(libs.assertj)
+  testImplementation(libs.log4j.core)
 }
 
 // Configure source sets for protobuf plugin and jsonschema2pojo
@@ -65,7 +63,7 @@ jsonSchema2Pojo {
 
 // Configure protobuf
 
-val protobufVersion = coreLibs.versions.protobuf.get()
+val protobufVersion = libs.versions.protobuf.get()
 
 protobuf { protoc { artifact = "com.google.protobuf:protoc:$protobufVersion" } }
 

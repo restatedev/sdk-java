@@ -5,10 +5,10 @@ plugins {
   id("org.jetbrains.dokka") version "1.9.20"
 
   // https://github.com/gradle/gradle/issues/20084#issuecomment-1060822638
-  id(pluginLibs.plugins.spotless.get().pluginId) apply false
+  id(libs.plugins.spotless.get().pluginId) apply false
 }
 
-// Dokka is bringing in jackson unshaded and it's messing up other plugins, so we override those
+// Dokka is bringing in jackson unshaded, and it's messing up other plugins, so we override those
 // here!
 buildscript {
   dependencies {
@@ -25,7 +25,6 @@ buildscript {
   }
 }
 
-val protobufVersion = coreLibs.versions.protobuf.get()
 val restateVersion = libs.versions.restate.get()
 
 allprojects {

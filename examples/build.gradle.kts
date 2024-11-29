@@ -4,9 +4,9 @@ import com.github.jengelman.gradle.plugins.shadow.transformers.ServiceFileTransf
 plugins {
   `java-conventions`
   `kotlin-conventions`
-  alias(kotlinLibs.plugins.ksp)
+  alias(libs.plugins.ksp)
   application
-  id("com.github.johnrengelman.shadow").version("8.1.1")
+  alias(libs.plugins.shadow)
 }
 
 dependencies {
@@ -19,17 +19,15 @@ dependencies {
   implementation(project(":sdk-api-kotlin"))
   implementation(project(":sdk-serde-jackson"))
 
-  implementation(platform(jacksonLibs.jackson.bom))
-  implementation(jacksonLibs.jackson.jsr310)
-  implementation(jacksonLibs.jackson.parameter.names)
+  implementation(libs.jackson.jsr310)
+  implementation(libs.jackson.parameter.names)
 
-  implementation(kotlinLibs.kotlinx.coroutines)
-  implementation(kotlinLibs.kotlinx.serialization.core)
-  implementation(kotlinLibs.kotlinx.serialization.json)
+  implementation(libs.kotlinx.coroutines.core)
+  implementation(libs.kotlinx.serialization.core)
+  implementation(libs.kotlinx.serialization.json)
 
-  implementation(coreLibs.log4j.core)
-  implementation(platform(vertxLibs.vertx.bom))
-  implementation(vertxLibs.vertx.core)
+  implementation(libs.log4j.core)
+  implementation(libs.vertx.core)
 }
 
 application {

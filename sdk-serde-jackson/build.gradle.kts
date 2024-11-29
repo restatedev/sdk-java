@@ -8,17 +8,16 @@ plugins {
 description = "Restate SDK Jackson integration"
 
 dependencies {
-  compileOnly(coreLibs.jspecify)
+  compileOnly(libs.jspecify)
 
-  api(platform(jacksonLibs.jackson.bom))
-  api(jacksonLibs.jackson.databind)
-  implementation(jacksonLibs.jackson.core)
+  api(libs.jackson.databind)
+  implementation(libs.jackson.core)
 
-  implementation("com.github.victools:jsonschema-generator:4.37.0")
-  implementation("com.github.victools:jsonschema-module-jackson:4.37.0")
+  implementation(libs.victools.jsonschema.generator)
+  implementation(libs.victools.jsonschema.module.jackson)
 
-  testImplementation(testingLibs.junit.jupiter)
-  testImplementation(testingLibs.assertj)
+  testImplementation(libs.junit.jupiter)
+  testImplementation(libs.assertj)
 
   implementation(project(":sdk-common"))
 }

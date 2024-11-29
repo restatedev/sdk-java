@@ -8,9 +8,9 @@ plugins {
 description = "Restate SDK Protobuf integration"
 
 dependencies {
-  compileOnly(coreLibs.jspecify)
+  compileOnly(libs.jspecify)
 
-  api(coreLibs.protobuf.java)
+  api(libs.protobuf.java)
 
   implementation(project(":sdk-common"))
 }

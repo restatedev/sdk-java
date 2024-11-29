@@ -3,15 +3,13 @@ plugins {
   `java-library`
   `test-jar-conventions`
   `library-publishing-conventions`
-  id("io.spring.dependency-management") version "1.1.6"
+  alias(libs.plugins.spring.dependency.management)
 }
 
 description = "Restate SDK Spring Boot starter"
 
-val springBootVersion = "3.3.5"
-
 dependencies {
-  compileOnly(coreLibs.jspecify)
+  compileOnly(libs.jspecify)
 
   api(project(":sdk-common")) {
     // Let spring bring jackson in
@@ -39,35 +37,28 @@ dependencies {
     exclude(group = "com.fasterxml.jackson.datatype")
   }
   implementation(project(":sdk-request-identity"))
-  implementation(platform(vertxLibs.vertx.bom)) {
-    // Let spring bring jackson in
-    exclude(group = "com.fasterxml.jackson")
-    exclude(group = "com.fasterxml.jackson.core")
-    exclude(group = "com.fasterxml.jackson.datatype")
-  }
-  implementation(vertxLibs.vertx.core) {
+  implementation(libs.vertx.core) {
     // Let spring bring jackson in
     exclude(group = "com.fasterxml.jackson")
     exclude(group = "com.fasterxml.jackson.core")
     exclude(group = "com.fasterxml.jackson.datatype")
   }
 
-  implementation("org.springframework.boot:spring-boot-starter:$springBootVersion")
+  implementation(libs.spring.boot.starter)
 
   // Spring is going to bring jackson in with this
-  implementation("org.springframework.boot:spring-boot-starter-json:$springBootVersion")
+  implementation(libs.spring.boot.starter.json)
 
   // We need these for the deployment manifest
   testImplementation(project(":sdk-core"))
-  testImplementation(platform(jacksonLibs.jackson.bom))
-  testImplementation(jacksonLibs.jackson.annotations)
-  testImplementation(jacksonLibs.jackson.databind)
+  testImplementation(libs.jackson.annotations)
+  testImplementation(libs.jackson.databind)
 
   testAnnotationProcessor(project(":sdk-api-gen"))
   testImplementation(project(":sdk-serde-jackson"))
   testImplementation(project(":sdk-testing"))
 
-  testImplementation("org.springframework.boot:spring-boot-starter-test:$springBootVersion")
+  testImplementation(libs.spring.boot.starter.test)
 }
 
 tasks.withType<JavaCompile> { options.compilerArgs.add("-parameters") }

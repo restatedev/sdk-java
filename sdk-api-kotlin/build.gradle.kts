@@ -9,20 +9,19 @@ description = "Restate SDK Kotlin APIs"
 dependencies {
   api(project(":sdk-common"))
 
-  implementation(kotlinLibs.kotlinx.coroutines)
-  implementation(kotlinLibs.kotlinx.serialization.core)
-  implementation(kotlinLibs.kotlinx.serialization.json)
+  implementation(libs.kotlinx.coroutines.core)
+  implementation(libs.kotlinx.serialization.core)
+  implementation(libs.kotlinx.serialization.json)
 
-  implementation(coreLibs.log4j.api)
-  implementation(platform(coreLibs.opentelemetry.bom))
-  implementation(coreLibs.opentelemetry.kotlin)
+  implementation(libs.log4j.api)
+  implementation(libs.opentelemetry.kotlin)
 
   testImplementation(project(":sdk-core"))
-  testImplementation(testingLibs.junit.jupiter)
-  testImplementation(testingLibs.assertj)
-  testImplementation(coreLibs.log4j.core)
-  testImplementation(coreLibs.protobuf.java)
-  testImplementation("io.smallrye.reactive:mutiny:2.6.0")
+  testImplementation(libs.junit.jupiter)
+  testImplementation(libs.assertj)
+  testImplementation(libs.log4j.core)
+  testImplementation(libs.protobuf.java)
+  testImplementation(libs.mutiny)
 
   testImplementation(project(":sdk-core", "testArchive"))
 }

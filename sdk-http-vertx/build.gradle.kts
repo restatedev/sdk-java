@@ -8,20 +8,18 @@ plugins {
 description = "Restate SDK HTTP implementation based on Vert.x"
 
 dependencies {
-  compileOnly(coreLibs.jspecify)
+  compileOnly(libs.jspecify)
 
   api(project(":sdk-common"))
   implementation(project(":sdk-core"))
 
   // Vert.x
-  implementation(platform(vertxLibs.vertx.bom))
-  implementation(vertxLibs.vertx.core)
+  implementation(libs.vertx.core)
 
   // Observability
-  implementation(platform(coreLibs.opentelemetry.bom))
-  implementation(coreLibs.opentelemetry.api)
-  implementation(coreLibs.log4j.api)
-  implementation("io.reactiverse:reactiverse-contextual-logging:1.2.1")
+  implementation(libs.opentelemetry.api)
+  implementation(libs.log4j.api)
+  implementation(libs.reactiverse.contextual.logging)
 
   // Testing
   testImplementation(project(":sdk-api"))
@@ -33,15 +31,15 @@ dependencies {
   testImplementation(project(":sdk-api-gen", "testArchive"))
   testImplementation(project(":sdk-api-kotlin", "testArchive"))
   testImplementation(project(":sdk-api-kotlin-gen", "testArchive"))
-  testImplementation(testingLibs.junit.jupiter)
-  testImplementation(testingLibs.assertj)
-  testImplementation(vertxLibs.vertx.junit5)
-  testImplementation("io.smallrye.reactive:mutiny:2.6.0")
+  testImplementation(libs.junit.jupiter)
+  testImplementation(libs.assertj)
+  testImplementation(libs.vertx.junit5)
+  testImplementation(libs.mutiny)
 
-  testImplementation(coreLibs.protobuf.java)
-  testImplementation(coreLibs.protobuf.kotlin)
-  testImplementation(coreLibs.log4j.core)
+  testImplementation(libs.protobuf.java)
+  testImplementation(libs.protobuf.kotlin)
+  testImplementation(libs.log4j.core)
 
-  testImplementation(kotlinLibs.kotlinx.coroutines)
-  testImplementation(vertxLibs.vertx.kotlin.coroutines)
+  testImplementation(libs.kotlinx.coroutines.core)
+  testImplementation(libs.vertx.kotlin.coroutines)
 }
