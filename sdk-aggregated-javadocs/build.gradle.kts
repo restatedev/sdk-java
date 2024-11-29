@@ -1,4 +1,4 @@
-plugins { id("io.freefair.aggregate-javadoc") version "8.6" }
+plugins { alias(libs.plugins.aggregate.javadoc) }
 
 rootProject.subprojects
     .filter { it.name != "examples" }

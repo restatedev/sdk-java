@@ -3,21 +3,20 @@ import org.openapitools.generator.gradle.plugin.tasks.GenerateTask
 plugins {
   `java-library`
   `java-conventions`
-  id("org.openapi.generator") version "7.5.0"
+  alias(libs.plugins.openapi.generator)
   `library-publishing-conventions`
 }
 
 description = "Code-generated Admin API client for Restate"
 
 dependencies {
-  implementation(platform(jacksonLibs.jackson.bom))
-  implementation(jacksonLibs.jackson.core)
-  implementation(jacksonLibs.jackson.databind)
-  implementation(jacksonLibs.jackson.jsr310)
+  implementation(libs.jackson.core)
+  implementation(libs.jackson.databind)
+  implementation(libs.jackson.jsr310)
 
   // Required for the annotations
-  compileOnly("org.apache.tomcat:annotations-api:6.0.53")
-  compileOnly("com.google.code.findbugs:jsr305:3.0.2")
+  compileOnly(libs.tomcat.annotations)
+  compileOnly(libs.google.findbugs.jsr305)
 }
 
 // Add generated output to source sets

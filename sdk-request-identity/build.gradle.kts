@@ -8,14 +8,14 @@ plugins {
 description = "Restate SDK request identity implementation"
 
 dependencies {
-  compileOnly(coreLibs.jspecify)
+  compileOnly(libs.jspecify)
 
   implementation(project(":sdk-common"))
 
   // Dependencies for signing request tokens
-  implementation(coreLibs.jwt)
-  implementation(coreLibs.tink)
+  implementation(libs.jwt)
+  implementation(libs.tink)
 
-  testImplementation(testingLibs.junit.jupiter)
-  testImplementation(testingLibs.assertj)
+  testImplementation(libs.junit.jupiter)
+  testImplementation(libs.assertj)
 }

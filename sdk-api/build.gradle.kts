@@ -8,21 +8,20 @@ plugins {
 description = "Restate SDK APIs"
 
 dependencies {
-  compileOnly(coreLibs.jspecify)
+  compileOnly(libs.jspecify)
 
   api(project(":sdk-common"))
 
-  implementation(coreLibs.log4j.api)
+  implementation(libs.log4j.api)
 
-  implementation(platform(jacksonLibs.jackson.bom))
-  implementation(jacksonLibs.jackson.core)
+  implementation(libs.jackson.core)
 
   testImplementation(project(":sdk-core"))
-  testImplementation(testingLibs.junit.jupiter)
-  testImplementation(testingLibs.assertj)
-  testImplementation(coreLibs.protobuf.java)
-  testImplementation(coreLibs.log4j.core)
-  testImplementation("io.smallrye.reactive:mutiny:2.6.0")
+  testImplementation(libs.junit.jupiter)
+  testImplementation(libs.assertj)
+  testImplementation(libs.protobuf.java)
+  testImplementation(libs.log4j.core)
+  testImplementation(libs.mutiny)
 
   // Import test suites from sdk-core
   testImplementation(project(":sdk-core", "testArchive"))

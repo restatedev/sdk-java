@@ -3,9 +3,9 @@ import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform.getCurr
 plugins {
   `java-conventions`
   `kotlin-conventions`
-  alias(kotlinLibs.plugins.ksp)
+  alias(libs.plugins.ksp)
   application
-  id("com.google.cloud.tools.jib") version "3.2.1"
+  alias(libs.plugins.jib)
 }
 
 dependencies {
@@ -16,12 +16,12 @@ dependencies {
   implementation(project(":sdk-serde-jackson"))
   implementation(project(":sdk-request-identity"))
 
-  implementation(kotlinLibs.kotlinx.serialization.core)
-  implementation(kotlinLibs.kotlinx.serialization.json)
+  implementation(libs.kotlinx.serialization.core)
+  implementation(libs.kotlinx.serialization.json)
 
-  implementation(coreLibs.log4j.core)
+  implementation(libs.log4j.core)
 
-  implementation(kotlinLibs.kotlinx.coroutines)
+  implementation(libs.kotlinx.coroutines.core)
 }
 
 // Configuration of jib container images parameters

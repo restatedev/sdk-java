@@ -2,28 +2,28 @@ plugins {
   `kotlin-conventions`
   `test-jar-conventions`
   `library-publishing-conventions`
-  alias(kotlinLibs.plugins.ksp)
+  alias(libs.plugins.ksp)
 }
 
 description = "Restate SDK API Kotlin Gen"
 
 dependencies {
-  compileOnly(coreLibs.jspecify)
+  compileOnly(libs.jspecify)
 
-  implementation(kotlinLibs.symbol.processing.api)
+  implementation(libs.ksp.api)
   implementation(project(":sdk-api-gen-common"))
 
   implementation(project(":sdk-api-kotlin"))
 
   kspTest(project(":sdk-api-kotlin-gen"))
   testImplementation(project(":sdk-core"))
-  testImplementation(testingLibs.junit.jupiter)
-  testImplementation(testingLibs.assertj)
-  testImplementation(coreLibs.protobuf.java)
-  testImplementation(coreLibs.log4j.core)
-  testImplementation(kotlinLibs.kotlinx.coroutines)
-  testImplementation(kotlinLibs.kotlinx.serialization.core)
-  testImplementation("io.smallrye.reactive:mutiny:2.6.0")
+  testImplementation(libs.junit.jupiter)
+  testImplementation(libs.assertj)
+  testImplementation(libs.protobuf.java)
+  testImplementation(libs.log4j.core)
+  testImplementation(libs.kotlinx.coroutines.core)
+  testImplementation(libs.kotlinx.serialization.core)
+  testImplementation(libs.mutiny)
 
   // Import test suites from sdk-core
   testImplementation(project(":sdk-core", "testArchive"))

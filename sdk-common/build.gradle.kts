@@ -10,16 +10,14 @@ plugins {
 description = "Common interfaces of the Restate SDK"
 
 dependencies {
-  compileOnly(coreLibs.jspecify)
+  compileOnly(libs.jspecify)
 
-  api(platform(coreLibs.opentelemetry.bom))
-  api(coreLibs.opentelemetry.api)
+  api(libs.opentelemetry.api)
 
-  implementation(platform(jacksonLibs.jackson.bom))
-  implementation(jacksonLibs.jackson.core)
+  implementation(libs.jackson.core)
 
-  testImplementation(testingLibs.junit.jupiter)
-  testImplementation(testingLibs.assertj)
+  testImplementation(libs.junit.jupiter)
+  testImplementation(libs.assertj)
 }
 
 val generatedVersionDir = layout.buildDirectory.dir("version")

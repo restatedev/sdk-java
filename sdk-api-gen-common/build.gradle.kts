@@ -7,11 +7,11 @@ plugins {
 description = "Restate SDK API Gen Common"
 
 dependencies {
-  compileOnly(coreLibs.jspecify)
+  compileOnly(libs.jspecify)
 
-  api("com.github.jknack:handlebars:4.3.1")
+  api(libs.handlebars)
   api(project(":sdk-common"))
 
   // We need it to silence the slf4j warning (coming from handlebars)
-  runtimeOnly("org.slf4j:slf4j-nop:1.7.32")
+  runtimeOnly(libs.slf4j.nop)
 }
