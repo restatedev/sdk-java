@@ -2,7 +2,7 @@
 jackson = "2.18.1"
 victools-json-schema = "4.37.0"
 ksp = "2.0.21-1.0.28"
-protobuf = "4.28.3"
+protobuf = "4.29.0"
 opentelemetry = "1.44.1"
 vertx = "4.5.11"
 dokka = "1.9.20"
