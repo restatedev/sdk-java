@@ -66,47 +66,17 @@ class KElementConverter(
       logger.error("The annotated class is private", classDeclaration)
     }
 
-    // Figure out service type annotations
-    val serviceAnnotation =
-        classDeclaration
-            .getAnnotationsByType(dev.restate.sdk.annotation.Service::class)
-            .firstOrNull()
-    val virtualObjectAnnotation =
-        classDeclaration
-            .getAnnotationsByType(dev.restate.sdk.annotation.VirtualObject::class)
-            .firstOrNull()
-    val workflowAnnotation =
-        classDeclaration
-            .getAnnotationsByType(dev.restate.sdk.annotation.Workflow::class)
-            .firstOrNull()
-    val isAnnotatedWithService = serviceAnnotation != null
-    val isAnnotatedWithVirtualObject = virtualObjectAnnotation != null
-    val isAnnotatedWithWorkflow = workflowAnnotation != null
-
-    // Check there's exactly one annotation
-    if (!(isAnnotatedWithService xor isAnnotatedWithVirtualObject xor isAnnotatedWithWorkflow)) {
-      logger.error(
-          "The type can be annotated only with one annotation between @VirtualObject and @Service and @Workflow",
-          classDeclaration)
-    }
-
-    data.withServiceType(
-        if (isAnnotatedWithService) ServiceType.SERVICE
-        else if (isAnnotatedWithWorkflow) ServiceType.WORKFLOW else ServiceType.VIRTUAL_OBJECT)
-
     // Infer names
     val targetPkg = classDeclaration.packageName.asString()
     val targetFqcn = classDeclaration.qualifiedName!!.asString()
-    var serviceName =
-        if (isAnnotatedWithService) serviceAnnotation!!.name
-        else if (isAnnotatedWithWorkflow) workflowAnnotation!!.name
-        else virtualObjectAnnotation!!.name
-    if (serviceName.isEmpty()) {
+    data.withTargetPkg(targetPkg).withTargetFqcn(targetFqcn)
+
+    if (data.serviceName.isNullOrEmpty()) {
       // Use Simple class name
       // With this logic we make sure we flatten subclasses names
-      serviceName = targetFqcn.substring(targetPkg.length).replace(Pattern.quote(".").toRegex(), "")
+      data.withServiceName(
+          targetFqcn.substring(targetPkg.length).replace(Pattern.quote(".").toRegex(), ""))
     }
-    data.withTargetPkg(targetPkg).withTargetFqcn(targetFqcn).withServiceName(serviceName)
 
     // Compute handlers
     classDeclaration

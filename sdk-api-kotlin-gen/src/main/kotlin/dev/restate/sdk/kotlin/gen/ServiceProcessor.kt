@@ -11,8 +11,10 @@ package dev.restate.sdk.kotlin.gen
 import com.github.jknack.handlebars.io.ClassPathTemplateLoader
 import com.google.devtools.ksp.KspExperimental
 import com.google.devtools.ksp.containingFile
+import com.google.devtools.ksp.getClassDeclarationByName
 import com.google.devtools.ksp.getKotlinClassByName
 import com.google.devtools.ksp.processing.*
+import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.Origin
@@ -68,35 +70,24 @@ class ServiceProcessor(private val logger: KSPLogger, private val codeGenerator:
             resolver.builtIns,
             resolver.getKotlinClassByName(ByteArray::class.qualifiedName!!)!!.asType(listOf()))
 
-    val resolved =
-        resolver
-            .getSymbolsWithAnnotation(dev.restate.sdk.annotation.Service::class.qualifiedName!!)
-            .toSet() +
-            resolver
-                .getSymbolsWithAnnotation(
-                    dev.restate.sdk.annotation.VirtualObject::class.qualifiedName!!)
-                .toSet() +
-            resolver
-                .getSymbolsWithAnnotation(
-                    dev.restate.sdk.annotation.Workflow::class.qualifiedName!!)
-                // Workflow annotation can be set on functions too
-                .filter { ksAnnotated -> ksAnnotated is KSClassDeclaration }
-                .toSet()
+    val discovered = discoverRestateAnnotatedOrMetaAnnotatedServices(resolver)
 
     val services =
-        resolved
-            .filter { it.containingFile!!.origin == Origin.KOTLIN }
+        discovered
             .map {
               val serviceBuilder = Service.builder()
-              converter.visitAnnotated(it, serviceBuilder)
+              serviceBuilder.withServiceType(it.first.serviceType)
+              serviceBuilder.withServiceName(it.first.resolveName(it.second))
+
+              converter.visitAnnotated(it.second, serviceBuilder)
 
               var serviceModel: Service? = null
               try {
                 serviceModel = serviceBuilder.validateAndBuild()
               } catch (e: Exception) {
-                logger.error("Unable to build service: $e", it)
+                logger.error("Unable to build service: $e", it.second)
               }
-              (it to serviceModel!!)
+              (it.second to serviceModel!!)
             }
             .toList()
 
@@ -125,6 +116,80 @@ class ServiceProcessor(private val logger: KSPLogger, private val codeGenerator:
     }
 
     return emptyList()
+  }
+
+  private fun discoverRestateAnnotatedOrMetaAnnotatedServices(
+      resolver: Resolver
+  ): Set<Pair<MetaRestateAnnotation, KSAnnotated>> {
+    val discoveredAnnotatedElements = mutableSetOf<Pair<MetaRestateAnnotation, KSAnnotated>>()
+
+    val metaAnnotationsToProcess =
+        mutableListOf(
+            MetaRestateAnnotation(
+                resolver
+                    .getClassDeclarationByName<dev.restate.sdk.annotation.Service>()!!
+                    .qualifiedName!!,
+                ServiceType.SERVICE),
+            MetaRestateAnnotation(
+                resolver
+                    .getClassDeclarationByName<dev.restate.sdk.annotation.VirtualObject>()!!
+                    .qualifiedName!!,
+                ServiceType.VIRTUAL_OBJECT),
+            MetaRestateAnnotation(
+                resolver
+                    .getClassDeclarationByName<dev.restate.sdk.annotation.Workflow>()!!
+                    .qualifiedName!!,
+                ServiceType.WORKFLOW))
+    val discoveredAnnotations = mutableSetOf<String>()
+
+    var metaAnnotation = metaAnnotationsToProcess.removeFirstOrNull()
+    while (metaAnnotation != null) {
+      if (!discoveredAnnotations.add(metaAnnotation.annotationName.asString())) {
+        // We alredy discovered it, skip
+        continue
+      }
+      for (annotatedElement in
+          resolver.getSymbolsWithAnnotation(metaAnnotation.annotationName.asString())) {
+        if (annotatedElement !is KSClassDeclaration) {
+          continue
+        }
+        when (annotatedElement.classKind) {
+          ClassKind.INTERFACE,
+          ClassKind.CLASS -> {
+            if (annotatedElement.containingFile!!.origin != Origin.KOTLIN) {
+              // Skip if it's not kotlin
+              continue
+            }
+            discoveredAnnotatedElements.add(metaAnnotation to annotatedElement)
+          }
+          ClassKind.ANNOTATION_CLASS -> {
+            metaAnnotationsToProcess.add(
+                MetaRestateAnnotation(annotatedElement.qualifiedName!!, metaAnnotation.serviceType))
+          }
+          else ->
+              logger.error(
+                  "The ServiceProcessor supports only interfaces or classes declarations",
+                  annotatedElement)
+        }
+      }
+      metaAnnotation = metaAnnotationsToProcess.removeFirstOrNull()
+    }
+
+    val knownAnnotations = discoveredAnnotations.toSet()
+
+    // Check annotated elements are annotated with only one of the given annotations.
+    discoveredAnnotatedElements.forEach { it ->
+      val forbiddenAnnotations = knownAnnotations - setOf(it.first.annotationName.asString())
+      val elementAnnotations =
+          it.second.annotations
+              .mapNotNull { it.annotationType.resolve().declaration.qualifiedName?.asString() }
+              .toSet()
+      if (forbiddenAnnotations.intersect(elementAnnotations).isNotEmpty()) {
+        logger.error("The type is annotated with more than one Restate annotation", it.second)
+      }
+    }
+
+    return discoveredAnnotatedElements.toSet()
   }
 
   private fun generateMetaINF(services: List<Pair<KSAnnotated, Service>>) {
