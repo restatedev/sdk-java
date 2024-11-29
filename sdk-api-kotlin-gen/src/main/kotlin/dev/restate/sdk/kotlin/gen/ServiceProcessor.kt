@@ -140,12 +140,25 @@ class ServiceProcessor(private val logger: KSPLogger, private val codeGenerator:
                     .getClassDeclarationByName<dev.restate.sdk.annotation.Workflow>()!!
                     .qualifiedName!!,
                 ServiceType.WORKFLOW))
+
+    // Add spring annotations, if available
+    resolver.getClassDeclarationByName("dev.restate.sdk.springboot.RestateService")?.let {
+      metaAnnotationsToProcess.add(MetaRestateAnnotation(it.qualifiedName!!, ServiceType.SERVICE))
+    }
+    resolver.getClassDeclarationByName("dev.restate.sdk.springboot.RestateVirtualObject")?.let {
+      metaAnnotationsToProcess.add(
+          MetaRestateAnnotation(it.qualifiedName!!, ServiceType.VIRTUAL_OBJECT))
+    }
+    resolver.getClassDeclarationByName("dev.restate.sdk.springboot.RestateWorkflow")?.let {
+      metaAnnotationsToProcess.add(MetaRestateAnnotation(it.qualifiedName!!, ServiceType.WORKFLOW))
+    }
+
     val discoveredAnnotations = mutableSetOf<String>()
 
     var metaAnnotation = metaAnnotationsToProcess.removeFirstOrNull()
     while (metaAnnotation != null) {
       if (!discoveredAnnotations.add(metaAnnotation.annotationName.asString())) {
-        // We alredy discovered it, skip
+        // We already discovered it, skip
         continue
       }
       for (annotatedElement in
