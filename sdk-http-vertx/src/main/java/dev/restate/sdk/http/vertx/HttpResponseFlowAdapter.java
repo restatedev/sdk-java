@@ -40,7 +40,7 @@ class HttpResponseFlowAdapter implements InvocationFlow.InvocationOutputSubscrib
 
   @Override
   public void onNext(ByteBuffer byteBuffer) {
-    if (this.httpServerResponse.closed()) {
+    if (this.httpServerResponse.ended()) {
       cancelSubscription();
       return;
     }
@@ -87,8 +87,8 @@ class HttpResponseFlowAdapter implements InvocationFlow.InvocationOutputSubscrib
   }
 
   private void cancelSubscription() {
-    LOG.trace("Cancelling subscription");
     if (this.outputSubscription != null) {
+      LOG.trace("Cancelling subscription");
       Flow.Subscription outputSubscription = this.outputSubscription;
       this.outputSubscription = null;
       outputSubscription.cancel();
