@@ -1,5 +1,5 @@
 [versions]
-jackson = "2.18.1"
+jackson = "2.18.2"
 victools-json-schema = "4.37.0"
 ksp = "2.0.21-1.0.28"
 protobuf = "4.29.0"
