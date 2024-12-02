@@ -202,6 +202,15 @@ class CodegenTest : TestDefinitions.TestSuite {
     }
   }
 
+  // Just needs to compile
+  @MyMetaServiceAnnotation(name = "MetaAnnotatedGreeter")
+  class MetaAnnotatedGreeter {
+    @Handler
+    suspend fun greet(context: Context, request: String): String {
+      return MetaAnnotatedGreeterClient.fromContext(context).greet(request).await()
+    }
+  }
+
   override fun definitions(): Stream<TestDefinition> {
     return Stream.of(
         testInvocation({ ServiceGreeter() }, "greet")
