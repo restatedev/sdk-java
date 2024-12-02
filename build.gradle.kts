@@ -16,7 +16,7 @@ buildscript {
     classpath("com.fasterxml.jackson.core:jackson-databind:2.17.1")
     classpath("com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.17.1")
     classpath("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.17.1")
-    classpath("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.1")
+    classpath("com.fasterxml.jackson.module:jackson-module-kotlin:2.18.2")
     classpath("org.jetbrains.dokka:dokka-gradle-plugin:1.9.20") {
       exclude("com.fasterxml.jackson")
       exclude("com.fasterxml.jackson.dataformat")
