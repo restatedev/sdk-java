@@ -35,7 +35,7 @@ jwt = "com.nimbusds:nimbus-jose-jwt:9.47"
 opentelemetry-api = { module = "io.opentelemetry:opentelemetry-api", version.ref = "opentelemetry" }
 opentelemetry-kotlin = { module = "io.opentelemetry:opentelemetry-extension-kotlin", version.ref = "opentelemetry" }
 reactiverse-contextual-logging = "io.reactiverse:reactiverse-contextual-logging:1.2.1"
-mutiny = "io.smallrye.reactive:mutiny:2.6.0"
+mutiny = "io.smallrye.reactive:mutiny:2.7.0"
 vertx-core = { module = "io.vertx:vertx-core", version.ref = "vertx" }
 vertx-junit5 = { module = "io.vertx:vertx-junit5", version.ref = "vertx" }
 vertx-kotlin-coroutines = { module = "io.vertx:vertx-lang-kotlin-coroutines", version.ref = "vertx" }
