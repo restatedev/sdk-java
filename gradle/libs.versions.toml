@@ -58,7 +58,7 @@ testcontainers = "org.testcontainers:testcontainers:1.20.3"
 [plugins]
 dependency-license-report = "com.github.jk1.dependency-license-report:2.0"
 shadow = "com.github.johnrengelman.shadow:8.1.1"
-jib = "com.google.cloud.tools.jib:3.2.1"
+jib = "com.google.cloud.tools.jib:3.4.4"
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 protobuf = "com.google.protobuf:0.9.4"
 aggregate-javadoc = "io.freefair.aggregate-javadoc:8.6"
