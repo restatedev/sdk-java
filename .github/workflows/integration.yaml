@@ -58,6 +58,16 @@ jobs:
         with:
           repository: restatedev/sdk-java
 
+      - name: Set up Docker containerd snapshotter
+        uses: crazy-max/ghaction-setup-docker@v3
+        with:
+          daemon-config: |
+            {
+              "features": {
+                "containerd-snapshotter": true
+              }
+            }
+
       ### Download the Restate container image, if needed
       # Setup restate snapshot if necessary
       # Due to https://github.com/actions/upload-artifact/issues/53
