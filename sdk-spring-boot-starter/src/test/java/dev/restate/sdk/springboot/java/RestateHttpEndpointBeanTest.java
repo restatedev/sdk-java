@@ -6,12 +6,13 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-package dev.restate.sdk.springboot;
+package dev.restate.sdk.springboot.java;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.restate.sdk.core.manifest.EndpointManifestSchema;
+import dev.restate.sdk.springboot.RestateHttpEndpointBean;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;

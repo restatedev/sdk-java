@@ -6,10 +6,11 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-package dev.restate.sdk.springboot;
+package dev.restate.sdk.springboot.java;
 
 import dev.restate.sdk.Context;
 import dev.restate.sdk.annotation.Handler;
+import dev.restate.sdk.springboot.RestateService;
 import org.springframework.beans.factory.annotation.Value;
 
 @RestateService(name = "greeter")

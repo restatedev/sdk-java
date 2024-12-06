@@ -1,8 +1,7 @@
 plugins {
-  id("com.github.jk1.dependency-license-report") version "2.0"
-  id("io.github.gradle-nexus.publish-plugin") version "1.3.0"
-
-  id("org.jetbrains.dokka") version "1.9.20"
+  alias(libs.plugins.dependency.license.report)
+  alias(libs.plugins.nexus.publish)
+  alias(libs.plugins.dokka)
 
   // https://github.com/gradle/gradle/issues/20084#issuecomment-1060822638
   id(libs.plugins.spotless.get().pluginId) apply false

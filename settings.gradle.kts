@@ -26,84 +26,11 @@ include(
     "sdk-api-gen-common",
     "sdk-api-gen",
     "sdk-api-kotlin-gen",
+    "sdk-spring-boot",
     "sdk-spring-boot-starter",
+    "sdk-spring-boot-kotlin-starter",
     "examples",
     "sdk-aggregated-javadocs",
     "test-services")
 
-dependencyResolutionManagement {
-  repositories { mavenCentral() }
-
-  //  versionCatalogs {
-  //    create("coreLibs") {
-  //      version("protobuf", "4.28.3")
-  //      version("log4j", "2.24.1")
-  //      version("opentelemetry", "1.44.1")
-  //
-  //      library("protoc", "com.google.protobuf", "protoc").versionRef("protobuf")
-  //      library("protobuf-java", "com.google.protobuf", "protobuf-java").versionRef("protobuf")
-  //      library("protobuf-kotlin", "com.google.protobuf",
-  // "protobuf-kotlin").versionRef("protobuf")
-  //
-  //      library("log4j-api", "org.apache.logging.log4j", "log4j-api").versionRef("log4j")
-  //      library("log4j-core", "org.apache.logging.log4j", "log4j-core").versionRef("log4j")
-  //
-  //      library("opentelemetry-bom", "io.opentelemetry", "opentelemetry-bom")
-  //          .versionRef("opentelemetry")
-  //      library("opentelemetry-api", "io.opentelemetry", "opentelemetry-api").withoutVersion()
-  //      library("opentelemetry-kotlin", "io.opentelemetry", "opentelemetry-extension-kotlin")
-  //          .withoutVersion()
-  //
-  //      library("jspecify", "org.jspecify", "jspecify").version("1.0.0")
-  //
-  //      library("jwt", "com.nimbusds:nimbus-jose-jwt:9.47")
-  //      library("tink", "com.google.crypto.tink:tink:1.15.0")
-  //    }
-  //    create("vertxLibs") {
-  //      library("vertx-bom", "io.vertx:vertx-stack-depchain:4.5.11")
-  //      library("vertx-core", "io.vertx", "vertx-core").withoutVersion()
-  //      library("vertx-kotlin-coroutines", "io.vertx", "vertx-lang-kotlin-coroutines")
-  //          .withoutVersion()
-  //      library("vertx-junit5", "io.vertx", "vertx-junit5").withoutVersion()
-  //    }
-  //    create("lambdaLibs") {
-  //      library("core", "com.amazonaws:aws-lambda-java-core:1.2.3")
-  //      library("events", "com.amazonaws:aws-lambda-java-events:3.11.5")
-  //    }
-  //    create("kotlinLibs") {
-  //      library("kotlinx-coroutines", "org.jetbrains.kotlinx", "kotlinx-coroutines-core")
-  //          .version("1.9.0")
-  //      library("kotlinx-serialization-core", "org.jetbrains.kotlinx",
-  // "kotlinx-serialization-core")
-  //          .version("1.7.3")
-  //      library("kotlinx-serialization-json", "org.jetbrains.kotlinx",
-  // "kotlinx-serialization-json")
-  //          .version("1.7.3")
-  //
-  //      version("ksp", "2.0.21-1.0.28")
-  //      library("symbol-processing-api", "com.google.devtools.ksp", "symbol-processing-api")
-  //          .versionRef("ksp")
-  //      plugin("ksp", "com.google.devtools.ksp").versionRef("ksp")
-  //    }
-  //    create("testingLibs") {
-  //      version("junit-jupiter", "5.10.2")
-  //      version("assertj", "3.26.0")
-  //      version("testcontainers", "1.20.3")
-  //
-  //      library("junit-jupiter", "org.junit.jupiter", "junit-jupiter").versionRef("junit-jupiter")
-  //      library("junit-api", "org.junit.jupiter", "junit-jupiter-api").versionRef("junit-jupiter")
-  //
-  //      library("assertj", "org.assertj", "assertj-core").versionRef("assertj")
-  //
-  //      library("testcontainers-core", "org.testcontainers", "testcontainers")
-  //          .versionRef("testcontainers")
-  //      library("testcontainers-toxiproxy", "org.testcontainers", "toxiproxy")
-  //          .versionRef("testcontainers")
-  //    }
-  //    create("pluginLibs") {
-  //      plugin("spotless", "com.diffplug.spotless").version("6.25.0")
-  //      plugin("protobuf", "com.google.protobuf").version("0.9.4")
-  //      plugin("test-logger", "com.adarshr.test-logger").version("4.0.0")
-  //    }
-  //  }
-}
+dependencyResolutionManagement { repositories { mavenCentral() } }
