@@ -60,7 +60,7 @@ jib = "com.google.cloud.tools.jib:3.4.4"
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 protobuf = "com.google.protobuf:0.9.4"
 aggregate-javadoc = "io.freefair.aggregate-javadoc:8.6"
-nexus-publish = "io.github.gradle-nexus.publish-plugin:1.3.0"
+nexus-publish = "io.github.gradle-nexus.publish-plugin:2.0.0"
 spring-dependency-management = "io.spring.dependency-management:1.1.6"
 dokka = "org.jetbrains.dokka:1.9.20"
 jsonschema2pojo = "org.jsonschema2pojo:1.2.1"
