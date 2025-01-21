@@ -8,14 +8,14 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.common.function.ThrowingBiConsumer;
-import dev.restate.sdk.common.function.ThrowingBiFunction;
-import dev.restate.sdk.common.function.ThrowingConsumer;
-import dev.restate.sdk.common.function.ThrowingFunction;
-import dev.restate.sdk.common.syscalls.HandlerSpecification;
+import dev.restate.sdk.types.TerminalException;
+import dev.restate.sdk.function.ThrowingBiConsumer;
+import dev.restate.sdk.function.ThrowingBiFunction;
+import dev.restate.sdk.function.ThrowingConsumer;
+import dev.restate.sdk.function.ThrowingFunction;
+import dev.restate.sdk.endpoint.HandlerSpecification;
 import dev.restate.sdk.common.syscalls.SyscallCallback;
-import dev.restate.sdk.common.syscalls.Syscalls;
+import dev.restate.sdk.endpoint.HandlerContext;
 import io.opentelemetry.context.Scope;
 import java.nio.ByteBuffer;
 import java.util.concurrent.Executor;
@@ -24,9 +24,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
 
-/** Adapter class for {@link dev.restate.sdk.common.syscalls.HandlerRunner} to use the Java API. */
+/** Adapter class for {@link dev.restate.sdk.endpoint.HandlerRunner} to use the Java API. */
 public class HandlerRunner<REQ, RES>
-    implements dev.restate.sdk.common.syscalls.HandlerRunner<REQ, RES, HandlerRunner.Options> {
+    implements dev.restate.sdk.endpoint.HandlerRunner<REQ, RES, HandlerRunner.Options> {
   private final ThrowingBiFunction<Context, REQ, RES> runner;
 
   private static final Logger LOG = LogManager.getLogger(HandlerRunner.class);
@@ -39,7 +39,7 @@ public class HandlerRunner<REQ, RES>
   @Override
   public void run(
       HandlerSpecification<REQ, RES> handlerSpecification,
-      Syscalls syscalls,
+      HandlerContext handlerContext,
       @Nullable Options options,
       SyscallCallback<ByteBuffer> callback) {
     if (options == null) {
@@ -52,8 +52,8 @@ public class HandlerRunner<REQ, RES>
         runnable ->
             finalOptions.executor.execute(
                 () -> {
-                  SYSCALLS_THREAD_LOCAL.set(syscalls);
-                  try (Scope ignored = syscalls.request().otelContext().makeCurrent()) {
+                  SYSCALLS_THREAD_LOCAL.set(handlerContext);
+                  try (Scope ignored = handlerContext.request().otelContext().makeCurrent()) {
                     runnable.run();
                   } finally {
                     SYSCALLS_THREAD_LOCAL.remove();
@@ -62,13 +62,13 @@ public class HandlerRunner<REQ, RES>
     wrapped.execute(
         () -> {
           // Any context switching, if necessary, will be done by ResolvedEndpointHandler
-          Context ctx = new ContextImpl(syscalls);
+          Context ctx = new ContextImpl(handlerContext);
 
           // Parse input
           REQ req;
           try {
             req =
-                handlerSpecification.getRequestSerde().deserialize(syscalls.request().bodyBuffer());
+                handlerSpecification.getRequestSerde().deserialize(handlerContext.request().bodyBuffer());
           } catch (Throwable e) {
             LOG.warn("Cannot deserialize input", e);
             callback.onCancel(

@@ -10,12 +10,12 @@ package dev.restate.sdk.core;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.restate.sdk.common.HandlerType;
-import dev.restate.sdk.common.Serde;
-import dev.restate.sdk.common.ServiceType;
-import dev.restate.sdk.common.syscalls.HandlerDefinition;
-import dev.restate.sdk.common.syscalls.HandlerSpecification;
-import dev.restate.sdk.common.syscalls.ServiceDefinition;
+import dev.restate.sdk.endpoint.HandlerType;
+import dev.restate.sdk.serde.Serde;
+import dev.restate.sdk.endpoint.ServiceType;
+import dev.restate.sdk.endpoint.HandlerDefinition;
+import dev.restate.sdk.endpoint.HandlerSpecification;
+import dev.restate.sdk.endpoint.ServiceDefinition;
 import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import dev.restate.sdk.core.manifest.Service;
 import java.util.List;

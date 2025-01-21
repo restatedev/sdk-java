@@ -18,8 +18,8 @@ import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.Origin
-import dev.restate.sdk.common.ServiceType
-import dev.restate.sdk.common.syscalls.ServiceDefinitionFactory
+import dev.restate.sdk.endpoint.ServiceType
+import dev.restate.sdk.endpoint.ServiceDefinitionFactory
 import dev.restate.sdk.gen.model.Service
 import dev.restate.sdk.gen.template.HandlebarsTemplateEngine
 import java.io.BufferedWriter

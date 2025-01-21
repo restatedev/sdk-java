@@ -8,11 +8,11 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.common.RetryPolicy;
-import dev.restate.sdk.common.Serde;
-import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.common.function.ThrowingRunnable;
-import dev.restate.sdk.common.function.ThrowingSupplier;
+import dev.restate.sdk.types.RetryPolicy;
+import dev.restate.sdk.serde.Serde;
+import dev.restate.sdk.types.TerminalException;
+import dev.restate.sdk.function.ThrowingRunnable;
+import dev.restate.sdk.function.ThrowingSupplier;
 
 /**
  * Preview of new context features. Please note that the methods in this class <b>may break between

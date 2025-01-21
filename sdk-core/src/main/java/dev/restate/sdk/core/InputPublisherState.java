@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import dev.restate.sdk.common.AbortedExecutionException;
+import dev.restate.sdk.types.AbortedExecutionException;
 import org.jspecify.annotations.Nullable;
 
 class InputPublisherState {

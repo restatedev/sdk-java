@@ -16,7 +16,7 @@ import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 import com.google.protobuf.MessageLiteOrBuilder;
 import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.common.TerminalException;
+import dev.restate.sdk.types.TerminalException;
 import java.time.Instant;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;

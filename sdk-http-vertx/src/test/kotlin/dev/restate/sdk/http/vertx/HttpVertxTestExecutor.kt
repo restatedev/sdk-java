@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.http.vertx
 
-import dev.restate.sdk.common.syscalls.ServiceDefinition
+import dev.restate.sdk.endpoint.ServiceDefinition
 import dev.restate.sdk.core.ProtoUtils
 import dev.restate.sdk.core.TestDefinitions.TestDefinition
 import dev.restate.sdk.core.TestDefinitions.TestExecutor

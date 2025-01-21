@@ -8,8 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.http.vertx;
 
-import dev.restate.sdk.auth.RequestIdentityVerifier;
-import dev.restate.sdk.common.syscalls.ServiceDefinition;
+import dev.restate.sdk.endpoint.RequestIdentityVerifier;
+import dev.restate.sdk.endpoint.ServiceDefinition;
 import dev.restate.sdk.core.RestateEndpoint;
 import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import io.opentelemetry.api.OpenTelemetry;

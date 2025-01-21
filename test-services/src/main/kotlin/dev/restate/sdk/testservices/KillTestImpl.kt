@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testservices
 
-import dev.restate.sdk.common.Serde
+import dev.restate.sdk.serde.Serde
 import dev.restate.sdk.kotlin.Context
 import dev.restate.sdk.kotlin.ObjectContext
 import dev.restate.sdk.testservices.contracts.AwakeableHolderClient

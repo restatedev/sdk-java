@@ -9,8 +9,12 @@
 package dev.restate.sdk.core;
 
 import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.common.syscalls.*;
+import dev.restate.sdk.endpoint.HandlerContext;
+import dev.restate.sdk.endpoint.HandlerDefinition;
+import dev.restate.sdk.endpoint.HandlerRunner;
+import dev.restate.sdk.endpoint.HandlerSpecification;
+import dev.restate.sdk.types.TerminalException;
+
 import java.nio.ByteBuffer;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Flow;
@@ -59,11 +63,11 @@ final class ResolvedEndpointHandlerImpl implements ResolvedEndpointHandler {
         SyscallCallback.of(
             request -> {
               // Prepare Syscalls object
-              SyscallsInternal syscalls =
+              HandlerContextInternal syscalls =
                   this.syscallsExecutor != null
-                      ? new ExecutorSwitchingSyscalls(
-                          new SyscallsImpl(request, stateMachine), this.syscallsExecutor)
-                      : new SyscallsImpl(request, stateMachine);
+                      ? new ExecutorSwitchingHandlerContext(
+                          new HandlerContextImpl(request, stateMachine), this.syscallsExecutor)
+                      : new HandlerContextImpl(request, stateMachine);
 
               // pollInput then invoke the wrappedHandler
               wrappedHandler.run(
@@ -101,7 +105,7 @@ final class ResolvedEndpointHandlerImpl implements ResolvedEndpointHandler {
     return ServiceProtocol.serviceProtocolVersionToHeaderValue(serviceProtocolVersion);
   }
 
-  private void writeOutputAndEnd(SyscallsInternal syscalls, ByteBuffer output) {
+  private void writeOutputAndEnd(HandlerContextInternal syscalls, ByteBuffer output) {
     syscalls.writeOutput(
         output,
         SyscallCallback.ofVoid(
@@ -112,7 +116,7 @@ final class ResolvedEndpointHandlerImpl implements ResolvedEndpointHandler {
             syscalls::fail));
   }
 
-  private void end(SyscallsInternal syscalls, @Nullable Throwable exception) {
+  private void end(HandlerContextInternal syscalls, @Nullable Throwable exception) {
     if (exception == null || Util.containsSuspendedException(exception)) {
       syscalls.close();
     } else {
@@ -143,11 +147,11 @@ final class ResolvedEndpointHandlerImpl implements ResolvedEndpointHandler {
     @Override
     public void run(
         HandlerSpecification<REQ, RES> spec,
-        Syscalls syscalls,
+        HandlerContext handlerContext,
         @Nullable O options,
         SyscallCallback<ByteBuffer> callback) {
       try {
-        this.handler.run(spec, syscalls, options, callback);
+        this.handler.run(spec, handlerContext, options, callback);
       } catch (Throwable e) {
         callback.onCancel(e);
       }

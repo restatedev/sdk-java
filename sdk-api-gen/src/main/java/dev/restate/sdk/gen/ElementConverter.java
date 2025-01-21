@@ -14,7 +14,7 @@ import dev.restate.sdk.SharedObjectContext;
 import dev.restate.sdk.SharedWorkflowContext;
 import dev.restate.sdk.WorkflowContext;
 import dev.restate.sdk.annotation.*;
-import dev.restate.sdk.common.ServiceType;
+import dev.restate.sdk.endpoint.ServiceType;
 import dev.restate.sdk.gen.model.*;
 import dev.restate.sdk.gen.model.Handler;
 import dev.restate.sdk.gen.model.Service;

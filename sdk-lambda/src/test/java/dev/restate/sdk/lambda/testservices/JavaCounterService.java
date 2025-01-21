@@ -11,8 +11,8 @@ package dev.restate.sdk.lambda.testservices;
 import dev.restate.sdk.ObjectContext;
 import dev.restate.sdk.annotation.Handler;
 import dev.restate.sdk.annotation.VirtualObject;
-import dev.restate.sdk.common.Serde;
-import dev.restate.sdk.common.StateKey;
+import dev.restate.sdk.serde.Serde;
+import dev.restate.sdk.types.StateKey;
 import java.nio.charset.StandardCharsets;
 
 @VirtualObject(name = "JavaCounter")

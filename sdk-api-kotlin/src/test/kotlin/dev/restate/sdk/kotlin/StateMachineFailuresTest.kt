@@ -8,9 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.common.Serde
-import dev.restate.sdk.common.StateKey
-import dev.restate.sdk.common.TerminalException
+import dev.restate.sdk.serde.Serde
+import dev.restate.sdk.types.StateKey
+import dev.restate.sdk.types.TerminalException
 import dev.restate.sdk.core.StateMachineFailuresTestSuite
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder
 import dev.restate.sdk.kotlin.KotlinCoroutinesTests.Companion.testDefinitionForService

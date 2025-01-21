@@ -11,12 +11,12 @@ package dev.restate.sdk.core;
 import static dev.restate.sdk.core.ServiceProtocol.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import dev.restate.sdk.common.HandlerType;
-import dev.restate.sdk.common.RichSerde;
-import dev.restate.sdk.common.ServiceType;
-import dev.restate.sdk.common.syscalls.HandlerDefinition;
-import dev.restate.sdk.common.syscalls.HandlerSpecification;
-import dev.restate.sdk.common.syscalls.ServiceDefinition;
+import dev.restate.sdk.endpoint.HandlerType;
+import dev.restate.sdk.serde.RichSerde;
+import dev.restate.sdk.endpoint.ServiceType;
+import dev.restate.sdk.endpoint.HandlerDefinition;
+import dev.restate.sdk.endpoint.HandlerSpecification;
+import dev.restate.sdk.endpoint.ServiceDefinition;
 import dev.restate.sdk.core.manifest.*;
 import java.util.Objects;
 import java.util.stream.Collectors;

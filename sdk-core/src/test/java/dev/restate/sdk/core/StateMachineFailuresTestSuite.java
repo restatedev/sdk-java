@@ -15,7 +15,7 @@ import static dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.common.Serde;
+import dev.restate.sdk.serde.Serde;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;

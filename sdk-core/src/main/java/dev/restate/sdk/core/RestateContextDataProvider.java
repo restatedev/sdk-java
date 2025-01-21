@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import dev.restate.sdk.common.syscalls.HandlerRunner;
+import dev.restate.sdk.endpoint.HandlerRunner;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -24,7 +24,7 @@ import org.apache.logging.log4j.core.util.ContextDataProvider;
 public class RestateContextDataProvider implements ContextDataProvider {
   @Override
   public Map<String, String> supplyContextData() {
-    SyscallsInternal syscalls = (SyscallsInternal) HandlerRunner.SYSCALLS_THREAD_LOCAL.get();
+    HandlerContextInternal syscalls = (HandlerContextInternal) HandlerRunner.SYSCALLS_THREAD_LOCAL.get();
     if (syscalls == null) {
       return Collections.emptyMap();
     }

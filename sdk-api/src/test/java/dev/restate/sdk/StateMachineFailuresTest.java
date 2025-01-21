@@ -10,9 +10,13 @@ package dev.restate.sdk;
 
 import static dev.restate.sdk.JavaBlockingTests.testDefinitionForVirtualObject;
 
-import dev.restate.sdk.common.*;
 import dev.restate.sdk.core.StateMachineFailuresTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
+import dev.restate.sdk.serde.Serde;
+import dev.restate.sdk.types.AbortedExecutionException;
+import dev.restate.sdk.types.StateKey;
+import dev.restate.sdk.types.TerminalException;
+
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicInteger;
 

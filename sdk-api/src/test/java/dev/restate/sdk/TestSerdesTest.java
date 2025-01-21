@@ -11,7 +11,7 @@ package dev.restate.sdk;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import dev.restate.sdk.common.Serde;
+import dev.restate.sdk.serde.Serde;
 import java.nio.charset.StandardCharsets;
 import java.util.Random;
 import java.util.stream.Stream;

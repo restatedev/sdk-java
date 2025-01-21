@@ -8,13 +8,13 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.common.DurablePromiseKey
-import dev.restate.sdk.common.Output
-import dev.restate.sdk.common.Request
-import dev.restate.sdk.common.Serde
-import dev.restate.sdk.common.StateKey
-import dev.restate.sdk.common.Target
-import dev.restate.sdk.common.syscalls.Syscalls
+import dev.restate.sdk.types.DurablePromiseKey
+import dev.restate.sdk.types.Output
+import dev.restate.sdk.types.Request
+import dev.restate.sdk.serde.Serde
+import dev.restate.sdk.types.StateKey
+import dev.restate.sdk.types.Target
+import dev.restate.sdk.endpoint.HandlerContext
 import java.util.*
 import kotlin.random.Random
 import kotlin.time.Duration
@@ -62,10 +62,10 @@ sealed interface Context {
    * @return the invocation response.
    */
   suspend fun <T : Any?, R : Any?> call(
-      target: Target,
-      inputSerde: Serde<T>,
-      outputSerde: Serde<R>,
-      parameter: T
+    target: dev.restate.sdk.types.Target,
+    inputSerde: Serde<T>,
+    outputSerde: Serde<R>,
+    parameter: T
   ): R {
     return callAsync(target, inputSerde, outputSerde, parameter).await()
   }
@@ -80,10 +80,10 @@ sealed interface Context {
    * @return an [Awaitable] that wraps the Restate service method result.
    */
   suspend fun <T : Any?, R : Any?> callAsync(
-      target: Target,
-      inputSerde: Serde<T>,
-      outputSerde: Serde<R>,
-      parameter: T
+    target: Target,
+    inputSerde: Serde<T>,
+    outputSerde: Serde<R>,
+    parameter: T
   ): Awaitable<R>
 
   /**
@@ -95,10 +95,10 @@ sealed interface Context {
    * @param delay time to wait before executing the call
    */
   suspend fun <T : Any?> send(
-      target: Target,
-      inputSerde: Serde<T>,
-      parameter: T,
-      delay: Duration = Duration.ZERO
+    target: dev.restate.sdk.types.Target,
+    inputSerde: Serde<T>,
+    parameter: T,
+    delay: Duration = Duration.ZERO
   )
 
   /**
@@ -178,7 +178,7 @@ sealed interface Context {
 
   /**
    * Create a [RestateRandom] instance inherently predictable, seeded on the
-   * [dev.restate.sdk.common.InvocationId], which is not secret.
+   * [dev.restate.sdk.types.InvocationId], which is not secret.
    *
    * This instance is useful to generate identifiers, idempotency keys, and for uniform sampling
    * from a set of options. If a cryptographically secure value is needed, please generate that
@@ -348,11 +348,11 @@ sealed interface SharedWorkflowContext : SharedObjectContext {
  */
 sealed interface WorkflowContext : SharedWorkflowContext, ObjectContext
 
-class RestateRandom(seed: Long, private val syscalls: Syscalls) : Random() {
+class RestateRandom(seed: Long, private val handlerContext: HandlerContext) : Random() {
   private val r = Random(seed)
 
   override fun nextBits(bitCount: Int): Int {
-    check(!syscalls.isInsideSideEffect) { "You can't use RestateRandom inside ctx.runBlock!" }
+    check(!handlerContext.isInsideSideEffect) { "You can't use RestateRandom inside ctx.runBlock!" }
     return r.nextBits(bitCount)
   }
 

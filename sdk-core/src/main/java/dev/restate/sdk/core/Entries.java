@@ -14,7 +14,7 @@ import com.google.protobuf.MessageLite;
 import com.google.protobuf.UnsafeByteOperations;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.generated.service.protocol.Protocol.*;
-import dev.restate.sdk.common.syscalls.Result;
+import dev.restate.sdk.endpoint.Result;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
 import java.nio.ByteBuffer;

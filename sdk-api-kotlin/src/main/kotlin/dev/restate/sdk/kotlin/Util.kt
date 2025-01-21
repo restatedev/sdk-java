@@ -8,9 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.common.Serde
+import dev.restate.sdk.endpoint.HandlerContext
+import dev.restate.sdk.serde.Serde
 import dev.restate.sdk.common.syscalls.SyscallCallback
-import dev.restate.sdk.common.syscalls.Syscalls
 import java.nio.ByteBuffer
 import kotlin.coroutines.resume
 import kotlinx.coroutines.CancellableContinuation
@@ -30,25 +30,25 @@ internal fun completingUnitContinuation(
 }
 
 internal fun <T : Any?> Serde<T>.serializeWrappingException(
-    syscalls: Syscalls,
-    value: T?
+  handlerContext: HandlerContext,
+  value: T?
 ): ByteBuffer {
   return try {
     this.serializeToByteBuffer(value)
   } catch (e: Exception) {
-    syscalls.fail(e)
+    handlerContext.fail(e)
     throw CancellationException("Failed serialization", e)
   }
 }
 
 internal fun <T : Any?> Serde<T>.deserializeWrappingException(
-    syscalls: Syscalls,
-    ByteBuffer: ByteBuffer
+  handlerContext: HandlerContext,
+  ByteBuffer: ByteBuffer
 ): T {
   return try {
     this.deserialize(ByteBuffer)
   } catch (e: Exception) {
-    syscalls.fail(e)
+    handlerContext.fail(e)
     throw CancellationException("Failed deserialization", e)
   }
 }

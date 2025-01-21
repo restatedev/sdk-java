@@ -15,8 +15,8 @@ import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 import com.google.protobuf.MessageLite;
 import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.common.syscalls.ServiceDefinition;
+import dev.restate.sdk.types.TerminalException;
+import dev.restate.sdk.endpoint.ServiceDefinition;
 import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import dev.restate.sdk.core.manifest.Handler;
 import dev.restate.sdk.core.manifest.Service;

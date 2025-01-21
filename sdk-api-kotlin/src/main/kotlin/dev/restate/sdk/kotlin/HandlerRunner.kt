@@ -8,10 +8,10 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.common.TerminalException
-import dev.restate.sdk.common.syscalls.HandlerSpecification
+import dev.restate.sdk.endpoint.HandlerContext
+import dev.restate.sdk.types.TerminalException
+import dev.restate.sdk.endpoint.HandlerSpecification
 import dev.restate.sdk.common.syscalls.SyscallCallback
-import dev.restate.sdk.common.syscalls.Syscalls
 import io.opentelemetry.extension.kotlin.asContextElement
 import java.nio.ByteBuffer
 import kotlin.coroutines.CoroutineContext
@@ -21,11 +21,11 @@ import kotlinx.coroutines.asContextElement
 import kotlinx.coroutines.launch
 import org.apache.logging.log4j.LogManager
 
-/** Adapter class for [dev.restate.sdk.common.syscalls.HandlerRunner] to use the Kotlin API. */
+/** Adapter class for [dev.restate.sdk.endpoint.HandlerRunner] to use the Kotlin API. */
 class HandlerRunner<REQ, RES, CTX : Context>
 internal constructor(
     private val runner: suspend (CTX, REQ) -> RES,
-) : dev.restate.sdk.common.syscalls.HandlerRunner<REQ, RES, HandlerRunner.Options> {
+) : dev.restate.sdk.endpoint.HandlerRunner<REQ, RES, HandlerRunner.Options> {
 
   companion object {
     private val LOG = LogManager.getLogger(HandlerRunner::class.java)
@@ -42,19 +42,19 @@ internal constructor(
   }
 
   override fun run(
-      handlerSpecification: HandlerSpecification<REQ, RES>,
-      syscalls: Syscalls,
-      options: Options?,
-      callback: SyscallCallback<ByteBuffer>
+    handlerSpecification: HandlerSpecification<REQ, RES>,
+    handlerContext: HandlerContext,
+    options: Options?,
+    callback: SyscallCallback<ByteBuffer>
   ) {
-    val ctx: Context = ContextImpl(syscalls)
+    val ctx: Context = ContextImpl(handlerContext)
 
     val scope =
         CoroutineScope(
             (options?.coroutineContext ?: Options.DEFAULT.coroutineContext) +
-                dev.restate.sdk.common.syscalls.HandlerRunner.SYSCALLS_THREAD_LOCAL
-                    .asContextElement(syscalls) +
-                syscalls.request().otelContext()!!.asContextElement())
+                dev.restate.sdk.endpoint.HandlerRunner.SYSCALLS_THREAD_LOCAL
+                    .asContextElement(handlerContext) +
+                handlerContext.request().otelContext()!!.asContextElement())
     scope.launch {
       val serializedResult: ByteBuffer
 
@@ -62,7 +62,7 @@ internal constructor(
         // Parse input
         val req: REQ
         try {
-          req = handlerSpecification.requestSerde.deserialize(syscalls.request().bodyBuffer())
+          req = handlerSpecification.requestSerde.deserialize(handlerContext.request().bodyBuffer())
         } catch (e: Throwable) {
           LOG.warn("Error when deserializing input", e)
           throw TerminalException(

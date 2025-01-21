@@ -8,8 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import dev.restate.sdk.common.syscalls.Deferred;
-import dev.restate.sdk.common.syscalls.Result;
+import dev.restate.sdk.endpoint.AsyncResult;
+import dev.restate.sdk.endpoint.Result;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -20,23 +20,23 @@ abstract class DeferredResults {
 
   private DeferredResults() {}
 
-  static <T> DeferredInternal<T> single(int entryIndex) {
-    return new ResolvableSingleDeferred<>(null, entryIndex);
+  static <T> AsyncResultInternal<T> single(int entryIndex) {
+    return new ResolvableSingleAsyncResult<>(null, entryIndex);
   }
 
-  static <T> DeferredInternal<T> completedSingle(int entryIndex, Result<T> result) {
-    return new ResolvableSingleDeferred<>(result, entryIndex);
+  static <T> AsyncResultInternal<T> completedSingle(int entryIndex, Result<T> result) {
+    return new ResolvableSingleAsyncResult<>(result, entryIndex);
   }
 
-  static DeferredInternal<Integer> any(List<DeferredInternal<?>> any) {
-    return new AnyDeferred(any);
+  static AsyncResultInternal<Integer> any(List<AsyncResultInternal<?>> any) {
+    return new AnyAsyncResult(any);
   }
 
-  static DeferredInternal<Void> all(List<DeferredInternal<?>> all) {
-    return new AllDeferred(all);
+  static AsyncResultInternal<Void> all(List<AsyncResultInternal<?>> all) {
+    return new AllAsyncResult(all);
   }
 
-  interface DeferredInternal<T> extends Deferred<T> {
+  interface AsyncResultInternal<T> extends AsyncResult<T> {
 
     @Nullable
     @Override
@@ -45,22 +45,22 @@ abstract class DeferredResults {
     /**
      * Look at the implementation of all and any for more details.
      *
-     * @see AllDeferred#tryResolve(int)
-     * @see AnyDeferred#tryResolve(int)
+     * @see AllAsyncResult#tryResolve(int)
+     * @see AnyAsyncResult#tryResolve(int)
      */
-    Stream<SingleDeferredInternal<?>> unprocessedLeafs();
+    Stream<SingleAsyncResultInternal<?>> unprocessedLeafs();
   }
 
-  interface SingleDeferredInternal<T> extends DeferredInternal<T> {
+  interface SingleAsyncResultInternal<T> extends AsyncResultInternal<T> {
 
     int entryIndex();
   }
 
-  private abstract static class BaseDeferred<T> implements DeferredInternal<T> {
+  private abstract static class BaseAsyncResult<T> implements AsyncResultInternal<T> {
 
     @Nullable private Result<T> readyResult;
 
-    BaseDeferred(@Nullable Result<T> result) {
+    BaseAsyncResult(@Nullable Result<T> result) {
       this.readyResult = result;
     }
 
@@ -80,12 +80,12 @@ abstract class DeferredResults {
     }
   }
 
-  static class ResolvableSingleDeferred<T> extends BaseDeferred<T>
-      implements SingleDeferredInternal<T> {
+  static class ResolvableSingleAsyncResult<T> extends BaseAsyncResult<T>
+      implements SingleAsyncResultInternal<T> {
 
     private final int entryIndex;
 
-    private ResolvableSingleDeferred(@Nullable Result<T> result, int entryIndex) {
+    private ResolvableSingleAsyncResult(@Nullable Result<T> result, int entryIndex) {
       super(result);
       this.entryIndex = entryIndex;
     }
@@ -96,23 +96,23 @@ abstract class DeferredResults {
     }
 
     @Override
-    public Stream<SingleDeferredInternal<?>> unprocessedLeafs() {
+    public Stream<SingleAsyncResultInternal<?>> unprocessedLeafs() {
       return Stream.of(this);
     }
   }
 
-  abstract static class CombinatorDeferred<T> extends BaseDeferred<T> {
+  abstract static class CombinatorAsyncResult<T> extends BaseAsyncResult<T> {
 
     // The reason to have these two data structures is to optimize the best case where we have a
     // combinator with a large number of single deferred (which can be addressed by entry index),
     // but little number of nested combinators (which cannot be addressed by an index, but needs to
     // be iterated through).
-    protected final Map<Integer, SingleDeferredInternal<?>> unresolvedSingles;
-    protected final Set<CombinatorDeferred<?>> unresolvedCombinators;
+    protected final Map<Integer, SingleAsyncResultInternal<?>> unresolvedSingles;
+    protected final Set<CombinatorAsyncResult<?>> unresolvedCombinators;
 
-    CombinatorDeferred(
-        Map<Integer, SingleDeferredInternal<?>> unresolvedSingles,
-        Set<CombinatorDeferred<?>> unresolvedCombinators) {
+    CombinatorAsyncResult(
+        Map<Integer, SingleAsyncResultInternal<?>> unresolvedSingles,
+        Set<CombinatorAsyncResult<?>> unresolvedCombinators) {
       super(null);
 
       this.unresolvedSingles = unresolvedSingles;
@@ -141,26 +141,26 @@ abstract class DeferredResults {
     }
 
     @Override
-    public Stream<SingleDeferredInternal<?>> unprocessedLeafs() {
+    public Stream<SingleAsyncResultInternal<?>> unprocessedLeafs() {
       return Stream.concat(
           this.unresolvedSingles.values().stream(),
-          this.unresolvedCombinators.stream().flatMap(CombinatorDeferred::unprocessedLeafs));
+          this.unresolvedCombinators.stream().flatMap(CombinatorAsyncResult::unprocessedLeafs));
     }
   }
 
-  static class AnyDeferred extends CombinatorDeferred<Integer> implements Deferred<Integer> {
+  static class AnyAsyncResult extends CombinatorAsyncResult<Integer> implements AsyncResult<Integer> {
 
-    private final IdentityHashMap<DeferredInternal<?>, Integer> indexMapping;
+    private final IdentityHashMap<AsyncResultInternal<?>, Integer> indexMapping;
 
-    private AnyDeferred(List<DeferredInternal<?>> children) {
+    private AnyAsyncResult(List<AsyncResultInternal<?>> children) {
       super(
           children.stream()
-              .filter(d -> d instanceof SingleDeferredInternal)
-              .map(d -> (SingleDeferredInternal<?>) d)
-              .collect(Collectors.toMap(SingleDeferredInternal::entryIndex, Function.identity())),
+              .filter(d -> d instanceof SingleAsyncResultInternal)
+              .map(d -> (SingleAsyncResultInternal<?>) d)
+              .collect(Collectors.toMap(SingleAsyncResultInternal::entryIndex, Function.identity())),
           children.stream()
-              .filter(d -> d instanceof CombinatorDeferred)
-              .map(d -> (CombinatorDeferred<?>) d)
+              .filter(d -> d instanceof CombinatorAsyncResult)
+              .map(d -> (CombinatorAsyncResult<?>) d)
               .collect(Collectors.toSet()));
 
       // The index mapping relies on instance hashing
@@ -177,14 +177,14 @@ abstract class DeferredResults {
         return true;
       }
 
-      SingleDeferredInternal<?> resolvedSingle = this.unresolvedSingles.get(newResolvedSingle);
+      SingleAsyncResultInternal<?> resolvedSingle = this.unresolvedSingles.get(newResolvedSingle);
       if (resolvedSingle != null) {
         // Resolved
         this.resolve(Result.success(this.indexMapping.get(resolvedSingle)));
         return true;
       }
 
-      for (CombinatorDeferred<?> combinator : this.unresolvedCombinators) {
+      for (CombinatorAsyncResult<?> combinator : this.unresolvedCombinators) {
         if (combinator.tryResolve(newResolvedSingle)) {
           // Resolved
           this.resolve(Result.success(this.indexMapping.get(combinator)));
@@ -196,22 +196,22 @@ abstract class DeferredResults {
     }
   }
 
-  static class AllDeferred extends CombinatorDeferred<Void> {
+  static class AllAsyncResult extends CombinatorAsyncResult<Void> {
 
-    private AllDeferred(List<DeferredInternal<?>> children) {
+    private AllAsyncResult(List<AsyncResultInternal<?>> children) {
       super(
           children.stream()
-              .filter(d -> d instanceof SingleDeferredInternal)
-              .map(d -> (SingleDeferredInternal<?>) d)
+              .filter(d -> d instanceof SingleAsyncResultInternal)
+              .map(d -> (SingleAsyncResultInternal<?>) d)
               .collect(
                   Collectors.toMap(
-                      SingleDeferredInternal::entryIndex,
+                      SingleAsyncResultInternal::entryIndex,
                       Function.identity(),
                       (v1, v2) -> v1,
                       HashMap::new)),
           children.stream()
-              .filter(d -> d instanceof CombinatorDeferred)
-              .map(d -> (CombinatorDeferred<?>) d)
+              .filter(d -> d instanceof CombinatorAsyncResult)
+              .map(d -> (CombinatorAsyncResult<?>) d)
               .collect(Collectors.toCollection(HashSet::new)));
     }
 
@@ -222,7 +222,7 @@ abstract class DeferredResults {
         return true;
       }
 
-      SingleDeferredInternal<?> resolvedSingle = this.unresolvedSingles.remove(newResolvedSingle);
+      SingleAsyncResultInternal<?> resolvedSingle = this.unresolvedSingles.remove(newResolvedSingle);
       if (resolvedSingle != null) {
         if (!resolvedSingle.toResult().isSuccess()) {
           this.resolve((Result<Void>) resolvedSingle.toResult());
@@ -230,9 +230,9 @@ abstract class DeferredResults {
         }
       }
 
-      Iterator<CombinatorDeferred<?>> it = this.unresolvedCombinators.iterator();
+      Iterator<CombinatorAsyncResult<?>> it = this.unresolvedCombinators.iterator();
       while (it.hasNext()) {
-        CombinatorDeferred<?> combinator = it.next();
+        CombinatorAsyncResult<?> combinator = it.next();
         if (combinator.tryResolve(newResolvedSingle)) {
           // Resolved
           it.remove();

@@ -8,9 +8,11 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.common.*;
-import dev.restate.sdk.common.function.ThrowingRunnable;
-import dev.restate.sdk.common.function.ThrowingSupplier;
+import dev.restate.sdk.function.ThrowingRunnable;
+import dev.restate.sdk.function.ThrowingSupplier;
+import dev.restate.sdk.serde.Serde;
+import dev.restate.sdk.types.*;
+
 import java.time.Duration;
 
 /**

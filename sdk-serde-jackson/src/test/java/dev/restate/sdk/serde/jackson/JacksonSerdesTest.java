@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
-import dev.restate.sdk.common.Serde;
+import dev.restate.sdk.serde.Serde;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;

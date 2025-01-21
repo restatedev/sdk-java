@@ -17,8 +17,8 @@ import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 import com.google.protobuf.ByteString;
 import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.common.RetryPolicy;
-import dev.restate.sdk.common.TerminalException;
+import dev.restate.sdk.types.RetryPolicy;
+import dev.restate.sdk.types.TerminalException;
 import java.time.Duration;
 import java.util.stream.Stream;
 

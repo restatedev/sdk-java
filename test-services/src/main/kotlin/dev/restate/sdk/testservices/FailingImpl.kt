@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testservices
 
-import dev.restate.sdk.common.TerminalException
+import dev.restate.sdk.types.TerminalException
 import dev.restate.sdk.kotlin.ObjectContext
 import dev.restate.sdk.kotlin.retryPolicy
 import dev.restate.sdk.kotlin.runBlock

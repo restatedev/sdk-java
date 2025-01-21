@@ -8,17 +8,17 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.common.Serde
-import dev.restate.sdk.common.syscalls.Deferred
-import dev.restate.sdk.common.syscalls.Result
-import dev.restate.sdk.common.syscalls.Syscalls
+import dev.restate.sdk.serde.Serde
+import dev.restate.sdk.endpoint.AsyncResult
+import dev.restate.sdk.endpoint.HandlerContext
+import dev.restate.sdk.endpoint.Result
 import java.nio.ByteBuffer
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.suspendCancellableCoroutine
 
 internal abstract class BaseAwaitableImpl<T : Any?>
-internal constructor(internal val syscalls: Syscalls) : Awaitable<T> {
-  abstract fun deferred(): Deferred<*>
+internal constructor(internal val handlerContext: HandlerContext) : Awaitable<T> {
+  abstract fun deferred(): AsyncResult<*>
 
   abstract suspend fun awaitResult(): Result<T>
 
@@ -35,23 +35,23 @@ internal constructor(internal val syscalls: Syscalls) : Awaitable<T> {
 }
 
 internal class SingleAwaitableImpl<T : Any?>(
-    syscalls: Syscalls,
-    private val deferred: Deferred<T>
-) : BaseAwaitableImpl<T>(syscalls) {
+  handlerContext: HandlerContext,
+  private val asyncResult: AsyncResult<T>
+) : BaseAwaitableImpl<T>(handlerContext) {
   private var result: Result<T>? = null
 
-  override fun deferred(): Deferred<*> {
-    return deferred
+  override fun deferred(): AsyncResult<*> {
+    return asyncResult
   }
 
   override suspend fun awaitResult(): Result<T> {
     if (!deferred().isCompleted) {
       suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-        syscalls.resolveDeferred(deferred(), completingUnitContinuation(cont))
+        handlerContext.resolveDeferred(deferred(), completingUnitContinuation(cont))
       }
     }
     if (this.result == null) {
-      this.result = deferred.toResult()
+      this.result = asyncResult.toResult()
     }
     return this.result!!
   }
@@ -59,10 +59,10 @@ internal class SingleAwaitableImpl<T : Any?>(
 
 internal abstract class BaseSingleMappedAwaitableImpl<T : Any?, U : Any?>(
     private val inner: BaseAwaitableImpl<T>
-) : BaseAwaitableImpl<U>(inner.syscalls) {
+) : BaseAwaitableImpl<U>(inner.handlerContext) {
   private var mappedResult: Result<U>? = null
 
-  override fun deferred(): Deferred<*> {
+  override fun deferred(): AsyncResult<*> {
     return inner.deferred()
   }
 
@@ -78,26 +78,26 @@ internal abstract class BaseSingleMappedAwaitableImpl<T : Any?, U : Any?>(
 
 internal open class SingleSerdeAwaitableImpl<T : Any?>
 internal constructor(
-    syscalls: Syscalls,
-    deferred: Deferred<ByteBuffer>,
-    private val serde: Serde<T>,
+  handlerContext: HandlerContext,
+  asyncResult: AsyncResult<ByteBuffer>,
+  private val serde: Serde<T>,
 ) :
     BaseSingleMappedAwaitableImpl<ByteBuffer, T>(
-        SingleAwaitableImpl(syscalls, deferred),
+        SingleAwaitableImpl(handlerContext, asyncResult),
     ) {
   @Suppress("UNCHECKED_CAST")
   override suspend fun map(res: Result<ByteBuffer>): Result<T> {
     return if (res.isSuccess) {
       // This propagates exceptions as non-terminal
-      Result.success(serde.deserializeWrappingException(syscalls, res.value!!))
+      Result.success(serde.deserializeWrappingException(handlerContext, res.value!!))
     } else {
       res as Result<T>
     }
   }
 }
 
-internal class UnitAwakeableImpl(syscalls: Syscalls, deferred: Deferred<Void>) :
-    BaseSingleMappedAwaitableImpl<Void, Unit>(SingleAwaitableImpl(syscalls, deferred)) {
+internal class UnitAwakeableImpl(handlerContext: HandlerContext, asyncResult: AsyncResult<Void>) :
+    BaseSingleMappedAwaitableImpl<Void, Unit>(SingleAwaitableImpl(handlerContext, asyncResult)) {
   @Suppress("UNCHECKED_CAST")
   override suspend fun map(res: Result<Void>): Result<Unit> {
     return if (res.isSuccess) {
@@ -109,18 +109,18 @@ internal class UnitAwakeableImpl(syscalls: Syscalls, deferred: Deferred<Void>) :
 }
 
 internal class AnyAwaitableImpl
-internal constructor(syscalls: Syscalls, private val awaitables: List<Awaitable<*>>) :
+internal constructor(handlerContext: HandlerContext, private val awaitables: List<Awaitable<*>>) :
     BaseSingleMappedAwaitableImpl<Int, Any>(
         SingleAwaitableImpl<Int>(
-            syscalls,
-            syscalls.createAnyDeferred(
+            handlerContext,
+            handlerContext.createAnyDeferred(
                 awaitables.map { (it as BaseAwaitableImpl<*>).deferred() }))),
     AnyAwaitable {
 
   override suspend fun awaitIndex(): Int {
     if (!deferred().isCompleted) {
       suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-        syscalls.resolveDeferred(deferred(), completingUnitContinuation(cont))
+        handlerContext.resolveDeferred(deferred(), completingUnitContinuation(cont))
       }
     }
 
@@ -136,7 +136,7 @@ internal constructor(syscalls: Syscalls, private val awaitables: List<Awaitable<
 }
 
 internal fun wrapAllAwaitable(awaitables: List<Awaitable<*>>): Awaitable<Unit> {
-  val syscalls = (awaitables.get(0) as BaseAwaitableImpl<*>).syscalls
+  val syscalls = (awaitables.get(0) as BaseAwaitableImpl<*>).handlerContext
   return UnitAwakeableImpl(
       syscalls,
       syscalls.createAllDeferred(awaitables.map { (it as BaseAwaitableImpl<*>).deferred() }),
@@ -144,29 +144,29 @@ internal fun wrapAllAwaitable(awaitables: List<Awaitable<*>>): Awaitable<Unit> {
 }
 
 internal fun wrapAnyAwaitable(awaitables: List<Awaitable<*>>): AnyAwaitable {
-  val syscalls = (awaitables.get(0) as BaseAwaitableImpl<*>).syscalls
+  val syscalls = (awaitables.get(0) as BaseAwaitableImpl<*>).handlerContext
   return AnyAwaitableImpl(syscalls, awaitables)
 }
 
 internal class AwakeableImpl<T : Any>
 internal constructor(
-    syscalls: Syscalls,
-    deferred: Deferred<ByteBuffer>,
-    serde: Serde<T>,
-    override val id: String
-) : SingleSerdeAwaitableImpl<T>(syscalls, deferred, serde), Awakeable<T> {}
+  handlerContext: HandlerContext,
+  asyncResult: AsyncResult<ByteBuffer>,
+  serde: Serde<T>,
+  override val id: String
+) : SingleSerdeAwaitableImpl<T>(handlerContext, asyncResult, serde), Awakeable<T> {}
 
-internal class AwakeableHandleImpl(val syscalls: Syscalls, val id: String) : AwakeableHandle {
+internal class AwakeableHandleImpl(val handlerContext: HandlerContext, val id: String) : AwakeableHandle {
   override suspend fun <T : Any> resolve(serde: Serde<T>, payload: T) {
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-      syscalls.resolveAwakeable(
-          id, serde.serializeWrappingException(syscalls, payload), completingUnitContinuation(cont))
+      handlerContext.resolveAwakeable(
+          id, serde.serializeWrappingException(handlerContext, payload), completingUnitContinuation(cont))
     }
   }
 
   override suspend fun reject(reason: String) {
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-      syscalls.rejectAwakeable(id, reason, completingUnitContinuation(cont))
+      handlerContext.rejectAwakeable(id, reason, completingUnitContinuation(cont))
     }
   }
 }

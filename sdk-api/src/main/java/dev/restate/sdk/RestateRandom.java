@@ -8,10 +8,11 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.common.InvocationId;
-import dev.restate.sdk.common.Serde;
-import dev.restate.sdk.common.function.ThrowingSupplier;
-import dev.restate.sdk.common.syscalls.Syscalls;
+import dev.restate.sdk.endpoint.HandlerContext;
+import dev.restate.sdk.types.InvocationId;
+import dev.restate.sdk.serde.Serde;
+import dev.restate.sdk.function.ThrowingSupplier;
+
 import java.util.Random;
 import java.util.UUID;
 
@@ -27,12 +28,12 @@ import java.util.UUID;
  */
 public class RestateRandom extends Random {
 
-  private final Syscalls syscalls;
+  private final HandlerContext handlerContext;
   private boolean seedInitialized = false;
 
-  RestateRandom(long randomSeed, Syscalls syscalls) {
+  RestateRandom(long randomSeed, HandlerContext handlerContext) {
     super(randomSeed);
-    this.syscalls = syscalls;
+    this.handlerContext = handlerContext;
   }
 
   /**
@@ -56,7 +57,7 @@ public class RestateRandom extends Random {
 
   @Override
   protected int next(int bits) {
-    if (this.syscalls.isInsideSideEffect()) {
+    if (this.handlerContext.isInsideSideEffect()) {
       throw new IllegalStateException("You can't use RestateRandom inside ctx.run!");
     }
 

@@ -8,10 +8,10 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.common.DurablePromiseKey
-import dev.restate.sdk.common.RichSerde
-import dev.restate.sdk.common.Serde
-import dev.restate.sdk.common.StateKey
+import dev.restate.sdk.types.DurablePromiseKey
+import dev.restate.sdk.serde.RichSerde
+import dev.restate.sdk.serde.Serde
+import dev.restate.sdk.types.StateKey
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import kotlin.reflect.typeOf

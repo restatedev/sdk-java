@@ -9,7 +9,7 @@
 package dev.restate.sdk.serde.protobuf;
 
 import com.google.protobuf.*;
-import dev.restate.sdk.common.Serde;
+import dev.restate.sdk.serde.Serde;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 import org.jspecify.annotations.Nullable;

@@ -19,7 +19,7 @@ import com.google.devtools.ksp.visitor.KSDefaultVisitor
 import dev.restate.sdk.annotation.Accept
 import dev.restate.sdk.annotation.Json
 import dev.restate.sdk.annotation.Raw
-import dev.restate.sdk.common.ServiceType
+import dev.restate.sdk.endpoint.ServiceType
 import dev.restate.sdk.gen.model.Handler
 import dev.restate.sdk.gen.model.HandlerType
 import dev.restate.sdk.gen.model.PayloadType
@@ -240,9 +240,9 @@ class KElementConverter(
   }
 
   private fun validateMethodSignature(
-      serviceType: ServiceType,
-      handlerType: HandlerType,
-      function: KSFunctionDeclaration
+    serviceType: ServiceType,
+    handlerType: HandlerType,
+    function: KSFunctionDeclaration
   ) {
     if (function.parameters.isEmpty()) {
       logger.error(

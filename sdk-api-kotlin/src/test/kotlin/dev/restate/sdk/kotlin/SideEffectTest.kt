@@ -8,11 +8,11 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.common.HandlerType
-import dev.restate.sdk.common.ServiceType
-import dev.restate.sdk.common.syscalls.HandlerDefinition
-import dev.restate.sdk.common.syscalls.HandlerSpecification
-import dev.restate.sdk.common.syscalls.ServiceDefinition
+import dev.restate.sdk.endpoint.HandlerType
+import dev.restate.sdk.endpoint.ServiceType
+import dev.restate.sdk.endpoint.HandlerDefinition
+import dev.restate.sdk.endpoint.HandlerSpecification
+import dev.restate.sdk.endpoint.ServiceDefinition
 import dev.restate.sdk.core.ProtoUtils.GREETER_SERVICE_TARGET
 import dev.restate.sdk.core.SideEffectTestSuite
 import dev.restate.sdk.core.TestDefinitions
@@ -79,7 +79,7 @@ class SideEffectTest : SideEffectTestSuite() {
 
   override fun failingSideEffectWithRetryPolicy(
       reason: String,
-      retryPolicy: dev.restate.sdk.common.RetryPolicy?
+      retryPolicy: dev.restate.sdk.types.RetryPolicy?
   ) =
       testDefinitionForService<Unit, String>("FailingSideEffectWithRetryPolicy") { ctx, _: Unit ->
         ctx.runBlock(

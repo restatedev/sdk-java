@@ -8,10 +8,10 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.common.Serde;
-import dev.restate.sdk.common.syscalls.Deferred;
-import dev.restate.sdk.common.syscalls.Result;
-import dev.restate.sdk.common.syscalls.Syscalls;
+import dev.restate.sdk.serde.Serde;
+import dev.restate.sdk.endpoint.AsyncResult;
+import dev.restate.sdk.endpoint.Result;
+import dev.restate.sdk.endpoint.HandlerContext;
 import java.nio.ByteBuffer;
 
 /**
@@ -32,13 +32,13 @@ public final class Awakeable<T> extends Awaitable.MappedAwaitable<ByteBuffer, T>
 
   private final String identifier;
 
-  Awakeable(Syscalls syscalls, Deferred<ByteBuffer> deferred, Serde<T> serde, String identifier) {
+  Awakeable(HandlerContext handlerContext, AsyncResult<ByteBuffer> asyncResult, Serde<T> serde, String identifier) {
     super(
-        Awaitable.single(syscalls, deferred),
+        Awaitable.single(handlerContext, asyncResult),
         res -> {
           if (res.isSuccess()) {
             return Result.success(
-                Util.deserializeWrappingException(syscalls, serde, res.getValue()));
+                Util.deserializeWrappingException(handlerContext, serde, res.getValue()));
           }
           //noinspection unchecked
           return (Result<T>) res;

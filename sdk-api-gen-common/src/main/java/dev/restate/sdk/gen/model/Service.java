@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.gen.model;
 
-import dev.restate.sdk.common.ServiceType;
+import dev.restate.sdk.endpoint.ServiceType;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;

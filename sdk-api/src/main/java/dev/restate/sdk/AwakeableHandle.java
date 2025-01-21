@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.common.Serde;
+import dev.restate.sdk.serde.Serde;
 
 /** This class represents a handle to an {@link Awakeable} created in another service. */
 public interface AwakeableHandle {

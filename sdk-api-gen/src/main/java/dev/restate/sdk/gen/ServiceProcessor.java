@@ -8,9 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.gen;
 
-import dev.restate.sdk.common.ServiceType;
-import dev.restate.sdk.common.function.ThrowingFunction;
-import dev.restate.sdk.common.syscalls.ServiceDefinitionFactory;
+import dev.restate.sdk.endpoint.ServiceType;
+import dev.restate.sdk.function.ThrowingFunction;
+import dev.restate.sdk.endpoint.ServiceDefinitionFactory;
 import dev.restate.sdk.gen.model.Service;
 import dev.restate.sdk.gen.template.HandlebarsTemplateEngine;
 import java.io.*;

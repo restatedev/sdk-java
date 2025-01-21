@@ -8,14 +8,15 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.common.AbortedExecutionException;
-import dev.restate.sdk.common.Output;
-import dev.restate.sdk.common.Serde;
-import dev.restate.sdk.common.function.ThrowingFunction;
-import dev.restate.sdk.common.syscalls.Deferred;
-import dev.restate.sdk.common.syscalls.Result;
+import dev.restate.sdk.endpoint.HandlerContext;
+import dev.restate.sdk.types.AbortedExecutionException;
+import dev.restate.sdk.types.Output;
+import dev.restate.sdk.serde.Serde;
+import dev.restate.sdk.function.ThrowingFunction;
+import dev.restate.sdk.endpoint.AsyncResult;
+import dev.restate.sdk.endpoint.Result;
 import dev.restate.sdk.common.syscalls.SyscallCallback;
-import dev.restate.sdk.common.syscalls.Syscalls;
+
 import java.nio.ByteBuffer;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
@@ -27,12 +28,12 @@ class Util {
 
   private Util() {}
 
-  static <T> T blockOnResolve(Syscalls syscalls, Deferred<T> deferred) {
-    if (!deferred.isCompleted()) {
-      Util.<Void>blockOnSyscall(cb -> syscalls.resolveDeferred(deferred, cb));
+  static <T> T blockOnResolve(HandlerContext handlerContext, AsyncResult<T> asyncResult) {
+    if (!asyncResult.isCompleted()) {
+      Util.<Void>blockOnSyscall(cb -> handlerContext.resolveDeferred(asyncResult, cb));
     }
 
-    return Util.unwrapResult(deferred.toResult());
+    return Util.unwrapResult(asyncResult.toResult());
   }
 
   static <T> T awaitCompletableFuture(CompletableFuture<T> future) {
@@ -79,22 +80,22 @@ class Util {
     return Output.ready(res.getValue());
   }
 
-  static <T, R> R executeMappingException(Syscalls syscalls, ThrowingFunction<T, R> fn, T t) {
+  static <T, R> R executeMappingException(HandlerContext handlerContext, ThrowingFunction<T, R> fn, T t) {
     try {
       return fn.apply(t);
     } catch (Throwable e) {
-      syscalls.fail(e);
+      handlerContext.fail(e);
       AbortedExecutionException.sneakyThrow();
       return null;
     }
   }
 
-  static <T> ByteBuffer serializeWrappingException(Syscalls syscalls, Serde<T> serde, T value) {
-    return executeMappingException(syscalls, serde::serializeToByteBuffer, value);
+  static <T> ByteBuffer serializeWrappingException(HandlerContext handlerContext, Serde<T> serde, T value) {
+    return executeMappingException(handlerContext, serde::serializeToByteBuffer, value);
   }
 
   static <T> T deserializeWrappingException(
-      Syscalls syscalls, Serde<T> serde, ByteBuffer byteString) {
-    return executeMappingException(syscalls, serde::deserialize, byteString);
+          HandlerContext handlerContext, Serde<T> serde, ByteBuffer byteString) {
+    return executeMappingException(handlerContext, serde::deserialize, byteString);
   }
 }

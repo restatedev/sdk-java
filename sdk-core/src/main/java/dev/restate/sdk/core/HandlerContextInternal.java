@@ -1,0 +1,43 @@
+// Copyright (c) 2023 - Restate Software, Inc., Restate GmbH
+//
+// This file is part of the Restate Java SDK,
+// which is released under the MIT license.
+//
+// You can find a copy of the license in file LICENSE in the root
+// directory of this repository or package, or at
+// https://github.com/restatedev/sdk-java/blob/main/LICENSE
+package dev.restate.sdk.core;
+
+import dev.restate.sdk.endpoint.AsyncResult;
+import dev.restate.sdk.endpoint.HandlerContext;
+import dev.restate.sdk.core.DeferredResults.AsyncResultInternal;
+import java.util.List;
+import java.util.stream.Collectors;
+
+interface HandlerContextInternal extends HandlerContext {
+
+  @Override
+  default AsyncResult<Integer> createAnyDeferred(List<AsyncResult<?>> children) {
+    return DeferredResults.any(
+        children.stream().map(dr -> (AsyncResultInternal<?>) dr).collect(Collectors.toList()));
+  }
+
+  @Override
+  default AsyncResult<Void> createAllDeferred(List<AsyncResult<?>> children) {
+    return DeferredResults.all(
+        children.stream().map(dr -> (AsyncResultInternal<?>) dr).collect(Collectors.toList()));
+  }
+
+  // -- Lifecycle methods
+
+  void close();
+
+  // -- State machine introspection (used by logging propagator)
+
+  /**
+   * @return fully qualified method name in the form {fullyQualifiedServiceName}/{methodName}
+   */
+  String getFullyQualifiedMethodName();
+
+  InvocationState getInvocationState();
+}

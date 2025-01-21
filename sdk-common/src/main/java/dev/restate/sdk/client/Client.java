@@ -8,9 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.client;
 
-import dev.restate.sdk.common.Output;
-import dev.restate.sdk.common.Serde;
-import dev.restate.sdk.common.Target;
+import dev.restate.sdk.types.Output;
+import dev.restate.sdk.serde.Serde;
+import dev.restate.sdk.types.Target;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.Collections;

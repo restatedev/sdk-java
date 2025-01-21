@@ -11,9 +11,9 @@ package dev.restate.sdk.kotlin
 import dev.restate.sdk.client.Client
 import dev.restate.sdk.client.RequestOptions
 import dev.restate.sdk.client.SendResponse
-import dev.restate.sdk.common.Output
-import dev.restate.sdk.common.Serde
-import dev.restate.sdk.common.Target
+import dev.restate.sdk.types.Output
+import dev.restate.sdk.serde.Serde
+import dev.restate.sdk.types.Target
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
 import kotlinx.coroutines.future.await
@@ -21,11 +21,11 @@ import kotlinx.coroutines.future.await
 // Extension methods for the IngressClient
 
 suspend fun <Req, Res> Client.callSuspend(
-    target: Target,
-    reqSerde: Serde<Req>,
-    resSerde: Serde<Res>,
-    req: Req,
-    options: RequestOptions = RequestOptions.DEFAULT
+  target: Target,
+  reqSerde: Serde<Req>,
+  resSerde: Serde<Res>,
+  req: Req,
+  options: RequestOptions = RequestOptions.DEFAULT
 ): Res {
   return this.callAsync(target, reqSerde, resSerde, req, options).await()
 }

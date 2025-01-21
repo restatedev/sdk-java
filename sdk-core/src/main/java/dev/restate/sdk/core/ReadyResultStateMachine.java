@@ -9,7 +9,7 @@
 package dev.restate.sdk.core;
 
 import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.common.syscalls.Result;
+import dev.restate.sdk.endpoint.Result;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;

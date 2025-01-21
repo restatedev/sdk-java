@@ -9,11 +9,17 @@
 package dev.restate.sdk.kotlin
 
 import dev.restate.sdk.common.*
-import dev.restate.sdk.common.Target
-import dev.restate.sdk.common.syscalls.Deferred
+import dev.restate.sdk.types.Target
+import dev.restate.sdk.endpoint.AsyncResult
 import dev.restate.sdk.common.syscalls.EnterSideEffectSyscallCallback
 import dev.restate.sdk.common.syscalls.ExitSideEffectSyscallCallback
-import dev.restate.sdk.common.syscalls.Syscalls
+import dev.restate.sdk.endpoint.HandlerContext
+import dev.restate.sdk.serde.Serde
+import dev.restate.sdk.types.DurablePromiseKey
+import dev.restate.sdk.types.Output
+import dev.restate.sdk.types.Request
+import dev.restate.sdk.types.StateKey
+import dev.restate.sdk.types.TerminalException
 import java.nio.ByteBuffer
 import kotlin.coroutines.resume
 import kotlin.time.Duration
@@ -23,50 +29,50 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.suspendCancellableCoroutine
 
-internal class ContextImpl internal constructor(internal val syscalls: Syscalls) : WorkflowContext {
+internal class ContextImpl internal constructor(internal val handlerContext: HandlerContext) : WorkflowContext {
   override fun key(): String {
-    return this.syscalls.objectKey()
+    return this.handlerContext.objectKey()
   }
 
   override fun request(): Request {
-    return this.syscalls.request()
+    return this.handlerContext.request()
   }
 
   override suspend fun <T : Any> get(key: StateKey<T>): T? {
-    val deferred: Deferred<ByteBuffer> =
-        suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<ByteBuffer>> ->
-          syscalls.get(key.name(), completingContinuation(cont))
+    val asyncResult: AsyncResult<ByteBuffer> =
+        suspendCancellableCoroutine { cont: CancellableContinuation<AsyncResult<ByteBuffer>> ->
+          handlerContext.get(key.name(), completingContinuation(cont))
         }
 
-    if (!deferred.isCompleted) {
+    if (!asyncResult.isCompleted) {
       suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-        syscalls.resolveDeferred(deferred, completingUnitContinuation(cont))
+        handlerContext.resolveDeferred(asyncResult, completingUnitContinuation(cont))
       }
     }
 
-    val readyResult = deferred.toResult()!!
+    val readyResult = asyncResult.toResult()!!
     if (!readyResult.isSuccess) {
       throw readyResult.failure!!
     }
     if (readyResult.isEmpty) {
       return null
     }
-    return key.serde().deserializeWrappingException(syscalls, readyResult.value!!)!!
+    return key.serde().deserializeWrappingException(handlerContext, readyResult.value!!)!!
   }
 
   override suspend fun stateKeys(): Collection<String> {
-    val deferred: Deferred<Collection<String>> =
-        suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<Collection<String>>> ->
-          syscalls.getKeys(completingContinuation(cont))
+    val asyncResult: AsyncResult<Collection<String>> =
+        suspendCancellableCoroutine { cont: CancellableContinuation<AsyncResult<Collection<String>>> ->
+          handlerContext.getKeys(completingContinuation(cont))
         }
 
-    if (!deferred.isCompleted) {
+    if (!asyncResult.isCompleted) {
       suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-        syscalls.resolveDeferred(deferred, completingUnitContinuation(cont))
+        handlerContext.resolveDeferred(asyncResult, completingUnitContinuation(cont))
       }
     }
 
-    val readyResult = deferred.toResult()!!
+    val readyResult = asyncResult.toResult()!!
     if (!readyResult.isSuccess) {
       throw readyResult.failure!!
     }
@@ -74,59 +80,59 @@ internal class ContextImpl internal constructor(internal val syscalls: Syscalls)
   }
 
   override suspend fun <T : Any> set(key: StateKey<T>, value: T) {
-    val serializedValue = key.serde().serializeWrappingException(syscalls, value)
+    val serializedValue = key.serde().serializeWrappingException(handlerContext, value)
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-      syscalls.set(key.name(), serializedValue, completingUnitContinuation(cont))
+      handlerContext.set(key.name(), serializedValue, completingUnitContinuation(cont))
     }
   }
 
   override suspend fun clear(key: StateKey<*>) {
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-      syscalls.clear(key.name(), completingUnitContinuation(cont))
+      handlerContext.clear(key.name(), completingUnitContinuation(cont))
     }
   }
 
   override suspend fun clearAll() {
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-      syscalls.clearAll(completingUnitContinuation(cont))
+      handlerContext.clearAll(completingUnitContinuation(cont))
     }
   }
 
   override suspend fun timer(duration: Duration): Awaitable<Unit> {
-    val deferred: Deferred<Void> =
-        suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<Void>> ->
-          syscalls.sleep(duration.toJavaDuration(), completingContinuation(cont))
+    val asyncResult: AsyncResult<Void> =
+        suspendCancellableCoroutine { cont: CancellableContinuation<AsyncResult<Void>> ->
+          handlerContext.sleep(duration.toJavaDuration(), completingContinuation(cont))
         }
 
-    return UnitAwakeableImpl(syscalls, deferred)
+    return UnitAwakeableImpl(handlerContext, asyncResult)
   }
 
   override suspend fun <T : Any?, R : Any?> callAsync(
-      target: Target,
-      inputSerde: Serde<T>,
-      outputSerde: Serde<R>,
-      parameter: T
+    target: Target,
+    inputSerde: Serde<T>,
+    outputSerde: Serde<R>,
+    parameter: T
   ): Awaitable<R> {
-    val input = inputSerde.serializeWrappingException(syscalls, parameter)
+    val input = inputSerde.serializeWrappingException(handlerContext, parameter)
 
-    val deferred: Deferred<ByteBuffer> =
-        suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<ByteBuffer>> ->
-          syscalls.call(target, input, completingContinuation(cont))
+    val asyncResult: AsyncResult<ByteBuffer> =
+        suspendCancellableCoroutine { cont: CancellableContinuation<AsyncResult<ByteBuffer>> ->
+          handlerContext.call(target, input, completingContinuation(cont))
         }
 
-    return SingleSerdeAwaitableImpl(syscalls, deferred, outputSerde)
+    return SingleSerdeAwaitableImpl(handlerContext, asyncResult, outputSerde)
   }
 
   override suspend fun <T : Any?> send(
-      target: Target,
-      inputSerde: Serde<T>,
-      parameter: T,
-      delay: Duration
+    target: dev.restate.sdk.types.Target,
+    inputSerde: Serde<T>,
+    parameter: T,
+    delay: Duration
   ) {
-    val input = inputSerde.serializeWrappingException(syscalls, parameter)
+    val input = inputSerde.serializeWrappingException(handlerContext, parameter)
 
     return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-      syscalls.send(target, input, delay.toJavaDuration(), completingUnitContinuation(cont))
+      handlerContext.send(target, input, delay.toJavaDuration(), completingUnitContinuation(cont))
     }
   }
 
@@ -139,7 +145,7 @@ internal class ContextImpl internal constructor(internal val syscalls: Syscalls)
     val exitResult =
         suspendCancellableCoroutine { cont: CancellableContinuation<CompletableDeferred<ByteBuffer>>
           ->
-          syscalls.enterSideEffectBlock(
+          handlerContext.enterSideEffectBlock(
               name,
               object : EnterSideEffectSyscallCallback {
                 override fun onSuccess(t: ByteBuffer?) {
@@ -165,7 +171,7 @@ internal class ContextImpl internal constructor(internal val syscalls: Syscalls)
         }
 
     if (exitResult.isCompleted) {
-      return serde.deserializeWrappingException(syscalls, exitResult.await())!!
+      return serde.deserializeWrappingException(handlerContext, exitResult.await())!!
     }
 
     var actionReturnValue: T? = null
@@ -194,37 +200,37 @@ internal class ContextImpl internal constructor(internal val syscalls: Syscalls)
     if (actionFailure != null) {
       val javaRetryPolicy =
           retryPolicy?.let {
-            dev.restate.sdk.common.RetryPolicy.exponential(
+            dev.restate.sdk.types.RetryPolicy.exponential(
                     it.initialDelay.toJavaDuration(), it.exponentiationFactor)
                 .setMaxAttempts(it.maxAttempts)
                 .setMaxDelay(it.maxDelay?.toJavaDuration())
                 .setMaxDuration(it.maxDuration?.toJavaDuration())
           }
-      syscalls.exitSideEffectBlockWithException(actionFailure, javaRetryPolicy, exitCallback)
+      handlerContext.exitSideEffectBlockWithException(actionFailure, javaRetryPolicy, exitCallback)
     } else {
-      syscalls.exitSideEffectBlock(
-          serde.serializeWrappingException(syscalls, actionReturnValue), exitCallback)
+      handlerContext.exitSideEffectBlock(
+          serde.serializeWrappingException(handlerContext, actionReturnValue), exitCallback)
     }
 
-    return serde.deserializeWrappingException(syscalls, exitResult.await())
+    return serde.deserializeWrappingException(handlerContext, exitResult.await())
   }
 
   override suspend fun <T : Any> awakeable(serde: Serde<T>): Awakeable<T> {
     val (aid, deferredResult) =
         suspendCancellableCoroutine {
-            cont: CancellableContinuation<Map.Entry<String, Deferred<ByteBuffer>>> ->
-          syscalls.awakeable(completingContinuation(cont))
+            cont: CancellableContinuation<Map.Entry<String, AsyncResult<ByteBuffer>>> ->
+          handlerContext.awakeable(completingContinuation(cont))
         }
 
-    return AwakeableImpl(syscalls, deferredResult, serde, aid)
+    return AwakeableImpl(handlerContext, deferredResult, serde, aid)
   }
 
   override fun awakeableHandle(id: String): AwakeableHandle {
-    return AwakeableHandleImpl(syscalls, id)
+    return AwakeableHandleImpl(handlerContext, id)
   }
 
   override fun random(): RestateRandom {
-    return RestateRandom(syscalls.request().invocationId().toRandomSeed(), syscalls)
+    return RestateRandom(handlerContext.request().invocationId().toRandomSeed(), handlerContext)
   }
 
   override fun <T : Any> promise(key: DurablePromiseKey<T>): DurablePromise<T> {
@@ -238,72 +244,72 @@ internal class ContextImpl internal constructor(internal val syscalls: Syscalls)
   inner class DurablePromiseImpl<T : Any>(private val key: DurablePromiseKey<T>) :
       DurablePromise<T> {
     override suspend fun awaitable(): Awaitable<T> {
-      val deferred: Deferred<ByteBuffer> =
-          suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<ByteBuffer>> ->
-            syscalls.promise(key.name(), completingContinuation(cont))
+      val asyncResult: AsyncResult<ByteBuffer> =
+          suspendCancellableCoroutine { cont: CancellableContinuation<AsyncResult<ByteBuffer>> ->
+            handlerContext.promise(key.name(), completingContinuation(cont))
           }
 
-      return SingleSerdeAwaitableImpl(syscalls, deferred, key.serde())
+      return SingleSerdeAwaitableImpl(handlerContext, asyncResult, key.serde())
     }
 
     override suspend fun peek(): Output<T> {
-      val deferred: Deferred<ByteBuffer> =
-          suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<ByteBuffer>> ->
-            syscalls.peekPromise(key.name(), completingContinuation(cont))
+      val asyncResult: AsyncResult<ByteBuffer> =
+          suspendCancellableCoroutine { cont: CancellableContinuation<AsyncResult<ByteBuffer>> ->
+            handlerContext.peekPromise(key.name(), completingContinuation(cont))
           }
 
-      if (!deferred.isCompleted) {
+      if (!asyncResult.isCompleted) {
         suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-          syscalls.resolveDeferred(deferred, completingUnitContinuation(cont))
+          handlerContext.resolveDeferred(asyncResult, completingUnitContinuation(cont))
         }
       }
 
-      val readyResult = deferred.toResult()!!
+      val readyResult = asyncResult.toResult()!!
       if (!readyResult.isSuccess) {
         throw readyResult.failure!!
       }
       if (readyResult.isEmpty) {
         return Output.notReady()
       }
-      return Output.ready(key.serde().deserializeWrappingException(syscalls, readyResult.value!!))
+      return Output.ready(key.serde().deserializeWrappingException(handlerContext, readyResult.value!!))
     }
   }
 
   inner class DurablePromiseHandleImpl<T : Any>(private val key: DurablePromiseKey<T>) :
       DurablePromiseHandle<T> {
     override suspend fun resolve(payload: T) {
-      val input = key.serde().serializeWrappingException(syscalls, payload)
+      val input = key.serde().serializeWrappingException(handlerContext, payload)
 
-      val deferred: Deferred<Void> =
-          suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<Void>> ->
-            syscalls.resolvePromise(key.name(), input, completingContinuation(cont))
+      val asyncResult: AsyncResult<Void> =
+          suspendCancellableCoroutine { cont: CancellableContinuation<AsyncResult<Void>> ->
+            handlerContext.resolvePromise(key.name(), input, completingContinuation(cont))
           }
 
-      if (!deferred.isCompleted) {
+      if (!asyncResult.isCompleted) {
         suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-          syscalls.resolveDeferred(deferred, completingUnitContinuation(cont))
+          handlerContext.resolveDeferred(asyncResult, completingUnitContinuation(cont))
         }
       }
 
-      val readyResult = deferred.toResult()!!
+      val readyResult = asyncResult.toResult()!!
       if (!readyResult.isSuccess) {
         throw readyResult.failure!!
       }
     }
 
     override suspend fun reject(reason: String) {
-      val deferred: Deferred<Void> =
-          suspendCancellableCoroutine { cont: CancellableContinuation<Deferred<Void>> ->
-            syscalls.rejectPromise(key.name(), reason, completingContinuation(cont))
+      val asyncResult: AsyncResult<Void> =
+          suspendCancellableCoroutine { cont: CancellableContinuation<AsyncResult<Void>> ->
+            handlerContext.rejectPromise(key.name(), reason, completingContinuation(cont))
           }
 
-      if (!deferred.isCompleted) {
+      if (!asyncResult.isCompleted) {
         suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-          syscalls.resolveDeferred(deferred, completingUnitContinuation(cont))
+          handlerContext.resolveDeferred(asyncResult, completingUnitContinuation(cont))
         }
       }
 
-      val readyResult = deferred.toResult()!!
+      val readyResult = asyncResult.toResult()!!
       if (!readyResult.isSuccess) {
         throw readyResult.failure!!
       }

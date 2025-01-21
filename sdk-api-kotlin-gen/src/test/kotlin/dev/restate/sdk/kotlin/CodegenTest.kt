@@ -10,8 +10,8 @@ package dev.restate.sdk.kotlin
 
 import com.google.protobuf.ByteString
 import dev.restate.sdk.annotation.*
-import dev.restate.sdk.common.Serde
-import dev.restate.sdk.common.Target
+import dev.restate.sdk.serde.Serde
+import dev.restate.sdk.types.Target
 import dev.restate.sdk.core.ProtoUtils.*
 import dev.restate.sdk.core.TestDefinitions
 import dev.restate.sdk.core.TestDefinitions.TestDefinition
@@ -262,7 +262,7 @@ class CodegenTest : TestDefinitions.TestSuite {
                 completionMessage(1).setValue(ByteString.EMPTY))
             .onlyUnbuffered()
             .expectingOutput(
-                invokeMessage(Target.service("Empty", "emptyInputOutput")),
+                invokeMessage(dev.restate.sdk.types.Target.service("Empty", "emptyInputOutput")),
                 outputMessage(),
                 END_MESSAGE)
             .named("empty input and empty output"),
@@ -335,7 +335,7 @@ class CodegenTest : TestDefinitions.TestSuite {
             .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(
-                    Target.virtualObject("CodegenTestCornerCases", "mykey", "returnNull"),
+                    dev.restate.sdk.types.Target.virtualObject("CodegenTestCornerCases", "mykey", "returnNull"),
                     KtSerdes.json<String?>(),
                     null),
                 outputMessage(KtSerdes.json<String?>(), null),

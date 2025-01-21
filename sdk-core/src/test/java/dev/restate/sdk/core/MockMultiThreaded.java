@@ -11,7 +11,7 @@ package dev.restate.sdk.core;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.protobuf.MessageLite;
-import dev.restate.sdk.common.syscalls.ServiceDefinition;
+import dev.restate.sdk.endpoint.ServiceDefinition;
 import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.helpers.test.AssertSubscriber;

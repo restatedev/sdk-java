@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.MessageLiteOrBuilder;
 import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.common.syscalls.ServiceDefinition;
+import dev.restate.sdk.endpoint.ServiceDefinition;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Supplier;

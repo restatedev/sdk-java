@@ -11,8 +11,8 @@ package dev.restate.sdk;
 import static dev.restate.sdk.JavaBlockingTests.testDefinitionForService;
 import static dev.restate.sdk.core.ProtoUtils.GREETER_SERVICE_TARGET;
 
-import dev.restate.sdk.common.RetryPolicy;
-import dev.restate.sdk.common.Serde;
+import dev.restate.sdk.types.RetryPolicy;
+import dev.restate.sdk.serde.Serde;
 import dev.restate.sdk.core.SideEffectTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import java.util.Objects;

@@ -10,10 +10,10 @@ package dev.restate.sdk.core;
 
 import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.auth.RequestIdentityVerifier;
-import dev.restate.sdk.common.syscalls.HandlerDefinition;
-import dev.restate.sdk.common.syscalls.ServiceDefinition;
-import dev.restate.sdk.common.syscalls.ServiceDefinitionFactory;
+import dev.restate.sdk.endpoint.RequestIdentityVerifier;
+import dev.restate.sdk.endpoint.HandlerDefinition;
+import dev.restate.sdk.endpoint.ServiceDefinition;
+import dev.restate.sdk.endpoint.ServiceDefinitionFactory;
 import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import dev.restate.sdk.core.manifest.Service;
 import io.opentelemetry.api.OpenTelemetry;

@@ -8,17 +8,18 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.common.syscalls.Deferred;
-import dev.restate.sdk.common.syscalls.Result;
-import dev.restate.sdk.common.syscalls.Syscalls;
+import dev.restate.sdk.endpoint.AsyncResult;
+import dev.restate.sdk.endpoint.HandlerContext;
+import dev.restate.sdk.endpoint.Result;
+
 import java.util.List;
 
 public final class AnyAwaitable extends Awaitable.MappedAwaitable<Integer, Object> {
 
   @SuppressWarnings({"unchecked", "rawtypes"})
-  AnyAwaitable(Syscalls syscalls, Deferred<Integer> deferred, List<Awaitable<?>> nested) {
+  AnyAwaitable(HandlerContext handlerContext, AsyncResult<Integer> asyncResult, List<Awaitable<?>> nested) {
     super(
-        new SingleAwaitable<>(syscalls, deferred),
+        new SingleAwaitable<>(handlerContext, asyncResult),
         res ->
             res.isSuccess()
                 ? (Result<Object>) nested.get(res.getValue()).awaitResult()
@@ -28,6 +29,6 @@ public final class AnyAwaitable extends Awaitable.MappedAwaitable<Integer, Objec
   /** Same as {@link #await()}, but returns the index. */
   public int awaitIndex() {
     // This cast is safe b/c of the constructor
-    return (int) Util.blockOnResolve(this.syscalls, this.deferred());
+    return (int) Util.blockOnResolve(this.handlerContext, this.deferred());
   }
 }

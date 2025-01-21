@@ -14,9 +14,6 @@ import dev.restate.generated.service.protocol.Protocol;
 
 public class MessageHeader {
 
-  static final short DONE_FLAG = 0x0001;
-  static final int REQUIRES_ACK_FLAG = 0x8000;
-
   private final MessageType type;
   private final int flags;
   private final int length;
@@ -52,50 +49,6 @@ public class MessageHeader {
   }
 
   public static MessageHeader fromMessage(MessageLite msg) {
-    if (msg instanceof Protocol.GetStateEntryMessage) {
-      return fromCompletableMessage(
-          (Protocol.GetStateEntryMessage) msg, Entries.GetStateEntry.INSTANCE);
-    } else if (msg instanceof Protocol.GetStateKeysEntryMessage) {
-      return fromCompletableMessage(
-          (Protocol.GetStateKeysEntryMessage) msg, Entries.GetStateKeysEntry.INSTANCE);
-    } else if (msg instanceof Protocol.GetPromiseEntryMessage) {
-      return fromCompletableMessage(
-          (Protocol.GetPromiseEntryMessage) msg, Entries.GetPromiseEntry.INSTANCE);
-    } else if (msg instanceof Protocol.PeekPromiseEntryMessage) {
-      return fromCompletableMessage(
-          (Protocol.PeekPromiseEntryMessage) msg, Entries.PeekPromiseEntry.INSTANCE);
-    } else if (msg instanceof Protocol.CompletePromiseEntryMessage) {
-      return fromCompletableMessage(
-          (Protocol.CompletePromiseEntryMessage) msg, Entries.CompletePromiseEntry.INSTANCE);
-    } else if (msg instanceof Protocol.SleepEntryMessage) {
-      return fromCompletableMessage((Protocol.SleepEntryMessage) msg, Entries.SleepEntry.INSTANCE);
-    } else if (msg instanceof Protocol.CallEntryMessage) {
-      return new MessageHeader(
-          MessageType.CallEntryMessage,
-          ((Protocol.CallEntryMessage) msg).getResultCase()
-                  != Protocol.CallEntryMessage.ResultCase.RESULT_NOT_SET
-              ? DONE_FLAG
-              : 0,
-          msg.getSerializedSize());
-    } else if (msg instanceof Protocol.AwakeableEntryMessage) {
-      return fromCompletableMessage(
-          (Protocol.AwakeableEntryMessage) msg, Entries.AwakeableEntry.INSTANCE);
-    } else if (msg instanceof Protocol.RunEntryMessage) {
-      return new MessageHeader(
-          MessageType.RunEntryMessage, REQUIRES_ACK_FLAG, msg.getSerializedSize());
-    } else if (msg instanceof Java.CombinatorAwaitableEntryMessage) {
-      return new MessageHeader(
-          MessageType.CombinatorAwaitableEntryMessage, REQUIRES_ACK_FLAG, msg.getSerializedSize());
-    }
-    // Messages with no flags
     return new MessageHeader(MessageType.fromMessage(msg), 0, msg.getSerializedSize());
-  }
-
-  private static <MSG extends MessageLite, E extends Entries.CompletableJournalEntry<MSG, ?>>
-      MessageHeader fromCompletableMessage(MSG msg, E entry) {
-    return new MessageHeader(
-        MessageType.fromMessage(msg),
-        entry.hasResult(msg) ? DONE_FLAG : 0,
-        msg.getSerializedSize());
   }
 }
