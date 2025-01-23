@@ -13,9 +13,9 @@ import dev.restate.sdk.function.ThrowingBiConsumer;
 import dev.restate.sdk.function.ThrowingBiFunction;
 import dev.restate.sdk.function.ThrowingConsumer;
 import dev.restate.sdk.function.ThrowingFunction;
-import dev.restate.sdk.endpoint.HandlerSpecification;
+import dev.restate.sdk.definition.HandlerSpecification;
 import dev.restate.sdk.common.syscalls.SyscallCallback;
-import dev.restate.sdk.endpoint.HandlerContext;
+import dev.restate.sdk.definition.HandlerContext;
 import io.opentelemetry.context.Scope;
 import java.nio.ByteBuffer;
 import java.util.concurrent.Executor;
@@ -24,9 +24,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
 
-/** Adapter class for {@link dev.restate.sdk.endpoint.HandlerRunner} to use the Java API. */
+/** Adapter class for {@link dev.restate.sdk.definition.HandlerRunner} to use the Java API. */
 public class HandlerRunner<REQ, RES>
-    implements dev.restate.sdk.endpoint.HandlerRunner<REQ, RES, HandlerRunner.Options> {
+    implements dev.restate.sdk.definition.HandlerRunner<REQ, RES, HandlerRunner.Options> {
   private final ThrowingBiFunction<Context, REQ, RES> runner;
 
   private static final Logger LOG = LogManager.getLogger(HandlerRunner.class);
@@ -52,11 +52,11 @@ public class HandlerRunner<REQ, RES>
         runnable ->
             finalOptions.executor.execute(
                 () -> {
-                  SYSCALLS_THREAD_LOCAL.set(handlerContext);
+                  HANDLER_CONTEXT_THREAD_LOCAL.set(handlerContext);
                   try (Scope ignored = handlerContext.request().otelContext().makeCurrent()) {
                     runnable.run();
                   } finally {
-                    SYSCALLS_THREAD_LOCAL.remove();
+                    HANDLER_CONTEXT_THREAD_LOCAL.remove();
                   }
                 });
     wrapped.execute(

@@ -1,0 +1,630 @@
+// Copyright (c) 2023 - Restate Software, Inc., Restate GmbH
+//
+// This file is part of the Restate Java SDK,
+// which is released under the MIT license.
+//
+// You can find a copy of the license in file LICENSE in the root
+// directory of this repository or package, or at
+// https://github.com/restatedev/sdk-java/blob/main/LICENSE
+package dev.restate.sdk.core.statemachine;
+
+import com.google.protobuf.ByteString;
+import com.google.protobuf.MessageLite;
+import dev.restate.sdk.core.AsyncResults;
+import dev.restate.sdk.core.EndpointRequestHandler;
+import dev.restate.sdk.core.ProtocolException;
+import dev.restate.sdk.core.generated.protocol.Protocol;
+import dev.restate.sdk.core.old.Entries;
+import dev.restate.sdk.types.*;
+
+import java.nio.ByteBuffer;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Flow;
+import java.util.function.Consumer;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.jspecify.annotations.Nullable;
+
+import static dev.restate.sdk.core.statemachine.Util.sliceToByteString;
+import static dev.restate.sdk.core.statemachine.Util.toProtocolFailure;
+
+class StateMachineImpl implements StateMachine {
+  record StartInfo(ByteString id, String debugId, String objectKey, int entriesToReplay, int retryCountSinceLastStoredEntry, Duration durationSinceLastStoredEntry) {}
+
+  private static final Logger LOG = LogManager.getLogger(StateMachineImpl.class);
+private static final String AWAKEABLE_IDENTIFIER_PREFIX = "sign_1";
+  private static final int CANCEL_SIGNAL_ID = 1;
+
+
+  private final Protocol.ServiceProtocolVersion serviceProtocolVersion;
+  private final EndpointRequestHandler.LoggingContextSetter loggingContextSetter;
+
+  // Callbacks
+  private final CompletableFuture<Void> waitForReadyFuture = new CompletableFuture<>();
+  private CompletableFuture<Void> waitNextProcessedInput;
+
+  // Java Flow and message handling
+  private final MessageDecoder messageDecoder = new MessageDecoder();
+  private Flow.Subscriber<? super MessageLite> outputSubscriber;
+  private Flow.Subscription inputSubscription;
+
+  // State machine context
+  private final StateHolder stateHolder;
+private final Journal journal;
+
+// Configured only after StartMessage is received
+  private EagerState eagerState;
+private transient StartInfo startInfo;
+
+  StateMachineImpl(
+      EndpointRequestHandler.Headers headers,
+      EndpointRequestHandler.LoggingContextSetter loggingContextSetter) {
+    String contentTypeHeader =
+        Objects.requireNonNull(
+            headers.get(ServiceProtocol.CONTENT_TYPE), "Headers don't contain CONTENT-TYPE");
+
+    this.serviceProtocolVersion = ServiceProtocol.parseServiceProtocolVersion(contentTypeHeader);
+
+    if (!ServiceProtocol.isSupported(this.serviceProtocolVersion)) {
+      throw new ProtocolException(
+          String.format(
+              "Service endpoint does not support the service protocol version '%s'.",
+              contentTypeHeader),
+          ProtocolException.UNSUPPORTED_MEDIA_TYPE_CODE);
+    }
+
+    this.loggingContextSetter = loggingContextSetter;
+
+    this.stateHolder = new StateHolder();
+    this.journal = new Journal();
+  }
+
+  // -- Few callbacks
+
+  @Override
+  public CompletableFuture<Void> waitForReady() {
+    return waitForReadyFuture;
+  }
+
+  @Override
+  public CompletableFuture<Void> waitNextProcessedInput() {
+    if (waitNextProcessedInput == null) {
+      this.waitNextProcessedInput = new CompletableFuture<>();
+    }
+    return this.waitNextProcessedInput;
+  }
+
+  // -- IO
+
+  @Override
+  public void subscribe(Flow.Subscriber<? super Slice> subscriber) {
+    this.outputSubscriber = new MessageEncoder(subscriber);
+    this.outputSubscriber.onSubscribe(
+        new Flow.Subscription() {
+          @Override
+          public void request(long l) {}
+
+          @Override
+          public void cancel() {
+            end();
+          }
+        });
+  }
+
+  // --- Input Subscriber impl
+
+  @Override
+  public void onSubscribe(Flow.Subscription subscription) {
+    try {
+      this.inputSubscription = subscription;
+      this.inputSubscription.request(Long.MAX_VALUE);
+    } catch (Throwable e) {
+      this.onError(e);
+    }
+  }
+
+  @Override
+  public void onNext(Slice slice) {
+    try {
+      LOG.trace("Received input slice");
+      this.messageDecoder.offer(slice);
+
+      boolean shouldTriggerInputListener = this.messageDecoder.isNextAvailable();
+      InvocationInput invocationInput = this.messageDecoder.next();
+      while (invocationInput != null) {
+        LOG.trace(
+            "Received input message {} {}",
+            invocationInput.message().getClass(),
+            invocationInput.message());
+
+        this.stateHolder
+            .getState()
+            .onNewMessage(invocationInput, this.stateHolder, this.waitForReadyFuture);
+
+        invocationInput = this.messageDecoder.next();
+      }
+
+      if (shouldTriggerInputListener) {
+        CompletableFuture<Void> fut = this.waitNextProcessedInput;
+        fut.complete(null);
+        this.waitNextProcessedInput = null;
+      }
+
+      // TODO trigger input listener
+
+    } catch (Throwable e) {
+      this.onError(e);
+    }
+  }
+
+  @Override
+  public void onError(Throwable throwable) {
+    LOG.trace("Got failure", throwable);
+    this.stateHolder.getState().hitError(throwable, this.stateHolder, this.outputSubscriber);
+  }
+
+  @Override
+  public void onComplete() {
+    LOG.trace("Input publisher closed");
+    try {
+      this.stateHolder.getState().onInputClosed(this.stateHolder, this.outputSubscriber);
+    } catch (Throwable e) {
+      this.onError(e);
+    }
+  }
+
+  // -- State machine
+
+  @Override
+  public String getResponseContentType() {
+    return ServiceProtocol.serviceProtocolVersionToHeaderValue(serviceProtocolVersion);
+  }
+
+  @Override
+  public DoProgressResponse doProgress(List<Integer> anyHandle) {
+    return this.stateHolder.getState().doProgress(anyHandle, this.stateHolder);
+  }
+
+  @Override
+  public boolean isCompleted(int handle) {
+    // TODO check state directly
+  }
+
+  @Override
+  public Optional<NotificationValue> takeNotification(int handle) {
+    return this.stateHolder.getState().takeNotification(handle, this.stateHolder);
+  }
+
+  @Override
+  public @Nullable Input input() {
+    return this.stateHolder.getState().processInputCommand(this.stateHolder, this.journal, this.outputSubscriber);
+  }
+
+  @Override
+  public int stateGet(String key) {
+    LOG.debug("Executing 'Get state {}'", key);
+    return this.stateHolder.getState().processStateGetCommand(key, this.stateHolder, this.eagerState, this.journal,     this.outputSubscriber);
+  }
+
+  @Override
+  public int stateGetKeys() {
+    LOG.debug("Executing 'Get state keys'");
+    return this.stateHolder.getState().processStateGetKeysCommand(this.stateHolder, this.eagerState,  this.journal,    this.outputSubscriber);
+  }
+
+  @Override
+  public void stateSet(String key, Slice bytes) {
+    LOG.debug("Executing 'Set state {}'", key);
+    ByteString keyBuffer = ByteString.copyFromUtf8(key);
+this.eagerState.set(keyBuffer, bytes);
+this.stateHolder.getState().processNonCompletableCommand(
+        Protocol.SetStateCommandMessage.newBuilder()
+                .setKey(keyBuffer)
+                .setValue(Protocol.Value.newBuilder()
+                        .setContent(sliceToByteString(bytes))
+                        .build()).build(),
+        this.stateHolder,
+        this.journal,
+        this.outputSubscriber
+);
+  }
+
+  @Override
+  public void stateClear(String key) {
+    LOG.debug("Executing 'Clear state {}'", key);
+    ByteString keyBuffer = ByteString.copyFromUtf8(key);
+    this.eagerState.clear(keyBuffer);
+     this.stateHolder.getState().processNonCompletableCommand(
+            Protocol.ClearStateCommandMessage.newBuilder()
+                    .setKey(keyBuffer)
+                    .build(),
+            this.stateHolder,
+            this.journal,
+            this.outputSubscriber
+    );
+  }
+
+  @Override
+  public void stateClearAll() {
+    LOG.debug("Executing 'Clear all state'");
+    this.eagerState.clearAll();
+     this.stateHolder.getState().processNonCompletableCommand(
+            Protocol.ClearAllStateCommandMessage.getDefaultInstance(),
+            this.stateHolder,
+            this.journal,
+            this.outputSubscriber
+    );
+  }
+
+  @Override
+  public int sleep(Duration duration) {
+    LOG.debug("Executing 'Sleeping for {}'", duration);
+    var completionId = this.journal.nextCompletionNotificationId();
+    return this.stateHolder.getState().processCompletableCommand(
+            Protocol.SleepCommandMessage.newBuilder()
+                    .setWakeUpTime(
+                            Instant.now().toEpochMilli() + duration.toMillis()
+                    )
+                    .setResultCompletionId(completionId)
+                    .build(),
+            new int[]{completionId},
+            this.stateHolder,
+            this.journal,
+            this.outputSubscriber
+    )[0];
+  }
+
+  @Override
+  public CallHandle call(
+      Target target,
+      Slice payload,
+      @Nullable String idempotencyKey,
+      @Nullable List<Map.Entry<String, String>> headers) {
+    LOG.debug("Executing 'Call {}'", target);
+    if (idempotencyKey != null && idempotencyKey.isBlank()) {
+      throw ProtocolException.idempotencyKeyIsEmpty();
+    }
+
+    var invocationIdCompletionId = this.journal.nextCompletionNotificationId();
+    var callCompletionId = this.journal.nextCompletionNotificationId();
+
+    var callCommandBuilder = Protocol.CallCommandMessage.newBuilder()
+            .setServiceName(target.getService())
+            .setHandlerName(target.getHandler())
+            .setParameter(sliceToByteString(payload))
+            .setInvocationIdNotificationIdx(invocationIdCompletionId)
+            .setResultCompletionId(callCompletionId);
+    if (target.getKey() != null) {
+      callCommandBuilder.setKey(target.getKey());
+    }
+    if (idempotencyKey != null) {
+      callCommandBuilder.setIdempotencyKey(idempotencyKey);
+    }
+    if (headers != null) {
+      for (var header : headers) {
+        callCommandBuilder.addHeaders(Protocol.Header.newBuilder()
+                        .setKey(header.getKey())
+                        .setValue(header.getValue())
+                .build());
+      }
+    }
+
+    var notificationHandles = this.stateHolder.getState().processCompletableCommand(
+       callCommandBuilder.build(),
+            new int[]{invocationIdCompletionId, callCompletionId},
+            this.stateHolder,
+            this.journal,
+            this.outputSubscriber
+    );
+
+    return new CallHandle(notificationHandles[0], notificationHandles[1]);
+  }
+
+  @Override
+  public int send(
+      Target target,
+      Slice payload,
+      @Nullable String idempotencyKey,
+      @Nullable List<Map.Entry<String, String>> headers,
+      @Nullable Duration delay) {
+    LOG.debug("Executing 'Send {}'", target);
+    if (idempotencyKey != null && idempotencyKey.isBlank()) {
+      throw ProtocolException.idempotencyKeyIsEmpty();
+    }
+
+    var invocationIdCompletionId = this.journal.nextCompletionNotificationId();
+
+    var sendCommandBuilder = Protocol.OneWayCallCommandMessage.newBuilder()
+            .setServiceName(target.getService())
+            .setHandlerName(target.getHandler())
+            .setParameter(sliceToByteString(payload))
+            .setInvocationIdNotificationIdx(invocationIdCompletionId);
+    if (target.getKey() != null) {
+      sendCommandBuilder.setKey(target.getKey());
+    }
+    if (idempotencyKey != null) {
+      sendCommandBuilder.setIdempotencyKey(idempotencyKey);
+    }
+    if (headers != null) {
+      for (var header : headers) {
+        sendCommandBuilder.addHeaders(Protocol.Header.newBuilder()
+                .setKey(header.getKey())
+                .setValue(header.getValue())
+                .build());
+      }
+    }
+    if (delay != null && !delay.isZero()) {
+      sendCommandBuilder.setInvokeTime(Instant.now().toEpochMilli() + delay.toMillis());
+    }
+
+    return this.stateHolder.getState().processCompletableCommand(
+            sendCommandBuilder.build(),
+            new int[]{invocationIdCompletionId},
+            this.stateHolder,
+            this.journal,
+            this.outputSubscriber
+    )[0];
+  }
+
+  @Override
+  public Awakeable awakeable() {
+    LOG.debug("Executing 'Create awakeable'");
+
+    var signalId = this.journal.nextSignalNotificationId();
+
+    var signalHandle = this.stateHolder.getState().createSignalHandle(
+           new NotificationId.SignalId(signalId),
+            this.stateHolder,
+            this.journal,
+            this.outputSubscriber
+    );
+
+// Encode awakeable id
+    String awakeableId =   AWAKEABLE_IDENTIFIER_PREFIX
+            + Base64.getUrlEncoder().encodeToString(requireStartInfo()
+            .id
+            .concat(
+                    ByteString.copyFrom(
+                            ByteBuffer.allocate(4)
+                                    .putInt(signalId)
+                                    .flip())).toByteArray());
+
+    return new Awakeable(awakeableId, signalHandle);
+  }
+
+  @Override
+  public void completeAwakeable(String awakeableId, Slice value) {
+    LOG.debug("Executing 'Complete awakeable {} with success'", awakeableId);
+    completeAwakeable(awakeableId, builder -> builder.setValue(Protocol.Value.newBuilder().setContent(sliceToByteString(value)).build()));
+  }
+
+  @Override
+  public void completeAwakeable(String awakeableId, TerminalException exception) {
+    LOG.debug("Executing 'Complete awakeable {} with failure'", awakeableId);
+    completeAwakeable(awakeableId, builder -> builder.setFailure(
+            toProtocolFailure(exception)
+    ));
+  }
+
+  private void completeAwakeable(String awakeableId, Consumer<Protocol.CompleteAwakeableCommandMessage.Builder> filler) {
+    var builder = Protocol.CompleteAwakeableCommandMessage.newBuilder().setAwakeableId(awakeableId);
+    filler.accept(builder);
+
+    this.stateHolder.getState().processNonCompletableCommand(
+            builder.build(),
+            this.stateHolder,
+            this.journal,
+            this.outputSubscriber
+    );
+  }
+
+  @Override
+  public int createSignalHandle(String signalName) {
+    LOG.debug("Executing 'Create signal handle {}'", signalName);
+
+   return this.stateHolder.getState().createSignalHandle(
+            new NotificationId.SignalName(signalName),
+            this.stateHolder,
+            this.journal,
+            this.outputSubscriber
+    );
+  }
+
+  @Override
+  public void completeSignal(String targetInvocationId, String signalName, Slice value) {
+    LOG.debug("Executing 'Complete signal {} to invocation {} with success'", signalName, targetInvocationId);
+    this.completeSignal(targetInvocationId, signalName, builder -> builder.setValue(Protocol.Value.newBuilder().setContent(sliceToByteString(value)).build()));
+  }
+
+  @Override
+  public void completeSignal(
+      String targetInvocationId, String signalName, TerminalException exception) {
+    LOG.debug("Executing 'Complete signal {} to invocation {} with failure'", signalName, targetInvocationId);
+    this.completeSignal(targetInvocationId, signalName, builder -> builder.setFailure(
+            toProtocolFailure(exception)
+    ));
+  }
+
+  private void completeSignal(
+          String targetInvocationId, String signalName,  Consumer<Protocol.SendSignalCommandMessage.Builder> filler) {
+    var builder = Protocol.SendSignalCommandMessage.newBuilder()
+            .setTargetInvocationId(targetInvocationId)
+            .setName(signalName);
+    filler.accept(builder);
+
+    this.stateHolder.getState().processNonCompletableCommand(
+            builder.build(),
+            this.stateHolder,
+            this.journal,
+            this.outputSubscriber
+    );
+  }
+
+  @Override
+  public int promiseGet(String key) {
+    LOG.debug("Executing 'Await promise {}'", key);
+    var completionId = this.journal.nextCompletionNotificationId();
+    return this.stateHolder.getState().processCompletableCommand(
+            Protocol.GetPromiseCommandMessage.newBuilder()
+                    .setKey(
+key
+                    )
+                    .setResultCompletionId(completionId)
+                    .build(),
+            new int[]{completionId},
+            this.stateHolder,
+            this.journal,
+            this.outputSubscriber
+    )[0];
+  }
+
+  @Override
+  public int promisePeek(String key) {
+    LOG.debug("Executing 'Peek promise {}'", key);
+    var completionId = this.journal.nextCompletionNotificationId();
+    return this.stateHolder.getState().processCompletableCommand(
+            Protocol.PeekPromiseCommandMessage.newBuilder()
+                    .setKey(
+                            key
+                    )
+                    .setResultCompletionId(completionId)
+                    .build(),
+            new int[]{completionId},
+            this.stateHolder,
+            this.journal,
+            this.outputSubscriber
+    )[0];
+  }
+
+  @Override
+  public int promiseComplete(String key, Slice value) {
+    LOG.debug("Executing 'Complete promise {} with success'", key);
+    return this.promiseComplete(key, builder -> builder.setCompletionValue(Protocol.Value.newBuilder().setContent(sliceToByteString(value)).build()));
+  }
+
+  @Override
+  public int promiseComplete(String key, TerminalException exception) {
+    LOG.debug("Executing 'Complete promise {} with failure'", key);
+    return this.promiseComplete(key, builder -> builder.setCompletionFailure(
+            toProtocolFailure(exception)
+    ));
+  }
+
+  private int promiseComplete(String key,  Consumer<Protocol.CompletePromiseCommandMessage.Builder> filler) {
+    var completionId = this.journal.nextCompletionNotificationId();
+
+    var builder = Protocol.CompletePromiseCommandMessage.newBuilder()
+            .setResultCompletionId(completionId)
+            .setKey(key);
+    filler.accept(builder);
+
+    return this.stateHolder.getState().processCompletableCommand(
+            builder
+                    .build(),
+            new int[]{completionId},
+            this.stateHolder,
+            this.journal,
+            this.outputSubscriber
+    )[0];
+  }
+
+  @Override
+  public int run(String name) {
+    return this.stateHolder.getState().processRunCommand(
+            name,
+            this.stateHolder,
+            this.journal,
+            this.outputSubscriber
+    );
+  }
+
+  @Override
+  public void proposeRunCompletion(int handle, Slice value) {
+    LOG.debug("Executing 'Run completed with success");
+    this.stateHolder.getState().proposeRunCompletion(
+            handle,
+            value,
+            this.stateHolder,
+            this.journal,
+            this.outputSubscriber
+    );
+  }
+
+  @Override
+  public void proposeRunCompletion(int handle, Throwable exception, @Nullable RetryPolicy retryPolicy) {
+    LOG.debug("Executing 'Run completed with failure");
+    this.stateHolder.getState().proposeRunCompletion(
+            handle,
+            exception,
+            retryPolicy,
+            this.stateHolder,
+            this.journal,
+            this.outputSubscriber
+    );
+  }
+
+  @Override
+  public void cancelInvocation(String targetInvocationId) {
+    LOG.debug("Executing 'Cancel invocation {}", targetInvocationId);
+    this.stateHolder.getState().processNonCompletableCommand(
+            Protocol.SendSignalCommandMessage.newBuilder()
+                    .setTargetInvocationId(targetInvocationId)
+                    .setIdx(CANCEL_SIGNAL_ID)
+                    .setVoid(Protocol.Void.getDefaultInstance())
+                    .build(),
+            this.stateHolder,
+            this.journal,
+            this.outputSubscriber
+    );
+  }
+
+  @Override
+  public void writeOutput(Slice value) {
+    LOG.debug("Executing 'Write invocation output with success");
+    this.stateHolder.getState().processNonCompletableCommand(
+            Protocol.OutputCommandMessage
+                    .newBuilder()
+                    .setValue(Protocol.Value.newBuilder().setContent(sliceToByteString(value)).build())
+                    .build(),
+            this.stateHolder,
+            this.journal,
+            this.outputSubscriber
+    );
+  }
+
+  @Override
+  public void writeOutput(TerminalException exception) {
+    LOG.debug("Executing 'Write invocation output with failure");
+    this.stateHolder.getState().processNonCompletableCommand(
+            Protocol.OutputCommandMessage
+                    .newBuilder()
+                    .setFailure(
+                            toProtocolFailure(exception)
+                    ).build(),
+            this.stateHolder,
+            this.journal,
+            this.outputSubscriber
+    );
+  }
+
+  @Override
+  public void end() {
+    this.stateHolder.getState().end(
+            this.stateHolder,
+            this.outputSubscriber
+    );
+  }
+
+  @Override
+  public InvocationState state() {
+    return this.stateHolder.getState().getInvocationState();
+  }
+
+  private StartInfo requireStartInfo() {
+    return Objects.requireNonNull(startInfo, "The state machine should be initialized");
+  }
+}

@@ -10,13 +10,13 @@ package dev.restate.sdk;
 
 import static dev.restate.sdk.core.ProtoUtils.GREETER_SERVICE_TARGET;
 
-import dev.restate.sdk.endpoint.HandlerType;
+import dev.restate.sdk.definition.HandlerType;
 import dev.restate.sdk.serde.Serde;
-import dev.restate.sdk.endpoint.ServiceType;
+import dev.restate.sdk.definition.ServiceType;
 import dev.restate.sdk.function.ThrowingBiFunction;
-import dev.restate.sdk.endpoint.HandlerDefinition;
-import dev.restate.sdk.endpoint.HandlerSpecification;
-import dev.restate.sdk.endpoint.ServiceDefinition;
+import dev.restate.sdk.definition.HandlerDefinition;
+import dev.restate.sdk.definition.HandlerSpecification;
+import dev.restate.sdk.definition.ServiceDefinition;
 import dev.restate.sdk.core.MockMultiThreaded;
 import dev.restate.sdk.core.MockSingleThread;
 import dev.restate.sdk.core.TestDefinitions;

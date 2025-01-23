@@ -8,17 +8,17 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.lambda;
 
-import dev.restate.sdk.endpoint.RequestIdentityVerifier;
-import dev.restate.sdk.endpoint.ServiceDefinition;
-import dev.restate.sdk.core.RestateEndpoint;
+import dev.restate.sdk.core.RequestIdentityVerifier;
+import dev.restate.sdk.definition.ServiceDefinition;
+import dev.restate.sdk.core.EndpointImpl;
 import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import io.opentelemetry.api.OpenTelemetry;
 
 /** Endpoint builder for a Restate AWS Lambda Endpoint, to serve Restate service. */
 public final class RestateLambdaEndpointBuilder {
 
-  private final RestateEndpoint.Builder restateEndpoint =
-      RestateEndpoint.newBuilder(EndpointManifestSchema.ProtocolMode.REQUEST_RESPONSE);
+  private final EndpointImpl.Builder restateEndpoint =
+      EndpointImpl.newBuilder(EndpointManifestSchema.ProtocolMode.REQUEST_RESPONSE);
   private OpenTelemetry openTelemetry = OpenTelemetry.noop();
 
   /**
@@ -29,7 +29,7 @@ public final class RestateLambdaEndpointBuilder {
    * #bind(ServiceDefinition)}.
    */
   public RestateLambdaEndpointBuilder bind(Object service) {
-    return this.bind(RestateEndpoint.discoverServiceDefinitionFactory(service).create(service));
+    return this.bind(EndpointImpl.discoverServiceDefinitionFactory(service).create(service));
   }
 
   /**

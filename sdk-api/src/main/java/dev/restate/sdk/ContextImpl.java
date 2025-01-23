@@ -8,9 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.endpoint.HandlerContext;
+import dev.restate.sdk.definition.HandlerContext;
 import dev.restate.sdk.function.ThrowingSupplier;
-import dev.restate.sdk.endpoint.AsyncResult;
+import dev.restate.sdk.definition.AsyncResult;
 import dev.restate.sdk.common.syscalls.EnterSideEffectSyscallCallback;
 import dev.restate.sdk.common.syscalls.ExitSideEffectSyscallCallback;
 

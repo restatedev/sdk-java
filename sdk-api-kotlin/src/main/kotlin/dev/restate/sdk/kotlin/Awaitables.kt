@@ -9,9 +9,8 @@
 package dev.restate.sdk.kotlin
 
 import dev.restate.sdk.serde.Serde
-import dev.restate.sdk.endpoint.AsyncResult
-import dev.restate.sdk.endpoint.HandlerContext
-import dev.restate.sdk.endpoint.Result
+import dev.restate.sdk.definition.AsyncResult
+import dev.restate.sdk.definition.HandlerContext
 import java.nio.ByteBuffer
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.suspendCancellableCoroutine

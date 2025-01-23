@@ -8,9 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.endpoint.HandlerContext
+import dev.restate.sdk.definition.HandlerContext
 import dev.restate.sdk.types.TerminalException
-import dev.restate.sdk.endpoint.HandlerSpecification
+import dev.restate.sdk.definition.HandlerSpecification
 import dev.restate.sdk.common.syscalls.SyscallCallback
 import io.opentelemetry.extension.kotlin.asContextElement
 import java.nio.ByteBuffer
@@ -21,11 +21,11 @@ import kotlinx.coroutines.asContextElement
 import kotlinx.coroutines.launch
 import org.apache.logging.log4j.LogManager
 
-/** Adapter class for [dev.restate.sdk.endpoint.HandlerRunner] to use the Kotlin API. */
+/** Adapter class for [dev.restate.sdk.definition.HandlerRunner] to use the Kotlin API. */
 class HandlerRunner<REQ, RES, CTX : Context>
 internal constructor(
     private val runner: suspend (CTX, REQ) -> RES,
-) : dev.restate.sdk.endpoint.HandlerRunner<REQ, RES, HandlerRunner.Options> {
+) : dev.restate.sdk.definition.HandlerRunner<REQ, RES, HandlerRunner.Options> {
 
   companion object {
     private val LOG = LogManager.getLogger(HandlerRunner::class.java)
@@ -52,7 +52,7 @@ internal constructor(
     val scope =
         CoroutineScope(
             (options?.coroutineContext ?: Options.DEFAULT.coroutineContext) +
-                dev.restate.sdk.endpoint.HandlerRunner.SYSCALLS_THREAD_LOCAL
+                dev.restate.sdk.definition.HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL
                     .asContextElement(handlerContext) +
                 handlerContext.request().otelContext()!!.asContextElement())
     scope.launch {

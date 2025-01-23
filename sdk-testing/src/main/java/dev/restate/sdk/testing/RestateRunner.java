@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testing;
 
-import dev.restate.sdk.client.Client;
+import dev.restate.client.Client;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;

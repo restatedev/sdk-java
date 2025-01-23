@@ -9,6 +9,8 @@
 package dev.restate.sdk.serde;
 
 import java.nio.ByteBuffer;
+
+import dev.restate.sdk.types.Slice;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -29,22 +31,12 @@ public interface RichSerde<T extends @Nullable Object> extends Serde<T> {
   static <T> RichSerde<T> withSchema(Object jsonSchema, Serde<T> inner) {
     return new RichSerde<>() {
       @Override
-      public byte[] serialize(T value) {
+      public Slice serialize(T value) {
         return inner.serialize(value);
       }
 
       @Override
-      public ByteBuffer serializeToByteBuffer(T value) {
-        return inner.serializeToByteBuffer(value);
-      }
-
-      @Override
-      public T deserialize(ByteBuffer byteBuffer) {
-        return inner.deserialize(byteBuffer);
-      }
-
-      @Override
-      public T deserialize(byte[] value) {
+      public T deserialize(Slice value) {
         return inner.deserialize(value);
       }
 

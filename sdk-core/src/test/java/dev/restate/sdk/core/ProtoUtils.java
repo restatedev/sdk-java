@@ -15,6 +15,11 @@ import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.discovery.Discovery;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.generated.service.protocol.Protocol.StartMessage.StateEntry;
+import dev.restate.sdk.core.statemachine.MessageHeader;
+import dev.restate.sdk.core.statemachine.MessageType;
+import dev.restate.sdk.core.statemachine.InvocationInput;
+import dev.restate.sdk.core.statemachine.MessageDecoder;
+import dev.restate.sdk.core.statemachine.MessageEncoder;
 import dev.restate.sdk.serde.Serde;
 import dev.restate.sdk.types.Target;
 import io.smallrye.mutiny.Multi;
@@ -131,7 +136,7 @@ public class ProtoUtils {
   }
 
   public static Protocol.CompletionMessage completionMessage(int index, Throwable e) {
-    return completionMessage(index).setFailure(Util.toProtocolFailure(e)).build();
+    return completionMessage(index).setFailure(ExceptionUtils.toProtocolFailure(e)).build();
   }
 
   public static Protocol.EntryAckMessage ackMessage(int index) {
@@ -188,12 +193,14 @@ public class ProtoUtils {
 
   public static Protocol.OutputEntryMessage outputMessage(int code, String message) {
     return Protocol.OutputEntryMessage.newBuilder()
-        .setFailure(Util.toProtocolFailure(code, message))
+        .setFailure(ExceptionUtils.toProtocolFailure(code, message))
         .build();
   }
 
   public static Protocol.OutputEntryMessage outputMessage(Throwable e) {
-    return Protocol.OutputEntryMessage.newBuilder().setFailure(Util.toProtocolFailure(e)).build();
+    return Protocol.OutputEntryMessage.newBuilder()
+        .setFailure(ExceptionUtils.toProtocolFailure(e))
+        .build();
   }
 
   public static Protocol.GetStateEntryMessage.Builder getStateMessage(String key) {
@@ -201,7 +208,7 @@ public class ProtoUtils {
   }
 
   public static Protocol.GetStateEntryMessage.Builder getStateMessage(String key, Throwable error) {
-    return getStateMessage(key).setFailure(Util.toProtocolFailure(error));
+    return getStateMessage(key).setFailure(ExceptionUtils.toProtocolFailure(error));
   }
 
   public static Protocol.GetStateEntryMessage getStateEmptyMessage(String key) {
@@ -302,7 +309,7 @@ public class ProtoUtils {
       String key, Throwable e) {
     return Protocol.CompletePromiseEntryMessage.newBuilder()
         .setKey(key)
-        .setCompletionFailure(Util.toProtocolFailure(e));
+        .setCompletionFailure(ExceptionUtils.toProtocolFailure(e));
   }
 
   public static Java.CombinatorAwaitableEntryMessage combinatorsMessage(Integer... order) {

@@ -10,7 +10,7 @@ package dev.restate.sdk.springboot.java;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.restate.sdk.client.Client;
+import dev.restate.client.Client;
 import dev.restate.sdk.testing.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;

@@ -8,9 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.endpoint.AsyncResult;
-import dev.restate.sdk.endpoint.HandlerContext;
-import dev.restate.sdk.endpoint.Result;
+import dev.restate.sdk.definition.AsyncResult;
+import dev.restate.sdk.definition.HandlerContext;
+import dev.restate.sdk.definition.Result;
 
 import java.util.List;
 

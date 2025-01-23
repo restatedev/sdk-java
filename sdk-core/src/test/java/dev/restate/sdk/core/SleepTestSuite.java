@@ -91,7 +91,7 @@ public abstract class SleepTestSuite implements TestDefinitions.TestSuite {
                 inputMessage("Till"),
                 Protocol.SleepEntryMessage.newBuilder()
                     .setWakeUpTime(Instant.now().toEpochMilli())
-                    .setFailure(Util.toProtocolFailure(409, "canceled"))
+                    .setFailure(ExceptionUtils.toProtocolFailure(409, "canceled"))
                     .build())
             .expectingOutput(outputMessage(409, "canceled"), END_MESSAGE)
             .named("Failed sleep"),

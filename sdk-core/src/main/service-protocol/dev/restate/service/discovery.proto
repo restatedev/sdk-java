@@ -11,8 +11,7 @@ syntax = "proto3";
 
 package dev.restate.service.discovery;
 
-option java_package = "dev.restate.generated.service.discovery";
-option go_package = "restate.dev/sdk-go/pb/service/discovery";
+option java_package = "dev.restate.sdk.core.generated.discovery";
 
 // Service discovery protocol version.
 enum ServiceDiscoveryProtocolVersion {

@@ -10,7 +10,7 @@ package dev.restate.sdk.kotlin.gen
 
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSName
-import dev.restate.sdk.endpoint.ServiceType
+import dev.restate.sdk.definition.ServiceType
 
 internal data class MetaRestateAnnotation(
     val annotationName: KSName,

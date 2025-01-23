@@ -19,18 +19,24 @@ public interface Slice {
   byte[] toByteArray();
 
   static Slice wrap(ByteBuffer byteBuffer) {
-
+    // TODO
+throw new UnsupportedOperationException();
   }
 
   static Slice wrap(byte[] bytes) {
-
+    // TODO
+    throw new UnsupportedOperationException();
   }
 
   static Slice copy(byte[] bytes) {
-
+    // TODO
+    throw new UnsupportedOperationException();
   }
 
   static Slice wrap(String str) {
-
+    // TODO
+    throw new UnsupportedOperationException();
   }
+
+  Slice EMPTY = Slice.wrap(new byte[0]);
 }

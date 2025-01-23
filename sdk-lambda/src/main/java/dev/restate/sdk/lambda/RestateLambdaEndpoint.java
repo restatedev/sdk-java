@@ -14,8 +14,8 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
 import dev.restate.sdk.core.ProtocolException;
-import dev.restate.sdk.core.ResolvedEndpointHandler;
-import dev.restate.sdk.core.RestateEndpoint;
+import dev.restate.sdk.definition.HandlerProcessor;
+import dev.restate.sdk.core.EndpointImpl;
 import dev.restate.sdk.version.Version;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.context.propagation.TextMapGetter;
@@ -51,11 +51,11 @@ public final class RestateLambdaEndpoint {
         }
       };
 
-  private final RestateEndpoint restateEndpoint;
+  private final EndpointImpl endpointImpl;
   private final OpenTelemetry openTelemetry;
 
-  RestateLambdaEndpoint(RestateEndpoint restateEndpoint, OpenTelemetry openTelemetry) {
-    this.restateEndpoint = restateEndpoint;
+  RestateLambdaEndpoint(EndpointImpl endpointImpl, OpenTelemetry openTelemetry) {
+    this.endpointImpl = endpointImpl;
     this.openTelemetry = openTelemetry;
   }
 
@@ -116,16 +116,16 @@ public final class RestateLambdaEndpoint {
     final ByteBuffer requestBody = parseInputBody(input);
 
     // Resolve handler
-    ResolvedEndpointHandler handler;
+    HandlerProcessor handler;
     try {
       handler =
-          this.restateEndpoint.resolve(
+          this.endpointImpl.resolve(
               input.getHeaders().get("content-type"),
               serviceName,
               handlerName,
               input.getHeaders()::get,
               otelContext,
-              RestateEndpoint.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
+              EndpointImpl.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
               null);
     } catch (ProtocolException e) {
       LOG.warn("Error when resolving the grpc handler", e);
@@ -168,8 +168,8 @@ public final class RestateLambdaEndpoint {
   // --- Service discovery
 
   private APIGatewayProxyResponseEvent handleDiscovery(String acceptVersionsString) {
-    RestateEndpoint.DiscoveryResponse discoveryResponse =
-        this.restateEndpoint.handleDiscoveryRequest(acceptVersionsString);
+    EndpointImpl.DiscoveryResponse discoveryResponse =
+        this.endpointImpl.handleDiscoveryRequest(acceptVersionsString);
 
     final APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent();
     response.setHeaders(

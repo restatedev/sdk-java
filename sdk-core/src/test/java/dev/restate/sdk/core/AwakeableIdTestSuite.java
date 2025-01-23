@@ -18,6 +18,7 @@ import dev.restate.generated.service.protocol.Protocol.AwakeableEntryMessage;
 import dev.restate.generated.service.protocol.Protocol.StartMessage;
 import dev.restate.sdk.core.TestDefinitions.TestDefinition;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
+import dev.restate.sdk.core.impl.Entries;
 import java.nio.ByteBuffer;
 import java.util.Base64;
 import java.util.UUID;

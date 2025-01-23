@@ -14,6 +14,7 @@ import static dev.restate.sdk.core.ProtoUtils.*;
 import dev.restate.sdk.core.TestDefinitions.TestDefinition;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
+import dev.restate.sdk.core.impl.InvocationIdImpl;
 import java.util.stream.Stream;
 
 public abstract class RandomTestSuite implements TestSuite {

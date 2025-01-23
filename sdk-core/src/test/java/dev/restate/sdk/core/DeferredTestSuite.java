@@ -75,7 +75,8 @@ public abstract class DeferredTestSuite implements TestSuite {
                 inputMessage(),
                 invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
                 invokeMessage(GREETER_SERVICE_TARGET, "Till")
-                    .setFailure(Util.toProtocolFailure(new IllegalStateException("My error"))),
+                    .setFailure(
+                        ExceptionUtils.toProtocolFailure(new IllegalStateException("My error"))),
                 ackMessage(3))
             .expectingOutput(
                 combinatorsMessage(2),

@@ -62,6 +62,19 @@ class CounterKt {
 }
 
 fun main() {
+  val endpoint = endpoint {
+
+  }
+
+  RestateHttpEndpoint.listen(endpoint)
+
+  RestateHttpEndpoint.start {
+    bind()
+    bind()
+
+    opentelemetry =
+  }
+
   RestateHttpEndpointBuilder.builder(Vertx.vertx(VertxOptions().setEventLoopPoolSize(8)))
       .bind(
           CounterKtServiceDefinitionFactory().create(CounterKt()),

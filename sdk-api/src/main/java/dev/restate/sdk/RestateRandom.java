@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.endpoint.HandlerContext;
+import dev.restate.sdk.definition.HandlerContext;
 import dev.restate.sdk.types.InvocationId;
 import dev.restate.sdk.serde.Serde;
 import dev.restate.sdk.function.ThrowingSupplier;

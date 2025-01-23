@@ -14,7 +14,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.MessageLiteOrBuilder;
 import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.endpoint.ServiceDefinition;
+import dev.restate.sdk.core.statemachine.InvocationInput;
+import dev.restate.sdk.definition.ServiceDefinition;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -78,7 +79,7 @@ public final class TestDefinitions {
 
     // In case it's code generated, discover the adapter
     ServiceDefinition<?> serviceDefinition =
-        RestateEndpoint.discoverServiceDefinitionFactory(service).create(service);
+        EndpointImpl.discoverServiceDefinitionFactory(service).create(service);
     return new TestInvocationBuilder(serviceDefinition, null, handler);
   }
 

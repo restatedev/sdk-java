@@ -14,6 +14,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 
 import com.google.protobuf.MessageLite;
+import dev.restate.sdk.core.impl.MessageDecoder;
+import dev.restate.sdk.core.impl.MessageEncoder;
+import dev.restate.sdk.core.statemachine.InvocationInput;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.helpers.test.AssertSubscriber;
 import java.nio.ByteBuffer;

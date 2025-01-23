@@ -15,11 +15,12 @@ import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 import com.google.protobuf.MessageLite;
 import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.types.TerminalException;
-import dev.restate.sdk.endpoint.ServiceDefinition;
+import dev.restate.sdk.core.impl.EndpointManifest;
 import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import dev.restate.sdk.core.manifest.Handler;
 import dev.restate.sdk.core.manifest.Service;
+import dev.restate.sdk.definition.ServiceDefinition;
+import dev.restate.sdk.types.TerminalException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -79,7 +80,7 @@ public class AssertUtils {
                             return (ServiceDefinition<?>) svc;
                           }
 
-                          return RestateEndpoint.discoverServiceDefinitionFactory(svc).create(svc);
+                          return EndpointImpl.discoverServiceDefinitionFactory(svc).create(svc);
                         }),
                 false)
             .manifest(),

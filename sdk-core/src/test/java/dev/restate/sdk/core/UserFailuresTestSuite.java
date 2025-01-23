@@ -71,7 +71,7 @@ public abstract class UserFailuresTestSuite implements TestSuite {
             .expectingOutput(
                 Protocol.RunEntryMessage.newBuilder()
                     .setFailure(
-                        Util.toProtocolFailure(
+                        ExceptionUtils.toProtocolFailure(
                             TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR)),
                 outputMessage(TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR),
                 END_MESSAGE)
@@ -80,7 +80,7 @@ public abstract class UserFailuresTestSuite implements TestSuite {
             .withInput(startMessage(1), inputMessage(), ackMessage(1))
             .expectingOutput(
                 Protocol.RunEntryMessage.newBuilder()
-                    .setFailure(Util.toProtocolFailure(501, WHATEVER)),
+                    .setFailure(ExceptionUtils.toProtocolFailure(501, WHATEVER)),
                 outputMessage(501, WHATEVER),
                 END_MESSAGE)
             .named("With unknown error"));

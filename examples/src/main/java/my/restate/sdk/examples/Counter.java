@@ -61,6 +61,13 @@ public class Counter {
   }
 
   public static void main(String[] args) {
+    Endpoint endpoint = Endpoint.builder()
+            .bind(new Counter())
+            .build();
+
+    RestateHttpServer.listen(endpoint);
+
+
     RestateHttpEndpointBuilder.builder().bind(new Counter()).buildAndListen();
   }
 

@@ -7,7 +7,7 @@ plugins {
 description = "Restate SDK Kotlin APIs"
 
 dependencies {
-  api(project(":sdk-common"))
+  api(project(":sdk-common-kotlin"))
 
   implementation(libs.kotlinx.coroutines.core)
   implementation(libs.kotlinx.serialization.core)

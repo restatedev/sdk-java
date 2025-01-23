@@ -30,7 +30,7 @@ dependencies {
   // We don't want a hard-dependency on it
   compileOnly(libs.log4j.core)
 
-  implementation(libs.opentelemetry.api)
+  api(libs.opentelemetry.api)
 
   testCompileOnly(libs.jspecify)
   testImplementation(libs.mutiny)
@@ -45,14 +45,14 @@ val generatedJ2SPDir = layout.buildDirectory.dir("generated/j2sp")
 sourceSets {
   main {
     java.srcDir(generatedJ2SPDir)
-    proto { srcDirs("src/main/sdk-proto", "src/main/service-protocol") }
+    proto { srcDirs("src/main/service-protocol") }
   }
 }
 
 // Configure jsonSchema2Pojo
 jsonSchema2Pojo {
   setSource(files("$projectDir/src/main/service-protocol/endpoint_manifest_schema.json"))
-  targetPackage = "dev.restate.sdk.core.manifest"
+  targetPackage = "dev.restate.sdk.core.generated.manifest"
   targetDirectory = generatedJ2SPDir.get().asFile
 
   useLongIntegers = false

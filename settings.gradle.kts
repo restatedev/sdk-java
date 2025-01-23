@@ -14,9 +14,11 @@ plugins { id("org.gradle.toolchains.foojay-resolver-convention") version "0.7.0"
 include(
     "admin-client",
     "sdk-common",
+    "sdk-common-kotlin",
     "sdk-api",
     "sdk-api-kotlin",
     "sdk-core",
+    "sdk-core-kotlin",
     "sdk-serde-jackson",
     "sdk-serde-protobuf",
     "sdk-request-identity",
@@ -27,10 +29,17 @@ include(
     "sdk-api-gen",
     "sdk-api-kotlin-gen",
     "sdk-spring-boot",
-    "sdk-spring-boot-starter",
-    "sdk-spring-boot-kotlin-starter",
     "examples",
     "sdk-aggregated-javadocs",
-    "test-services")
+    "test-services",
+
+    // Meta modules
+    "sdk-java-http",
+    "sdk-java-lambda",
+    "sdk-kotlin-http",
+    "sdk-kotlin-lambda",
+    "sdk-spring-boot-starter",
+    "sdk-spring-boot-kotlin-starter",
+)
 
 dependencyResolutionManagement { repositories { mavenCentral() } }

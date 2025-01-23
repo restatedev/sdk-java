@@ -8,16 +8,16 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import java.nio.ByteBuffer;
+import dev.restate.sdk.types.Slice;
 import java.util.concurrent.Flow;
 
 public interface InvocationFlow {
 
-  interface InvocationInputPublisher extends Flow.Publisher<ByteBuffer> {}
+  interface InvocationInputPublisher extends Flow.Publisher<Slice> {}
 
-  interface InvocationOutputPublisher extends Flow.Publisher<ByteBuffer> {}
+  interface InvocationOutputPublisher extends Flow.Publisher<Slice> {}
 
-  interface InvocationInputSubscriber extends Flow.Subscriber<ByteBuffer> {}
+  interface InvocationInputSubscriber extends Flow.Subscriber<Slice> {}
 
-  interface InvocationOutputSubscriber extends Flow.Subscriber<ByteBuffer> {}
+  interface InvocationOutputSubscriber extends Flow.Subscriber<Slice> {}
 }

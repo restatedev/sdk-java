@@ -8,45 +8,45 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import static dev.restate.sdk.core.Util.nioBufferToProtobufBuffer;
-
-import com.google.protobuf.ByteString;
-import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.endpoint.AsyncResult;
-import dev.restate.sdk.endpoint.Result;
-import dev.restate.sdk.types.Request;
-import dev.restate.sdk.types.RetryPolicy;
-import dev.restate.sdk.types.Target;
-import dev.restate.sdk.types.TerminalException;
+import dev.restate.sdk.core.statemachine.InvocationState;
+import dev.restate.sdk.core.statemachine.NotificationValue;
+import dev.restate.sdk.core.statemachine.StateMachine;
+import dev.restate.sdk.definition.AsyncResult;
 import dev.restate.sdk.function.ThrowingRunnable;
-import dev.restate.sdk.core.DeferredResults.SingleAsyncResultInternal;
-import dev.restate.sdk.core.Entries.*;
-import java.nio.ByteBuffer;
+import dev.restate.sdk.function.ThrowingSupplier;
+import dev.restate.sdk.types.*;
+import io.opentelemetry.context.Context;
 import java.time.Duration;
-import java.time.Instant;
-import java.util.AbstractMap;
-import java.util.Base64;
-import java.util.Collection;
-import java.util.Map;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 import org.jspecify.annotations.Nullable;
 
-public final class HandlerContextImpl implements HandlerContextInternal {
-
-  private static final Logger LOG = LogManager.getLogger(HandlerContextImpl.class);
+class HandlerContextImpl implements HandlerContextInternal {
 
   private final Request request;
-  private final InvocationStateMachine stateMachine;
+  private final StateMachine stateMachine;
+  private final @Nullable String objectKey;
+  private final String fullyQualifiedHandlerName;
 
-  HandlerContextImpl(Request request, InvocationStateMachine stateMachine) {
-    this.request = request;
+  private CompletableFuture<Void> nextProcessedRun;
+  private final HashMap<Integer, Consumer<RunCompleter>> scheduledRuns;
+
+  HandlerContextImpl(
+      String fullyQualifiedHandlerName,
+      StateMachine stateMachine,
+      Context otelContext,
+      StateMachine.Input input) {
+    this.request = new Request(input.invocationId(), otelContext, input.body(), input.headers());
+    this.objectKey = input.key();
     this.stateMachine = stateMachine;
+    this.fullyQualifiedHandlerName = fullyQualifiedHandlerName;
+    this.scheduledRuns = new HashMap<>();
   }
 
   @Override
   public String objectKey() {
-    return this.stateMachine.objectKey();
+    return this.objectKey;
   }
 
   @Override
@@ -55,381 +55,388 @@ public final class HandlerContextImpl implements HandlerContextInternal {
   }
 
   @Override
-  public void writeOutput(ByteBuffer value, SyscallCallback<Void> callback) {
-    wrapAndPropagateExceptions(
-        () -> {
-          LOG.trace("writeOutput success");
-          this.writeOutput(
-              Protocol.OutputEntryMessage.newBuilder()
-                  .setValue(nioBufferToProtobufBuffer(value))
-                  .build(),
-              callback);
-        },
-        callback);
-  }
-
-  @Override
-  public void writeOutput(TerminalException throwable, SyscallCallback<Void> callback) {
-    wrapAndPropagateExceptions(
-        () -> {
-          LOG.trace("writeOutput failure");
-          this.writeOutput(
-              Protocol.OutputEntryMessage.newBuilder()
-                  .setFailure(Util.toProtocolFailure(throwable))
-                  .build(),
-              callback);
-        },
-        callback);
-  }
-
-  private void writeOutput(Protocol.OutputEntryMessage entry, SyscallCallback<Void> callback) {
-    wrapAndPropagateExceptions(
-        () -> this.stateMachine.processJournalEntry(entry, OutputEntry.INSTANCE, callback),
-        callback);
-  }
-
-  @Override
-  public void get(String name, SyscallCallback<AsyncResult<ByteBuffer>> callback) {
-    wrapAndPropagateExceptions(
-        () -> {
-          LOG.trace("get {}", name);
-          this.stateMachine.processCompletableJournalEntry(
-              Protocol.GetStateEntryMessage.newBuilder()
-                  .setKey(ByteString.copyFromUtf8(name))
-                  .build(),
-              GetStateEntry.INSTANCE,
-              callback);
-        },
-        callback);
-  }
-
-  @Override
-  public void getKeys(SyscallCallback<AsyncResult<Collection<String>>> callback) {
-    wrapAndPropagateExceptions(
-        () -> {
-          LOG.trace("get keys");
-          this.stateMachine.processCompletableJournalEntry(
-              Protocol.GetStateKeysEntryMessage.newBuilder().build(),
-              GetStateKeysEntry.INSTANCE,
-              callback);
-        },
-        callback);
-  }
-
-  @Override
-  public void clear(String name, SyscallCallback<Void> callback) {
-    wrapAndPropagateExceptions(
-        () -> {
-          LOG.trace("clear {}", name);
-          this.stateMachine.processJournalEntry(
-              Protocol.ClearStateEntryMessage.newBuilder()
-                  .setKey(ByteString.copyFromUtf8(name))
-                  .build(),
-              ClearStateEntry.INSTANCE,
-              callback);
-        },
-        callback);
-  }
-
-  @Override
-  public void clearAll(SyscallCallback<Void> callback) {
-    wrapAndPropagateExceptions(
-        () -> {
-          LOG.trace("clearAll");
-          this.stateMachine.processJournalEntry(
-              Protocol.ClearAllStateEntryMessage.newBuilder().build(),
-              ClearAllStateEntry.INSTANCE,
-              callback);
-        },
-        callback);
-  }
-
-  @Override
-  public void set(String name, ByteBuffer value, SyscallCallback<Void> callback) {
-    wrapAndPropagateExceptions(
-        () -> {
-          LOG.trace("set {}", name);
-          this.stateMachine.processJournalEntry(
-              Protocol.SetStateEntryMessage.newBuilder()
-                  .setKey(ByteString.copyFromUtf8(name))
-                  .setValue(nioBufferToProtobufBuffer(value))
-                  .build(),
-              SetStateEntry.INSTANCE,
-              callback);
-        },
-        callback);
-  }
-
-  @Override
-  public void sleep(Duration duration, SyscallCallback<AsyncResult<Void>> callback) {
-    wrapAndPropagateExceptions(
-        () -> {
-          LOG.trace("sleep {}", duration);
-          this.stateMachine.processCompletableJournalEntry(
-              Protocol.SleepEntryMessage.newBuilder()
-                  .setWakeUpTime(Instant.now().toEpochMilli() + duration.toMillis())
-                  .build(),
-              SleepEntry.INSTANCE,
-              callback);
-        },
-        callback);
-  }
-
-  @Override
-  public void call(
-      Target target, ByteBuffer parameter, SyscallCallback<AsyncResult<ByteBuffer>> callback) {
-    wrapAndPropagateExceptions(
-        () -> {
-          LOG.trace("call {}", target);
-
-          Protocol.CallEntryMessage.Builder builder =
-              Protocol.CallEntryMessage.newBuilder()
-                  .setServiceName(target.getService())
-                  .setHandlerName(target.getHandler())
-                  .setParameter(nioBufferToProtobufBuffer(parameter));
-          if (target.getKey() != null) {
-            builder.setKey(target.getKey());
-          }
-
-          this.stateMachine.processCompletableJournalEntry(
-              builder.build(), new InvokeEntry<>(Result::success), callback);
-        },
-        callback);
-  }
-
-  @Override
-  public void send(
-      Target target,
-      ByteBuffer parameter,
-      @Nullable Duration delay,
-      SyscallCallback<Void> callback) {
-    wrapAndPropagateExceptions(
-        () -> {
-          LOG.trace("backgroundCall {}", target);
-
-          Protocol.OneWayCallEntryMessage.Builder builder =
-              Protocol.OneWayCallEntryMessage.newBuilder()
-                  .setServiceName(target.getService())
-                  .setHandlerName(target.getHandler())
-                  .setParameter(nioBufferToProtobufBuffer(parameter));
-          if (target.getKey() != null) {
-            builder.setKey(target.getKey());
-          }
-          if (delay != null && !delay.isZero()) {
-            builder.setInvokeTime(Instant.now().toEpochMilli() + delay.toMillis());
-          }
-
-          this.stateMachine.processJournalEntry(
-              builder.build(), OneWayCallEntry.INSTANCE, callback);
-        },
-        callback);
-  }
-
-  @Override
-  public void enterSideEffectBlock(String name, EnterSideEffectSyscallCallback callback) {
-    wrapAndPropagateExceptions(
-        () -> {
-          LOG.trace("enterSideEffectBlock");
-          this.stateMachine.enterSideEffectBlock(name, callback);
-        },
-        callback);
-  }
-
-  @Override
-  public void exitSideEffectBlock(ByteBuffer toWrite, ExitSideEffectSyscallCallback callback) {
-    wrapAndPropagateExceptions(
-        () -> {
-          LOG.trace("exitSideEffectBlock with success");
-          this.stateMachine.exitSideEffectBlock(
-              Protocol.RunEntryMessage.newBuilder()
-                  .setValue(nioBufferToProtobufBuffer(toWrite))
-                  .build(),
-              callback);
-        },
-        callback);
-  }
-
-  @Override
-  public void exitSideEffectBlockWithTerminalException(
-      TerminalException toWrite, ExitSideEffectSyscallCallback callback) {
-    wrapAndPropagateExceptions(
-        () -> {
-          LOG.trace("exitSideEffectBlock with failure");
-          this.stateMachine.exitSideEffectBlock(
-              Protocol.RunEntryMessage.newBuilder()
-                  .setFailure(Util.toProtocolFailure(toWrite))
-                  .build(),
-              callback);
-        },
-        callback);
-  }
-
-  @Override
-  public void exitSideEffectBlockWithException(
-      Throwable runException,
-      @Nullable RetryPolicy retryPolicy,
-      ExitSideEffectSyscallCallback callback) {
-    wrapAndPropagateExceptions(
-        () -> {
-          LOG.trace("exitSideEffectBlock with exception");
-          this.stateMachine.exitSideEffectBlockWithThrowable(runException, retryPolicy, callback);
-        },
-        callback);
-  }
-
-  @Override
-  public void awakeable(SyscallCallback<Map.Entry<String, AsyncResult<ByteBuffer>>> callback) {
-    wrapAndPropagateExceptions(
-        () -> {
-          LOG.trace("awakeable");
-          this.stateMachine.processCompletableJournalEntry(
-              Protocol.AwakeableEntryMessage.getDefaultInstance(),
-              AwakeableEntry.INSTANCE,
-              SyscallCallback.mappingTo(
-                  deferredResult -> {
-                    // Encode awakeable id
-                    ByteString awakeableId =
-                        stateMachine
-                            .id()
-                            .concat(
-                                ByteString.copyFrom(
-                                    ByteBuffer.allocate(4)
-                                        .putInt(
-                                            ((SingleAsyncResultInternal<ByteBuffer>) deferredResult)
-                                                .entryIndex())
-                                        .flip()));
-
-                    return new AbstractMap.SimpleImmutableEntry<>(
-                        Entries.AWAKEABLE_IDENTIFIER_PREFIX
-                            + Base64.getUrlEncoder().encodeToString(awakeableId.toByteArray()),
-                        deferredResult);
-                  },
-                  callback));
-        },
-        callback);
-  }
-
-  @Override
-  public void resolveAwakeable(
-      String serializedId, ByteBuffer payload, SyscallCallback<Void> callback) {
-    wrapAndPropagateExceptions(
-        () -> {
-          LOG.trace("resolveAwakeable");
-          completeAwakeable(
-              serializedId,
-              Protocol.CompleteAwakeableEntryMessage.newBuilder()
-                  .setValue(nioBufferToProtobufBuffer(payload)),
-              callback);
-        },
-        callback);
-  }
-
-  @Override
-  public void rejectAwakeable(String serializedId, String reason, SyscallCallback<Void> callback) {
-    wrapAndPropagateExceptions(
-        () -> {
-          LOG.trace("rejectAwakeable");
-          completeAwakeable(
-              serializedId,
-              Protocol.CompleteAwakeableEntryMessage.newBuilder()
-                  .setFailure(
-                      Protocol.Failure.newBuilder()
-                          .setCode(TerminalException.INTERNAL_SERVER_ERROR_CODE)
-                          .setMessage(reason)),
-              callback);
-        },
-        callback);
-  }
-
-  private void completeAwakeable(
-      String serializedId,
-      Protocol.CompleteAwakeableEntryMessage.Builder builder,
-      SyscallCallback<Void> callback) {
-    Protocol.CompleteAwakeableEntryMessage expectedEntry = builder.setId(serializedId).build();
-    this.stateMachine.processJournalEntry(expectedEntry, CompleteAwakeableEntry.INSTANCE, callback);
-  }
-
-  @Override
-  public void promise(String key, SyscallCallback<AsyncResult<ByteBuffer>> callback) {
-    wrapAndPropagateExceptions(
-        () -> {
-          LOG.trace("promise");
-          this.stateMachine.processCompletableJournalEntry(
-              Protocol.GetPromiseEntryMessage.newBuilder().setKey(key).build(),
-              GetPromiseEntry.INSTANCE,
-              callback);
-        },
-        callback);
-  }
-
-  @Override
-  public void peekPromise(String key, SyscallCallback<AsyncResult<ByteBuffer>> callback) {
-    wrapAndPropagateExceptions(
-        () -> {
-          LOG.trace("peekPromise");
-          this.stateMachine.processCompletableJournalEntry(
-              Protocol.PeekPromiseEntryMessage.newBuilder().setKey(key).build(),
-              PeekPromiseEntry.INSTANCE,
-              callback);
-        },
-        callback);
-  }
-
-  @Override
-  public void resolvePromise(
-      String key, ByteBuffer payload, SyscallCallback<AsyncResult<Void>> callback) {
-    wrapAndPropagateExceptions(
-        () -> {
-          LOG.trace("resolvePromise");
-          this.stateMachine.processCompletableJournalEntry(
-              Protocol.CompletePromiseEntryMessage.newBuilder()
-                  .setKey(key)
-                  .setCompletionValue(nioBufferToProtobufBuffer(payload))
-                  .build(),
-              CompletePromiseEntry.INSTANCE,
-              callback);
-        },
-        callback);
-  }
-
-  @Override
-  public void rejectPromise(String key, String reason, SyscallCallback<AsyncResult<Void>> callback) {
-    wrapAndPropagateExceptions(
-        () -> {
-          LOG.trace("resolvePromise");
-          this.stateMachine.processCompletableJournalEntry(
-              Protocol.CompletePromiseEntryMessage.newBuilder()
-                  .setKey(key)
-                  .setCompletionFailure(
-                      Protocol.Failure.newBuilder()
-                          .setCode(TerminalException.INTERNAL_SERVER_ERROR_CODE)
-                          .setMessage(reason))
-                  .build(),
-              CompletePromiseEntry.INSTANCE,
-              callback);
-        },
-        callback);
-  }
-
-  @Override
-  public <T> void resolveDeferred(AsyncResult<T> asyncResultToResolve, SyscallCallback<Void> callback) {
-    wrapAndPropagateExceptions(
-        () -> this.stateMachine.resolveDeferred(asyncResultToResolve, callback), callback);
-  }
-
-  @Override
   public String getFullyQualifiedMethodName() {
-    return this.stateMachine.getFullyQualifiedHandlerName();
+    return this.fullyQualifiedHandlerName;
   }
 
   @Override
   public InvocationState getInvocationState() {
-    return this.stateMachine.getInvocationState();
+    return this.stateMachine.state();
   }
 
   @Override
-  public boolean isInsideSideEffect() {
-    return this.stateMachine.isInsideSideEffect();
+  public CompletableFuture<AsyncResult<Optional<Slice>>> get(String name) {
+    return catchExceptions(
+        () ->
+            AsyncResults.single(
+                this,
+                this.stateMachine.stateGet(name),
+                (s, cf) -> {
+                  if (s instanceof NotificationValue.Empty) {
+                    cf.complete(Optional.empty());
+                  } else if (s instanceof NotificationValue.Success) {
+                    cf.complete(Optional.of(((NotificationValue.Success) s).slice()));
+                  } else {
+                    throw ProtocolException.unexpectedNotificationVariant(s.getClass());
+                  }
+                }));
+  }
+
+  @Override
+  public CompletableFuture<AsyncResult<Collection<String>>> getKeys() {
+    return catchExceptions(
+        () ->
+            AsyncResults.single(
+                this,
+                this.stateMachine.stateGetKeys(),
+                (s, cf) -> {
+                  if (s instanceof NotificationValue.StateKeys) {
+                    cf.complete(((NotificationValue.StateKeys) s).stateKeys());
+                  } else {
+                    throw ProtocolException.unexpectedNotificationVariant(s.getClass());
+                  }
+                }));
+  }
+
+  @Override
+  public CompletableFuture<Void> clear(String name) {
+    return this.catchExceptions(() -> this.stateMachine.stateClear(name));
+  }
+
+  @Override
+  public CompletableFuture<Void> clearAll() {
+    return this.catchExceptions(this.stateMachine::stateClearAll);
+  }
+
+  @Override
+  public CompletableFuture<Void> set(String name, Slice value) {
+    return this.catchExceptions(() -> this.stateMachine.stateSet(name, value));
+  }
+
+  @Override
+  public CompletableFuture<AsyncResult<Void>> sleep(Duration duration) {
+    return catchExceptions(
+        () ->
+            AsyncResults.single(
+                this,
+                this.stateMachine.sleep(duration),
+                (s, cf) -> {
+                  if (s instanceof NotificationValue.Empty) {
+                    cf.complete(null);
+                  } else {
+                    throw ProtocolException.unexpectedNotificationVariant(s.getClass());
+                  }
+                }));
+  }
+
+  @Override
+  public CompletableFuture<CallResult> call(
+      Target target,
+      Slice parameter,
+      @Nullable String idempotencyKey,
+      @Nullable List<Map.Entry<String, String>> headers) {
+    return catchExceptions(
+        () -> {
+          StateMachine.CallHandle callHandle =
+              this.stateMachine.call(target, parameter, idempotencyKey, headers);
+
+          AsyncResult<String> invocationIdAsyncResult =
+              AsyncResults.single(
+                  this,
+                  callHandle.invocationIdHandle(),
+                  (s, cf) -> {
+                    if (s instanceof NotificationValue.InvocationId) {
+                      cf.complete(((NotificationValue.InvocationId) s).invocationId());
+                    } else {
+                      throw ProtocolException.unexpectedNotificationVariant(s.getClass());
+                    }
+                  });
+
+          AsyncResult<Slice> callAsyncResult =
+              AsyncResults.single(
+                  this,
+                  callHandle.resultHandle(),
+                  (s, cf) -> {
+                    if (s instanceof NotificationValue.Success) {
+                      cf.complete(((NotificationValue.Success) s).slice());
+                    } else if (s instanceof NotificationValue.Failure) {
+                      cf.completeExceptionally(
+                          ((NotificationValue.Failure) s).exception());
+                    } else {
+                      throw ProtocolException.unexpectedNotificationVariant(s.getClass());
+                    }
+                  });
+
+          return new CallResult(invocationIdAsyncResult, callAsyncResult);
+        });
+  }
+
+  @Override
+  public CompletableFuture<AsyncResult<String>> send(
+      Target target,
+      Slice parameter,
+      @Nullable String idempotencyKey,
+      @Nullable List<Map.Entry<String, String>> headers,
+      @Nullable Duration delay) {
+    return catchExceptions(
+        () -> {
+          int sendHandle =
+              this.stateMachine.send(target, parameter, idempotencyKey, headers, delay);
+
+          AsyncResult<String> invocationIdAsyncResult =
+              AsyncResults.single(
+                  this,
+                  sendHandle,
+                  (s, cf) -> {
+                    if (s instanceof NotificationValue.InvocationId) {
+                      cf.complete(((NotificationValue.InvocationId) s).invocationId());
+                    } else {
+                      throw ProtocolException.unexpectedNotificationVariant(s.getClass());
+                    }
+                  });
+
+          return invocationIdAsyncResult;
+        });
+  }
+
+  @Override
+  public CompletableFuture<AsyncResult<Slice>> scheduleRun(
+      @Nullable String name, Consumer<RunCompleter> closure) {
+    return catchExceptions(
+        () -> {
+          int runHandle = this.stateMachine.run(name);
+          this.scheduledRuns.put(runHandle, closure);
+          return AsyncResults.single(
+              this,
+              runHandle,
+              (s, cf) -> {
+                if (s instanceof NotificationValue.Success) {
+                  cf.complete(((NotificationValue.Success) s).slice());
+                } else if (s instanceof NotificationValue.Failure) {
+                  cf.completeExceptionally(
+                      ((NotificationValue.Failure) s).exception());
+                } else {
+                  throw ProtocolException.unexpectedNotificationVariant(s.getClass());
+                }
+              });
+        });
+  }
+
+  @Override
+  public CompletableFuture<Awakeable> awakeable() {
+    return catchExceptions(
+        () -> {
+          StateMachine.Awakeable awakeable = this.stateMachine.awakeable();
+          return new Awakeable(
+              awakeable.awakeableId(),
+              AsyncResults.single(
+                  this,
+                  awakeable.handle(),
+                  (s, cf) -> {
+                    if (s instanceof NotificationValue.Success) {
+                      cf.complete(((NotificationValue.Success) s).slice());
+                    } else if (s instanceof NotificationValue.Failure) {
+                      cf.completeExceptionally(
+                          ((NotificationValue.Failure) s).exception());
+                    } else {
+                      throw ProtocolException.unexpectedNotificationVariant(s.getClass());
+                    }
+                  }));
+        });
+  }
+
+  @Override
+  public CompletableFuture<Void> resolveAwakeable(String id, Slice payload) {
+    return this.catchExceptions(() -> this.stateMachine.completeAwakeable(id, payload));
+  }
+
+  @Override
+  public CompletableFuture<Void> rejectAwakeable(String id, String reason) {
+    return this.catchExceptions(
+        () -> this.stateMachine.completeAwakeable(id, new TerminalException(reason)));
+  }
+
+  @Override
+  public CompletableFuture<AsyncResult<Slice>> promise(String key) {
+    return catchExceptions(
+        () ->
+            AsyncResults.single(
+                this,
+                this.stateMachine.promiseGet(key),
+                (s, cf) -> {
+                  if (s instanceof NotificationValue.Success) {
+                    cf.complete(((NotificationValue.Success) s).slice());
+                  } else if (s instanceof NotificationValue.Failure) {
+                    cf.completeExceptionally(
+                        ((NotificationValue.Failure) s).exception());
+                  } else {
+                    throw ProtocolException.unexpectedNotificationVariant(s.getClass());
+                  }
+                }));
+  }
+
+  @Override
+  public CompletableFuture<AsyncResult<Output<Slice>>> peekPromise(String key) {
+    return catchExceptions(
+        () ->
+            AsyncResults.single(
+                this,
+                this.stateMachine.promiseGet(key),
+                (s, cf) -> {
+                  if (s instanceof NotificationValue.Empty) {
+                    cf.complete(Output.notReady());
+                  } else if (s instanceof NotificationValue.Success) {
+                    cf.complete(Output.ready(((NotificationValue.Success) s).slice()));
+                  } else if (s instanceof NotificationValue.Failure) {
+                    cf.completeExceptionally(
+                        ((NotificationValue.Failure) s).exception());
+                  } else {
+                    throw ProtocolException.unexpectedNotificationVariant(s.getClass());
+                  }
+                }));
+  }
+
+  @Override
+  public CompletableFuture<AsyncResult<Void>> resolvePromise(String key, Slice payload) {
+    return catchExceptions(
+        () ->
+            AsyncResults.single(
+                this,
+                this.stateMachine.promiseComplete(key, payload),
+                (s, cf) -> {
+                  if (s instanceof NotificationValue.Empty) {
+                    cf.complete(null);
+                  } else if (s instanceof NotificationValue.Failure) {
+                    cf.completeExceptionally(
+                        ((NotificationValue.Failure) s).exception());
+                  } else {
+                    throw ProtocolException.unexpectedNotificationVariant(s.getClass());
+                  }
+                }));
+  }
+
+  @Override
+  public CompletableFuture<AsyncResult<Void>> rejectPromise(String key, String reason) {
+    return catchExceptions(
+        () ->
+            AsyncResults.single(
+                this,
+                this.stateMachine.promiseComplete(key, new TerminalException(reason)),
+                (s, cf) -> {
+                  if (s instanceof NotificationValue.Empty) {
+                    cf.complete(null);
+                  } else if (s instanceof NotificationValue.Failure) {
+                    cf.completeExceptionally(
+                        ((NotificationValue.Failure) s).exception());
+                  } else {
+                    throw ProtocolException.unexpectedNotificationVariant(s.getClass());
+                  }
+                }));
+  }
+
+  @Override
+  public CompletableFuture<Void> writeOutput(Slice value) {
+    return this.catchExceptions(() -> this.stateMachine.writeOutput(value));
+  }
+
+  @Override
+  public CompletableFuture<Void> writeOutput(TerminalException throwable) {
+    return this.catchExceptions(() -> this.stateMachine.writeOutput(throwable));
+  }
+
+  @Override
+  public void pollAsyncResult(AsyncResults.AsyncResultInternal<?> asyncResult) {
+    // We use the separate function for the recursion,
+    // as there's no need to jump back and forth between threads again.
+    this.pollAsyncResultInner(asyncResult);
+  }
+
+  private void pollAsyncResultInner(AsyncResults.AsyncResultInternal<?> asyncResult) {
+    while (true) {
+      if (asyncResult.isDone()) {
+        return;
+      }
+
+      // Let's start by trying to complete it
+      asyncResult.tryComplete(this.stateMachine);
+
+      // Now let's take the unprocessed leaves
+      List<Integer> uncompletedLeaves = asyncResult.uncompletedLeaves().toList();
+      if (uncompletedLeaves.isEmpty()) {
+        // Nothing else to do!
+        return;
+      }
+
+      // Not ready yet, let's try to do some progress
+      StateMachine.DoProgressResponse response = this.stateMachine.doProgress(uncompletedLeaves);
+
+      if (response instanceof StateMachine.DoProgressResponse.AnyCompleted) {
+        // Let it loop now
+      } else if (response instanceof StateMachine.DoProgressResponse.ReadFromInput) {
+        this.stateMachine
+            .waitNextProcessedInput()
+            .thenAccept(v -> this.pollAsyncResultInner(asyncResult));
+        return;
+      } else if (response instanceof StateMachine.DoProgressResponse.ExecuteRun) {
+        triggerScheduledRun(((StateMachine.DoProgressResponse.ExecuteRun) response).handle());
+        // Let it loop now
+      } else if (response instanceof StateMachine.DoProgressResponse.WaitingPendingRun) {
+        this.waitNextProcessedRun().thenAccept(v -> this.pollAsyncResultInner(asyncResult));
+        return;
+      }
+    }
+  }
+
+  @Override
+  public void proposeRunSuccess(int runHandle, Slice toWrite) {
+    try {
+      this.stateMachine.proposeRunCompletion(runHandle, toWrite);
+      if (this.nextProcessedRun != null) {
+        this.nextProcessedRun.complete(null);
+        this.nextProcessedRun = null;
+      }
+    } catch (Exception e) {
+      this.fail(e);
+    }
+  }
+
+  @Override
+  public void proposeRunFailure(
+      int runHandle, Throwable toWrite, @Nullable RetryPolicy retryPolicy) {
+    try {
+      this.stateMachine.proposeRunCompletion(runHandle, toWrite, retryPolicy);
+      if (this.nextProcessedRun != null) {
+        this.nextProcessedRun.complete(null);
+        this.nextProcessedRun = null;
+      }
+    } catch (Exception e) {
+      this.fail(e);
+    }
+  }
+
+  private void triggerScheduledRun(int handle) {
+    var consumer =
+        Objects.requireNonNull(
+            this.scheduledRuns.get(handle), "The given handle doesn't exist, this is an SDK bug");
+    consumer.accept(
+        new RunCompleter() {
+          @Override
+          public void proposeSuccess(Slice toWrite) {
+            proposeRunSuccess(handle, toWrite);
+          }
+
+          @Override
+          public void proposeFailure(Throwable toWrite, @Nullable RetryPolicy retryPolicy) {
+            proposeRunFailure(handle, toWrite, retryPolicy);
+          }
+        });
+  }
+
+  private CompletableFuture<Void> waitNextProcessedRun() {
+    if (this.nextProcessedRun == null) {
+      this.nextProcessedRun = new CompletableFuture<>();
+    }
+    return this.nextProcessedRun;
   }
 
   @Override
@@ -439,17 +446,27 @@ public final class HandlerContextImpl implements HandlerContextInternal {
 
   @Override
   public void fail(Throwable cause) {
-    this.stateMachine.fail(cause);
+    this.stateMachine.onError(cause);
   }
 
   // -- Wrapper for failure propagation
 
-  private void wrapAndPropagateExceptions(ThrowingRunnable r, SyscallCallback<?> handler) {
+  private CompletableFuture<Void> catchExceptions(ThrowingRunnable r) {
     try {
       r.run();
+      return CompletableFuture.completedFuture(null);
     } catch (Throwable e) {
       this.fail(e);
-      handler.onCancel(e);
+      return CompletableFuture.failedFuture(AbortedExecutionException.INSTANCE);
+    }
+  }
+
+  private <T> CompletableFuture<T> catchExceptions(ThrowingSupplier<T> r) {
+    try {
+      return CompletableFuture.completedFuture(r.get());
+    } catch (Throwable e) {
+      this.fail(e);
+      return CompletableFuture.failedFuture(AbortedExecutionException.INSTANCE);
     }
   }
 }

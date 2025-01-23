@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.springboot.kotlin
 
-import dev.restate.sdk.client.Client
+import dev.restate.client.Client
 import dev.restate.sdk.testing.BindService
 import dev.restate.sdk.testing.RestateClient
 import dev.restate.sdk.testing.RestateTest

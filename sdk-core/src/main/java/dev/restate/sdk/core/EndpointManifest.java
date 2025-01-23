@@ -8,16 +8,17 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import static dev.restate.sdk.core.ServiceProtocol.*;
+import static dev.restate.sdk.core.DiscoveryProtocol.MANIFEST_OBJECT_MAPPER;
+import static dev.restate.sdk.core.statemachine.ServiceProtocol.MAX_SERVICE_PROTOCOL_VERSION;
+import static dev.restate.sdk.core.statemachine.ServiceProtocol.MIN_SERVICE_PROTOCOL_VERSION;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import dev.restate.sdk.endpoint.HandlerType;
+import dev.restate.sdk.core.generated.manifest.*;
+import dev.restate.sdk.definition.HandlerDefinition;
+import dev.restate.sdk.definition.HandlerType;
+import dev.restate.sdk.definition.ServiceDefinition;
+import dev.restate.sdk.definition.ServiceType;
 import dev.restate.sdk.serde.RichSerde;
-import dev.restate.sdk.endpoint.ServiceType;
-import dev.restate.sdk.endpoint.HandlerDefinition;
-import dev.restate.sdk.endpoint.HandlerSpecification;
-import dev.restate.sdk.endpoint.ServiceDefinition;
-import dev.restate.sdk.core.manifest.*;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -29,15 +30,14 @@ final class EndpointManifest {
 
   private final EndpointManifestSchema manifest;
 
-  public EndpointManifest(
+  EndpointManifest(
       EndpointManifestSchema.ProtocolMode protocolMode,
       Stream<ServiceDefinition<?>> components,
       boolean experimentalContextEnabled) {
     this.manifest =
         new EndpointManifestSchema()
             .withMinProtocolVersion(MIN_SERVICE_PROTOCOL_VERSION.getNumber())
-            .withMaxProtocolVersion(
-                maxServiceProtocolVersion(experimentalContextEnabled).getNumber())
+            .withMaxProtocolVersion(MAX_SERVICE_PROTOCOL_VERSION.getNumber())
             .withProtocolMode(protocolMode)
             .withServices(
                 components
@@ -66,7 +66,7 @@ final class EndpointManifest {
                     .collect(Collectors.toList()));
   }
 
-  public EndpointManifestSchema manifest() {
+  EndpointManifestSchema manifest() {
     return this.manifest;
   }
 
@@ -79,15 +79,14 @@ final class EndpointManifest {
   }
 
   private static Handler convertHandler(HandlerDefinition<?, ?, ?> handler) {
-    HandlerSpecification<?, ?> spec = handler.getSpec();
     return new Handler()
-        .withName(spec.getName())
-        .withTy(convertHandlerType(spec.getHandlerType()))
-        .withInput(convertHandlerInput(spec))
-        .withOutput(convertHandlerOutput(spec))
-        .withDocumentation(spec.getDocumentation())
+        .withName(handler.getName())
+        .withTy(convertHandlerType(handler.getHandlerType()))
+        .withInput(convertHandlerInput(handler))
+        .withOutput(convertHandlerOutput(handler))
+        .withDocumentation(handler.getDocumentation())
         .withMetadata(
-            spec.getMetadata().entrySet().stream()
+            handler.getMetadata().entrySet().stream()
                 .reduce(
                     new Metadata(),
                     (meta, entry) -> meta.withAdditionalProperty(entry.getKey(), entry.getValue()),
@@ -97,20 +96,20 @@ final class EndpointManifest {
                     }));
   }
 
-  private static Input convertHandlerInput(HandlerSpecification<?, ?> spec) {
+  private static Input convertHandlerInput(HandlerDefinition<?, ?, ?> def) {
     String acceptContentType =
-        spec.getAcceptContentType() != null
-            ? spec.getAcceptContentType()
-            : spec.getRequestSerde().contentType();
+        def.getAcceptContentType() != null
+            ? def.getAcceptContentType()
+            : def.getRequestSerde().contentType();
 
     Input input =
         acceptContentType == null
             ? EMPTY_INPUT
             : new Input().withRequired(true).withContentType(acceptContentType);
 
-    if (spec.getRequestSerde() instanceof RichSerde) {
+    if (def.getRequestSerde() instanceof RichSerde) {
       Object jsonSchema =
-          Objects.requireNonNull(((RichSerde<?>) spec.getRequestSerde()).jsonSchema());
+          Objects.requireNonNull(((RichSerde<?>) def.getRequestSerde()).jsonSchema());
       if (jsonSchema instanceof String) {
         // We need to convert it to databind JSON value
         try {
@@ -124,17 +123,17 @@ final class EndpointManifest {
     return input;
   }
 
-  private static Output convertHandlerOutput(HandlerSpecification<?, ?> spec) {
+  private static Output convertHandlerOutput(HandlerDefinition<?, ?, ?> def) {
     Output output =
-        spec.getResponseSerde().contentType() == null
+        def.getResponseSerde().contentType() == null
             ? EMPTY_OUTPUT
             : new Output()
-                .withContentType(spec.getResponseSerde().contentType())
+                .withContentType(def.getResponseSerde().contentType())
                 .withSetContentTypeIfEmpty(false);
 
-    if (spec.getResponseSerde() instanceof RichSerde) {
+    if (def.getResponseSerde() instanceof RichSerde) {
       Object jsonSchema =
-          Objects.requireNonNull(((RichSerde<?>) spec.getResponseSerde()).jsonSchema());
+          Objects.requireNonNull(((RichSerde<?>) def.getResponseSerde()).jsonSchema());
       if (jsonSchema instanceof String) {
         // We need to convert it to databind JSON value
         try {

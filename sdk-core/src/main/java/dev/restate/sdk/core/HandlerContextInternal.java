@@ -8,25 +8,35 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import dev.restate.sdk.endpoint.AsyncResult;
-import dev.restate.sdk.endpoint.HandlerContext;
-import dev.restate.sdk.core.DeferredResults.AsyncResultInternal;
+import dev.restate.sdk.core.AsyncResults.AsyncResultInternal;
+import dev.restate.sdk.core.statemachine.InvocationState;
+import dev.restate.sdk.definition.AsyncResult;
+import dev.restate.sdk.definition.HandlerContext;
+import dev.restate.sdk.types.RetryPolicy;
+import dev.restate.sdk.types.Slice;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.Nullable;
 
 interface HandlerContextInternal extends HandlerContext {
 
   @Override
   default AsyncResult<Integer> createAnyDeferred(List<AsyncResult<?>> children) {
-    return DeferredResults.any(
+    return AsyncResults.any(
         children.stream().map(dr -> (AsyncResultInternal<?>) dr).collect(Collectors.toList()));
   }
 
   @Override
   default AsyncResult<Void> createAllDeferred(List<AsyncResult<?>> children) {
-    return DeferredResults.all(
+    return AsyncResults.all(
         children.stream().map(dr -> (AsyncResultInternal<?>) dr).collect(Collectors.toList()));
   }
+
+  void proposeRunSuccess(int runHandle, Slice toWrite);
+
+  void proposeRunFailure(int runHandle, Throwable toWrite, @Nullable RetryPolicy retryPolicy);
+
+  void pollAsyncResult(AsyncResultInternal<?> asyncResult);
 
   // -- Lifecycle methods
 

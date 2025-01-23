@@ -13,8 +13,8 @@ import static dev.restate.sdk.core.ProtoUtils.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.types.TerminalException;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
+import dev.restate.sdk.types.TerminalException;
 import java.util.stream.Stream;
 
 public abstract class StateTestSuite implements TestDefinitions.TestSuite {

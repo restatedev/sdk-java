@@ -17,6 +17,7 @@ import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 import com.google.protobuf.ByteString;
 import dev.restate.generated.service.protocol.Protocol;
+import dev.restate.sdk.core.statemachine.MessageType;
 import dev.restate.sdk.types.RetryPolicy;
 import dev.restate.sdk.types.TerminalException;
 import java.time.Duration;
@@ -143,7 +144,7 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
             .expectingOutput(
                 Protocol.RunEntryMessage.newBuilder()
                     .setFailure(
-                        Util.toProtocolFailure(
+                        ExceptionUtils.toProtocolFailure(
                             500, "java.lang.IllegalStateException: some failure")),
                 outputMessage(500, "java.lang.IllegalStateException: some failure"),
                 END_MESSAGE)

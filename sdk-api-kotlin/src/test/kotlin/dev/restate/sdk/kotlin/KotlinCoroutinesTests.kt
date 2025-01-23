@@ -8,11 +8,11 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.endpoint.HandlerType
-import dev.restate.sdk.endpoint.ServiceType
-import dev.restate.sdk.endpoint.HandlerDefinition
-import dev.restate.sdk.endpoint.HandlerSpecification
-import dev.restate.sdk.endpoint.ServiceDefinition
+import dev.restate.sdk.definition.HandlerType
+import dev.restate.sdk.definition.ServiceType
+import dev.restate.sdk.definition.HandlerDefinition
+import dev.restate.sdk.definition.HandlerSpecification
+import dev.restate.sdk.definition.ServiceDefinition
 import dev.restate.sdk.core.*
 import dev.restate.sdk.core.TestDefinitions.TestExecutor
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder

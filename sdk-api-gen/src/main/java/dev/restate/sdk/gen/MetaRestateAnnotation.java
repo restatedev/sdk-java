@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.gen;
 
-import dev.restate.sdk.endpoint.ServiceType;
+import dev.restate.sdk.definition.ServiceType;
 import java.util.Map;
 import javax.lang.model.element.*;
 import org.jspecify.annotations.Nullable;

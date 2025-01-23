@@ -15,7 +15,7 @@ import com.github.jknack.handlebars.context.FieldValueResolver;
 import com.github.jknack.handlebars.helper.StringHelpers;
 import com.github.jknack.handlebars.internal.text.StringEscapeUtils;
 import com.github.jknack.handlebars.io.TemplateLoader;
-import dev.restate.sdk.endpoint.ServiceType;
+import dev.restate.sdk.definition.ServiceType;
 import dev.restate.sdk.function.ThrowingFunction;
 import dev.restate.sdk.gen.model.Handler;
 import dev.restate.sdk.gen.model.HandlerType;

@@ -8,9 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.http.vertx;
 
-import dev.restate.sdk.endpoint.RequestIdentityVerifier;
-import dev.restate.sdk.endpoint.ServiceDefinition;
-import dev.restate.sdk.core.RestateEndpoint;
+import dev.restate.sdk.core.RequestIdentityVerifier;
+import dev.restate.sdk.definition.ServiceDefinition;
+import dev.restate.sdk.core.EndpointImpl;
 import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import io.opentelemetry.api.OpenTelemetry;
 import io.vertx.core.Future;
@@ -43,8 +43,8 @@ public class RestateHttpEndpointBuilder {
   private static final Logger LOG = LogManager.getLogger(RestateHttpEndpointBuilder.class);
 
   private final Vertx vertx;
-  private final RestateEndpoint.Builder endpointBuilder =
-      RestateEndpoint.newBuilder(EndpointManifestSchema.ProtocolMode.BIDI_STREAM);
+  private final EndpointImpl.Builder endpointBuilder =
+      EndpointImpl.newBuilder(EndpointManifestSchema.ProtocolMode.BIDI_STREAM);
   private OpenTelemetry openTelemetry = OpenTelemetry.noop();
   private HttpServerOptions options =
       new HttpServerOptions()
@@ -79,7 +79,7 @@ public class RestateHttpEndpointBuilder {
    * #bind(ServiceDefinition)}.
    */
   public RestateHttpEndpointBuilder bind(Object service) {
-    return this.bind(RestateEndpoint.discoverServiceDefinitionFactory(service).create(service));
+    return this.bind(EndpointImpl.discoverServiceDefinitionFactory(service).create(service));
   }
 
   /**
@@ -158,7 +158,7 @@ public class RestateHttpEndpointBuilder {
     this.endpointBuilder.withTracer(this.openTelemetry.getTracer("restate-java-sdk-vertx"));
 
     server.requestHandler(
-        new RequestHttpServerHandler(this.endpointBuilder.build(), openTelemetry));
+        new EndpointRequestHandler(this.endpointBuilder.build(), openTelemetry));
 
     return server;
   }

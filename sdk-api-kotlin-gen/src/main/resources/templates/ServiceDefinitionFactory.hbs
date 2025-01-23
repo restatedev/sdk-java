@@ -4,17 +4,17 @@ class {{generatedClassSimpleName}}: dev.restate.sdk.common.handlerContext.Servic
 
     override fun create(bindableService: {{originalClassFqcn}}): dev.restate.sdk.common.handlerContext.ServiceDefinition<dev.restate.sdk.kotlin.HandlerRunner.Options>
     {
-    return dev.restate.sdk.endpoint.ServiceDefinition.of(
+    return dev.restate.sdk.definition.ServiceDefinition.of(
             {{generatedClassSimpleNamePrefix}}
-            {{#if isObject}}dev.restate.sdk.endpoint.ServiceType.VIRTUAL_OBJECT{{else
-        if isWorkflow}}dev.restate.sdk.endpoint.ServiceType.WORKFLOW{{else}}dev.restate.sdk.endpoint.ServiceType.SERVICE{{/if}}
+            {{#if isObject}}dev.restate.sdk.definition.ServiceType.VIRTUAL_OBJECT{{else
+        if isWorkflow}}dev.restate.sdk.definition.ServiceType.WORKFLOW{{else}}dev.restate.sdk.definition.ServiceType.SERVICE{{/if}}
     listOf(
             {{#handlers}}
-        dev.restate.sdk.endpoint.HandlerDefinition.of(
-        dev.restate.sdk.endpoint.HandlerSpecification.of(
+        dev.restate.sdk.definition.HandlerDefinition.of(
+        dev.restate.sdk.definition.HandlerSpecification.of(
                 {{name}}
-                {{#if isExclusive}}dev.restate.sdk.endpoint.HandlerType.EXCLUSIVE{{else
-            if isWorkflow}}dev.restate.sdk.endpoint.HandlerType.WORKFLOW{{else}}dev.restate.sdk.endpoint.HandlerType.SHARED{{/if}}
+                {{#if isExclusive}}dev.restate.sdk.definition.HandlerType.EXCLUSIVE{{else
+            if isWorkflow}}dev.restate.sdk.definition.HandlerType.WORKFLOW{{else}}dev.restate.sdk.definition.HandlerType.SHARED{{/if}}
             {{inputSerdeRef}}{{outputSerdeRef}}
             ){{#if inputAcceptContentType}}.withAcceptContentType("{{inputAcceptContentType}}"){{/if}},
             dev.restate.sdk.kotlin.HandlerRunner.of(bindableService::{{name}})

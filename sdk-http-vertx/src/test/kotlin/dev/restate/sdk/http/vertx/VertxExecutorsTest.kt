@@ -11,12 +11,12 @@ package dev.restate.sdk.http.vertx
 import com.google.protobuf.ByteString
 import dev.restate.generated.service.protocol.Protocol
 import dev.restate.sdk.HandlerRunner
-import dev.restate.sdk.endpoint.HandlerType
+import dev.restate.sdk.definition.HandlerType
 import dev.restate.sdk.serde.Serde
-import dev.restate.sdk.endpoint.ServiceType
-import dev.restate.sdk.endpoint.HandlerDefinition
-import dev.restate.sdk.endpoint.HandlerSpecification
-import dev.restate.sdk.endpoint.ServiceDefinition
+import dev.restate.sdk.definition.ServiceType
+import dev.restate.sdk.definition.HandlerDefinition
+import dev.restate.sdk.definition.HandlerSpecification
+import dev.restate.sdk.definition.ServiceDefinition
 import dev.restate.sdk.core.ProtoUtils.*
 import dev.restate.sdk.core.TestDefinitions
 import dev.restate.sdk.core.TestDefinitions.testInvocation

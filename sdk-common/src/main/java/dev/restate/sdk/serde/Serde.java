@@ -49,13 +49,13 @@ public interface Serde<T extends @Nullable Object> {
       ThrowingFunction<T, byte[]> serializer, ThrowingFunction<byte[], T> deserializer) {
     return new Serde<>() {
       @Override
-      public byte[] serialize(T value) {
-        return serializer.asFunction().apply(Objects.requireNonNull(value));
+      public Slice serialize(T value) {
+        return Slice.wrap(serializer.asFunction().apply(Objects.requireNonNull(value)));
       }
 
       @Override
-      public T deserialize(byte[] value) {
-        return deserializer.asFunction().apply(value);
+      public T deserialize(Slice value) {
+        return deserializer.asFunction().apply(value.toByteArray());
       }
     };
   }
@@ -69,15 +69,15 @@ public interface Serde<T extends @Nullable Object> {
       ThrowingFunction<T, byte[]> serializer,
       ThrowingFunction<byte[], T> deserializer) {
     return new Serde<>() {
-      @Override
-      public byte[] serialize(T value) {
-        return serializer.asFunction().apply(Objects.requireNonNull(value));
-      }
+        @Override
+        public Slice serialize(T value) {
+            return Slice.wrap(serializer.asFunction().apply(Objects.requireNonNull(value)));
+        }
 
-      @Override
-      public T deserialize(byte[] value) {
-        return deserializer.asFunction().apply(value);
-      }
+        @Override
+        public T deserialize(Slice value) {
+            return deserializer.asFunction().apply(value.toByteArray());
+        }
 
       @Override
       public String contentType() {
@@ -88,25 +88,15 @@ public interface Serde<T extends @Nullable Object> {
 
   static <T> Serde<T> withContentType(String contentType, Serde<T> inner) {
     return new Serde<>() {
-      @Override
-      public byte[] serialize(T value) {
-        return inner.serialize(value);
-      }
+        @Override
+        public Slice serialize(T value) {
+            return inner.serialize(value);
+        }
 
-      @Override
-      public ByteBuffer serializeToByteBuffer(T value) {
-        return inner.serializeToByteBuffer(value);
-      }
-
-      @Override
-      public T deserialize(ByteBuffer byteBuffer) {
-        return inner.deserialize(byteBuffer);
-      }
-
-      @Override
-      public T deserialize(byte[] value) {
-        return inner.deserialize(value);
-      }
+        @Override
+        public T deserialize(Slice value) {
+            return inner.deserialize(value);
+        }
 
       @Override
       public String contentType() {
@@ -119,22 +109,12 @@ public interface Serde<T extends @Nullable Object> {
   Serde<@Nullable Void> VOID =
       new Serde<>() {
         @Override
-        public byte[] serialize(Void value) {
-          return new byte[0];
+        public Slice serialize(Void value) {
+          return Slice.EMPTY;
         }
 
         @Override
-        public ByteBuffer serializeToByteBuffer(Void value) {
-          return ByteBuffer.allocate(0);
-        }
-
-        @Override
-        public Void deserialize(byte[] value) {
-          return null;
-        }
-
-        @Override
-        public Void deserialize(ByteBuffer byteBuffer) {
+        public Void deserialize(Slice value) {
           return null;
         }
 
@@ -148,45 +128,27 @@ public interface Serde<T extends @Nullable Object> {
   Serde<byte[]> RAW =
       new Serde<>() {
         @Override
-        public byte[] serialize(byte[] value) {
-          return Objects.requireNonNull(value);
+        public Slice serialize(byte[] value) {
+          return Slice.wrap(Objects.requireNonNull(value));
         }
 
         @Override
-        public byte[] deserialize(byte[] value) {
-          return value;
+        public byte[] deserialize(Slice value) {
+          return value.toByteArray();
         }
       };
 
   /** Pass through {@link Serde} for {@link ByteBuffer}. */
   Serde<ByteBuffer> BYTE_BUFFER =
       new Serde<>() {
-        @Override
-        public byte[] serialize(ByteBuffer byteBuffer) {
-          if (byteBuffer == null) {
-            return new byte[] {};
+          @Override
+          public Slice serialize(ByteBuffer value) {
+              return Slice.wrap(Objects.requireNonNull(value));
           }
-          if (byteBuffer.hasArray()) {
-            return byteBuffer.array();
+
+          @Override
+          public ByteBuffer deserialize(Slice value) {
+              return value.asReadOnlyByteBuffer();
           }
-          byte[] bytes = new byte[byteBuffer.remaining()];
-          byteBuffer.get(bytes);
-          return bytes;
-        }
-
-        @Override
-        public ByteBuffer serializeToByteBuffer(ByteBuffer value) {
-          return value;
-        }
-
-        @Override
-        public ByteBuffer deserialize(byte[] value) {
-          return ByteBuffer.wrap(value);
-        }
-
-        @Override
-        public ByteBuffer deserialize(ByteBuffer byteBuffer) {
-          return byteBuffer;
-        }
       };
 }

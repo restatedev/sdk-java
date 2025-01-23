@@ -9,7 +9,7 @@
 package dev.restate.sdk.http.vertx;
 
 import dev.restate.sdk.core.InvocationFlow;
-import dev.restate.sdk.core.Util;
+import dev.restate.sdk.core.ExceptionUtils;
 import io.netty.buffer.Unpooled;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerResponse;
@@ -69,7 +69,7 @@ class HttpResponseFlowAdapter implements InvocationFlow.InvocationOutputSubscrib
   private void propagatePublisherFailure(Throwable e) {
     if (!httpServerResponse.headWritten()) {
       // Try to write the failure in the head
-      Util.findProtocolException(e)
+      ExceptionUtils.findProtocolException(e)
           .ifPresentOrElse(
               pe -> httpServerResponse.setStatusCode(pe.getCode()),
               () -> httpServerResponse.setStatusCode(500));

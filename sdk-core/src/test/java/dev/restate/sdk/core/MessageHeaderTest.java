@@ -10,6 +10,8 @@ package dev.restate.sdk.core;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.restate.sdk.core.statemachine.MessageHeader;
+import dev.restate.sdk.core.statemachine.MessageType;
 import org.junit.jupiter.api.Test;
 
 public class MessageHeaderTest {

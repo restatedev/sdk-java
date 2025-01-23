@@ -5,17 +5,17 @@ public class {{generatedClassSimpleName}} implements dev.restate.sdk.common.hand
     @java.lang.Override
     public dev.restate.sdk.common.handlerContext.ServiceDefinition<dev.restate.sdk.HandlerRunner.Options>
             {{originalClassFqcn}} bindableService) {
-    return dev.restate.sdk.endpoint.ServiceDefinition.of(
+    return dev.restate.sdk.definition.ServiceDefinition.of(
             {{generatedClassSimpleNamePrefix}}
-            {{#if isObject}}dev.restate.sdk.endpoint.ServiceType.VIRTUAL_OBJECT{{else
-        if isWorkflow}}dev.restate.sdk.endpoint.ServiceType.WORKFLOW{{else}}dev.restate.sdk.endpoint.ServiceType.SERVICE{{/if}}
+            {{#if isObject}}dev.restate.sdk.definition.ServiceType.VIRTUAL_OBJECT{{else
+        if isWorkflow}}dev.restate.sdk.definition.ServiceType.WORKFLOW{{else}}dev.restate.sdk.definition.ServiceType.SERVICE{{/if}}
     java.util.List.of(
             {{#handlers}}
-        dev.restate.sdk.endpoint.HandlerDefinition.of(
-        dev.restate.sdk.endpoint.HandlerSpecification.of(
+        dev.restate.sdk.definition.HandlerDefinition.of(
+        dev.restate.sdk.definition.HandlerSpecification.of(
                 {{name}}
-                {{#if isExclusive}}dev.restate.sdk.endpoint.HandlerType.EXCLUSIVE{{else
-            if isWorkflow}}dev.restate.sdk.endpoint.HandlerType.WORKFLOW{{else}}dev.restate.sdk.endpoint.HandlerType.SHARED{{/if}}
+                {{#if isExclusive}}dev.restate.sdk.definition.HandlerType.EXCLUSIVE{{else
+            if isWorkflow}}dev.restate.sdk.definition.HandlerType.WORKFLOW{{else}}dev.restate.sdk.definition.HandlerType.SHARED{{/if}}
             {{inputSerdeRef}}{{outputSerdeRef}}
             ){{#if inputAcceptContentType}}.withAcceptContentType("{{inputAcceptContentType}}"){{/if}}{{#if documentation}}.withDocumentation("{{escapeJava documentation}}"){{/if}},
             dev.restate.sdk.HandlerRunner.of(bindableService::{{name}})

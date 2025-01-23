@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.endpoint.HandlerContext
+import dev.restate.sdk.definition.HandlerContext
 import dev.restate.sdk.serde.Serde
 import dev.restate.sdk.common.syscalls.SyscallCallback
 import java.nio.ByteBuffer

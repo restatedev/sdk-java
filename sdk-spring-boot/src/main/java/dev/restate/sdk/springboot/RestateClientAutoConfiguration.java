@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.springboot;
 
-import dev.restate.sdk.client.Client;
+import dev.restate.client.Client;
 import java.util.Collections;
 import java.util.Map;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;

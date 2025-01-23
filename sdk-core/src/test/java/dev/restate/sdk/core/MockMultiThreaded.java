@@ -11,8 +11,12 @@ package dev.restate.sdk.core;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.protobuf.MessageLite;
-import dev.restate.sdk.endpoint.ServiceDefinition;
+import dev.restate.sdk.core.impl.MessageDecoder;
+import dev.restate.sdk.core.impl.ServiceProtocol;
 import dev.restate.sdk.core.manifest.EndpointManifestSchema;
+import dev.restate.sdk.core.statemachine.InvocationInput;
+import dev.restate.sdk.definition.HandlerProcessor;
+import dev.restate.sdk.definition.ServiceDefinition;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.helpers.test.AssertSubscriber;
 import java.time.Duration;
@@ -41,18 +45,18 @@ public final class MockMultiThreaded implements TestDefinitions.TestExecutor {
 
     // Prepare server
     @SuppressWarnings("unchecked")
-    RestateEndpoint.Builder builder =
-        RestateEndpoint.newBuilder(EndpointManifestSchema.ProtocolMode.BIDI_STREAM)
+    EndpointImpl.Builder builder =
+        EndpointImpl.newBuilder(EndpointManifestSchema.ProtocolMode.BIDI_STREAM)
             .bind(
                 (ServiceDefinition<? super Object>) serviceDefinition,
                 definition.getServiceOptions());
     if (definition.isEnablePreviewContext()) {
       builder.enablePreviewContext();
     }
-    RestateEndpoint server = builder.build();
+    EndpointImpl server = builder.build();
 
     // Start invocation
-    ResolvedEndpointHandler handler =
+    HandlerProcessor handler =
         server.resolve(
             ServiceProtocol.serviceProtocolVersionToHeaderValue(
                 ServiceProtocol.maxServiceProtocolVersion(definition.isEnablePreviewContext())),
@@ -60,7 +64,7 @@ public final class MockMultiThreaded implements TestDefinitions.TestExecutor {
             definition.getMethod(),
             k -> null,
             io.opentelemetry.context.Context.current(),
-            RestateEndpoint.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
+            EndpointImpl.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
             syscallsExecutor);
 
     // Wire invocation
