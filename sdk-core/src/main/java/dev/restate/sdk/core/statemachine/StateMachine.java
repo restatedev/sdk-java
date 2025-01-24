@@ -9,6 +9,7 @@
 package dev.restate.sdk.core.statemachine;
 
 import dev.restate.sdk.core.EndpointRequestHandler;
+import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.types.*;
 import java.time.Duration;
 import java.util.List;
@@ -25,9 +26,9 @@ import org.jspecify.annotations.Nullable;
 public interface StateMachine extends Flow.Processor<Slice, Slice> {
 
   static StateMachine init(
-      EndpointRequestHandler.Headers headers,
+      HeadersAccessor headersAccessor,
       EndpointRequestHandler.LoggingContextSetter loggingContextSetter) {
-    return new StateMachineImpl(headers, loggingContextSetter);
+    return new StateMachineImpl(headersAccessor, loggingContextSetter);
   }
 
   // --- Response metadata

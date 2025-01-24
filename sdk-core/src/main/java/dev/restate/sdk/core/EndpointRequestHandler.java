@@ -12,7 +12,10 @@ import dev.restate.sdk.core.generated.discovery.Discovery;
 import dev.restate.sdk.core.generated.manifest.EndpointManifestSchema;
 import dev.restate.sdk.core.generated.manifest.Service;
 import dev.restate.sdk.core.statemachine.StateMachine;
+import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.definition.HandlerDefinition;
+import dev.restate.sdk.endpoint.HeadersAccessor;
+import dev.restate.sdk.definition.ServiceDefinitionAndOptions;
 import dev.restate.sdk.types.Slice;
 import io.opentelemetry.context.propagation.TextMapGetter;
 import java.util.concurrent.Executor;
@@ -30,16 +33,16 @@ public final class EndpointRequestHandler {
   private static final String DISCOVER_PATH = "/discover";
   private static final Pattern SLASH = Pattern.compile(Pattern.quote("/"));
   private static final String ACCEPT = "accept";
-  private static final TextMapGetter<Headers> OTEL_HEADERS_GETTER =
+  private static final TextMapGetter<HeadersAccessor> OTEL_HEADERS_GETTER =
       new TextMapGetter<>() {
         @Override
-        public Iterable<String> keys(Headers carrier) {
+        public Iterable<String> keys(HeadersAccessor carrier) {
           return carrier.keys();
         }
 
         @Nullable
         @Override
-        public String get(@Nullable Headers carrier, @NonNull String key) {
+        public String get(@Nullable HeadersAccessor carrier, @NonNull String key) {
           if (carrier == null) {
             return null;
           }
@@ -56,7 +59,7 @@ public final class EndpointRequestHandler {
     this.deploymentManifest =
         new EndpointManifest(
             protocolMode,
-            this.endpoint.getServices().values().stream().map(Endpoint.ServiceAndOptions::service),
+            this.endpoint.getServiceDefinitions(),
             this.endpoint.isExperimentalContextEnabled());
   }
 
@@ -67,13 +70,6 @@ public final class EndpointRequestHandler {
   public static EndpointRequestHandler forRequestResponse(Endpoint endpoint) {
     return new EndpointRequestHandler(
         EndpointManifestSchema.ProtocolMode.REQUEST_RESPONSE, endpoint);
-  }
-
-  /** Abstraction for headers map. */
-  public interface Headers {
-    Iterable<String> keys();
-
-    @Nullable String get(String key);
   }
 
   /**
@@ -97,13 +93,13 @@ public final class EndpointRequestHandler {
 
   public RequestProcessor processorForRequest(
       String path,
-      Headers headers,
+      HeadersAccessor headersAccessor,
       LoggingContextSetter loggingContextSetter,
       @Nullable Executor coreExecutor)
       throws ProtocolException {
     // Discovery request
     if (DISCOVER_PATH.equalsIgnoreCase(path)) {
-      return this.handleDiscoveryRequest(headers);
+      return this.handleDiscoveryRequest(headersAccessor);
     }
 
     // Parse request
@@ -122,12 +118,12 @@ public final class EndpointRequestHandler {
     String fullyQualifiedServiceMethod = serviceName + "/" + handlerName;
 
     // Instantiate state machine
-    StateMachine stateMachine = StateMachine.init(headers, loggingContextSetter);
+    StateMachine stateMachine = StateMachine.init(headersAccessor, loggingContextSetter);
 
     // Resolve the service method definition
     @SuppressWarnings("unchecked")
-    Endpoint.ServiceAndOptions<Object> svc =
-        (Endpoint.ServiceAndOptions<Object>) this.endpoint.getServices().get(serviceName);
+    ServiceDefinitionAndOptions<Object> svc =
+        (ServiceDefinitionAndOptions<Object>) this.endpoint.resolveServiceAndOptions(serviceName);
     if (svc == null) {
       throw ProtocolException.methodNotFound(serviceName, handlerName);
     }
@@ -139,7 +135,7 @@ public final class EndpointRequestHandler {
     // Verify request
     if (endpoint.getRequestIdentityVerifier() != null) {
       try {
-        endpoint.getRequestIdentityVerifier().verifyRequest(headers);
+        endpoint.getRequestIdentityVerifier().verifyRequest(headersAccessor);
       } catch (Exception e) {
         throw ProtocolException.unauthorized(e);
       }
@@ -151,7 +147,7 @@ public final class EndpointRequestHandler {
             .getOpenTelemetry()
             .getPropagators()
             .getTextMapPropagator()
-            .extract(io.opentelemetry.context.Context.current(), headers, OTEL_HEADERS_GETTER);
+            .extract(io.opentelemetry.context.Context.current(), headersAccessor, OTEL_HEADERS_GETTER);
 
     // Generate the span
     //    Span span =
@@ -175,8 +171,8 @@ public final class EndpointRequestHandler {
         coreExecutor);
   }
 
-  StaticResponseRequestProcessor handleDiscoveryRequest(Headers headers) throws ProtocolException {
-    String acceptContentType = headers.get(ACCEPT);
+  StaticResponseRequestProcessor handleDiscoveryRequest(HeadersAccessor headersAccessor) throws ProtocolException {
+    String acceptContentType = headersAccessor.get(ACCEPT);
 
     Discovery.ServiceDiscoveryProtocolVersion version =
         DiscoveryProtocol.selectSupportedServiceDiscoveryProtocolVersion(acceptContentType);

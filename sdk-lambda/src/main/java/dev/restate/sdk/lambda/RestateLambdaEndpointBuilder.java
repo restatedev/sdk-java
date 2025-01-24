@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.lambda;
 
-import dev.restate.sdk.core.RequestIdentityVerifier;
+import dev.restate.sdk.endpoint.RequestIdentityVerifier;
 import dev.restate.sdk.definition.ServiceDefinition;
 import dev.restate.sdk.core.EndpointImpl;
 import dev.restate.sdk.core.manifest.EndpointManifestSchema;

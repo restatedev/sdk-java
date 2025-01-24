@@ -37,7 +37,7 @@ sequenceDiagram
     Note over Runtime,SDK: Replaying
     Runtime->>SDK: [...]EntryMessage(s)
     Note over Runtime,SDK: Processing
-    SDK->>Runtime: HTTP Response headers
+    SDK->>Runtime: HTTP Response headersAccessor
     loop
         SDK->>Runtime: [...]EntryMessage
         Runtime->>SDK: CompletionMessage and/or EntryAckMessage

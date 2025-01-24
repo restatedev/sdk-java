@@ -9,45 +9,115 @@
 package dev.restate.sdk.core.statemachine;
 
 import com.google.protobuf.MessageLite;
+import dev.restate.sdk.core.ProtocolException;
+import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.types.RetryPolicy;
 import dev.restate.sdk.types.Slice;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Flow;
 
-sealed interface State {
-  void onNewMessage(InvocationInput invocationInput, StateHolder stateHolder, CompletableFuture<Void> waitForReadyFuture);
+sealed interface State permits ClosedState, ProcessingState, ReplayingState, WaitingReplayEntriesState, WaitingStartState {
 
-  void hitError(Throwable throwable, StateHolder stateHolder, Flow.Subscriber<? super MessageLite> outputSubscriber);
+  Logger LOG = LogManager.getLogger(State.class);
 
-  void onInputClosed(StateHolder stateHolder, Flow.Subscriber<? super MessageLite> outputSubscriber);
+  default void onNewMessage(InvocationInput invocationInput, StateContext stateContext, CompletableFuture<Void> waitForReadyFuture) {
+    throw ProtocolException.badState(this);
+  }
 
-  StateMachine.DoProgressResponse doProgress(List<Integer> anyHandle, StateHolder stateHolder);
+  default StateMachine.DoProgressResponse doProgress(List<Integer> anyHandle, StateContext stateContext) {
+    throw ProtocolException.badState(this);
+  }
 
-  Optional<NotificationValue> takeNotification(int handle, StateHolder stateHolder);
+  default Optional<NotificationValue> takeNotification(int handle, StateContext stateContext) {
+    throw ProtocolException.badState(this);
+  }
 
-  StateMachine.@Nullable Input processInputCommand(StateHolder stateHolder, Journal journal, Flow.Subscriber<? super MessageLite> outputSubscriber);
+  default StateMachine.@Nullable Input processInputCommand(StateContext stateContext) {
+    throw ProtocolException.badState(this);
+  }
 
-  int processStateGetCommand(String key, StateHolder stateHolder, EagerState eagerState, Journal journal, Flow.Subscriber<? super MessageLite> outputSubscriber);
+  default int processStateGetCommand(String key, StateContext stateContext) {
+    throw ProtocolException.badState(this);
+  }
 
-  int processStateGetKeysCommand(StateHolder stateHolder, EagerState eagerState, Journal journal, Flow.Subscriber<? super MessageLite> outputSubscriber);
+  default int processStateGetKeysCommand(StateContext stateContext) {
+    throw ProtocolException.badState(this);
+  }
 
-  void processNonCompletableCommand(MessageLite commandEntry, StateHolder stateHolder, Journal journal, Flow.Subscriber<? super MessageLite> outputSubscriber);
+  default <E extends MessageLite> void processNonCompletableCommand(E commandMessage, CommandAccessor<E> commandAccessor, StateContext stateContext) {
+    throw ProtocolException.badState(this);
+  }
 
-  int[] processCompletableCommand(MessageLite commandEntry, int[] ints, StateHolder stateHolder, Journal journal, Flow.Subscriber<? super MessageLite> outputSubscriber);
+  default <E extends MessageLite> int[] processCompletableCommand(E commandMessage, CommandAccessor<E> commandAccessor, int[] completionIds, StateContext stateContext) {
+    throw ProtocolException.badState(this);
+  }
 
-  int createSignalHandle(NotificationId notificationId, StateHolder stateHolder, Journal journal, Flow.Subscriber<? super MessageLite> outputSubscriber);
+  default int createSignalHandle(NotificationId notificationId, StateContext stateContext) {
+    throw ProtocolException.badState(this);
+  }
 
-  int processRunCommand(String name, StateHolder stateHolder, Journal journal, Flow.Subscriber<? super MessageLite> outputSubscriber);
+  default int processRunCommand(String name, StateContext stateContext) {
+    throw ProtocolException.badState(this);
+  }
 
-  void proposeRunCompletion(int handle, Slice value, StateHolder stateHolder, Journal journal, Flow.Subscriber<? super MessageLite> outputSubscriber);
+  default void proposeRunCompletion(int handle, Slice value, StateContext stateContext) {
+    throw ProtocolException.badState(this);
+  }
 
-  void proposeRunCompletion(int handle, Throwable exception, @Nullable RetryPolicy retryPolicy, StateHolder stateHolder, Journal journal, Flow.Subscriber<? super MessageLite> outputSubscriber);
+  default void proposeRunCompletion(int handle, Throwable exception, @Nullable RetryPolicy retryPolicy, StateContext stateContext) {
+    throw ProtocolException.badState(this);
+  }
 
-  void end(StateHolder stateHolder, Flow.Subscriber<? super MessageLite> outputSubscriber);
+  default void hitError(Throwable throwable, StateContext stateContext) {
+    LOG.warn("Invocation failed", throwable);
+    stateContext.maybeWriteMessageOut(Util.toErrorMessage(
+            throwable,
+            stateContext.getJournal().getCommandIndex(),
+            stateContext.getJournal().getCurrentEntryName(),
+            stateContext.getJournal().getCurrentEntryTy()
+    ));
+    stateContext.closeOutputSubscriber();
+    stateContext.getStateHolder().transition(new ClosedState());
+  }
+
+  default void hitSuspended(Collection<NotificationId> awaitingOn, StateContext stateContext) {
+    LOG.info("Invocation suspended awaiting on {}", awaitingOn);
+
+    var suspensionMessageBuilder = Protocol.SuspensionMessage.newBuilder();
+    for (var notificationId: awaitingOn) {
+      if (notificationId instanceof NotificationId.CompletionId completionId) {
+        suspensionMessageBuilder.addWaitingCompletions(completionId.id());
+      } else if (notificationId instanceof NotificationId.SignalId signalId) {
+        suspensionMessageBuilder.addWaitingSignals(signalId.id());
+      } else if (notificationId instanceof NotificationId.SignalName signalName) {
+        suspensionMessageBuilder.addWaitingNamedSignals(signalName.name());
+      }
+    }
+
+    stateContext.maybeWriteMessageOut(
+      suspensionMessageBuilder.build()
+    );
+    stateContext.closeOutputSubscriber();
+    stateContext.getStateHolder().transition(new ClosedState());
+  }
+
+  default void end(StateContext stateContext) {
+    LOG.info("Invocation ended");
+
+    stateContext.writeMessageOut(Protocol.EndMessage.getDefaultInstance());
+    stateContext.closeOutputSubscriber();
+    stateContext.getStateHolder().transition(new ClosedState());
+  }
+
+  default void onInputClosed(StateContext stateContext) {
+    stateContext.markInputClosed();
+  }
 
   InvocationState getInvocationState();
 }

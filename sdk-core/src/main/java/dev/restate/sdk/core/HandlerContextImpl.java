@@ -33,10 +33,10 @@ class HandlerContextImpl implements HandlerContextInternal {
   private final HashMap<Integer, Consumer<RunCompleter>> scheduledRuns;
 
   HandlerContextImpl(
-      String fullyQualifiedHandlerName,
-      StateMachine stateMachine,
-      Context otelContext,
-      StateMachine.Input input) {
+          String fullyQualifiedHandlerName,
+          StateMachine stateMachine,
+          Context otelContext,
+          StateMachine.Input input) {
     this.request = new Request(input.invocationId(), otelContext, input.body(), input.headers());
     this.objectKey = input.key();
     this.stateMachine = stateMachine;

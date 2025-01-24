@@ -15,7 +15,7 @@ import com.nimbusds.jose.jwk.Curve;
 import com.nimbusds.jose.jwk.OctetKeyPair;
 import com.nimbusds.jose.util.Base64URL;
 import com.nimbusds.jwt.SignedJWT;
-import dev.restate.sdk.definition.RequestIdentityVerifier;
+import dev.restate.sdk.endpoint.RequestIdentityVerifier;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;

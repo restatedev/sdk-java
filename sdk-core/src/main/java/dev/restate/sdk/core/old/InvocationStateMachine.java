@@ -15,6 +15,8 @@ import com.google.protobuf.MessageLite;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.*;
+import dev.restate.sdk.core.ExceptionUtils;
+import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.statemachine.InvocationInput;
 import dev.restate.sdk.core.statemachine.InvocationState;
 import dev.restate.sdk.core.statemachine.MessageType;

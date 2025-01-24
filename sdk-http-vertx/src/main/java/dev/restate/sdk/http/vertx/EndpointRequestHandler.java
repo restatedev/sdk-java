@@ -12,7 +12,7 @@ import static io.netty.handler.codec.http.HttpHeaderNames.ACCEPT;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 
-import dev.restate.sdk.core.Endpoint;
+import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.definition.HandlerProcessor;
 import dev.restate.sdk.core.EndpointImpl;

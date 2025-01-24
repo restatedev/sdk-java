@@ -8,13 +8,20 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core.statemachine;
 
+import dev.restate.sdk.core.EndpointRequestHandler;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 final class StateHolder {
 
-  private State state;
+  Logger LOG = LogManager.getLogger(StateHolder.class);
 
-  StateHolder() {
-    // TODO
-    this.state = null;
+  private State state;
+  private final EndpointRequestHandler.LoggingContextSetter loggingContextSetter;
+
+  StateHolder(EndpointRequestHandler.LoggingContextSetter loggingContextSetter) {
+      this.loggingContextSetter = loggingContextSetter;
+      this.state = new WaitingStartState();
   }
 
   State getState() {
@@ -23,5 +30,8 @@ final class StateHolder {
 
   void transition(State state) {
     this.state = state;
+    LOG.debug("Transitioning state machine to {}", state.getInvocationState());
+    this.loggingContextSetter.set(
+            EndpointRequestHandler.LoggingContextSetter.INVOCATION_STATUS_KEY, state.getInvocationState().toString());
   }
 }

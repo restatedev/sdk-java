@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.springboot;
 
-import dev.restate.sdk.definition.RequestIdentityVerifier;
+import dev.restate.sdk.endpoint.RequestIdentityVerifier;
 import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.ConstructorBinding;

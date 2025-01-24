@@ -18,7 +18,6 @@ include(
     "sdk-api",
     "sdk-api-kotlin",
     "sdk-core",
-    "sdk-core-kotlin",
     "sdk-serde-jackson",
     "sdk-serde-protobuf",
     "sdk-request-identity",

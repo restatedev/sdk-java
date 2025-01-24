@@ -17,7 +17,7 @@ public final class ExceptionUtils {
   private ExceptionUtils() {}
 
   @SuppressWarnings("unchecked")
-  static <E extends Throwable> void sneakyThrow(Throwable e) throws E {
+  public static <E extends Throwable> void sneakyThrow(Throwable e) throws E {
     throw (E) e;
   }
 
@@ -57,7 +57,7 @@ public final class ExceptionUtils {
     return findCause(throwable, t -> t == AbortedExecutionException.INSTANCE).isPresent();
   }
 
-  static boolean isTerminalException(Throwable throwable) {
+  public static boolean isTerminalException(Throwable throwable) {
     return throwable instanceof TerminalException;
   }
 }

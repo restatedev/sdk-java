@@ -7,8 +7,8 @@ class Journal {
     private int notificationIndex;
     private int completionIndex;
     private int signalIndex;
-    public MessageType currentEntryTy;
-    public String currentEntryName;
+    private MessageType currentEntryTy;
+    private String currentEntryName;
 
     Journal() {
         this.commandIndex = -1;
@@ -28,13 +28,21 @@ class Journal {
     }
 
     public void notificationTransition(MessageLite expected) {
-         this.notificationIndex++;
+        this.notificationIndex++;
         this.currentEntryName = "";
-        this.currentEntryTy = MessageType.fromMessage(expected);
+        this.currentEntryTy = null;
     }
 
     public int getCommandIndex() {
         return this.commandIndex;
+    }
+
+    public MessageType getCurrentEntryTy() {
+        return currentEntryTy;
+    }
+
+    public String getCurrentEntryName() {
+        return currentEntryName;
     }
 
     public int getNotificationIndex() {

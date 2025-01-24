@@ -6,14 +6,17 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-package dev.restate.sdk.core;
+package dev.restate.sdk.endpoint;
 
 import dev.restate.sdk.definition.ServiceDefinition;
+import dev.restate.sdk.definition.ServiceDefinitionAndOptions;
 import dev.restate.sdk.definition.ServiceDefinitionFactory;
 import io.opentelemetry.api.OpenTelemetry;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
@@ -23,13 +26,13 @@ public final class Endpoint {
 
   private static final Logger LOG = LogManager.getLogger(Endpoint.class);
 
-  private final Map<String, ServiceAndOptions<?>> services;
+  private final Map<String, ServiceDefinitionAndOptions<?>> services;
   private final OpenTelemetry openTelemetry;
   private final RequestIdentityVerifier requestIdentityVerifier;
   private final boolean experimentalContextEnabled;
 
   private Endpoint(
-      Map<String, ServiceAndOptions<?>> services,
+      Map<String, ServiceDefinitionAndOptions<?>> services,
       OpenTelemetry openTelemetry,
       RequestIdentityVerifier requestIdentityVerifier,
       boolean experimentalContextEnabled) {
@@ -40,7 +43,7 @@ public final class Endpoint {
   }
 
   public static class Builder {
-    private final List<ServiceAndOptions<?>> services = new ArrayList<>();
+    private final List<ServiceDefinitionAndOptions<?>> services = new ArrayList<>();
     private RequestIdentityVerifier requestIdentityVerifier = RequestIdentityVerifier.noop();
     private OpenTelemetry openTelemetry = OpenTelemetry.noop();
     private boolean experimentalContextEnabled = false;
@@ -68,7 +71,7 @@ public final class Endpoint {
 
     /** Add a Restate service to the endpoint, setting the options. */
     public <O> Builder bind(ServiceDefinition<O> serviceDefinition, O options) {
-      this.services.add(new ServiceAndOptions<>(serviceDefinition, options));
+      this.services.add(new ServiceDefinitionAndOptions<>(serviceDefinition, options));
       return this;
     }
 
@@ -125,7 +128,7 @@ public final class Endpoint {
     public Endpoint build() {
       return new Endpoint(
           this.services.stream()
-              .collect(Collectors.toMap(c -> c.service.getServiceName(), Function.identity())),
+              .collect(Collectors.toMap(c -> c.service().getServiceName(), Function.identity())),
           this.openTelemetry,
           this.requestIdentityVerifier,
           this.experimentalContextEnabled);
@@ -135,8 +138,6 @@ public final class Endpoint {
   public static Builder builder() {
     return new Builder();
   }
-
-  record ServiceAndOptions<O>(ServiceDefinition<O> service, O options) {}
 
   private static class ServiceDefinitionFactorySingleton {
     private static final ServiceDefinitionFactoryDiscovery INSTANCE =
@@ -208,19 +209,23 @@ public final class Endpoint {
                 + ServiceDefinitionFactorySingleton.INSTANCE.factories);
   }
 
-  Map<String, ServiceAndOptions<?>> getServices() {
-    return services;
+  public ServiceDefinitionAndOptions<?> resolveServiceAndOptions(String serviceName) {
+    return services.get(serviceName);
   }
 
-  OpenTelemetry getOpenTelemetry() {
+  public Stream<ServiceDefinition<?>> getServiceDefinitions() {
+    return this.services.values().stream().map(ServiceDefinitionAndOptions::service);
+  }
+
+  public OpenTelemetry getOpenTelemetry() {
     return openTelemetry;
   }
 
-  RequestIdentityVerifier getRequestIdentityVerifier() {
+  public RequestIdentityVerifier getRequestIdentityVerifier() {
     return requestIdentityVerifier;
   }
 
-  boolean isExperimentalContextEnabled() {
+  public boolean isExperimentalContextEnabled() {
     return experimentalContextEnabled;
   }
 }

@@ -27,12 +27,12 @@ final class ExecutorSwitchingHandlerContextImpl extends HandlerContextImpl {
 
   private final Executor coreExecutor;
 
-  ExecutorSwitchingHandlerContextImpl(
-      String fullyQualifiedHandlerName,
-      StateMachine stateMachine,
-      Context otelContext,
-      StateMachine.Input input,
-      Executor coreExecutor) {
+ ExecutorSwitchingHandlerContextImpl(
+          String fullyQualifiedHandlerName,
+          StateMachine stateMachine,
+          Context otelContext,
+          StateMachine.Input input,
+          Executor coreExecutor) {
     super(fullyQualifiedHandlerName, stateMachine, otelContext, input);
     this.coreExecutor = coreExecutor;
   }

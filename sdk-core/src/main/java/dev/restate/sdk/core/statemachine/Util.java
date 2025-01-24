@@ -9,12 +9,18 @@
 package dev.restate.sdk.core.statemachine;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.MessageLite;
 import com.google.protobuf.UnsafeByteOperations;
+import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.types.Slice;
 import dev.restate.sdk.types.TerminalException;
+import org.jspecify.annotations.Nullable;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.ByteBuffer;
+import java.util.Objects;
 
 public class Util {
 
@@ -35,9 +41,9 @@ public class Util {
 
   static Protocol.ErrorMessage toErrorMessage(
       Throwable throwable,
-      int currentJournalIndex,
-      @Nullable String currentJournalEntryName,
-      @Nullable MessageType currentJournalEntryType) {
+      int currentCommandIndex,
+      @Nullable String currentCommandName,
+      @Nullable MessageType currentCommandType) {
     Protocol.ErrorMessage.Builder msg =
         Protocol.ErrorMessage.newBuilder().setMessage(throwable.toString());
 
@@ -55,14 +61,14 @@ public class Util {
     msg.setDescription(sw.toString());
 
     // Add journal entry info
-    if (currentJournalIndex >= 0) {
-      msg.setRelatedEntryIndex(currentJournalIndex);
+    if (currentCommandIndex >= 0) {
+      msg.setRelatedCommandIndex(currentCommandIndex);
     }
-    if (currentJournalEntryName != null) {
-      msg.setRelatedEntryName(currentJournalEntryName);
+    if (currentCommandName != null) {
+      msg.setRelatedCommandName(currentCommandName);
     }
-    if (currentJournalEntryType != null) {
-      msg.setRelatedEntryType(currentJournalEntryType.encode());
+    if (currentCommandType != null) {
+      msg.setRelatedCommandType(currentCommandType.encode());
     }
 
     return msg.build();
@@ -80,7 +86,7 @@ public class Util {
 
   static void assertEntryEquals(MessageLite expected, MessageLite actual) {
     if (!Objects.equals(expected, actual)) {
-      throw ProtocolException.entryDoesNotMatch(expected, actual);
+      throw ProtocolException.commandDoesNotMatch(expected, actual);
     }
   }
 
@@ -117,7 +123,11 @@ public class Util {
 
   /** NOTE! This method rewinds the buffer!!! */
   static ByteString sliceToByteString(Slice slice) {
-    return nioBufferToProtobufBuffer(slice.asReadOnlyByteBuffer())
+    return nioBufferToProtobufBuffer(slice.asReadOnlyByteBuffer());
+  }
+
+  static Slice byteStringToSlice(ByteString byteString) {
+
   }
 
   static Duration durationMin(Duration a, Duration b) {

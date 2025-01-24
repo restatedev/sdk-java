@@ -6,7 +6,7 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-package dev.restate.sdk.core;
+package dev.restate.sdk.endpoint;
 
 /** Interface to verify requests. */
 public interface RequestIdentityVerifier {
@@ -14,7 +14,7 @@ public interface RequestIdentityVerifier {
   /**
    * @throws Exception if the request cannot be verified
    */
-  void verifyRequest(EndpointRequestHandler.Headers headers) throws Exception;
+  void verifyRequest(HeadersAccessor headers) throws Exception;
 
   /**
    * @return a noop request identity verifier

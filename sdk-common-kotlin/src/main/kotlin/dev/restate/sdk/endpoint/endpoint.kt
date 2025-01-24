@@ -7,9 +7,7 @@
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 
-package dev.restate.core.kotlin
-
-import dev.restate.sdk.core.Endpoint
+package dev.restate.sdk.endpoint;
 
 /**
  * Endpoint builder function.
