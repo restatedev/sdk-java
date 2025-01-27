@@ -14,13 +14,13 @@ import dev.restate.sdk.types.TerminalException;
 import dev.restate.sdk.function.ThrowingFunction;
 import dev.restate.sdk.definition.AsyncResult;
 import dev.restate.sdk.definition.Result;
+import dev.restate.sdk.types.TimeoutException;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -72,7 +72,7 @@ public abstract class Awaitable<T> {
     int index = any(this, sleepAwaitable).awaitIndex();
 
     if (index == 1) {
-      throw new TimeoutException();
+      throw new TimeoutException("Timed out waiting for awaitable after " + timeout);
     }
     // This await is no-op now
     return this.await();
