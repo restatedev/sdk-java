@@ -14,6 +14,8 @@ import dev.restate.sdk.definition.AsyncResult;
 import dev.restate.sdk.definition.HandlerContext;
 import dev.restate.sdk.types.RetryPolicy;
 import dev.restate.sdk.types.Slice;
+
+import java.time.Duration;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
@@ -34,7 +36,7 @@ interface HandlerContextInternal extends HandlerContext {
 
   void proposeRunSuccess(int runHandle, Slice toWrite);
 
-  void proposeRunFailure(int runHandle, Throwable toWrite, @Nullable RetryPolicy retryPolicy);
+  void proposeRunFailure(int runHandle, Throwable toWrite, Duration attemptDuration, @Nullable RetryPolicy retryPolicy);
 
   void pollAsyncResult(AsyncResultInternal<?> asyncResult);
 

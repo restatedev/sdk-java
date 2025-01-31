@@ -8,14 +8,15 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core.statemachine;
 
+import static dev.restate.sdk.core.statemachine.Util.sliceToByteString;
+import static dev.restate.sdk.core.statemachine.Util.toProtocolFailure;
+
 import com.google.protobuf.ByteString;
-import com.google.protobuf.MessageLite;
 import dev.restate.sdk.core.EndpointRequestHandler;
-import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
+import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.types.*;
-
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.time.Instant;
@@ -23,20 +24,15 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow;
 import java.util.function.Consumer;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
 
-import static dev.restate.sdk.core.statemachine.Util.sliceToByteString;
-import static dev.restate.sdk.core.statemachine.Util.toProtocolFailure;
-
 class StateMachineImpl implements StateMachine {
 
   private static final Logger LOG = LogManager.getLogger(StateMachineImpl.class);
-private static final String AWAKEABLE_IDENTIFIER_PREFIX = "sign_1";
+  private static final String AWAKEABLE_IDENTIFIER_PREFIX = "sign_1";
   private static final int CANCEL_SIGNAL_ID = 1;
-
 
   private final Protocol.ServiceProtocolVersion serviceProtocolVersion;
 
@@ -56,7 +52,8 @@ private static final String AWAKEABLE_IDENTIFIER_PREFIX = "sign_1";
       EndpointRequestHandler.LoggingContextSetter loggingContextSetter) {
     String contentTypeHeader =
         Objects.requireNonNull(
-            headersAccessor.get(ServiceProtocol.CONTENT_TYPE), "Headers don't contain CONTENT-TYPE");
+            headersAccessor.get(ServiceProtocol.CONTENT_TYPE),
+            "Headers don't contain CONTENT-TYPE");
 
     this.serviceProtocolVersion = ServiceProtocol.parseServiceProtocolVersion(contentTypeHeader);
 
@@ -130,7 +127,8 @@ private static final String AWAKEABLE_IDENTIFIER_PREFIX = "sign_1";
             invocationInput.message().getClass(),
             invocationInput.message());
 
-        this.stateContext.getCurrentState()
+        this.stateContext
+            .getCurrentState()
             .onNewMessage(invocationInput, this.stateContext, this.waitForReadyFuture);
 
         invocationInput = this.messageDecoder.next();
@@ -142,8 +140,6 @@ private static final String AWAKEABLE_IDENTIFIER_PREFIX = "sign_1";
         this.waitNextProcessedInput = null;
       }
 
-      // TODO trigger input listener
-
     } catch (Throwable e) {
       this.onError(e);
     }
@@ -152,7 +148,7 @@ private static final String AWAKEABLE_IDENTIFIER_PREFIX = "sign_1";
   @Override
   public void onError(Throwable throwable) {
     LOG.trace("Got failure", throwable);
-    this.stateContext.getCurrentState().hitError(throwable, this.stateContext);
+    this.stateContext.getCurrentState().hitError(throwable, null, this.stateContext);
     cancelInputSubscription();
   }
 
@@ -181,7 +177,7 @@ private static final String AWAKEABLE_IDENTIFIER_PREFIX = "sign_1";
 
   @Override
   public boolean isCompleted(int handle) {
-    // TODO check state directly
+    return      this.stateContext.getCurrentState().isCompleted(handle);
   }
 
   @Override
@@ -197,28 +193,33 @@ private static final String AWAKEABLE_IDENTIFIER_PREFIX = "sign_1";
   @Override
   public int stateGet(String key) {
     LOG.debug("Executing 'Get state {}'", key);
-    return this.stateContext.getCurrentState().processStateGetCommand(key, this.stateContext,     this.outputSubscriber);
+    return this.stateContext
+        .getCurrentState()
+        .processStateGetCommand(key, this.stateContext);
   }
 
   @Override
   public int stateGetKeys() {
     LOG.debug("Executing 'Get state keys'");
-    return this.stateContext.getCurrentState().processStateGetKeysCommand(this.stateContext,    this.outputSubscriber);
+    return this.stateContext
+        .getCurrentState()
+        .processStateGetKeysCommand(this.stateContext);
   }
 
   @Override
   public void stateSet(String key, Slice bytes) {
     LOG.debug("Executing 'Set state {}'", key);
     ByteString keyBuffer = ByteString.copyFromUtf8(key);
-this.stateContext.getEagerState().set(keyBuffer, bytes);
-this.stateContext.getCurrentState().processNonCompletableCommand(
-        Protocol.SetStateCommandMessage.newBuilder()
+    this.stateContext.getEagerState().set(keyBuffer, bytes);
+    this.stateContext
+        .getCurrentState()
+        .processNonCompletableCommand(
+            Protocol.SetStateCommandMessage.newBuilder()
                 .setKey(keyBuffer)
-                .setValue(Protocol.Value.newBuilder()
-                        .setContent(sliceToByteString(bytes))
-                        .build()).build(),
-        this.stateContext
-);
+                .setValue(Protocol.Value.newBuilder().setContent(sliceToByteString(bytes)).build())
+                .build(),
+            CommandAccessor.SET_STATE,
+            this.stateContext);
   }
 
   @Override
@@ -226,38 +227,37 @@ this.stateContext.getCurrentState().processNonCompletableCommand(
     LOG.debug("Executing 'Clear state {}'", key);
     ByteString keyBuffer = ByteString.copyFromUtf8(key);
     this.stateContext.getEagerState().clear(keyBuffer);
-     this.stateContext.getCurrentState().processNonCompletableCommand(
-            Protocol.ClearStateCommandMessage.newBuilder()
-                    .setKey(keyBuffer)
-                    .build(),
-this.stateContext
-    );
+    this.stateContext
+        .getCurrentState()
+        .processNonCompletableCommand(
+            Protocol.ClearStateCommandMessage.newBuilder().setKey(keyBuffer).build(),
+            CommandAccessor.CLEAR_STATE,
+            this.stateContext);
   }
 
   @Override
   public void stateClearAll() {
     LOG.debug("Executing 'Clear all state'");
     this.stateContext.getEagerState().clearAll();
-     this.stateContext.getCurrentState().processNonCompletableCommand(
-            Protocol.ClearAllStateCommandMessage.getDefaultInstance(),
-this.stateContext
-    );
+    this.stateContext
+        .getCurrentState()
+        .processNonCompletableCommand(
+            Protocol.ClearAllStateCommandMessage.getDefaultInstance(), CommandAccessor.CLEAR_ALL_STATE, this.stateContext);
   }
 
   @Override
   public int sleep(Duration duration) {
     LOG.debug("Executing 'Sleeping for {}'", duration);
     var completionId = this.stateContext.getJournal().nextCompletionNotificationId();
-    return this.stateContext.getCurrentState().processCompletableCommand(
+    return this.stateContext.getCurrentState()
+        .processCompletableCommand(
             Protocol.SleepCommandMessage.newBuilder()
-                    .setWakeUpTime(
-                            Instant.now().toEpochMilli() + duration.toMillis()
-                    )
-                    .setResultCompletionId(completionId)
-                    .build(),
-            new int[]{completionId},
-this.stateContext
-    )[0];
+                .setWakeUpTime(Instant.now().toEpochMilli() + duration.toMillis())
+                .setResultCompletionId(completionId)
+                .build(),
+            CommandAccessor.SLEEP,
+            new int[] {completionId},
+            this.stateContext)[0];
   }
 
   @Override
@@ -274,7 +274,8 @@ this.stateContext
     var invocationIdCompletionId = this.stateContext.getJournal().nextCompletionNotificationId();
     var callCompletionId = this.stateContext.getJournal().nextCompletionNotificationId();
 
-    var callCommandBuilder = Protocol.CallCommandMessage.newBuilder()
+    var callCommandBuilder =
+        Protocol.CallCommandMessage.newBuilder()
             .setServiceName(target.getService())
             .setHandlerName(target.getHandler())
             .setParameter(sliceToByteString(payload))
@@ -288,18 +289,22 @@ this.stateContext
     }
     if (headers != null) {
       for (var header : headers) {
-        callCommandBuilder.addHeaders(Protocol.Header.newBuilder()
-                        .setKey(header.getKey())
-                        .setValue(header.getValue())
+        callCommandBuilder.addHeaders(
+            Protocol.Header.newBuilder()
+                .setKey(header.getKey())
+                .setValue(header.getValue())
                 .build());
       }
     }
 
-    var notificationHandles = this.stateContext.getCurrentState().processCompletableCommand(
-       callCommandBuilder.build(),
-            new int[]{invocationIdCompletionId, callCompletionId},
-this.stateContext
-    );
+    var notificationHandles =
+        this.stateContext
+            .getCurrentState()
+            .processCompletableCommand(
+                callCommandBuilder.build(),
+                CommandAccessor.CALL,
+                new int[] {invocationIdCompletionId, callCompletionId},
+                this.stateContext);
 
     return new CallHandle(notificationHandles[0], notificationHandles[1]);
   }
@@ -318,7 +323,8 @@ this.stateContext
 
     var invocationIdCompletionId = this.stateContext.getJournal().nextCompletionNotificationId();
 
-    var sendCommandBuilder = Protocol.OneWayCallCommandMessage.newBuilder()
+    var sendCommandBuilder =
+        Protocol.OneWayCallCommandMessage.newBuilder()
             .setServiceName(target.getService())
             .setHandlerName(target.getHandler())
             .setParameter(sliceToByteString(payload))
@@ -331,7 +337,8 @@ this.stateContext
     }
     if (headers != null) {
       for (var header : headers) {
-        sendCommandBuilder.addHeaders(Protocol.Header.newBuilder()
+        sendCommandBuilder.addHeaders(
+            Protocol.Header.newBuilder()
                 .setKey(header.getKey())
                 .setValue(header.getValue())
                 .build());
@@ -341,11 +348,9 @@ this.stateContext
       sendCommandBuilder.setInvokeTime(Instant.now().toEpochMilli() + delay.toMillis());
     }
 
-    return this.stateContext.getCurrentState().processCompletableCommand(
-            sendCommandBuilder.build(),
-            new int[]{invocationIdCompletionId},
-this.stateContext
-    )[0];
+    return this.stateContext.getCurrentState()
+        .processCompletableCommand(
+            sendCommandBuilder.build(),CommandAccessor.ONE_WAY_CALL, new int[] {invocationIdCompletionId}, this.stateContext)[0];
   }
 
   @Override
@@ -354,20 +359,21 @@ this.stateContext
 
     var signalId = this.stateContext.getJournal().nextSignalNotificationId();
 
-    var signalHandle = this.stateContext.getCurrentState().createSignalHandle(
-           new NotificationId.SignalId(signalId),
-this.stateContext
-    );
+    var signalHandle =
+        this.stateContext
+            .getCurrentState()
+            .createSignalHandle(new NotificationId.SignalId(signalId), this.stateContext);
 
-// Encode awakeable id
-    String awakeableId =   AWAKEABLE_IDENTIFIER_PREFIX
-            + Base64.getUrlEncoder().encodeToString(this.stateContext
-            .getStartInfo().id()
-            .concat(
-                    ByteString.copyFrom(
-                            ByteBuffer.allocate(4)
-                                    .putInt(signalId)
-                                    .flip())).toByteArray());
+    // Encode awakeable id
+    String awakeableId =
+        AWAKEABLE_IDENTIFIER_PREFIX
+            + Base64.getUrlEncoder()
+                .encodeToString(
+                    this.stateContext
+                        .getStartInfo()
+                        .id()
+                        .concat(ByteString.copyFrom(ByteBuffer.allocate(4).putInt(signalId).flip()))
+                        .toByteArray());
 
     return new Awakeable(awakeableId, signalHandle);
   }
@@ -375,201 +381,205 @@ this.stateContext
   @Override
   public void completeAwakeable(String awakeableId, Slice value) {
     LOG.debug("Executing 'Complete awakeable {} with success'", awakeableId);
-    completeAwakeable(awakeableId, builder -> builder.setValue(Protocol.Value.newBuilder().setContent(sliceToByteString(value)).build()));
+    completeAwakeable(
+        awakeableId,
+        builder ->
+            builder.setValue(
+                Protocol.Value.newBuilder().setContent(sliceToByteString(value)).build()));
   }
 
   @Override
   public void completeAwakeable(String awakeableId, TerminalException exception) {
     LOG.debug("Executing 'Complete awakeable {} with failure'", awakeableId);
-    completeAwakeable(awakeableId, builder -> builder.setFailure(
-            toProtocolFailure(exception)
-    ));
+    completeAwakeable(awakeableId, builder -> builder.setFailure(toProtocolFailure(exception)));
   }
 
-  private void completeAwakeable(String awakeableId, Consumer<Protocol.CompleteAwakeableCommandMessage.Builder> filler) {
+  private void completeAwakeable(
+      String awakeableId, Consumer<Protocol.CompleteAwakeableCommandMessage.Builder> filler) {
     var builder = Protocol.CompleteAwakeableCommandMessage.newBuilder().setAwakeableId(awakeableId);
     filler.accept(builder);
 
-    this.stateContext.getCurrentState().processNonCompletableCommand(
-            builder.build(),
-this.stateContext
-    );
+    this.stateContext
+        .getCurrentState()
+        .processNonCompletableCommand(builder.build(), CommandAccessor.COMPLETE_AWAKEABLE,this.stateContext);
   }
 
   @Override
   public int createSignalHandle(String signalName) {
     LOG.debug("Executing 'Create signal handle {}'", signalName);
 
-   return this.stateContext.getCurrentState().createSignalHandle(
-            new NotificationId.SignalName(signalName),
-this.stateContext
-    );
+    return this.stateContext
+        .getCurrentState()
+        .createSignalHandle(new NotificationId.SignalName(signalName), this.stateContext);
   }
 
   @Override
   public void completeSignal(String targetInvocationId, String signalName, Slice value) {
-    LOG.debug("Executing 'Complete signal {} to invocation {} with success'", signalName, targetInvocationId);
-    this.completeSignal(targetInvocationId, signalName, builder -> builder.setValue(Protocol.Value.newBuilder().setContent(sliceToByteString(value)).build()));
+    LOG.debug(
+        "Executing 'Complete signal {} to invocation {} with success'",
+        signalName,
+        targetInvocationId);
+    this.completeSignal(
+        targetInvocationId,
+        signalName,
+        builder ->
+            builder.setValue(
+                Protocol.Value.newBuilder().setContent(sliceToByteString(value)).build()));
   }
 
   @Override
   public void completeSignal(
       String targetInvocationId, String signalName, TerminalException exception) {
-    LOG.debug("Executing 'Complete signal {} to invocation {} with failure'", signalName, targetInvocationId);
-    this.completeSignal(targetInvocationId, signalName, builder -> builder.setFailure(
-            toProtocolFailure(exception)
-    ));
+    LOG.debug(
+        "Executing 'Complete signal {} to invocation {} with failure'",
+        signalName,
+        targetInvocationId);
+    this.completeSignal(
+        targetInvocationId,
+        signalName,
+        builder -> builder.setFailure(toProtocolFailure(exception)));
   }
 
   private void completeSignal(
-          String targetInvocationId, String signalName,  Consumer<Protocol.SendSignalCommandMessage.Builder> filler) {
-    var builder = Protocol.SendSignalCommandMessage.newBuilder()
+      String targetInvocationId,
+      String signalName,
+      Consumer<Protocol.SendSignalCommandMessage.Builder> filler) {
+    var builder =
+        Protocol.SendSignalCommandMessage.newBuilder()
             .setTargetInvocationId(targetInvocationId)
             .setName(signalName);
     filler.accept(builder);
 
-    this.stateContext.getCurrentState().processNonCompletableCommand(
-            builder.build(),
-this.stateContext
-    );
+    this.stateContext
+        .getCurrentState()
+        .processNonCompletableCommand(builder.build(), CommandAccessor.SEND_SIGNAL, this.stateContext);
   }
 
   @Override
   public int promiseGet(String key) {
     LOG.debug("Executing 'Await promise {}'", key);
     var completionId = this.stateContext.getJournal().nextCompletionNotificationId();
-    return this.stateContext.getCurrentState().processCompletableCommand(
+    return this.stateContext.getCurrentState()
+        .processCompletableCommand(
             Protocol.GetPromiseCommandMessage.newBuilder()
-                    .setKey(
-key
-                    )
-                    .setResultCompletionId(completionId)
-                    .build(),
-            new int[]{completionId},
-this.stateContext
-    )[0];
+                .setKey(key)
+                .setResultCompletionId(completionId)
+                .build(),
+            CommandAccessor.GET_PROMISE,
+            new int[] {completionId},
+            this.stateContext)[0];
   }
 
   @Override
   public int promisePeek(String key) {
     LOG.debug("Executing 'Peek promise {}'", key);
     var completionId = this.stateContext.getJournal().nextCompletionNotificationId();
-    return this.stateContext.getCurrentState().processCompletableCommand(
+    return this.stateContext.getCurrentState()
+        .processCompletableCommand(
             Protocol.PeekPromiseCommandMessage.newBuilder()
-                    .setKey(
-                            key
-                    )
-                    .setResultCompletionId(completionId)
-                    .build(),
-            new int[]{completionId},
-this.stateContext
-    )[0];
+                .setKey(key)
+                .setResultCompletionId(completionId)
+                .build(),
+            CommandAccessor.PEEK_PROMISE,
+            new int[] {completionId},
+            this.stateContext)[0];
   }
 
   @Override
   public int promiseComplete(String key, Slice value) {
     LOG.debug("Executing 'Complete promise {} with success'", key);
-    return this.promiseComplete(key, builder -> builder.setCompletionValue(Protocol.Value.newBuilder().setContent(sliceToByteString(value)).build()));
+    return this.promiseComplete(
+        key,
+        builder ->
+            builder.setCompletionValue(
+                Protocol.Value.newBuilder().setContent(sliceToByteString(value)).build()));
   }
 
   @Override
   public int promiseComplete(String key, TerminalException exception) {
     LOG.debug("Executing 'Complete promise {} with failure'", key);
-    return this.promiseComplete(key, builder -> builder.setCompletionFailure(
-            toProtocolFailure(exception)
-    ));
+    return this.promiseComplete(
+        key, builder -> builder.setCompletionFailure(toProtocolFailure(exception)));
   }
 
-  private int promiseComplete(String key,  Consumer<Protocol.CompletePromiseCommandMessage.Builder> filler) {
+  private int promiseComplete(
+      String key, Consumer<Protocol.CompletePromiseCommandMessage.Builder> filler) {
     var completionId = this.stateContext.getJournal().nextCompletionNotificationId();
 
-    var builder = Protocol.CompletePromiseCommandMessage.newBuilder()
+    var builder =
+        Protocol.CompletePromiseCommandMessage.newBuilder()
             .setResultCompletionId(completionId)
             .setKey(key);
     filler.accept(builder);
 
-    return this.stateContext.getCurrentState().processCompletableCommand(
-            builder
-                    .build(),
-            new int[]{completionId},
-this.stateContext
-    )[0];
+    return this.stateContext.getCurrentState()
+        .processCompletableCommand(builder.build(), CommandAccessor.COMPLETE_PROMISE,new int[] {completionId}, this.stateContext)[0];
   }
 
   @Override
   public int run(String name) {
-    return this.stateContext.getCurrentState().processRunCommand(
-            name,
-this.stateContext
-    );
+    return this.stateContext.getCurrentState().processRunCommand(name, this.stateContext);
   }
 
   @Override
   public void proposeRunCompletion(int handle, Slice value) {
     LOG.debug("Executing 'Run completed with success");
-    this.stateContext.getCurrentState().proposeRunCompletion(
-            handle,
-            value,
-this.stateContext
-    );
+    this.stateContext.getCurrentState().proposeRunCompletion(handle, value, this.stateContext);
   }
 
   @Override
-  public void proposeRunCompletion(int handle, Throwable exception, @Nullable RetryPolicy retryPolicy) {
+  public void proposeRunCompletion(
+      int handle, Throwable exception,  Duration attemptDuration,  @Nullable RetryPolicy retryPolicy) {
     LOG.debug("Executing 'Run completed with failure");
-    this.stateContext.getCurrentState().proposeRunCompletion(
-            handle,
-            exception,
-            retryPolicy,
-this.stateContext
-    );
+    this.stateContext
+        .getCurrentState()
+        .proposeRunCompletion(handle, exception, attemptDuration, retryPolicy, this.stateContext);
   }
 
   @Override
   public void cancelInvocation(String targetInvocationId) {
     LOG.debug("Executing 'Cancel invocation {}", targetInvocationId);
-    this.stateContext.getCurrentState().processNonCompletableCommand(
+    this.stateContext
+        .getCurrentState()
+        .processNonCompletableCommand(
             Protocol.SendSignalCommandMessage.newBuilder()
-                    .setTargetInvocationId(targetInvocationId)
-                    .setIdx(CANCEL_SIGNAL_ID)
-                    .setVoid(Protocol.Void.getDefaultInstance())
-                    .build(),
-this.stateContext
-    );
+                .setTargetInvocationId(targetInvocationId)
+                .setIdx(CANCEL_SIGNAL_ID)
+                .setVoid(Protocol.Void.getDefaultInstance())
+                .build(),
+            CommandAccessor.SEND_SIGNAL,
+            this.stateContext);
   }
 
   @Override
   public void writeOutput(Slice value) {
     LOG.debug("Executing 'Write invocation output with success");
-    this.stateContext.getCurrentState().processNonCompletableCommand(
-            Protocol.OutputCommandMessage
-                    .newBuilder()
-                    .setValue(Protocol.Value.newBuilder().setContent(sliceToByteString(value)).build())
-                    .build(),
-this.stateContext
-    );
+    this.stateContext
+        .getCurrentState()
+        .processNonCompletableCommand(
+            Protocol.OutputCommandMessage.newBuilder()
+                .setValue(Protocol.Value.newBuilder().setContent(sliceToByteString(value)).build())
+                .build(),
+            CommandAccessor.OUTPUT,
+            this.stateContext);
   }
 
   @Override
   public void writeOutput(TerminalException exception) {
     LOG.debug("Executing 'Write invocation output with failure");
-    this.stateContext.getCurrentState().processNonCompletableCommand(
-            Protocol.OutputCommandMessage
-                    .newBuilder()
-                    .setFailure(
-                            toProtocolFailure(exception)
-                    ).build(),
-this.stateContext
-    );
+    this.stateContext
+        .getCurrentState()
+        .processNonCompletableCommand(
+            Protocol.OutputCommandMessage.newBuilder()
+                .setFailure(toProtocolFailure(exception))
+                .build(),CommandAccessor.OUTPUT,
+            this.stateContext);
   }
 
   @Override
   public void end() {
-    this.stateContext.getCurrentState().end(
-            this.stateContext
-    );
+    this.stateContext.getCurrentState().end(this.stateContext);
     cancelInputSubscription();
-    this.outputSubscriber = null;
   }
 
   @Override

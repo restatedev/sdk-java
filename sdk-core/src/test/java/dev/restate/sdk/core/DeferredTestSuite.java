@@ -17,7 +17,6 @@ import static org.assertj.core.api.InstanceOfAssertFactories.type;
 import dev.restate.generated.sdk.java.Java;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.generated.service.protocol.Protocol.Empty;
-
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 

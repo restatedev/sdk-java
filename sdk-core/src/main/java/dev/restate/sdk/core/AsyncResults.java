@@ -27,7 +27,7 @@ abstract class AsyncResults {
   private AsyncResults() {}
 
   static <T> AsyncResultInternal<T> single(
-          HandlerContextInternal contextInternal, int handle, Completer<T> completer) {
+      HandlerContextInternal contextInternal, int handle, Completer<T> completer) {
     return new SingleAsyncResultInternal<>(handle, completer, contextInternal);
   }
 

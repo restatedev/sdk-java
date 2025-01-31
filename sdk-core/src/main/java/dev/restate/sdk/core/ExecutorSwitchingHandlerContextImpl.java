@@ -27,12 +27,12 @@ final class ExecutorSwitchingHandlerContextImpl extends HandlerContextImpl {
 
   private final Executor coreExecutor;
 
- ExecutorSwitchingHandlerContextImpl(
-          String fullyQualifiedHandlerName,
-          StateMachine stateMachine,
-          Context otelContext,
-          StateMachine.Input input,
-          Executor coreExecutor) {
+  ExecutorSwitchingHandlerContextImpl(
+      String fullyQualifiedHandlerName,
+      StateMachine stateMachine,
+      Context otelContext,
+      StateMachine.Input input,
+      Executor coreExecutor) {
     super(fullyQualifiedHandlerName, stateMachine, otelContext, input);
     this.coreExecutor = coreExecutor;
   }
@@ -111,8 +111,7 @@ final class ExecutorSwitchingHandlerContextImpl extends HandlerContextImpl {
 
   @Override
   public CompletableFuture<Void> resolveAwakeable(String id, Slice payload) {
-    return CompletableFuture.supplyAsync(
-            () -> super.resolveAwakeable(id, payload), coreExecutor)
+    return CompletableFuture.supplyAsync(() -> super.resolveAwakeable(id, payload), coreExecutor)
         .thenCompose(Function.identity());
   }
 
@@ -153,8 +152,8 @@ final class ExecutorSwitchingHandlerContextImpl extends HandlerContextImpl {
 
   @Override
   public void proposeRunFailure(
-      int runHandle, Throwable toWrite, @Nullable RetryPolicy retryPolicy) {
-    coreExecutor.execute(() -> super.proposeRunFailure(runHandle, toWrite, retryPolicy));
+          int runHandle, Throwable toWrite, Duration attemptDuration, @Nullable RetryPolicy retryPolicy) {
+    coreExecutor.execute(() -> super.proposeRunFailure(runHandle, toWrite, attemptDuration, retryPolicy));
   }
 
   @Override

@@ -13,24 +13,38 @@ import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.types.RetryPolicy;
 import dev.restate.sdk.types.Slice;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.jspecify.annotations.Nullable;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.jspecify.annotations.Nullable;
 
-sealed interface State permits ClosedState, ProcessingState, ReplayingState, WaitingReplayEntriesState, WaitingStartState {
+sealed interface State
+    permits ClosedState,
+        ProcessingState,
+        ReplayingState,
+        WaitingReplayEntriesState,
+        WaitingStartState {
 
   Logger LOG = LogManager.getLogger(State.class);
 
-  default void onNewMessage(InvocationInput invocationInput, StateContext stateContext, CompletableFuture<Void> waitForReadyFuture) {
+  default void onNewMessage(
+      InvocationInput invocationInput,
+      StateContext stateContext,
+      CompletableFuture<Void> waitForReadyFuture) {
     throw ProtocolException.badState(this);
   }
 
-  default StateMachine.DoProgressResponse doProgress(List<Integer> anyHandle, StateContext stateContext) {
+  default StateMachine.DoProgressResponse doProgress(
+      List<Integer> anyHandle, StateContext stateContext) {
+    throw ProtocolException.badState(this);
+  }
+
+  default boolean isCompleted(int handle) {
     throw ProtocolException.badState(this);
   }
 
@@ -50,11 +64,16 @@ sealed interface State permits ClosedState, ProcessingState, ReplayingState, Wai
     throw ProtocolException.badState(this);
   }
 
-  default <E extends MessageLite> void processNonCompletableCommand(E commandMessage, CommandAccessor<E> commandAccessor, StateContext stateContext) {
+  default <E extends MessageLite> void processNonCompletableCommand(
+      E commandMessage, CommandAccessor<E> commandAccessor, StateContext stateContext) {
     throw ProtocolException.badState(this);
   }
 
-  default <E extends MessageLite> int[] processCompletableCommand(E commandMessage, CommandAccessor<E> commandAccessor, int[] completionIds, StateContext stateContext) {
+  default <E extends MessageLite> int[] processCompletableCommand(
+      E commandMessage,
+      CommandAccessor<E> commandAccessor,
+      int[] completionIds,
+      StateContext stateContext) {
     throw ProtocolException.badState(this);
   }
 
@@ -67,21 +86,30 @@ sealed interface State permits ClosedState, ProcessingState, ReplayingState, Wai
   }
 
   default void proposeRunCompletion(int handle, Slice value, StateContext stateContext) {
-    throw ProtocolException.badState(this);
+    LOG.warn("Going to ignore proposed run completion with handle {} because the state machine is not in processing state.", handle);
   }
 
-  default void proposeRunCompletion(int handle, Throwable exception, @Nullable RetryPolicy retryPolicy, StateContext stateContext) {
-    throw ProtocolException.badState(this);
+  default void proposeRunCompletion(
+          int handle,
+          Throwable exception,
+          Duration attemptDuration, @Nullable RetryPolicy retryPolicy,
+          StateContext stateContext) {
+    LOG.warn("Going to ignore proposed run completion with handle {} because the state machine is not in processing state.", handle);
   }
 
-  default void hitError(Throwable throwable, StateContext stateContext) {
+  default void hitError(Throwable throwable, @Nullable Duration nextRetryDelay, StateContext stateContext) {
     LOG.warn("Invocation failed", throwable);
-    stateContext.maybeWriteMessageOut(Util.toErrorMessage(
+
+    var errorMessage = Util.toErrorMessage(
             throwable,
             stateContext.getJournal().getCommandIndex(),
             stateContext.getJournal().getCurrentEntryName(),
-            stateContext.getJournal().getCurrentEntryTy()
-    ));
+            stateContext.getJournal().getCurrentEntryTy());
+    if (nextRetryDelay != null) {
+      errorMessage = errorMessage.toBuilder()  .setNextRetryDelay(nextRetryDelay.toMillis()).build();
+    }
+
+    stateContext.maybeWriteMessageOut(errorMessage);
     stateContext.closeOutputSubscriber();
     stateContext.getStateHolder().transition(new ClosedState());
   }
@@ -90,7 +118,7 @@ sealed interface State permits ClosedState, ProcessingState, ReplayingState, Wai
     LOG.info("Invocation suspended awaiting on {}", awaitingOn);
 
     var suspensionMessageBuilder = Protocol.SuspensionMessage.newBuilder();
-    for (var notificationId: awaitingOn) {
+    for (var notificationId : awaitingOn) {
       if (notificationId instanceof NotificationId.CompletionId completionId) {
         suspensionMessageBuilder.addWaitingCompletions(completionId.id());
       } else if (notificationId instanceof NotificationId.SignalId signalId) {
@@ -100,9 +128,7 @@ sealed interface State permits ClosedState, ProcessingState, ReplayingState, Wai
       }
     }
 
-    stateContext.maybeWriteMessageOut(
-      suspensionMessageBuilder.build()
-    );
+    stateContext.maybeWriteMessageOut(suspensionMessageBuilder.build());
     stateContext.closeOutputSubscriber();
     stateContext.getStateHolder().transition(new ClosedState());
   }

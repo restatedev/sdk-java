@@ -9,6 +9,7 @@
 package dev.restate.sdk.core;
 
 import com.google.protobuf.MessageLite;
+import dev.restate.sdk.core.statemachine.NotificationId;
 import dev.restate.sdk.types.TerminalException;
 
 public class ProtocolException extends RuntimeException {
@@ -53,15 +54,14 @@ public class ProtocolException extends RuntimeException {
         PROTOCOL_VIOLATION_CODE);
   }
 
-  public static ProtocolException unexpectedMessage(
-          String type, MessageLite actual) {
+  public static ProtocolException unexpectedMessage(String type, MessageLite actual) {
     return new ProtocolException(
-            "Unexpected message type received from the runtime. Expected: '"
-                    + type
-                    + "', Actual: '"
-                    + actual.getClass().getCanonicalName()
-                    + "'",
-            PROTOCOL_VIOLATION_CODE);
+        "Unexpected message type received from the runtime. Expected: '"
+            + type
+            + "', Actual: '"
+            + actual.getClass().getCanonicalName()
+            + "'",
+        PROTOCOL_VIOLATION_CODE);
   }
 
   static ProtocolException unexpectedNotificationVariant(Class<?> clazz) {
@@ -71,14 +71,18 @@ public class ProtocolException extends RuntimeException {
 
   public static ProtocolException commandDoesNotMatch(MessageLite expected, MessageLite actual) {
     return new ProtocolException(
-        "Command " + expected.getClass() + " does not match: " + expected + " != " + actual,
+            "Replayed journal doesn't match the handler code.\nThe handler code generated: " + expected + "\nwhile the replayed entry is: " + actual,
         JOURNAL_MISMATCH_CODE);
   }
 
-  public static ProtocolException commandsToProcessIsEmpty() {
+  public static ProtocolException commandClassDoesNotMatch(Class<? extends MessageLite> expectedClazz, MessageLite actual) {
     return new ProtocolException(
-            "Expecting command queue to be non empty",
+            "Replayed journal doesn't match the handler code.\nThe handler code generated: " + expectedClazz.getName() + "\nwhile the replayed entry is: " + actual,
             JOURNAL_MISMATCH_CODE);
+  }
+
+  public static ProtocolException commandsToProcessIsEmpty() {
+    return new ProtocolException("Expecting command queue to be non empty", JOURNAL_MISMATCH_CODE);
   }
 
   public static ProtocolException unknownMessageType(short type) {
@@ -93,27 +97,36 @@ public class ProtocolException extends RuntimeException {
 
   public static ProtocolException badState(Object thisState) {
     return new ProtocolException(
-            "Cannot process operation because the handler is in unexpected state: " + thisState, INTERNAL_CODE);
+        "Cannot process operation because the handler is in unexpected state: " + thisState,
+        INTERNAL_CODE);
   }
 
   public static ProtocolException badNotificationMessage(String missingField) {
     return new ProtocolException(
-            "Bad notification message, missing field " + missingField, PROTOCOL_VIOLATION_CODE);
+        "Bad notification message, missing field " + missingField, PROTOCOL_VIOLATION_CODE);
+  }
+
+  public static ProtocolException badRunNotificationId(NotificationId notificationId) {
+    return new ProtocolException(
+            "Bad run handle, should be mapped to a completion notification id, but was " + notificationId, PROTOCOL_VIOLATION_CODE);
   }
 
   public static ProtocolException commandMissingField(Class<?> clazz, String missingField) {
     return new ProtocolException(
-            "Bad command " + clazz.getName() + ", missing field " + missingField, PROTOCOL_VIOLATION_CODE);
+        "Bad command " + clazz.getName() + ", missing field " + missingField,
+        PROTOCOL_VIOLATION_CODE);
   }
 
   public static ProtocolException inputClosedWhileWaitingEntries() {
     return new ProtocolException(
-            "The input was closed while still waiting to receive all the `known_entries`", PROTOCOL_VIOLATION_CODE);
+        "The input was closed while still waiting to receive all the `known_entries`",
+        PROTOCOL_VIOLATION_CODE);
   }
 
   public static ProtocolException closedWhileWaitingEntries() {
     return new ProtocolException(
-            "The state machine was closed while still waiting to receive all the `known_entries`", PROTOCOL_VIOLATION_CODE);
+        "The state machine was closed while still waiting to receive all the `known_entries`",
+        PROTOCOL_VIOLATION_CODE);
   }
 
   static ProtocolException invalidSideEffectCall() {
@@ -125,9 +138,9 @@ public class ProtocolException extends RuntimeException {
 
   public static ProtocolException idempotencyKeyIsEmpty() {
     return new ProtocolException(
-            "The provided idempotency key is empty.",
-            TerminalException.INTERNAL_SERVER_ERROR_CODE,
-            null);
+        "The provided idempotency key is empty.",
+        TerminalException.INTERNAL_SERVER_ERROR_CODE,
+        null);
   }
 
   public static ProtocolException unauthorized(Throwable e) {

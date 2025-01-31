@@ -17,6 +17,7 @@ import dev.restate.sdk.function.ThrowingSupplier;
 import dev.restate.sdk.types.*;
 import io.opentelemetry.context.Context;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -33,10 +34,10 @@ class HandlerContextImpl implements HandlerContextInternal {
   private final HashMap<Integer, Consumer<RunCompleter>> scheduledRuns;
 
   HandlerContextImpl(
-          String fullyQualifiedHandlerName,
-          StateMachine stateMachine,
-          Context otelContext,
-          StateMachine.Input input) {
+      String fullyQualifiedHandlerName,
+      StateMachine stateMachine,
+      Context otelContext,
+      StateMachine.Input input) {
     this.request = new Request(input.invocationId(), otelContext, input.body(), input.headers());
     this.objectKey = input.key();
     this.stateMachine = stateMachine;
@@ -160,8 +161,7 @@ class HandlerContextImpl implements HandlerContextInternal {
                     if (s instanceof NotificationValue.Success) {
                       cf.complete(((NotificationValue.Success) s).slice());
                     } else if (s instanceof NotificationValue.Failure) {
-                      cf.completeExceptionally(
-                          ((NotificationValue.Failure) s).exception());
+                      cf.completeExceptionally(((NotificationValue.Failure) s).exception());
                     } else {
                       throw ProtocolException.unexpectedNotificationVariant(s.getClass());
                     }
@@ -213,8 +213,7 @@ class HandlerContextImpl implements HandlerContextInternal {
                 if (s instanceof NotificationValue.Success) {
                   cf.complete(((NotificationValue.Success) s).slice());
                 } else if (s instanceof NotificationValue.Failure) {
-                  cf.completeExceptionally(
-                      ((NotificationValue.Failure) s).exception());
+                  cf.completeExceptionally(((NotificationValue.Failure) s).exception());
                 } else {
                   throw ProtocolException.unexpectedNotificationVariant(s.getClass());
                 }
@@ -236,8 +235,7 @@ class HandlerContextImpl implements HandlerContextInternal {
                     if (s instanceof NotificationValue.Success) {
                       cf.complete(((NotificationValue.Success) s).slice());
                     } else if (s instanceof NotificationValue.Failure) {
-                      cf.completeExceptionally(
-                          ((NotificationValue.Failure) s).exception());
+                      cf.completeExceptionally(((NotificationValue.Failure) s).exception());
                     } else {
                       throw ProtocolException.unexpectedNotificationVariant(s.getClass());
                     }
@@ -267,8 +265,7 @@ class HandlerContextImpl implements HandlerContextInternal {
                   if (s instanceof NotificationValue.Success) {
                     cf.complete(((NotificationValue.Success) s).slice());
                   } else if (s instanceof NotificationValue.Failure) {
-                    cf.completeExceptionally(
-                        ((NotificationValue.Failure) s).exception());
+                    cf.completeExceptionally(((NotificationValue.Failure) s).exception());
                   } else {
                     throw ProtocolException.unexpectedNotificationVariant(s.getClass());
                   }
@@ -288,8 +285,7 @@ class HandlerContextImpl implements HandlerContextInternal {
                   } else if (s instanceof NotificationValue.Success) {
                     cf.complete(Output.ready(((NotificationValue.Success) s).slice()));
                   } else if (s instanceof NotificationValue.Failure) {
-                    cf.completeExceptionally(
-                        ((NotificationValue.Failure) s).exception());
+                    cf.completeExceptionally(((NotificationValue.Failure) s).exception());
                   } else {
                     throw ProtocolException.unexpectedNotificationVariant(s.getClass());
                   }
@@ -307,8 +303,7 @@ class HandlerContextImpl implements HandlerContextInternal {
                   if (s instanceof NotificationValue.Empty) {
                     cf.complete(null);
                   } else if (s instanceof NotificationValue.Failure) {
-                    cf.completeExceptionally(
-                        ((NotificationValue.Failure) s).exception());
+                    cf.completeExceptionally(((NotificationValue.Failure) s).exception());
                   } else {
                     throw ProtocolException.unexpectedNotificationVariant(s.getClass());
                   }
@@ -326,8 +321,7 @@ class HandlerContextImpl implements HandlerContextInternal {
                   if (s instanceof NotificationValue.Empty) {
                     cf.complete(null);
                   } else if (s instanceof NotificationValue.Failure) {
-                    cf.completeExceptionally(
-                        ((NotificationValue.Failure) s).exception());
+                    cf.completeExceptionally(((NotificationValue.Failure) s).exception());
                   } else {
                     throw ProtocolException.unexpectedNotificationVariant(s.getClass());
                   }
@@ -402,9 +396,9 @@ class HandlerContextImpl implements HandlerContextInternal {
 
   @Override
   public void proposeRunFailure(
-      int runHandle, Throwable toWrite, @Nullable RetryPolicy retryPolicy) {
+          int runHandle, Throwable toWrite, Duration attemptDuration, @Nullable RetryPolicy retryPolicy) {
     try {
-      this.stateMachine.proposeRunCompletion(runHandle, toWrite, retryPolicy);
+      this.stateMachine.proposeRunCompletion(runHandle, toWrite, attemptDuration, retryPolicy);
       if (this.nextProcessedRun != null) {
         this.nextProcessedRun.complete(null);
         this.nextProcessedRun = null;
@@ -418,6 +412,7 @@ class HandlerContextImpl implements HandlerContextInternal {
     var consumer =
         Objects.requireNonNull(
             this.scheduledRuns.get(handle), "The given handle doesn't exist, this is an SDK bug");
+      var startTime = Instant.now();
     consumer.accept(
         new RunCompleter() {
           @Override
@@ -427,7 +422,7 @@ class HandlerContextImpl implements HandlerContextInternal {
 
           @Override
           public void proposeFailure(Throwable toWrite, @Nullable RetryPolicy retryPolicy) {
-            proposeRunFailure(handle, toWrite, retryPolicy);
+            proposeRunFailure(handle, toWrite, Duration.between(startTime, Instant.now()), retryPolicy);
           }
         });
   }

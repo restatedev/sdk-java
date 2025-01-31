@@ -11,6 +11,7 @@ package dev.restate.sdk.core.statemachine;
 import com.google.protobuf.ByteString;
 import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.types.Slice;
+import org.jspecify.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.Set;
@@ -27,32 +28,30 @@ final class EagerState {
     private static final Empty INSTANCE = new Empty();
   }
 
-  record Value(Slice value) implements State { }
+  record Value(Slice value) implements State {}
 
   private boolean isPartial;
-  private final HashMap<ByteString, State> map;
+  private final HashMap<ByteString, NotificationValue> map;
 
   EagerState(Protocol.StartMessage startMessage) {
     this.isPartial = startMessage.getPartialState();
     this.map = new HashMap<>(startMessage.getStateMapCount());
     for (int i = 0; i < startMessage.getStateMapCount(); i++) {
       Protocol.StartMessage.StateEntry entry = startMessage.getStateMap(i);
-      this.map.put(entry.getKey(), new Value(
-              Slice.wrap(
-              entry.getValue().asReadOnlyByteBuffer())));
+      this.map.put(entry.getKey(), new NotificationValue.Success(Slice.wrap(entry.getValue().asReadOnlyByteBuffer())));
     }
   }
 
-  public State get(ByteString key) {
-    return this.map.getOrDefault(key, isPartial ? Unknown.INSTANCE : Empty.INSTANCE);
+  public @Nullable NotificationValue get(ByteString key) {
+    return this.map.getOrDefault(key, isComplete() ? NotificationValue.Empty.INSTANCE : null);
   }
 
   public void set(ByteString key, Slice value) {
-    this.map.put(key, new Value(value));
+    this.map.put(key, new NotificationValue.Success(value));
   }
 
   public void clear(ByteString key) {
-    this.map.put(key, Empty.INSTANCE);
+    this.map.put(key, NotificationValue.Empty.INSTANCE);
   }
 
   public void clearAll() {
@@ -64,7 +63,10 @@ final class EagerState {
     return !isPartial;
   }
 
-  public Set<ByteString> keys() {
-    return this.map.keySet();
+  public @Nullable Set<ByteString> keys() {
+    if (isComplete()) {
+      return this.map.keySet();
+    }
+    return null;
   }
 }

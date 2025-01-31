@@ -12,10 +12,10 @@ import dev.restate.sdk.core.generated.discovery.Discovery;
 import dev.restate.sdk.core.generated.manifest.EndpointManifestSchema;
 import dev.restate.sdk.core.generated.manifest.Service;
 import dev.restate.sdk.core.statemachine.StateMachine;
-import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.definition.HandlerDefinition;
-import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.definition.ServiceDefinitionAndOptions;
+import dev.restate.sdk.endpoint.Endpoint;
+import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.types.Slice;
 import io.opentelemetry.context.propagation.TextMapGetter;
 import java.util.concurrent.Executor;
@@ -147,7 +147,8 @@ public final class EndpointRequestHandler {
             .getOpenTelemetry()
             .getPropagators()
             .getTextMapPropagator()
-            .extract(io.opentelemetry.context.Context.current(), headersAccessor, OTEL_HEADERS_GETTER);
+            .extract(
+                io.opentelemetry.context.Context.current(), headersAccessor, OTEL_HEADERS_GETTER);
 
     // Generate the span
     //    Span span =
@@ -171,7 +172,8 @@ public final class EndpointRequestHandler {
         coreExecutor);
   }
 
-  StaticResponseRequestProcessor handleDiscoveryRequest(HeadersAccessor headersAccessor) throws ProtocolException {
+  StaticResponseRequestProcessor handleDiscoveryRequest(HeadersAccessor headersAccessor)
+      throws ProtocolException {
     String acceptContentType = headersAccessor.get(ACCEPT);
 
     Discovery.ServiceDiscoveryProtocolVersion version =

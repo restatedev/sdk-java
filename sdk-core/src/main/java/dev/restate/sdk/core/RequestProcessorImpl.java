@@ -125,7 +125,8 @@ final class RequestProcessorImpl implements RequestProcessor {
     return this.stateMachine.getResponseContentType();
   }
 
-  private CompletableFuture<Void> writeOutputAndEnd(HandlerContextInternal contextInternal, Slice output) {
+  private CompletableFuture<Void> writeOutputAndEnd(
+      HandlerContextInternal contextInternal, Slice output) {
     return contextInternal.writeOutput(output).thenAccept(v -> this.end(contextInternal, null));
   }
 

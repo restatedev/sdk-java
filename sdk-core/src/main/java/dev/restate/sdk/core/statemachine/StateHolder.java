@@ -20,8 +20,8 @@ final class StateHolder {
   private final EndpointRequestHandler.LoggingContextSetter loggingContextSetter;
 
   StateHolder(EndpointRequestHandler.LoggingContextSetter loggingContextSetter) {
-      this.loggingContextSetter = loggingContextSetter;
-      this.state = new WaitingStartState();
+    this.loggingContextSetter = loggingContextSetter;
+    this.state = new WaitingStartState();
   }
 
   State getState() {
@@ -32,6 +32,7 @@ final class StateHolder {
     this.state = state;
     LOG.debug("Transitioning state machine to {}", state.getInvocationState());
     this.loggingContextSetter.set(
-            EndpointRequestHandler.LoggingContextSetter.INVOCATION_STATUS_KEY, state.getInvocationState().toString());
+        EndpointRequestHandler.LoggingContextSetter.INVOCATION_STATUS_KEY,
+        state.getInvocationState().toString());
   }
 }

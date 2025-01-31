@@ -15,12 +15,12 @@ import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.types.Slice;
 import dev.restate.sdk.types.TerminalException;
-import org.jspecify.annotations.Nullable;
-
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
 public class Util {
 
@@ -78,12 +78,6 @@ public class Util {
     return new TerminalException(failure.getCode(), failure.getMessage());
   }
 
-  static void assertIsEntry(MessageLite msg) {
-    if (!isEntry(msg)) {
-      throw new IllegalStateException("Expected input to be entry: " + msg);
-    }
-  }
-
   static void assertEntryEquals(MessageLite expected, MessageLite actual) {
     if (!Objects.equals(expected, actual)) {
       throw ProtocolException.commandDoesNotMatch(expected, actual);
@@ -92,28 +86,8 @@ public class Util {
 
   static void assertEntryClass(Class<? extends MessageLite> clazz, MessageLite actual) {
     if (!clazz.equals(actual.getClass())) {
-      throw ProtocolException.unexpectedMessage(clazz, actual);
+      throw ProtocolException.commandClassDoesNotMatch(clazz, actual);
     }
-  }
-
-  static boolean isEntry(MessageLite msg) {
-    return msg instanceof Protocol.InputEntryMessage
-        || msg instanceof Protocol.OutputEntryMessage
-        || msg instanceof Protocol.GetStateEntryMessage
-        || msg instanceof Protocol.GetStateKeysEntryMessage
-        || msg instanceof Protocol.SetStateEntryMessage
-        || msg instanceof Protocol.ClearStateEntryMessage
-        || msg instanceof Protocol.ClearAllStateEntryMessage
-        || msg instanceof Protocol.GetPromiseEntryMessage
-        || msg instanceof Protocol.PeekPromiseEntryMessage
-        || msg instanceof Protocol.CompletePromiseEntryMessage
-        || msg instanceof Protocol.SleepEntryMessage
-        || msg instanceof Protocol.CallEntryMessage
-        || msg instanceof Protocol.OneWayCallEntryMessage
-        || msg instanceof Protocol.AwakeableEntryMessage
-        || msg instanceof Protocol.CompleteAwakeableEntryMessage
-        || msg instanceof Java.CombinatorAwaitableEntryMessage
-        || msg instanceof Protocol.RunEntryMessage;
   }
 
   /** NOTE! This method rewinds the buffer!!! */
@@ -126,13 +100,9 @@ public class Util {
     return nioBufferToProtobufBuffer(slice.asReadOnlyByteBuffer());
   }
 
-  static Slice byteStringToSlice(ByteString byteString) {
-
-  }
+  static Slice byteStringToSlice(ByteString byteString) {}
 
   static Duration durationMin(Duration a, Duration b) {
     return (a.compareTo(b) <= 0) ? a : b;
   }
-
-
 }
