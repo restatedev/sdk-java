@@ -14,11 +14,11 @@ import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 import com.google.protobuf.MessageLite;
-import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.core.impl.EndpointManifest;
-import dev.restate.sdk.core.manifest.EndpointManifestSchema;
-import dev.restate.sdk.core.manifest.Handler;
-import dev.restate.sdk.core.manifest.Service;
+import dev.restate.sdk.core.generated.manifest.EndpointManifestSchema;
+import dev.restate.sdk.core.generated.manifest.Service;
+import dev.restate.sdk.core.generated.manifest.Handler;
+import dev.restate.sdk.core.generated.protocol.Protocol;
+import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.endpoint.definition.ServiceDefinition;
 import dev.restate.sdk.types.TerminalException;
 import java.util.Arrays;
@@ -70,19 +70,17 @@ public class AssertUtils {
   }
 
   public static EndpointManifestSchemaAssert assertThatDiscovery(Object... services) {
+    Endpoint.Builder builder = Endpoint.builder();
+    for (var svc: services) {
+      builder.bind(svc);
+    }
+
     return new EndpointManifestSchemaAssert(
         new EndpointManifest(
                 EndpointManifestSchema.ProtocolMode.BIDI_STREAM,
-                Arrays.stream(services)
-                    .map(
-                        svc -> {
-                          if (svc instanceof ServiceDefinition<?>) {
-                            return (ServiceDefinition<?>) svc;
-                          }
-
-                          return EndpointImpl.discoverServiceDefinitionFactory(svc).create(svc);
-                        }),
-                false)
+                builder.build().getServiceDefinitions(),
+                true
+        )
             .manifest(),
         EndpointManifestSchemaAssert.class);
   }

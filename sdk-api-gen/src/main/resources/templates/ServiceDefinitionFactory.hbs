@@ -1,27 +1,23 @@
 {{#if originalClassPkg}}package {{originalClassPkg}};{{/if}}
 
-public class {{generatedClassSimpleName}} implements dev.restate.sdk.common.handlerContext.ServiceDefinitionFactory<{{originalClassFqcn}}, dev.restate.sdk.HandlerRunner.Options> {
+public class {{generatedClassSimpleName}} implements dev.restate.sdk.endpoint.definition.ServiceDefinitionFactory<{{originalClassFqcn}}, dev.restate.sdk.HandlerRunner.Options> {
 
     @java.lang.Override
-    public dev.restate.sdk.common.handlerContext.ServiceDefinition<dev.restate.sdk.HandlerRunner.Options>
-            {{originalClassFqcn}} bindableService) {
-    return dev.restate.sdk.endpoint.definition.ServiceDefinition.of(
-            {{generatedClassSimpleNamePrefix}}
-            {{#if isObject}}dev.restate.sdk.endpoint.definition.ServiceType.VIRTUAL_OBJECT{{else
-        if isWorkflow}}dev.restate.sdk.endpoint.definition.ServiceType.WORKFLOW{{else}}dev.restate.sdk.endpoint.definition.ServiceType.SERVICE{{/if}}
-    java.util.List.of(
+    public dev.restate.sdk.endpoint.definition.ServiceDefinition<dev.restate.sdk.HandlerRunner.Options> create({{originalClassFqcn}} bindableService) {
+        return dev.restate.sdk.endpoint.definition.ServiceDefinition.of(
+            {{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME,
+            {{#if isObject}}dev.restate.sdk.endpoint.definition.ServiceType.VIRTUAL_OBJECT{{else if isWorkflow}}dev.restate.sdk.endpoint.definition.ServiceType.WORKFLOW{{else}}dev.restate.sdk.endpoint.definition.ServiceType.SERVICE{{/if}},
+            java.util.List.of(
             {{#handlers}}
-        dev.restate.sdk.endpoint.definition.HandlerDefinition.of(
-        dev.restate.sdk.definition.HandlerSpecification.of(
-                {{name}}
-                {{#if isExclusive}}dev.restate.sdk.endpoint.definition.HandlerType.EXCLUSIVE{{else
-            if isWorkflow}}dev.restate.sdk.endpoint.definition.HandlerType.WORKFLOW{{else}}dev.restate.sdk.endpoint.definition.HandlerType.SHARED{{/if}}
-            {{inputSerdeRef}}{{outputSerdeRef}}
-            ){{#if inputAcceptContentType}}.withAcceptContentType("{{inputAcceptContentType}}"){{/if}}{{#if documentation}}.withDocumentation("{{escapeJava documentation}}"){{/if}},
-            dev.restate.sdk.HandlerRunner.of(bindableService::{{name}})
-            ){{#unless @last}},{{/unless}}
+                dev.restate.sdk.endpoint.definition.HandlerDefinition.of(
+                "{{name}}",
+                {{#if isExclusive}}dev.restate.sdk.endpoint.definition.HandlerType.EXCLUSIVE{{else if isWorkflow}}dev.restate.sdk.endpoint.definition.HandlerType.WORKFLOW{{else}}dev.restate.sdk.endpoint.definition.HandlerType.SHARED{{/if}},
+                {{inputSerdeRef}},
+                {{outputSerdeRef}},
+                dev.restate.sdk.HandlerRunner.of(bindableService::{{name}})
+                ){{#if inputAcceptContentType}}.withAcceptContentType("{{inputAcceptContentType}}"){{/if}}{{#if documentation}}.withDocumentation("{{escapeJava documentation}}"){{/if}}{{#unless @last}},{{/unless}}
             {{/handlers}}
-    )
+            )
         ){{#if documentation}}.withDocumentation("{{escapeJava documentation}}"){{/if}};
     }
 

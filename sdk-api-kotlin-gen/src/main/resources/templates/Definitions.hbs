@@ -6,8 +6,8 @@ object {{generatedClassSimpleName}} {
 
     object Serde {
         {{#handlers}}
-        val {{inputSerdeFieldName}}: dev.restate.sdk.common.Serde<{{{boxedInputFqcn}}}> = {{{inputSerdeDecl}}}
-        val {{outputSerdeFieldName}}: dev.restate.sdk.common.Serde<{{{boxedOutputFqcn}}}> = {{{outputSerdeDecl}}}
+        val {{inputSerdeFieldName}}: dev.restate.serde.Serde<{{{boxedInputFqcn}}}> = {{{inputSerdeDecl}}}
+        val {{outputSerdeFieldName}}: dev.restate.serde.Serde<{{{boxedOutputFqcn}}}> = {{{outputSerdeDecl}}}
         {{/handlers}}
     }
 

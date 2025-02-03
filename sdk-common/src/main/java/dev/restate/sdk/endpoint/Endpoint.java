@@ -174,7 +174,7 @@ public final class Endpoint {
 
   /** Resolve the code generated {@link ServiceDefinitionFactory} */
   @SuppressWarnings("unchecked")
-  public static ServiceDefinitionFactory<Object, Object> discoverServiceDefinitionFactory(
+  protected static ServiceDefinitionFactory<Object, Object> discoverServiceDefinitionFactory(
       Object service) {
     if (service instanceof ServiceDefinitionFactory<?, ?>) {
       // We got this already
