@@ -13,11 +13,9 @@ import dev.restate.common.Slice;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
 
-import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 
 import dev.restate.sdk.types.DurablePromiseKey;
 import dev.restate.common.function.ThrowingSupplier;
@@ -81,7 +79,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
 
   @Override
   public Awaitable<Void> timer(Duration duration) {
-    return Awaitable.single(   Util.awaitCompletableFuture(handlerContext.sleep(duration)));
+    return Awaitable.fromAsyncResult(   Util.awaitCompletableFuture(handlerContext.sleep(duration)));
   }
 
   @Override
@@ -89,7 +87,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
           Target target, Serde<T> inputSerde, Serde<R> outputSerde, T parameter) {
     Slice input = Util.serializeWrappingException(handlerContext, inputSerde, parameter);
     HandlerContext.CallResult result =    Util.awaitCompletableFuture(handlerContext.call(target, input, null, null));
-    return Awaitable.single(result.callAsyncResult())
+    return Awaitable.fromAsyncResult(result.callAsyncResult())
         .map(outputSerde::deserialize);
   }
 
@@ -108,7 +106,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
   @Override
   public <T> Awaitable<T> scheduleRun(
       String name, Serde<T> serde, RetryPolicy retryPolicy, ThrowingSupplier<T> action) {
-    return Awaitable.single(Util.awaitCompletableFuture(handlerContext.scheduleRun(name, runCompleter -> {
+    return Awaitable.fromAsyncResult(Util.awaitCompletableFuture(handlerContext.scheduleRun(name, runCompleter -> {
       Slice result;
       try {
          result =  serde.serialize(action.get());
@@ -155,7 +153,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
       @Override
       public Awaitable<T> awaitable() {
         AsyncResult<Slice> result = Util.awaitCompletableFuture(handlerContext.promise(key.name()));
-        return Awaitable.single( result)
+        return Awaitable.fromAsyncResult( result)
             .map(key.serde()::deserialize);
       }
 

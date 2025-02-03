@@ -24,13 +24,13 @@ interface HandlerContextInternal extends HandlerContext {
 
   @Override
   default AsyncResult<Integer> createAnyAsyncResult(List<AsyncResult<?>> children) {
-    return AsyncResults.any(
+    return AsyncResults.any(this,
         children.stream().map(dr -> (AsyncResultInternal<?>) dr).collect(Collectors.toList()));
   }
 
   @Override
   default AsyncResult<Void> createAllAsyncResult(List<AsyncResult<?>> children) {
-    return AsyncResults.all(
+    return AsyncResults.all(this,
         children.stream().map(dr -> (AsyncResultInternal<?>) dr).collect(Collectors.toList()));
   }
 

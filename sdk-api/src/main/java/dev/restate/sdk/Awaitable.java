@@ -56,24 +56,28 @@ public abstract class Awaitable<T> {
    * doesn't complete before the provided {@code timeout}.
    */
   public final T await(Duration timeout) throws TerminalException {
-    AsyncResult<Void> sleep = Util.awaitCompletableFuture(asyncResult().ctx().sleep(timeout));
-    Awaitable<Void> sleepAwaitable = single(sleep);
+    return this.withTimeout(timeout).await();
+  }
 
-    int index = any(this, sleepAwaitable).await();
-
-    if (index == 1) {
-      throw new TimeoutException("Timed out waiting for awaitable after " + timeout);
-    }
-    // This await is no-op now
-    return this.await();
+  /**
+   * @return an Awaitable that throws a {@link TerminalException} if this awaitable doesn't complete before the provided {@code timeout}.
+   */
+  public final Awaitable<T> withTimeout(Duration timeout) {
+    return any(this, fromAsyncResult(Util.awaitCompletableFuture(asyncResult().ctx().sleep(timeout))))
+            .map(i -> {
+           if (i == 1) {
+             throw new TimeoutException("Timed out waiting for awaitable after " + timeout);
+           }
+           return this.await();
+            });
   }
 
   /** Map the result of this {@link Awaitable}. */
   public final <U> Awaitable<U> map(ThrowingFunction<T, U> mapper) {
-    return single(asyncResult().map(mapper));
+    return fromAsyncResult(asyncResult().map(mapper));
   }
 
-  static <T> Awaitable<T> single(AsyncResult<T> asyncResult) {
+  static <T> Awaitable<T> fromAsyncResult(AsyncResult<T> asyncResult) {
     return new SingleAwaitable<>(asyncResult);
   }
 
@@ -104,7 +108,7 @@ public abstract class Awaitable<T> {
       throw new IllegalArgumentException("Awaitable any doesn't support an empty list");
     }
     HandlerContext ctx = awaitables.get(0).asyncResult().ctx();
-    return single(ctx.createAnyAsyncResult(
+    return fromAsyncResult(ctx.createAnyAsyncResult(
                 awaitables.stream().map(Awaitable::asyncResult).collect(Collectors.toList())));
   }
 
@@ -140,7 +144,7 @@ public abstract class Awaitable<T> {
       return awaitables.get(0).map(unused -> null);
     } else {
       HandlerContext ctx = awaitables.get(0).asyncResult().ctx();
-      return single(ctx.createAllAsyncResult(
+      return fromAsyncResult(ctx.createAllAsyncResult(
               awaitables.stream().map(Awaitable::asyncResult).collect(Collectors.toList())));
     }
   }

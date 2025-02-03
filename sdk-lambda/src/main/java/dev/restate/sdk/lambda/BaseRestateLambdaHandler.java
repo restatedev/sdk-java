@@ -12,6 +12,7 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
+import dev.restate.sdk.endpoint.Endpoint;
 import org.apache.logging.log4j.CloseableThreadContext;
 
 /**
@@ -30,22 +31,22 @@ public abstract class BaseRestateLambdaHandler
 
   private static final String AWS_REQUEST_ID = "AWSRequestId";
 
-  private final RestateLambdaEndpoint restateLambdaEndpoint;
+  private final LambdaEndpointRequestHandler lambdaEndpointRequestHandler;
 
   protected BaseRestateLambdaHandler() {
-    RestateLambdaEndpointBuilder builder = RestateLambdaEndpoint.builder();
-    register(builder);
-    this.restateLambdaEndpoint = builder.build();
+    Endpoint.Builder endpointBuilder = Endpoint.builder();
+    register(endpointBuilder);
+    this.lambdaEndpointRequestHandler = new LambdaEndpointRequestHandler(endpointBuilder.build());
   }
 
   /** Configure your services in this method. */
-  public abstract void register(RestateLambdaEndpointBuilder builder);
+  public abstract void register(Endpoint.Builder builder);
 
   @Override
   public APIGatewayProxyResponseEvent handleRequest(
       APIGatewayProxyRequestEvent input, Context context) {
     try (var requestId = CloseableThreadContext.put(AWS_REQUEST_ID, context.getAwsRequestId())) {
-      return restateLambdaEndpoint.handleRequest(input, context);
+      return lambdaEndpointRequestHandler.handleRequest(input, context);
     }
   }
 }

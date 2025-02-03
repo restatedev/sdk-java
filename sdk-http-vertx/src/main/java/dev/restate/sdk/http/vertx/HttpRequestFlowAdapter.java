@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.http.vertx;
 
-import dev.restate.sdk.core.InvocationFlow;
+import dev.restate.common.Slice;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
 import java.nio.ByteBuffer;
@@ -18,13 +18,13 @@ import java.util.concurrent.Flow;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-class HttpRequestFlowAdapter implements InvocationFlow.InvocationInputPublisher {
+class HttpRequestFlowAdapter implements Flow.Publisher<Slice> {
 
   private static final Logger LOG = LogManager.getLogger(HttpRequestFlowAdapter.class);
 
   private final HttpServerRequest httpServerRequest;
 
-  private Flow.Subscriber<? super ByteBuffer> inputMessagesSubscriber;
+  private Flow.Subscriber<? super Slice> inputMessagesSubscriber;
   private long subscriberRequest = 0;
   private final Queue<ByteBuffer> buffers;
 
@@ -34,7 +34,7 @@ class HttpRequestFlowAdapter implements InvocationFlow.InvocationInputPublisher 
   }
 
   @Override
-  public void subscribe(Flow.Subscriber<? super ByteBuffer> subscriber) {
+  public void subscribe(Flow.Subscriber<? super Slice> subscriber) {
     this.inputMessagesSubscriber = subscriber;
     this.inputMessagesSubscriber.onSubscribe(
         new Flow.Subscription() {
@@ -78,7 +78,7 @@ class HttpRequestFlowAdapter implements InvocationFlow.InvocationInputPublisher 
   private void handleIncomingBuffer(Buffer buffer) {
     // Fast path
     if (this.buffers.isEmpty() && this.subscriberRequest > 0) {
-      this.inputMessagesSubscriber.onNext(buffer.getByteBuf().nioBuffer());
+      this.inputMessagesSubscriber.onNext(Slice.wrap(buffer.getByteBuf().nioBuffer()));
       this.subscriberRequest--;
       return;
     }
@@ -105,7 +105,7 @@ class HttpRequestFlowAdapter implements InvocationFlow.InvocationInputPublisher 
         return;
       }
       this.subscriberRequest--;
-      inputMessagesSubscriber.onNext(input);
+      inputMessagesSubscriber.onNext(Slice.wrap(input));
     }
   }
 }

@@ -13,6 +13,7 @@ import dev.restate.sdk.core.generated.manifest.EndpointManifestSchema;
 import dev.restate.sdk.core.generated.manifest.Service;
 import dev.restate.sdk.core.statemachine.StateMachine;
 import dev.restate.sdk.endpoint.definition.HandlerDefinition;
+import dev.restate.sdk.endpoint.definition.ServiceDefinition;
 import dev.restate.sdk.endpoint.definition.ServiceDefinitionAndOptions;
 import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.endpoint.HeadersAccessor;
@@ -31,6 +32,7 @@ public final class EndpointRequestHandler {
 
   private static final Logger LOG = LogManager.getLogger(EndpointRequestHandler.class);
   private static final String DISCOVER_PATH = "/discover";
+  private static final String HEALTH_PATH = "/health";
   private static final Pattern SLASH = Pattern.compile(Pattern.quote("/"));
   private static final String ACCEPT = "accept";
   private static final TextMapGetter<HeadersAccessor> OTEL_HEADERS_GETTER =
@@ -100,6 +102,15 @@ public final class EndpointRequestHandler {
     // Discovery request
     if (DISCOVER_PATH.equalsIgnoreCase(path)) {
       return this.handleDiscoveryRequest(headersAccessor);
+    }
+
+    if (HEALTH_PATH.equalsIgnoreCase(path)) {
+      return new StaticResponseRequestProcessor(
+              200,
+              "text/plain",
+              Slice.wrap(
+                      "Serving services [" + this.endpoint.getServiceDefinitions().map(ServiceDefinition::getServiceName).collect(Collectors.joining(", ")) + "]"
+              ));
     }
 
     // Parse request

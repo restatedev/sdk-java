@@ -14,6 +14,8 @@ import dev.restate.sdk.SharedObjectContext;
 import dev.restate.sdk.annotation.Handler;
 import dev.restate.sdk.annotation.Shared;
 import dev.restate.sdk.annotation.VirtualObject;
+import dev.restate.sdk.endpoint.Endpoint;
+import dev.restate.sdk.http.vertx.RestateHttpServer;
 import dev.restate.sdk.types.StateKey;
 import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder;
 import org.apache.logging.log4j.LogManager;
@@ -66,9 +68,6 @@ public class Counter {
             .build();
 
     RestateHttpServer.listen(endpoint);
-
-
-    RestateHttpEndpointBuilder.builder().bind(new Counter()).buildAndListen();
   }
 
   public record CounterUpdateResult(long newValue, long oldValue) {}
