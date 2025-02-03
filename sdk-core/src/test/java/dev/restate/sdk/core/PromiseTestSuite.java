@@ -11,7 +11,6 @@ package dev.restate.sdk.core;
 import static dev.restate.sdk.core.ProtoUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.*;
 
-import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.types.TerminalException;
 import java.util.stream.Stream;
 

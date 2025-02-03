@@ -10,17 +10,16 @@ package dev.restate.sdk.core;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.restate.sdk.core.impl.EndpointManifest;
-import dev.restate.sdk.core.manifest.EndpointManifestSchema;
-import dev.restate.sdk.core.manifest.Service;
+import dev.restate.sdk.core.generated.manifest.EndpointManifestSchema;
+import dev.restate.sdk.core.generated.manifest.Service;
 import dev.restate.sdk.endpoint.definition.HandlerDefinition;
-import dev.restate.sdk.definition.HandlerSpecification;
 import dev.restate.sdk.endpoint.definition.HandlerType;
 import dev.restate.sdk.endpoint.definition.ServiceDefinition;
 import dev.restate.sdk.endpoint.definition.ServiceType;
-import dev.restate.sdk.serde.Serde;
 import java.util.List;
 import java.util.stream.Stream;
+
+import dev.restate.serde.Serde;
 import org.junit.jupiter.api.Test;
 
 class ComponentDiscoveryHandlerTest {
@@ -36,8 +35,7 @@ class ComponentDiscoveryHandlerTest {
                     ServiceType.SERVICE,
                     List.of(
                         HandlerDefinition.of(
-                            HandlerSpecification.of(
-                                "greet", HandlerType.EXCLUSIVE, Serde.VOID, Serde.VOID),
+                                "greet", HandlerType.EXCLUSIVE, Serde.VOID, Serde.VOID,
                             null)))),
             false);
 
