@@ -13,8 +13,10 @@ plugins { id("org.gradle.toolchains.foojay-resolver-convention") version "0.7.0"
 
 include(
     "admin-client",
+    "common",
+    "client",
+    "client-kotlin",
     "sdk-common",
-    "sdk-common-kotlin",
     "sdk-api",
     "sdk-api-kotlin",
     "sdk-core",
@@ -28,6 +30,8 @@ include(
     "sdk-api-gen",
     "sdk-api-kotlin-gen",
     "sdk-spring-boot",
+
+    // Other modules we don't publish
     "examples",
     "sdk-aggregated-javadocs",
     "test-services",

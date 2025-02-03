@@ -8,6 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core.statemachine;
 
+import dev.restate.common.Slice;
+import dev.restate.common.Target;
 import dev.restate.sdk.core.EndpointRequestHandler;
 import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.types.*;

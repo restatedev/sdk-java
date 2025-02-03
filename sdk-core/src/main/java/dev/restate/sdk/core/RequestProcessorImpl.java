@@ -9,8 +9,8 @@
 package dev.restate.sdk.core;
 
 import dev.restate.sdk.core.statemachine.StateMachine;
-import dev.restate.sdk.definition.*;
-import dev.restate.sdk.types.Slice;
+import dev.restate.sdk.endpoint.definition.HandlerDefinition;
+import dev.restate.common.Slice;
 import dev.restate.sdk.types.TerminalException;
 import io.opentelemetry.context.Context;
 import java.util.concurrent.CompletableFuture;

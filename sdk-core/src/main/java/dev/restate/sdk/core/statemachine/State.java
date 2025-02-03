@@ -12,7 +12,7 @@ import com.google.protobuf.MessageLite;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.types.RetryPolicy;
-import dev.restate.sdk.types.Slice;
+import dev.restate.common.Slice;
 
 import java.time.Duration;
 import java.util.Collection;

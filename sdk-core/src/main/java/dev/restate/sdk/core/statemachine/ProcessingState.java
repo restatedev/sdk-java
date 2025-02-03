@@ -23,7 +23,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import dev.restate.sdk.types.RetryPolicy;
-import dev.restate.sdk.types.Slice;
+import dev.restate.common.Slice;
 import dev.restate.sdk.types.TerminalException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -305,11 +305,11 @@ var handle =     asyncResultsState.createHandleMapping(new NotificationId.Comple
 
   // This function rethrows the exception if a retry needs to happen.
   private TerminalException rethrowOrConvertToTerminal(
-          Throwable runException, Duration attemptDuration, @Nullable RetryPolicy retryPolicy, StateContext stateContext) throws Throwable {
+          Throwable runException, Duration attemptDuration, @Nullable RetryPolicy retryPolicy, StateContext stateContext) {
     if (retryPolicy == null) {
       LOG.trace("The run completed with an exception and no retry policy was provided");
       // Default behavior is always retry
-      throw runException;
+      ExceptionUtils.sneakyThrow(runException);
     }
 
     Duration retryLoopDuration =
@@ -336,7 +336,8 @@ var handle =     asyncResultsState.createHandleMapping(new NotificationId.Comple
                     : nextComputedDelay;
 
     this.hitError(runException, nextRetryDelay, stateContext);
-    throw runException;
+    ExceptionUtils.sneakyThrow(runException);
+    return null;
   }
 
   private void flipFirstProcessingEntry() {

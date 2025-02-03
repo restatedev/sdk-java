@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import dev.restate.sdk.types.Slice;
+import dev.restate.common.Slice;
 import java.util.concurrent.Flow;
 
 class StaticResponseRequestProcessor implements RequestProcessor {

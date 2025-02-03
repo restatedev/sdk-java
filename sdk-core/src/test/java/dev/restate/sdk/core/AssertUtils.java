@@ -19,7 +19,7 @@ import dev.restate.sdk.core.impl.EndpointManifest;
 import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import dev.restate.sdk.core.manifest.Handler;
 import dev.restate.sdk.core.manifest.Service;
-import dev.restate.sdk.definition.ServiceDefinition;
+import dev.restate.sdk.endpoint.definition.ServiceDefinition;
 import dev.restate.sdk.types.TerminalException;
 import java.util.Arrays;
 import java.util.List;

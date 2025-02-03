@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.types;
 
-import dev.restate.sdk.serde.Serde;
+import dev.restate.serde.Serde;
 
 /**
  * This class holds information about state's name and its type tag to be used for serializing and

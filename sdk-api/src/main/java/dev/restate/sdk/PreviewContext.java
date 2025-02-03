@@ -8,12 +8,6 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.types.RetryPolicy;
-import dev.restate.sdk.serde.Serde;
-import dev.restate.sdk.types.TerminalException;
-import dev.restate.sdk.function.ThrowingRunnable;
-import dev.restate.sdk.function.ThrowingSupplier;
-
 /**
  * Preview of new context features. Please note that the methods in this class <b>may break between
  * minor releases</b>, use with caution!
@@ -23,42 +17,4 @@ import dev.restate.sdk.function.ThrowingSupplier;
  */
 public class PreviewContext {
 
-  /**
-   * @deprecated Use {@link Context#run(String, Serde, RetryPolicy, ThrowingSupplier)}
-   */
-  @Deprecated(since = "1.2", forRemoval = true)
-  public static <T> T run(
-      Context ctx, String name, Serde<T> serde, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
-      throws TerminalException {
-    return ctx.run(name, serde, retryPolicy, action);
-  }
-
-  /**
-   * @deprecated Use {@link Context#run(String, RetryPolicy, ThrowingRunnable)}
-   */
-  @Deprecated(since = "1.2", forRemoval = true)
-  public static void run(
-      Context ctx, String name, RetryPolicy retryPolicy, ThrowingRunnable runnable)
-      throws TerminalException {
-    ctx.run(name, retryPolicy, runnable);
-  }
-
-  /**
-   * @deprecated Use {@link Context#run(Serde, RetryPolicy, ThrowingSupplier)}
-   */
-  @Deprecated(since = "1.2", forRemoval = true)
-  public static <T> T run(
-      Context ctx, Serde<T> serde, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
-      throws TerminalException {
-    return ctx.run(serde, retryPolicy, action);
-  }
-
-  /**
-   * @deprecated Use {@link Context#run(RetryPolicy, ThrowingRunnable)}
-   */
-  @Deprecated(since = "1.2", forRemoval = true)
-  public static void run(Context ctx, RetryPolicy retryPolicy, ThrowingRunnable runnable)
-      throws TerminalException {
-    ctx.run(retryPolicy, runnable);
-  }
 }

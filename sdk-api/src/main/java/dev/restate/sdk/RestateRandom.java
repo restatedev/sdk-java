@@ -8,10 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.definition.HandlerContext;
 import dev.restate.sdk.types.InvocationId;
-import dev.restate.sdk.serde.Serde;
-import dev.restate.sdk.function.ThrowingSupplier;
+import dev.restate.serde.Serde;
+import dev.restate.common.function.ThrowingSupplier;
 
 import java.util.Random;
 import java.util.UUID;
@@ -24,16 +23,14 @@ import java.util.UUID;
  * from a set of options. If a cryptographically secure value is needed, please generate that
  * externally using {@link ObjectContext#run(Serde, ThrowingSupplier)}.
  *
- * <p>You MUST NOT use this object inside a {@link ObjectContext#run(Serde, ThrowingSupplier)}.
+ * <p>You <b>MUST NOT</b> use this object inside a {@link ObjectContext#run(Serde, ThrowingSupplier)}.
  */
 public class RestateRandom extends Random {
 
-  private final HandlerContext handlerContext;
   private boolean seedInitialized = false;
 
-  RestateRandom(long randomSeed, HandlerContext handlerContext) {
+  RestateRandom(long randomSeed) {
     super(randomSeed);
-    this.handlerContext = handlerContext;
   }
 
   /**
@@ -57,10 +54,6 @@ public class RestateRandom extends Random {
 
   @Override
   protected int next(int bits) {
-    if (this.handlerContext.isInsideSideEffect()) {
-      throw new IllegalStateException("You can't use RestateRandom inside ctx.run!");
-    }
-
     return super.next(bits);
   }
 }

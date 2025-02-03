@@ -15,7 +15,7 @@ import com.google.protobuf.MessageLite;
 import com.google.protobuf.MessageLiteOrBuilder;
 import dev.restate.generated.service.protocol.Protocol;
 import dev.restate.sdk.core.statemachine.InvocationInput;
-import dev.restate.sdk.definition.ServiceDefinition;
+import dev.restate.sdk.endpoint.definition.ServiceDefinition;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Supplier;

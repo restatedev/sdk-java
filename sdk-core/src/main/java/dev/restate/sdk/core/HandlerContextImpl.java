@@ -8,13 +8,16 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
+import dev.restate.common.Slice;
 import dev.restate.sdk.core.statemachine.InvocationState;
 import dev.restate.sdk.core.statemachine.NotificationValue;
 import dev.restate.sdk.core.statemachine.StateMachine;
-import dev.restate.sdk.definition.AsyncResult;
-import dev.restate.sdk.function.ThrowingRunnable;
-import dev.restate.sdk.function.ThrowingSupplier;
+import dev.restate.sdk.endpoint.definition.AsyncResult;
+import dev.restate.common.function.ThrowingRunnable;
+import dev.restate.common.function.ThrowingSupplier;
 import dev.restate.sdk.types.*;
+import dev.restate.common.Output;
+import dev.restate.common.Target;
 import io.opentelemetry.context.Context;
 import java.time.Duration;
 import java.time.Instant;

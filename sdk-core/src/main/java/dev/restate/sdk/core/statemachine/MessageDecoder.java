@@ -11,7 +11,7 @@ package dev.restate.sdk.core.statemachine;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.UnsafeByteOperations;
-import dev.restate.sdk.types.Slice;
+import dev.restate.common.Slice;
 import java.util.ArrayDeque;
 import java.util.Queue;
 import org.jspecify.annotations.Nullable;

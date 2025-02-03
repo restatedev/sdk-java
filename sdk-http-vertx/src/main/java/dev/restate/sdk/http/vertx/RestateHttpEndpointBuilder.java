@@ -9,7 +9,7 @@
 package dev.restate.sdk.http.vertx;
 
 import dev.restate.sdk.endpoint.RequestIdentityVerifier;
-import dev.restate.sdk.definition.ServiceDefinition;
+import dev.restate.sdk.endpoint.definition.ServiceDefinition;
 import dev.restate.sdk.core.EndpointImpl;
 import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import io.opentelemetry.api.OpenTelemetry;

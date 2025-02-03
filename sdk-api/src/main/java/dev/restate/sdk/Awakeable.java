@@ -8,10 +8,10 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.serde.Serde;
-import dev.restate.sdk.definition.AsyncResult;
-import dev.restate.sdk.definition.Result;
-import dev.restate.sdk.definition.HandlerContext;
+import dev.restate.common.Slice;
+import dev.restate.sdk.endpoint.definition.AsyncResult;
+import dev.restate.sdk.endpoint.definition.HandlerContext;
+import dev.restate.serde.Serde;
 import java.nio.ByteBuffer;
 
 /**
@@ -28,22 +28,14 @@ import java.nio.ByteBuffer;
  * <p>NOTE: This interface MUST NOT be accessed concurrently since it can lead to different
  * orderings of user actions, corrupting the execution of the invocation.
  */
-public final class Awakeable<T> extends Awaitable.MappedAwaitable<ByteBuffer, T> {
+public final class Awakeable<T> extends Awaitable<T> {
 
   private final String identifier;
+  private final AsyncResult<T> asyncResult;
 
-  Awakeable(HandlerContext handlerContext, AsyncResult<ByteBuffer> asyncResult, Serde<T> serde, String identifier) {
-    super(
-        Awaitable.single(handlerContext, asyncResult),
-        res -> {
-          if (res.isSuccess()) {
-            return Result.success(
-                Util.deserializeWrappingException(handlerContext, serde, res.getValue()));
-          }
-          //noinspection unchecked
-          return (Result<T>) res;
-        });
+  Awakeable(AsyncResult<Slice> asyncResult, Serde<T> serde, String identifier) {
     this.identifier = identifier;
+    this.asyncResult = asyncResult.map(serde::deserialize);
   }
 
   /**
@@ -52,4 +44,9 @@ public final class Awakeable<T> extends Awaitable.MappedAwaitable<ByteBuffer, T>
   public String id() {
     return identifier;
   }
+
+    @Override
+    protected AsyncResult<T> asyncResult() {
+        return asyncResult;
+    }
 }

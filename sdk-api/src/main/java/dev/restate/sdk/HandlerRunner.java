@@ -6,27 +6,30 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
+
 package dev.restate.sdk;
 
+import dev.restate.common.Slice;
 import dev.restate.sdk.types.TerminalException;
-import dev.restate.sdk.function.ThrowingBiConsumer;
-import dev.restate.sdk.function.ThrowingBiFunction;
-import dev.restate.sdk.function.ThrowingConsumer;
-import dev.restate.sdk.function.ThrowingFunction;
-import dev.restate.sdk.definition.HandlerSpecification;
-import dev.restate.sdk.common.syscalls.SyscallCallback;
-import dev.restate.sdk.definition.HandlerContext;
+import dev.restate.common.function.ThrowingBiConsumer;
+import dev.restate.common.function.ThrowingBiFunction;
+import dev.restate.common.function.ThrowingConsumer;
+import dev.restate.common.function.ThrowingFunction;
+import dev.restate.sdk.endpoint.definition.HandlerDefinition;
+import dev.restate.sdk.endpoint.definition.HandlerContext;
+import dev.restate.serde.Serde;
 import io.opentelemetry.context.Scope;
 import java.nio.ByteBuffer;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
 
-/** Adapter class for {@link dev.restate.sdk.definition.HandlerRunner} to use the Java API. */
+/** Adapter class for {@link dev.restate.sdk.endpoint.definition.HandlerRunner} to use the Java API. */
 public class HandlerRunner<REQ, RES>
-    implements dev.restate.sdk.definition.HandlerRunner<REQ, RES, HandlerRunner.Options> {
+    implements dev.restate.sdk.endpoint.definition.HandlerRunner<REQ, RES, HandlerRunner.Options> {
   private final ThrowingBiFunction<Context, REQ, RES> runner;
 
   private static final Logger LOG = LogManager.getLogger(HandlerRunner.class);
@@ -37,11 +40,13 @@ public class HandlerRunner<REQ, RES>
   }
 
   @Override
-  public void run(
-      HandlerSpecification<REQ, RES> handlerSpecification,
-      HandlerContext handlerContext,
-      @Nullable Options options,
-      SyscallCallback<ByteBuffer> callback) {
+  public CompletableFuture<Slice> run(
+          HandlerContext handlerContext,
+          Serde<REQ> requestSerde,
+          Serde<RES> responseSerde,
+      @Nullable Options options) {
+      CompletableFuture<Slice> returnFuture = new CompletableFuture<>();
+
     if (options == null) {
       options = Options.DEFAULT;
     }
@@ -68,10 +73,10 @@ public class HandlerRunner<REQ, RES>
           REQ req;
           try {
             req =
-                handlerSpecification.getRequestSerde().deserialize(handlerContext.request().bodyBuffer());
+                requestSerde.deserialize(handlerContext.request().body());
           } catch (Throwable e) {
             LOG.warn("Cannot deserialize input", e);
-            callback.onCancel(
+            returnFuture.completeExceptionally(
                 new TerminalException(
                     TerminalException.BAD_REQUEST_CODE,
                     "Cannot deserialize input: " + e.getMessage()));
@@ -83,17 +88,17 @@ public class HandlerRunner<REQ, RES>
           try {
             res = this.runner.apply(ctx, req);
           } catch (Throwable e) {
-            callback.onCancel(e);
+            returnFuture.completeExceptionally(e);
             return;
           }
 
           // Serialize output
-          ByteBuffer serializedResult;
+          Slice serializedResult;
           try {
-            serializedResult = handlerSpecification.getResponseSerde().serializeToByteBuffer(res);
+            serializedResult = responseSerde.serialize(res);
           } catch (Throwable e) {
             LOG.warn("Cannot serialize output", e);
-            callback.onCancel(
+            returnFuture.completeExceptionally(
                 new TerminalException(
                     TerminalException.INTERNAL_SERVER_ERROR_CODE,
                     "Cannot serialize output: " + e.getMessage()));
@@ -101,8 +106,10 @@ public class HandlerRunner<REQ, RES>
           }
 
           // Complete callback
-          callback.onSuccess(serializedResult);
+          returnFuture.complete(serializedResult);
         });
+
+    return returnFuture;
   }
 
   public static <CTX extends Context, REQ, RES> HandlerRunner<REQ, RES> of(

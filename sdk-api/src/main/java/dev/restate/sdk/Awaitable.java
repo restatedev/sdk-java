@@ -8,12 +8,11 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.definition.HandlerContext;
+import dev.restate.sdk.endpoint.definition.HandlerContext;
 import dev.restate.sdk.types.AbortedExecutionException;
 import dev.restate.sdk.types.TerminalException;
-import dev.restate.sdk.function.ThrowingFunction;
-import dev.restate.sdk.definition.AsyncResult;
-import dev.restate.sdk.definition.Result;
+import dev.restate.common.function.ThrowingFunction;
+import dev.restate.sdk.endpoint.definition.AsyncResult;
 import dev.restate.sdk.types.TimeoutException;
 
 import java.time.Duration;
@@ -21,7 +20,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -38,15 +36,7 @@ import java.util.stream.Collectors;
  */
 public abstract class Awaitable<T> {
 
-  protected final HandlerContext handlerContext;
-
-  Awaitable(HandlerContext handlerContext) {
-    this.handlerContext = handlerContext;
-  }
-
-  protected abstract AsyncResult<?> deferred();
-
-  protected abstract Result<T> awaitResult();
+  protected abstract AsyncResult<T> asyncResult();
 
   /**
    * Wait for the current awaitable to complete. Executing this method may trigger the suspension of
@@ -58,18 +48,18 @@ public abstract class Awaitable<T> {
    * @throws TerminalException if the awaitable is ready and contains a failure
    */
   public final T await() throws TerminalException {
-    return Util.unwrapResult(this.awaitResult());
+    return Util.awaitCompletableFuture(asyncResult().poll());
   }
 
   /**
    * Same as {@link #await()}, but throws a {@link TimeoutException} if this {@link Awaitable}
    * doesn't complete before the provided {@code timeout}.
    */
-  public final T await(Duration timeout) throws TerminalException, TimeoutException {
-    AsyncResult<Void> sleep = Util.blockOnSyscall(cb -> this.handlerContext.sleep(timeout, cb));
-    Awaitable<Void> sleepAwaitable = single(this.handlerContext, sleep);
+  public final T await(Duration timeout) throws TerminalException {
+    AsyncResult<Void> sleep = Util.awaitCompletableFuture(asyncResult().ctx().sleep(timeout));
+    Awaitable<Void> sleepAwaitable = single(sleep);
 
-    int index = any(this, sleepAwaitable).awaitIndex();
+    int index = any(this, sleepAwaitable).await();
 
     if (index == 1) {
       throw new TimeoutException("Timed out waiting for awaitable after " + timeout);
@@ -80,20 +70,11 @@ public abstract class Awaitable<T> {
 
   /** Map the result of this {@link Awaitable}. */
   public final <U> Awaitable<U> map(ThrowingFunction<T, U> mapper) {
-    return new MappedAwaitable<>(
-        this,
-        result -> {
-          if (result.isSuccess()) {
-            return Result.success(
-                Util.executeMappingException(this.handlerContext, mapper, result.getValue()));
-          }
-          //noinspection unchecked
-          return (Result<U>) result;
-        });
+    return single(asyncResult().map(mapper));
   }
 
-  static <T> Awaitable<T> single(HandlerContext handlerContext, AsyncResult<T> asyncResult) {
-    return new SingleAwaitable<>(handlerContext, asyncResult);
+  static <T> Awaitable<T> single(AsyncResult<T> asyncResult) {
+    return new SingleAwaitable<>(asyncResult);
   }
 
   /**
@@ -102,17 +83,12 @@ public abstract class Awaitable<T> {
    * <p>The behavior is the same as {@link
    * java.util.concurrent.CompletableFuture#anyOf(CompletableFuture[])}.
    */
-  public static AnyAwaitable any(Awaitable<?> first, Awaitable<?> second, Awaitable<?>... others) {
+  public static Awaitable<Integer> any(Awaitable<?> first, Awaitable<?> second, Awaitable<?>... others) {
     List<Awaitable<?>> awaitables = new ArrayList<>(2 + others.length);
     awaitables.add(first);
     awaitables.add(second);
     awaitables.addAll(Arrays.asList(others));
-
-    return new AnyAwaitable(
-        first.handlerContext,
-        first.handlerContext.createAnyDeferred(
-            awaitables.stream().map(Awaitable::deferred).collect(Collectors.toList())),
-        awaitables);
+    return any(awaitables);
   }
 
   /**
@@ -123,18 +99,13 @@ public abstract class Awaitable<T> {
    * <p>The behavior is the same as {@link
    * java.util.concurrent.CompletableFuture#anyOf(CompletableFuture[])}.
    */
-  public static AnyAwaitable any(List<Awaitable<?>> awaitables) {
+  public static Awaitable<Integer> any(List<Awaitable<?>> awaitables) {
     if (awaitables.isEmpty()) {
       throw new IllegalArgumentException("Awaitable any doesn't support an empty list");
     }
-    return new AnyAwaitable(
-        awaitables.get(0).handlerContext,
-        awaitables
-            .get(0)
-            .handlerContext
-            .createAnyDeferred(
-                awaitables.stream().map(Awaitable::deferred).collect(Collectors.toList())),
-        awaitables);
+    HandlerContext ctx = awaitables.get(0).asyncResult().ctx();
+    return single(ctx.createAnyAsyncResult(
+                awaitables.stream().map(Awaitable::asyncResult).collect(Collectors.toList())));
   }
 
   /**
@@ -145,12 +116,12 @@ public abstract class Awaitable<T> {
    */
   public static Awaitable<Void> all(
       Awaitable<?> first, Awaitable<?> second, Awaitable<?>... others) {
-    List<AsyncResult<?>> asyncResult = new ArrayList<>(2 + others.length);
-    asyncResult.add(first.deferred());
-    asyncResult.add(second.deferred());
-    Arrays.stream(others).map(Awaitable::deferred).forEach(asyncResult::add);
+    List<Awaitable<?>> awaitables = new ArrayList<>(2 + others.length);
+    awaitables.add(first);
+    awaitables.add(second);
+      awaitables.addAll(Arrays.asList(others));
 
-    return single(first.handlerContext, first.handlerContext.createAllDeferred(asyncResult));
+    return all(awaitables);
   }
 
   /**
@@ -168,66 +139,23 @@ public abstract class Awaitable<T> {
     if (awaitables.size() == 1) {
       return awaitables.get(0).map(unused -> null);
     } else {
-      return single(
-          awaitables.get(0).handlerContext,
-          awaitables
-              .get(0)
-              .handlerContext
-              .createAllDeferred(
-                  awaitables.stream().map(Awaitable::deferred).collect(Collectors.toList())));
+      HandlerContext ctx = awaitables.get(0).asyncResult().ctx();
+      return single(ctx.createAllAsyncResult(
+              awaitables.stream().map(Awaitable::asyncResult).collect(Collectors.toList())));
     }
   }
 
   static class SingleAwaitable<T> extends Awaitable<T> {
 
     private final AsyncResult<T> asyncResult;
-    private Result<T> result;
 
-    SingleAwaitable(HandlerContext handlerContext, AsyncResult<T> asyncResult) {
-      super(handlerContext);
+    SingleAwaitable(AsyncResult<T> asyncResult) {
       this.asyncResult = asyncResult;
     }
 
     @Override
-    protected AsyncResult<?> deferred() {
+    protected AsyncResult<T> asyncResult() {
       return this.asyncResult;
-    }
-
-    @Override
-    protected Result<T> awaitResult() {
-      if (!this.asyncResult.isCompleted()) {
-        Util.<Void>blockOnSyscall(cb -> handlerContext.resolveDeferred(this.asyncResult, cb));
-      }
-      if (this.result == null) {
-        this.result = this.asyncResult.toResult();
-      }
-      return this.result;
-    }
-  }
-
-  static class MappedAwaitable<T, U> extends Awaitable<U> {
-
-    private final Awaitable<T> inner;
-    private final Function<Result<T>, Result<U>> mapper;
-    private Result<U> mappedResult;
-
-    MappedAwaitable(Awaitable<T> inner, Function<Result<T>, Result<U>> mapper) {
-      super(inner.handlerContext);
-      this.inner = inner;
-      this.mapper = mapper;
-    }
-
-    @Override
-    protected AsyncResult<?> deferred() {
-      return inner.deferred();
-    }
-
-    @Override
-    public Result<U> awaitResult() throws TerminalException {
-      if (mappedResult == null) {
-        this.mappedResult = this.mapper.apply(this.inner.awaitResult());
-      }
-      return this.mappedResult;
     }
   }
 }

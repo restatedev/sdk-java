@@ -10,10 +10,10 @@ package dev.restate.sdk.core;
 
 import dev.restate.sdk.core.AsyncResults.AsyncResultInternal;
 import dev.restate.sdk.core.statemachine.InvocationState;
-import dev.restate.sdk.definition.AsyncResult;
-import dev.restate.sdk.definition.HandlerContext;
+import dev.restate.sdk.endpoint.definition.AsyncResult;
+import dev.restate.sdk.endpoint.definition.HandlerContext;
 import dev.restate.sdk.types.RetryPolicy;
-import dev.restate.sdk.types.Slice;
+import dev.restate.common.Slice;
 
 import java.time.Duration;
 import java.util.List;
@@ -23,13 +23,13 @@ import org.jspecify.annotations.Nullable;
 interface HandlerContextInternal extends HandlerContext {
 
   @Override
-  default AsyncResult<Integer> createAnyDeferred(List<AsyncResult<?>> children) {
+  default AsyncResult<Integer> createAnyAsyncResult(List<AsyncResult<?>> children) {
     return AsyncResults.any(
         children.stream().map(dr -> (AsyncResultInternal<?>) dr).collect(Collectors.toList()));
   }
 
   @Override
-  default AsyncResult<Void> createAllDeferred(List<AsyncResult<?>> children) {
+  default AsyncResult<Void> createAllAsyncResult(List<AsyncResult<?>> children) {
     return AsyncResults.all(
         children.stream().map(dr -> (AsyncResultInternal<?>) dr).collect(Collectors.toList()));
   }

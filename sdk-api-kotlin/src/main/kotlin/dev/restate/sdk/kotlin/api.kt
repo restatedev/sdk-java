@@ -14,7 +14,7 @@ import dev.restate.sdk.types.Request
 import dev.restate.sdk.serde.Serde
 import dev.restate.sdk.types.StateKey
 import dev.restate.sdk.types.Target
-import dev.restate.sdk.definition.HandlerContext
+import dev.restate.sdk.endpoint.definition.HandlerContext
 import java.util.*
 import kotlin.random.Random
 import kotlin.time.Duration

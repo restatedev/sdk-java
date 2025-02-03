@@ -12,6 +12,8 @@ import static dev.restate.sdk.core.statemachine.Util.sliceToByteString;
 import static dev.restate.sdk.core.statemachine.Util.toProtocolFailure;
 
 import com.google.protobuf.ByteString;
+import dev.restate.common.Slice;
+import dev.restate.common.Target;
 import dev.restate.sdk.core.EndpointRequestHandler;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.generated.protocol.Protocol;

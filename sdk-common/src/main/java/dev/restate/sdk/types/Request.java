@@ -8,10 +8,10 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.types;
 
+import dev.restate.common.Slice;
 import io.opentelemetry.context.Context;
 import java.nio.ByteBuffer;
 import java.util.Map;
-import java.util.Objects;
 
 /** The Request object represents the incoming request to an handler. */
 public record Request(

@@ -8,9 +8,10 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
+import dev.restate.common.function.ThrowingFunction;
 import dev.restate.sdk.core.statemachine.NotificationValue;
 import dev.restate.sdk.core.statemachine.StateMachine;
-import dev.restate.sdk.definition.AsyncResult;
+import dev.restate.sdk.endpoint.definition.AsyncResult;
 import dev.restate.sdk.types.AbortedExecutionException;
 import dev.restate.sdk.types.TerminalException;
 import java.util.*;
@@ -48,7 +49,20 @@ abstract class AsyncResults {
 
     void tryComplete(StateMachine stateMachine);
 
+    CompletableFuture<T> publicFuture();
+
     Stream<Integer> uncompletedLeaves();
+
+    HandlerContextInternal ctx();
+
+      @Override
+      default CompletableFuture<T> poll() {
+          var publicFuture = publicFuture();
+          if (!publicFuture.isDone()) {
+              ctx().pollAsyncResult(this);
+          }
+          return publicFuture;
+      }
   }
 
   static class SingleAsyncResultInternal<T> implements AsyncResultInternal<T> {
@@ -91,7 +105,12 @@ abstract class AsyncResults {
               });
     }
 
-    @Override
+      @Override
+      public CompletableFuture<T> publicFuture() {
+          return publicFuture;
+      }
+
+      @Override
     public Stream<Integer> uncompletedLeaves() {
       if (publicFuture.isDone()) {
         return Stream.empty();
@@ -100,11 +119,68 @@ abstract class AsyncResults {
     }
 
     @Override
-    public CompletableFuture<T> poll() {
-      if (!publicFuture.isDone()) {
-        contextInternal.pollAsyncResult(this);
+    public HandlerContextInternal ctx() {
+      return this.contextInternal;
+    }
+
+    @Override
+    public <U> AsyncResult<U> map(ThrowingFunction<T, U> mapper) {
+      return new MappedSingleAsyncResultInternal<>(this, mapper);
+    }
+  }
+
+  static class MappedSingleAsyncResultInternal<T, U> implements AsyncResultInternal<U> {
+   private final AsyncResultInternal<T> asyncResult;
+      private final CompletableFuture<U> mappedFuture;
+
+      MappedSingleAsyncResultInternal(AsyncResultInternal<T> asyncResult, ThrowingFunction<T, U> mapper) {
+          this.asyncResult = asyncResult;
+          this.mappedFuture = asyncResult.publicFuture().thenCompose(t -> {
+              try {
+                  return CompletableFuture.completedFuture(mapper.apply(t));
+              } catch (Throwable e) {
+                  if (e instanceof TerminalException) {
+                      return CompletableFuture.failedFuture(e);
+                  }
+                  asyncResult.ctx().fail(e);
+                  return CompletableFuture.failedFuture(AbortedExecutionException.INSTANCE);
+              }
+          });
       }
-      return publicFuture;
+
+    @Override
+    public boolean isDone() {
+      return asyncResult.isDone();
+    }
+
+    @Override
+    public void tryCancel() {
+asyncResult.tryCancel();
+    }
+
+    @Override
+    public void tryComplete(StateMachine stateMachine) {
+asyncResult.tryComplete(stateMachine);
+    }
+
+      @Override
+      public CompletableFuture<U> publicFuture() {
+          return mappedFuture;
+      }
+
+      @Override
+    public Stream<Integer> uncompletedLeaves() {
+      return asyncResult.uncompletedLeaves();
+    }
+
+    @Override
+    public HandlerContextInternal ctx() {
+      return asyncResult.ctx();
+    }
+
+    @Override
+    public <Z> AsyncResult<Z> map(ThrowingFunction<U, Z> mapper) {
+      return new MappedSingleAsyncResultInternal<>(this, mapper);
     }
   }
 

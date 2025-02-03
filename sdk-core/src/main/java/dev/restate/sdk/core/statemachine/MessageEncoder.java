@@ -9,7 +9,7 @@
 package dev.restate.sdk.core.statemachine;
 
 import com.google.protobuf.MessageLite;
-import dev.restate.sdk.types.Slice;
+import dev.restate.common.Slice;
 import java.nio.ByteBuffer;
 import java.util.concurrent.Flow;
 

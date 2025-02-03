@@ -13,7 +13,7 @@ import com.google.protobuf.MessageLite;
 import com.google.protobuf.UnsafeByteOperations;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
-import dev.restate.sdk.types.Slice;
+import dev.restate.common.Slice;
 import dev.restate.sdk.types.TerminalException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -100,9 +100,55 @@ public class Util {
     return nioBufferToProtobufBuffer(slice.asReadOnlyByteBuffer());
   }
 
-  static Slice byteStringToSlice(ByteString byteString) {}
+  static Slice byteStringToSlice(ByteString byteString) {
+    return new ByteStringSlice(byteString);
+  }
 
   static Duration durationMin(Duration a, Duration b) {
     return (a.compareTo(b) <= 0) ? a : b;
+  }
+
+
+  private final static class ByteStringSlice implements Slice {
+    private final ByteString byteString;
+
+    public ByteStringSlice(ByteString bytes) {
+      this.byteString = Objects.requireNonNull(bytes);
+    }
+
+    @Override
+    public ByteBuffer asReadOnlyByteBuffer() {
+      return byteString.asReadOnlyByteBuffer();
+    }
+
+    @Override
+    public int readableBytes() {
+      return byteString.size();
+    }
+
+    @Override
+    public void copyTo(byte[] target) {
+      copyTo(target, 0);
+    }
+
+    @Override
+    public void copyTo(byte[] target, int targetOffset) {
+      byteString.copyTo(target, targetOffset);
+    }
+
+    @Override
+    public byte byteAt(int position) {
+      return byteString.byteAt(position);
+    }
+
+    @Override
+    public void copyTo(ByteBuffer buffer) {
+      byteString.copyTo(buffer);
+    }
+
+    @Override
+    public byte[] toByteArray() {
+      return byteString.toByteArray();
+    }
   }
 }

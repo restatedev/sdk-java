@@ -8,9 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.endpoint;
 
-import dev.restate.sdk.definition.ServiceDefinition;
-import dev.restate.sdk.definition.ServiceDefinitionAndOptions;
-import dev.restate.sdk.definition.ServiceDefinitionFactory;
+import dev.restate.sdk.endpoint.definition.ServiceDefinition;
+import dev.restate.sdk.endpoint.definition.ServiceDefinitionAndOptions;
+import dev.restate.sdk.endpoint.definition.ServiceDefinitionFactory;
 import io.opentelemetry.api.OpenTelemetry;
 import java.util.*;
 import java.util.function.Function;

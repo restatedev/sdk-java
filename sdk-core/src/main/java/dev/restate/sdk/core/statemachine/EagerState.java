@@ -10,7 +10,7 @@ package dev.restate.sdk.core.statemachine;
 
 import com.google.protobuf.ByteString;
 import dev.restate.sdk.core.generated.protocol.Protocol;
-import dev.restate.sdk.types.Slice;
+import dev.restate.common.Slice;
 import org.jspecify.annotations.Nullable;
 
 import java.util.HashMap;

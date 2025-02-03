@@ -10,10 +10,10 @@ package dev.restate.sdk.kotlin
 
 import dev.restate.sdk.common.*
 import dev.restate.sdk.types.Target
-import dev.restate.sdk.definition.AsyncResult
+import dev.restate.sdk.endpoint.definition.AsyncResult
 import dev.restate.sdk.common.syscalls.EnterSideEffectSyscallCallback
 import dev.restate.sdk.common.syscalls.ExitSideEffectSyscallCallback
-import dev.restate.sdk.definition.HandlerContext
+import dev.restate.sdk.endpoint.definition.HandlerContext
 import dev.restate.sdk.serde.Serde
 import dev.restate.sdk.types.DurablePromiseKey
 import dev.restate.sdk.types.Output

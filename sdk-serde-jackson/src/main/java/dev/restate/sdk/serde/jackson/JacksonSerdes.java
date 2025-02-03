@@ -15,10 +15,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.victools.jsonschema.generator.*;
 import com.github.victools.jsonschema.module.jackson.JacksonModule;
 import com.github.victools.jsonschema.module.jackson.JacksonOption;
-import dev.restate.sdk.serde.RichSerde;
-import dev.restate.sdk.serde.Serde;
+import dev.restate.serde.RichSerde;
+import dev.restate.serde.Serde;
 import java.io.IOException;
 import java.util.stream.StreamSupport;
+
+import dev.restate.common.Slice;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -108,9 +111,9 @@ public final class JacksonSerdes {
       }
 
       @Override
-      public byte[] serialize(T value) {
+      public Slice serialize(T value) {
         try {
-          return mapper.writeValueAsBytes(value);
+          return Slice.wrap(mapper.writeValueAsBytes(value));
         } catch (JsonProcessingException e) {
           sneakyThrow(e);
           return null;
@@ -118,9 +121,9 @@ public final class JacksonSerdes {
       }
 
       @Override
-      public T deserialize(byte[] value) {
+      public T deserialize(@NonNull Slice value) {
         try {
-          return mapper.readValue(value, clazz);
+          return mapper.readValue(value.toByteArray(), clazz);
         } catch (IOException e) {
           sneakyThrow(e);
           return null;
@@ -148,9 +151,9 @@ public final class JacksonSerdes {
       }
 
       @Override
-      public byte[] serialize(T value) {
+      public Slice serialize(T value) {
         try {
-          return mapper.writeValueAsBytes(value);
+          return Slice.wrap(mapper.writeValueAsBytes(value));
         } catch (JsonProcessingException e) {
           sneakyThrow(e);
           return null;
@@ -158,9 +161,9 @@ public final class JacksonSerdes {
       }
 
       @Override
-      public T deserialize(byte[] value) {
+      public T deserialize(@NonNull Slice value) {
         try {
-          return mapper.readValue(value, typeReference);
+          return mapper.readValue(value.toByteArray(), typeReference);
         } catch (IOException e) {
           sneakyThrow(e);
           return null;

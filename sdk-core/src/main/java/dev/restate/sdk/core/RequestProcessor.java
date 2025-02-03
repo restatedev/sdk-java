@@ -9,7 +9,7 @@
 package dev.restate.sdk.core;
 
 import dev.restate.sdk.endpoint.Endpoint;
-import dev.restate.sdk.types.Slice;
+import dev.restate.common.Slice;
 import java.util.concurrent.Flow;
 
 /** Resolved handler for an invocation. See {@link Endpoint} for more details. */

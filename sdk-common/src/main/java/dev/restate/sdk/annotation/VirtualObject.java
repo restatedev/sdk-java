@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.annotation;
 
-import dev.restate.sdk.definition.ServiceDefinitionFactory;
+import dev.restate.sdk.endpoint.definition.ServiceDefinitionFactory;
 
 import java.lang.annotation.*;
 

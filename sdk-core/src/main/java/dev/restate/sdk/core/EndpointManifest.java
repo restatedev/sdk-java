@@ -14,11 +14,11 @@ import static dev.restate.sdk.core.statemachine.ServiceProtocol.MIN_SERVICE_PROT
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import dev.restate.sdk.core.generated.manifest.*;
-import dev.restate.sdk.definition.HandlerDefinition;
-import dev.restate.sdk.definition.HandlerType;
-import dev.restate.sdk.definition.ServiceDefinition;
-import dev.restate.sdk.definition.ServiceType;
-import dev.restate.sdk.serde.RichSerde;
+import dev.restate.sdk.endpoint.definition.HandlerDefinition;
+import dev.restate.sdk.endpoint.definition.HandlerType;
+import dev.restate.sdk.endpoint.definition.ServiceDefinition;
+import dev.restate.sdk.endpoint.definition.ServiceType;
+import dev.restate.serde.RichSerde;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;

@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import dev.restate.sdk.definition.HandlerRunner;
+import dev.restate.sdk.endpoint.definition.HandlerRunner;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;

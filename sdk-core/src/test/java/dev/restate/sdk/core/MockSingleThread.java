@@ -18,7 +18,7 @@ import dev.restate.sdk.core.impl.ServiceProtocol;
 import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import dev.restate.sdk.core.statemachine.InvocationInput;
 import dev.restate.sdk.definition.HandlerProcessor;
-import dev.restate.sdk.definition.ServiceDefinition;
+import dev.restate.sdk.endpoint.definition.ServiceDefinition;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.helpers.test.AssertSubscriber;
 import java.time.Duration;

@@ -8,10 +8,15 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.function.ThrowingRunnable;
-import dev.restate.sdk.function.ThrowingSupplier;
-import dev.restate.sdk.serde.Serde;
-import dev.restate.sdk.types.*;
+import dev.restate.common.function.ThrowingRunnable;
+import dev.restate.common.function.ThrowingSupplier;
+import dev.restate.sdk.endpoint.definition.AsyncResult;
+import dev.restate.sdk.types.AbortedExecutionException;
+import dev.restate.sdk.types.RetryPolicy;
+import dev.restate.sdk.types.TerminalException;
+import dev.restate.common.Target;
+import dev.restate.serde.Serde;
+import dev.restate.sdk.types.Request;
 
 import java.time.Duration;
 
@@ -157,8 +162,10 @@ public interface Context {
    *
    * @see RetryPolicy
    */
-  <T> T run(String name, Serde<T> serde, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
-      throws TerminalException;
+  default <T> T run(String name, Serde<T> serde, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
+      throws TerminalException {
+    return scheduleRun(name, serde, retryPolicy, action).await();
+  }
 
   /**
    * Like {@link #run(String, ThrowingRunnable)}, but using a custom retry policy.
@@ -227,6 +234,139 @@ public interface Context {
   /** Like {@link #run(String, ThrowingRunnable)}, but without a name. */
   default void run(ThrowingRunnable runnable) throws TerminalException {
     run((String) null, runnable);
+  }
+
+  /**
+   * Execute a non-deterministic closure, recording the result value in the journal. The result
+   * value will be re-played in case of re-invocation (e.g. because of failure recovery or
+   * suspension point) without re-executing the closure. Use this feature if you want to perform
+   * <b>non-deterministic operations</b>.
+   *
+   * <p>You can name this closure using the {@code name} parameter. This name will be available in
+   * the observability tools.
+   *
+   * <p>The closure should tolerate retries, that is Restate might re-execute the closure multiple
+   * times until it records a result. You can control and limit the amount of retries using {@link
+   * #run(String, Serde, RetryPolicy, ThrowingSupplier)}.
+   *
+   * <p><b>Error handling</b>: Errors occurring within this closure won't be propagated to the
+   * caller, unless they are {@link TerminalException}. Consider the following code:
+   *
+   * <pre>{@code
+   * // Bad usage of try-catch outside the run
+   * try {
+   *     ctx.run(() -> {
+   *         throw new IllegalStateException();
+   *     });
+   * } catch (IllegalStateException e) {
+   *     // This will never be executed,
+   *     // but the error will be retried by Restate,
+   *     // following the invocation retry policy.
+   * }
+   *
+   * // Good usage of try-catch outside the run
+   * try {
+   *     ctx.run(() -> {
+   *         throw new TerminalException("my error");
+   *     });
+   * } catch (TerminalException e) {
+   *     // This is invoked
+   * }
+   * }</pre>
+   *
+   * To propagate run failures to the call-site, make sure to wrap them in {@link
+   * TerminalException}.
+   *
+   * @param name name of the side effect.
+   * @param serde the type tag of the return value, used to serialize/deserialize it.
+   * @param action closure to execute.
+   * @param <T> type of the return value.
+   * @return value of the run operation.
+   */
+  default <T> Awaitable<T> scheduleRun(String name, Serde<T> serde, ThrowingSupplier<T> action)
+          throws TerminalException {
+    return scheduleRun(name, serde, null, action);
+  }
+
+  /**
+   * Like {@link #run(String, Serde, ThrowingSupplier)}, but using a custom retry policy.
+   *
+   * <p>When a retry policy is not specified, the {@code run} will be retried using the <a
+   * href="https://docs.restate.dev/operate/configuration/server">Restate invoker retry policy</a>,
+   * which by default retries indefinitely.
+   *
+   * @see RetryPolicy
+   */
+  <T> Awaitable<T> scheduleRun(String name, Serde<T> serde, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
+          throws TerminalException;
+
+  /**
+   * Like {@link #run(String, ThrowingRunnable)}, but using a custom retry policy.
+   *
+   * <p>When a retry policy is not specified, the {@code run} will be retried using the <a
+   * href="https://docs.restate.dev/operate/configuration/server">Restate invoker retry policy</a>,
+   * which by default retries indefinitely.
+   *
+   * @see RetryPolicy
+   */
+  default Awaitable<Void> scheduleRun(String name, RetryPolicy retryPolicy, ThrowingRunnable runnable)
+          throws TerminalException {
+    return scheduleRun(
+            name,
+            Serde.VOID,
+            retryPolicy,
+            () -> {
+              runnable.run();
+              return null;
+            });
+  }
+
+  /**
+   * Like {@link #run(Serde, ThrowingSupplier)}, but using a custom retry policy.
+   *
+   * <p>When a retry policy is not specified, the {@code run} will be retried using the <a
+   * href="https://docs.restate.dev/operate/configuration/server">Restate invoker retry policy</a>,
+   * which by default retries indefinitely.
+   *
+   * @see RetryPolicy
+   */
+  default <T> Awaitable<T> scheduleRun(Serde<T> serde, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
+          throws TerminalException {
+    return scheduleRun(null, serde, retryPolicy, action);
+  }
+
+  /**
+   * Like {@link #run(ThrowingRunnable)}, but using a custom retry policy.
+   *
+   * <p>When a retry policy is not specified, the {@code run} will be retried using the <a
+   * href="https://docs.restate.dev/operate/configuration/server">Restate invoker retry policy</a>,
+   * which by default retries indefinitely.
+   *
+   * @see RetryPolicy
+   */
+  default Awaitable<Void> scheduleRun(RetryPolicy retryPolicy, ThrowingRunnable runnable) throws TerminalException {
+    return scheduleRun(null, retryPolicy, runnable);
+  }
+
+  /** Like {@link #run(String, Serde, ThrowingSupplier)}, but without returning a value. */
+  default Awaitable<Void> scheduleRun(String name, ThrowingRunnable runnable) throws TerminalException {
+    return scheduleRun(
+            name,
+            Serde.VOID,
+            () -> {
+              runnable.run();
+              return null;
+            });
+  }
+
+  /** Like {@link #run(String, Serde, ThrowingSupplier)}, but without a name. */
+  default <T> Awaitable<T> scheduleRun(Serde<T> serde, ThrowingSupplier<T> action) throws TerminalException {
+    return scheduleRun(null, serde, action);
+  }
+
+  /** Like {@link #run(String, ThrowingRunnable)}, but without a name. */
+  default Awaitable<Void> scheduleRun(ThrowingRunnable runnable) throws TerminalException {
+    return scheduleRun((String) null, runnable);
   }
 
   /**

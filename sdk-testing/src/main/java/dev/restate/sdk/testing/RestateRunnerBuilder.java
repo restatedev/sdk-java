@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testing;
 
-import dev.restate.sdk.definition.ServiceDefinition;
+import dev.restate.sdk.endpoint.definition.ServiceDefinition;
 import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder;
 import java.util.HashMap;
 import java.util.Map;

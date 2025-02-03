@@ -9,7 +9,7 @@
 package dev.restate.sdk;
 
 import dev.restate.sdk.types.DurablePromiseKey;
-import dev.restate.sdk.types.Output;
+import dev.restate.common.Output;
 
 /**
  * A {@link DurablePromise} is a durable, distributed version of a {@link

@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core.statemachine;
 
-import dev.restate.sdk.types.Slice;
+import dev.restate.common.Slice;
 import dev.restate.sdk.types.TerminalException;
 import java.util.List;
 
