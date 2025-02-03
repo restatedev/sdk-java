@@ -13,11 +13,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 import com.google.protobuf.ByteString;
-import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.generated.service.protocol.Protocol.AwakeableEntryMessage;
-import dev.restate.generated.service.protocol.Protocol.StartMessage;
 import dev.restate.sdk.core.TestDefinitions.TestDefinition;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
+import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.core.impl.Entries;
 import java.nio.ByteBuffer;
 import java.util.Base64;
@@ -45,7 +43,7 @@ public abstract class AwakeableIdTestSuite implements TestSuite {
     return Stream.of(
         returnAwakeableId()
             .withInput(
-                StartMessage.newBuilder()
+                Protocol.StartMessage.newBuilder()
                     .setDebugId(debugId)
                     .setId(ByteString.copyFrom(serializedId))
                     .setKnownEntries(1),

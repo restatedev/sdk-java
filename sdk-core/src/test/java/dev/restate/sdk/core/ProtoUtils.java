@@ -11,17 +11,13 @@ package dev.restate.sdk.core;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.MessageLiteOrBuilder;
-import dev.restate.generated.sdk.java.Java;
-import dev.restate.generated.service.discovery.Discovery;
-import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.generated.service.protocol.Protocol.StartMessage.StateEntry;
+import dev.restate.common.Target;
+import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.core.statemachine.InvocationInput;
-import dev.restate.sdk.core.statemachine.MessageDecoder;
-import dev.restate.sdk.core.statemachine.MessageEncoder;
 import dev.restate.sdk.core.statemachine.MessageHeader;
 import dev.restate.sdk.core.statemachine.MessageType;
-import dev.restate.sdk.serde.Serde;
-import dev.restate.sdk.types.Target;
+import dev.restate.sdk.core.statemachine.ServiceProtocol;
+import dev.restate.serde.Serde;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.helpers.test.AssertSubscriber;
 import java.nio.ByteBuffer;
@@ -227,27 +223,27 @@ public class ProtoUtils {
     return getStateMessage(key, TestSerdes.STRING, value);
   }
 
-  public static <T> Protocol.SetStateEntryMessage setStateMessage(
+  public static <T> Protocol.SetStateCommandMessage setStateMessage(
       String key, Serde<T> serde, T value) {
-    return Protocol.SetStateEntryMessage.newBuilder()
+    return Protocol.SetStateCommandMessage.newBuilder()
         .setKey(ByteString.copyFromUtf8(key))
-        .setValue(ByteString.copyFrom(serde.serialize(value)))
+        .setValue(Protocol.Value.newBuilder().setContent(ByteString.copyFrom(serde.serialize(value).toByteArray())))
         .build();
   }
 
-  public static Protocol.SetStateEntryMessage setStateMessage(String key, String value) {
+  public static Protocol.SetStateCommandMessage setStateMessage(String key, String value) {
     return setStateMessage(key, TestSerdes.STRING, value);
   }
 
-  public static Protocol.ClearStateEntryMessage clearStateMessage(String key) {
-    return Protocol.ClearStateEntryMessage.newBuilder()
+  public static Protocol.ClearStateCommandMessage clearStateMessage(String key) {
+    return Protocol.ClearStateCommandMessage.newBuilder()
         .setKey(ByteString.copyFromUtf8(key))
         .build();
   }
 
-  public static Protocol.CallEntryMessage.Builder invokeMessage(Target target) {
-    Protocol.CallEntryMessage.Builder builder =
-        Protocol.CallEntryMessage.newBuilder()
+  public static Protocol.CallCommandMessage.Builder invokeMessage(Target target) {
+    Protocol.CallCommandMessage.Builder builder =
+        Protocol.CallCommandMessage.newBuilder()
             .setServiceName(target.getService())
             .setHandlerName(target.getHandler());
     if (target.getKey() != null) {
@@ -257,27 +253,27 @@ public class ProtoUtils {
     return builder;
   }
 
-  public static Protocol.CallEntryMessage.Builder invokeMessage(Target target, byte[] parameter) {
+  public static Protocol.CallCommandMessage.Builder invokeMessage(Target target, byte[] parameter) {
     return invokeMessage(target, Serde.RAW, parameter);
   }
 
-  public static <T> Protocol.CallEntryMessage.Builder invokeMessage(
-      Target target, Serde<T> reqSerde, T parameter) {
-    return invokeMessage(target).setParameter(ByteString.copyFrom(reqSerde.serialize(parameter)));
+  public static <T> Protocol.CallCommandMessage.Builder invokeMessage(
+          Target target, Serde<T> reqSerde, T parameter) {
+    return invokeMessage(target).setParameter(ByteString.copyFrom(reqSerde.serialize(parameter).toByteArray()));
   }
 
-  public static <T, R> Protocol.CallEntryMessage invokeMessage(
+  public static <T, R> Protocol.CallCommandMessage invokeMessage(
       Target target, Serde<T> reqSerde, T parameter, Serde<R> resSerde, R result) {
     return invokeMessage(target, reqSerde, parameter)
         .setValue(ByteString.copyFrom(resSerde.serialize(result)))
         .build();
   }
 
-  public static Protocol.CallEntryMessage.Builder invokeMessage(Target target, String parameter) {
+  public static Protocol.CallCommandMessage.Builder invokeMessage(Target target, String parameter) {
     return invokeMessage(target, TestSerdes.STRING, parameter);
   }
 
-  public static Protocol.CallEntryMessage invokeMessage(
+  public static Protocol.CallCommandMessage invokeMessage(
       Target target, String parameter, String result) {
     return invokeMessage(target, TestSerdes.STRING, parameter, TestSerdes.STRING, result);
   }

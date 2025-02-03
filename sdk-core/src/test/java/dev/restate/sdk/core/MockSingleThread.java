@@ -18,6 +18,7 @@ import dev.restate.sdk.core.impl.ServiceProtocol;
 import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import dev.restate.sdk.core.statemachine.InvocationInput;
 import dev.restate.sdk.definition.HandlerProcessor;
+import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.endpoint.definition.ServiceDefinition;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.helpers.test.AssertSubscriber;
@@ -42,26 +43,26 @@ public final class MockSingleThread implements TestExecutor {
 
     // Prepare server
     @SuppressWarnings("unchecked")
-    EndpointImpl.Builder builder =
-        EndpointImpl.newBuilder(EndpointManifestSchema.ProtocolMode.BIDI_STREAM)
+    Endpoint.Builder builder =
+        Endpoint.builder()
             .bind(
                 (ServiceDefinition<? super Object>) serviceDefinition,
                 definition.getServiceOptions());
     if (definition.isEnablePreviewContext()) {
       builder.enablePreviewContext();
     }
-    EndpointImpl server = builder.build();
+    EndpointRequestHandler server = EndpointRequestHandler.forRequestResponse(builder.build());
 
     // Start invocation
-    HandlerProcessor handler =
-        server.resolve(
+    StaticResponseRequestProcessor handler =
+        server.handleDiscoveryRequest(
             ServiceProtocol.serviceProtocolVersionToHeaderValue(
                 ServiceProtocol.maxServiceProtocolVersion(definition.isEnablePreviewContext())),
             serviceDefinition.getServiceName(),
             definition.getMethod(),
             k -> null,
             io.opentelemetry.context.Context.current(),
-            EndpointImpl.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
+            EndpointRequestHandler.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
             null);
 
     // Wire invocation
