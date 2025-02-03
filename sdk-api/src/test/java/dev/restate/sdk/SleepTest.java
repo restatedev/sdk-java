@@ -10,9 +10,9 @@ package dev.restate.sdk;
 
 import static dev.restate.sdk.JavaBlockingTests.testDefinitionForService;
 
-import dev.restate.sdk.serde.Serde;
 import dev.restate.sdk.core.SleepTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
+import dev.restate.sdk.serde.Serde;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;

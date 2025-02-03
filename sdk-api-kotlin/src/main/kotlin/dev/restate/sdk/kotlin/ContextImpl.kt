@@ -8,28 +8,22 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.common.*
-import dev.restate.sdk.types.Target
-import dev.restate.sdk.endpoint.definition.AsyncResult
-import dev.restate.sdk.common.syscalls.EnterSideEffectSyscallCallback
-import dev.restate.sdk.common.syscalls.ExitSideEffectSyscallCallback
+import dev.restate.common.Output
+import dev.restate.common.Slice
 import dev.restate.sdk.endpoint.definition.HandlerContext
-import dev.restate.sdk.serde.Serde
 import dev.restate.sdk.types.DurablePromiseKey
-import dev.restate.sdk.types.Output
 import dev.restate.sdk.types.Request
 import dev.restate.sdk.types.StateKey
 import dev.restate.sdk.types.TerminalException
-import java.nio.ByteBuffer
-import kotlin.coroutines.resume
+import dev.restate.serde.Serde
+import kotlin.jvm.optionals.getOrNull
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
-import kotlinx.coroutines.CancellableContinuation
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.*
+import kotlinx.coroutines.future.await
 
-internal class ContextImpl internal constructor(internal val handlerContext: HandlerContext) : WorkflowContext {
+internal class ContextImpl internal constructor(internal val handlerContext: HandlerContext) :
+    WorkflowContext {
   override fun key(): String {
     return this.handlerContext.objectKey()
   }
@@ -38,191 +32,103 @@ internal class ContextImpl internal constructor(internal val handlerContext: Han
     return this.handlerContext.request()
   }
 
-  override suspend fun <T : Any> get(key: StateKey<T>): T? {
-    val asyncResult: AsyncResult<ByteBuffer> =
-        suspendCancellableCoroutine { cont: CancellableContinuation<AsyncResult<ByteBuffer>> ->
-          handlerContext.get(key.name(), completingContinuation(cont))
-        }
+  override suspend fun <T : Any> get(key: StateKey<T>): T? =
+      SingleAwaitableImpl(handlerContext.get(key.name()).await())
+          .map { it.getOrNull()?.let { key.serde().deserialize(it) } }
+          .await()
 
-    if (!asyncResult.isCompleted) {
-      suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-        handlerContext.resolveDeferred(asyncResult, completingUnitContinuation(cont))
-      }
-    }
-
-    val readyResult = asyncResult.toResult()!!
-    if (!readyResult.isSuccess) {
-      throw readyResult.failure!!
-    }
-    if (readyResult.isEmpty) {
-      return null
-    }
-    return key.serde().deserializeWrappingException(handlerContext, readyResult.value!!)!!
-  }
-
-  override suspend fun stateKeys(): Collection<String> {
-    val asyncResult: AsyncResult<Collection<String>> =
-        suspendCancellableCoroutine { cont: CancellableContinuation<AsyncResult<Collection<String>>> ->
-          handlerContext.getKeys(completingContinuation(cont))
-        }
-
-    if (!asyncResult.isCompleted) {
-      suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-        handlerContext.resolveDeferred(asyncResult, completingUnitContinuation(cont))
-      }
-    }
-
-    val readyResult = asyncResult.toResult()!!
-    if (!readyResult.isSuccess) {
-      throw readyResult.failure!!
-    }
-    return readyResult.value!!
-  }
+  override suspend fun stateKeys(): Collection<String> =
+      SingleAwaitableImpl(handlerContext.getKeys().await()).await()
 
   override suspend fun <T : Any> set(key: StateKey<T>, value: T) {
     val serializedValue = key.serde().serializeWrappingException(handlerContext, value)
-    return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-      handlerContext.set(key.name(), serializedValue, completingUnitContinuation(cont))
-    }
+    handlerContext.set(key.name(), serializedValue).await()
   }
 
   override suspend fun clear(key: StateKey<*>) {
-    return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-      handlerContext.clear(key.name(), completingUnitContinuation(cont))
-    }
+    handlerContext.clear(key.name()).await()
   }
 
   override suspend fun clearAll() {
-    return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-      handlerContext.clearAll(completingUnitContinuation(cont))
-    }
+    handlerContext.clearAll().await()
   }
 
-  override suspend fun timer(duration: Duration): Awaitable<Unit> {
-    val asyncResult: AsyncResult<Void> =
-        suspendCancellableCoroutine { cont: CancellableContinuation<AsyncResult<Void>> ->
-          handlerContext.sleep(duration.toJavaDuration(), completingContinuation(cont))
-        }
-
-    return UnitAwakeableImpl(handlerContext, asyncResult)
-  }
+  override suspend fun timer(duration: Duration): Awaitable<Unit> =
+      SingleAwaitableImpl(handlerContext.sleep(duration.toJavaDuration()).await()).map {}
 
   override suspend fun <T : Any?, R : Any?> callAsync(
-    target: Target,
-    inputSerde: Serde<T>,
-    outputSerde: Serde<R>,
-    parameter: T
-  ): Awaitable<R> {
-    val input = inputSerde.serializeWrappingException(handlerContext, parameter)
-
-    val asyncResult: AsyncResult<ByteBuffer> =
-        suspendCancellableCoroutine { cont: CancellableContinuation<AsyncResult<ByteBuffer>> ->
-          handlerContext.call(target, input, completingContinuation(cont))
-        }
-
-    return SingleSerdeAwaitableImpl(handlerContext, asyncResult, outputSerde)
-  }
+      target: dev.restate.common.Target,
+      inputSerde: Serde<T>,
+      outputSerde: Serde<R>,
+      parameter: T
+  ): Awaitable<R> =
+      SingleAwaitableImpl(
+              handlerContext
+                  .call(
+                      target,
+                      inputSerde.serializeWrappingException(handlerContext, parameter),
+                      null,
+                      null)
+                  .await()
+                  .callAsyncResult)
+          .map { outputSerde.deserialize(it) }
 
   override suspend fun <T : Any?> send(
-    target: dev.restate.sdk.types.Target,
-    inputSerde: Serde<T>,
-    parameter: T,
-    delay: Duration
+      target: dev.restate.common.Target,
+      inputSerde: Serde<T>,
+      parameter: T,
+      delay: Duration
   ) {
-    val input = inputSerde.serializeWrappingException(handlerContext, parameter)
-
-    return suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-      handlerContext.send(target, input, delay.toJavaDuration(), completingUnitContinuation(cont))
-    }
+    handlerContext
+        .send(
+            target,
+            inputSerde.serializeWrappingException(handlerContext, parameter),
+            null,
+            null,
+            delay.toJavaDuration())
+        .await()
   }
 
-  override suspend fun <T : Any?> runBlock(
+  override suspend fun <T : Any?> scheduleRun(
       serde: Serde<T>,
       name: String,
       retryPolicy: RetryPolicy?,
       block: suspend () -> T
-  ): T {
-    val exitResult =
-        suspendCancellableCoroutine { cont: CancellableContinuation<CompletableDeferred<ByteBuffer>>
-          ->
-          handlerContext.enterSideEffectBlock(
-              name,
-              object : EnterSideEffectSyscallCallback {
-                override fun onSuccess(t: ByteBuffer?) {
-                  val deferred: CompletableDeferred<ByteBuffer> = CompletableDeferred()
-                  deferred.complete(t!!)
-                  cont.resume(deferred)
-                }
-
-                override fun onFailure(t: TerminalException) {
-                  val deferred: CompletableDeferred<ByteBuffer> = CompletableDeferred()
-                  deferred.completeExceptionally(t)
-                  cont.resume(deferred)
-                }
-
-                override fun onCancel(t: Throwable?) {
-                  cont.cancel(t)
-                }
-
-                override fun onNotExecuted() {
-                  cont.resume(CompletableDeferred())
-                }
-              })
+  ): Awaitable<T> {
+    var coroutineCtx = currentCoroutineContext()
+    val javaRetryPolicy =
+        retryPolicy?.let {
+          dev.restate.sdk.types.RetryPolicy.exponential(
+                  it.initialDelay.toJavaDuration(), it.exponentiationFactor)
+              .setMaxAttempts(it.maxAttempts)
+              .setMaxDelay(it.maxDelay?.toJavaDuration())
+              .setMaxDuration(it.maxDuration?.toJavaDuration())
         }
 
-    if (exitResult.isCompleted) {
-      return serde.deserializeWrappingException(handlerContext, exitResult.await())!!
-    }
+    val scope = CoroutineScope(coroutineCtx + CoroutineName("restate-run-$name"))
 
-    var actionReturnValue: T? = null
-    var actionFailure: Throwable? = null
-    try {
-      actionReturnValue = block()
-    } catch (t: Throwable) {
-      actionFailure = t
-    }
-
-    val exitCallback =
-        object : ExitSideEffectSyscallCallback {
-          override fun onSuccess(t: ByteBuffer?) {
-            exitResult.complete(t!!)
-          }
-
-          override fun onFailure(t: TerminalException) {
-            exitResult.completeExceptionally(t)
-          }
-
-          override fun onCancel(t: Throwable?) {
-            exitResult.cancel(CancellationException(message = null, cause = t))
-          }
-        }
-
-    if (actionFailure != null) {
-      val javaRetryPolicy =
-          retryPolicy?.let {
-            dev.restate.sdk.types.RetryPolicy.exponential(
-                    it.initialDelay.toJavaDuration(), it.exponentiationFactor)
-                .setMaxAttempts(it.maxAttempts)
-                .setMaxDelay(it.maxDelay?.toJavaDuration())
-                .setMaxDuration(it.maxDuration?.toJavaDuration())
-          }
-      handlerContext.exitSideEffectBlockWithException(actionFailure, javaRetryPolicy, exitCallback)
-    } else {
-      handlerContext.exitSideEffectBlock(
-          serde.serializeWrappingException(handlerContext, actionReturnValue), exitCallback)
-    }
-
-    return serde.deserializeWrappingException(handlerContext, exitResult.await())
+    val asyncResult =
+        handlerContext
+            .scheduleRun(name) { completer ->
+              scope.launch {
+                val result: Slice?
+                try {
+                  result = serde.serialize(block())
+                } catch (e: Throwable) {
+                  completer.proposeFailure(e, javaRetryPolicy)
+                  return@launch
+                }
+                completer.proposeSuccess(result)
+              }
+            }
+            .await()
+    return SingleAwaitableImpl(asyncResult).map { serde.deserialize(it) }
   }
 
   override suspend fun <T : Any> awakeable(serde: Serde<T>): Awakeable<T> {
-    val (aid, deferredResult) =
-        suspendCancellableCoroutine {
-            cont: CancellableContinuation<Map.Entry<String, AsyncResult<ByteBuffer>>> ->
-          handlerContext.awakeable(completingContinuation(cont))
-        }
+    val awk = handlerContext.awakeable().await()
 
-    return AwakeableImpl(handlerContext, deferredResult, serde, aid)
+    return AwakeableImpl(awk.asyncResult, serde, awk.id)
   }
 
   override fun awakeableHandle(id: String): AwakeableHandle {
@@ -230,7 +136,7 @@ internal class ContextImpl internal constructor(internal val handlerContext: Han
   }
 
   override fun random(): RestateRandom {
-    return RestateRandom(handlerContext.request().invocationId().toRandomSeed(), handlerContext)
+    return RestateRandom(handlerContext.request().invocationId().toRandomSeed())
   }
 
   override fun <T : Any> promise(key: DurablePromiseKey<T>): DurablePromise<T> {
@@ -243,76 +149,26 @@ internal class ContextImpl internal constructor(internal val handlerContext: Han
 
   inner class DurablePromiseImpl<T : Any>(private val key: DurablePromiseKey<T>) :
       DurablePromise<T> {
-    override suspend fun awaitable(): Awaitable<T> {
-      val asyncResult: AsyncResult<ByteBuffer> =
-          suspendCancellableCoroutine { cont: CancellableContinuation<AsyncResult<ByteBuffer>> ->
-            handlerContext.promise(key.name(), completingContinuation(cont))
-          }
-
-      return SingleSerdeAwaitableImpl(handlerContext, asyncResult, key.serde())
-    }
-
-    override suspend fun peek(): Output<T> {
-      val asyncResult: AsyncResult<ByteBuffer> =
-          suspendCancellableCoroutine { cont: CancellableContinuation<AsyncResult<ByteBuffer>> ->
-            handlerContext.peekPromise(key.name(), completingContinuation(cont))
-          }
-
-      if (!asyncResult.isCompleted) {
-        suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-          handlerContext.resolveDeferred(asyncResult, completingUnitContinuation(cont))
+    override suspend fun awaitable(): Awaitable<T> =
+        SingleAwaitableImpl(handlerContext.promise(key.name()).await()).map {
+          key.serde().deserialize(it)
         }
-      }
 
-      val readyResult = asyncResult.toResult()!!
-      if (!readyResult.isSuccess) {
-        throw readyResult.failure!!
-      }
-      if (readyResult.isEmpty) {
-        return Output.notReady()
-      }
-      return Output.ready(key.serde().deserializeWrappingException(handlerContext, readyResult.value!!))
-    }
+    override suspend fun peek(): Output<T> =
+        SingleAwaitableImpl(handlerContext.peekPromise(key.name()).await())
+            .map { it.map { key.serde().deserialize(it) } }
+            .await()
   }
 
   inner class DurablePromiseHandleImpl<T : Any>(private val key: DurablePromiseKey<T>) :
       DurablePromiseHandle<T> {
     override suspend fun resolve(payload: T) {
-      val input = key.serde().serializeWrappingException(handlerContext, payload)
-
-      val asyncResult: AsyncResult<Void> =
-          suspendCancellableCoroutine { cont: CancellableContinuation<AsyncResult<Void>> ->
-            handlerContext.resolvePromise(key.name(), input, completingContinuation(cont))
-          }
-
-      if (!asyncResult.isCompleted) {
-        suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-          handlerContext.resolveDeferred(asyncResult, completingUnitContinuation(cont))
-        }
-      }
-
-      val readyResult = asyncResult.toResult()!!
-      if (!readyResult.isSuccess) {
-        throw readyResult.failure!!
-      }
+      handlerContext.resolvePromise(
+          key.name(), key.serde().serializeWrappingException(handlerContext, payload))
     }
 
     override suspend fun reject(reason: String) {
-      val asyncResult: AsyncResult<Void> =
-          suspendCancellableCoroutine { cont: CancellableContinuation<AsyncResult<Void>> ->
-            handlerContext.rejectPromise(key.name(), reason, completingContinuation(cont))
-          }
-
-      if (!asyncResult.isCompleted) {
-        suspendCancellableCoroutine { cont: CancellableContinuation<Unit> ->
-          handlerContext.resolveDeferred(asyncResult, completingUnitContinuation(cont))
-        }
-      }
-
-      val readyResult = asyncResult.toResult()!!
-      if (!readyResult.isSuccess) {
-        throw readyResult.failure!!
-      }
+      handlerContext.rejectPromise(key.name(), TerminalException(reason))
     }
   }
 }

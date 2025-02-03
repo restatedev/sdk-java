@@ -8,10 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
+import dev.restate.common.function.ThrowingSupplier;
 import dev.restate.sdk.types.InvocationId;
 import dev.restate.serde.Serde;
-import dev.restate.common.function.ThrowingSupplier;
-
 import java.util.Random;
 import java.util.UUID;
 
@@ -23,7 +22,8 @@ import java.util.UUID;
  * from a set of options. If a cryptographically secure value is needed, please generate that
  * externally using {@link ObjectContext#run(Serde, ThrowingSupplier)}.
  *
- * <p>You <b>MUST NOT</b> use this object inside a {@link ObjectContext#run(Serde, ThrowingSupplier)}.
+ * <p>You <b>MUST NOT</b> use this object inside a {@link ObjectContext#run(Serde,
+ * ThrowingSupplier)}.
  */
 public class RestateRandom extends Random {
 

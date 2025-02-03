@@ -10,9 +10,7 @@ package dev.restate.sdk;
 
 import dev.restate.common.Slice;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
-import dev.restate.sdk.endpoint.definition.HandlerContext;
 import dev.restate.serde.Serde;
-import java.nio.ByteBuffer;
 
 /**
  * An {@link Awakeable} is a special type of {@link Awaitable} which can be arbitrarily completed by
@@ -45,8 +43,8 @@ public final class Awakeable<T> extends Awaitable<T> {
     return identifier;
   }
 
-    @Override
-    protected AsyncResult<T> asyncResult() {
-        return asyncResult;
-    }
+  @Override
+  protected AsyncResult<T> asyncResult() {
+    return asyncResult;
+  }
 }

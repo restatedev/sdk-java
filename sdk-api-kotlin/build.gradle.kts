@@ -11,6 +11,8 @@ dependencies {
   implementation(libs.kotlinx.serialization.core)
   implementation(libs.kotlinx.serialization.json)
 
+  api(project(":sdk-common"))
+
   implementation(libs.log4j.api)
   implementation(libs.opentelemetry.kotlin)
 

@@ -252,9 +252,9 @@ class HandlerContextImpl implements HandlerContextInternal {
   }
 
   @Override
-  public CompletableFuture<Void> rejectAwakeable(String id, String reason) {
+  public CompletableFuture<Void> rejectAwakeable(String id, TerminalException reason) {
     return this.catchExceptions(
-        () -> this.stateMachine.completeAwakeable(id, new TerminalException(reason)));
+        () -> this.stateMachine.completeAwakeable(id, reason));
   }
 
   @Override
@@ -314,12 +314,12 @@ class HandlerContextImpl implements HandlerContextInternal {
   }
 
   @Override
-  public CompletableFuture<AsyncResult<Void>> rejectPromise(String key, String reason) {
+  public CompletableFuture<AsyncResult<Void>> rejectPromise(String key, TerminalException reason) {
     return catchExceptions(
         () ->
             AsyncResults.single(
                 this,
-                this.stateMachine.promiseComplete(key, new TerminalException(reason)),
+                this.stateMachine.promiseComplete(key, reason),
                 (s, cf) -> {
                   if (s instanceof NotificationValue.Empty) {
                     cf.complete(null);

@@ -11,10 +11,10 @@ package dev.restate.sdk;
 import static dev.restate.sdk.JavaBlockingTests.testDefinitionForService;
 import static dev.restate.sdk.core.ProtoUtils.GREETER_SERVICE_TARGET;
 
-import dev.restate.sdk.types.RetryPolicy;
-import dev.restate.sdk.serde.Serde;
 import dev.restate.sdk.core.SideEffectTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
+import dev.restate.sdk.serde.Serde;
+import dev.restate.sdk.types.RetryPolicy;
 import java.util.Objects;
 
 public class SideEffectTest extends SideEffectTestSuite {

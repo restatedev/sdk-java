@@ -8,10 +8,10 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.types.TerminalException
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder
 import dev.restate.sdk.core.UserFailuresTestSuite
 import dev.restate.sdk.kotlin.KotlinCoroutinesTests.Companion.testDefinitionForService
+import dev.restate.sdk.types.TerminalException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.cancellation.CancellationException
 

@@ -6,20 +6,17 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-
 package dev.restate.sdk;
 
 import dev.restate.common.Slice;
-import dev.restate.sdk.types.TerminalException;
 import dev.restate.common.function.ThrowingBiConsumer;
 import dev.restate.common.function.ThrowingBiFunction;
 import dev.restate.common.function.ThrowingConsumer;
 import dev.restate.common.function.ThrowingFunction;
-import dev.restate.sdk.endpoint.definition.HandlerDefinition;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
+import dev.restate.sdk.types.TerminalException;
 import dev.restate.serde.Serde;
 import io.opentelemetry.context.Scope;
-import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -27,7 +24,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
 
-/** Adapter class for {@link dev.restate.sdk.endpoint.definition.HandlerRunner} to use the Java API. */
+/**
+ * Adapter class for {@link dev.restate.sdk.endpoint.definition.HandlerRunner} to use the Java API.
+ */
 public class HandlerRunner<REQ, RES>
     implements dev.restate.sdk.endpoint.definition.HandlerRunner<REQ, RES, HandlerRunner.Options> {
   private final ThrowingBiFunction<Context, REQ, RES> runner;
@@ -41,11 +40,11 @@ public class HandlerRunner<REQ, RES>
 
   @Override
   public CompletableFuture<Slice> run(
-          HandlerContext handlerContext,
-          Serde<REQ> requestSerde,
-          Serde<RES> responseSerde,
+      HandlerContext handlerContext,
+      Serde<REQ> requestSerde,
+      Serde<RES> responseSerde,
       @Nullable Options options) {
-      CompletableFuture<Slice> returnFuture = new CompletableFuture<>();
+    CompletableFuture<Slice> returnFuture = new CompletableFuture<>();
 
     if (options == null) {
       options = Options.DEFAULT;
@@ -67,13 +66,12 @@ public class HandlerRunner<REQ, RES>
     wrapped.execute(
         () -> {
           // Any context switching, if necessary, will be done by ResolvedEndpointHandler
-          Context ctx = new ContextImpl(handlerContext);
+          Context ctx = new ContextImpl(handlerContext, wrapped);
 
           // Parse input
           REQ req;
           try {
-            req =
-                requestSerde.deserialize(handlerContext.request().body());
+            req = requestSerde.deserialize(handlerContext.request().body());
           } catch (Throwable e) {
             LOG.warn("Cannot deserialize input", e);
             returnFuture.completeExceptionally(

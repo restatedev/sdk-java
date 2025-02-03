@@ -9,7 +9,8 @@
 package dev.restate.sdk.springboot;
 
 import dev.restate.sdk.auth.signing.RestateRequestIdentityVerifier;
-import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder;
+import dev.restate.sdk.endpoint.Endpoint;
+import dev.restate.sdk.http.vertx.RestateHttpServer;
 import io.vertx.core.http.HttpServer;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -62,7 +63,7 @@ public class RestateHttpEndpointBean implements InitializingBean, SmartLifecycle
       return;
     }
 
-    var builder = RestateHttpEndpointBuilder.builder();
+    var builder = Endpoint.builder();
     for (Object component : restateComponents.values()) {
       builder = builder.bind(component);
     }
@@ -76,7 +77,7 @@ public class RestateHttpEndpointBean implements InitializingBean, SmartLifecycle
           RestateRequestIdentityVerifier.fromKey(restateEndpointProperties.getIdentityKey()));
     }
 
-    this.server = builder.build();
+    this.server = RestateHttpServer.fromEndpoint(builder.build());
   }
 
   @Override

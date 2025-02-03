@@ -79,7 +79,7 @@ public interface HandlerContext {
 
   CompletableFuture<Void> resolveAwakeable(String id, Slice payload);
 
-  CompletableFuture<Void> rejectAwakeable(String id, String reason);
+  CompletableFuture<Void> rejectAwakeable(String id, TerminalException reason);
 
   CompletableFuture<AsyncResult<Slice>> promise(String key);
 
@@ -87,7 +87,7 @@ public interface HandlerContext {
 
   CompletableFuture<AsyncResult<Void>> resolvePromise(String key, Slice payload);
 
-  CompletableFuture<AsyncResult<Void>> rejectPromise(String key, String reason);
+  CompletableFuture<AsyncResult<Void>> rejectPromise(String key, TerminalException reason);
 
   void fail(Throwable cause);
 

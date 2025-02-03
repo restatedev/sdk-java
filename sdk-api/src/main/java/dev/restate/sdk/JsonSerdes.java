@@ -13,15 +13,14 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.util.ByteBufferBackedInputStream;
-import dev.restate.serde.RichSerde;
-import dev.restate.serde.Serde;
+import dev.restate.common.Slice;
 import dev.restate.common.function.ThrowingBiConsumer;
 import dev.restate.common.function.ThrowingFunction;
+import dev.restate.serde.RichSerde;
+import dev.restate.serde.Serde;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Map;
-
-import dev.restate.common.Slice;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -144,7 +143,8 @@ public abstract class JsonSerdes {
 
       @Override
       public T deserialize(Slice value) {
-      ByteBufferBackedInputStream inputStream = new ByteBufferBackedInputStream(value.asReadOnlyByteBuffer());
+        ByteBufferBackedInputStream inputStream =
+            new ByteBufferBackedInputStream(value.asReadOnlyByteBuffer());
         try (JsonParser parser = JSON_FACTORY.createParser(inputStream)) {
           return deserializer.asFunction().apply(parser);
         } catch (IOException e) {

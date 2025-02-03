@@ -8,8 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.types.DurablePromiseKey;
 import dev.restate.common.Output;
+import dev.restate.sdk.types.DurablePromiseKey;
 
 /**
  * A {@link DurablePromise} is a durable, distributed version of a {@link

@@ -10,10 +10,10 @@ package dev.restate.sdk;
 
 import static dev.restate.sdk.JavaBlockingTests.*;
 
-import dev.restate.sdk.serde.Serde;
-import dev.restate.sdk.types.StateKey;
 import dev.restate.sdk.core.DeferredTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
+import dev.restate.sdk.serde.Serde;
+import dev.restate.sdk.types.StateKey;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 

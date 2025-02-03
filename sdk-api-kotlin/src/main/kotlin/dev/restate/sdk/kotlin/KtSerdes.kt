@@ -8,11 +8,11 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
+import dev.restate.common.Slice
 import dev.restate.sdk.types.DurablePromiseKey
-import dev.restate.sdk.serde.RichSerde
-import dev.restate.sdk.serde.Serde
 import dev.restate.sdk.types.StateKey
-import java.nio.ByteBuffer
+import dev.restate.serde.RichSerde
+import dev.restate.serde.Serde
 import java.nio.charset.StandardCharsets
 import kotlin.reflect.typeOf
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -60,19 +60,11 @@ object KtSerdes {
 
   val UNIT: Serde<Unit> =
       object : Serde<Unit> {
-        override fun serialize(value: Unit?): ByteArray {
-          return ByteArray(0)
+        override fun serialize(value: Unit): Slice {
+          return Slice.EMPTY
         }
 
-        override fun serializeToByteBuffer(value: Unit?): ByteBuffer {
-          return ByteBuffer.allocate(0)
-        }
-
-        override fun deserialize(value: ByteArray) {
-          return
-        }
-
-        override fun deserialize(byteBuffer: ByteBuffer) {
+        override fun deserialize(value: Slice) {
           return
         }
 
@@ -84,16 +76,17 @@ object KtSerdes {
   /** Creates a [Serde] implementation using the `kotlinx.serialization` json module. */
   inline fun <reified T : Any?> json(serializer: KSerializer<T>): Serde<T> {
     return object : RichSerde<T> {
-      override fun serialize(value: T?): ByteArray {
+      override fun serialize(value: T?): Slice {
         if (value == null) {
-          return Json.encodeToString(JsonNull.serializer(), JsonNull).encodeToByteArray()
+          return Slice.wrap(Json.encodeToString(JsonNull.serializer(), JsonNull))
         }
 
-        return Json.encodeToString(serializer, value).encodeToByteArray()
+        return Slice.wrap(Json.encodeToString(serializer, value))
       }
 
-      override fun deserialize(value: ByteArray): T {
-        return Json.decodeFromString(serializer, String(value, StandardCharsets.UTF_8))
+      override fun deserialize(value: Slice): T {
+        return Json.decodeFromString(
+            serializer, String(value.toByteArray(), StandardCharsets.UTF_8))
       }
 
       override fun contentType(): String {

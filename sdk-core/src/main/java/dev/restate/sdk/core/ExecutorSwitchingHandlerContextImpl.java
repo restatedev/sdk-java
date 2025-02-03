@@ -119,7 +119,7 @@ final class ExecutorSwitchingHandlerContextImpl extends HandlerContextImpl {
   }
 
   @Override
-  public CompletableFuture<Void> rejectAwakeable(String id, String reason) {
+  public CompletableFuture<Void> rejectAwakeable(String id, TerminalException reason) {
     return CompletableFuture.supplyAsync(() -> super.rejectAwakeable(id, reason), coreExecutor)
         .thenCompose(Function.identity());
   }
@@ -143,7 +143,7 @@ final class ExecutorSwitchingHandlerContextImpl extends HandlerContextImpl {
   }
 
   @Override
-  public CompletableFuture<AsyncResult<Void>> rejectPromise(String key, String reason) {
+  public CompletableFuture<AsyncResult<Void>> rejectPromise(String key, TerminalException reason) {
     return CompletableFuture.supplyAsync(() -> super.rejectPromise(key, reason), coreExecutor)
         .thenCompose(Function.identity());
   }

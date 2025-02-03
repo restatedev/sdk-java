@@ -8,13 +8,11 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
+import dev.restate.common.Output
 import dev.restate.sdk.types.DurablePromiseKey
-import dev.restate.sdk.types.Output
 import dev.restate.sdk.types.Request
-import dev.restate.sdk.serde.Serde
 import dev.restate.sdk.types.StateKey
-import dev.restate.sdk.types.Target
-import dev.restate.sdk.endpoint.definition.HandlerContext
+import dev.restate.serde.Serde
 import java.util.*
 import kotlin.random.Random
 import kotlin.time.Duration
@@ -62,10 +60,10 @@ sealed interface Context {
    * @return the invocation response.
    */
   suspend fun <T : Any?, R : Any?> call(
-    target: dev.restate.sdk.types.Target,
-    inputSerde: Serde<T>,
-    outputSerde: Serde<R>,
-    parameter: T
+      target: dev.restate.common.Target,
+      inputSerde: Serde<T>,
+      outputSerde: Serde<R>,
+      parameter: T
   ): R {
     return callAsync(target, inputSerde, outputSerde, parameter).await()
   }
@@ -80,10 +78,10 @@ sealed interface Context {
    * @return an [Awaitable] that wraps the Restate service method result.
    */
   suspend fun <T : Any?, R : Any?> callAsync(
-    target: Target,
-    inputSerde: Serde<T>,
-    outputSerde: Serde<R>,
-    parameter: T
+      target: dev.restate.common.Target,
+      inputSerde: Serde<T>,
+      outputSerde: Serde<R>,
+      parameter: T
   ): Awaitable<R>
 
   /**
@@ -95,10 +93,10 @@ sealed interface Context {
    * @param delay time to wait before executing the call
    */
   suspend fun <T : Any?> send(
-    target: dev.restate.sdk.types.Target,
-    inputSerde: Serde<T>,
-    parameter: T,
-    delay: Duration = Duration.ZERO
+      target: dev.restate.common.Target,
+      inputSerde: Serde<T>,
+      parameter: T,
+      delay: Duration = Duration.ZERO
   )
 
   /**
@@ -153,7 +151,16 @@ sealed interface Context {
       name: String = "",
       retryPolicy: RetryPolicy? = null,
       block: suspend () -> T
-  ): T
+  ): T {
+    return scheduleRun(serde, name, retryPolicy, block).await()
+  }
+
+  suspend fun <T : Any?> scheduleRun(
+      serde: Serde<T>,
+      name: String = "",
+      retryPolicy: RetryPolicy? = null,
+      block: suspend () -> T
+  ): Awaitable<T>
 
   /**
    * Create an [Awakeable], addressable through [Awakeable.id].
@@ -239,6 +246,14 @@ suspend inline fun <reified T : Any> Context.runBlock(
     noinline block: suspend () -> T
 ): T {
   return this.runBlock(KtSerdes.json(), name, retryPolicy, block)
+}
+
+suspend inline fun <reified T : Any> Context.scheduleRun(
+    name: String = "",
+    retryPolicy: RetryPolicy? = null,
+    noinline block: suspend () -> T
+): Awaitable<T> {
+  return this.scheduleRun(KtSerdes.json(), name, retryPolicy, block)
 }
 
 /**
@@ -348,11 +363,10 @@ sealed interface SharedWorkflowContext : SharedObjectContext {
  */
 sealed interface WorkflowContext : SharedWorkflowContext, ObjectContext
 
-class RestateRandom(seed: Long, private val handlerContext: HandlerContext) : Random() {
+class RestateRandom(seed: Long) : Random() {
   private val r = Random(seed)
 
   override fun nextBits(bitCount: Int): Int {
-    check(!handlerContext.isInsideSideEffect) { "You can't use RestateRandom inside ctx.runBlock!" }
     return r.nextBits(bitCount)
   }
 
@@ -374,8 +388,14 @@ class RestateRandom(seed: Long, private val handlerContext: HandlerContext) : Ra
 sealed interface Awaitable<T> {
   suspend fun await(): T
 
+  suspend fun await(duration: Duration): T
+
+  suspend fun withTimeout(duration: Duration): Awaitable<T>
+
   /** Clause for [select] operator. */
   val onAwait: SelectClause<T>
+
+  fun <R> map(transform: (value: T) -> R): Awaitable<R>
 
   companion object {
     fun all(
@@ -386,7 +406,11 @@ sealed interface Awaitable<T> {
       return wrapAllAwaitable(listOf(first) + listOf(second) + others.asList())
     }
 
-    fun any(first: Awaitable<*>, second: Awaitable<*>, vararg others: Awaitable<*>): AnyAwaitable {
+    fun any(
+        first: Awaitable<*>,
+        second: Awaitable<*>,
+        vararg others: Awaitable<*>
+    ): Awaitable<Int> {
       return wrapAnyAwaitable(listOf(first) + listOf(second) + others.asList())
     }
   }

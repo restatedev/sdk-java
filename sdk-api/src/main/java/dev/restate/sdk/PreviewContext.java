@@ -15,6 +15,4 @@ package dev.restate.sdk;
  * <p>In order to use these methods, you <b>MUST enable the preview context</b>, through the
  * endpoint builders using {@code enablePreviewContext()}.
  */
-public class PreviewContext {
-
-}
+public class PreviewContext {}

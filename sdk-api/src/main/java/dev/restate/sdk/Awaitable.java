@@ -8,13 +8,12 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
+import dev.restate.common.function.ThrowingFunction;
+import dev.restate.sdk.endpoint.definition.AsyncResult;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
 import dev.restate.sdk.types.AbortedExecutionException;
 import dev.restate.sdk.types.TerminalException;
-import dev.restate.common.function.ThrowingFunction;
-import dev.restate.sdk.endpoint.definition.AsyncResult;
 import dev.restate.sdk.types.TimeoutException;
-
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -60,15 +59,18 @@ public abstract class Awaitable<T> {
   }
 
   /**
-   * @return an Awaitable that throws a {@link TerminalException} if this awaitable doesn't complete before the provided {@code timeout}.
+   * @return an Awaitable that throws a {@link TerminalException} if this awaitable doesn't complete
+   *     before the provided {@code timeout}.
    */
   public final Awaitable<T> withTimeout(Duration timeout) {
-    return any(this, fromAsyncResult(Util.awaitCompletableFuture(asyncResult().ctx().sleep(timeout))))
-            .map(i -> {
-           if (i == 1) {
-             throw new TimeoutException("Timed out waiting for awaitable after " + timeout);
-           }
-           return this.await();
+    return any(
+            this, fromAsyncResult(Util.awaitCompletableFuture(asyncResult().ctx().sleep(timeout))))
+        .map(
+            i -> {
+              if (i == 1) {
+                throw new TimeoutException("Timed out waiting for awaitable after " + timeout);
+              }
+              return this.await();
             });
   }
 
@@ -87,7 +89,8 @@ public abstract class Awaitable<T> {
    * <p>The behavior is the same as {@link
    * java.util.concurrent.CompletableFuture#anyOf(CompletableFuture[])}.
    */
-  public static Awaitable<Integer> any(Awaitable<?> first, Awaitable<?> second, Awaitable<?>... others) {
+  public static Awaitable<Integer> any(
+      Awaitable<?> first, Awaitable<?> second, Awaitable<?>... others) {
     List<Awaitable<?>> awaitables = new ArrayList<>(2 + others.length);
     awaitables.add(first);
     awaitables.add(second);
@@ -108,8 +111,9 @@ public abstract class Awaitable<T> {
       throw new IllegalArgumentException("Awaitable any doesn't support an empty list");
     }
     HandlerContext ctx = awaitables.get(0).asyncResult().ctx();
-    return fromAsyncResult(ctx.createAnyAsyncResult(
-                awaitables.stream().map(Awaitable::asyncResult).collect(Collectors.toList())));
+    return fromAsyncResult(
+        ctx.createAnyAsyncResult(
+            awaitables.stream().map(Awaitable::asyncResult).collect(Collectors.toList())));
   }
 
   /**
@@ -123,7 +127,7 @@ public abstract class Awaitable<T> {
     List<Awaitable<?>> awaitables = new ArrayList<>(2 + others.length);
     awaitables.add(first);
     awaitables.add(second);
-      awaitables.addAll(Arrays.asList(others));
+    awaitables.addAll(Arrays.asList(others));
 
     return all(awaitables);
   }
@@ -144,7 +148,8 @@ public abstract class Awaitable<T> {
       return awaitables.get(0).map(unused -> null);
     } else {
       HandlerContext ctx = awaitables.get(0).asyncResult().ctx();
-      return fromAsyncResult(ctx.createAllAsyncResult(
+      return fromAsyncResult(
+          ctx.createAllAsyncResult(
               awaitables.stream().map(Awaitable::asyncResult).collect(Collectors.toList())));
     }
   }

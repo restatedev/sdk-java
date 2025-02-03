@@ -13,20 +13,17 @@ import dev.restate.common.function.ThrowingFunction;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
 import dev.restate.sdk.types.AbortedExecutionException;
 import dev.restate.serde.Serde;
-import org.jspecify.annotations.NonNull;
-
-import java.nio.ByteBuffer;
-import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.function.Consumer;
+import org.jspecify.annotations.NonNull;
 
 class Util {
 
   private Util() {}
 
-  static <T, R> R executeMappingException(HandlerContext handlerContext, ThrowingFunction<T, R> fn, T t) {
+  static <T, R> R executeMappingException(
+      HandlerContext handlerContext, ThrowingFunction<T, R> fn, T t) {
     try {
       return fn.apply(t);
     } catch (Throwable e) {
@@ -36,7 +33,8 @@ class Util {
     }
   }
 
-  static <T> Slice serializeWrappingException(HandlerContext handlerContext, Serde<T> serde, T value) {
+  static <T> Slice serializeWrappingException(
+      HandlerContext handlerContext, Serde<T> serde, T value) {
     return executeMappingException(handlerContext, serde::serialize, value);
   }
 

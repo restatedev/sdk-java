@@ -10,29 +10,30 @@ package dev.restate.sdk;
 
 import dev.restate.common.Output;
 import dev.restate.common.Slice;
-import dev.restate.sdk.endpoint.definition.HandlerContext;
+import dev.restate.common.Target;
+import dev.restate.common.function.ThrowingSupplier;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
-
+import dev.restate.sdk.endpoint.definition.HandlerContext;
+import dev.restate.sdk.types.DurablePromiseKey;
+import dev.restate.sdk.types.Request;
+import dev.restate.sdk.types.RetryPolicy;
+import dev.restate.sdk.types.StateKey;
+import dev.restate.sdk.types.TerminalException;
+import dev.restate.serde.Serde;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Optional;
-
-import dev.restate.sdk.types.DurablePromiseKey;
-import dev.restate.common.function.ThrowingSupplier;
-import dev.restate.sdk.types.Request;
-import dev.restate.sdk.types.StateKey;
-import dev.restate.sdk.types.RetryPolicy;
-import dev.restate.common.Target;
-import dev.restate.sdk.types.TerminalException;
-import dev.restate.serde.Serde;
+import java.util.concurrent.Executor;
 import org.jspecify.annotations.NonNull;
 
 class ContextImpl implements ObjectContext, WorkflowContext {
 
-  final HandlerContext handlerContext;
+  private final HandlerContext handlerContext;
+  private final Executor userCodeExecutor;
 
-  ContextImpl(HandlerContext handlerContext) {
+  ContextImpl(HandlerContext handlerContext, Executor userCodeExecutor) {
     this.handlerContext = handlerContext;
+    this.userCodeExecutor = userCodeExecutor;
   }
 
   @Override
@@ -47,82 +48,87 @@ class ContextImpl implements ObjectContext, WorkflowContext {
 
   @Override
   public <T> Optional<T> get(StateKey<T> key) {
-    return
-            Util.awaitCompletableFuture(      Util.awaitCompletableFuture(
-            handlerContext.get(key.name())).poll())
-        .map(key.serde()::deserialize);
+    return Awaitable.fromAsyncResult(Util.awaitCompletableFuture(handlerContext.get(key.name())))
+        .map(opt -> opt.map(key.serde()::deserialize))
+        .await();
   }
 
   @Override
   public Collection<String> stateKeys() {
-    return      Util.awaitCompletableFuture( Util.awaitCompletableFuture(handlerContext.getKeys()).poll());
+    return Util.awaitCompletableFuture(
+        Util.awaitCompletableFuture(handlerContext.getKeys()).poll());
   }
 
   @Override
   public void clear(StateKey<?> key) {
-    Util.awaitCompletableFuture(
-    handlerContext.clear(key.name()));
+    Util.awaitCompletableFuture(handlerContext.clear(key.name()));
   }
 
   @Override
   public void clearAll() {
-    Util.awaitCompletableFuture(
-    handlerContext.clearAll());
+    Util.awaitCompletableFuture(handlerContext.clearAll());
   }
 
   @Override
   public <T> void set(StateKey<T> key, @NonNull T value) {
     Util.awaitCompletableFuture(
-            handlerContext.set(
-                key.name(), Util.serializeWrappingException(handlerContext, key.serde(), value)));
+        handlerContext.set(
+            key.name(), Util.serializeWrappingException(handlerContext, key.serde(), value)));
   }
 
   @Override
   public Awaitable<Void> timer(Duration duration) {
-    return Awaitable.fromAsyncResult(   Util.awaitCompletableFuture(handlerContext.sleep(duration)));
+    return Awaitable.fromAsyncResult(Util.awaitCompletableFuture(handlerContext.sleep(duration)));
   }
 
   @Override
   public <T, R> Awaitable<R> call(
-          Target target, Serde<T> inputSerde, Serde<R> outputSerde, T parameter) {
+      Target target, Serde<T> inputSerde, Serde<R> outputSerde, T parameter) {
     Slice input = Util.serializeWrappingException(handlerContext, inputSerde, parameter);
-    HandlerContext.CallResult result =    Util.awaitCompletableFuture(handlerContext.call(target, input, null, null));
-    return Awaitable.fromAsyncResult(result.callAsyncResult())
-        .map(outputSerde::deserialize);
+    HandlerContext.CallResult result =
+        Util.awaitCompletableFuture(handlerContext.call(target, input, null, null));
+    return Awaitable.fromAsyncResult(result.callAsyncResult()).map(outputSerde::deserialize);
   }
 
   @Override
   public <T> void send(Target target, Serde<T> inputSerde, T parameter) {
     Slice input = Util.serializeWrappingException(handlerContext, inputSerde, parameter);
-    Util.awaitCompletableFuture( handlerContext.send(target, input, null, null, null));
+    Util.awaitCompletableFuture(handlerContext.send(target, input, null, null, null));
   }
 
   @Override
   public <T> void send(Target target, Serde<T> inputSerde, T parameter, Duration delay) {
     Slice input = Util.serializeWrappingException(handlerContext, inputSerde, parameter);
-    Util.awaitCompletableFuture( handlerContext.send(target, input, null, null, delay));
+    Util.awaitCompletableFuture(handlerContext.send(target, input, null, null, delay));
   }
 
   @Override
   public <T> Awaitable<T> scheduleRun(
       String name, Serde<T> serde, RetryPolicy retryPolicy, ThrowingSupplier<T> action) {
-    return Awaitable.fromAsyncResult(Util.awaitCompletableFuture(handlerContext.scheduleRun(name, runCompleter -> {
-      Slice result;
-      try {
-         result =  serde.serialize(action.get());
-      } catch (Throwable e) {
-        runCompleter.proposeFailure(e, retryPolicy);
-        return;
-      }
-      runCompleter.proposeSuccess(result);
-    }))).map(serde::deserialize);
- }
+    return Awaitable.fromAsyncResult(
+            Util.awaitCompletableFuture(
+                handlerContext.scheduleRun(
+                    name,
+                    runCompleter ->
+                        userCodeExecutor.execute(
+                            () -> {
+                              Slice result;
+                              try {
+                                result = serde.serialize(action.get());
+                              } catch (Throwable e) {
+                                runCompleter.proposeFailure(e, retryPolicy);
+                                return;
+                              }
+                              runCompleter.proposeSuccess(result);
+                            }))))
+        .map(serde::deserialize);
+  }
 
   @Override
   public <T> Awakeable<T> awakeable(Serde<T> serde) throws TerminalException {
     // Retrieve the awakeable
     HandlerContext.Awakeable awakeable = Util.awaitCompletableFuture(handlerContext.awakeable());
-    return new Awakeable<>( awakeable.asyncResult(), serde, awakeable.id());
+    return new Awakeable<>(awakeable.asyncResult(), serde, awakeable.id());
   }
 
   @Override
@@ -131,13 +137,14 @@ class ContextImpl implements ObjectContext, WorkflowContext {
       @Override
       public <T> void resolve(Serde<T> serde, @NonNull T payload) {
         Util.awaitCompletableFuture(
-                handlerContext.resolveAwakeable(
-                    id, Util.serializeWrappingException(handlerContext, serde, payload)));
+            handlerContext.resolveAwakeable(
+                id, Util.serializeWrappingException(handlerContext, serde, payload)));
       }
 
       @Override
       public void reject(String reason) {
-        Util.awaitCompletableFuture( handlerContext.rejectAwakeable(id, reason));
+        Util.awaitCompletableFuture(
+            handlerContext.rejectAwakeable(id, new TerminalException(reason)));
       }
     };
   }
@@ -153,16 +160,14 @@ class ContextImpl implements ObjectContext, WorkflowContext {
       @Override
       public Awaitable<T> awaitable() {
         AsyncResult<Slice> result = Util.awaitCompletableFuture(handlerContext.promise(key.name()));
-        return Awaitable.fromAsyncResult( result)
-            .map(key.serde()::deserialize);
+        return Awaitable.fromAsyncResult(result).map(key.serde()::deserialize);
       }
 
       @Override
       public Output<T> peek() {
-        return
-                Util.awaitCompletableFuture(      Util.awaitCompletableFuture(
-                                handlerContext.peekPromise(key.name())).poll())
-                        .map(key.serde()::deserialize);
+        return Util.awaitCompletableFuture(
+                Util.awaitCompletableFuture(handlerContext.peekPromise(key.name())).poll())
+            .map(key.serde()::deserialize);
       }
     };
   }
@@ -172,23 +177,19 @@ class ContextImpl implements ObjectContext, WorkflowContext {
     return new DurablePromiseHandle<>() {
       @Override
       public void resolve(T payload) throws IllegalStateException {
-        Util.awaitCompletableFuture(      Util.awaitCompletableFuture(
-                                handlerContext.resolvePromise(
-                                        key.name(),
-                                        Util.serializeWrappingException(handlerContext, key.serde(), payload)
-                                        )
-                        )
-
-                        .poll());
+        Util.awaitCompletableFuture(
+            Util.awaitCompletableFuture(
+                    handlerContext.resolvePromise(
+                        key.name(),
+                        Util.serializeWrappingException(handlerContext, key.serde(), payload)))
+                .poll());
       }
 
       @Override
       public void reject(String reason) throws IllegalStateException {
-        Util.awaitCompletableFuture(      Util.awaitCompletableFuture(
-                        handlerContext.rejectPromise(key.name(), reason
-                        )
-                )
-
+        Util.awaitCompletableFuture(
+            Util.awaitCompletableFuture(
+                    handlerContext.rejectPromise(key.name(), new TerminalException(reason)))
                 .poll());
       }
     };

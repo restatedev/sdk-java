@@ -8,12 +8,12 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
+import dev.restate.common.Slice
 import dev.restate.sdk.endpoint.definition.HandlerContext
 import dev.restate.sdk.types.TerminalException
-import dev.restate.sdk.definition.HandlerSpecification
-import dev.restate.sdk.common.syscalls.SyscallCallback
+import dev.restate.serde.Serde
 import io.opentelemetry.extension.kotlin.asContextElement
-import java.nio.ByteBuffer
+import java.util.concurrent.CompletableFuture
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -42,11 +42,11 @@ internal constructor(
   }
 
   override fun run(
-    handlerSpecification: HandlerSpecification<REQ, RES>,
-    handlerContext: HandlerContext,
-    options: Options?,
-    callback: SyscallCallback<ByteBuffer>
-  ) {
+      handlerContext: HandlerContext,
+      requestSerde: Serde<REQ>,
+      responseSerde: Serde<RES>,
+      options: Options?
+  ): CompletableFuture<Slice> {
     val ctx: Context = ContextImpl(handlerContext)
 
     val scope =
@@ -55,18 +55,23 @@ internal constructor(
                 dev.restate.sdk.endpoint.definition.HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL
                     .asContextElement(handlerContext) +
                 handlerContext.request().otelContext()!!.asContextElement())
+
+    val completableFuture = CompletableFuture<Slice>()
+
     scope.launch {
-      val serializedResult: ByteBuffer
+      val serializedResult: Slice
 
       try {
         // Parse input
         val req: REQ
         try {
-          req = handlerSpecification.requestSerde.deserialize(handlerContext.request().bodyBuffer())
+          req = requestSerde.deserialize(handlerContext.request().body)
         } catch (e: Throwable) {
           LOG.warn("Error when deserializing input", e)
-          throw TerminalException(
-              TerminalException.BAD_REQUEST_CODE, "Cannot deserialize input: " + e.message)
+          completableFuture.completeExceptionally(
+              throw TerminalException(
+                  TerminalException.BAD_REQUEST_CODE, "Cannot deserialize input: " + e.message))
+          return@launch
         }
 
         // Execute user code
@@ -74,20 +79,22 @@ internal constructor(
 
         // Serialize output
         try {
-          serializedResult = handlerSpecification.responseSerde.serializeToByteBuffer(res)
+          serializedResult = responseSerde.serialize(res)
         } catch (e: Throwable) {
           LOG.warn("Error when serializing input", e)
           throw TerminalException(
               TerminalException.INTERNAL_SERVER_ERROR_CODE, "Cannot serialize output: $e")
         }
       } catch (e: Throwable) {
-        callback.onCancel(e)
+        completableFuture.completeExceptionally(e)
         return@launch
       }
 
       // Complete callback
-      callback.onSuccess(serializedResult)
+      completableFuture.complete(serializedResult)
     }
+
+    return completableFuture
   }
 
   class Options(val coroutineContext: CoroutineContext) {

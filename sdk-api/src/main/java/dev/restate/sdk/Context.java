@@ -8,16 +8,14 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
+import dev.restate.common.Target;
 import dev.restate.common.function.ThrowingRunnable;
 import dev.restate.common.function.ThrowingSupplier;
-import dev.restate.sdk.endpoint.definition.AsyncResult;
 import dev.restate.sdk.types.AbortedExecutionException;
+import dev.restate.sdk.types.Request;
 import dev.restate.sdk.types.RetryPolicy;
 import dev.restate.sdk.types.TerminalException;
-import dev.restate.common.Target;
 import dev.restate.serde.Serde;
-import dev.restate.sdk.types.Request;
-
 import java.time.Duration;
 
 /**
@@ -162,7 +160,8 @@ public interface Context {
    *
    * @see RetryPolicy
    */
-  default <T> T run(String name, Serde<T> serde, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
+  default <T> T run(
+      String name, Serde<T> serde, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
       throws TerminalException {
     return scheduleRun(name, serde, retryPolicy, action).await();
   }
@@ -284,7 +283,7 @@ public interface Context {
    * @return value of the run operation.
    */
   default <T> Awaitable<T> scheduleRun(String name, Serde<T> serde, ThrowingSupplier<T> action)
-          throws TerminalException {
+      throws TerminalException {
     return scheduleRun(name, serde, null, action);
   }
 
@@ -297,8 +296,9 @@ public interface Context {
    *
    * @see RetryPolicy
    */
-  <T> Awaitable<T> scheduleRun(String name, Serde<T> serde, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
-          throws TerminalException;
+  <T> Awaitable<T> scheduleRun(
+      String name, Serde<T> serde, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
+      throws TerminalException;
 
   /**
    * Like {@link #run(String, ThrowingRunnable)}, but using a custom retry policy.
@@ -309,16 +309,16 @@ public interface Context {
    *
    * @see RetryPolicy
    */
-  default Awaitable<Void> scheduleRun(String name, RetryPolicy retryPolicy, ThrowingRunnable runnable)
-          throws TerminalException {
+  default Awaitable<Void> scheduleRun(
+      String name, RetryPolicy retryPolicy, ThrowingRunnable runnable) throws TerminalException {
     return scheduleRun(
-            name,
-            Serde.VOID,
-            retryPolicy,
-            () -> {
-              runnable.run();
-              return null;
-            });
+        name,
+        Serde.VOID,
+        retryPolicy,
+        () -> {
+          runnable.run();
+          return null;
+        });
   }
 
   /**
@@ -330,8 +330,9 @@ public interface Context {
    *
    * @see RetryPolicy
    */
-  default <T> Awaitable<T> scheduleRun(Serde<T> serde, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
-          throws TerminalException {
+  default <T> Awaitable<T> scheduleRun(
+      Serde<T> serde, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
+      throws TerminalException {
     return scheduleRun(null, serde, retryPolicy, action);
   }
 
@@ -344,23 +345,26 @@ public interface Context {
    *
    * @see RetryPolicy
    */
-  default Awaitable<Void> scheduleRun(RetryPolicy retryPolicy, ThrowingRunnable runnable) throws TerminalException {
+  default Awaitable<Void> scheduleRun(RetryPolicy retryPolicy, ThrowingRunnable runnable)
+      throws TerminalException {
     return scheduleRun(null, retryPolicy, runnable);
   }
 
   /** Like {@link #run(String, Serde, ThrowingSupplier)}, but without returning a value. */
-  default Awaitable<Void> scheduleRun(String name, ThrowingRunnable runnable) throws TerminalException {
+  default Awaitable<Void> scheduleRun(String name, ThrowingRunnable runnable)
+      throws TerminalException {
     return scheduleRun(
-            name,
-            Serde.VOID,
-            () -> {
-              runnable.run();
-              return null;
-            });
+        name,
+        Serde.VOID,
+        () -> {
+          runnable.run();
+          return null;
+        });
   }
 
   /** Like {@link #run(String, Serde, ThrowingSupplier)}, but without a name. */
-  default <T> Awaitable<T> scheduleRun(Serde<T> serde, ThrowingSupplier<T> action) throws TerminalException {
+  default <T> Awaitable<T> scheduleRun(Serde<T> serde, ThrowingSupplier<T> action)
+      throws TerminalException {
     return scheduleRun(null, serde, action);
   }
 
