@@ -23,7 +23,6 @@ import dev.restate.sdk.endpoint.definition.HandlerType;
 import dev.restate.sdk.endpoint.definition.ServiceDefinition;
 import dev.restate.sdk.endpoint.definition.ServiceType;
 import dev.restate.serde.Serde;
-
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -52,15 +51,14 @@ public class JavaBlockingTests extends TestRunner {
   }
 
   public static <T, R> TestInvocationBuilder testDefinitionForService(
-          String name, Serde<T> reqSerde, Serde<R> resSerde, ThrowingBiFunction<Context, T, R> runner) {
+      String name, Serde<T> reqSerde, Serde<R> resSerde, ThrowingBiFunction<Context, T, R> runner) {
     return TestDefinitions.testInvocation(
         ServiceDefinition.of(
             name,
             ServiceType.SERVICE,
             List.of(
                 HandlerDefinition.of(
-                    "run", HandlerType.SHARED, reqSerde, resSerde,
-                    HandlerRunner.of(runner)))),
+                    "run", HandlerType.SHARED, reqSerde, resSerde, HandlerRunner.of(runner)))),
         "run");
   }
 
@@ -75,8 +73,7 @@ public class JavaBlockingTests extends TestRunner {
             ServiceType.VIRTUAL_OBJECT,
             List.of(
                 HandlerDefinition.of(
-                    "run", HandlerType.EXCLUSIVE, reqSerde, resSerde,
-                    HandlerRunner.of(runner)))),
+                    "run", HandlerType.EXCLUSIVE, reqSerde, resSerde, HandlerRunner.of(runner)))),
         "run");
   }
 
@@ -91,8 +88,7 @@ public class JavaBlockingTests extends TestRunner {
             ServiceType.WORKFLOW,
             List.of(
                 HandlerDefinition.of(
-                    "run", HandlerType.WORKFLOW, reqSerde, resSerde,
-                    HandlerRunner.of(runner)))),
+                    "run", HandlerType.WORKFLOW, reqSerde, resSerde, HandlerRunner.of(runner)))),
         "run");
   }
 

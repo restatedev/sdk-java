@@ -59,8 +59,6 @@ class CounterKt {
 }
 
 fun main() {
-  val endpoint = endpoint {
-    bind(CounterKt)
-  }
+  val endpoint = endpoint { bind(CounterKt) }
   RestateHttpServer.listen(endpoint)
 }

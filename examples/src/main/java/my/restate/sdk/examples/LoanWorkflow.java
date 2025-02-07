@@ -18,14 +18,13 @@ import dev.restate.sdk.annotation.Shared;
 import dev.restate.sdk.annotation.Workflow;
 import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.http.vertx.RestateHttpServer;
+import dev.restate.sdk.serde.jackson.JacksonSerdes;
 import dev.restate.sdk.types.DurablePromiseKey;
 import dev.restate.sdk.types.StateKey;
 import dev.restate.sdk.types.TerminalException;
-import dev.restate.sdk.serde.jackson.JacksonSerdes;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.concurrent.TimeoutException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -125,10 +124,7 @@ public class LoanWorkflow {
   }
 
   public static void main(String[] args) {
-    Endpoint endpoint = Endpoint.builder()
-            .bind(new LoanWorkflow())
-            .bind(new MockBank())
-            .build();
+    Endpoint endpoint = Endpoint.builder().bind(new LoanWorkflow()).bind(new MockBank()).build();
 
     RestateHttpServer.listen(endpoint);
 

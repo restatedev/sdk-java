@@ -8,15 +8,15 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.testInvocation;
+import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 
 import com.google.protobuf.ByteString;
 import dev.restate.sdk.annotation.*;
 import dev.restate.sdk.annotation.Service;
-import dev.restate.sdk.core.statemachine.ProtoUtils;
 import dev.restate.sdk.core.TestDefinitions;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
+import dev.restate.sdk.core.statemachine.ProtoUtils;
 import dev.restate.sdk.serde.Serde;
 import dev.restate.sdk.types.Target;
 import java.io.IOException;

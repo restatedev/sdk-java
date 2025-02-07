@@ -8,10 +8,10 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.core.statemachine.ProtoUtils.*
 import dev.restate.sdk.core.StateTestSuite
 import dev.restate.sdk.core.TestDefinitions.*
 import dev.restate.sdk.core.TestSerdes
+import dev.restate.sdk.core.statemachine.ProtoUtils.*
 import dev.restate.sdk.kotlin.KotlinCoroutinesTests.Companion.testDefinitionForVirtualObject
 import dev.restate.sdk.types.StateKey
 import java.util.stream.Stream

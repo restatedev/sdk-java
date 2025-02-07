@@ -8,7 +8,6 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package my.restate.sdk.examples;
 
-import dev.restate.sdk.Awaitable;
 import dev.restate.sdk.JsonSerdes;
 import dev.restate.sdk.ObjectContext;
 import dev.restate.sdk.SharedObjectContext;
@@ -63,9 +62,7 @@ public class Counter {
   }
 
   public static void main(String[] args) {
-    Endpoint endpoint = Endpoint.builder()
-            .bind(new Counter())
-            .build();
+    Endpoint endpoint = Endpoint.builder().bind(new Counter()).build();
 
     RestateHttpServer.listen(endpoint);
   }
