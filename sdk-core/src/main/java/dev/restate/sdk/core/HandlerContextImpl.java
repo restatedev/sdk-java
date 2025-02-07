@@ -203,7 +203,7 @@ class HandlerContextImpl implements HandlerContextInternal {
   }
 
   @Override
-  public CompletableFuture<AsyncResult<Slice>> scheduleRun(
+  public CompletableFuture<AsyncResult<Slice>> submitRun(
       @Nullable String name, Consumer<RunCompleter> closure) {
     return catchExceptions(
         () -> {

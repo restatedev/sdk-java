@@ -152,10 +152,10 @@ sealed interface Context {
       retryPolicy: RetryPolicy? = null,
       block: suspend () -> T
   ): T {
-    return scheduleRun(serde, name, retryPolicy, block).await()
+    return runAsync(serde, name, retryPolicy, block).await()
   }
 
-  suspend fun <T : Any?> scheduleRun(
+  suspend fun <T : Any?> runAsync(
       serde: Serde<T>,
       name: String = "",
       retryPolicy: RetryPolicy? = null,
@@ -248,12 +248,12 @@ suspend inline fun <reified T : Any> Context.runBlock(
   return this.runBlock(KtSerdes.json(), name, retryPolicy, block)
 }
 
-suspend inline fun <reified T : Any> Context.scheduleRun(
+suspend inline fun <reified T : Any> Context.runAsync(
     name: String = "",
     retryPolicy: RetryPolicy? = null,
     noinline block: suspend () -> T
 ): Awaitable<T> {
-  return this.scheduleRun(KtSerdes.json(), name, retryPolicy, block)
+  return this.runAsync(KtSerdes.json(), name, retryPolicy, block)
 }
 
 /**

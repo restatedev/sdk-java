@@ -100,9 +100,9 @@ final class ExecutorSwitchingHandlerContextImpl extends HandlerContextImpl {
   }
 
   @Override
-  public CompletableFuture<AsyncResult<Slice>> scheduleRun(
+  public CompletableFuture<AsyncResult<Slice>> submitRun(
       @Nullable String name, Consumer<RunCompleter> closure) {
-    return CompletableFuture.supplyAsync(() -> super.scheduleRun(name, closure), coreExecutor)
+    return CompletableFuture.supplyAsync(() -> super.submitRun(name, closure), coreExecutor)
         .thenCompose(Function.identity());
   }
 

@@ -89,7 +89,7 @@ internal class ContextImpl internal constructor(internal val handlerContext: Han
         .await()
   }
 
-  override suspend fun <T : Any?> scheduleRun(
+  override suspend fun <T : Any?> runAsync(
       serde: Serde<T>,
       name: String,
       retryPolicy: RetryPolicy?,
@@ -109,7 +109,7 @@ internal class ContextImpl internal constructor(internal val handlerContext: Han
 
     val asyncResult =
         handlerContext
-            .scheduleRun(name) { completer ->
+            .submitRun(name) { completer ->
               scope.launch {
                 val result: Slice?
                 try {

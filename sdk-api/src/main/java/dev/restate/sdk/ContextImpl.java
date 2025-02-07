@@ -103,11 +103,11 @@ class ContextImpl implements ObjectContext, WorkflowContext {
   }
 
   @Override
-  public <T> Awaitable<T> scheduleRun(
+  public <T> Awaitable<T> runAsync(
       String name, Serde<T> serde, RetryPolicy retryPolicy, ThrowingSupplier<T> action) {
     return Awaitable.fromAsyncResult(
             Util.awaitCompletableFuture(
-                handlerContext.scheduleRun(
+                handlerContext.submitRun(
                     name,
                     runCompleter ->
                         userCodeExecutor.execute(

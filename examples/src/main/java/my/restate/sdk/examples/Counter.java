@@ -20,6 +20,8 @@ import dev.restate.sdk.types.StateKey;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.time.Duration;
+
 /** Counter virtual object */
 @VirtualObject(name = "Counter")
 public class Counter {
@@ -39,6 +41,7 @@ public class Counter {
   public void add(ObjectContext ctx, long request) {
     long currentValue = ctx.get(TOTAL).orElse(0L);
     long newValue = currentValue + request;
+    ctx.sleep(Duration.ofSeconds(120));
     ctx.set(TOTAL, newValue);
   }
 

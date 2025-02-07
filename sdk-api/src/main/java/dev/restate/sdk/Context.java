@@ -163,7 +163,7 @@ public interface Context {
   default <T> T run(
       String name, Serde<T> serde, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
       throws TerminalException {
-    return scheduleRun(name, serde, retryPolicy, action).await();
+    return runAsync(name, serde, retryPolicy, action).await();
   }
 
   /**
@@ -282,9 +282,9 @@ public interface Context {
    * @param <T> type of the return value.
    * @return value of the run operation.
    */
-  default <T> Awaitable<T> scheduleRun(String name, Serde<T> serde, ThrowingSupplier<T> action)
+  default <T> Awaitable<T> runAsync(String name, Serde<T> serde, ThrowingSupplier<T> action)
       throws TerminalException {
-    return scheduleRun(name, serde, null, action);
+    return runAsync(name, serde, null, action);
   }
 
   /**
@@ -296,7 +296,7 @@ public interface Context {
    *
    * @see RetryPolicy
    */
-  <T> Awaitable<T> scheduleRun(
+  <T> Awaitable<T> runAsync(
       String name, Serde<T> serde, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
       throws TerminalException;
 
@@ -309,9 +309,9 @@ public interface Context {
    *
    * @see RetryPolicy
    */
-  default Awaitable<Void> scheduleRun(
-      String name, RetryPolicy retryPolicy, ThrowingRunnable runnable) throws TerminalException {
-    return scheduleRun(
+  default Awaitable<Void> runAsync(String name, RetryPolicy retryPolicy, ThrowingRunnable runnable)
+      throws TerminalException {
+    return runAsync(
         name,
         Serde.VOID,
         retryPolicy,
@@ -330,10 +330,10 @@ public interface Context {
    *
    * @see RetryPolicy
    */
-  default <T> Awaitable<T> scheduleRun(
+  default <T> Awaitable<T> runAsync(
       Serde<T> serde, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
       throws TerminalException {
-    return scheduleRun(null, serde, retryPolicy, action);
+    return runAsync(null, serde, retryPolicy, action);
   }
 
   /**
@@ -345,15 +345,15 @@ public interface Context {
    *
    * @see RetryPolicy
    */
-  default Awaitable<Void> scheduleRun(RetryPolicy retryPolicy, ThrowingRunnable runnable)
+  default Awaitable<Void> runAsync(RetryPolicy retryPolicy, ThrowingRunnable runnable)
       throws TerminalException {
-    return scheduleRun(null, retryPolicy, runnable);
+    return runAsync(null, retryPolicy, runnable);
   }
 
   /** Like {@link #run(String, Serde, ThrowingSupplier)}, but without returning a value. */
-  default Awaitable<Void> scheduleRun(String name, ThrowingRunnable runnable)
+  default Awaitable<Void> runAsync(String name, ThrowingRunnable runnable)
       throws TerminalException {
-    return scheduleRun(
+    return runAsync(
         name,
         Serde.VOID,
         () -> {
@@ -363,14 +363,14 @@ public interface Context {
   }
 
   /** Like {@link #run(String, Serde, ThrowingSupplier)}, but without a name. */
-  default <T> Awaitable<T> scheduleRun(Serde<T> serde, ThrowingSupplier<T> action)
+  default <T> Awaitable<T> runAsync(Serde<T> serde, ThrowingSupplier<T> action)
       throws TerminalException {
-    return scheduleRun(null, serde, action);
+    return runAsync(null, serde, action);
   }
 
   /** Like {@link #run(String, ThrowingRunnable)}, but without a name. */
-  default Awaitable<Void> scheduleRun(ThrowingRunnable runnable) throws TerminalException {
-    return scheduleRun((String) null, runnable);
+  default Awaitable<Void> runAsync(ThrowingRunnable runnable) throws TerminalException {
+    return runAsync((String) null, runnable);
   }
 
   /**

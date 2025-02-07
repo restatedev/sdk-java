@@ -9,7 +9,6 @@
 package dev.restate.sdk.endpoint.definition;
 
 import dev.restate.common.Slice;
-import dev.restate.common.function.ThrowingFunction;
 import dev.restate.sdk.types.*;
 
 import java.time.Duration;
@@ -71,7 +70,7 @@ public interface HandlerContext {
     void proposeFailure(Throwable toWrite, @Nullable RetryPolicy retryPolicy);
   }
 
-  CompletableFuture<AsyncResult<Slice>> scheduleRun(@Nullable String name, Consumer<RunCompleter> closure);
+  CompletableFuture<AsyncResult<Slice>> submitRun(@Nullable String name, Consumer<RunCompleter> closure);
 
   record Awakeable(String id, AsyncResult<Slice> asyncResult) {}
 
