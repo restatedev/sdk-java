@@ -8,19 +8,20 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static dev.restate.sdk.core.AssertUtils.assertThatDecodingMessages;
 
 import com.google.protobuf.MessageLite;
-import dev.restate.sdk.core.impl.MessageDecoder;
-import dev.restate.sdk.core.impl.ServiceProtocol;
-import dev.restate.sdk.core.manifest.EndpointManifestSchema;
+import dev.restate.common.Slice;
 import dev.restate.sdk.core.statemachine.InvocationInput;
-import dev.restate.sdk.definition.HandlerProcessor;
+import dev.restate.sdk.core.statemachine.ProtoUtils;
+import dev.restate.sdk.endpoint.Endpoint;
+import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.endpoint.definition.ServiceDefinition;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.helpers.test.AssertSubscriber;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import org.apache.logging.log4j.ThreadContext;
@@ -45,47 +46,48 @@ public final class MockMultiThreaded implements TestDefinitions.TestExecutor {
 
     // Prepare server
     @SuppressWarnings("unchecked")
-    EndpointImpl.Builder builder =
-        EndpointImpl.newBuilder(EndpointManifestSchema.ProtocolMode.BIDI_STREAM)
+    Endpoint.Builder builder =
+        Endpoint.builder()
             .bind(
                 (ServiceDefinition<? super Object>) serviceDefinition,
                 definition.getServiceOptions());
     if (definition.isEnablePreviewContext()) {
       builder.enablePreviewContext();
     }
-    EndpointImpl server = builder.build();
+    EndpointRequestHandler server = EndpointRequestHandler.forBidiStream(builder.build());
 
     // Start invocation
-    HandlerProcessor handler =
-        server.resolve(
-            ServiceProtocol.serviceProtocolVersionToHeaderValue(
-                ServiceProtocol.maxServiceProtocolVersion(definition.isEnablePreviewContext())),
-            serviceDefinition.getServiceName(),
-            definition.getMethod(),
-            k -> null,
-            io.opentelemetry.context.Context.current(),
-            EndpointImpl.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
+    RequestProcessor handler =
+        server.processorForRequest(
+                "/" + serviceDefinition.getServiceName() + "/" + definition.getMethod(),
+                HeadersAccessor.wrap(Map.of(
+                        "content-type",
+                        ProtoUtils.serviceProtocolContentTypeHeader()
+                )),
+EndpointRequestHandler.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
             syscallsExecutor);
 
     // Wire invocation
-    AssertSubscriber<InvocationInput> assertSubscriber = AssertSubscriber.create(Long.MAX_VALUE);
+    AssertSubscriber<Slice> assertSubscriber = AssertSubscriber.create(Long.MAX_VALUE);
 
     // Wire invocation and start it
     Multi.createFrom()
         .iterable(definition.getInput())
         .runSubscriptionOn(syscallsExecutor)
         .map(ProtoUtils::invocationInputToByteString)
+            .map(Slice::wrap)
         .subscribe(handler);
     Multi.createFrom()
         .publisher(handler)
         .runSubscriptionOn(syscallsExecutor)
-        .subscribe(new MessageDecoder(assertSubscriber));
+        .subscribe(assertSubscriber);
 
     // Check completed
     assertSubscriber.awaitCompletion(Duration.ofSeconds(1));
-    // Unwrap messages
-    //noinspection unchecked
-    assertThat(assertSubscriber.getItems())
+
+    // Unwrap messages and decode them
+      //noinspection unchecked
+      assertThatDecodingMessages(assertSubscriber.getItems().toArray(Slice[]::new))
         .map(InvocationInput::message)
         .satisfies(l -> definition.getOutputAssert().accept((List<MessageLite>) l));
 

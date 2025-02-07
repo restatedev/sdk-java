@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.core.DeferredTestSuite
+import dev.restate.sdk.core.AsyncResultTestSuite
 import dev.restate.sdk.core.TestDefinitions.*
 import dev.restate.sdk.core.TestSerdes
 import dev.restate.sdk.kotlin.KotlinCoroutinesTests.Companion.callGreeterGreetService
@@ -16,7 +16,7 @@ import dev.restate.sdk.kotlin.KotlinCoroutinesTests.Companion.testDefinitionForV
 import dev.restate.sdk.types.StateKey
 import java.util.stream.Stream
 
-class DeferredTest : DeferredTestSuite() {
+class AsyncResultTest : AsyncResultTestSuite() {
   override fun reverseAwaitOrder(): TestInvocationBuilder =
       testDefinitionForVirtualObject("ReverseAwaitOrder") { ctx, _: Unit ->
         val a1: Awaitable<String> = callGreeterGreetService(ctx, "Francesco")

@@ -34,8 +34,8 @@ import org.jspecify.annotations.Nullable;
 class ElementConverter {
 
   private static final PayloadType EMPTY_PAYLOAD =
-      new PayloadType(true, "", "Void", "dev.restate.sdk.common.Serde.VOID");
-  private static final String RAW_SERDE = "dev.restate.sdk.common.Serde.RAW";
+      new PayloadType(true, "", "Void", "dev.restate.serde.Serde.VOID");
+  private static final String RAW_SERDE = "dev.restate.serde.Serde.RAW";
 
   private final Messager messager;
   private final Elements elements;
@@ -346,7 +346,7 @@ class ElementConverter {
       case CHAR -> "dev.restate.sdk.JsonSerdes.CHAR";
       case FLOAT -> "dev.restate.sdk.JsonSerdes.FLOAT";
       case DOUBLE -> "dev.restate.sdk.JsonSerdes.DOUBLE";
-      case VOID -> "dev.restate.sdk.common.Serde.VOID";
+      case VOID -> "dev.restate.serde.Serde.VOID";
       default ->
           // Default to Jackson type reference serde
           "dev.restate.sdk.serde.jackson.JacksonSerdes.of(new com.fasterxml.jackson.core.type.TypeReference<"

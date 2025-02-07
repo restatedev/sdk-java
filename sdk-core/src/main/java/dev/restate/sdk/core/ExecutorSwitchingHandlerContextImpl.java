@@ -165,6 +165,18 @@ final class ExecutorSwitchingHandlerContextImpl extends HandlerContextImpl {
   }
 
   @Override
+  public CompletableFuture<Void> writeOutput(Slice value) {
+    return CompletableFuture.supplyAsync(() -> super.writeOutput(value), coreExecutor)
+            .thenCompose(Function.identity());
+  }
+
+  @Override
+  public CompletableFuture<Void> writeOutput(TerminalException throwable) {
+    return CompletableFuture.supplyAsync(() -> super.writeOutput(throwable), coreExecutor)
+            .thenCompose(Function.identity());
+  }
+
+  @Override
   public void close() {
     coreExecutor.execute(super::close);
   }

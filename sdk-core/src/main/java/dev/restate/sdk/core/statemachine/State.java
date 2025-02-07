@@ -106,12 +106,13 @@ sealed interface State
             stateContext.getJournal().getCurrentEntryName(),
             stateContext.getJournal().getCurrentEntryTy());
     if (nextRetryDelay != null) {
-      errorMessage = errorMessage.toBuilder()  .setNextRetryDelay(nextRetryDelay.toMillis()).build();
+      errorMessage = errorMessage.toBuilder().setNextRetryDelay(nextRetryDelay.toMillis()).build();
     }
 
     stateContext.maybeWriteMessageOut(errorMessage);
-    stateContext.closeOutputSubscriber();
     stateContext.getStateHolder().transition(new ClosedState());
+
+    stateContext.closeOutputSubscriber();
   }
 
   default void hitSuspended(Collection<NotificationId> awaitingOn, StateContext stateContext) {
@@ -129,19 +130,22 @@ sealed interface State
     }
 
     stateContext.maybeWriteMessageOut(suspensionMessageBuilder.build());
-    stateContext.closeOutputSubscriber();
     stateContext.getStateHolder().transition(new ClosedState());
+
+    stateContext.closeOutputSubscriber();
   }
 
   default void end(StateContext stateContext) {
     LOG.info("Invocation ended");
 
     stateContext.writeMessageOut(Protocol.EndMessage.getDefaultInstance());
-    stateContext.closeOutputSubscriber();
     stateContext.getStateHolder().transition(new ClosedState());
+
+    stateContext.closeOutputSubscriber();
   }
 
   default void onInputClosed(StateContext stateContext) {
+    LOG.trace("Marking input closed");
     stateContext.markInputClosed();
   }
 

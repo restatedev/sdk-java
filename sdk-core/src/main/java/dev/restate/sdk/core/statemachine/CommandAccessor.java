@@ -22,7 +22,17 @@ interface CommandAccessor<E extends MessageLite> {
     Util.assertEntryEquals(expected, actual);
   }
 
-  CommandAccessor<Protocol.InputCommandMessage> INPUT = (e) -> "";
+  CommandAccessor<Protocol.InputCommandMessage> INPUT = new CommandAccessor<>() {
+      @Override
+      public String getName(Protocol.InputCommandMessage expected) {
+          return "";
+      }
+
+      @Override
+      public void checkEntryHeader(Protocol.InputCommandMessage expected, MessageLite actual) throws ProtocolException {
+          // Nothing to check
+      }
+  };
   CommandAccessor<Protocol.OutputCommandMessage> OUTPUT = Protocol.OutputCommandMessage::getName;
   CommandAccessor<Protocol.GetEagerStateCommandMessage> GET_EAGER_STATE =
       new CommandAccessor<>() {

@@ -13,6 +13,8 @@ dependencies {
   ksp(project(":sdk-api-kotlin-gen"))
   annotationProcessor(project(":sdk-api-gen"))
 
+  implementation(project(":client"))
+  implementation(project(":client-kotlin"))
   implementation(project(":sdk-api"))
   implementation(project(":sdk-lambda"))
   implementation(project(":sdk-http-vertx"))

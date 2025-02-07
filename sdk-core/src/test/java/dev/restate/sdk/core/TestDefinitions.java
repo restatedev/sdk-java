@@ -8,12 +8,14 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import static dev.restate.sdk.core.ProtoUtils.headerFromMessage;
+import static dev.restate.sdk.core.statemachine.ProtoUtils.headerFromMessage;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.MessageLiteOrBuilder;
+import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.core.statemachine.InvocationInput;
+import dev.restate.sdk.core.statemachine.ProtoUtils;
 import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.endpoint.definition.ServiceDefinition;
 import java.util.*;
@@ -162,7 +164,7 @@ public final class TestDefinitions {
                       MessageLite msg = ProtoUtils.build(msgOrBuilder);
                       return InvocationInput.of(headerFromMessage(msg), msg);
                     })
-                .collect(Collectors.toList()));
+                .toList());
       }
       return this;
     }

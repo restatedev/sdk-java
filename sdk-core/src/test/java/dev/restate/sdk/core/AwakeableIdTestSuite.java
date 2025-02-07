@@ -8,15 +8,11 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import static dev.restate.sdk.core.ProtoUtils.inputMessage;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.InstanceOfAssertFactories.type;
+import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 
 import com.google.protobuf.ByteString;
 import dev.restate.sdk.core.TestDefinitions.TestDefinition;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
-import dev.restate.sdk.core.generated.protocol.Protocol;
-import dev.restate.sdk.core.impl.Entries;
 import java.nio.ByteBuffer;
 import java.util.Base64;
 import java.util.UUID;
@@ -37,28 +33,17 @@ public abstract class AwakeableIdTestSuite implements TestSuite {
     expectedAwakeableId.putInt(1);
     expectedAwakeableId.flip();
     String base64ExpectedAwakeableId =
-        Entries.AWAKEABLE_IDENTIFIER_PREFIX
+        "sign_1"
             + Base64.getUrlEncoder().encodeToString(expectedAwakeableId.array());
 
     return Stream.of(
         returnAwakeableId()
             .withInput(
-                Protocol.StartMessage.newBuilder()
-                    .setDebugId(debugId)
-                    .setId(ByteString.copyFrom(serializedId))
-                    .setKnownEntries(1),
+                    startMessage(1).setDebugId(debugId).setId(ByteString.copyFrom(serializedId)),
                 inputMessage())
-            .assertingOutput(
-                messages -> {
-                  assertThat(messages).element(0).isInstanceOf(AwakeableEntryMessage.class);
-                  assertThat(messages)
-                      .element(1)
-                      .asInstanceOf(type(Protocol.OutputEntryMessage.class))
-                      .extracting(
-                          out ->
-                              TestSerdes.STRING.deserialize(out.getValue().asReadOnlyByteBuffer()))
-                      .isEqualTo(base64ExpectedAwakeableId);
-                }));
+                .expectingOutput(
+                        outputMessage(base64ExpectedAwakeableId)
+                ));
   }
 
   private byte[] serializeUUID(UUID uuid) {

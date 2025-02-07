@@ -78,11 +78,19 @@ class StateMachineImpl implements StateMachine {
   }
 
   @Override
-  public CompletableFuture<Void> waitNextProcessedInput() {
+  public CompletableFuture<Void> waitNextInputSignal() {
     if (waitNextProcessedInput == null) {
       this.waitNextProcessedInput = new CompletableFuture<>();
     }
     return this.waitNextProcessedInput;
+  }
+
+  private void triggerWaitNextInputSignal() {
+    if (this.waitNextProcessedInput != null) {
+      CompletableFuture<Void> fut = this.waitNextProcessedInput;
+      fut.complete(null);
+      this.waitNextProcessedInput = null;
+    }
   }
 
   // -- IO
@@ -136,10 +144,8 @@ class StateMachineImpl implements StateMachine {
         invocationInput = this.messageDecoder.next();
       }
 
-      if (shouldTriggerInputListener) {
-        CompletableFuture<Void> fut = this.waitNextProcessedInput;
-        fut.complete(null);
-        this.waitNextProcessedInput = null;
+      if (shouldTriggerInputListener ) {
+        this.triggerWaitNextInputSignal();
       }
 
     } catch (Throwable e) {
@@ -162,6 +168,7 @@ class StateMachineImpl implements StateMachine {
     } catch (Throwable e) {
       this.onError(e);
     }
+    this.triggerWaitNextInputSignal();
     this.cancelInputSubscription();
   }
 

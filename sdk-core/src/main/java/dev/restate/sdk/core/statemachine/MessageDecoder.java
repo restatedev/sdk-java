@@ -16,7 +16,7 @@ import java.util.ArrayDeque;
 import java.util.Queue;
 import org.jspecify.annotations.Nullable;
 
-final class MessageDecoder {
+public final class MessageDecoder {
 
   private enum State {
     WAITING_HEADER,
@@ -31,7 +31,7 @@ final class MessageDecoder {
   private MessageHeader lastParsedMessageHeader;
   private RuntimeException lastParsingFailure;
 
-  MessageDecoder() {
+  public MessageDecoder() {
     this.parsedMessages = new ArrayDeque<>();
     this.internalBuffer = ByteString.EMPTY;
 

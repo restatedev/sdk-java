@@ -8,8 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import static dev.restate.sdk.core.ProtoUtils.GREETER_SERVICE_TARGET;
+import static dev.restate.sdk.core.statemachine.ProtoUtils.GREETER_SERVICE_TARGET;
 
+import dev.restate.common.function.ThrowingBiFunction;
 import dev.restate.sdk.core.MockMultiThreaded;
 import dev.restate.sdk.core.MockSingleThread;
 import dev.restate.sdk.core.TestDefinitions;
@@ -17,13 +18,12 @@ import dev.restate.sdk.core.TestDefinitions.TestExecutor;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
 import dev.restate.sdk.core.TestRunner;
-import dev.restate.sdk.definition.HandlerSpecification;
 import dev.restate.sdk.endpoint.definition.HandlerDefinition;
 import dev.restate.sdk.endpoint.definition.HandlerType;
 import dev.restate.sdk.endpoint.definition.ServiceDefinition;
 import dev.restate.sdk.endpoint.definition.ServiceType;
-import dev.restate.sdk.function.ThrowingBiFunction;
-import dev.restate.sdk.serde.Serde;
+import dev.restate.serde.Serde;
+
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -38,7 +38,7 @@ public class JavaBlockingTests extends TestRunner {
   public Stream<TestSuite> definitions() {
     return Stream.of(
         new AwakeableIdTest(),
-        new DeferredTest(),
+        new AsyncResultTest(),
         new EagerStateTest(),
         new StateTest(),
         new InvocationIdTest(),
@@ -52,14 +52,14 @@ public class JavaBlockingTests extends TestRunner {
   }
 
   public static <T, R> TestInvocationBuilder testDefinitionForService(
-      String name, Serde<T> reqSerde, Serde<R> resSerde, ThrowingBiFunction<Context, T, R> runner) {
+          String name, Serde<T> reqSerde, Serde<R> resSerde, ThrowingBiFunction<Context, T, R> runner) {
     return TestDefinitions.testInvocation(
         ServiceDefinition.of(
             name,
             ServiceType.SERVICE,
             List.of(
                 HandlerDefinition.of(
-                    HandlerSpecification.of("run", HandlerType.SHARED, reqSerde, resSerde),
+                    "run", HandlerType.SHARED, reqSerde, resSerde,
                     HandlerRunner.of(runner)))),
         "run");
   }
@@ -75,7 +75,7 @@ public class JavaBlockingTests extends TestRunner {
             ServiceType.VIRTUAL_OBJECT,
             List.of(
                 HandlerDefinition.of(
-                    HandlerSpecification.of("run", HandlerType.EXCLUSIVE, reqSerde, resSerde),
+                    "run", HandlerType.EXCLUSIVE, reqSerde, resSerde,
                     HandlerRunner.of(runner)))),
         "run");
   }
@@ -91,7 +91,7 @@ public class JavaBlockingTests extends TestRunner {
             ServiceType.WORKFLOW,
             List.of(
                 HandlerDefinition.of(
-                    HandlerSpecification.of("run", HandlerType.WORKFLOW, reqSerde, resSerde),
+                    "run", HandlerType.WORKFLOW, reqSerde, resSerde,
                     HandlerRunner.of(runner)))),
         "run");
   }

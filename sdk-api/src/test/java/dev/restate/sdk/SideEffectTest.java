@@ -9,7 +9,7 @@
 package dev.restate.sdk;
 
 import static dev.restate.sdk.JavaBlockingTests.testDefinitionForService;
-import static dev.restate.sdk.core.ProtoUtils.GREETER_SERVICE_TARGET;
+import static dev.restate.sdk.core.statemachine.ProtoUtils.GREETER_SERVICE_TARGET;
 
 import dev.restate.sdk.core.SideEffectTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;

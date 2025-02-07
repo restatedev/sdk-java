@@ -13,7 +13,7 @@ import com.google.protobuf.ByteString
 import com.google.protobuf.MessageLite
 import dev.restate.generated.service.protocol.Protocol.*
 import dev.restate.sdk.JsonSerdes
-import dev.restate.sdk.core.ProtoUtils.*
+import dev.restate.sdk.core.statemachine.ProtoUtils.*
 import dev.restate.sdk.core.manifest.EndpointManifestSchema
 import dev.restate.sdk.http.vertx.testservices.BlockingGreeter
 import dev.restate.sdk.http.vertx.testservices.greeter
@@ -225,6 +225,6 @@ internal class RestateHttpEndpointTest {
       }
 
   private fun encode(msg: MessageLite): Buffer {
-    return Buffer.buffer(Unpooled.wrappedBuffer(messageToByteString(msg)))
+    return Buffer.buffer(Unpooled.wrappedBuffer(encodeMessageToByteBuffer(msg)))
   }
 }

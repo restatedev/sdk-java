@@ -43,7 +43,7 @@ public interface StateMachine extends Flow.Processor<Slice, Slice> {
 
   // --- Await next input
 
-  CompletableFuture<Void> waitNextProcessedInput();
+  CompletableFuture<Void> waitNextInputSignal();
 
   // --- Async results
 

@@ -11,6 +11,7 @@ package dev.restate.sdk.kotlin
 import dev.restate.sdk.core.*
 import dev.restate.sdk.core.TestDefinitions.TestExecutor
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder
+import dev.restate.sdk.core.statemachine.ProtoUtils
 import dev.restate.sdk.definition.HandlerSpecification
 import dev.restate.sdk.endpoint.definition.HandlerDefinition
 import dev.restate.sdk.endpoint.definition.HandlerType
@@ -27,7 +28,7 @@ class KotlinCoroutinesTests : TestRunner() {
   public override fun definitions(): Stream<TestDefinitions.TestSuite> {
     return Stream.of(
         AwakeableIdTest(),
-        DeferredTest(),
+        AsyncResultTest(),
         EagerStateTest(),
         StateTest(),
         InvocationIdTest(),

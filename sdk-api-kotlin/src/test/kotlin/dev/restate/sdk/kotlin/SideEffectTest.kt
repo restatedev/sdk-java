@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.core.ProtoUtils.GREETER_SERVICE_TARGET
+import dev.restate.sdk.core.statemachine.ProtoUtils.GREETER_SERVICE_TARGET
 import dev.restate.sdk.core.SideEffectTestSuite
 import dev.restate.sdk.core.TestDefinitions
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder

@@ -9,12 +9,14 @@
 package dev.restate.sdk.core;
 
 import static dev.restate.sdk.core.AssertUtils.*;
-import static dev.restate.sdk.core.ProtoUtils.*;
+import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 
 import dev.restate.sdk.core.TestDefinitions.TestDefinition;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
 import dev.restate.sdk.core.impl.InvocationIdImpl;
+import dev.restate.sdk.core.statemachine.ProtoUtils;
+
 import java.util.stream.Stream;
 
 public abstract class RandomTestSuite implements TestSuite {

@@ -8,22 +8,23 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static dev.restate.sdk.core.AssertUtils.assertThatDecodingMessages;
 
 import com.google.protobuf.MessageLite;
+import dev.restate.common.Slice;
 import dev.restate.sdk.core.TestDefinitions.TestDefinition;
 import dev.restate.sdk.core.TestDefinitions.TestExecutor;
-import dev.restate.sdk.core.impl.MessageDecoder;
-import dev.restate.sdk.core.impl.ServiceProtocol;
-import dev.restate.sdk.core.manifest.EndpointManifestSchema;
 import dev.restate.sdk.core.statemachine.InvocationInput;
-import dev.restate.sdk.definition.HandlerProcessor;
+import dev.restate.sdk.core.statemachine.ProtoUtils;
 import dev.restate.sdk.endpoint.Endpoint;
+import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.endpoint.definition.ServiceDefinition;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.helpers.test.AssertSubscriber;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
+
 import org.apache.logging.log4j.ThreadContext;
 
 public final class MockSingleThread implements TestExecutor {
@@ -54,32 +55,32 @@ public final class MockSingleThread implements TestExecutor {
     EndpointRequestHandler server = EndpointRequestHandler.forRequestResponse(builder.build());
 
     // Start invocation
-    StaticResponseRequestProcessor handler =
-        server.handleDiscoveryRequest(
-            ServiceProtocol.serviceProtocolVersionToHeaderValue(
-                ServiceProtocol.maxServiceProtocolVersion(definition.isEnablePreviewContext())),
-            serviceDefinition.getServiceName(),
-            definition.getMethod(),
-            k -> null,
-            io.opentelemetry.context.Context.current(),
+    RequestProcessor handler =
+        server.processorForRequest(
+                "/" + serviceDefinition.getServiceName() + "/" + definition.getMethod(),
+                HeadersAccessor.wrap(Map.of(
+                        "content-type",
+                        ProtoUtils.serviceProtocolContentTypeHeader()
+                )),
             EndpointRequestHandler.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
             null);
 
     // Wire invocation
-    AssertSubscriber<InvocationInput> assertSubscriber = AssertSubscriber.create(Long.MAX_VALUE);
+    AssertSubscriber<Slice> assertSubscriber = AssertSubscriber.create(Long.MAX_VALUE);
     Multi.createFrom()
         .iterable(definition.getInput())
         .map(ProtoUtils::invocationInputToByteString)
+            .map(Slice::wrap)
         .subscribe(handler);
-    Multi.createFrom().publisher(handler).subscribe(new MessageDecoder(assertSubscriber));
+    Multi.createFrom().publisher(handler).subscribe(assertSubscriber);
 
     // Check completed
     assertSubscriber.awaitCompletion(Duration.ofSeconds(1));
-    // Unwrap messages
+    // Unwrap messages and decode them
     //noinspection unchecked
-    assertThat(assertSubscriber.getItems())
-        .map(InvocationInput::message)
-        .satisfies(l -> definition.getOutputAssert().accept((List<MessageLite>) l));
+    assertThatDecodingMessages(assertSubscriber.getItems().toArray(Slice[]::new))
+            .map(InvocationInput::message)
+            .satisfies(l -> definition.getOutputAssert().accept((List<MessageLite>) l));
 
     // Clean logging
     ThreadContext.clearAll();

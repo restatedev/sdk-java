@@ -11,14 +11,11 @@ package my.restate.sdk.examples
 import dev.restate.sdk.annotation.Handler
 import dev.restate.sdk.annotation.Shared
 import dev.restate.sdk.annotation.VirtualObject
-import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder
-import dev.restate.sdk.kotlin.HandlerRunner
+import dev.restate.sdk.http.vertx.RestateHttpServer
 import dev.restate.sdk.kotlin.KtStateKey
 import dev.restate.sdk.kotlin.ObjectContext
 import dev.restate.sdk.kotlin.SharedObjectContext
-import io.vertx.core.Vertx
-import io.vertx.core.VertxOptions
-import kotlinx.coroutines.Dispatchers
+import dev.restate.sdk.kotlin.endpoint.endpoint
 import kotlinx.serialization.Serializable
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
@@ -63,21 +60,7 @@ class CounterKt {
 
 fun main() {
   val endpoint = endpoint {
-
+    bind(CounterKt)
   }
-
-  RestateHttpEndpoint.listen(endpoint)
-
-  RestateHttpEndpoint.start {
-    bind()
-    bind()
-
-    opentelemetry =
-  }
-
-  RestateHttpEndpointBuilder.builder(Vertx.vertx(VertxOptions().setEventLoopPoolSize(8)))
-      .bind(
-          CounterKtServiceDefinitionFactory().create(CounterKt()),
-          HandlerRunner.Options(Dispatchers.Unconfined))
-      .buildAndListen()
+  RestateHttpServer.listen(endpoint)
 }

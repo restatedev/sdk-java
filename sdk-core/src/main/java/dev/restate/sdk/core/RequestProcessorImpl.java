@@ -58,40 +58,11 @@ final class RequestProcessorImpl implements RequestProcessor {
     this.stateMachine.subscribe(subscriber);
     stateMachine
         .waitForReady()
-        .thenCompose(
-            v -> {
-              StateMachine.Input input = stateMachine.input();
-
-              if (input == null) {
-                return CompletableFuture.failedFuture(
-                    new IllegalStateException("State mahine input is empty"));
+        .thenCompose(v -> this.onReady())
+            .whenComplete((v, t) -> {
+              if (t != null) {
+                this.onError(t);
               }
-
-              this.loggingContextSetter.set(
-                  EndpointRequestHandler.LoggingContextSetter.INVOCATION_ID_KEY,
-                  input.invocationId().toString());
-
-              // Prepare HandlerContext object
-              HandlerContextInternal contextInternal =
-                  this.syscallsExecutor != null
-                      ? new ExecutorSwitchingHandlerContextImpl(
-                          fullyQualifiedHandlerName,
-                          stateMachine,
-                          otelContext,
-                          input,
-                          this.syscallsExecutor)
-                      : new HandlerContextImpl(
-                          fullyQualifiedHandlerName, stateMachine, otelContext, input);
-
-              return this.handlerDefinition
-                  .getRunner()
-                  .run(
-                      contextInternal,
-                      handlerDefinition.getRequestSerde(),
-                      handlerDefinition.getResponseSerde(),
-                      serviceOptions)
-                  .thenCompose(slice -> this.writeOutputAndEnd(contextInternal, slice))
-                  .exceptionallyCompose(throwable -> this.end(contextInternal, throwable));
             });
   }
 
@@ -123,6 +94,43 @@ final class RequestProcessorImpl implements RequestProcessor {
   @Override
   public String responseContentType() {
     return this.stateMachine.getResponseContentType();
+  }
+
+  private CompletableFuture<Void> onReady() {
+    StateMachine.Input input = stateMachine.input();
+
+    if (input == null) {
+      return CompletableFuture.failedFuture(
+              new IllegalStateException("State machine input is empty"));
+    }
+
+    this.loggingContextSetter.set(
+            EndpointRequestHandler.LoggingContextSetter.INVOCATION_ID_KEY,
+            input.invocationId().toString());
+
+    // Prepare HandlerContext object
+    HandlerContextInternal contextInternal =
+            this.syscallsExecutor != null
+                    ? new ExecutorSwitchingHandlerContextImpl(
+                    fullyQualifiedHandlerName,
+                    stateMachine,
+                    otelContext,
+                    input,
+                    this.syscallsExecutor)
+                    : new HandlerContextImpl(
+                    fullyQualifiedHandlerName, stateMachine, otelContext, input);
+
+    CompletableFuture<Slice> userCodeFuture = this.handlerDefinition
+            .getRunner()
+            .run(
+                    contextInternal,
+                    handlerDefinition.getRequestSerde(),
+                    handlerDefinition.getResponseSerde(),
+                    serviceOptions);
+
+    return userCodeFuture
+            .thenCompose(slice -> this.writeOutputAndEnd(contextInternal, slice))
+            .exceptionallyCompose(throwable -> this.end(contextInternal, throwable));
   }
 
   private CompletableFuture<Void> writeOutputAndEnd(

@@ -8,13 +8,13 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import static dev.restate.sdk.core.ProtoUtils.*;
+import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.testInvocation;
 
 import com.google.protobuf.ByteString;
 import dev.restate.sdk.annotation.*;
 import dev.restate.sdk.annotation.Service;
-import dev.restate.sdk.core.ProtoUtils;
+import dev.restate.sdk.core.statemachine.ProtoUtils;
 import dev.restate.sdk.core.TestDefinitions;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
 import dev.restate.sdk.serde.Serde;
@@ -225,7 +225,7 @@ public class CodegenTest implements TestSuite {
                 completionMessage(1).setValue(ByteString.EMPTY))
             .onlyUnbuffered()
             .expectingOutput(
-                invokeMessage(Target.service("Empty", "emptyOutput"), "Francesco"),
+                callCmd(Target.service("Empty", "emptyOutput"), "Francesco"),
                 ProtoUtils.outputMessage(),
                 END_MESSAGE)
             .named("empty output"),
@@ -266,7 +266,7 @@ public class CodegenTest implements TestSuite {
                 completionMessage(1, Serde.VOID, null))
             .onlyUnbuffered()
             .expectingOutput(
-                invokeMessage(
+                callCmd(
                     Target.service("RawInputOutput", "rawInput"),
                     "{{".getBytes(StandardCharsets.UTF_8)),
                 outputMessage(),
@@ -278,7 +278,7 @@ public class CodegenTest implements TestSuite {
                 completionMessage(1, Serde.VOID, null))
             .onlyUnbuffered()
             .expectingOutput(
-                invokeMessage(
+                callCmd(
                     Target.service("RawInputOutput", "rawInputWithCustomCt"),
                     "{{".getBytes(StandardCharsets.UTF_8)),
                 outputMessage(),

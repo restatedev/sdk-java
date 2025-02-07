@@ -59,6 +59,7 @@ final class StateContext {
   }
 
   public void markInputClosed() {
+
     this.inputClosed = true;
   }
 

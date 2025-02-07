@@ -16,10 +16,11 @@ import dev.restate.sdk.annotation.Handler;
 import dev.restate.sdk.annotation.Service;
 import dev.restate.sdk.annotation.Shared;
 import dev.restate.sdk.annotation.Workflow;
+import dev.restate.sdk.endpoint.Endpoint;
+import dev.restate.sdk.http.vertx.RestateHttpServer;
 import dev.restate.sdk.types.DurablePromiseKey;
 import dev.restate.sdk.types.StateKey;
 import dev.restate.sdk.types.TerminalException;
-import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder;
 import dev.restate.sdk.serde.jackson.JacksonSerdes;
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -90,7 +91,7 @@ public class LoanWorkflow {
               .transfer(
                   new TransferRequest(loanRequest.customerBankAccount(), loanRequest.amount()))
               .await(Duration.ofDays(7));
-    } catch (TerminalException | TimeoutException e) {
+    } catch (TerminalException e) {
       LOG.warn("Transaction failed", e);
       ctx.set(STATUS, Status.TRANSFER_FAILED);
       return "Failed";
@@ -124,10 +125,12 @@ public class LoanWorkflow {
   }
 
   public static void main(String[] args) {
-    RestateHttpEndpointBuilder.builder()
-        .bind(new LoanWorkflow())
-        .bind(new MockBank())
-        .buildAndListen();
+    Endpoint endpoint = Endpoint.builder()
+            .bind(new LoanWorkflow())
+            .bind(new MockBank())
+            .build();
+
+    RestateHttpServer.listen(endpoint);
 
     // Register the service in the meantime!
     LOG.info("Now it's time to register this deployment");

@@ -371,7 +371,7 @@ class HandlerContextImpl implements HandlerContextInternal {
         // Let it loop now
       } else if (response instanceof StateMachine.DoProgressResponse.ReadFromInput) {
         this.stateMachine
-            .waitNextProcessedInput()
+            .waitNextInputSignal()
             .thenAccept(v -> this.pollAsyncResultInner(asyncResult));
         return;
       } else if (response instanceof StateMachine.DoProgressResponse.ExecuteRun) {

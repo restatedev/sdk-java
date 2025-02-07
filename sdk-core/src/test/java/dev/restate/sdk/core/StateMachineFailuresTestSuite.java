@@ -10,7 +10,7 @@ package dev.restate.sdk.core;
 
 import static dev.restate.sdk.core.AssertUtils.errorMessageStartingWith;
 import static dev.restate.sdk.core.AssertUtils.protocolExceptionErrorMessage;
-import static dev.restate.sdk.core.ProtoUtils.*;
+import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 

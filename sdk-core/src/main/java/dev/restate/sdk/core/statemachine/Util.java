@@ -45,7 +45,7 @@ public class Util {
       @Nullable String currentCommandName,
       @Nullable MessageType currentCommandType) {
     Protocol.ErrorMessage.Builder msg =
-        Protocol.ErrorMessage.newBuilder().setMessage(throwable.toString());
+        Protocol.ErrorMessage.newBuilder().setMessage(throwable.getMessage());
 
     if (throwable instanceof ProtocolException) {
       msg.setCode(((ProtocolException) throwable).getCode());
@@ -56,7 +56,6 @@ public class Util {
     // Convert stacktrace to string
     StringWriter sw = new StringWriter();
     PrintWriter pw = new PrintWriter(sw);
-    pw.println("Stacktrace:");
     throwable.printStackTrace(pw);
     msg.setDescription(sw.toString());
 

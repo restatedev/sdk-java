@@ -10,7 +10,7 @@ package dev.restate.sdk.core;
 
 import static dev.restate.sdk.core.AssertUtils.containsOnlyExactErrorMessage;
 import static dev.restate.sdk.core.AssertUtils.exactErrorMessage;
-import static dev.restate.sdk.core.ProtoUtils.*;
+import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.*;
 import static org.assertj.core.api.Assertions.assertThat;
 

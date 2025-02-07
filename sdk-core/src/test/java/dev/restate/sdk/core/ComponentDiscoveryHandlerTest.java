@@ -26,7 +26,7 @@ class ComponentDiscoveryHandlerTest {
 
   @Test
   void handleWithMultipleServices() {
-    EndpointManifestSchema deploymentManifest =
+    EndpointManifest deploymentManifest =
         new EndpointManifest(
             EndpointManifestSchema.ProtocolMode.REQUEST_RESPONSE,
             Stream.of(

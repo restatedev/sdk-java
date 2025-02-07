@@ -17,7 +17,7 @@ import dev.restate.sdk.endpoint.definition.ServiceType
 import dev.restate.sdk.endpoint.definition.HandlerDefinition
 import dev.restate.sdk.definition.HandlerSpecification
 import dev.restate.sdk.endpoint.definition.ServiceDefinition
-import dev.restate.sdk.core.ProtoUtils.*
+import dev.restate.sdk.core.statemachine.ProtoUtils.*
 import dev.restate.sdk.core.TestDefinitions
 import dev.restate.sdk.core.TestDefinitions.testInvocation
 import dev.restate.sdk.kotlin.Context

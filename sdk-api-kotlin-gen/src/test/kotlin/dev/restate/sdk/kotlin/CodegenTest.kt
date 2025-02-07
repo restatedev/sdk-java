@@ -12,7 +12,7 @@ import com.google.protobuf.ByteString
 import dev.restate.sdk.annotation.*
 import dev.restate.sdk.serde.Serde
 import dev.restate.sdk.types.Target
-import dev.restate.sdk.core.ProtoUtils.*
+import dev.restate.sdk.core.statemachine.ProtoUtils.*
 import dev.restate.sdk.core.TestDefinitions
 import dev.restate.sdk.core.TestDefinitions.TestDefinition
 import dev.restate.sdk.core.TestDefinitions.testInvocation
@@ -240,7 +240,7 @@ class CodegenTest : TestDefinitions.TestSuite {
             .withInput(startMessage(1), inputMessage(), completionMessage(1, "Till"))
             .onlyUnbuffered()
             .expectingOutput(
-                invokeMessage(Target.service("Empty", "emptyInput")),
+                callCmd(Target.service("Empty", "emptyInput")),
                 outputMessage("Till"),
                 END_MESSAGE)
             .named("empty output"),
@@ -251,7 +251,7 @@ class CodegenTest : TestDefinitions.TestSuite {
                 completionMessage(1).setValue(ByteString.EMPTY))
             .onlyUnbuffered()
             .expectingOutput(
-                invokeMessage(Target.service("Empty", "emptyOutput"), "Francesco"),
+                callCmd(Target.service("Empty", "emptyOutput"), "Francesco"),
                 outputMessage(),
                 END_MESSAGE)
             .named("empty output"),
@@ -262,7 +262,7 @@ class CodegenTest : TestDefinitions.TestSuite {
                 completionMessage(1).setValue(ByteString.EMPTY))
             .onlyUnbuffered()
             .expectingOutput(
-                invokeMessage(dev.restate.sdk.types.Target.service("Empty", "emptyInputOutput")),
+                callCmd(dev.restate.sdk.types.Target.service("Empty", "emptyInputOutput")),
                 outputMessage(),
                 END_MESSAGE)
             .named("empty input and empty output"),
@@ -270,7 +270,7 @@ class CodegenTest : TestDefinitions.TestSuite {
             .withInput(startMessage(1), inputMessage(), completionMessage(1, TestSerdes.INT, 10))
             .onlyUnbuffered()
             .expectingOutput(
-                invokeMessage(
+                callCmd(
                     Target.service("PrimitiveTypes", "primitiveOutput"), Serde.VOID, null),
                 outputMessage(TestSerdes.INT, 10),
                 END_MESSAGE)
@@ -280,7 +280,7 @@ class CodegenTest : TestDefinitions.TestSuite {
                 startMessage(1), inputMessage(10), completionMessage(1).setValue(ByteString.EMPTY))
             .onlyUnbuffered()
             .expectingOutput(
-                invokeMessage(
+                callCmd(
                     Target.service("PrimitiveTypes", "primitiveInput"), TestSerdes.INT, 10),
                 outputMessage(),
                 END_MESSAGE)
@@ -292,7 +292,7 @@ class CodegenTest : TestDefinitions.TestSuite {
                 completionMessage(1, KtSerdes.UNIT, null))
             .onlyUnbuffered()
             .expectingOutput(
-                invokeMessage(Target.service("RawInputOutput", "rawInput"), "{{".toByteArray()),
+                callCmd(Target.service("RawInputOutput", "rawInput"), "{{".toByteArray()),
                 outputMessage(),
                 END_MESSAGE),
         testInvocation({ RawInputOutput() }, "rawInputWithCustomCt")
@@ -302,7 +302,7 @@ class CodegenTest : TestDefinitions.TestSuite {
                 completionMessage(1, KtSerdes.UNIT, null))
             .onlyUnbuffered()
             .expectingOutput(
-                invokeMessage(
+                callCmd(
                     Target.service("RawInputOutput", "rawInputWithCustomCt"), "{{".toByteArray()),
                 outputMessage(),
                 END_MESSAGE),
@@ -313,7 +313,7 @@ class CodegenTest : TestDefinitions.TestSuite {
                 completionMessage(1, Serde.RAW, "{{".toByteArray()))
             .onlyUnbuffered()
             .expectingOutput(
-                invokeMessage(Target.service("RawInputOutput", "rawOutput"), KtSerdes.UNIT, null),
+                callCmd(Target.service("RawInputOutput", "rawOutput"), KtSerdes.UNIT, null),
                 outputMessage("{{".toByteArray()),
                 END_MESSAGE),
         testInvocation({ RawInputOutput() }, "rawOutputWithCustomCT")
@@ -323,7 +323,7 @@ class CodegenTest : TestDefinitions.TestSuite {
                 completionMessage(1, Serde.RAW, "{{".toByteArray()))
             .onlyUnbuffered()
             .expectingOutput(
-                invokeMessage(
+                callCmd(
                     Target.service("RawInputOutput", "rawOutputWithCustomCT"), KtSerdes.UNIT, null),
                 outputMessage("{{".toByteArray()),
                 END_MESSAGE),
@@ -334,7 +334,7 @@ class CodegenTest : TestDefinitions.TestSuite {
                 completionMessage(1, KtSerdes.json<String?>(), null))
             .onlyUnbuffered()
             .expectingOutput(
-                invokeMessage(
+                callCmd(
                     dev.restate.sdk.types.Target.virtualObject("CodegenTestCornerCases", "mykey", "returnNull"),
                     KtSerdes.json<String?>(),
                     null),

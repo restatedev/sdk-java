@@ -12,7 +12,7 @@ import static dev.restate.sdk.JavaBlockingTests.testDefinitionForService;
 
 import dev.restate.sdk.core.AwakeableIdTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
-import dev.restate.sdk.serde.Serde;
+import dev.restate.serde.Serde;
 
 public class AwakeableIdTest extends AwakeableIdTestSuite {
 

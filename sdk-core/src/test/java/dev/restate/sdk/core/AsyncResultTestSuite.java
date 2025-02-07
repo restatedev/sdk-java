@@ -8,19 +8,16 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import static dev.restate.sdk.core.ProtoUtils.*;
+import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.list;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
-import dev.restate.generated.sdk.java.Java;
-import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.generated.service.protocol.Protocol.Empty;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
-public abstract class DeferredTestSuite implements TestSuite {
+public abstract class AsyncResultTestSuite implements TestSuite {
 
   protected abstract TestInvocationBuilder reverseAwaitOrder();
 
@@ -45,26 +42,30 @@ public abstract class DeferredTestSuite implements TestSuite {
             .get()
             .withInput(startMessage(1), inputMessage())
             .expectingOutput(
-                invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
-                invokeMessage(GREETER_SERVICE_TARGET, "Till"),
-                suspensionMessage(1, 2))
+                callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
+                callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
+                suspensionMessage(2, 4))
             .named("No completions will suspend"),
         testInvocation
             .get()
             .withInput(
                 startMessage(3),
                 inputMessage(),
-                invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
-                invokeMessage(GREETER_SERVICE_TARGET, "Till", "TILL"),
-                ackMessage(3))
-            .expectingOutput(combinatorsMessage(2), outputMessage("TILL"), END_MESSAGE)
+                callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
+                callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
+                callCompletion(4, "TILL")
+            )
+            .expectingOutput(
+                    outputMessage("TILL"),
+                    END_MESSAGE
+            )
             .named("Only one completion will generate the combinators message"),
         testInvocation
             .get()
             .withInput(
                 startMessage(3),
                 inputMessage(),
-                invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
+                callCmd(GREETER_SERVICE_TARGET, "Francesco"),
                 invokeMessage(GREETER_SERVICE_TARGET, "Till", "TILL"))
             .expectingOutput(combinatorsMessage(2), suspensionMessage(3))
             .named("Completed without ack will suspend"),
@@ -73,8 +74,8 @@ public abstract class DeferredTestSuite implements TestSuite {
             .withInput(
                 startMessage(3),
                 inputMessage(),
-                invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
-                invokeMessage(GREETER_SERVICE_TARGET, "Till")
+                callCmd(GREETER_SERVICE_TARGET, "Francesco"),
+                callCmd(GREETER_SERVICE_TARGET, "Till")
                     .setFailure(
                         ExceptionUtils.toProtocolFailure(new IllegalStateException("My error"))),
                 ackMessage(3))
@@ -126,8 +127,8 @@ public abstract class DeferredTestSuite implements TestSuite {
                 startMessage(1), inputMessage(), completionMessage(1, "FRANCESCO"), ackMessage(3))
             .onlyUnbuffered()
             .expectingOutput(
-                invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
-                invokeMessage(GREETER_SERVICE_TARGET, "Till"),
+                callCmd(GREETER_SERVICE_TARGET, "Francesco"),
+                callCmd(GREETER_SERVICE_TARGET, "Till"),
                 combinatorsMessage(1),
                 outputMessage("FRANCESCO"),
                 END_MESSAGE)
@@ -144,8 +145,8 @@ public abstract class DeferredTestSuite implements TestSuite {
             this.reverseAwaitOrder()
                 .withInput(startMessage(1), inputMessage())
                 .expectingOutput(
-                    invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
-                    invokeMessage(GREETER_SERVICE_TARGET, "Till"),
+                    callCmd(GREETER_SERVICE_TARGET, "Francesco"),
+                    callCmd(GREETER_SERVICE_TARGET, "Till"),
                     suspensionMessage(2))
                 .named("None completed"),
             this.reverseAwaitOrder()
@@ -156,8 +157,8 @@ public abstract class DeferredTestSuite implements TestSuite {
                     completionMessage(2, "TILL"))
                 .onlyUnbuffered()
                 .expectingOutput(
-                    invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
-                    invokeMessage(GREETER_SERVICE_TARGET, "Till"),
+                    callCmd(GREETER_SERVICE_TARGET, "Francesco"),
+                    callCmd(GREETER_SERVICE_TARGET, "Till"),
                     setStateMessage("A2", "TILL"),
                     outputMessage("FRANCESCO-TILL"),
                     END_MESSAGE)
@@ -170,8 +171,8 @@ public abstract class DeferredTestSuite implements TestSuite {
                     completionMessage(1, "FRANCESCO"))
                 .onlyUnbuffered()
                 .expectingOutput(
-                    invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
-                    invokeMessage(GREETER_SERVICE_TARGET, "Till"),
+                    callCmd(GREETER_SERVICE_TARGET, "Francesco"),
+                    callCmd(GREETER_SERVICE_TARGET, "Till"),
                     setStateMessage("A2", "TILL"),
                     outputMessage("FRANCESCO-TILL"),
                     END_MESSAGE)
@@ -180,8 +181,8 @@ public abstract class DeferredTestSuite implements TestSuite {
                 .withInput(startMessage(1), inputMessage(), completionMessage(2, "TILL"))
                 .onlyUnbuffered()
                 .expectingOutput(
-                    invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
-                    invokeMessage(GREETER_SERVICE_TARGET, "Till"),
+                    callCmd(GREETER_SERVICE_TARGET, "Francesco"),
+                    callCmd(GREETER_SERVICE_TARGET, "Till"),
                     setStateMessage("A2", "TILL"),
                     suspensionMessage(1))
                 .named("Only A2 completed"),
@@ -189,8 +190,8 @@ public abstract class DeferredTestSuite implements TestSuite {
                 .withInput(startMessage(1), inputMessage(), completionMessage(1, "FRANCESCO"))
                 .onlyUnbuffered()
                 .expectingOutput(
-                    invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
-                    invokeMessage(GREETER_SERVICE_TARGET, "Till"),
+                    callCmd(GREETER_SERVICE_TARGET, "Francesco"),
+                    callCmd(GREETER_SERVICE_TARGET, "Till"),
                     suspensionMessage(2))
                 .named("Only A1 completed"),
 
@@ -199,7 +200,7 @@ public abstract class DeferredTestSuite implements TestSuite {
                 .withInput(startMessage(1), inputMessage(), completionMessage(1, "FRANCESCO"))
                 .onlyUnbuffered()
                 .expectingOutput(
-                    invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
+                    callCmd(GREETER_SERVICE_TARGET, "Francesco"),
                     outputMessage("FRANCESCO-FRANCESCO"),
                     END_MESSAGE),
 
@@ -207,15 +208,15 @@ public abstract class DeferredTestSuite implements TestSuite {
             this.awaitAll()
                 .withInput(startMessage(1), inputMessage())
                 .expectingOutput(
-                    invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
-                    invokeMessage(GREETER_SERVICE_TARGET, "Till"),
+                    callCmd(GREETER_SERVICE_TARGET, "Francesco"),
+                    callCmd(GREETER_SERVICE_TARGET, "Till"),
                     suspensionMessage(1, 2))
                 .named("No completions will suspend"),
             this.awaitAll()
                 .withInput(
                     startMessage(3),
                     inputMessage(),
-                    invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
+                    callCmd(GREETER_SERVICE_TARGET, "Francesco"),
                     invokeMessage(GREETER_SERVICE_TARGET, "Till", "TILL"))
                 .expectingOutput(suspensionMessage(1))
                 .named("Only one completion will suspend"),
@@ -259,8 +260,8 @@ public abstract class DeferredTestSuite implements TestSuite {
                     ackMessage(3))
                 .onlyUnbuffered()
                 .expectingOutput(
-                    invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
-                    invokeMessage(GREETER_SERVICE_TARGET, "Till"),
+                    callCmd(GREETER_SERVICE_TARGET, "Francesco"),
+                    callCmd(GREETER_SERVICE_TARGET, "Till"),
                     combinatorsMessage(1, 2),
                     outputMessage("FRANCESCO-TILL"),
                     END_MESSAGE)
@@ -273,8 +274,8 @@ public abstract class DeferredTestSuite implements TestSuite {
                     ackMessage(3))
                 .onlyUnbuffered()
                 .expectingOutput(
-                    invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
-                    invokeMessage(GREETER_SERVICE_TARGET, "Till"),
+                    callCmd(GREETER_SERVICE_TARGET, "Francesco"),
+                    callCmd(GREETER_SERVICE_TARGET, "Till"),
                     combinatorsMessage(1),
                     outputMessage(new IllegalStateException("My error")),
                     END_MESSAGE)
@@ -288,8 +289,8 @@ public abstract class DeferredTestSuite implements TestSuite {
                     ackMessage(3))
                 .onlyUnbuffered()
                 .expectingOutput(
-                    invokeMessage(GREETER_SERVICE_TARGET, "Francesco"),
-                    invokeMessage(GREETER_SERVICE_TARGET, "Till"),
+                    callCmd(GREETER_SERVICE_TARGET, "Francesco"),
+                    callCmd(GREETER_SERVICE_TARGET, "Till"),
                     combinatorsMessage(1, 2),
                     outputMessage(new IllegalStateException("My error")),
                     END_MESSAGE)
@@ -379,7 +380,7 @@ public abstract class DeferredTestSuite implements TestSuite {
                       assertThat(messages).hasSize(5);
                       assertThat(messages)
                           .element(0)
-                          .isEqualTo(invokeMessage(GREETER_SERVICE_TARGET, "Francesco").build());
+                          .isEqualTo(callCmd(GREETER_SERVICE_TARGET, "Francesco").build());
                       assertThat(messages)
                           .element(1)
                           .isInstanceOf(Protocol.SleepEntryMessage.class);
@@ -399,7 +400,7 @@ public abstract class DeferredTestSuite implements TestSuite {
                       assertThat(messages).hasSize(5);
                       assertThat(messages)
                           .element(0)
-                          .isEqualTo(invokeMessage(GREETER_SERVICE_TARGET, "Francesco").build());
+                          .isEqualTo(callCmd(GREETER_SERVICE_TARGET, "Francesco").build());
                       assertThat(messages)
                           .element(1)
                           .isInstanceOf(Protocol.SleepEntryMessage.class);

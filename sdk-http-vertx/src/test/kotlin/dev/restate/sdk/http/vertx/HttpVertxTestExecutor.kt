@@ -9,7 +9,7 @@
 package dev.restate.sdk.http.vertx
 
 import dev.restate.sdk.endpoint.definition.ServiceDefinition
-import dev.restate.sdk.core.ProtoUtils
+import dev.restate.sdk.core.statemachine.ProtoUtils
 import dev.restate.sdk.core.TestDefinitions.TestDefinition
 import dev.restate.sdk.core.TestDefinitions.TestExecutor
 import io.netty.buffer.Unpooled
