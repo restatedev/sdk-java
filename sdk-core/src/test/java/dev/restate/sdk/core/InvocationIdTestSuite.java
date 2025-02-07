@@ -8,15 +8,12 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import static dev.restate.sdk.core.generated.protocol.Protocol.*;
 import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 
 import com.google.protobuf.ByteString;
 import dev.restate.sdk.core.TestDefinitions.TestDefinition;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
-import dev.restate.sdk.core.generated.protocol.Protocol;
-import dev.restate.sdk.core.statemachine.ProtoUtils;
 
 import java.util.stream.Stream;
 
@@ -33,8 +30,8 @@ public abstract class InvocationIdTestSuite implements TestSuite {
         returnInvocationId()
             .withInput(
                     startMessage(1).setDebugId(debugId).setId(id),
-                inputMessage())
+                inputCmd())
             .onlyUnbuffered()
-            .expectingOutput(outputMessage(debugId), END_MESSAGE));
+            .expectingOutput(outputCmd(debugId), END_MESSAGE));
   }
 }

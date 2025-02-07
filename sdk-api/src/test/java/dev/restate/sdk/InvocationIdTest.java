@@ -12,7 +12,7 @@ import static dev.restate.sdk.JavaBlockingTests.testDefinitionForService;
 
 import dev.restate.sdk.core.InvocationIdTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
-import dev.restate.sdk.serde.Serde;
+import dev.restate.serde.Serde;
 
 public class InvocationIdTest extends InvocationIdTestSuite {
 

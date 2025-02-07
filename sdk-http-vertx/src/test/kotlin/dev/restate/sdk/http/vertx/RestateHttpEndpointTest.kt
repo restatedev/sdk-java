@@ -90,7 +90,7 @@ internal class RestateHttpEndpointTest {
 
         // Send start message and PollInputStreamEntry
         request.write(encode(startMessage(1).build()))
-        request.write(encode(inputMessage("Francesco")))
+        request.write(encode(inputCmd("Francesco")))
 
         val response = request.response().coAwait()
 
@@ -141,7 +141,7 @@ internal class RestateHttpEndpointTest {
         val outputEntry = inputChannel.receive()
 
         assertThat(outputEntry).isInstanceOf(OutputEntryMessage::class.java)
-        assertThat(outputEntry).isEqualTo(outputMessage("Hello Francesco. Count: 3"))
+        assertThat(outputEntry).isEqualTo(outputCmd("Hello Francesco. Count: 3"))
 
         // Wait for closing request and response
         request.end().coAwait()

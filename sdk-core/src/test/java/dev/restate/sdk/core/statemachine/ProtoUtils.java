@@ -23,12 +23,18 @@ import dev.restate.serde.Serde;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.helpers.test.AssertSubscriber;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class ProtoUtils {
+
+  public static long invocationIdToRandomSeed(String invocationId) {
+    return new InvocationIdImpl(invocationId).toRandomSeed();
+  }
 
   public static String serviceProtocolContentTypeHeader() {
     return ServiceProtocol.serviceProtocolVersionToHeaderValue(
@@ -45,19 +51,6 @@ public class ProtoUtils {
         Discovery.ServiceDiscoveryProtocolVersion.V2);
   }
 
-  /**
-   * Variant of {@link MessageHeader#fromMessage(MessageLite)} supporting StartMessage and
-   * CompletionMessage.
-   */
-  public static MessageHeader headerFromMessage(MessageLite msg) {
-    if (msg instanceof Protocol.StartMessage) {
-      return new MessageHeader(MessageType.StartMessage, 0, msg.getSerializedSize());
-    } else if (msg instanceof Protocol.CompletionMessage) {
-      return new MessageHeader(MessageType.CompletionMessage, (short) 0, msg.getSerializedSize());
-    }
-    return MessageHeader.fromMessage(msg);
-  }
-
   public static ByteBuffer invocationInputToByteString(InvocationInput invocationInput) {
     ByteBuffer buffer = ByteBuffer.allocate(MessageEncoder.encodeLength(invocationInput.message()));
 
@@ -70,7 +63,7 @@ public class ProtoUtils {
 
   public static ByteBuffer encodeMessageToByteBuffer(MessageLiteOrBuilder msgOrBuilder) {
     var msg = build(msgOrBuilder);
-    return invocationInputToByteString(InvocationInput.of(headerFromMessage(msg), msg));
+    return invocationInputToByteString(InvocationInput.of(MessageHeader.fromMessage(msg), msg));
   }
 
   public static Slice encodeMessageToSlice(MessageLiteOrBuilder msgOrBuilder) {
@@ -78,10 +71,14 @@ public class ProtoUtils {
   }
 
   public static List<MessageLite> bufferToMessages(List<ByteBuffer> byteBuffers) {
-    AssertSubscriber<InvocationInput> subscriber = AssertSubscriber.create(Long.MAX_VALUE);
-    Multi.createFrom().iterable(byteBuffers).subscribe(new MessageDecoder(subscriber));
-    subscriber.awaitCompletion();
-    return subscriber.getItems().stream()
+    var messageDecoder = new MessageDecoder();
+    byteBuffers.stream().map(Slice::wrap).forEach( messageDecoder::offer);
+
+    var outputList = new ArrayList<InvocationInput>();
+    while (messageDecoder.isNextAvailable()) {
+      outputList.add(messageDecoder.next());
+    }
+    return outputList.stream()
         .map(InvocationInput::message)
         .collect(Collectors.toList());
   }
@@ -120,71 +117,71 @@ public class ProtoUtils {
   }
 
   public static Protocol.SuspensionMessage suspensionMessage(Integer... completionIds) {
-    return Protocol.SuspensionMessage.newBuilder().addAllEntryIndexes(List.of(completionIds)).build();
+    return Protocol.SuspensionMessage.newBuilder().addAllWaitingCompletions(List.of(completionIds)).build();
   }
 
-  public static Protocol.InputCommandMessage inputMessage() {
-    return Protocol.InputCommandMessage.newBuilder().setValue(ByteString.EMPTY).build();
+  public static Protocol.InputCommandMessage inputCmd() {
+    return Protocol.InputCommandMessage.newBuilder().setValue(Protocol.Value.newBuilder().setContent(ByteString.EMPTY)).build();
   }
 
-  public static Protocol.InputCommandMessage inputMessage(byte[] value) {
-    return Protocol.InputCommandMessage.newBuilder().setValue(ByteString.copyFrom(value)).build();
+  public static Protocol.InputCommandMessage inputCmd(byte[] value) {
+    return Protocol.InputCommandMessage.newBuilder().setValue(Protocol.Value.newBuilder().setContent(ByteString.copyFrom(value))).build();
   }
 
-  public static <T> Protocol.InputCommandMessage inputMessage(Serde<T> serde, T value) {
+  public static <T> Protocol.InputCommandMessage inputCmd(Serde<T> serde, T value) {
     return Protocol.InputCommandMessage.newBuilder()
-        .setValue(ByteString.copyFrom(serde.serialize(value)))
+        .setValue(value(serde,value))
         .build();
   }
 
-  public static Protocol.InputCommandMessage inputMessage(String value) {
-    return inputMessage(TestSerdes.STRING, value);
+  public static Protocol.InputCommandMessage inputCmd(String value) {
+    return inputCmd(TestSerdes.STRING, value);
   }
 
-  public static Protocol.InputCommandMessage inputMessage(int value) {
-    return inputMessage(TestSerdes.INT, value);
+  public static Protocol.InputCommandMessage inputCmd(int value) {
+    return inputCmd(TestSerdes.INT, value);
   }
 
-  public static <T> Protocol.OutputCommandMessage outputMessage(Serde<T> serde, T value) {
+  public static <T> Protocol.OutputCommandMessage outputCmd(Serde<T> serde, T value) {
     return Protocol.OutputCommandMessage.newBuilder()
-        .setValue(ByteString.copyFrom(serde.serialize(value)))
+            .setValue(value(serde,value))
         .build();
   }
 
-  public static Protocol.OutputCommandMessage outputMessage(String value) {
-    return outputMessage(TestSerdes.STRING, value);
+  public static Protocol.OutputCommandMessage outputCmd(String value) {
+    return outputCmd(TestSerdes.STRING, value);
   }
 
-  public static Protocol.OutputCommandMessage outputMessage(int value) {
-    return outputMessage(TestSerdes.INT, value);
+  public static Protocol.OutputCommandMessage outputCmd(int value) {
+    return outputCmd(TestSerdes.INT, value);
   }
 
-  public static Protocol.OutputCommandMessage outputMessage(byte[] b) {
-    return outputMessage(Serde.RAW, b);
+  public static Protocol.OutputCommandMessage outputCmd(byte[] b) {
+    return outputCmd(Serde.RAW, b);
   }
 
-  public static Protocol.OutputCommandMessage outputMessage() {
+  public static Protocol.OutputCommandMessage outputCmd() {
     return Protocol.OutputCommandMessage.newBuilder().setValue(ByteString.EMPTY).build();
   }
 
-  public static Protocol.OutputCommandMessage outputMessage(int code, String message) {
+  public static Protocol.OutputCommandMessage outputCmd(int code, String message) {
     return Protocol.OutputCommandMessage.newBuilder()
         .setFailure(ExceptionUtils.toProtocolFailure(code, message))
         .build();
   }
 
-  public static Protocol.OutputCommandMessage outputMessage(Throwable e) {
+  public static Protocol.OutputCommandMessage outputCmd(Throwable e) {
     return Protocol.OutputCommandMessage.newBuilder()
         .setFailure(ExceptionUtils.toProtocolFailure(e))
         .build();
   }
 
-  public static Protocol.GetStateEntryMessage.Builder getStateMessage(String key) {
-    return Protocol.GetStateEntryMessage.newBuilder().setKey(ByteString.copyFromUtf8(key));
+  public static Protocol.GetLazyStateCommandMessage.Builder getLazyStateCmd(int completionId, String key) {
+    return Protocol.GetLazyStateCommandMessage.newBuilder().setKey(ByteString.copyFromUtf8(key)).setResultCompletionId(completionId);
   }
 
-  public static Protocol.GetStateEntryMessage.Builder getStateMessage(String key, Throwable error) {
-    return getStateMessage(key).setFailure(ExceptionUtils.toProtocolFailure(error));
+  public static Protocol.GetStateEntryMessage.Builder getLazyStateCmd(String key, Throwable error) {
+    return getLazyStateMessage(key).setFailure(ExceptionUtils.toProtocolFailure(error));
   }
 
   public static Protocol.GetStateEntryMessage getStateEmptyMessage(String key) {
@@ -194,14 +191,29 @@ public class ProtoUtils {
         .build();
   }
 
-  public static <T> Protocol.GetStateEntryMessage getStateMessage(
+  public static <T> Protocol.GetStateEntryMessage getLazyStateCmd(
       String key, Serde<T> serde, T value) {
-    return getStateMessage(key).setValue(ByteString.copyFrom(serde.serialize(value))).build();
+    return getLazyStateMessage(key).setValue(ByteString.copyFrom(serde.serialize(value))).build();
   }
 
-  public static Protocol.GetStateEntryMessage getStateMessage(String key, String value) {
-    return getStateMessage(key, TestSerdes.STRING, value);
+  public static Protocol.GetStateEntryMessage getLazyStateCmd(String key, String value) {
+    return getLazyStateCmd(key, TestSerdes.STRING, value);
   }
+
+  public static <T> Protocol.GetLazyStateCompletionNotificationMessage getLazyStateCompletion(
+      int    completionId, Serde<T> serde, T value) {
+    return Protocol.GetLazyStateCompletionNotificationMessage.newBuilder()
+            .setCompletionId(completionId)
+            .setValue(
+                    Protocol.Value.newBuilder().setContent(
+                    UnsafeByteOperations.unsafeWrap(serde.serialize(value).asReadOnlyByteBuffer())))
+            .build();
+  }
+
+  public static Protocol.GetLazyStateCompletionNotificationMessage getLazyStateCompletion(int completionId, String value) {
+    return getLazyStateCompletion(completionId, TestSerdes.STRING, value);
+  }
+
 
   public static <T> Protocol.SetStateCommandMessage setStateMessage(
       String key, Serde<T> serde, T value) {
@@ -251,16 +263,20 @@ public class ProtoUtils {
   public static <T> Protocol.CallCompletionNotificationMessage.Builder callCompletion(
           int completionId, Serde<T> reqSerde, T parameter) {
     return Protocol.CallCompletionNotificationMessage.newBuilder()
-            .setCompletionId(completionId).setValue(Protocol.Value.newBuilder()
-                    .setContent(
-                            UnsafeByteOperations.unsafeWrap(
-                            reqSerde.serialize(parameter).asReadOnlyByteBuffer()))
-                    .build());
+            .setCompletionId(completionId)
+            .setValue(value(reqSerde, parameter));
   }
 
   public static <T> Protocol.CallCompletionNotificationMessage.Builder callCompletion(
           int completionId, String result) {
     return callCompletion(completionId, TestSerdes.STRING, result);
+  }
+
+  public static <T> Protocol.CallCompletionNotificationMessage.Builder callCompletion(
+          int completionId, Throwable failure) {
+    return Protocol.CallCompletionNotificationMessage.newBuilder()
+            .setCompletionId(completionId)
+            .setFailure(failure(failure));
   }
 
   public static <T> Protocol.CallInvocationIdCompletionNotificationMessage.Builder callInvocationIdCompletion(
@@ -269,26 +285,71 @@ public class ProtoUtils {
             .setCompletionId(completionId).setInvocationId(invocationId);
   }
 
-  public static Protocol.GetPromiseCommandMessage.Builder getPromise(String key) {
-    return Protocol.GetPromiseCommandMessage.newBuilder().setKey(key);
+  public static Protocol.GetPromiseCommandMessage.Builder getPromise(int completionId, String key) {
+    return Protocol.GetPromiseCommandMessage.newBuilder().setResultCompletionId(completionId).setKey(key);
   }
 
-  public static Protocol.PeekPromiseCommandMessage.Builder peekPromise(String key) {
-    return Protocol.PeekPromiseCommandMessage.newBuilder().setKey(key);
-  }
-
-  public static Protocol.CompletePromiseCommandMessage.Builder completePromise(
-      String key, String value) {
-    return Protocol.CompletePromiseCommandMessage.newBuilder()
-        .setKey(key)
-        .setCompletionValue(ByteString.copyFrom(TestSerdes.STRING.serialize(value)));
+  public static Protocol.PeekPromiseCommandMessage.Builder peekPromise(int completionId, String key) {
+    return Protocol.PeekPromiseCommandMessage.newBuilder().setResultCompletionId(completionId).setKey(key);
   }
 
   public static Protocol.CompletePromiseCommandMessage.Builder completePromise(
-      String key, Throwable e) {
+          int completionId,     String key, String value) {
+    return Protocol.CompletePromiseCommandMessage.newBuilder()
+        .setKey(key).setResultCompletionId(completionId)
+        .setCompletionValue(value(value));
+  }
+
+  public static Protocol.CompletePromiseCommandMessage.Builder completePromise(
+          int completionId,     String key, Throwable e) {
     return Protocol.CompletePromiseCommandMessage.newBuilder()
         .setKey(key)
-        .setCompletionFailure(ExceptionUtils.toProtocolFailure(e));
+            .setResultCompletionId(completionId)
+        .setCompletionFailure(failure(e));
+  }
+
+  public static <T> Protocol.SignalNotificationMessage signalNotification(
+          int    signalId, Serde<T> serde, T value) {
+    return Protocol.SignalNotificationMessage.newBuilder()
+            .setIdx(signalId)
+            .setValue(
+                    Protocol.Value.newBuilder().setContent(
+                            UnsafeByteOperations.unsafeWrap(serde.serialize(value).asReadOnlyByteBuffer())))
+            .build();
+  }
+
+  public static Protocol.SignalNotificationMessage signalNotification(int signalId, String value) {
+    return signalNotification(signalId, TestSerdes.STRING, value);
+  }
+
+  public static <T> Protocol.SignalNotificationMessage signalNotification(
+          String    signalName, Serde<T> serde, T value) {
+    return Protocol.SignalNotificationMessage.newBuilder()
+            .setName(signalName)
+            .setValue(
+                    Protocol.Value.newBuilder().setContent(
+                            UnsafeByteOperations.unsafeWrap(serde.serialize(value).asReadOnlyByteBuffer())))
+            .build();
+  }
+
+  public static Protocol.SignalNotificationMessage signalNotification(String    signalName, String value) {
+    return signalNotification(signalName, TestSerdes.STRING, value);
+  }
+
+  public   static Protocol.Failure failure(int code, String message) {
+    return Util.toProtocolFailure(code, message);
+  }
+
+  public static Protocol.Failure failure(Throwable throwable) {
+    return Util.toProtocolFailure(throwable);
+  }
+
+  public static Protocol.Value value(String jsonStringContent) {
+    return value(TestSerdes.STRING, jsonStringContent);
+  }
+
+  public static <T> Protocol.Value value(Serde<T> serde, T value) {
+    return Protocol.Value.newBuilder().setContent(UnsafeByteOperations.unsafeWrap(serde.serialize(value).asReadOnlyByteBuffer())).build();
   }
 
   public static final Protocol.EndMessage END_MESSAGE = Protocol.EndMessage.getDefaultInstance();

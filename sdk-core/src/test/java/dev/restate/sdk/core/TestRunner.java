@@ -36,7 +36,7 @@ public abstract class TestRunner {
   protected abstract Stream<TestSuite> definitions();
 
   final Stream<Arguments> source() {
-    List<TestExecutor> executors = executors().collect(Collectors.toList());
+    List<TestExecutor> executors = executors().toList();
 
     return definitions()
         .flatMap(ts -> ts.definitions().map(def -> entry(ts.getClass().getName(), def)))

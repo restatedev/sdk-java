@@ -13,7 +13,7 @@ import static dev.restate.sdk.core.statemachine.ProtoUtils.GREETER_SERVICE_TARGE
 
 import dev.restate.sdk.core.SideEffectTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
-import dev.restate.sdk.serde.Serde;
+import dev.restate.serde.Serde;
 import dev.restate.sdk.types.RetryPolicy;
 import java.util.Objects;
 

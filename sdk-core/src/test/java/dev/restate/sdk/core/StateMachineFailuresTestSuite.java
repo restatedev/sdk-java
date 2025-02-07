@@ -14,11 +14,12 @@ import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.serde.Serde;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
+
+import dev.restate.sdk.core.generated.protocol.Protocol;
+import dev.restate.serde.Serde;
 import org.assertj.core.api.Assertions;
 
 public abstract class StateMachineFailuresTestSuite implements TestDefinitions.TestSuite {
@@ -48,7 +49,11 @@ public abstract class StateMachineFailuresTestSuite implements TestDefinitions.T
 
     return Stream.of(
         this.getState(nonTerminalExceptionsSeenTest1)
-            .withInput(startMessage(2), inputMessage("Till"), getStateMessage("Something"))
+            .withInput(
+                    startMessage(2),
+                    inputCmd("Till"),
+                    getLazyStateCmd(1, "Something")
+            )
             .assertingOutput(
                 msgs -> {
                   Assertions.assertThat(msgs)
@@ -60,8 +65,10 @@ public abstract class StateMachineFailuresTestSuite implements TestDefinitions.T
         this.getState(nonTerminalExceptionsSeenTest2)
             .withInput(
                 startMessage(2),
-                inputMessage("Till"),
-                getStateMessage("STATE", "This is not an integer"))
+                inputCmd("Till"),
+                getLazyStateCmd(1, "STATE"),
+                getLazyStateCompletion(1, "This is not an integer")
+            )
             .assertingOutput(
                 msgs -> {
                   Assertions.assertThat(msgs)
@@ -71,13 +78,21 @@ public abstract class StateMachineFailuresTestSuite implements TestDefinitions.T
                 })
             .named("Serde error"),
         this.sideEffectFailure(FAILING_SERIALIZATION_INTEGER_TYPE_TAG)
-            .withInput(startMessage(1), inputMessage("Till"))
+            .withInput(startMessage(1), inputCmd("Till"))
             .assertingOutput(
                 AssertUtils.containsOnly(
                     errorMessageStartingWith(IllegalStateException.class.getCanonicalName())))
             .named("Serde serialization error"),
         this.sideEffectFailure(FAILING_DESERIALIZATION_INTEGER_TYPE_TAG)
-            .withInput(startMessage(2), inputMessage("Till"), Protocol.RunEntryMessage.newBuilder())
+            .withInput(startMessage(3),
+                    inputCmd("Till"),
+                    Protocol.RunCommandMessage.newBuilder().setResultCompletionId(1),
+                    Protocol.RunCompletionNotificationMessage.newBuilder()
+                            .setCompletionId(1)
+                            .setValue(Protocol.Value.getDefaultInstance())
+                            .build()
+
+            )
             .assertingOutput(
                 AssertUtils.containsOnly(
                     errorMessageStartingWith(IllegalStateException.class.getCanonicalName())))

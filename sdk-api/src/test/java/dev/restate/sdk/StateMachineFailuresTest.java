@@ -12,10 +12,11 @@ import static dev.restate.sdk.JavaBlockingTests.testDefinitionForVirtualObject;
 
 import dev.restate.sdk.core.StateMachineFailuresTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
-import dev.restate.sdk.serde.Serde;
 import dev.restate.sdk.types.AbortedExecutionException;
 import dev.restate.sdk.types.StateKey;
 import dev.restate.sdk.types.TerminalException;
+import dev.restate.serde.Serde;
+
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicInteger;
 

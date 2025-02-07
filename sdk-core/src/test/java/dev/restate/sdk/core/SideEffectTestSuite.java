@@ -44,36 +44,36 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
   public Stream<TestDefinitions.TestDefinition> definitions() {
     return Stream.of(
         this.sideEffect("Francesco")
-            .withInput(startMessage(1), inputMessage("Till"))
+            .withInput(startMessage(1), inputCmd("Till"))
             .expectingOutput(
                 Protocol.RunEntryMessage.newBuilder()
                     .setValue(ByteString.copyFrom(TestSerdes.STRING.serialize("Francesco"))),
                 suspensionMessage(1))
             .named("Without optimization suspends"),
         this.sideEffect("Francesco")
-            .withInput(startMessage(1), inputMessage("Till"), ackMessage(1))
+            .withInput(startMessage(1), inputCmd("Till"), ackMessage(1))
             .expectingOutput(
                 Protocol.RunEntryMessage.newBuilder()
                     .setValue(ByteString.copyFrom(TestSerdes.STRING.serialize("Francesco"))),
-                outputMessage("Hello Francesco"),
+                outputCmd("Hello Francesco"),
                 END_MESSAGE)
             .named("Without optimization and with acks returns"),
         this.namedSideEffect("get-my-name", "Francesco")
-            .withInput(startMessage(1), inputMessage("Till"))
+            .withInput(startMessage(1), inputCmd("Till"))
             .expectingOutput(
                 Protocol.RunEntryMessage.newBuilder()
                     .setName("get-my-name")
                     .setValue(ByteString.copyFrom(TestSerdes.STRING.serialize("Francesco"))),
                 suspensionMessage(1)),
         this.consecutiveSideEffect("Francesco")
-            .withInput(startMessage(1), inputMessage("Till"))
+            .withInput(startMessage(1), inputCmd("Till"))
             .expectingOutput(
                 Protocol.RunEntryMessage.newBuilder()
                     .setValue(ByteString.copyFrom(TestSerdes.STRING.serialize("Francesco"))),
                 suspensionMessage(1))
             .named("With optimization and without ack on first side effect will suspend"),
         this.consecutiveSideEffect("Francesco")
-            .withInput(startMessage(1), inputMessage("Till"), ackMessage(1))
+            .withInput(startMessage(1), inputCmd("Till"), ackMessage(1))
             .onlyUnbuffered()
             .expectingOutput(
                 Protocol.RunEntryMessage.newBuilder()
@@ -83,18 +83,18 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
                 suspensionMessage(2))
             .named("With optimization and ack on first side effect will suspend"),
         this.consecutiveSideEffect("Francesco")
-            .withInput(startMessage(1), inputMessage("Till"), ackMessage(1), ackMessage(2))
+            .withInput(startMessage(1), inputCmd("Till"), ackMessage(1), ackMessage(2))
             .onlyUnbuffered()
             .expectingOutput(
                 Protocol.RunEntryMessage.newBuilder()
                     .setValue(ByteString.copyFrom(TestSerdes.STRING.serialize("Francesco"))),
                 Protocol.RunEntryMessage.newBuilder()
                     .setValue(ByteString.copyFrom(TestSerdes.STRING.serialize("FRANCESCO"))),
-                outputMessage("Hello FRANCESCO"),
+                outputCmd("Hello FRANCESCO"),
                 END_MESSAGE)
             .named("With optimization and ack on first and second side effect will resume"),
         this.failingSideEffect("my-side-effect", "some failure")
-            .withInput(startMessage(1), inputMessage())
+            .withInput(startMessage(1), inputCmd())
             .onlyUnbuffered()
             .assertingOutput(
                 containsOnly(
@@ -115,7 +115,7 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
         this.failingSideEffectWithRetryPolicy(
                 "some failure",
                 RetryPolicy.exponential(Duration.ofMillis(100), 1.0f).setMaxAttempts(2))
-            .withInput(startMessage(1).setRetryCountSinceLastStoredEntry(0), inputMessage())
+            .withInput(startMessage(1).setRetryCountSinceLastStoredEntry(0), inputCmd())
             .enablePreviewContext()
             .onlyUnbuffered()
             .assertingOutput(
@@ -138,7 +138,7 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
                 "some failure",
                 RetryPolicy.exponential(Duration.ofMillis(100), 1.0f).setMaxAttempts(2))
             .withInput(
-                startMessage(1).setRetryCountSinceLastStoredEntry(1), inputMessage(), ackMessage(1))
+                startMessage(1).setRetryCountSinceLastStoredEntry(1), inputCmd(), ackMessage(1))
             .enablePreviewContext()
             .onlyUnbuffered()
             .expectingOutput(
@@ -146,12 +146,12 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
                     .setFailure(
                         ExceptionUtils.toProtocolFailure(
                             500, "java.lang.IllegalStateException: some failure")),
-                outputMessage(500, "java.lang.IllegalStateException: some failure"),
+                outputCmd(500, "java.lang.IllegalStateException: some failure"),
                 END_MESSAGE)
             .named("Should convert retryable error to terminal"),
         // --- Other tests
         this.checkContextSwitching()
-            .withInput(startMessage(1), inputMessage(), ackMessage(1))
+            .withInput(startMessage(1), inputCmd(), ackMessage(1))
             .onlyUnbuffered()
             .assertingOutput(
                 actualOutputMessages -> {
@@ -160,11 +160,11 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
                       .element(0)
                       .asInstanceOf(type(Protocol.RunEntryMessage.class))
                       .returns(true, Protocol.RunEntryMessage::hasValue);
-                  assertThat(actualOutputMessages).element(1).isEqualTo(outputMessage("Hello"));
+                  assertThat(actualOutputMessages).element(1).isEqualTo(outputCmd("Hello"));
                   assertThat(actualOutputMessages).element(2).isEqualTo(END_MESSAGE);
                 }),
         this.sideEffectGuard()
-            .withInput(startMessage(1), inputMessage("Till"))
+            .withInput(startMessage(1), inputCmd("Till"))
             .assertingOutput(
                 containsOnlyExactErrorMessage(ProtocolException.invalidSideEffectCall())));
   }

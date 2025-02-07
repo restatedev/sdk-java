@@ -85,11 +85,11 @@ class VertxExecutorsTest : TestDefinitions.TestSuite {
                 dev.restate.sdk.kotlin.HandlerRunner.Options(
                     Dispatchers.Default + nonBlockingCoroutineName),
                 "do")
-            .withInput(startMessage(1), inputMessage(), ackMessage(1))
+            .withInput(startMessage(1), inputCmd(), ackMessage(1))
             .onlyUnbuffered()
             .expectingOutput(
                 Protocol.RunEntryMessage.newBuilder().setValue(ByteString.EMPTY),
-                outputMessage(),
+                outputCmd(),
                 END_MESSAGE),
         testInvocation(
                 ServiceDefinition.of(
@@ -107,11 +107,11 @@ class VertxExecutorsTest : TestDefinitions.TestSuite {
                                 this::checkBlockingComponentTrampolineExecutor)))),
                 HandlerRunner.Options.DEFAULT,
                 "do")
-            .withInput(startMessage(1), inputMessage(), ackMessage(1))
+            .withInput(startMessage(1), inputCmd(), ackMessage(1))
             .onlyUnbuffered()
             .expectingOutput(
                 Protocol.RunEntryMessage.newBuilder().setValue(ByteString.EMPTY),
-                outputMessage(),
+                outputCmd(),
                 END_MESSAGE))
   }
 }

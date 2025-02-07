@@ -12,7 +12,7 @@ import static dev.restate.sdk.JavaBlockingTests.testDefinitionForService;
 
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import dev.restate.sdk.core.UserFailuresTestSuite;
-import dev.restate.sdk.serde.Serde;
+import dev.restate.serde.Serde;
 import dev.restate.sdk.types.AbortedExecutionException;
 import dev.restate.sdk.types.TerminalException;
 import java.util.concurrent.atomic.AtomicInteger;

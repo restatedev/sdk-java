@@ -195,114 +195,114 @@ public class CodegenTest implements TestSuite {
   public Stream<TestDefinitions.TestDefinition> definitions() {
     return Stream.of(
         testInvocation(ServiceGreeter::new, "greet")
-            .withInput(startMessage(1), inputMessage("Francesco"))
+            .withInput(startMessage(1), inputCmd("Francesco"))
             .onlyUnbuffered()
-            .expectingOutput(outputMessage("Francesco"), END_MESSAGE),
+            .expectingOutput(outputCmd("Francesco"), END_MESSAGE),
         testInvocation(ObjectGreeter::new, "greet")
-            .withInput(startMessage(1, "slinkydeveloper"), inputMessage("Francesco"))
+            .withInput(startMessage(1, "slinkydeveloper"), inputCmd("Francesco"))
             .onlyUnbuffered()
-            .expectingOutput(outputMessage("Francesco"), END_MESSAGE),
+            .expectingOutput(outputCmd("Francesco"), END_MESSAGE),
         testInvocation(ObjectGreeter::new, "sharedGreet")
-            .withInput(startMessage(1, "slinkydeveloper"), inputMessage("Francesco"))
+            .withInput(startMessage(1, "slinkydeveloper"), inputCmd("Francesco"))
             .onlyUnbuffered()
-            .expectingOutput(outputMessage("Francesco"), END_MESSAGE),
+            .expectingOutput(outputCmd("Francesco"), END_MESSAGE),
         testInvocation(ObjectGreeterImplementedFromInterface::new, "greet")
-            .withInput(startMessage(1, "slinkydeveloper"), inputMessage("Francesco"))
+            .withInput(startMessage(1, "slinkydeveloper"), inputCmd("Francesco"))
             .onlyUnbuffered()
-            .expectingOutput(outputMessage("Francesco"), END_MESSAGE),
+            .expectingOutput(outputCmd("Francesco"), END_MESSAGE),
         testInvocation(Empty::new, "emptyInput")
-            .withInput(startMessage(1), inputMessage(), completionMessage(1, "Till"))
+            .withInput(startMessage(1), inputCmd(), completionMessage(1, "Till"))
             .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(Target.service("Empty", "emptyInput")),
-                outputMessage("Till"),
+                outputCmd("Till"),
                 END_MESSAGE)
             .named("empty output"),
         testInvocation(Empty::new, "emptyOutput")
             .withInput(
                 startMessage(1),
-                inputMessage("Francesco"),
+                inputCmd("Francesco"),
                 completionMessage(1).setValue(ByteString.EMPTY))
             .onlyUnbuffered()
             .expectingOutput(
                 callCmd(Target.service("Empty", "emptyOutput"), "Francesco"),
-                ProtoUtils.outputMessage(),
+                ProtoUtils.outputCmd(),
                 END_MESSAGE)
             .named("empty output"),
         testInvocation(Empty::new, "emptyInputOutput")
             .withInput(
                 startMessage(1),
-                inputMessage("Francesco"),
+                inputCmd("Francesco"),
                 completionMessage(1).setValue(ByteString.EMPTY))
             .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(Target.service("Empty", "emptyInputOutput")),
-                ProtoUtils.outputMessage(),
+                ProtoUtils.outputCmd(),
                 END_MESSAGE)
             .named("empty input and empty output"),
         testInvocation(PrimitiveTypes::new, "primitiveOutput")
-            .withInput(startMessage(1), inputMessage(), completionMessage(1, JsonSerdes.INT, 10))
+            .withInput(startMessage(1), inputCmd(), completionMessage(1, JsonSerdes.INT, 10))
             .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(
                     Target.service("PrimitiveTypes", "primitiveOutput"), Serde.VOID, null),
-                outputMessage(JsonSerdes.INT, 10),
+                outputCmd(JsonSerdes.INT, 10),
                 END_MESSAGE)
             .named("primitive output"),
         testInvocation(PrimitiveTypes::new, "primitiveInput")
             .withInput(
-                startMessage(1), inputMessage(10), completionMessage(1).setValue(ByteString.EMPTY))
+                startMessage(1), inputCmd(10), completionMessage(1).setValue(ByteString.EMPTY))
             .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(
                     Target.service("PrimitiveTypes", "primitiveInput"), JsonSerdes.INT, 10),
-                outputMessage(),
+                outputCmd(),
                 END_MESSAGE)
             .named("primitive input"),
         testInvocation(RawInputOutput::new, "rawInput")
             .withInput(
                 startMessage(1),
-                inputMessage("{{".getBytes(StandardCharsets.UTF_8)),
+                inputCmd("{{".getBytes(StandardCharsets.UTF_8)),
                 completionMessage(1, Serde.VOID, null))
             .onlyUnbuffered()
             .expectingOutput(
                 callCmd(
                     Target.service("RawInputOutput", "rawInput"),
                     "{{".getBytes(StandardCharsets.UTF_8)),
-                outputMessage(),
+                outputCmd(),
                 END_MESSAGE),
         testInvocation(RawInputOutput::new, "rawInputWithCustomCt")
             .withInput(
                 startMessage(1),
-                inputMessage("{{".getBytes(StandardCharsets.UTF_8)),
+                inputCmd("{{".getBytes(StandardCharsets.UTF_8)),
                 completionMessage(1, Serde.VOID, null))
             .onlyUnbuffered()
             .expectingOutput(
                 callCmd(
                     Target.service("RawInputOutput", "rawInputWithCustomCt"),
                     "{{".getBytes(StandardCharsets.UTF_8)),
-                outputMessage(),
+                outputCmd(),
                 END_MESSAGE),
         testInvocation(RawInputOutput::new, "rawOutput")
             .withInput(
                 startMessage(1),
-                inputMessage(),
+                inputCmd(),
                 completionMessage(1, Serde.RAW, "{{".getBytes(StandardCharsets.UTF_8)))
             .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(Target.service("RawInputOutput", "rawOutput"), Serde.VOID, null),
-                outputMessage("{{".getBytes(StandardCharsets.UTF_8)),
+                outputCmd("{{".getBytes(StandardCharsets.UTF_8)),
                 END_MESSAGE),
         testInvocation(RawInputOutput::new, "rawOutputWithCustomCT")
             .withInput(
                 startMessage(1),
-                inputMessage(),
+                inputCmd(),
                 completionMessage(1, Serde.RAW, "{{".getBytes(StandardCharsets.UTF_8)))
             .onlyUnbuffered()
             .expectingOutput(
                 invokeMessage(
                     Target.service("RawInputOutput", "rawOutputWithCustomCT"), Serde.VOID, null),
-                outputMessage("{{".getBytes(StandardCharsets.UTF_8)),
+                outputCmd("{{".getBytes(StandardCharsets.UTF_8)),
                 END_MESSAGE));
   }
 }

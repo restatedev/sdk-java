@@ -38,30 +38,30 @@ public abstract class EagerStateTestSuite implements TestSuite {
   private static final Map.Entry<String, String> STATE_FRANCESCO = entry("STATE", "Francesco");
   private static final Map.Entry<String, String> ANOTHER_STATE_FRANCESCO =
       entry("ANOTHER_STATE", "Francesco");
-  private static final MessageLite INPUT_TILL = inputMessage("Till");
-  private static final MessageLite GET_STATE_FRANCESCO = getStateMessage("STATE", "Francesco");
+  private static final MessageLite INPUT_TILL = inputCmd("Till");
+  private static final MessageLite GET_STATE_FRANCESCO = getLazyStateCmd("STATE", "Francesco");
   private static final MessageLite GET_STATE_FRANCESCO_TILL =
-      getStateMessage("STATE", "FrancescoTill");
+      getLazyStateCmd("STATE", "FrancescoTill");
   private static final MessageLite SET_STATE_FRANCESCO_TILL =
       setStateMessage("STATE", "FrancescoTill");
-  private static final MessageLite OUTPUT_FRANCESCO = outputMessage("Francesco");
-  private static final MessageLite OUTPUT_FRANCESCO_TILL = outputMessage("FrancescoTill");
+  private static final MessageLite OUTPUT_FRANCESCO = outputCmd("Francesco");
+  private static final MessageLite OUTPUT_FRANCESCO_TILL = outputCmd("FrancescoTill");
 
   @Override
   public Stream<TestDefinition> definitions() {
     return Stream.of(
         this.getEmpty()
             .withInput(startMessage(1).setPartialState(false), INPUT_TILL)
-            .expectingOutput(getStateEmptyMessage("STATE"), outputMessage("true"), END_MESSAGE)
+            .expectingOutput(getStateEmptyMessage("STATE"), outputCmd("true"), END_MESSAGE)
             .named("With complete state"),
         this.getEmpty()
             .withInput(startMessage(1).setPartialState(true), INPUT_TILL)
-            .expectingOutput(getStateMessage("STATE"), suspensionMessage(1))
+            .expectingOutput(getLazyStateMessage("STATE"), suspensionMessage(1))
             .named("With partial state"),
         this.getEmpty()
             .withInput(
                 startMessage(2).setPartialState(true), INPUT_TILL, getStateEmptyMessage("STATE"))
-            .expectingOutput(outputMessage("true"), END_MESSAGE)
+            .expectingOutput(outputCmd("true"), END_MESSAGE)
             .named("Resume with partial state"),
         this.get()
             .withInput(
@@ -75,7 +75,7 @@ public abstract class EagerStateTestSuite implements TestSuite {
             .named("With partial state"),
         this.get()
             .withInput(startMessage(1).setPartialState(true), INPUT_TILL)
-            .expectingOutput(getStateMessage("STATE"), suspensionMessage(1))
+            .expectingOutput(getLazyStateMessage("STATE"), suspensionMessage(1))
             .named("With partial state without the state entry"),
         this.getAppendAndGet()
             .withInput(startMessage(1, "my-greeter", STATE_FRANCESCO), INPUT_TILL)
@@ -92,7 +92,7 @@ public abstract class EagerStateTestSuite implements TestSuite {
                 INPUT_TILL,
                 completionMessage(1, "Francesco"))
             .expectingOutput(
-                getStateMessage("STATE"),
+                getLazyStateMessage("STATE"),
                 SET_STATE_FRANCESCO_TILL,
                 GET_STATE_FRANCESCO_TILL,
                 OUTPUT_FRANCESCO_TILL,
@@ -113,7 +113,7 @@ public abstract class EagerStateTestSuite implements TestSuite {
                 INPUT_TILL,
                 completionMessage(1, "Francesco"))
             .expectingOutput(
-                getStateMessage("STATE"),
+                getLazyStateMessage("STATE"),
                 clearStateMessage("STATE"),
                 getStateEmptyMessage("STATE"),
                 OUTPUT_FRANCESCO,
@@ -136,7 +136,7 @@ public abstract class EagerStateTestSuite implements TestSuite {
                 INPUT_TILL,
                 completionMessage(1, STATE_FRANCESCO.getValue()))
             .expectingOutput(
-                getStateMessage("STATE"),
+                getLazyStateMessage("STATE"),
                 ClearAllStateEntryMessage.getDefaultInstance(),
                 getStateEmptyMessage("STATE"),
                 getStateEmptyMessage("ANOTHER_STATE"),
@@ -150,7 +150,7 @@ public abstract class EagerStateTestSuite implements TestSuite {
                 completionMessage(1, stateKeys("a", "b")))
             .expectingOutput(
                 Protocol.GetStateKeysEntryMessage.getDefaultInstance(),
-                outputMessage("a,b"),
+                outputCmd("a,b"),
                 END_MESSAGE)
             .named("With partial state"),
         this.listKeys()
@@ -159,7 +159,7 @@ public abstract class EagerStateTestSuite implements TestSuite {
             .expectingOutput(
                 Protocol.GetStateKeysEntryMessage.newBuilder()
                     .setValue(stateKeys(STATE_FRANCESCO.getKey())),
-                outputMessage(STATE_FRANCESCO.getKey()),
+                outputCmd(STATE_FRANCESCO.getKey()),
                 END_MESSAGE)
             .named("With complete state"),
         this.listKeys()
@@ -167,23 +167,23 @@ public abstract class EagerStateTestSuite implements TestSuite {
                 startMessage(2).setPartialState(true),
                 INPUT_TILL,
                 Protocol.GetStateKeysEntryMessage.newBuilder().setValue(stateKeys("3", "2", "1")))
-            .expectingOutput(outputMessage("3,2,1"), END_MESSAGE)
+            .expectingOutput(outputCmd("3,2,1"), END_MESSAGE)
             .named("With replayed list"),
         this.consecutiveGetWithEmpty()
-            .withInput(startMessage(1).setPartialState(false), inputMessage())
+            .withInput(startMessage(1).setPartialState(false), inputCmd())
             .expectingOutput(
-                getStateMessage("key-0").setEmpty(Empty.getDefaultInstance()),
-                getStateMessage("key-0").setEmpty(Empty.getDefaultInstance()),
-                outputMessage(),
+                getLazyStateMessage("key-0").setEmpty(Empty.getDefaultInstance()),
+                getLazyStateMessage("key-0").setEmpty(Empty.getDefaultInstance()),
+                outputCmd(),
                 END_MESSAGE),
         this.consecutiveGetWithEmpty()
             .withInput(
                 startMessage(2).setPartialState(false),
-                inputMessage(),
-                getStateMessage("key-0").setEmpty(Empty.getDefaultInstance()))
+                inputCmd(),
+                getLazyStateMessage("key-0").setEmpty(Empty.getDefaultInstance()))
             .expectingOutput(
-                getStateMessage("key-0").setEmpty(Empty.getDefaultInstance()),
-                outputMessage(),
+                getLazyStateMessage("key-0").setEmpty(Empty.getDefaultInstance()),
+                outputCmd(),
                 END_MESSAGE)
             .named("With replay of the first get"));
   }

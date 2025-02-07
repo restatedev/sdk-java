@@ -107,7 +107,6 @@ public class Util {
     return (a.compareTo(b) <= 0) ? a : b;
   }
 
-
   private final static class ByteStringSlice implements Slice {
     private final ByteString byteString;
 

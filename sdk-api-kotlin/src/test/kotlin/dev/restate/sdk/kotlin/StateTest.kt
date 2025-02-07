@@ -60,19 +60,19 @@ class StateTest : StateTestSuite() {
             getAndSetStateUsingKtSerdes()
                 .withInput(
                     startMessage(3),
-                    inputMessage(),
-                    getStateMessage("STATE", KtSerdes.json(), Data(1, "Till")),
+                    inputCmd(),
+                    getLazyStateCmd("STATE", KtSerdes.json(), Data(1, "Till")),
                     setStateMessage("STATE", KtSerdes.json(), Data(2, "Till")))
-                .expectingOutput(outputMessage("Hello " + Data(2, "Till")), END_MESSAGE)
+                .expectingOutput(outputCmd("Hello " + Data(2, "Till")), END_MESSAGE)
                 .named("With GetState and SetState"),
             getAndSetStateUsingKtSerdes()
                 .withInput(
                     startMessage(2),
-                    inputMessage(),
-                    getStateMessage("STATE", KtSerdes.json(), Data(1, "Till")))
+                    inputCmd(),
+                    getLazyStateCmd("STATE", KtSerdes.json(), Data(1, "Till")))
                 .expectingOutput(
                     setStateMessage("STATE", KtSerdes.json(), Data(2, "Till")),
-                    outputMessage("Hello " + Data(2, "Till")),
+                    outputCmd("Hello " + Data(2, "Till")),
                     END_MESSAGE)
                 .named("With GetState already completed"),
         ))

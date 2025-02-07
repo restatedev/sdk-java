@@ -12,10 +12,10 @@ import static dev.restate.sdk.JavaBlockingTests.*;
 
 import dev.restate.sdk.core.AsyncResultTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
-import dev.restate.sdk.serde.Serde;
+import dev.restate.sdk.types.TimeoutException;
+import dev.restate.serde.Serde;
 import dev.restate.sdk.types.StateKey;
 import java.time.Duration;
-import java.util.concurrent.TimeoutException;
 
 public class AsyncResultTest extends AsyncResultTestSuite {
 
@@ -93,9 +93,9 @@ public class AsyncResultTest extends AsyncResultTestSuite {
           Awaitable<String> a3 = ctx.awakeable(JsonSerdes.STRING);
           Awaitable<String> a4 = ctx.awakeable(JsonSerdes.STRING);
 
-          Awaitable<Object> a12 = Awaitable.any(a1, a2);
-          Awaitable<Object> a23 = Awaitable.any(a2, a3);
-          Awaitable<Object> a34 = Awaitable.any(a3, a4);
+          Awaitable<Integer> a12 = Awaitable.any(a1, a2);
+          Awaitable<Integer> a23 = Awaitable.any(a2, a3);
+          Awaitable<Integer> a34 = Awaitable.any(a3, a4);
           Awaitable.all(a12, a23, a34).await();
 
           return a12.await() + (String) a23.await() + a34.await();
@@ -114,7 +114,7 @@ public class AsyncResultTest extends AsyncResultTestSuite {
           Awaitable<String> a3 = ctx.awakeable(JsonSerdes.STRING);
           Awaitable<String> a4 = ctx.awakeable(JsonSerdes.STRING);
 
-          return String.valueOf(Awaitable.any(a1, Awaitable.all(a2, a3), a4).awaitIndex());
+          return String.valueOf(Awaitable.any(a1, Awaitable.all(a2, a3), a4).await());
         });
   }
 

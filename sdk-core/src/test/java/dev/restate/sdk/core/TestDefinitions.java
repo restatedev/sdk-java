@@ -116,22 +116,26 @@ public final class TestDefinitions {
       this.invalidReason = invalidReason;
     }
 
-    public WithInputBuilder withInput(MessageLiteOrBuilder... messages) {
+    public WithInputBuilder withInput(Stream<MessageLiteOrBuilder> messages) {
       if (invalidReason != null) {
         return new WithInputBuilder(invalidReason);
       }
 
       return new WithInputBuilder(
-          service,
-          options,
-          handler,
-          Arrays.stream(messages)
-              .map(
-                  msgOrBuilder -> {
-                    MessageLite msg = ProtoUtils.build(msgOrBuilder);
-                    return InvocationInput.of(headerFromMessage(msg), msg);
-                  })
-              .collect(Collectors.toList()));
+              service,
+              options,
+              handler,
+             messages
+                      .map(
+                              msgOrBuilder -> {
+                                MessageLite msg = ProtoUtils.build(msgOrBuilder);
+                                return InvocationInput.of(headerFromMessage(msg), msg);
+                              })
+                      .collect(Collectors.toList()));
+    }
+
+    public WithInputBuilder withInput(MessageLiteOrBuilder... messages) {
+      return withInput( Arrays.stream(messages));
     }
   }
 

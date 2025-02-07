@@ -40,9 +40,9 @@ public abstract class AwakeableIdTestSuite implements TestSuite {
         returnAwakeableId()
             .withInput(
                     startMessage(1).setDebugId(debugId).setId(ByteString.copyFrom(serializedId)),
-                inputMessage())
+                inputCmd())
                 .expectingOutput(
-                        outputMessage(base64ExpectedAwakeableId)
+                        outputCmd(base64ExpectedAwakeableId)
                 ));
   }
 

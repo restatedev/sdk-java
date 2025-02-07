@@ -57,7 +57,7 @@ class LambdaHandlerTest {
                         .setKnownEntries(1)
                         .setPartialState(true)
                         .build(),
-                    inputMessage())));
+                    inputCmd())));
 
     // Send request
     APIGatewayProxyResponseEvent response = handler.handleRequest(request, mockContext());
@@ -69,7 +69,7 @@ class LambdaHandlerTest {
     assertThat(response.getIsBase64Encoded()).isTrue();
     assertThat(response.getBody())
         .asBase64Decoded()
-        .isEqualTo(serializeEntries(getStateMessage("counter").build(), suspensionMessage(1)));
+        .isEqualTo(serializeEntries(getLazyStateMessage("counter").build(), suspensionMessage(1)));
   }
 
   @Test

@@ -24,7 +24,6 @@ import dev.restate.sdk.core.statemachine.MessageDecoder;
 import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.types.TerminalException;
 
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
