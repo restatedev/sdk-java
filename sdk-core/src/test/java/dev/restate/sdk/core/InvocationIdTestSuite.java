@@ -14,7 +14,6 @@ import com.google.protobuf.ByteString;
 import dev.restate.sdk.core.TestDefinitions.TestDefinition;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
-
 import java.util.stream.Stream;
 
 public abstract class InvocationIdTestSuite implements TestSuite {
@@ -28,9 +27,7 @@ public abstract class InvocationIdTestSuite implements TestSuite {
 
     return Stream.of(
         returnInvocationId()
-            .withInput(
-                    startMessage(1).setDebugId(debugId).setId(id),
-                inputCmd())
+            .withInput(startMessage(1).setDebugId(debugId).setId(id), inputCmd())
             .onlyUnbuffered()
             .expectingOutput(outputCmd(debugId), END_MESSAGE));
   }

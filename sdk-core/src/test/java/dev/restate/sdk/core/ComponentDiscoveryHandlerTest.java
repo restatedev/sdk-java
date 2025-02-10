@@ -16,10 +16,9 @@ import dev.restate.sdk.endpoint.definition.HandlerDefinition;
 import dev.restate.sdk.endpoint.definition.HandlerType;
 import dev.restate.sdk.endpoint.definition.ServiceDefinition;
 import dev.restate.sdk.endpoint.definition.ServiceType;
+import dev.restate.serde.Serde;
 import java.util.List;
 import java.util.stream.Stream;
-
-import dev.restate.serde.Serde;
 import org.junit.jupiter.api.Test;
 
 class ComponentDiscoveryHandlerTest {
@@ -35,8 +34,7 @@ class ComponentDiscoveryHandlerTest {
                     ServiceType.SERVICE,
                     List.of(
                         HandlerDefinition.of(
-                                "greet", HandlerType.EXCLUSIVE, Serde.VOID, Serde.VOID,
-                            null)))),
+                            "greet", HandlerType.EXCLUSIVE, Serde.VOID, Serde.VOID, null)))),
             false);
 
     EndpointManifestSchema manifest = deploymentManifest.manifest();

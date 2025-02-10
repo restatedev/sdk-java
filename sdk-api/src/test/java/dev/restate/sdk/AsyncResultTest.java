@@ -12,9 +12,9 @@ import static dev.restate.sdk.JavaBlockingTests.*;
 
 import dev.restate.sdk.core.AsyncResultTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
+import dev.restate.sdk.types.StateKey;
 import dev.restate.sdk.types.TimeoutException;
 import dev.restate.serde.Serde;
-import dev.restate.sdk.types.StateKey;
 import java.time.Duration;
 
 public class AsyncResultTest extends AsyncResultTestSuite {

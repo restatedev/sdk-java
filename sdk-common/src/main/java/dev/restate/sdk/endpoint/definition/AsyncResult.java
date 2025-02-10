@@ -9,7 +9,6 @@
 package dev.restate.sdk.endpoint.definition;
 
 import dev.restate.common.function.ThrowingFunction;
-
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -25,5 +24,4 @@ public interface AsyncResult<T> {
   HandlerContext ctx();
 
   <U> AsyncResult<U> map(ThrowingFunction<T, U> mapper);
-
 }

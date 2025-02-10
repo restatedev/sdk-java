@@ -24,7 +24,6 @@ import io.smallrye.mutiny.helpers.test.AssertSubscriber;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.logging.log4j.ThreadContext;
 
 public final class MockSingleThread implements TestExecutor {
@@ -57,11 +56,9 @@ public final class MockSingleThread implements TestExecutor {
     // Start invocation
     RequestProcessor handler =
         server.processorForRequest(
-                "/" + serviceDefinition.getServiceName() + "/" + definition.getMethod(),
-                HeadersAccessor.wrap(Map.of(
-                        "content-type",
-                        ProtoUtils.serviceProtocolContentTypeHeader()
-                )),
+            "/" + serviceDefinition.getServiceName() + "/" + definition.getMethod(),
+            HeadersAccessor.wrap(
+                Map.of("content-type", ProtoUtils.serviceProtocolContentTypeHeader())),
             EndpointRequestHandler.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
             null);
 
@@ -70,7 +67,7 @@ public final class MockSingleThread implements TestExecutor {
     Multi.createFrom()
         .iterable(definition.getInput())
         .map(ProtoUtils::invocationInputToByteString)
-            .map(Slice::wrap)
+        .map(Slice::wrap)
         .subscribe(handler);
     Multi.createFrom().publisher(handler).subscribe(assertSubscriber);
 
@@ -79,8 +76,8 @@ public final class MockSingleThread implements TestExecutor {
     // Unwrap messages and decode them
     //noinspection unchecked
     assertThatDecodingMessages(assertSubscriber.getItems().toArray(Slice[]::new))
-            .map(InvocationInput::message)
-            .satisfies(l -> definition.getOutputAssert().accept((List<MessageLite>) l));
+        .map(InvocationInput::message)
+        .satisfies(l -> definition.getOutputAssert().accept((List<MessageLite>) l));
 
     // Clean logging
     ThreadContext.clearAll();

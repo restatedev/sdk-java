@@ -8,10 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.endpoint.definition;
 
-import java.util.concurrent.CompletableFuture;
-
 import dev.restate.common.Slice;
 import dev.restate.serde.Serde;
+import java.util.concurrent.CompletableFuture;
 import org.jspecify.annotations.Nullable;
 
 public interface HandlerRunner<REQ, RES, O> {

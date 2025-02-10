@@ -71,14 +71,21 @@ public class ProtocolException extends RuntimeException {
 
   public static ProtocolException commandDoesNotMatch(MessageLite expected, MessageLite actual) {
     return new ProtocolException(
-            "Replayed journal doesn't match the handler code.\nThe handler code generated: " + expected + "\nwhile the replayed entry is: " + actual,
+        "Replayed journal doesn't match the handler code.\nThe handler code generated: "
+            + expected
+            + "\nwhile the replayed entry is: "
+            + actual,
         JOURNAL_MISMATCH_CODE);
   }
 
-  public static ProtocolException commandClassDoesNotMatch(Class<? extends MessageLite> expectedClazz, MessageLite actual) {
+  public static ProtocolException commandClassDoesNotMatch(
+      Class<? extends MessageLite> expectedClazz, MessageLite actual) {
     return new ProtocolException(
-            "Replayed journal doesn't match the handler code.\nThe handler code generated: " + expectedClazz.getName() + "\nwhile the replayed entry is: " + actual,
-            JOURNAL_MISMATCH_CODE);
+        "Replayed journal doesn't match the handler code.\nThe handler code generated: "
+            + expectedClazz.getName()
+            + "\nwhile the replayed entry is: "
+            + actual,
+        JOURNAL_MISMATCH_CODE);
   }
 
   public static ProtocolException commandsToProcessIsEmpty() {
@@ -108,7 +115,9 @@ public class ProtocolException extends RuntimeException {
 
   public static ProtocolException badRunNotificationId(NotificationId notificationId) {
     return new ProtocolException(
-            "Bad run handle, should be mapped to a completion notification id, but was " + notificationId, PROTOCOL_VIOLATION_CODE);
+        "Bad run handle, should be mapped to a completion notification id, but was "
+            + notificationId,
+        PROTOCOL_VIOLATION_CODE);
   }
 
   public static ProtocolException commandMissingField(Class<?> clazz, String missingField) {

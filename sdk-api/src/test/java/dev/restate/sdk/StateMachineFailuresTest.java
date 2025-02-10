@@ -16,7 +16,6 @@ import dev.restate.sdk.types.AbortedExecutionException;
 import dev.restate.sdk.types.StateKey;
 import dev.restate.sdk.types.TerminalException;
 import dev.restate.serde.Serde;
-
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicInteger;
 

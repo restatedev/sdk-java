@@ -8,6 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core.statemachine;
 
+import static dev.restate.sdk.core.statemachine.Util.byteStringToSlice;
+
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
 import dev.restate.sdk.core.ExceptionUtils;
@@ -15,17 +17,10 @@ import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.core.statemachine.StateMachine.DoProgressResponse;
 import dev.restate.sdk.types.AbortedExecutionException;
-
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-
-import dev.restate.sdk.types.RetryPolicy;
-import dev.restate.common.Slice;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.jspecify.annotations.Nullable;
-
-import static dev.restate.sdk.core.statemachine.Util.byteStringToSlice;
 
 final class ReplayingState implements State {
 
@@ -94,21 +89,18 @@ final class ReplayingState implements State {
   @Override
   public StateMachine.Input processInputCommand(StateContext stateContext) {
     Protocol.InputCommandMessage inputCommandMessage =
-            processNonCompletableCommandInner(Protocol.InputCommandMessage.getDefaultInstance(), CommandAccessor.INPUT, stateContext);
+        processNonCompletableCommandInner(
+            Protocol.InputCommandMessage.getDefaultInstance(), CommandAccessor.INPUT, stateContext);
 
-      //noinspection unchecked
-      return new StateMachine.Input(
-            new InvocationIdImpl(stateContext.getStartInfo().debugId()),
-            byteStringToSlice(
-            inputCommandMessage.getValue().getContent()
-            ),
-            Map.ofEntries(
-                    inputCommandMessage.getHeadersList().stream()
-                            .map(h -> Map.entry(h.getKey(), h.getValue()))
-                            .toArray(Map.Entry[]::new)
-            ),
-            stateContext.getStartInfo().objectKey()
-    );
+    //noinspection unchecked
+    return new StateMachine.Input(
+        new InvocationIdImpl(stateContext.getStartInfo().debugId()),
+        byteStringToSlice(inputCommandMessage.getValue().getContent()),
+        Map.ofEntries(
+            inputCommandMessage.getHeadersList().stream()
+                .map(h -> Map.entry(h.getKey(), h.getValue()))
+                .toArray(Map.Entry[]::new)),
+        stateContext.getStartInfo().objectKey());
   }
 
   @Override
@@ -118,10 +110,13 @@ final class ReplayingState implements State {
 
     var notificationHandle =
         this.processCompletableCommand(
-                Protocol.RunCommandMessage.newBuilder()
-                        .setName(name)
-                        .setResultCompletionId(completionId)
-                        .build(), CommandAccessor.RUN, new int[] {completionId}, stateContext)[0];
+            Protocol.RunCommandMessage.newBuilder()
+                .setName(name)
+                .setResultCompletionId(completionId)
+                .build(),
+            CommandAccessor.RUN,
+            new int[] {completionId},
+            stateContext)[0];
 
     if (asyncResultsState.nonDeterministicFindId(notificationId)) {
       LOG.trace(
@@ -145,12 +140,11 @@ final class ReplayingState implements State {
     processNonCompletableCommandInner(commandMessage, commandAccessor, stateContext);
   }
 
-
   private <E extends MessageLite> E processNonCompletableCommandInner(
-          E commandMessage, CommandAccessor<E> commandAccessor, StateContext stateContext) {
+      E commandMessage, CommandAccessor<E> commandAccessor, StateContext stateContext) {
     stateContext
-            .getJournal()
-            .commandTransition(commandAccessor.getName(commandMessage), commandMessage);
+        .getJournal()
+        .commandTransition(commandAccessor.getName(commandMessage), commandMessage);
 
     MessageLite actual = takeNextCommandToProcess();
     commandAccessor.checkEntryHeader(commandMessage, actual);
@@ -187,7 +181,8 @@ final class ReplayingState implements State {
   @Override
   public int processStateGetCommand(String key, StateContext stateContext) {
     var completionId = stateContext.getJournal().nextCompletionNotificationId();
-    var handle = asyncResultsState.createHandleMapping(new NotificationId.CompletionId(completionId));
+    var handle =
+        asyncResultsState.createHandleMapping(new NotificationId.CompletionId(completionId));
 
     stateContext
         .getJournal()
@@ -232,7 +227,8 @@ final class ReplayingState implements State {
   @Override
   public int processStateGetKeysCommand(StateContext stateContext) {
     var completionId = stateContext.getJournal().nextCompletionNotificationId();
-    var handle = asyncResultsState.createHandleMapping(new NotificationId.CompletionId(completionId));
+    var handle =
+        asyncResultsState.createHandleMapping(new NotificationId.CompletionId(completionId));
 
     stateContext
         .getJournal()

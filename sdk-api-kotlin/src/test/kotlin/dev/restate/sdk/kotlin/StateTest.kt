@@ -62,7 +62,7 @@ class StateTest : StateTestSuite() {
                     startMessage(3),
                     inputCmd(),
                     getLazyStateCmd("STATE", KtSerdes.json(), Data(1, "Till")),
-                    setStateMessage("STATE", KtSerdes.json(), Data(2, "Till")))
+                    setStateCmd("STATE", KtSerdes.json(), Data(2, "Till")))
                 .expectingOutput(outputCmd("Hello " + Data(2, "Till")), END_MESSAGE)
                 .named("With GetState and SetState"),
             getAndSetStateUsingKtSerdes()
@@ -71,7 +71,7 @@ class StateTest : StateTestSuite() {
                     inputCmd(),
                     getLazyStateCmd("STATE", KtSerdes.json(), Data(1, "Till")))
                 .expectingOutput(
-                    setStateMessage("STATE", KtSerdes.json(), Data(2, "Till")),
+                    setStateCmd("STATE", KtSerdes.json(), Data(2, "Till")),
                     outputCmd("Hello " + Data(2, "Till")),
                     END_MESSAGE)
                 .named("With GetState already completed"),

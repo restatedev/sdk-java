@@ -14,8 +14,6 @@ import dev.restate.sdk.core.generated.protocol.Protocol;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Flow;
-import org.jspecify.annotations.Nullable;
 
 final class WaitingReplayEntriesState implements State {
 
@@ -54,14 +52,12 @@ final class WaitingReplayEntriesState implements State {
   }
 
   @Override
-  public void onInputClosed(
-      StateContext stateContext) {
+  public void onInputClosed(StateContext stateContext) {
     throw ProtocolException.inputClosedWhileWaitingEntries();
   }
 
   @Override
-  public void end(
-      StateContext stateContext) {
+  public void end(StateContext stateContext) {
     throw ProtocolException.closedWhileWaitingEntries();
   }
 

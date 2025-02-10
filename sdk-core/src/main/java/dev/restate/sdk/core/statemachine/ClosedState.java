@@ -8,14 +8,14 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core.statemachine;
 
-import org.jspecify.annotations.Nullable;
-
 import java.time.Duration;
+import org.jspecify.annotations.Nullable;
 
 final class ClosedState implements State {
 
   @Override
-  public void hitError(Throwable throwable, @Nullable Duration nextRetryDelay, StateContext stateContext) {
+  public void hitError(
+      Throwable throwable, @Nullable Duration nextRetryDelay, StateContext stateContext) {
     // Ignore, as we closed already
   }
 

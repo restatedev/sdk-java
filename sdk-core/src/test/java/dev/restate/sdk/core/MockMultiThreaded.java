@@ -59,12 +59,10 @@ public final class MockMultiThreaded implements TestDefinitions.TestExecutor {
     // Start invocation
     RequestProcessor handler =
         server.processorForRequest(
-                "/" + serviceDefinition.getServiceName() + "/" + definition.getMethod(),
-                HeadersAccessor.wrap(Map.of(
-                        "content-type",
-                        ProtoUtils.serviceProtocolContentTypeHeader()
-                )),
-EndpointRequestHandler.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
+            "/" + serviceDefinition.getServiceName() + "/" + definition.getMethod(),
+            HeadersAccessor.wrap(
+                Map.of("content-type", ProtoUtils.serviceProtocolContentTypeHeader())),
+            EndpointRequestHandler.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
             syscallsExecutor);
 
     // Wire invocation
@@ -75,7 +73,7 @@ EndpointRequestHandler.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
         .iterable(definition.getInput())
         .runSubscriptionOn(syscallsExecutor)
         .map(ProtoUtils::invocationInputToByteString)
-            .map(Slice::wrap)
+        .map(Slice::wrap)
         .subscribe(handler);
     Multi.createFrom()
         .publisher(handler)
@@ -86,8 +84,8 @@ EndpointRequestHandler.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
     assertSubscriber.awaitCompletion(Duration.ofSeconds(1));
 
     // Unwrap messages and decode them
-      //noinspection unchecked
-      assertThatDecodingMessages(assertSubscriber.getItems().toArray(Slice[]::new))
+    //noinspection unchecked
+    assertThatDecodingMessages(assertSubscriber.getItems().toArray(Slice[]::new))
         .map(InvocationInput::message)
         .satisfies(l -> definition.getOutputAssert().accept((List<MessageLite>) l));
 

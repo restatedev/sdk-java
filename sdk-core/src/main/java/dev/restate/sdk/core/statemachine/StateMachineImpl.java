@@ -144,7 +144,7 @@ class StateMachineImpl implements StateMachine {
         invocationInput = this.messageDecoder.next();
       }
 
-      if (shouldTriggerInputListener ) {
+      if (shouldTriggerInputListener) {
         this.triggerWaitNextInputSignal();
       }
 
@@ -186,7 +186,7 @@ class StateMachineImpl implements StateMachine {
 
   @Override
   public boolean isCompleted(int handle) {
-    return      this.stateContext.getCurrentState().isCompleted(handle);
+    return this.stateContext.getCurrentState().isCompleted(handle);
   }
 
   @Override
@@ -202,17 +202,13 @@ class StateMachineImpl implements StateMachine {
   @Override
   public int stateGet(String key) {
     LOG.debug("Executing 'Get state {}'", key);
-    return this.stateContext
-        .getCurrentState()
-        .processStateGetCommand(key, this.stateContext);
+    return this.stateContext.getCurrentState().processStateGetCommand(key, this.stateContext);
   }
 
   @Override
   public int stateGetKeys() {
     LOG.debug("Executing 'Get state keys'");
-    return this.stateContext
-        .getCurrentState()
-        .processStateGetKeysCommand(this.stateContext);
+    return this.stateContext.getCurrentState().processStateGetKeysCommand(this.stateContext);
   }
 
   @Override
@@ -251,7 +247,9 @@ class StateMachineImpl implements StateMachine {
     this.stateContext
         .getCurrentState()
         .processNonCompletableCommand(
-            Protocol.ClearAllStateCommandMessage.getDefaultInstance(), CommandAccessor.CLEAR_ALL_STATE, this.stateContext);
+            Protocol.ClearAllStateCommandMessage.getDefaultInstance(),
+            CommandAccessor.CLEAR_ALL_STATE,
+            this.stateContext);
   }
 
   @Override
@@ -359,7 +357,10 @@ class StateMachineImpl implements StateMachine {
 
     return this.stateContext.getCurrentState()
         .processCompletableCommand(
-            sendCommandBuilder.build(),CommandAccessor.ONE_WAY_CALL, new int[] {invocationIdCompletionId}, this.stateContext)[0];
+            sendCommandBuilder.build(),
+            CommandAccessor.ONE_WAY_CALL,
+            new int[] {invocationIdCompletionId},
+            this.stateContext)[0];
   }
 
   @Override
@@ -410,7 +411,8 @@ class StateMachineImpl implements StateMachine {
 
     this.stateContext
         .getCurrentState()
-        .processNonCompletableCommand(builder.build(), CommandAccessor.COMPLETE_AWAKEABLE,this.stateContext);
+        .processNonCompletableCommand(
+            builder.build(), CommandAccessor.COMPLETE_AWAKEABLE, this.stateContext);
   }
 
   @Override
@@ -461,7 +463,8 @@ class StateMachineImpl implements StateMachine {
 
     this.stateContext
         .getCurrentState()
-        .processNonCompletableCommand(builder.build(), CommandAccessor.SEND_SIGNAL, this.stateContext);
+        .processNonCompletableCommand(
+            builder.build(), CommandAccessor.SEND_SIGNAL, this.stateContext);
   }
 
   @Override
@@ -522,7 +525,11 @@ class StateMachineImpl implements StateMachine {
     filler.accept(builder);
 
     return this.stateContext.getCurrentState()
-        .processCompletableCommand(builder.build(), CommandAccessor.COMPLETE_PROMISE,new int[] {completionId}, this.stateContext)[0];
+        .processCompletableCommand(
+            builder.build(),
+            CommandAccessor.COMPLETE_PROMISE,
+            new int[] {completionId},
+            this.stateContext)[0];
   }
 
   @Override
@@ -538,7 +545,10 @@ class StateMachineImpl implements StateMachine {
 
   @Override
   public void proposeRunCompletion(
-      int handle, Throwable exception,  Duration attemptDuration,  @Nullable RetryPolicy retryPolicy) {
+      int handle,
+      Throwable exception,
+      Duration attemptDuration,
+      @Nullable RetryPolicy retryPolicy) {
     LOG.debug("Executing 'Run completed with failure");
     this.stateContext
         .getCurrentState()
@@ -581,7 +591,8 @@ class StateMachineImpl implements StateMachine {
         .processNonCompletableCommand(
             Protocol.OutputCommandMessage.newBuilder()
                 .setFailure(toProtocolFailure(exception))
-                .build(),CommandAccessor.OUTPUT,
+                .build(),
+            CommandAccessor.OUTPUT,
             this.stateContext);
   }
 

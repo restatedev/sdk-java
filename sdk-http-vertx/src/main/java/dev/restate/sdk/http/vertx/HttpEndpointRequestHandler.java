@@ -8,27 +8,24 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.http.vertx;
 
-import static io.netty.handler.codec.http.HttpHeaderNames.ACCEPT;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 
 import dev.restate.sdk.core.EndpointRequestHandler;
+import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.RequestProcessor;
 import dev.restate.sdk.endpoint.Endpoint;
-import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.version.Version;
 import io.netty.util.AsciiString;
 import io.reactiverse.contextual.logging.ContextualData;
 import io.vertx.core.Context;
 import io.vertx.core.Handler;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.http.impl.HttpServerRequestInternal;
 import java.net.URI;
 import java.util.concurrent.Executor;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
@@ -54,35 +51,37 @@ public class HttpEndpointRequestHandler implements Handler<HttpServerRequest> {
 
     RequestProcessor requestProcessor;
     try {
-      requestProcessor = this.endpoint.processorForRequest(uri.getPath(), new HeadersAccessor() {
-        @Override
-        public Iterable<String> keys() {
-          return request.headers().names();
-        }
+      requestProcessor =
+          this.endpoint.processorForRequest(
+              uri.getPath(),
+              new HeadersAccessor() {
+                @Override
+                public Iterable<String> keys() {
+                  return request.headers().names();
+                }
 
-        @Override
-        public @Nullable String get(String key) {
-          return request.getHeader(key);
-        }
-      }, ContextualData::put,
-              currentContextExecutor(vertxCurrentContext)
-              );
+                @Override
+                public @Nullable String get(String key) {
+                  return request.getHeader(key);
+                }
+              },
+              ContextualData::put,
+              currentContextExecutor(vertxCurrentContext));
     } catch (ProtocolException e) {
       LOG.warn("Error when handling the request", e);
       request
-              .response()
-              .setStatusCode(e.getCode())
-              .putHeader(CONTENT_TYPE, "text/plain")
-              .putHeader(X_RESTATE_SERVER_KEY, X_RESTATE_SERVER_VALUE)
-              .end(e.getMessage());
+          .response()
+          .setStatusCode(e.getCode())
+          .putHeader(CONTENT_TYPE, "text/plain")
+          .putHeader(X_RESTATE_SERVER_KEY, X_RESTATE_SERVER_VALUE)
+          .end(e.getMessage());
       return;
     }
 
     // Prepare the header frame to send in the response.
     // Vert.x will send them as soon as we send the first write
     HttpServerResponse response = request.response();
-    response.setStatusCode(
-            requestProcessor.statusCode());
+    response.setStatusCode(requestProcessor.statusCode());
     response
         .putHeader(CONTENT_TYPE, requestProcessor.responseContentType())
         .putHeader(X_RESTATE_SERVER_KEY, X_RESTATE_SERVER_VALUE);
@@ -101,6 +100,6 @@ public class HttpEndpointRequestHandler implements Handler<HttpServerRequest> {
   }
 
   public static HttpEndpointRequestHandler fromEndpoint(Endpoint endpoint) {
-return new HttpEndpointRequestHandler(endpoint);
+    return new HttpEndpointRequestHandler(endpoint);
   }
 }

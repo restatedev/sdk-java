@@ -8,9 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
+import dev.restate.common.Slice;
 import dev.restate.sdk.core.statemachine.StateMachine;
 import dev.restate.sdk.endpoint.definition.HandlerDefinition;
-import dev.restate.common.Slice;
 import dev.restate.sdk.types.TerminalException;
 import io.opentelemetry.context.Context;
 import java.util.concurrent.CompletableFuture;
@@ -59,7 +59,8 @@ final class RequestProcessorImpl implements RequestProcessor {
     stateMachine
         .waitForReady()
         .thenCompose(v -> this.onReady())
-            .whenComplete((v, t) -> {
+        .whenComplete(
+            (v, t) -> {
               if (t != null) {
                 this.onError(t);
               }
@@ -101,36 +102,32 @@ final class RequestProcessorImpl implements RequestProcessor {
 
     if (input == null) {
       return CompletableFuture.failedFuture(
-              new IllegalStateException("State machine input is empty"));
+          new IllegalStateException("State machine input is empty"));
     }
 
     this.loggingContextSetter.set(
-            EndpointRequestHandler.LoggingContextSetter.INVOCATION_ID_KEY,
-            input.invocationId().toString());
+        EndpointRequestHandler.LoggingContextSetter.INVOCATION_ID_KEY,
+        input.invocationId().toString());
 
     // Prepare HandlerContext object
     HandlerContextInternal contextInternal =
-            this.syscallsExecutor != null
-                    ? new ExecutorSwitchingHandlerContextImpl(
-                    fullyQualifiedHandlerName,
-                    stateMachine,
-                    otelContext,
-                    input,
-                    this.syscallsExecutor)
-                    : new HandlerContextImpl(
-                    fullyQualifiedHandlerName, stateMachine, otelContext, input);
+        this.syscallsExecutor != null
+            ? new ExecutorSwitchingHandlerContextImpl(
+                fullyQualifiedHandlerName, stateMachine, otelContext, input, this.syscallsExecutor)
+            : new HandlerContextImpl(fullyQualifiedHandlerName, stateMachine, otelContext, input);
 
-    CompletableFuture<Slice> userCodeFuture = this.handlerDefinition
+    CompletableFuture<Slice> userCodeFuture =
+        this.handlerDefinition
             .getRunner()
             .run(
-                    contextInternal,
-                    handlerDefinition.getRequestSerde(),
-                    handlerDefinition.getResponseSerde(),
-                    serviceOptions);
+                contextInternal,
+                handlerDefinition.getRequestSerde(),
+                handlerDefinition.getResponseSerde(),
+                serviceOptions);
 
     return userCodeFuture
-            .thenCompose(slice -> this.writeOutputAndEnd(contextInternal, slice))
-            .exceptionallyCompose(throwable -> this.end(contextInternal, throwable));
+        .thenCompose(slice -> this.writeOutputAndEnd(contextInternal, slice))
+        .exceptionallyCompose(throwable -> this.end(contextInternal, throwable));
   }
 
   private CompletableFuture<Void> writeOutputAndEnd(

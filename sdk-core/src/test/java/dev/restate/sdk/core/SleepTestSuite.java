@@ -8,8 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
+import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.LONG;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
@@ -54,9 +54,10 @@ public abstract class SleepTestSuite implements TestDefinitions.TestSuite {
                 inputCmd("Till"),
                 Protocol.SleepCommandMessage.newBuilder()
                     .setWakeUpTime(Instant.now().toEpochMilli())
-                        .setResultCompletionId(1)
-                    , Protocol.SleepCompletionNotificationMessage.newBuilder().setCompletionId(1).setVoid(Protocol.Void.getDefaultInstance())
-            )
+                    .setResultCompletionId(1),
+                Protocol.SleepCompletionNotificationMessage.newBuilder()
+                    .setCompletionId(1)
+                    .setVoid(Protocol.Void.getDefaultInstance()))
             .expectingOutput(outputCmd("Hello"), END_MESSAGE)
             .named("Sleep 1000 ms sleep completed"),
         this.sleepGreeter()
@@ -71,34 +72,32 @@ public abstract class SleepTestSuite implements TestDefinitions.TestSuite {
         this.manySleeps()
             .withInput(
                 Stream.concat(
-                        Stream.of(startMessage(11), inputCmd("Till")),
-                        IntStream.rangeClosed(1, 10)
-                                .mapToObj(
-                                i ->
-                                    (i % 3 == 0)
-                                        ? Stream.<MessageLiteOrBuilder>of(
-                                                Protocol.SleepCommandMessage.newBuilder()
+                    Stream.of(startMessage(11), inputCmd("Till")),
+                    IntStream.rangeClosed(1, 10)
+                        .mapToObj(
+                            i ->
+                                (i % 3 == 0)
+                                    ? Stream.<MessageLiteOrBuilder>of(
+                                        Protocol.SleepCommandMessage.newBuilder()
                                             .setWakeUpTime(Instant.now().toEpochMilli())
-                                                        .setResultCompletionId(i)
-                                                             , Protocol.SleepCompletionNotificationMessage.newBuilder().setCompletionId(1).setVoid(Protocol.Void.getDefaultInstance())
-
-
-                                    )
-                                        : Stream.<MessageLiteOrBuilder>of(Protocol.SleepCommandMessage.newBuilder()
+                                            .setResultCompletionId(i),
+                                        Protocol.SleepCompletionNotificationMessage.newBuilder()
+                                            .setCompletionId(1)
+                                            .setVoid(Protocol.Void.getDefaultInstance()))
+                                    : Stream.<MessageLiteOrBuilder>of(
+                                        Protocol.SleepCommandMessage.newBuilder()
                                             .setWakeUpTime(Instant.now().toEpochMilli())
-                                            .setResultCompletionId(i)
-                                            ))
-                        .flatMap(Function.identity())
-                )
-                )
+                                            .setResultCompletionId(i)))
+                        .flatMap(Function.identity())))
             .expectingOutput(suspensionMessage(1, 2, 4, 5, 7, 8, 10))
             .named("Sleep 1000 ms sleep completed"),
         this.sleepGreeter()
             .withInput(
                 startMessage(1),
                 inputCmd("Till"),
-                    Protocol.SleepCompletionNotificationMessage.newBuilder().setCompletionId(1).setVoid(Protocol.Void.getDefaultInstance())
-            )
+                Protocol.SleepCompletionNotificationMessage.newBuilder()
+                    .setCompletionId(1)
+                    .setVoid(Protocol.Void.getDefaultInstance()))
             .assertingOutput(
                 messageLites -> {
                   assertThat(messageLites)

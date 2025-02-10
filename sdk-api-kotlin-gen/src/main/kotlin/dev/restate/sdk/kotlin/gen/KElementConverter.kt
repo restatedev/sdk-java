@@ -38,7 +38,7 @@ class KElementConverter(
     private val SUPPORTED_CLASS_KIND: Set<ClassKind> = setOf(ClassKind.CLASS, ClassKind.INTERFACE)
     private val EMPTY_PAYLOAD: PayloadType =
         PayloadType(true, "", "Unit", "dev.restate.sdk.kotlin.KtSerdes.UNIT")
-    private const val RAW_SERDE: String = "dev.restate.sdk.common.Serde.RAW"
+    private const val RAW_SERDE: String = "dev.restate.serde.Serde.RAW"
   }
 
   override fun defaultHandler(node: KSNode, data: Service.Builder) {}
@@ -240,9 +240,9 @@ class KElementConverter(
   }
 
   private fun validateMethodSignature(
-    serviceType: ServiceType,
-    handlerType: HandlerType,
-    function: KSFunctionDeclaration
+      serviceType: ServiceType,
+      handlerType: HandlerType,
+      function: KSFunctionDeclaration
   ) {
     if (function.parameters.isEmpty()) {
       logger.error(

@@ -8,12 +8,11 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import dev.restate.sdk.core.generated.protocol.Protocol;
-
-import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.*;
+import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.restate.sdk.core.generated.protocol.Protocol;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -53,12 +52,8 @@ public abstract class AsyncResultTestSuite implements TestSuite {
                 inputCmd(),
                 callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
                 callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
-                callCompletion(4, "TILL")
-            )
-            .expectingOutput(
-                    outputCmd("TILL"),
-                    END_MESSAGE
-            )
+                callCompletion(4, "TILL"))
+            .expectingOutput(outputCmd("TILL"), END_MESSAGE)
             .named("Only one completion completes any combinator"),
         testInvocation
             .get()
@@ -67,39 +62,29 @@ public abstract class AsyncResultTestSuite implements TestSuite {
                 inputCmd(),
                 callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
                 callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
-                callCompletion(4, new IllegalStateException("My error"))
-               )
-            .expectingOutput(
-                outputCmd(new IllegalStateException("My error")),
-                END_MESSAGE)
+                callCompletion(4, new IllegalStateException("My error")))
+            .expectingOutput(outputCmd(new IllegalStateException("My error")), END_MESSAGE)
             .named("Only one failure completes any combinator"),
         testInvocation
             .get()
             .withInput(
                 startMessage(5),
                 inputCmd(),
-                    callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
-                    callCompletion(2, "FRANCESCO"),
-                    callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
-                    callCompletion(4, "TILL")
-                )
+                callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
+                callCompletion(2, "FRANCESCO"),
+                callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
+                callCompletion(4, "TILL"))
             .assertingOutput(
                 msgs -> {
                   assertThat(msgs).hasSize(2);
 
-                  assertThat(msgs)
-                      .element(1)
-                      .isIn(outputCmd("FRANCESCO"), outputCmd("TILL"));
+                  assertThat(msgs).element(1).isIn(outputCmd("FRANCESCO"), outputCmd("TILL"));
                   assertThat(msgs).element(2).isEqualTo(END_MESSAGE);
                 })
             .named("Everything completed completes the any combinator"),
         testInvocation
             .get()
-            .withInput(
-                startMessage(1),
-                    inputCmd(),
-                    callCompletion(2, "FRANCESCO")
-            )
+            .withInput(startMessage(1), inputCmd(), callCompletion(2, "FRANCESCO"))
             .onlyUnbuffered()
             .expectingOutput(
                 callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
@@ -127,14 +112,13 @@ public abstract class AsyncResultTestSuite implements TestSuite {
                 .withInput(
                     startMessage(1),
                     inputCmd(),
-                        callCompletion(2, "FRANCESCO"),
-                      callCompletion(4, "TILL")
-                )
+                    callCompletion(2, "FRANCESCO"),
+                    callCompletion(4, "TILL"))
                 .onlyUnbuffered()
                 .expectingOutput(
                     callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
                     callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
-                    setStateMessage("A2", "TILL"),
+                    setStateCmd("A2", "TILL"),
                     outputCmd("FRANCESCO-TILL"),
                     END_MESSAGE)
                 .named("A1 and A2 completed later"),
@@ -142,44 +126,41 @@ public abstract class AsyncResultTestSuite implements TestSuite {
                 .withInput(
                     startMessage(1),
                     inputCmd(),
-                        callCompletion(4, "TILL"),
-                        callCompletion(2, "FRANCESCO")
-                )
-                .onlyUnbuffered()
-                .expectingOutput(
-                        callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
-                        callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
-                        setStateMessage("A2", "TILL"),
-                    outputCmd("FRANCESCO-TILL"),
-                    END_MESSAGE)
-                .named("A2 and A1 completed later in reverse order"),
-            this.reverseAwaitOrder()
-                .withInput(startMessage(1), inputCmd(),
-                        callCompletion(4, "TILL")
-                )
+                    callCompletion(4, "TILL"),
+                    callCompletion(2, "FRANCESCO"))
                 .onlyUnbuffered()
                 .expectingOutput(
                     callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
                     callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
-                    setStateMessage("A2", "TILL"),
+                    setStateCmd("A2", "TILL"),
+                    outputCmd("FRANCESCO-TILL"),
+                    END_MESSAGE)
+                .named("A2 and A1 completed later in reverse order"),
+            this.reverseAwaitOrder()
+                .withInput(startMessage(1), inputCmd(), callCompletion(4, "TILL"))
+                .onlyUnbuffered()
+                .expectingOutput(
+                    callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
+                    callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
+                    setStateCmd("A2", "TILL"),
                     suspensionMessage(2))
                 .named("Only A2 completed"),
             this.reverseAwaitOrder()
-                .withInput(startMessage(1), inputCmd(),   callCompletion(2, "FRANCESCO"))
+                .withInput(startMessage(1), inputCmd(), callCompletion(2, "FRANCESCO"))
                 .onlyUnbuffered()
                 .expectingOutput(
-                        callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
-                        callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
-                        suspensionMessage(2))
+                    callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
+                    callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
+                    suspensionMessage(2))
                 .named("Only A1 completed"),
 
             // --- Await twice the same executable
             this.awaitTwiceTheSameAwaitable()
-                .withInput(startMessage(1), inputCmd(),   callCompletion(2, "FRANCESCO"))
+                .withInput(startMessage(1), inputCmd(), callCompletion(2, "FRANCESCO"))
                 .onlyUnbuffered()
                 .expectingOutput(
-                        callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
-                        outputCmd("FRANCESCO-FRANCESCO"),
+                    callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
+                    outputCmd("FRANCESCO-FRANCESCO"),
                     END_MESSAGE),
 
             // --- All combinator
@@ -195,36 +176,30 @@ public abstract class AsyncResultTestSuite implements TestSuite {
                     startMessage(4),
                     inputCmd(),
                     callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
-                        callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
-                        callCompletion(4, "TILL")
-          )
+                    callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
+                    callCompletion(4, "TILL"))
                 .expectingOutput(suspensionMessage(2))
                 .named("Only one completion will suspend"),
             this.awaitAll()
                 .withInput(
                     startMessage(3),
                     inputCmd(),
-                        callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
-                        callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
-                        callCompletion(2, "FRANCESCO"),
-                        callCompletion(4, "TILL")
-                    )
-                .expectingOutput(
-                    outputCmd("FRANCESCO-TILL")
-                    ,END_MESSAGE
-                    )
+                    callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
+                    callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
+                    callCompletion(2, "FRANCESCO"),
+                    callCompletion(4, "TILL"))
+                .expectingOutput(outputCmd("FRANCESCO-TILL"), END_MESSAGE)
                 .named("Everything completed will complete all combinator"),
             this.awaitAll()
                 .withInput(
                     startMessage(1),
                     inputCmd(),
-                        callCompletion(2, "FRANCESCO"),
-                        callCompletion(4, "TILL")
-                  )
+                    callCompletion(2, "FRANCESCO"),
+                    callCompletion(4, "TILL"))
                 .onlyUnbuffered()
                 .expectingOutput(
-                        callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
-                        callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
+                    callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
+                    callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
                     outputCmd("FRANCESCO-TILL"),
                     END_MESSAGE)
                 .named("Complete all asynchronously"),
@@ -232,12 +207,11 @@ public abstract class AsyncResultTestSuite implements TestSuite {
                 .withInput(
                     startMessage(1),
                     inputCmd(),
-                    callCompletion(2, new IllegalStateException("My error"))
-               )
+                    callCompletion(2, new IllegalStateException("My error")))
                 .onlyUnbuffered()
                 .expectingOutput(
-                        callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
-                        callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
+                    callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
+                    callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
                     outputCmd(new IllegalStateException("My error")),
                     END_MESSAGE)
                 .named("All fails on first failure"),
@@ -245,14 +219,13 @@ public abstract class AsyncResultTestSuite implements TestSuite {
                 .withInput(
                     startMessage(1),
                     inputCmd(),
-                        callCompletion(2, "FRANCESCO"),
-                        callCompletion(4, new IllegalStateException("My error"))
-                    )
+                    callCompletion(2, "FRANCESCO"),
+                    callCompletion(4, new IllegalStateException("My error")))
                 .onlyUnbuffered()
                 .expectingOutput(
-                        callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
-                        callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
-                        outputCmd(new IllegalStateException("My error")),
+                    callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
+                    callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
+                    outputCmd(new IllegalStateException("My error")),
                     END_MESSAGE)
                 .named("All fails on second failure"),
 
@@ -262,20 +235,18 @@ public abstract class AsyncResultTestSuite implements TestSuite {
                     startMessage(5),
                     inputCmd(),
                     signalNotification(17, "1"),
-                        signalNotification(18, "2"),
-                        signalNotification(19, "3"),
-                        signalNotification(20, "4")
-                )
+                    signalNotification(18, "2"),
+                    signalNotification(19, "3"),
+                    signalNotification(20, "4"))
                 .expectingOutput(outputCmd("223"), END_MESSAGE),
             this.combineAnyWithAll()
                 .withInput(
                     startMessage(5),
                     inputCmd(),
-                        signalNotification(17, "1"),
-                        signalNotification(19, "3"),
-                        signalNotification(18, "2"),
-                        signalNotification(20, "4")
-            )
+                    signalNotification(17, "1"),
+                    signalNotification(19, "3"),
+                    signalNotification(18, "2"),
+                    signalNotification(20, "4"))
                 .expectingOutput(outputCmd("233"), END_MESSAGE)
                 .named("Inverted order"),
 
@@ -284,21 +255,19 @@ public abstract class AsyncResultTestSuite implements TestSuite {
                 .withInput(
                     startMessage(5),
                     inputCmd(),
-                        signalNotification(17, "1"),
-                        signalNotification(18, "2"),
-                        signalNotification(19, "3"),
-                        signalNotification(20, "4")
-                )
+                    signalNotification(17, "1"),
+                    signalNotification(18, "2"),
+                    signalNotification(19, "3"),
+                    signalNotification(20, "4"))
                 .expectingOutput(outputCmd("0"), END_MESSAGE),
             this.awaitAnyIndex()
                 .withInput(
                     startMessage(5),
                     inputCmd(),
-                        signalNotification(19, "3"),
-                        signalNotification(18, "2"),
-                        signalNotification(17, "1"),
-                        signalNotification(20, "4")
-               )
+                    signalNotification(19, "3"),
+                    signalNotification(18, "2"),
+                    signalNotification(17, "1"),
+                    signalNotification(20, "4"))
                 .expectingOutput(outputCmd("1"), END_MESSAGE)
                 .named("Complete all"),
 
@@ -307,18 +276,13 @@ public abstract class AsyncResultTestSuite implements TestSuite {
                 .withInput(
                     startMessage(3),
                     inputCmd(),
-                        signalNotification(17, "1"),
-                        signalNotification(18, "2")
-               )
-                .expectingOutput(outputCmd("12"),END_MESSAGE),
+                    signalNotification(17, "1"),
+                    signalNotification(18, "2"))
+                .expectingOutput(outputCmd("12"), END_MESSAGE),
 
             // --- Await with timeout
             this.awaitWithTimeout()
-                .withInput(
-                    startMessage(1),
-                    inputCmd(),
-                        callCompletion(2, "FRANCESCO")
-                  )
+                .withInput(startMessage(1), inputCmd(), callCompletion(2, "FRANCESCO"))
                 .onlyUnbuffered()
                 .assertingOutput(
                     messages -> {
@@ -336,7 +300,9 @@ public abstract class AsyncResultTestSuite implements TestSuite {
                 .withInput(
                     startMessage(1),
                     inputCmd(),
-                    Protocol.SleepCompletionNotificationMessage.newBuilder().setCompletionId(3).build())
+                    Protocol.SleepCompletionNotificationMessage.newBuilder()
+                        .setCompletionId(3)
+                        .build())
                 .onlyUnbuffered()
                 .assertingOutput(
                     messages -> {

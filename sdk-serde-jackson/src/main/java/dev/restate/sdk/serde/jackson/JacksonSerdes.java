@@ -15,12 +15,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.victools.jsonschema.generator.*;
 import com.github.victools.jsonschema.module.jackson.JacksonModule;
 import com.github.victools.jsonschema.module.jackson.JacksonOption;
+import dev.restate.common.Slice;
 import dev.restate.serde.RichSerde;
 import dev.restate.serde.Serde;
 import java.io.IOException;
 import java.util.stream.StreamSupport;
-
-import dev.restate.common.Slice;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 

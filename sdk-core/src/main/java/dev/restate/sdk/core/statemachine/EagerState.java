@@ -9,12 +9,11 @@
 package dev.restate.sdk.core.statemachine;
 
 import com.google.protobuf.ByteString;
-import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.common.Slice;
-import org.jspecify.annotations.Nullable;
-
+import dev.restate.sdk.core.generated.protocol.Protocol;
 import java.util.HashMap;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 
 final class EagerState {
 
@@ -38,7 +37,9 @@ final class EagerState {
     this.map = new HashMap<>(startMessage.getStateMapCount());
     for (int i = 0; i < startMessage.getStateMapCount(); i++) {
       Protocol.StartMessage.StateEntry entry = startMessage.getStateMap(i);
-      this.map.put(entry.getKey(), new NotificationValue.Success(Slice.wrap(entry.getValue().asReadOnlyByteBuffer())));
+      this.map.put(
+          entry.getKey(),
+          new NotificationValue.Success(Slice.wrap(entry.getValue().asReadOnlyByteBuffer())));
     }
   }
 

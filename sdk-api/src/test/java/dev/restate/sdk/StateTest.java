@@ -12,8 +12,8 @@ import static dev.restate.sdk.JavaBlockingTests.testDefinitionForVirtualObject;
 
 import dev.restate.sdk.core.StateTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
-import dev.restate.serde.Serde;
 import dev.restate.sdk.types.StateKey;
+import dev.restate.serde.Serde;
 
 public class StateTest extends StateTestSuite {
 

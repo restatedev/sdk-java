@@ -9,14 +9,12 @@
 package dev.restate.sdk.core;
 
 import static dev.restate.sdk.core.AssertUtils.*;
-import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
+import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
-import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
-import com.google.protobuf.ByteString;
-import dev.restate.generated.service.protocol.Protocol;
+import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.core.statemachine.MessageType;
 import dev.restate.sdk.types.RetryPolicy;
 import dev.restate.sdk.types.TerminalException;
@@ -33,8 +31,6 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
 
   protected abstract TestInvocationBuilder checkContextSwitching();
 
-  protected abstract TestInvocationBuilder sideEffectGuard();
-
   protected abstract TestInvocationBuilder failingSideEffect(String name, String reason);
 
   protected abstract TestInvocationBuilder failingSideEffectWithRetryPolicy(
@@ -45,51 +41,45 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
     return Stream.of(
         this.sideEffect("Francesco")
             .withInput(startMessage(1), inputCmd("Till"))
-            .expectingOutput(
-                Protocol.RunEntryMessage.newBuilder()
-                    .setValue(ByteString.copyFrom(TestSerdes.STRING.serialize("Francesco"))),
-                suspensionMessage(1))
+            .expectingOutput(runCmd(1), proposeRunCompletion(1, "Francesco"), suspensionMessage(1))
             .named("Without optimization suspends"),
         this.sideEffect("Francesco")
-            .withInput(startMessage(1), inputCmd("Till"), ackMessage(1))
+            .withInput(startMessage(1), inputCmd("Till"), runCompletion(1, "Francesco"))
+            .onlyUnbuffered()
             .expectingOutput(
-                Protocol.RunEntryMessage.newBuilder()
-                    .setValue(ByteString.copyFrom(TestSerdes.STRING.serialize("Francesco"))),
+                runCmd(1),
+                proposeRunCompletion(1, "Francesco"),
                 outputCmd("Hello Francesco"),
                 END_MESSAGE)
             .named("Without optimization and with acks returns"),
         this.namedSideEffect("get-my-name", "Francesco")
             .withInput(startMessage(1), inputCmd("Till"))
             .expectingOutput(
-                Protocol.RunEntryMessage.newBuilder()
-                    .setName("get-my-name")
-                    .setValue(ByteString.copyFrom(TestSerdes.STRING.serialize("Francesco"))),
+                runCmd(1, "get-my-name"),
+                proposeRunCompletion(1, "Francesco"),
                 suspensionMessage(1)),
         this.consecutiveSideEffect("Francesco")
-            .withInput(startMessage(1), inputCmd("Till"))
-            .expectingOutput(
-                Protocol.RunEntryMessage.newBuilder()
-                    .setValue(ByteString.copyFrom(TestSerdes.STRING.serialize("Francesco"))),
-                suspensionMessage(1))
-            .named("With optimization and without ack on first side effect will suspend"),
-        this.consecutiveSideEffect("Francesco")
-            .withInput(startMessage(1), inputCmd("Till"), ackMessage(1))
+            .withInput(startMessage(1), inputCmd("Till"), runCompletion(1, "Francesco"))
             .onlyUnbuffered()
             .expectingOutput(
-                Protocol.RunEntryMessage.newBuilder()
-                    .setValue(ByteString.copyFrom(TestSerdes.STRING.serialize("Francesco"))),
-                Protocol.RunEntryMessage.newBuilder()
-                    .setValue(ByteString.copyFrom(TestSerdes.STRING.serialize("FRANCESCO"))),
+                runCmd(1),
+                proposeRunCompletion(1, "Francesco"),
+                runCmd(2),
+                proposeRunCompletion(2, "FRANCESCO"),
                 suspensionMessage(2))
             .named("With optimization and ack on first side effect will suspend"),
         this.consecutiveSideEffect("Francesco")
-            .withInput(startMessage(1), inputCmd("Till"), ackMessage(1), ackMessage(2))
+            .withInput(
+                startMessage(1),
+                inputCmd("Till"),
+                runCompletion(1, "Francesco"),
+                runCompletion(2, "FRANCESCO"))
             .onlyUnbuffered()
             .expectingOutput(
-                Protocol.RunEntryMessage.newBuilder()
-                    .setValue(ByteString.copyFrom(TestSerdes.STRING.serialize("Francesco"))),
-                Protocol.RunEntryMessage.newBuilder()
-                    .setValue(ByteString.copyFrom(TestSerdes.STRING.serialize("FRANCESCO"))),
+                runCmd(1),
+                proposeRunCompletion(1, "Francesco"),
+                runCmd(2),
+                proposeRunCompletion(2, "FRANCESCO"),
                 outputCmd("Hello FRANCESCO"),
                 END_MESSAGE)
             .named("With optimization and ack on first and second side effect will resume"),
@@ -104,12 +94,12 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
                                 .returns(
                                     TerminalException.INTERNAL_SERVER_ERROR_CODE,
                                     Protocol.ErrorMessage::getCode)
-                                .returns(1, Protocol.ErrorMessage::getRelatedEntryIndex)
+                                .returns(1, Protocol.ErrorMessage::getRelatedCommandIndex)
                                 .returns(
-                                    (int) MessageType.RunEntryMessage.encode(),
-                                    Protocol.ErrorMessage::getRelatedEntryType)
+                                    (int) MessageType.RunCommandMessage.encode(),
+                                    Protocol.ErrorMessage::getRelatedCommandType)
                                 .returns(
-                                    "my-side-effect", Protocol.ErrorMessage::getRelatedEntryName)
+                                    "my-side-effect", Protocol.ErrorMessage::getRelatedCommandName)
                                 .extracting(Protocol.ErrorMessage::getMessage, STRING)
                                 .contains("some failure")))),
         this.failingSideEffectWithRetryPolicy(
@@ -126,10 +116,10 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
                                 .returns(
                                     TerminalException.INTERNAL_SERVER_ERROR_CODE,
                                     Protocol.ErrorMessage::getCode)
-                                .returns(1, Protocol.ErrorMessage::getRelatedEntryIndex)
+                                .returns(1, Protocol.ErrorMessage::getRelatedCommandIndex)
                                 .returns(
-                                    (int) MessageType.RunEntryMessage.encode(),
-                                    Protocol.ErrorMessage::getRelatedEntryType)
+                                    (int) MessageType.RunCommandMessage.encode(),
+                                    Protocol.ErrorMessage::getRelatedCommandType)
                                 .returns(100L, Protocol.ErrorMessage::getNextRetryDelay)
                                 .extracting(Protocol.ErrorMessage::getMessage, STRING)
                                 .contains("java.lang.IllegalStateException: some failure"))))
@@ -138,34 +128,24 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
                 "some failure",
                 RetryPolicy.exponential(Duration.ofMillis(100), 1.0f).setMaxAttempts(2))
             .withInput(
-                startMessage(1).setRetryCountSinceLastStoredEntry(1), inputCmd(), ackMessage(1))
+                startMessage(1).setRetryCountSinceLastStoredEntry(1),
+                inputCmd(),
+                runCompletion(1, 500, "java.lang.IllegalStateException: some failure"))
             .enablePreviewContext()
             .onlyUnbuffered()
             .expectingOutput(
-                Protocol.RunEntryMessage.newBuilder()
-                    .setFailure(
-                        ExceptionUtils.toProtocolFailure(
-                            500, "java.lang.IllegalStateException: some failure")),
+                runCmd(1),
+                proposeRunCompletion(1, 500, "java.lang.IllegalStateException: some failure"),
                 outputCmd(500, "java.lang.IllegalStateException: some failure"),
                 END_MESSAGE)
             .named("Should convert retryable error to terminal"),
         // --- Other tests
         this.checkContextSwitching()
-            .withInput(startMessage(1), inputCmd(), ackMessage(1))
+            .withInput(startMessage(1), inputCmd())
             .onlyUnbuffered()
             .assertingOutput(
                 actualOutputMessages -> {
-                  assertThat(actualOutputMessages).hasSize(3);
-                  assertThat(actualOutputMessages)
-                      .element(0)
-                      .asInstanceOf(type(Protocol.RunEntryMessage.class))
-                      .returns(true, Protocol.RunEntryMessage::hasValue);
-                  assertThat(actualOutputMessages).element(1).isEqualTo(outputCmd("Hello"));
-                  assertThat(actualOutputMessages).element(2).isEqualTo(END_MESSAGE);
-                }),
-        this.sideEffectGuard()
-            .withInput(startMessage(1), inputCmd("Till"))
-            .assertingOutput(
-                containsOnlyExactErrorMessage(ProtocolException.invalidSideEffectCall())));
+                  assertThat(actualOutputMessages).element(2).isEqualTo(suspensionMessage(1));
+                }));
   }
 }

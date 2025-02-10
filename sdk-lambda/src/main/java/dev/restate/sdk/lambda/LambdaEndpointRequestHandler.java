@@ -21,7 +21,6 @@ import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.version.Version;
 import io.opentelemetry.context.propagation.TextMapGetter;
-
 import java.util.*;
 import java.util.regex.Pattern;
 import org.apache.logging.log4j.LogManager;
@@ -62,16 +61,19 @@ public final class LambdaEndpointRequestHandler {
       APIGatewayProxyRequestEvent input, Context context) {
     // Remove trailing path separator
     String path =
-            input.getPath().endsWith("/")
-                    ? input.getPath().substring(0, input.getPath().length() - 1)
-                    : input.getPath();
+        input.getPath().endsWith("/")
+            ? input.getPath().substring(0, input.getPath().length() - 1)
+            : input.getPath();
 
     // Parse request body
     final Slice requestBody = parseInputBody(input);
 
     RequestProcessor requestProcessor;
     try {
-      requestProcessor = this.endpoint.processorForRequest(path, new HeadersAccessor() {
+      requestProcessor =
+          this.endpoint.processorForRequest(
+              path,
+              new HeadersAccessor() {
                 @Override
                 public Iterable<String> keys() {
                   return input.getHeaders().keySet();
@@ -86,17 +88,17 @@ public final class LambdaEndpointRequestHandler {
                   }
                   return null;
                 }
-              }, EndpointRequestHandler.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
-           null
-      );
+              },
+              EndpointRequestHandler.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
+              null);
     } catch (ProtocolException e) {
       // We can handle protocol exceptions by returning back the correct response
       LOG.warn("Error when handling the request", e);
       return new APIGatewayProxyResponseEvent()
-              .withStatusCode(e.getCode())
-              .withHeaders(
-                      Map.of("content-type", "text/plain", "x-restate-server", Version.X_RESTATE_SERVER))
-              .withBody(e.getMessage());
+          .withStatusCode(e.getCode())
+          .withHeaders(
+              Map.of("content-type", "text/plain", "x-restate-server", Version.X_RESTATE_SERVER))
+          .withBody(e.getMessage());
     }
 
     BufferedPublisher publisher = new BufferedPublisher(requestBody);
@@ -123,7 +125,7 @@ public final class LambdaEndpointRequestHandler {
     response.setHeaders(
         Map.of(
             "content-type",
-                requestProcessor.responseContentType(),
+            requestProcessor.responseContentType(),
             "x-restate-server",
             Version.X_RESTATE_SERVER));
     response.setIsBase64Encoded(true);

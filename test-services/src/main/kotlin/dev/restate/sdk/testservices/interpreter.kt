@@ -8,13 +8,13 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testservices
 
-import dev.restate.sdk.types.StateKey
-import dev.restate.sdk.types.Target
-import dev.restate.sdk.types.TerminalException
+import dev.restate.common.Target
 import dev.restate.sdk.endpoint.definition.ServiceDefinition
 import dev.restate.sdk.kotlin.*
 import dev.restate.sdk.testservices.contracts.*
 import dev.restate.sdk.testservices.contracts.Program
+import dev.restate.sdk.types.StateKey
+import dev.restate.sdk.types.TerminalException
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
 

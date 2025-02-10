@@ -13,7 +13,6 @@ import dev.restate.sdk.core.ExceptionUtils;
 import io.netty.buffer.Unpooled;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerResponse;
-import java.nio.ByteBuffer;
 import java.util.concurrent.Flow;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -46,7 +45,8 @@ class HttpResponseFlowAdapter implements Flow.Subscriber<Slice> {
     }
 
     // If HTTP HEADERS frame have not been sent, Vert.x will send them
-    this.httpServerResponse.write(Buffer.buffer(Unpooled.wrappedBuffer(slice.asReadOnlyByteBuffer())));
+    this.httpServerResponse.write(
+        Buffer.buffer(Unpooled.wrappedBuffer(slice.asReadOnlyByteBuffer())));
   }
 
   @Override

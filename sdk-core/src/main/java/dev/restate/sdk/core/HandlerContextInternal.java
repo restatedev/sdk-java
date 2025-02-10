@@ -8,13 +8,12 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
+import dev.restate.common.Slice;
 import dev.restate.sdk.core.AsyncResults.AsyncResultInternal;
 import dev.restate.sdk.core.statemachine.InvocationState;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
 import dev.restate.sdk.types.RetryPolicy;
-import dev.restate.common.Slice;
-
 import java.time.Duration;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -24,19 +23,25 @@ interface HandlerContextInternal extends HandlerContext {
 
   @Override
   default AsyncResult<Integer> createAnyAsyncResult(List<AsyncResult<?>> children) {
-    return AsyncResults.any(this,
+    return AsyncResults.any(
+        this,
         children.stream().map(dr -> (AsyncResultInternal<?>) dr).collect(Collectors.toList()));
   }
 
   @Override
   default AsyncResult<Void> createAllAsyncResult(List<AsyncResult<?>> children) {
-    return AsyncResults.all(this,
+    return AsyncResults.all(
+        this,
         children.stream().map(dr -> (AsyncResultInternal<?>) dr).collect(Collectors.toList()));
   }
 
   void proposeRunSuccess(int runHandle, Slice toWrite);
 
-  void proposeRunFailure(int runHandle, Throwable toWrite, Duration attemptDuration, @Nullable RetryPolicy retryPolicy);
+  void proposeRunFailure(
+      int runHandle,
+      Throwable toWrite,
+      Duration attemptDuration,
+      @Nullable RetryPolicy retryPolicy);
 
   void pollAsyncResult(AsyncResultInternal<?> asyncResult);
 

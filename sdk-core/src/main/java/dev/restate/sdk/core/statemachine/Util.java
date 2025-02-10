@@ -11,9 +11,9 @@ package dev.restate.sdk.core.statemachine;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.UnsafeByteOperations;
+import dev.restate.common.Slice;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
-import dev.restate.common.Slice;
 import dev.restate.sdk.types.TerminalException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -107,7 +107,7 @@ public class Util {
     return (a.compareTo(b) <= 0) ? a : b;
   }
 
-  private final static class ByteStringSlice implements Slice {
+  private static final class ByteStringSlice implements Slice {
     private final ByteString byteString;
 
     public ByteStringSlice(ByteString bytes) {

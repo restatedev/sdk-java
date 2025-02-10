@@ -9,10 +9,9 @@
 package dev.restate.sdk.endpoint.definition;
 
 import dev.restate.serde.Serde;
-import org.jspecify.annotations.Nullable;
-
 import java.util.Collections;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 public final class HandlerDefinition<REQ, RES, OPT> {
 
@@ -25,13 +24,15 @@ public final class HandlerDefinition<REQ, RES, OPT> {
   private final Map<String, String> metadata;
   private final HandlerRunner<REQ, RES, OPT> runner;
 
-  HandlerDefinition( String name,
-                     HandlerType handlerType,
-                     @Nullable String acceptContentType,
-                     Serde<REQ> requestSerde,
-                     Serde<RES> responseSerde,
-                     @Nullable String documentation,
-                     Map<String, String> metadata, HandlerRunner<REQ, RES, OPT> runner) {
+  HandlerDefinition(
+      String name,
+      HandlerType handlerType,
+      @Nullable String acceptContentType,
+      Serde<REQ> requestSerde,
+      Serde<RES> responseSerde,
+      @Nullable String documentation,
+      Map<String, String> metadata,
+      HandlerRunner<REQ, RES, OPT> runner) {
     this.name = name;
     this.handlerType = handlerType;
     this.acceptContentType = acceptContentType;
@@ -76,22 +77,54 @@ public final class HandlerDefinition<REQ, RES, OPT> {
 
   public HandlerDefinition<REQ, RES, OPT> withAcceptContentType(String acceptContentType) {
     return new HandlerDefinition<>(
-            name, handlerType, acceptContentType, requestSerde, responseSerde, documentation, metadata, runner);
+        name,
+        handlerType,
+        acceptContentType,
+        requestSerde,
+        responseSerde,
+        documentation,
+        metadata,
+        runner);
   }
 
   public HandlerDefinition<REQ, RES, OPT> withDocumentation(@Nullable String documentation) {
     return new HandlerDefinition<>(
-            name, handlerType, acceptContentType, requestSerde, responseSerde, documentation, metadata, runner);
+        name,
+        handlerType,
+        acceptContentType,
+        requestSerde,
+        responseSerde,
+        documentation,
+        metadata,
+        runner);
   }
 
   public HandlerDefinition<REQ, RES, OPT> withMetadata(Map<String, String> metadata) {
     return new HandlerDefinition<>(
-            name, handlerType, acceptContentType, requestSerde, responseSerde, documentation, metadata, runner);
+        name,
+        handlerType,
+        acceptContentType,
+        requestSerde,
+        responseSerde,
+        documentation,
+        metadata,
+        runner);
   }
 
   public static <REQ, RES, OPT> HandlerDefinition<REQ, RES, OPT> of(
-          String handler, HandlerType handlerType, Serde<REQ> requestSerde, Serde<RES> responseSerde, HandlerRunner<REQ, RES, OPT> runner) {
+      String handler,
+      HandlerType handlerType,
+      Serde<REQ> requestSerde,
+      Serde<RES> responseSerde,
+      HandlerRunner<REQ, RES, OPT> runner) {
     return new HandlerDefinition<>(
-            handler, handlerType, null, requestSerde, responseSerde, null, Collections.emptyMap(), runner);
+        handler,
+        handlerType,
+        null,
+        requestSerde,
+        responseSerde,
+        null,
+        Collections.emptyMap(),
+        runner);
   }
 }

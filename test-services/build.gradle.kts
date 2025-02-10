@@ -11,9 +11,7 @@ plugins {
 dependencies {
   ksp(project(":sdk-api-kotlin-gen"))
 
-  implementation(project(":sdk-api-kotlin"))
-  implementation(project(":sdk-http-vertx"))
-  implementation(project(":sdk-serde-jackson"))
+  implementation(project(":sdk-kotlin-http"))
   implementation(project(":sdk-request-identity"))
 
   implementation(libs.kotlinx.serialization.core)

@@ -8,29 +8,26 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core.statemachine;
 
+import static dev.restate.sdk.core.statemachine.Util.durationMin;
+import static dev.restate.sdk.core.statemachine.Util.sliceToByteString;
+
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
+import dev.restate.common.Slice;
 import dev.restate.sdk.core.ExceptionUtils;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.core.statemachine.StateMachine.DoProgressResponse;
 import dev.restate.sdk.types.AbortedExecutionException;
-
+import dev.restate.sdk.types.RetryPolicy;
+import dev.restate.sdk.types.TerminalException;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-
-import dev.restate.sdk.types.RetryPolicy;
-import dev.restate.common.Slice;
-import dev.restate.sdk.types.TerminalException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
-
-import static dev.restate.sdk.core.statemachine.Util.durationMin;
-import static dev.restate.sdk.core.statemachine.Util.sliceToByteString;
 
 final class ProcessingState implements State {
 
@@ -112,16 +109,17 @@ final class ProcessingState implements State {
     var notificationId = new NotificationId.CompletionId(completionId);
 
     var notificationHandle =
-        this.processCompletableCommand(Protocol.RunCommandMessage.newBuilder()
+        this.processCompletableCommand(
+            Protocol.RunCommandMessage.newBuilder()
                 .setName(name)
                 .setResultCompletionId(completionId)
-                .build(), CommandAccessor.RUN, new int[] {completionId}, stateContext)[0];
+                .build(),
+            CommandAccessor.RUN,
+            new int[] {completionId},
+            stateContext)[0];
 
-      LOG.trace(
-          "Enqueued run notification for {} with id {}.",
-          notificationHandle,
-          notificationId);
-      runState.insertRunToExecute(notificationHandle);
+    LOG.trace("Enqueued run notification for {} with id {}.", notificationHandle, notificationId);
+    runState.insertRunToExecute(notificationHandle);
 
     return notificationHandle;
   }
@@ -130,36 +128,41 @@ final class ProcessingState implements State {
   public int processStateGetCommand(String key, StateContext stateContext) {
     this.flipFirstProcessingEntry();
     var completionId = stateContext.getJournal().nextCompletionNotificationId();
-var handle =     asyncResultsState.createHandleMapping(new NotificationId.CompletionId(completionId));
+    var handle =
+        asyncResultsState.createHandleMapping(new NotificationId.CompletionId(completionId));
 
-    ByteString keyBytes=ByteString.copyFromUtf8(key);
+    ByteString keyBytes = ByteString.copyFromUtf8(key);
     var eagerStateQuery = stateContext.getEagerState().get(keyBytes);
     if (eagerStateQuery == null) {
       // Lazy state case
-      var commandMessage = Protocol.GetLazyStateCommandMessage.newBuilder()
+      var commandMessage =
+          Protocol.GetLazyStateCommandMessage.newBuilder()
               .setKey(keyBytes)
-              .setResultCompletionId(completionId).build();
+              .setResultCompletionId(completionId)
+              .build();
       stateContext
-              .getJournal()
-              .commandTransition(CommandAccessor.GET_LAZY_STATE.getName(commandMessage), commandMessage);
+          .getJournal()
+          .commandTransition(
+              CommandAccessor.GET_LAZY_STATE.getName(commandMessage), commandMessage);
       stateContext.writeMessageOut(commandMessage);
 
       return handle;
     }
 
     // Eager state case
-    var commandMessageBuilder = Protocol.GetEagerStateCommandMessage.newBuilder()
-            .setKey(keyBytes);
+    var commandMessageBuilder = Protocol.GetEagerStateCommandMessage.newBuilder().setKey(keyBytes);
     if (eagerStateQuery instanceof NotificationValue.Success) {
-      commandMessageBuilder.setValue(Protocol.Value.newBuilder().setContent(
-              sliceToByteString(((NotificationValue.Success) eagerStateQuery).slice())).build());
+      commandMessageBuilder.setValue(
+          Protocol.Value.newBuilder()
+              .setContent(sliceToByteString(((NotificationValue.Success) eagerStateQuery).slice()))
+              .build());
     } else {
       commandMessageBuilder.setVoid(Protocol.Void.getDefaultInstance());
     }
     var commandMessage = commandMessageBuilder.build();
     stateContext
-            .getJournal()
-            .commandTransition(CommandAccessor.GET_EAGER_STATE.getName(commandMessage), commandMessage);
+        .getJournal()
+        .commandTransition(CommandAccessor.GET_EAGER_STATE.getName(commandMessage), commandMessage);
 
     asyncResultsState.insertReady(new NotificationId.CompletionId(completionId), eagerStateQuery);
     stateContext.writeMessageOut(commandMessage);
@@ -171,51 +174,64 @@ var handle =     asyncResultsState.createHandleMapping(new NotificationId.Comple
   public int processStateGetKeysCommand(StateContext stateContext) {
     this.flipFirstProcessingEntry();
     var completionId = stateContext.getJournal().nextCompletionNotificationId();
-    var handle =     asyncResultsState.createHandleMapping(new NotificationId.CompletionId(completionId));
+    var handle =
+        asyncResultsState.createHandleMapping(new NotificationId.CompletionId(completionId));
 
     var eagerStateQuery = stateContext.getEagerState().keys();
     if (eagerStateQuery == null) {
       // Lazy state case
-      var commandMessage = Protocol.GetLazyStateKeysCommandMessage.newBuilder()
-              .setResultCompletionId(completionId).build();
+      var commandMessage =
+          Protocol.GetLazyStateKeysCommandMessage.newBuilder()
+              .setResultCompletionId(completionId)
+              .build();
       stateContext
-              .getJournal()
-              .commandTransition(CommandAccessor.GET_LAZY_STATE_KEYS.getName(commandMessage), commandMessage);
+          .getJournal()
+          .commandTransition(
+              CommandAccessor.GET_LAZY_STATE_KEYS.getName(commandMessage), commandMessage);
       stateContext.writeMessageOut(commandMessage);
 
       return handle;
     }
 
     // Eager state case
-    var commandMessage = Protocol.GetEagerStateKeysCommandMessage.newBuilder()
-            .setValue(Protocol.StateKeys.newBuilder().addAllKeys(eagerStateQuery).build()).build();
+    var commandMessage =
+        Protocol.GetEagerStateKeysCommandMessage.newBuilder()
+            .setValue(Protocol.StateKeys.newBuilder().addAllKeys(eagerStateQuery).build())
+            .build();
     stateContext
-            .getJournal()
-            .commandTransition(CommandAccessor.GET_EAGER_STATE_KEYS.getName(commandMessage), commandMessage);
+        .getJournal()
+        .commandTransition(
+            CommandAccessor.GET_EAGER_STATE_KEYS.getName(commandMessage), commandMessage);
 
-    asyncResultsState.insertReady(new NotificationId.CompletionId(completionId), new NotificationValue.StateKeys(
-            eagerStateQuery.stream().map(ByteString::toStringUtf8).toList()
-    ));
+    asyncResultsState.insertReady(
+        new NotificationId.CompletionId(completionId),
+        new NotificationValue.StateKeys(
+            eagerStateQuery.stream().map(ByteString::toStringUtf8).toList()));
     stateContext.writeMessageOut(commandMessage);
 
     return handle;
   }
 
   @Override
-  public <E extends MessageLite> void processNonCompletableCommand(E commandMessage, CommandAccessor<E> commandAccessor, StateContext stateContext) {
+  public <E extends MessageLite> void processNonCompletableCommand(
+      E commandMessage, CommandAccessor<E> commandAccessor, StateContext stateContext) {
     stateContext
-            .getJournal()
-            .commandTransition(commandAccessor.getName(commandMessage), commandMessage);
+        .getJournal()
+        .commandTransition(commandAccessor.getName(commandMessage), commandMessage);
     this.flipFirstProcessingEntry();
 
     stateContext.writeMessageOut(commandMessage);
   }
 
   @Override
-  public <E extends MessageLite> int[] processCompletableCommand(E commandMessage, CommandAccessor<E> commandAccessor, int[] completionIds, StateContext stateContext) {
+  public <E extends MessageLite> int[] processCompletableCommand(
+      E commandMessage,
+      CommandAccessor<E> commandAccessor,
+      int[] completionIds,
+      StateContext stateContext) {
     stateContext
-            .getJournal()
-            .commandTransition(commandAccessor.getName(commandMessage), commandMessage);
+        .getJournal()
+        .commandTransition(commandAccessor.getName(commandMessage), commandMessage);
     this.flipFirstProcessingEntry();
 
     stateContext.writeMessageOut(commandMessage);
@@ -223,7 +239,7 @@ var handle =     asyncResultsState.createHandleMapping(new NotificationId.Comple
     int[] handles = new int[completionIds.length];
     for (int i = 0; i < handles.length; i++) {
       handles[i] =
-              asyncResultsState.createHandleMapping(new NotificationId.CompletionId(completionIds[i]));
+          asyncResultsState.createHandleMapping(new NotificationId.CompletionId(completionIds[i]));
     }
 
     return handles;
@@ -243,15 +259,21 @@ var handle =     asyncResultsState.createHandleMapping(new NotificationId.Comple
 
     runState.notifyExecuted(handle);
 
-    proposeRunCompletion(handle, Protocol.ProposeRunCompletionMessage.newBuilder()
+    proposeRunCompletion(
+        handle,
+        Protocol.ProposeRunCompletionMessage.newBuilder()
             .setResultCompletionId(((NotificationId.CompletionId) notificationId).id())
-                    .setValue(sliceToByteString(value)),
-            stateContext
-    );
+            .setValue(sliceToByteString(value)),
+        stateContext);
   }
 
   @Override
-  public void proposeRunCompletion(int handle, Throwable runException, Duration attemptDuration, @Nullable RetryPolicy retryPolicy, StateContext stateContext) {
+  public void proposeRunCompletion(
+      int handle,
+      Throwable runException,
+      Duration attemptDuration,
+      @Nullable RetryPolicy retryPolicy,
+      StateContext stateContext) {
     var notificationId = asyncResultsState.mustResolveNotificationHandle(handle);
     if (!(notificationId instanceof NotificationId.CompletionId)) {
       throw ProtocolException.badRunNotificationId(notificationId);
@@ -264,19 +286,26 @@ var handle =     asyncResultsState.createHandleMapping(new NotificationId.Comple
       LOG.trace("The run completed with a terminal exception");
       toWrite = (TerminalException) runException;
     } else {
-      toWrite = this.rethrowOrConvertToTerminal(runException, attemptDuration, retryPolicy, stateContext);
+      toWrite =
+          this.rethrowOrConvertToTerminal(runException, attemptDuration, retryPolicy, stateContext);
     }
 
-    proposeRunCompletion(handle, Protocol.ProposeRunCompletionMessage.newBuilder()
-                    .setResultCompletionId(((NotificationId.CompletionId) notificationId).id())
+    proposeRunCompletion(
+        handle,
+        Protocol.ProposeRunCompletionMessage.newBuilder()
+            .setResultCompletionId(((NotificationId.CompletionId) notificationId).id())
             .setFailure(Util.toProtocolFailure(toWrite)),
-            stateContext
-    );
+        stateContext);
   }
 
-  private void proposeRunCompletion(int handle, Protocol.ProposeRunCompletionMessage.Builder messageBuilder, StateContext stateContext) {
+  private void proposeRunCompletion(
+      int handle,
+      Protocol.ProposeRunCompletionMessage.Builder messageBuilder,
+      StateContext stateContext) {
     if (!stateContext.maybeWriteMessageOut(messageBuilder.build())) {
-      LOG.warn("Cannot write proposed completion for run with handle {} because the output stream was already closed.", handle);
+      LOG.warn(
+          "Cannot write proposed completion for run with handle {} because the output stream was already closed.",
+          handle);
     }
   }
 
@@ -291,21 +320,24 @@ var handle =     asyncResultsState.createHandleMapping(new NotificationId.Comple
     // here for simplicity of the downstream consumer (the retry policy).
     return this.processingFirstEntry
             && stateContext.getStartInfo().retryCountSinceLastStoredEntry() > 0
-            ? stateContext.getStartInfo().durationSinceLastStoredEntry()
-            : Duration.ZERO;
+        ? stateContext.getStartInfo().durationSinceLastStoredEntry()
+        : Duration.ZERO;
   }
 
   private int getRetryCountSinceLastStoredEntry(StateContext stateContext) {
     // We need to check if this is the first entry we try to commit after replay, and only in this
     // case we need to return the info we got from the start message
     return this.processingFirstEntry
-            ? stateContext.getStartInfo().retryCountSinceLastStoredEntry()
-            : 0;
+        ? stateContext.getStartInfo().retryCountSinceLastStoredEntry()
+        : 0;
   }
 
   // This function rethrows the exception if a retry needs to happen.
   private TerminalException rethrowOrConvertToTerminal(
-          Throwable runException, Duration attemptDuration, @Nullable RetryPolicy retryPolicy, StateContext stateContext) {
+      Throwable runException,
+      Duration attemptDuration,
+      @Nullable RetryPolicy retryPolicy,
+      StateContext stateContext) {
     if (retryPolicy == null) {
       LOG.trace("The run completed with an exception and no retry policy was provided");
       // Default behavior is always retry
@@ -313,12 +345,11 @@ var handle =     asyncResultsState.createHandleMapping(new NotificationId.Comple
     }
 
     Duration retryLoopDuration =
-            this.getDurationSinceLastStoredEntry(stateContext)
-                    .plus(attemptDuration);
+        this.getDurationSinceLastStoredEntry(stateContext).plus(attemptDuration);
     int retryCount = this.getRetryCountSinceLastStoredEntry(stateContext) + 1;
 
     if ((retryPolicy.getMaxAttempts() != null && retryPolicy.getMaxAttempts() <= retryCount)
-            || (retryPolicy.getMaxDuration() != null
+        || (retryPolicy.getMaxDuration() != null
             && retryPolicy.getMaxDuration().compareTo(retryLoopDuration) <= 0)) {
       LOG.trace("The run completed with a retryable exception, but all attempts were exhausted");
       // We need to convert it to TerminalException
@@ -327,13 +358,13 @@ var handle =     asyncResultsState.createHandleMapping(new NotificationId.Comple
 
     // Compute next retry delay and throw it!
     Duration nextComputedDelay =
-            retryPolicy
-                    .getInitialDelay()
-                    .multipliedBy((long) Math.pow(retryPolicy.getExponentiationFactor(), retryCount));
+        retryPolicy
+            .getInitialDelay()
+            .multipliedBy((long) Math.pow(retryPolicy.getExponentiationFactor(), retryCount));
     Duration nextRetryDelay =
-            retryPolicy.getMaxDelay() != null
-                    ? durationMin(retryPolicy.getMaxDelay(), nextComputedDelay)
-                    : nextComputedDelay;
+        retryPolicy.getMaxDelay() != null
+            ? durationMin(retryPolicy.getMaxDelay(), nextComputedDelay)
+            : nextComputedDelay;
 
     this.hitError(runException, nextRetryDelay, stateContext);
     ExceptionUtils.sneakyThrow(runException);

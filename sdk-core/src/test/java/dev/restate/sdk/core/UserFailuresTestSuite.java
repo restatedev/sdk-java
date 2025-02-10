@@ -10,8 +10,8 @@ package dev.restate.sdk.core;
 
 import static dev.restate.sdk.core.AssertUtils.containsOnlyExactErrorMessage;
 import static dev.restate.sdk.core.AssertUtils.exactErrorMessage;
-import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.*;
+import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.restate.sdk.core.generated.protocol.Protocol;
@@ -69,41 +69,35 @@ public abstract class UserFailuresTestSuite implements TestSuite {
         this.sideEffectThrowTerminalException(
                 TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR)
             .withInput(
-                    startMessage(1),
-                    inputCmd(),
-                    Protocol.RunCompletionNotificationMessage
-                            .newBuilder()
-                            .setCompletionId(1)
-                            .setFailure(
-                                    ProtoUtils.failure(
-                                            TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR))
-                            .build()
-                )
+                startMessage(1),
+                inputCmd(),
+                Protocol.RunCompletionNotificationMessage.newBuilder()
+                    .setCompletionId(1)
+                    .setFailure(
+                        ProtoUtils.failure(TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR))
+                    .build())
             .expectingOutput(
-                Protocol.RunCommandMessage.newBuilder()
-                        .setResultCompletionId(1),
-                    Protocol.ProposeRunCompletionMessage.newBuilder()
-                            .setResultCompletionId(1)
-                            .setFailure(ProtoUtils.failure(TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR)),
+                Protocol.RunCommandMessage.newBuilder().setResultCompletionId(1),
+                Protocol.ProposeRunCompletionMessage.newBuilder()
+                    .setResultCompletionId(1)
+                    .setFailure(
+                        ProtoUtils.failure(TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR)),
                 outputCmd(TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR),
                 END_MESSAGE)
             .named("With internal error"),
         this.sideEffectThrowTerminalException(501, WHATEVER)
-            .withInput(startMessage(1), inputCmd(),
-                    Protocol.RunCompletionNotificationMessage
-                            .newBuilder()
-                            .setCompletionId(1)
-                            .setFailure(
-                                    ProtoUtils.failure(501, WHATEVER))
-                            .build()
-                  )
+            .withInput(
+                startMessage(1),
+                inputCmd(),
+                Protocol.RunCompletionNotificationMessage.newBuilder()
+                    .setCompletionId(1)
+                    .setFailure(ProtoUtils.failure(501, WHATEVER))
+                    .build())
             .expectingOutput(
-                    Protocol.RunCommandMessage.newBuilder()
-                            .setResultCompletionId(1),
-                    Protocol.ProposeRunCompletionMessage.newBuilder()
-                            .setResultCompletionId(1)
-                            .setFailure(
-                                    ProtoUtils.failure(501, WHATEVER)),
+                Protocol.RunCommandMessage.newBuilder().setResultCompletionId(1),
+                Protocol.ProposeRunCompletionMessage.newBuilder()
+                    .setResultCompletionId(1)
+                    .setFailure(ProtoUtils.failure(501, WHATEVER)),
                 outputCmd(501, WHATEVER),
                 END_MESSAGE)
             .named("With unknown error"));

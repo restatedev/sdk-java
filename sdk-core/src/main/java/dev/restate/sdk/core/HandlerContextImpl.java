@@ -8,16 +8,16 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
+import dev.restate.common.Output;
 import dev.restate.common.Slice;
+import dev.restate.common.Target;
+import dev.restate.common.function.ThrowingRunnable;
+import dev.restate.common.function.ThrowingSupplier;
 import dev.restate.sdk.core.statemachine.InvocationState;
 import dev.restate.sdk.core.statemachine.NotificationValue;
 import dev.restate.sdk.core.statemachine.StateMachine;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
-import dev.restate.common.function.ThrowingRunnable;
-import dev.restate.common.function.ThrowingSupplier;
 import dev.restate.sdk.types.*;
-import dev.restate.common.Output;
-import dev.restate.common.Target;
 import io.opentelemetry.context.Context;
 import java.time.Duration;
 import java.time.Instant;
@@ -253,8 +253,7 @@ class HandlerContextImpl implements HandlerContextInternal {
 
   @Override
   public CompletableFuture<Void> rejectAwakeable(String id, TerminalException reason) {
-    return this.catchExceptions(
-        () -> this.stateMachine.completeAwakeable(id, reason));
+    return this.catchExceptions(() -> this.stateMachine.completeAwakeable(id, reason));
   }
 
   @Override
@@ -399,7 +398,10 @@ class HandlerContextImpl implements HandlerContextInternal {
 
   @Override
   public void proposeRunFailure(
-          int runHandle, Throwable toWrite, Duration attemptDuration, @Nullable RetryPolicy retryPolicy) {
+      int runHandle,
+      Throwable toWrite,
+      Duration attemptDuration,
+      @Nullable RetryPolicy retryPolicy) {
     try {
       this.stateMachine.proposeRunCompletion(runHandle, toWrite, attemptDuration, retryPolicy);
       if (this.nextProcessedRun != null) {
@@ -415,7 +417,7 @@ class HandlerContextImpl implements HandlerContextInternal {
     var consumer =
         Objects.requireNonNull(
             this.scheduledRuns.get(handle), "The given handle doesn't exist, this is an SDK bug");
-      var startTime = Instant.now();
+    var startTime = Instant.now();
     consumer.accept(
         new RunCompleter() {
           @Override
@@ -425,7 +427,8 @@ class HandlerContextImpl implements HandlerContextInternal {
 
           @Override
           public void proposeFailure(Throwable toWrite, @Nullable RetryPolicy retryPolicy) {
-            proposeRunFailure(handle, toWrite, Duration.between(startTime, Instant.now()), retryPolicy);
+            proposeRunFailure(
+                handle, toWrite, Duration.between(startTime, Instant.now()), retryPolicy);
           }
         });
   }

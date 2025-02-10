@@ -8,14 +8,11 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core.statemachine;
 
-import com.google.protobuf.MessageLite;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.types.TerminalException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Flow;
-import org.jspecify.annotations.Nullable;
 
 final class WaitingStartState implements State {
 
@@ -55,14 +52,12 @@ final class WaitingStartState implements State {
   }
 
   @Override
-  public void onInputClosed(
-      StateContext stateContext) {
+  public void onInputClosed(StateContext stateContext) {
     throw ProtocolException.inputClosedWhileWaitingEntries();
   }
 
   @Override
-  public void end(
-      StateContext stateContext) {
+  public void end(StateContext stateContext) {
     throw ProtocolException.closedWhileWaitingEntries();
   }
 

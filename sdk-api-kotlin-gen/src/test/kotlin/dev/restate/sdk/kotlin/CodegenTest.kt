@@ -10,13 +10,13 @@ package dev.restate.sdk.kotlin
 
 import com.google.protobuf.ByteString
 import dev.restate.sdk.annotation.*
-import dev.restate.sdk.serde.Serde
-import dev.restate.sdk.types.Target
-import dev.restate.sdk.core.statemachine.ProtoUtils.*
 import dev.restate.sdk.core.TestDefinitions
 import dev.restate.sdk.core.TestDefinitions.TestDefinition
 import dev.restate.sdk.core.TestDefinitions.testInvocation
 import dev.restate.sdk.core.TestSerdes
+import dev.restate.sdk.core.statemachine.ProtoUtils.*
+import dev.restate.sdk.serde.Serde
+import dev.restate.sdk.types.Target
 import java.util.stream.Stream
 import kotlinx.serialization.Serializable
 
@@ -240,9 +240,7 @@ class CodegenTest : TestDefinitions.TestSuite {
             .withInput(startMessage(1), inputCmd(), completionMessage(1, "Till"))
             .onlyUnbuffered()
             .expectingOutput(
-                callCmd(Target.service("Empty", "emptyInput")),
-                outputCmd("Till"),
-                END_MESSAGE)
+                callCmd(Target.service("Empty", "emptyInput")), outputCmd("Till"), END_MESSAGE)
             .named("empty output"),
         testInvocation({ Empty() }, "emptyOutput")
             .withInput(
@@ -270,8 +268,7 @@ class CodegenTest : TestDefinitions.TestSuite {
             .withInput(startMessage(1), inputCmd(), completionMessage(1, TestSerdes.INT, 10))
             .onlyUnbuffered()
             .expectingOutput(
-                callCmd(
-                    Target.service("PrimitiveTypes", "primitiveOutput"), Serde.VOID, null),
+                callCmd(Target.service("PrimitiveTypes", "primitiveOutput"), Serde.VOID, null),
                 outputCmd(TestSerdes.INT, 10),
                 END_MESSAGE)
             .named("primitive output"),
@@ -280,8 +277,7 @@ class CodegenTest : TestDefinitions.TestSuite {
                 startMessage(1), inputCmd(10), completionMessage(1).setValue(ByteString.EMPTY))
             .onlyUnbuffered()
             .expectingOutput(
-                callCmd(
-                    Target.service("PrimitiveTypes", "primitiveInput"), TestSerdes.INT, 10),
+                callCmd(Target.service("PrimitiveTypes", "primitiveInput"), TestSerdes.INT, 10),
                 outputCmd(),
                 END_MESSAGE)
             .named("primitive input"),
@@ -308,9 +304,7 @@ class CodegenTest : TestDefinitions.TestSuite {
                 END_MESSAGE),
         testInvocation({ RawInputOutput() }, "rawOutput")
             .withInput(
-                startMessage(1),
-                inputCmd(),
-                completionMessage(1, Serde.RAW, "{{".toByteArray()))
+                startMessage(1), inputCmd(), completionMessage(1, Serde.RAW, "{{".toByteArray()))
             .onlyUnbuffered()
             .expectingOutput(
                 callCmd(Target.service("RawInputOutput", "rawOutput"), KtSerdes.UNIT, null),
@@ -318,9 +312,7 @@ class CodegenTest : TestDefinitions.TestSuite {
                 END_MESSAGE),
         testInvocation({ RawInputOutput() }, "rawOutputWithCustomCT")
             .withInput(
-                startMessage(1),
-                inputCmd(),
-                completionMessage(1, Serde.RAW, "{{".toByteArray()))
+                startMessage(1), inputCmd(), completionMessage(1, Serde.RAW, "{{".toByteArray()))
             .onlyUnbuffered()
             .expectingOutput(
                 callCmd(
@@ -335,7 +327,8 @@ class CodegenTest : TestDefinitions.TestSuite {
             .onlyUnbuffered()
             .expectingOutput(
                 callCmd(
-                    dev.restate.sdk.types.Target.virtualObject("CodegenTestCornerCases", "mykey", "returnNull"),
+                    dev.restate.sdk.types.Target.virtualObject(
+                        "CodegenTestCornerCases", "mykey", "returnNull"),
                     KtSerdes.json<String?>(),
                     null),
                 outputCmd(KtSerdes.json<String?>(), null),

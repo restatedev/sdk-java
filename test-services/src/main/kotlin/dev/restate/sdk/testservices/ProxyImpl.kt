@@ -8,23 +8,23 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testservices
 
-import dev.restate.sdk.serde.Serde
-import dev.restate.sdk.types.Target
+import dev.restate.common.Target
 import dev.restate.sdk.kotlin.Awaitable
 import dev.restate.sdk.kotlin.Context
 import dev.restate.sdk.kotlin.awaitAll
 import dev.restate.sdk.testservices.contracts.ManyCallRequest
 import dev.restate.sdk.testservices.contracts.Proxy
 import dev.restate.sdk.testservices.contracts.ProxyRequest
+import dev.restate.serde.Serde
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 class ProxyImpl : Proxy {
-  private fun ProxyRequest.toTarget(): dev.restate.sdk.types.Target {
+  private fun ProxyRequest.toTarget(): Target {
     return if (this.virtualObjectKey == null) {
       Target.service(this.serviceName, this.handlerName)
     } else {
-      dev.restate.sdk.types.Target.virtualObject(this.serviceName, this.virtualObjectKey, this.handlerName)
+      Target.virtualObject(this.serviceName, this.virtualObjectKey, this.handlerName)
     }
   }
 

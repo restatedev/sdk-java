@@ -32,12 +32,14 @@ abstract class AsyncResults {
     return new SingleAsyncResultInternal<>(handle, completer, contextInternal);
   }
 
-  static AsyncResultInternal<Integer> any(   HandlerContextInternal contextInternal,List<AsyncResultInternal<?>> any) {
-        return new AnyAsyncResult(contextInternal, any);
+  static AsyncResultInternal<Integer> any(
+      HandlerContextInternal contextInternal, List<AsyncResultInternal<?>> any) {
+    return new AnyAsyncResult(contextInternal, any);
   }
 
-  static AsyncResultInternal<Void> all(HandlerContextInternal contextInternal,List<AsyncResultInternal<?>> all) {
-        return new AllAsyncResult(contextInternal, all);
+  static AsyncResultInternal<Void> all(
+      HandlerContextInternal contextInternal, List<AsyncResultInternal<?>> all) {
+    return new AllAsyncResult(contextInternal, all);
   }
 
   interface AsyncResultInternal<T> extends AsyncResult<T> {
@@ -55,35 +57,34 @@ abstract class AsyncResults {
   }
 
   abstract static class BaseAsyncResultInternal<T> implements AsyncResultInternal<T> {
-      protected final CompletableFuture<T> publicFuture;
+    protected final CompletableFuture<T> publicFuture;
 
-      BaseAsyncResultInternal(CompletableFuture<T> publicFuture) {
-          this.publicFuture = publicFuture;
+    BaseAsyncResultInternal(CompletableFuture<T> publicFuture) {
+      this.publicFuture = publicFuture;
+    }
+
+    @Override
+    public CompletableFuture<T> poll() {
+      if (!this.isDone()) {
+        ctx().pollAsyncResult(this);
       }
+      return this.publicFuture;
+    }
 
-      @Override
-      public CompletableFuture<T> poll() {
-          if (!this.isDone()) {
-              ctx().pollAsyncResult(this);
-          }
-          return this.publicFuture;
-      }
+    @Override
+    public boolean isDone() {
+      return this.publicFuture.isDone();
+    }
 
-      @Override
-      public boolean isDone() {
-          return this.publicFuture.isDone();
-      }
+    @Override
+    public CompletableFuture<T> publicFuture() {
+      return publicFuture;
+    }
 
-
-      @Override
-      public CompletableFuture<T> publicFuture() {
-          return publicFuture;
-      }
-
-      @Override
-      public <U> AsyncResult<U> map(ThrowingFunction<T, U> mapper) {
-          return new MappedSingleAsyncResultInternal<>(this, mapper);
-      }
+    @Override
+    public <U> AsyncResult<U> map(ThrowingFunction<T, U> mapper) {
+      return new MappedSingleAsyncResultInternal<>(this, mapper);
+    }
   }
 
   static class SingleAsyncResultInternal<T> extends BaseAsyncResultInternal<T> {
@@ -94,7 +95,7 @@ abstract class AsyncResults {
 
     private SingleAsyncResultInternal(
         int handle, Completer<T> completer, HandlerContextInternal contextInternal) {
-        super(new CompletableFuture<>());
+      super(new CompletableFuture<>());
       this.handle = handle;
       this.completer = completer;
       this.contextInternal = contextInternal;
@@ -102,7 +103,8 @@ abstract class AsyncResults {
 
     @Override
     public void tryCancel() {
-      this.publicFuture.completeExceptionally(new TerminalException(TerminalException.CANCELLED_CODE));
+      this.publicFuture.completeExceptionally(
+          new TerminalException(TerminalException.CANCELLED_CODE));
     }
 
     @Override
@@ -120,7 +122,7 @@ abstract class AsyncResults {
               });
     }
 
-      @Override
+    @Override
     public Stream<Integer> uncompletedLeaves() {
       if (publicFuture.isDone()) {
         return Stream.empty();
@@ -135,22 +137,27 @@ abstract class AsyncResults {
   }
 
   static class MappedSingleAsyncResultInternal<T, U> extends BaseAsyncResultInternal<U> {
-   private final AsyncResultInternal<T> asyncResult;
+    private final AsyncResultInternal<T> asyncResult;
 
-      MappedSingleAsyncResultInternal(AsyncResultInternal<T> asyncResult, ThrowingFunction<T, U> mapper) {
-         super(asyncResult.publicFuture().thenCompose(t -> {
-             try {
-                 return CompletableFuture.completedFuture(mapper.apply(t));
-             } catch (Throwable e) {
-                 if (e instanceof TerminalException) {
-                     return CompletableFuture.failedFuture(e);
-                 }
-                 asyncResult.ctx().fail(e);
-                 return CompletableFuture.failedFuture(AbortedExecutionException.INSTANCE);
-             }
-         }));
-          this.asyncResult = asyncResult;
-      }
+    MappedSingleAsyncResultInternal(
+        AsyncResultInternal<T> asyncResult, ThrowingFunction<T, U> mapper) {
+      super(
+          asyncResult
+              .publicFuture()
+              .thenCompose(
+                  t -> {
+                    try {
+                      return CompletableFuture.completedFuture(mapper.apply(t));
+                    } catch (Throwable e) {
+                      if (e instanceof TerminalException) {
+                        return CompletableFuture.failedFuture(e);
+                      }
+                      asyncResult.ctx().fail(e);
+                      return CompletableFuture.failedFuture(AbortedExecutionException.INSTANCE);
+                    }
+                  }));
+      this.asyncResult = asyncResult;
+    }
 
     @Override
     public boolean isDone() {
@@ -159,15 +166,15 @@ abstract class AsyncResults {
 
     @Override
     public void tryCancel() {
-asyncResult.tryCancel();
+      asyncResult.tryCancel();
     }
 
     @Override
     public void tryComplete(StateMachine stateMachine) {
-asyncResult.tryComplete(stateMachine);
+      asyncResult.tryComplete(stateMachine);
     }
 
-      @Override
+    @Override
     public Stream<Integer> uncompletedLeaves() {
       return asyncResult.uncompletedLeaves();
     }
@@ -180,74 +187,82 @@ asyncResult.tryComplete(stateMachine);
 
   static class AnyAsyncResult extends BaseAsyncResultInternal<Integer> {
 
-      private final HandlerContextInternal handlerContextInternal;
-      private final List<AsyncResultInternal<?>>  asyncResults;
+    private final HandlerContextInternal handlerContextInternal;
+    private final List<AsyncResultInternal<?>> asyncResults;
 
-      AnyAsyncResult(HandlerContextInternal handlerContextInternal, List<AsyncResultInternal<?>> asyncResults) {
-          super(new CompletableFuture<>());
-          this.handlerContextInternal = handlerContextInternal;
-          this.asyncResults= asyncResults;
-      }
+    AnyAsyncResult(
+        HandlerContextInternal handlerContextInternal, List<AsyncResultInternal<?>> asyncResults) {
+      super(new CompletableFuture<>());
+      this.handlerContextInternal = handlerContextInternal;
+      this.asyncResults = asyncResults;
+    }
 
-      @Override
-      public void tryCancel() {
-          this.publicFuture.completeExceptionally(new TerminalException(TerminalException.CANCELLED_CODE));
-      }
+    @Override
+    public void tryCancel() {
+      this.publicFuture.completeExceptionally(
+          new TerminalException(TerminalException.CANCELLED_CODE));
+    }
 
-      @Override
-      public void tryComplete(StateMachine stateMachine) {
-          asyncResults.forEach(ar -> ar.tryComplete(stateMachine));
-          for (int i = 0; i < asyncResults.size(); i++) {
-              if (asyncResults.get(i).isDone()) {
-                  publicFuture.complete(i);
-                  return;
-              }
-          }
+    @Override
+    public void tryComplete(StateMachine stateMachine) {
+      asyncResults.forEach(ar -> ar.tryComplete(stateMachine));
+      for (int i = 0; i < asyncResults.size(); i++) {
+        if (asyncResults.get(i).isDone()) {
+          publicFuture.complete(i);
+          return;
+        }
       }
+    }
 
-      @Override
-      public Stream<Integer> uncompletedLeaves() {
-          if (publicFuture.isDone()) {
-              return Stream.empty();
-          }
-          return asyncResults.stream().flatMap(AsyncResultInternal::uncompletedLeaves);
+    @Override
+    public Stream<Integer> uncompletedLeaves() {
+      if (publicFuture.isDone()) {
+        return Stream.empty();
       }
+      return asyncResults.stream().flatMap(AsyncResultInternal::uncompletedLeaves);
+    }
 
-      @Override
-      public HandlerContextInternal ctx() {
-          return handlerContextInternal;
-      }
+    @Override
+    public HandlerContextInternal ctx() {
+      return handlerContextInternal;
+    }
   }
 
-    static class AllAsyncResult extends BaseAsyncResultInternal<Void> {
+  static class AllAsyncResult extends BaseAsyncResultInternal<Void> {
 
-        private final HandlerContextInternal handlerContextInternal;
-        private final List<AsyncResultInternal<?>> asyncResults;
+    private final HandlerContextInternal handlerContextInternal;
+    private final List<AsyncResultInternal<?>> asyncResults;
 
-        AllAsyncResult(HandlerContextInternal handlerContextInternal, List<AsyncResultInternal<?>> asyncResults) {
-            super(CompletableFuture.allOf(asyncResults.stream().map(AsyncResultInternal::publicFuture).toArray(CompletableFuture<?>[]::new)));
-            this.handlerContextInternal = handlerContextInternal;
-            this.asyncResults = asyncResults;
-        }
-
-        @Override
-        public void tryCancel() {
-            this.publicFuture.completeExceptionally(new TerminalException(TerminalException.CANCELLED_CODE));
-        }
-
-        @Override
-        public void tryComplete(StateMachine stateMachine) {
-            asyncResults.forEach(ar -> ar.tryComplete(stateMachine));
-        }
-
-        @Override
-        public Stream<Integer> uncompletedLeaves() {
-            return asyncResults.stream().flatMap(AsyncResultInternal::uncompletedLeaves);
-        }
-
-        @Override
-        public HandlerContextInternal ctx() {
-            return handlerContextInternal;
-        }
+    AllAsyncResult(
+        HandlerContextInternal handlerContextInternal, List<AsyncResultInternal<?>> asyncResults) {
+      super(
+          CompletableFuture.allOf(
+              asyncResults.stream()
+                  .map(AsyncResultInternal::publicFuture)
+                  .toArray(CompletableFuture<?>[]::new)));
+      this.handlerContextInternal = handlerContextInternal;
+      this.asyncResults = asyncResults;
     }
+
+    @Override
+    public void tryCancel() {
+      this.publicFuture.completeExceptionally(
+          new TerminalException(TerminalException.CANCELLED_CODE));
+    }
+
+    @Override
+    public void tryComplete(StateMachine stateMachine) {
+      asyncResults.forEach(ar -> ar.tryComplete(stateMachine));
+    }
+
+    @Override
+    public Stream<Integer> uncompletedLeaves() {
+      return asyncResults.stream().flatMap(AsyncResultInternal::uncompletedLeaves);
+    }
+
+    @Override
+    public HandlerContextInternal ctx() {
+      return handlerContextInternal;
+    }
+  }
 }

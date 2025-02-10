@@ -8,17 +8,15 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.endpoint.definition;
 
+import dev.restate.common.Output;
 import dev.restate.common.Slice;
+import dev.restate.common.Target;
 import dev.restate.sdk.types.*;
-
 import java.time.Duration;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
-
-import dev.restate.common.Output;
-import dev.restate.common.Target;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -54,23 +52,30 @@ public interface HandlerContext {
 
   CompletableFuture<AsyncResult<Void>> sleep(Duration duration);
 
-  record CallResult(AsyncResult<String> invocationIdAsyncResult, AsyncResult<Slice> callAsyncResult) {}
+  record CallResult(
+      AsyncResult<String> invocationIdAsyncResult, AsyncResult<Slice> callAsyncResult) {}
 
-  CompletableFuture<CallResult> call(Target target, Slice parameter, @Nullable String idempotencyKey, @Nullable List<Map.Entry<String, String>> headers);
+  CompletableFuture<CallResult> call(
+      Target target,
+      Slice parameter,
+      @Nullable String idempotencyKey,
+      @Nullable List<Map.Entry<String, String>> headers);
 
   CompletableFuture<AsyncResult<String>> send(
       Target target,
       Slice parameter,
-           @Nullable String idempotencyKey,
+      @Nullable String idempotencyKey,
       @Nullable List<Map.Entry<String, String>> headers,
       @Nullable Duration delay);
 
   interface RunCompleter {
     void proposeSuccess(Slice toWrite);
+
     void proposeFailure(Throwable toWrite, @Nullable RetryPolicy retryPolicy);
   }
 
-  CompletableFuture<AsyncResult<Slice>> submitRun(@Nullable String name, Consumer<RunCompleter> closure);
+  CompletableFuture<AsyncResult<Slice>> submitRun(
+      @Nullable String name, Consumer<RunCompleter> closure);
 
   record Awakeable(String id, AsyncResult<Slice> asyncResult) {}
 

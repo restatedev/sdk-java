@@ -10,21 +10,15 @@ package dev.restate.sdk.endpoint;
 
 import dev.restate.sdk.endpoint.definition.ServiceDefinition;
 import dev.restate.sdk.endpoint.definition.ServiceDefinitionAndOptions;
-import dev.restate.sdk.endpoint.definition.ServiceDefinitionFactory;
+import dev.restate.sdk.endpoint.definition.ServiceDefinitionFactories;
 import io.opentelemetry.api.OpenTelemetry;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.jspecify.annotations.Nullable;
-
 /** Restate endpoint, encapsulating the configured services, together with additional options. */
 public final class Endpoint {
-
-  private static final Logger LOG = LogManager.getLogger(Endpoint.class);
 
   private final Map<String, ServiceDefinitionAndOptions<?>> services;
   private final OpenTelemetry openTelemetry;
@@ -56,7 +50,7 @@ public final class Endpoint {
      * #bind(ServiceDefinition)}.
      */
     public Builder bind(Object service) {
-      return this.bind(discoverServiceDefinitionFactory(service).create(service));
+      return this.bind(ServiceDefinitionFactories.discover(service).create(service));
     }
 
     /**
@@ -137,76 +131,6 @@ public final class Endpoint {
 
   public static Builder builder() {
     return new Builder();
-  }
-
-  private static class ServiceDefinitionFactorySingleton {
-    private static final ServiceDefinitionFactoryDiscovery INSTANCE =
-        new ServiceDefinitionFactoryDiscovery();
-  }
-
-  @SuppressWarnings("rawtypes")
-  private static class ServiceDefinitionFactoryDiscovery {
-
-    private final List<ServiceDefinitionFactory> factories;
-
-    private ServiceDefinitionFactoryDiscovery() {
-      this.factories = new ArrayList<>();
-
-      var serviceLoaderIterator = ServiceLoader.load(ServiceDefinitionFactory.class).iterator();
-      while (serviceLoaderIterator.hasNext()) {
-        try {
-          this.factories.add(serviceLoaderIterator.next());
-        } catch (ServiceConfigurationError | Exception e) {
-          LOG.debug(
-              "Found service that cannot be loaded using service provider. "
-                  + "You can ignore this message during development.\n"
-                  + "This might be the result of using a compiler with incremental builds (e.g. IntelliJ IDEA) "
-                  + "that updated a dirty META-INF file after removing/renaming an annotated service.",
-              e);
-        }
-      }
-    }
-
-    private @Nullable ServiceDefinitionFactory discoverFactory(Object service) {
-      return this.factories.stream().filter(sa -> sa.supports(service)).findFirst().orElse(null);
-    }
-  }
-
-  /** Resolve the code generated {@link ServiceDefinitionFactory} */
-  @SuppressWarnings("unchecked")
-  protected static ServiceDefinitionFactory<Object, Object> discoverServiceDefinitionFactory(
-      Object service) {
-    if (service instanceof ServiceDefinitionFactory<?, ?>) {
-      // We got this already
-      return (ServiceDefinitionFactory<Object, Object>) service;
-    }
-    if (service instanceof ServiceDefinition<?>) {
-      // We got this already
-      return new ServiceDefinitionFactory<>() {
-        @Override
-        public ServiceDefinition<Object> create(Object serviceObject) {
-          return (ServiceDefinition<Object>) serviceObject;
-        }
-
-        @Override
-        public boolean supports(Object serviceObject) {
-          return serviceObject == service;
-        }
-      };
-    }
-    return Objects.requireNonNull(
-        ServiceDefinitionFactorySingleton.INSTANCE.discoverFactory(service),
-        () ->
-            "ServiceDefinitionFactory class not found for service "
-                + service.getClass().getCanonicalName()
-                + ". "
-                + "Make sure the annotation processor is correctly configured to generate the ServiceDefinitionFactory, "
-                + "and it generates the META-INF/services/"
-                + ServiceDefinitionFactory.class.getCanonicalName()
-                + " file containing the generated class. "
-                + "If you're using fat jars, make sure the jar plugin correctly squashes all the META-INF/services files. "
-                + "Found ServiceAdapter: "
-                + ServiceDefinitionFactorySingleton.INSTANCE.factories);
   }
 
   public ServiceDefinitionAndOptions<?> resolveServiceAndOptions(String serviceName) {

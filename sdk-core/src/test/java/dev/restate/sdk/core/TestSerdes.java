@@ -12,14 +12,13 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-
 import dev.restate.common.Slice;
 import dev.restate.common.function.ThrowingBiConsumer;
 import dev.restate.common.function.ThrowingFunction;
 import dev.restate.serde.Serde;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import org.jspecify.annotations.Nullable;
 
 /**

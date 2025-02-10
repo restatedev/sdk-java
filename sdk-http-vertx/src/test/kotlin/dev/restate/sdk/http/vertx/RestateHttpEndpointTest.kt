@@ -13,8 +13,8 @@ import com.google.protobuf.ByteString
 import com.google.protobuf.MessageLite
 import dev.restate.generated.service.protocol.Protocol.*
 import dev.restate.sdk.JsonSerdes
-import dev.restate.sdk.core.statemachine.ProtoUtils.*
 import dev.restate.sdk.core.manifest.EndpointManifestSchema
+import dev.restate.sdk.core.statemachine.ProtoUtils.*
 import dev.restate.sdk.http.vertx.testservices.BlockingGreeter
 import dev.restate.sdk.http.vertx.testservices.greeter
 import io.netty.buffer.Unpooled

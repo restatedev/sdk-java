@@ -9,11 +9,10 @@
 package dev.restate.sdk.core.statemachine;
 
 import com.google.protobuf.MessageLite;
+import dev.restate.common.Slice;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.types.RetryPolicy;
-import dev.restate.common.Slice;
-
 import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
@@ -86,21 +85,28 @@ sealed interface State
   }
 
   default void proposeRunCompletion(int handle, Slice value, StateContext stateContext) {
-    LOG.warn("Going to ignore proposed run completion with handle {} because the state machine is not in processing state.", handle);
+    LOG.warn(
+        "Going to ignore proposed run completion with handle {} because the state machine is not in processing state.",
+        handle);
   }
 
   default void proposeRunCompletion(
-          int handle,
-          Throwable exception,
-          Duration attemptDuration, @Nullable RetryPolicy retryPolicy,
-          StateContext stateContext) {
-    LOG.warn("Going to ignore proposed run completion with handle {} because the state machine is not in processing state.", handle);
+      int handle,
+      Throwable exception,
+      Duration attemptDuration,
+      @Nullable RetryPolicy retryPolicy,
+      StateContext stateContext) {
+    LOG.warn(
+        "Going to ignore proposed run completion with handle {} because the state machine is not in processing state.",
+        handle);
   }
 
-  default void hitError(Throwable throwable, @Nullable Duration nextRetryDelay, StateContext stateContext) {
+  default void hitError(
+      Throwable throwable, @Nullable Duration nextRetryDelay, StateContext stateContext) {
     LOG.warn("Invocation failed", throwable);
 
-    var errorMessage = Util.toErrorMessage(
+    var errorMessage =
+        Util.toErrorMessage(
             throwable,
             stateContext.getJournal().getCommandIndex(),
             stateContext.getJournal().getCurrentEntryName(),

@@ -15,11 +15,7 @@ import java.util.Map;
 
 /** The Request object represents the incoming request to an handler. */
 public record Request(
-         InvocationId invocationId,
-          Context otelContext,
-          Slice body,
-          Map<String, String> headers
-) {
+    InvocationId invocationId, Context otelContext, Slice body, Map<String, String> headers) {
   public byte[] bodyAsByteArray() {
     return body.toByteArray();
   }

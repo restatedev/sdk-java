@@ -8,15 +8,15 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.http.vertx.testservices
 
-import dev.restate.sdk.endpoint.definition.HandlerType
-import dev.restate.sdk.endpoint.definition.ServiceType
-import dev.restate.sdk.types.StateKey
-import dev.restate.sdk.endpoint.definition.HandlerDefinition
 import dev.restate.sdk.definition.HandlerSpecification
+import dev.restate.sdk.endpoint.definition.HandlerDefinition
+import dev.restate.sdk.endpoint.definition.HandlerType
 import dev.restate.sdk.endpoint.definition.ServiceDefinition
+import dev.restate.sdk.endpoint.definition.ServiceType
 import dev.restate.sdk.kotlin.HandlerRunner
 import dev.restate.sdk.kotlin.KtSerdes
 import dev.restate.sdk.kotlin.ObjectContext
+import dev.restate.sdk.types.StateKey
 import kotlin.time.Duration.Companion.seconds
 import org.apache.logging.log4j.LogManager
 

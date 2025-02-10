@@ -129,7 +129,8 @@ public interface StateMachine extends Flow.Processor<Slice, Slice> {
 
   void proposeRunCompletion(int handle, Slice value);
 
-  void proposeRunCompletion(int handle, Throwable exception, Duration attemptDuration, RetryPolicy retryPolicy);
+  void proposeRunCompletion(
+      int handle, Throwable exception, Duration attemptDuration, RetryPolicy retryPolicy);
 
   void cancelInvocation(String targetInvocationId);
 

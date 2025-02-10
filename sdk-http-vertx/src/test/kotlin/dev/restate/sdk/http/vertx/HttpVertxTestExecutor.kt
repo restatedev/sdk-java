@@ -8,10 +8,10 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.http.vertx
 
-import dev.restate.sdk.endpoint.definition.ServiceDefinition
-import dev.restate.sdk.core.statemachine.ProtoUtils
 import dev.restate.sdk.core.TestDefinitions.TestDefinition
 import dev.restate.sdk.core.TestDefinitions.TestExecutor
+import dev.restate.sdk.core.statemachine.ProtoUtils
+import dev.restate.sdk.endpoint.definition.ServiceDefinition
 import io.netty.buffer.Unpooled
 import io.vertx.core.Vertx
 import io.vertx.core.buffer.Buffer

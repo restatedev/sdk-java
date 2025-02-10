@@ -8,16 +8,16 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import static dev.restate.sdk.core.statemachine.ProtoUtils.headerFromMessage;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.MessageLiteOrBuilder;
 import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.core.statemachine.InvocationInput;
+import dev.restate.sdk.core.statemachine.MessageHeader;
 import dev.restate.sdk.core.statemachine.ProtoUtils;
-import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.endpoint.definition.ServiceDefinition;
+import dev.restate.sdk.endpoint.definition.ServiceDefinitionFactories;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -81,7 +81,7 @@ public final class TestDefinitions {
 
     // In case it's code generated, discover the adapter
     ServiceDefinition<?> serviceDefinition =
-        Endpoint.discoverServiceDefinitionFactory(service).create(service);
+        ServiceDefinitionFactories.discover(service).create(service);
     return new TestInvocationBuilder(serviceDefinition, null, handler);
   }
 
@@ -122,20 +122,20 @@ public final class TestDefinitions {
       }
 
       return new WithInputBuilder(
-              service,
-              options,
-              handler,
-             messages
-                      .map(
-                              msgOrBuilder -> {
-                                MessageLite msg = ProtoUtils.build(msgOrBuilder);
-                                return InvocationInput.of(headerFromMessage(msg), msg);
-                              })
-                      .collect(Collectors.toList()));
+          service,
+          options,
+          handler,
+          messages
+              .map(
+                  msgOrBuilder -> {
+                    MessageLite msg = ProtoUtils.build(msgOrBuilder);
+                    return InvocationInput.of(MessageHeader.fromMessage(msg), msg);
+                  })
+              .collect(Collectors.toList()));
     }
 
     public WithInputBuilder withInput(MessageLiteOrBuilder... messages) {
-      return withInput( Arrays.stream(messages));
+      return withInput(Arrays.stream(messages));
     }
   }
 
@@ -166,7 +166,7 @@ public final class TestDefinitions {
                 .map(
                     msgOrBuilder -> {
                       MessageLite msg = ProtoUtils.build(msgOrBuilder);
-                      return InvocationInput.of(headerFromMessage(msg), msg);
+                      return InvocationInput.of(MessageHeader.fromMessage(msg), msg);
                     })
                 .toList());
       }

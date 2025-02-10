@@ -13,9 +13,9 @@ import static dev.restate.sdk.JavaBlockingTests.*;
 import dev.restate.sdk.core.PromiseTestSuite;
 import dev.restate.sdk.core.TestDefinitions;
 import dev.restate.sdk.core.TestSerdes;
-import dev.restate.serde.Serde;
 import dev.restate.sdk.types.DurablePromiseKey;
 import dev.restate.sdk.types.TerminalException;
+import dev.restate.serde.Serde;
 
 public class PromiseTest extends PromiseTestSuite {
   @Override

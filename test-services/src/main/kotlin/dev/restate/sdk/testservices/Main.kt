@@ -9,7 +9,8 @@
 package dev.restate.sdk.testservices
 
 import dev.restate.sdk.auth.signing.RestateRequestIdentityVerifier
-import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder
+import dev.restate.sdk.http.vertx.RestateHttpServer
+import dev.restate.sdk.kotlin.endpoint.endpoint
 import dev.restate.sdk.testservices.contracts.*
 
 val KNOWN_SERVICES_FACTORIES: Map<String, () -> Any> =
@@ -39,27 +40,29 @@ fun main(args: Array<String>) {
   if (env == null) {
     env = "*"
   }
-  val restateHttpEndpointBuilder = RestateHttpEndpointBuilder.builder()
-  if (env == "*") {
-    KNOWN_SERVICES_FACTORIES.values.forEach { restateHttpEndpointBuilder.bind(it()) }
-  } else {
-    for (svc in env.split(",".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()) {
-      val fqsn = svc.trim { it <= ' ' }
-      restateHttpEndpointBuilder.bind(
-          KNOWN_SERVICES_FACTORIES[fqsn]?.invoke()
-              ?: throw IllegalStateException("Service $fqsn not implemented"))
+  val endpoint = endpoint {
+    if (env == "*") {
+      for (svc in KNOWN_SERVICES_FACTORIES.values) {
+        bind(svc)
+      }
+    } else {
+      for (svc in env.split(",".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()) {
+        val fqsn = svc.trim { it <= ' ' }
+        bind(
+            KNOWN_SERVICES_FACTORIES[fqsn]?.invoke()
+                ?: throw IllegalStateException("Service $fqsn not implemented"))
+      }
+    }
+
+    val requestSigningKey = System.getenv("E2E_REQUEST_SIGNING")
+    if (requestSigningKey != null) {
+      withRequestIdentityVerifier(RestateRequestIdentityVerifier.fromKey(requestSigningKey))
+    }
+
+    if (env == "*" || NEEDS_EXPERIMENTAL_CONTEXT.any { env.contains(it) }) {
+      enablePreviewContext()
     }
   }
 
-  val requestSigningKey = System.getenv("E2E_REQUEST_SIGNING")
-  if (requestSigningKey != null) {
-    restateHttpEndpointBuilder.withRequestIdentityVerifier(
-        RestateRequestIdentityVerifier.fromKey(requestSigningKey))
-  }
-
-  if (env == "*" || NEEDS_EXPERIMENTAL_CONTEXT.any { env.contains(it) }) {
-    restateHttpEndpointBuilder.enablePreviewContext()
-  }
-
-  restateHttpEndpointBuilder.buildAndListen()
+  RestateHttpServer.listen(endpoint)
 }

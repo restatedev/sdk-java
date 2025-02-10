@@ -8,16 +8,16 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
+import dev.restate.common.Slice;
 import dev.restate.sdk.core.generated.discovery.Discovery;
 import dev.restate.sdk.core.generated.manifest.EndpointManifestSchema;
 import dev.restate.sdk.core.generated.manifest.Service;
 import dev.restate.sdk.core.statemachine.StateMachine;
+import dev.restate.sdk.endpoint.Endpoint;
+import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.endpoint.definition.HandlerDefinition;
 import dev.restate.sdk.endpoint.definition.ServiceDefinition;
 import dev.restate.sdk.endpoint.definition.ServiceDefinitionAndOptions;
-import dev.restate.sdk.endpoint.Endpoint;
-import dev.restate.sdk.endpoint.HeadersAccessor;
-import dev.restate.common.Slice;
 import io.opentelemetry.context.propagation.TextMapGetter;
 import java.util.concurrent.Executor;
 import java.util.regex.Pattern;
@@ -106,11 +106,15 @@ public final class EndpointRequestHandler {
 
     if (HEALTH_PATH.equalsIgnoreCase(path)) {
       return new StaticResponseRequestProcessor(
-              200,
-              "text/plain",
-              Slice.wrap(
-                      "Serving services [" + this.endpoint.getServiceDefinitions().map(ServiceDefinition::getServiceName).collect(Collectors.joining(", ")) + "]"
-              ));
+          200,
+          "text/plain",
+          Slice.wrap(
+              "Serving services ["
+                  + this.endpoint
+                      .getServiceDefinitions()
+                      .map(ServiceDefinition::getServiceName)
+                      .collect(Collectors.joining(", "))
+                  + "]"));
     }
 
     // Parse request

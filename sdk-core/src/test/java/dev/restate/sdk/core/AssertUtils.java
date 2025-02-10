@@ -16,21 +16,19 @@ import static org.assertj.core.api.InstanceOfAssertFactories.type;
 import com.google.protobuf.MessageLite;
 import dev.restate.common.Slice;
 import dev.restate.sdk.core.generated.manifest.EndpointManifestSchema;
-import dev.restate.sdk.core.generated.manifest.Service;
 import dev.restate.sdk.core.generated.manifest.Handler;
+import dev.restate.sdk.core.generated.manifest.Service;
 import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.core.statemachine.InvocationInput;
 import dev.restate.sdk.core.statemachine.MessageDecoder;
 import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.types.TerminalException;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
 import org.assertj.core.api.AbstractObjectAssert;
 import org.assertj.core.api.ListAssert;
 import org.assertj.core.api.ObjectAssert;
@@ -77,7 +75,7 @@ public class AssertUtils {
 
   public static EndpointManifestSchemaAssert assertThatDiscovery(Object... services) {
     Endpoint.Builder builder = Endpoint.builder();
-    for (var svc: services) {
+    for (var svc : services) {
       builder.bind(svc);
     }
 
@@ -85,15 +83,14 @@ public class AssertUtils {
         new EndpointManifest(
                 EndpointManifestSchema.ProtocolMode.BIDI_STREAM,
                 builder.build().getServiceDefinitions(),
-                true
-        )
+                true)
             .manifest(),
         EndpointManifestSchemaAssert.class);
   }
 
-  public static  ListAssert<InvocationInput> assertThatDecodingMessages(Slice... slices) {
+  public static ListAssert<InvocationInput> assertThatDecodingMessages(Slice... slices) {
     var messageDecoder = new MessageDecoder();
-    Stream.of(slices).forEach( messageDecoder::offer);
+    Stream.of(slices).forEach(messageDecoder::offer);
 
     var outputList = new ArrayList<InvocationInput>();
     while (messageDecoder.isNextAvailable()) {
