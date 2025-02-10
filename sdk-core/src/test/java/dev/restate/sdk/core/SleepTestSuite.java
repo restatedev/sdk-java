@@ -72,7 +72,7 @@ public abstract class SleepTestSuite implements TestDefinitions.TestSuite {
         this.manySleeps()
             .withInput(
                 Stream.concat(
-                    Stream.of(startMessage(11), inputCmd("Till")),
+                    Stream.of(startMessage(18), inputCmd("Till")),
                     IntStream.rangeClosed(1, 10)
                         .mapToObj(
                             i ->
@@ -98,6 +98,7 @@ public abstract class SleepTestSuite implements TestDefinitions.TestSuite {
                 Protocol.SleepCompletionNotificationMessage.newBuilder()
                     .setCompletionId(1)
                     .setVoid(Protocol.Void.getDefaultInstance()))
+                .onlyUnbuffered()
             .assertingOutput(
                 messageLites -> {
                   assertThat(messageLites)

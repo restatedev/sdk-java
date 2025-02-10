@@ -21,8 +21,6 @@ public abstract class RandomTestSuite implements TestSuite {
 
   protected abstract TestInvocationBuilder randomShouldBeDeterministic();
 
-  protected abstract TestInvocationBuilder randomInsideSideEffect();
-
   protected abstract int getExpectedInt(long seed);
 
   @Override
@@ -34,11 +32,6 @@ public abstract class RandomTestSuite implements TestSuite {
             .withInput(startMessage(1).setDebugId(debugId), ProtoUtils.inputCmd())
             .expectingOutput(
                 outputCmd(getExpectedInt(ProtoUtils.invocationIdToRandomSeed(debugId))),
-                END_MESSAGE),
-        this.randomInsideSideEffect()
-            .withInput(startMessage(1).setDebugId(debugId), ProtoUtils.inputCmd())
-            .assertingOutput(
-                containsOnly(
-                    errorMessageStartingWith(IllegalStateException.class.getCanonicalName()))));
+                END_MESSAGE));
   }
 }

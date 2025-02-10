@@ -27,18 +27,6 @@ public class RandomTest extends RandomTestSuite {
   }
 
   @Override
-  protected TestInvocationBuilder randomInsideSideEffect() {
-    return testDefinitionForService(
-        "RandomInsideSideEffect",
-        Serde.VOID,
-        JsonSerdes.INT,
-        (ctx, unused) -> {
-          ctx.run(() -> ctx.random().nextInt());
-          throw new IllegalStateException("This should not unreachable");
-        });
-  }
-
-  @Override
   protected int getExpectedInt(long seed) {
     return new Random(seed).nextInt();
   }

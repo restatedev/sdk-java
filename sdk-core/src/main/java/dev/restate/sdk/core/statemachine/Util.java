@@ -45,7 +45,14 @@ public class Util {
       @Nullable String currentCommandName,
       @Nullable MessageType currentCommandType) {
     Protocol.ErrorMessage.Builder msg =
-        Protocol.ErrorMessage.newBuilder().setMessage(throwable.getMessage());
+        Protocol.ErrorMessage.newBuilder();
+
+    if (throwable.getMessage() == null) {
+      // This happens only with few common exceptions, but anyway
+    msg.setMessage(throwable.toString());
+    } else {
+        msg.setMessage(throwable.getMessage());
+    }
 
     if (throwable instanceof ProtocolException) {
       msg.setCode(((ProtocolException) throwable).getCode());

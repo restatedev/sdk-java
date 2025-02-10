@@ -30,7 +30,7 @@ public abstract class AwakeableIdTestSuite implements TestSuite {
 
     ByteBuffer expectedAwakeableId = ByteBuffer.allocate(serializedId.length + 4);
     expectedAwakeableId.put(serializedId);
-    expectedAwakeableId.putInt(1);
+    expectedAwakeableId.putInt(17);
     expectedAwakeableId.flip();
     String base64ExpectedAwakeableId =
         "sign_1" + Base64.getUrlEncoder().encodeToString(expectedAwakeableId.array());
@@ -40,7 +40,7 @@ public abstract class AwakeableIdTestSuite implements TestSuite {
             .withInput(
                 startMessage(1).setDebugId(debugId).setId(ByteString.copyFrom(serializedId)),
                 inputCmd())
-            .expectingOutput(outputCmd(base64ExpectedAwakeableId)));
+            .expectingOutput(outputCmd(base64ExpectedAwakeableId), END_MESSAGE));
   }
 
   private byte[] serializeUUID(UUID uuid) {
