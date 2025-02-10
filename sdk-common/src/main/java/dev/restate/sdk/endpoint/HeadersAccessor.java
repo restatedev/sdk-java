@@ -26,7 +26,7 @@ public interface HeadersAccessor {
 
       @Override
       public String get(String key) {
-        for (var k : input.values()) {
+        for (var k : input.keySet()) {
           if (k.equalsIgnoreCase(key)) {
             return input.get(k);
           }

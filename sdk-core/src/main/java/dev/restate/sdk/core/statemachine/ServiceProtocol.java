@@ -20,6 +20,9 @@ public class ServiceProtocol {
   static final String CONTENT_TYPE = "content-type";
 
   static Protocol.ServiceProtocolVersion parseServiceProtocolVersion(String version) {
+    if (version == null) {
+      return Protocol.ServiceProtocolVersion.SERVICE_PROTOCOL_VERSION_UNSPECIFIED;
+    }
     version = version.trim();
 
     if (version.equals("application/vnd.restate.invocation.v1")) {

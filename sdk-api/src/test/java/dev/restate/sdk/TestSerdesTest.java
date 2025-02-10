@@ -11,8 +11,8 @@ package dev.restate.sdk;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import dev.restate.common.Slice;
 import dev.restate.serde.Serde;
-import java.nio.charset.StandardCharsets;
 import java.util.Random;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -56,7 +56,7 @@ class TestSerdesTest {
 
   @ParameterizedTest(name = "{0}")
   @MethodSource
-  <T> void roundtrip(String testName, Serde<T> serde, T value) throws Throwable {
+  <T> void roundtrip(String testName, Serde<T> serde, T value) {
     assertThat(serde.deserialize(serde.serialize(value))).isEqualTo(value);
   }
 
@@ -74,7 +74,7 @@ class TestSerdesTest {
 
   @ParameterizedTest(name = "{0}")
   @MethodSource
-  <T> void failDeserialization(String testName, Serde<T> serde, String value) throws Throwable {
-    assertThatThrownBy(() -> serde.deserialize(value.getBytes(StandardCharsets.UTF_8))).isNotNull();
+  <T> void failDeserialization(String testName, Serde<T> serde, String value) {
+    assertThatThrownBy(() -> serde.deserialize(Slice.wrap(value))).isNotNull();
   }
 }

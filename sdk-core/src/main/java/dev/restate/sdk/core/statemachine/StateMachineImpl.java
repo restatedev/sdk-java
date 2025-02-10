@@ -52,10 +52,7 @@ class StateMachineImpl implements StateMachine {
   StateMachineImpl(
       HeadersAccessor headersAccessor,
       EndpointRequestHandler.LoggingContextSetter loggingContextSetter) {
-    String contentTypeHeader =
-        Objects.requireNonNull(
-            headersAccessor.get(ServiceProtocol.CONTENT_TYPE),
-            "Headers don't contain CONTENT-TYPE");
+    String contentTypeHeader = headersAccessor.get(ServiceProtocol.CONTENT_TYPE);
 
     this.serviceProtocolVersion = ServiceProtocol.parseServiceProtocolVersion(contentTypeHeader);
 

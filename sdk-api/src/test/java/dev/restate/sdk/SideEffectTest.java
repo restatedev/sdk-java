@@ -9,7 +9,6 @@
 package dev.restate.sdk;
 
 import static dev.restate.sdk.JavaBlockingTests.testDefinitionForService;
-import static dev.restate.sdk.core.statemachine.ProtoUtils.GREETER_SERVICE_TARGET;
 
 import dev.restate.sdk.core.SideEffectTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
@@ -78,18 +77,6 @@ public class SideEffectTest extends SideEffectTestSuite {
           }
 
           return "Hello";
-        });
-  }
-
-  @Override
-  protected TestInvocationBuilder sideEffectGuard() {
-    return testDefinitionForService(
-        "SideEffectGuard",
-        Serde.VOID,
-        JsonSerdes.STRING,
-        (ctx, unused) -> {
-          ctx.run(() -> ctx.send(GREETER_SERVICE_TARGET, new byte[] {}));
-          throw new IllegalStateException("This point should not be reached");
         });
   }
 

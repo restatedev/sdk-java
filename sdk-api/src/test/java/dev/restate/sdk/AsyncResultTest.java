@@ -77,7 +77,8 @@ public class AsyncResultTest extends AsyncResultTestSuite {
           Awaitable<String> a1 = callGreeterGreetService(context, "Francesco");
           Awaitable<String> a2 = callGreeterGreetService(context, "Till");
 
-          return (String) Awaitable.any(a1, a2).await();
+          var anyRes = Awaitable.any(a1, a2).await();
+          return (anyRes == 0) ? a1.await() : a2.await();
         });
   }
 
@@ -93,12 +94,12 @@ public class AsyncResultTest extends AsyncResultTestSuite {
           Awaitable<String> a3 = ctx.awakeable(JsonSerdes.STRING);
           Awaitable<String> a4 = ctx.awakeable(JsonSerdes.STRING);
 
-          Awaitable<Integer> a12 = Awaitable.any(a1, a2);
-          Awaitable<Integer> a23 = Awaitable.any(a2, a3);
-          Awaitable<Integer> a34 = Awaitable.any(a3, a4);
+          Awaitable<String> a12 = Awaitable.any(a1, a2).map(i -> i == 0 ? a1.await() : a2.await());
+          Awaitable<String> a23 = Awaitable.any(a2, a3).map(i -> i == 0 ? a2.await() : a3.await());
+          Awaitable<String> a34 = Awaitable.any(a3, a4).map(i -> i == 0 ? a3.await() : a4.await());
           Awaitable.all(a12, a23, a34).await();
 
-          return a12.await() + (String) a23.await() + a34.await();
+          return a12.await() + a23.await() + a34.await();
         });
   }
 
