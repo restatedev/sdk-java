@@ -190,7 +190,7 @@ public final class TestDefinitions {
           actual ->
               assertThat(actual)
                   .asInstanceOf(InstanceOfAssertFactories.LIST)
-                  .isEqualTo(builtMessages));
+                  .containsExactlyElementsOf(builtMessages));
     }
 
     public ExpectingOutputMessages assertingOutput(Consumer<List<MessageLite>> messages) {

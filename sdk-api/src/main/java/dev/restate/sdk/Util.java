@@ -15,6 +15,7 @@ import dev.restate.sdk.types.AbortedExecutionException;
 import dev.restate.serde.Serde;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import org.jspecify.annotations.NonNull;
 
@@ -44,7 +45,7 @@ class Util {
     } catch (InterruptedException | CancellationException e) {
       AbortedExecutionException.sneakyThrow();
       return null; // Previous statement throws an exception
-    } catch (ExecutionException e) {
+    } catch (ExecutionException | CompletionException e) {
       sneakyThrow(e.getCause());
       return null; // Previous statement throws an exception
     }

@@ -17,6 +17,7 @@ dependencies {
 
   kspTest(project(":sdk-api-kotlin-gen"))
   testImplementation(project(":sdk-core"))
+  testImplementation(project(":client-kotlin"))
   testImplementation(libs.junit.jupiter)
   testImplementation(libs.assertj)
   testImplementation(libs.protobuf.java)

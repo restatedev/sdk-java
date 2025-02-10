@@ -53,15 +53,19 @@ public class AssertUtils {
     return errorMessage(
         msg ->
             assertThat(msg)
-                .returns(e.toString(), Protocol.ErrorMessage::getMessage)
+                .returns(e.getMessage(), Protocol.ErrorMessage::getMessage)
                 .returns(
-                    TerminalException.INTERNAL_SERVER_ERROR_CODE, Protocol.ErrorMessage::getCode));
+                    TerminalException.INTERNAL_SERVER_ERROR_CODE, Protocol.ErrorMessage::getCode)
+                .extracting(Protocol.ErrorMessage::getDescription, STRING)
+                .startsWith(e.getClass().getName()));
   }
 
-  public static Consumer<? super MessageLite> errorMessageStartingWith(String str) {
+  public static Consumer<? super MessageLite> errorDescriptionStartingWith(String str) {
     return errorMessage(
         msg ->
-            assertThat(msg).extracting(Protocol.ErrorMessage::getMessage, STRING).startsWith(str));
+            assertThat(msg)
+                .extracting(Protocol.ErrorMessage::getDescription, STRING)
+                .startsWith(str));
   }
 
   public static Consumer<? super MessageLite> protocolExceptionErrorMessage(int code) {
@@ -69,7 +73,7 @@ public class AssertUtils {
         msg ->
             assertThat(msg)
                 .returns(code, Protocol.ErrorMessage::getCode)
-                .extracting(Protocol.ErrorMessage::getMessage, STRING)
+                .extracting(Protocol.ErrorMessage::getDescription, STRING)
                 .startsWith(ProtocolException.class.getCanonicalName()));
   }
 

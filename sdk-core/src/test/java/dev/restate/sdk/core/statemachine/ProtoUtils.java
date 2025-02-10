@@ -283,7 +283,7 @@ public class ProtoUtils {
         .setValue(value(reqSerde, parameter));
   }
 
-  public static <T> Protocol.CallCompletionNotificationMessage.Builder callCompletion(
+  public static Protocol.CallCompletionNotificationMessage.Builder callCompletion(
       int completionId, String result) {
     return callCompletion(completionId, TestSerdes.STRING, result);
   }

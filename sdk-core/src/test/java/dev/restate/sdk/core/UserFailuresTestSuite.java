@@ -49,8 +49,8 @@ public abstract class UserFailuresTestSuite implements TestSuite {
             .withInput(startMessage(1), inputCmd())
             .assertingOutput(
                 msgs -> {
-                  assertThat(msgs)
-                      .satisfiesExactly(exactErrorMessage(new IllegalStateException("Whatever")));
+                  assertThat(msgs.get(1))
+                      .satisfies(exactErrorMessage(new IllegalStateException("Whatever")));
 
                   // Check the counter has not been incremented
                   assertThat(nonTerminalExceptionsSeen).hasValue(0);
@@ -68,38 +68,37 @@ public abstract class UserFailuresTestSuite implements TestSuite {
             .named("With unknown error"),
         this.sideEffectThrowTerminalException(
                 TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR)
-            .withInput(
-                startMessage(1),
-                inputCmd(),
-                Protocol.RunCompletionNotificationMessage.newBuilder()
-                    .setCompletionId(1)
-                    .setFailure(
-                        ProtoUtils.failure(TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR))
-                    .build())
+            .withInput(startMessage(1), inputCmd())
             .expectingOutput(
                 Protocol.RunCommandMessage.newBuilder().setResultCompletionId(1),
                 Protocol.ProposeRunCompletionMessage.newBuilder()
                     .setResultCompletionId(1)
                     .setFailure(
                         ProtoUtils.failure(TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR)),
-                outputCmd(TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR),
-                END_MESSAGE)
+                suspensionMessage(1))
             .named("With internal error"),
         this.sideEffectThrowTerminalException(501, WHATEVER)
-            .withInput(
-                startMessage(1),
-                inputCmd(),
-                Protocol.RunCompletionNotificationMessage.newBuilder()
-                    .setCompletionId(1)
-                    .setFailure(ProtoUtils.failure(501, WHATEVER))
-                    .build())
+            .withInput(startMessage(1), inputCmd())
             .expectingOutput(
                 Protocol.RunCommandMessage.newBuilder().setResultCompletionId(1),
                 Protocol.ProposeRunCompletionMessage.newBuilder()
                     .setResultCompletionId(1)
                     .setFailure(ProtoUtils.failure(501, WHATEVER)),
-                outputCmd(501, WHATEVER),
-                END_MESSAGE)
-            .named("With unknown error"));
+                suspensionMessage(1))
+            .named("With unknown error"),
+        this.sideEffectThrowTerminalException(
+                TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR)
+            .withInput(
+                startMessage(3),
+                inputCmd(),
+                runCmd(1),
+                runCompletion(1, TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR))
+            .expectingOutput(
+                outputCmd(TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR), END_MESSAGE)
+            .named("With internal error during replay"),
+        this.sideEffectThrowTerminalException(501, WHATEVER)
+            .withInput(startMessage(3), inputCmd(), runCmd(1), runCompletion(1, 501, WHATEVER))
+            .expectingOutput(outputCmd(501, WHATEVER), END_MESSAGE)
+            .named("With unknown error during replay"));
   }
 }

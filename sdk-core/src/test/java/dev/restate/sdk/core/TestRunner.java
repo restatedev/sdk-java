@@ -12,12 +12,17 @@ import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.entry;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import dev.restate.sdk.core.TestDefinitions.TestDefinition;
 import dev.restate.sdk.core.TestDefinitions.TestExecutor;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
+import dev.restate.sdk.core.statemachine.MessageType;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Stream;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.*;
 import org.junit.jupiter.api.parallel.Execution;
@@ -89,6 +94,27 @@ public abstract class TestRunner {
       }
       invocation.proceed();
     }
+  }
+
+  static {
+    registerMessageFormatters();
+  }
+
+  private static void registerMessageFormatters() {
+    Arrays.stream(MessageType.values())
+        .map(
+            mt -> {
+              try {
+                return mt.messageParser().parseFrom(new byte[] {}).getClass();
+              } catch (InvalidProtocolBufferException e) {
+                return null;
+              }
+            })
+        .filter(Objects::nonNull)
+        .forEach(
+            messageClazz ->
+                Assertions.registerFormatterForType(
+                    messageClazz, ml -> ml.getClass().getSimpleName() + " { " + ml + "}"));
   }
 
   @ExtendWith(DisableInvalidTestDefinition.class)

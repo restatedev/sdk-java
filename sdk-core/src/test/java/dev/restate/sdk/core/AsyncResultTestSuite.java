@@ -13,6 +13,7 @@ import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.restate.sdk.core.generated.protocol.Protocol;
+import dev.restate.sdk.types.TerminalException;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -62,8 +63,8 @@ public abstract class AsyncResultTestSuite implements TestSuite {
                 inputCmd(),
                 callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
                 callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
-                callCompletion(4, new IllegalStateException("My error")))
-            .expectingOutput(outputCmd(new IllegalStateException("My error")), END_MESSAGE)
+                callCompletion(4, new TerminalException("My error")))
+            .expectingOutput(outputCmd(new TerminalException("My error")), END_MESSAGE)
             .named("Only one failure completes any combinator"),
         testInvocation
             .get()
@@ -78,8 +79,8 @@ public abstract class AsyncResultTestSuite implements TestSuite {
                 msgs -> {
                   assertThat(msgs).hasSize(2);
 
-                  assertThat(msgs).element(1).isIn(outputCmd("FRANCESCO"), outputCmd("TILL"));
-                  assertThat(msgs).element(2).isEqualTo(END_MESSAGE);
+                  assertThat(msgs).element(0).isIn(outputCmd("FRANCESCO"), outputCmd("TILL"));
+                  assertThat(msgs).element(1).isEqualTo(END_MESSAGE);
                 })
             .named("Everything completed completes the any combinator"),
         testInvocation
@@ -151,7 +152,7 @@ public abstract class AsyncResultTestSuite implements TestSuite {
                 .expectingOutput(
                     callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
                     callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
-                    suspensionMessage(2))
+                    suspensionMessage(4))
                 .named("Only A1 completed"),
 
             // --- Await twice the same executable
@@ -189,7 +190,7 @@ public abstract class AsyncResultTestSuite implements TestSuite {
                     callCompletion(2, "FRANCESCO"),
                     callCompletion(4, "TILL"))
                 .expectingOutput(outputCmd("FRANCESCO-TILL"), END_MESSAGE)
-                .named("Everything completed will complete all combinator"),
+                .named("Everything completed completes the all combinator"),
             this.awaitAll()
                 .withInput(
                     startMessage(1),
@@ -238,16 +239,16 @@ public abstract class AsyncResultTestSuite implements TestSuite {
                     signalNotification(18, "2"),
                     signalNotification(19, "3"),
                     signalNotification(20, "4"))
-                .expectingOutput(outputCmd("223"), END_MESSAGE),
+                .expectingOutput(outputCmd("123"), END_MESSAGE),
             this.combineAnyWithAll()
                 .withInput(
                     startMessage(5),
                     inputCmd(),
-                    signalNotification(17, "1"),
-                    signalNotification(19, "3"),
                     signalNotification(18, "2"),
-                    signalNotification(20, "4"))
-                .expectingOutput(outputCmd("233"), END_MESSAGE)
+                    signalNotification(17, "1"),
+                    signalNotification(20, "4"),
+                    signalNotification(19, "3"))
+                .expectingOutput(outputCmd("224"), END_MESSAGE)
                 .named("Inverted order"),
 
             // --- Await Any with index
@@ -302,6 +303,7 @@ public abstract class AsyncResultTestSuite implements TestSuite {
                     inputCmd(),
                     Protocol.SleepCompletionNotificationMessage.newBuilder()
                         .setCompletionId(3)
+                        .setVoid(Protocol.Void.getDefaultInstance())
                         .build())
                 .onlyUnbuffered()
                 .assertingOutput(
@@ -313,8 +315,8 @@ public abstract class AsyncResultTestSuite implements TestSuite {
                       assertThat(messages)
                           .element(1)
                           .isInstanceOf(Protocol.SleepCommandMessage.class);
-                      assertThat(messages).element(3).isEqualTo(outputCmd("timeout"));
-                      assertThat(messages).element(4).isEqualTo(END_MESSAGE);
+                      assertThat(messages).element(2).isEqualTo(outputCmd("timeout"));
+                      assertThat(messages).element(3).isEqualTo(END_MESSAGE);
                     })
                 .named("Fires timeout")));
   }

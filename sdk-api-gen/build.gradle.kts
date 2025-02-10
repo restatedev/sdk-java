@@ -15,6 +15,7 @@ dependencies {
 
   testAnnotationProcessor(project(":sdk-api-gen"))
   testImplementation(project(":sdk-core"))
+  testImplementation(project(":client"))
   testImplementation(libs.junit.jupiter)
   testImplementation(libs.assertj)
   testImplementation(libs.protobuf.java)

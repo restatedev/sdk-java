@@ -125,9 +125,15 @@ final class RequestProcessorImpl implements RequestProcessor {
                 handlerDefinition.getResponseSerde(),
                 serviceOptions);
 
-    return userCodeFuture
-        .thenCompose(slice -> this.writeOutputAndEnd(contextInternal, slice))
-        .exceptionallyCompose(throwable -> this.end(contextInternal, throwable));
+    return userCodeFuture.handle(
+        (slice, t) -> {
+          if (t != null) {
+            this.end(contextInternal, t);
+          } else {
+            this.writeOutputAndEnd(contextInternal, slice);
+          }
+          return null;
+        });
   }
 
   private CompletableFuture<Void> writeOutputAndEnd(

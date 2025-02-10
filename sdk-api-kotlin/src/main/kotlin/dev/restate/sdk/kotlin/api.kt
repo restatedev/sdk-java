@@ -445,11 +445,6 @@ suspend fun <T> awaitAll(vararg awaitables: Awaitable<T>): List<T> {
   return awaitables.map { it.await() }.toList()
 }
 
-sealed interface AnyAwaitable : Awaitable<Any> {
-  /** Same as [Awaitable.await], but returns the index of the first completed element. */
-  suspend fun awaitIndex(): Int
-}
-
 /**
  * Like [kotlinx.coroutines.selects.select], but for [Awaitable]
  *

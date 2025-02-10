@@ -39,7 +39,7 @@ final class ProcessingState implements State {
 
   ProcessingState(AsyncResultsState asyncResultsState, RunState runState) {
     this.asyncResultsState = asyncResultsState;
-    this.runState = new RunState();
+    this.runState = runState;
     this.processingFirstEntry = true;
   }
 
@@ -104,19 +104,17 @@ final class ProcessingState implements State {
 
   @Override
   public int processRunCommand(String name, StateContext stateContext) {
-    this.flipFirstProcessingEntry();
     var completionId = stateContext.getJournal().nextCompletionNotificationId();
     var notificationId = new NotificationId.CompletionId(completionId);
 
+    var runCmdBuilder = Protocol.RunCommandMessage.newBuilder().setResultCompletionId(completionId);
+    if (name != null) {
+      runCmdBuilder.setName(name);
+    }
+
     var notificationHandle =
         this.processCompletableCommand(
-            Protocol.RunCommandMessage.newBuilder()
-                .setName(name)
-                .setResultCompletionId(completionId)
-                .build(),
-            CommandAccessor.RUN,
-            new int[] {completionId},
-            stateContext)[0];
+            runCmdBuilder.build(), CommandAccessor.RUN, new int[] {completionId}, stateContext)[0];
 
     LOG.trace("Enqueued run notification for {} with id {}.", notificationHandle, notificationId);
     runState.insertRunToExecute(notificationHandle);

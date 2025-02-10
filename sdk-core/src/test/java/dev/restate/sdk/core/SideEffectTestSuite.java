@@ -42,16 +42,12 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
         this.sideEffect("Francesco")
             .withInput(startMessage(1), inputCmd("Till"))
             .expectingOutput(runCmd(1), proposeRunCompletion(1, "Francesco"), suspensionMessage(1))
-            .named("Without optimization suspends"),
+            .named("Run and propose completion"),
         this.sideEffect("Francesco")
-            .withInput(startMessage(1), inputCmd("Till"), runCompletion(1, "Francesco"))
+            .withInput(startMessage(3), inputCmd("Till"), runCmd(1), runCompletion(1, "Francesco"))
             .onlyUnbuffered()
-            .expectingOutput(
-                runCmd(1),
-                proposeRunCompletion(1, "Francesco"),
-                outputCmd("Hello Francesco"),
-                END_MESSAGE)
-            .named("Without optimization and with acks returns"),
+            .expectingOutput(outputCmd("Hello Francesco"), END_MESSAGE)
+            .named("Replay from completion"),
         this.namedSideEffect("get-my-name", "Francesco")
             .withInput(startMessage(1), inputCmd("Till"))
             .expectingOutput(
@@ -59,33 +55,44 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
                 proposeRunCompletion(1, "Francesco"),
                 suspensionMessage(1)),
         this.consecutiveSideEffect("Francesco")
-            .withInput(startMessage(1), inputCmd("Till"), runCompletion(1, "Francesco"))
-            .onlyUnbuffered()
-            .expectingOutput(
-                runCmd(1),
-                proposeRunCompletion(1, "Francesco"),
-                runCmd(2),
-                proposeRunCompletion(2, "FRANCESCO"),
-                suspensionMessage(2))
-            .named("With optimization and ack on first side effect will suspend"),
+            .withInput(startMessage(3), inputCmd("Till"), runCmd(1), runCompletion(1, "Francesco"))
+            .expectingOutput(runCmd(2), proposeRunCompletion(2, "FRANCESCO"), suspensionMessage(2))
+            .named("Suspends on second run"),
         this.consecutiveSideEffect("Francesco")
             .withInput(
-                startMessage(1),
+                startMessage(5),
                 inputCmd("Till"),
+                runCmd(1),
+                runCmd(2),
                 runCompletion(1, "Francesco"),
                 runCompletion(2, "FRANCESCO"))
-            .onlyUnbuffered()
-            .expectingOutput(
-                runCmd(1),
-                proposeRunCompletion(1, "Francesco"),
-                runCmd(2),
-                proposeRunCompletion(2, "FRANCESCO"),
-                outputCmd("Hello FRANCESCO"),
-                END_MESSAGE)
+            .expectingOutput(outputCmd("Hello FRANCESCO"), END_MESSAGE)
             .named("With optimization and ack on first and second side effect will resume"),
         this.failingSideEffect("my-side-effect", "some failure")
             .withInput(startMessage(1), inputCmd())
-            .onlyUnbuffered()
+            .assertingOutput(
+                msgs ->
+                    assertThat(msgs)
+                        .satisfiesExactly(
+                            msg -> assertThat(msg).isEqualTo(runCmd(1, "my-side-effect")),
+                            errorMessage(
+                                errorMessage ->
+                                    assertThat(errorMessage)
+                                        .returns(
+                                            TerminalException.INTERNAL_SERVER_ERROR_CODE,
+                                            Protocol.ErrorMessage::getCode)
+                                        .returns(1, Protocol.ErrorMessage::getRelatedCommandIndex)
+                                        .returns(
+                                            (int) MessageType.RunCommandMessage.encode(),
+                                            Protocol.ErrorMessage::getRelatedCommandType)
+                                        .returns(
+                                            "my-side-effect",
+                                            Protocol.ErrorMessage::getRelatedCommandName)
+                                        .extracting(Protocol.ErrorMessage::getMessage, STRING)
+                                        .contains("some failure"))))
+            .named("Fail on first attempt"),
+        this.failingSideEffect("my-side-effect", "some failure")
+            .withInput(startMessage(2), inputCmd(), runCmd(1, "my-side-effect"))
             .assertingOutput(
                 containsOnly(
                     errorMessage(
@@ -101,51 +108,46 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
                                 .returns(
                                     "my-side-effect", Protocol.ErrorMessage::getRelatedCommandName)
                                 .extracting(Protocol.ErrorMessage::getMessage, STRING)
-                                .contains("some failure")))),
+                                .contains("some failure"))))
+            .named("Fail on second attempt"),
         this.failingSideEffectWithRetryPolicy(
                 "some failure",
                 RetryPolicy.exponential(Duration.ofMillis(100), 1.0f).setMaxAttempts(2))
             .withInput(startMessage(1).setRetryCountSinceLastStoredEntry(0), inputCmd())
-            .enablePreviewContext()
             .onlyUnbuffered()
             .assertingOutput(
-                containsOnly(
-                    errorMessage(
-                        errorMessage ->
-                            assertThat(errorMessage)
-                                .returns(
-                                    TerminalException.INTERNAL_SERVER_ERROR_CODE,
-                                    Protocol.ErrorMessage::getCode)
-                                .returns(1, Protocol.ErrorMessage::getRelatedCommandIndex)
-                                .returns(
-                                    (int) MessageType.RunCommandMessage.encode(),
-                                    Protocol.ErrorMessage::getRelatedCommandType)
-                                .returns(100L, Protocol.ErrorMessage::getNextRetryDelay)
-                                .extracting(Protocol.ErrorMessage::getMessage, STRING)
-                                .contains("java.lang.IllegalStateException: some failure"))))
+                msgs ->
+                    assertThat(msgs)
+                        .satisfiesExactly(
+                            msg -> assertThat(msg).isEqualTo(runCmd(1)),
+                            errorMessage(
+                                errorMessage ->
+                                    assertThat(errorMessage)
+                                        .returns(
+                                            TerminalException.INTERNAL_SERVER_ERROR_CODE,
+                                            Protocol.ErrorMessage::getCode)
+                                        .returns(1, Protocol.ErrorMessage::getRelatedCommandIndex)
+                                        .returns(
+                                            (int) MessageType.RunCommandMessage.encode(),
+                                            Protocol.ErrorMessage::getRelatedCommandType)
+                                        .returns(100L, Protocol.ErrorMessage::getNextRetryDelay)
+                                        .extracting(Protocol.ErrorMessage::getMessage, STRING)
+                                        .contains("some failure"))))
             .named("Should fail as retryable error with the attached next retry delay"),
         this.failingSideEffectWithRetryPolicy(
                 "some failure",
                 RetryPolicy.exponential(Duration.ofMillis(100), 1.0f).setMaxAttempts(2))
-            .withInput(
-                startMessage(1).setRetryCountSinceLastStoredEntry(1),
-                inputCmd(),
-                runCompletion(1, 500, "java.lang.IllegalStateException: some failure"))
-            .enablePreviewContext()
-            .onlyUnbuffered()
+            .withInput(startMessage(2).setRetryCountSinceLastStoredEntry(1), inputCmd(), runCmd(1))
             .expectingOutput(
-                runCmd(1),
                 proposeRunCompletion(1, 500, "java.lang.IllegalStateException: some failure"),
-                outputCmd(500, "java.lang.IllegalStateException: some failure"),
-                END_MESSAGE)
+                suspensionMessage(1))
             .named("Should convert retryable error to terminal"),
         // --- Other tests
         this.checkContextSwitching()
             .withInput(startMessage(1), inputCmd())
             .onlyUnbuffered()
             .assertingOutput(
-                actualOutputMessages -> {
-                  assertThat(actualOutputMessages).element(2).isEqualTo(suspensionMessage(1));
-                }));
+                actualOutputMessages ->
+                    assertThat(actualOutputMessages).element(2).isEqualTo(suspensionMessage(1))));
   }
 }

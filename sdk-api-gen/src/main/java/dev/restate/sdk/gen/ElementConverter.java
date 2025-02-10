@@ -329,11 +329,7 @@ class ElementConverter {
   }
 
   private static String contentTypeDecoratedSerdeDecl(String serdeDecl, String contentType) {
-    return "dev.restate.sdk.common.Serde.withContentType(\""
-        + contentType
-        + "\", "
-        + serdeDecl
-        + ")";
+    return "dev.restate.serde.Serde.withContentType(\"" + contentType + "\", " + serdeDecl + ")";
   }
 
   private static String jsonSerdeDecl(TypeMirror ty) {

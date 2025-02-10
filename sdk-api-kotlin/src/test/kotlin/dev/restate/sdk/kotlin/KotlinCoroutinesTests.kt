@@ -12,7 +12,6 @@ import dev.restate.sdk.core.*
 import dev.restate.sdk.core.TestDefinitions.TestExecutor
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder
 import dev.restate.sdk.core.statemachine.ProtoUtils
-import dev.restate.sdk.definition.HandlerSpecification
 import dev.restate.sdk.endpoint.definition.HandlerDefinition
 import dev.restate.sdk.endpoint.definition.HandlerType
 import dev.restate.sdk.endpoint.definition.ServiceDefinition
@@ -52,8 +51,10 @@ class KotlinCoroutinesTests : TestRunner() {
               ServiceType.SERVICE,
               listOf(
                   HandlerDefinition.of(
-                      HandlerSpecification.of(
-                          "run", HandlerType.SHARED, KtSerdes.json(), KtSerdes.json()),
+                      "run",
+                      HandlerType.SHARED,
+                      KtSerdes.json(),
+                      KtSerdes.json(),
                       HandlerRunner.of(runner)))),
           HandlerRunner.Options(Dispatchers.Unconfined),
           "run")
@@ -69,8 +70,10 @@ class KotlinCoroutinesTests : TestRunner() {
               ServiceType.VIRTUAL_OBJECT,
               listOf(
                   HandlerDefinition.of(
-                      HandlerSpecification.of(
-                          "run", HandlerType.EXCLUSIVE, KtSerdes.json(), KtSerdes.json()),
+                      "run",
+                      HandlerType.EXCLUSIVE,
+                      KtSerdes.json(),
+                      KtSerdes.json(),
                       HandlerRunner.of(runner)))),
           HandlerRunner.Options(Dispatchers.Unconfined),
           "run")
@@ -86,8 +89,10 @@ class KotlinCoroutinesTests : TestRunner() {
               ServiceType.WORKFLOW,
               listOf(
                   HandlerDefinition.of(
-                      HandlerSpecification.of(
-                          "run", HandlerType.WORKFLOW, KtSerdes.json(), KtSerdes.json()),
+                      "run",
+                      HandlerType.WORKFLOW,
+                      KtSerdes.json(),
+                      KtSerdes.json(),
                       HandlerRunner.of(runner)))),
           HandlerRunner.Options(Dispatchers.Unconfined),
           "run")

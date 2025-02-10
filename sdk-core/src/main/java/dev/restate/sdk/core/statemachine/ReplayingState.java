@@ -108,15 +108,14 @@ final class ReplayingState implements State {
     var completionId = stateContext.getJournal().nextCompletionNotificationId();
     var notificationId = new NotificationId.CompletionId(completionId);
 
+    var runCmdBuilder = Protocol.RunCommandMessage.newBuilder().setResultCompletionId(completionId);
+    if (name != null) {
+      runCmdBuilder.setName(name);
+    }
+
     var notificationHandle =
         this.processCompletableCommand(
-            Protocol.RunCommandMessage.newBuilder()
-                .setName(name)
-                .setResultCompletionId(completionId)
-                .build(),
-            CommandAccessor.RUN,
-            new int[] {completionId},
-            stateContext)[0];
+            runCmdBuilder.build(), CommandAccessor.RUN, new int[] {completionId}, stateContext)[0];
 
     if (asyncResultsState.nonDeterministicFindId(notificationId)) {
       LOG.trace(

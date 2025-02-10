@@ -11,8 +11,6 @@ package dev.restate.sdk.kotlin
 import dev.restate.sdk.core.SideEffectTestSuite
 import dev.restate.sdk.core.TestDefinitions
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder
-import dev.restate.sdk.core.statemachine.ProtoUtils.GREETER_SERVICE_TARGET
-import dev.restate.sdk.definition.HandlerSpecification
 import dev.restate.sdk.endpoint.definition.HandlerDefinition
 import dev.restate.sdk.endpoint.definition.HandlerType
 import dev.restate.sdk.endpoint.definition.ServiceDefinition
@@ -52,8 +50,10 @@ class SideEffectTest : SideEffectTestSuite() {
               ServiceType.SERVICE,
               listOf(
                   HandlerDefinition.of(
-                      HandlerSpecification.of(
-                          "run", HandlerType.SHARED, KtSerdes.UNIT, KtSerdes.json()),
+                      "run",
+                      HandlerType.SHARED,
+                      KtSerdes.UNIT,
+                      KtSerdes.json(),
                       HandlerRunner.of { ctx: Context, _: Unit ->
                         val sideEffectCoroutine =
                             ctx.runBlock { coroutineContext[CoroutineName]!!.name }
@@ -65,12 +65,6 @@ class SideEffectTest : SideEffectTestSuite() {
           HandlerRunner.Options(
               Dispatchers.Unconfined + CoroutineName("CheckContextSwitchingTestCoroutine")),
           "run")
-
-  override fun sideEffectGuard(): TestInvocationBuilder =
-      testDefinitionForService<Unit, String>("SideEffectGuard") { ctx, _: Unit ->
-        ctx.runBlock { ctx.send(GREETER_SERVICE_TARGET, KtSerdes.json(), "something") }
-        throw IllegalStateException("This point should not be reached")
-      }
 
   override fun failingSideEffect(name: String, reason: String): TestInvocationBuilder =
       testDefinitionForService<Unit, String>("FailingSideEffect") { ctx, _: Unit ->

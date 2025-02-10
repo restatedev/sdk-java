@@ -16,6 +16,7 @@ import dev.restate.sdk.types.AbortedExecutionException;
 import dev.restate.sdk.types.TerminalException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.stream.Stream;
 
 abstract class AsyncResults {
@@ -149,7 +150,7 @@ abstract class AsyncResults {
                     try {
                       return CompletableFuture.completedFuture(mapper.apply(t));
                     } catch (Throwable e) {
-                      if (e instanceof TerminalException) {
+                      if (ExceptionUtils.isTerminalException(e)) {
                         return CompletableFuture.failedFuture(e);
                       }
                       asyncResult.ctx().fail(e);
@@ -253,10 +254,24 @@ abstract class AsyncResults {
     @Override
     public void tryComplete(StateMachine stateMachine) {
       asyncResults.forEach(ar -> ar.tryComplete(stateMachine));
+      asyncResults.stream()
+          .filter(ar -> ar.publicFuture().isCompletedExceptionally())
+          .findFirst()
+          .ifPresent(
+              ar -> {
+                try {
+                  ar.publicFuture().getNow(null);
+                } catch (CompletionException e) {
+                  this.publicFuture.completeExceptionally(e.getCause());
+                }
+              });
     }
 
     @Override
     public Stream<Integer> uncompletedLeaves() {
+      if (publicFuture.isDone()) {
+        return Stream.empty();
+      }
       return asyncResults.stream().flatMap(AsyncResultInternal::uncompletedLeaves);
     }
 

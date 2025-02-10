@@ -61,7 +61,7 @@ class StateTest : StateTestSuite() {
                 .withInput(
                     startMessage(3),
                     inputCmd(),
-                    getLazyStateCmd("STATE", KtSerdes.json(), Data(1, "Till")),
+                    getEagerStateCmd("STATE", KtSerdes.json(), Data(1, "Till")),
                     setStateCmd("STATE", KtSerdes.json(), Data(2, "Till")))
                 .expectingOutput(outputCmd("Hello " + Data(2, "Till")), END_MESSAGE)
                 .named("With GetState and SetState"),
@@ -69,7 +69,7 @@ class StateTest : StateTestSuite() {
                 .withInput(
                     startMessage(2),
                     inputCmd(),
-                    getLazyStateCmd("STATE", KtSerdes.json(), Data(1, "Till")))
+                    getEagerStateCmd("STATE", KtSerdes.json(), Data(1, "Till")))
                 .expectingOutput(
                     setStateCmd("STATE", KtSerdes.json(), Data(2, "Till")),
                     outputCmd("Hello " + Data(2, "Till")),

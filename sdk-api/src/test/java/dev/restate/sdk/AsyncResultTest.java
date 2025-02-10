@@ -97,9 +97,10 @@ public class AsyncResultTest extends AsyncResultTestSuite {
           Awaitable<String> a12 = Awaitable.any(a1, a2).map(i -> i == 0 ? a1.await() : a2.await());
           Awaitable<String> a23 = Awaitable.any(a2, a3).map(i -> i == 0 ? a2.await() : a3.await());
           Awaitable<String> a34 = Awaitable.any(a3, a4).map(i -> i == 0 ? a3.await() : a4.await());
-          Awaitable.all(a12, a23, a34).await();
+          Awaitable<String> result =
+              Awaitable.all(a12, a23, a34).map(v -> a12.await() + a23.await() + a34.await());
 
-          return a12.await() + a23.await() + a34.await();
+          return result.await();
         });
   }
 

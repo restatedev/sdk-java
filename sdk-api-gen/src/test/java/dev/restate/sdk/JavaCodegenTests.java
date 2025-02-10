@@ -16,10 +16,10 @@ import dev.restate.sdk.core.MockSingleThread;
 import dev.restate.sdk.core.TestDefinitions.TestExecutor;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
 import dev.restate.sdk.core.TestRunner;
-import dev.restate.sdk.core.manifest.Handler;
-import dev.restate.sdk.core.manifest.Input;
-import dev.restate.sdk.core.manifest.Output;
-import dev.restate.sdk.core.manifest.Service;
+import dev.restate.sdk.core.generated.manifest.Handler;
+import dev.restate.sdk.core.generated.manifest.Input;
+import dev.restate.sdk.core.generated.manifest.Output;
+import dev.restate.sdk.core.generated.manifest.Service;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
@@ -40,7 +40,7 @@ public class JavaCodegenTests extends TestRunner {
     assertThatDiscovery(new CodegenTest.RawInputOutput())
         .extractingService("RawInputOutput")
         .extractingHandler("rawInputWithCustomCt")
-        .extracting(dev.restate.sdk.core.manifest.Handler::getInput, type(Input.class))
+        .extracting(dev.restate.sdk.core.generated.manifest.Handler::getInput, type(Input.class))
         .extracting(Input::getContentType)
         .isEqualTo("application/vnd.my.custom");
   }
@@ -50,7 +50,7 @@ public class JavaCodegenTests extends TestRunner {
     assertThatDiscovery(new CodegenTest.RawInputOutput())
         .extractingService("RawInputOutput")
         .extractingHandler("rawInputWithCustomAccept")
-        .extracting(dev.restate.sdk.core.manifest.Handler::getInput, type(Input.class))
+        .extracting(dev.restate.sdk.core.generated.manifest.Handler::getInput, type(Input.class))
         .extracting(Input::getContentType)
         .isEqualTo("application/*");
   }
@@ -60,7 +60,7 @@ public class JavaCodegenTests extends TestRunner {
     assertThatDiscovery(new CodegenTest.RawInputOutput())
         .extractingService("RawInputOutput")
         .extractingHandler("rawOutputWithCustomCT")
-        .extracting(dev.restate.sdk.core.manifest.Handler::getOutput, type(Output.class))
+        .extracting(dev.restate.sdk.core.generated.manifest.Handler::getOutput, type(Output.class))
         .extracting(Output::getContentType)
         .isEqualTo("application/vnd.my.custom");
   }

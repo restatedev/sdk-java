@@ -82,7 +82,7 @@ class AsyncResultTest : AsyncResultTestSuite() {
         val a3 = ctx.awakeable(TestSerdes.STRING)
         val a4 = ctx.awakeable(TestSerdes.STRING)
 
-        Awaitable.any(a1, Awaitable.all(a2, a3), a4).awaitIndex().toString()
+        Awaitable.any(a1, Awaitable.all(a2, a3), a4).toString()
       }
 
   override fun awaitOnAlreadyResolvedAwaitables(): TestInvocationBuilder =

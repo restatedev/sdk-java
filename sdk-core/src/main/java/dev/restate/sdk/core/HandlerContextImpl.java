@@ -280,7 +280,7 @@ class HandlerContextImpl implements HandlerContextInternal {
         () ->
             AsyncResults.single(
                 this,
-                this.stateMachine.promiseGet(key),
+                this.stateMachine.promisePeek(key),
                 (s, cf) -> {
                   if (s instanceof NotificationValue.Empty) {
                     cf.complete(Output.notReady());

@@ -224,11 +224,7 @@ class KElementConverter(
   }
 
   private fun contentTypeDecoratedSerdeDecl(serdeDecl: String, contentType: String): String {
-    return ("dev.restate.sdk.common.Serde.withContentType(\"" +
-        contentType +
-        "\", " +
-        serdeDecl +
-        ")")
+    return ("dev.restate.serde.Serde.withContentType(\"" + contentType + "\", " + serdeDecl + ")")
   }
 
   private fun defaultHandlerType(serviceType: ServiceType): HandlerType {

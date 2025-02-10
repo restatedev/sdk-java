@@ -64,7 +64,8 @@ internal open class SingleAwaitableImpl<T : Any?>(private val asyncResult: Async
 internal fun wrapAllAwaitable(awaitables: List<Awaitable<*>>): Awaitable<Unit> {
   val ctx = (awaitables.get(0) as BaseAwaitableImpl<*>).asyncResult().ctx()
   return SingleAwaitableImpl(
-          ctx.createAllAsyncResult(awaitables.map { (it as BaseAwaitableImpl<*>).asyncResult() }))
+          ctx.createAllAsyncResult(awaitables.map { (it as BaseAwaitableImpl<*>).asyncResult() })
+  )
       .map {}
 }
 

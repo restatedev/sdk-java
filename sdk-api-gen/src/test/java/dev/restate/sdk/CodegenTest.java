@@ -10,15 +10,14 @@ package dev.restate.sdk;
 
 import static dev.restate.sdk.core.TestDefinitions.testInvocation;
 import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
+import static dev.restate.sdk.core.statemachine.ProtoUtils.callCompletion;
 
-import com.google.protobuf.ByteString;
+import dev.restate.common.Target;
 import dev.restate.sdk.annotation.*;
 import dev.restate.sdk.annotation.Service;
 import dev.restate.sdk.core.TestDefinitions;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
-import dev.restate.sdk.core.statemachine.ProtoUtils;
-import dev.restate.sdk.serde.Serde;
-import dev.restate.sdk.types.Target;
+import dev.restate.serde.Serde;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Stream;
@@ -211,51 +210,44 @@ public class CodegenTest implements TestSuite {
             .onlyUnbuffered()
             .expectingOutput(outputCmd("Francesco"), END_MESSAGE),
         testInvocation(Empty::new, "emptyInput")
-            .withInput(startMessage(1), inputCmd(), completionMessage(1, "Till"))
+            .withInput(startMessage(1), inputCmd(), callCompletion(2, "Till"))
             .onlyUnbuffered()
             .expectingOutput(
-                invokeMessage(Target.service("Empty", "emptyInput")),
+                callCmd(1, 2, Target.service("Empty", "emptyInput")),
                 outputCmd("Till"),
                 END_MESSAGE)
             .named("empty output"),
         testInvocation(Empty::new, "emptyOutput")
-            .withInput(
-                startMessage(1),
-                inputCmd("Francesco"),
-                completionMessage(1).setValue(ByteString.EMPTY))
+            .withInput(startMessage(1), inputCmd("Francesco"), callCompletion(2, Serde.VOID, null))
             .onlyUnbuffered()
             .expectingOutput(
-                callCmd(Target.service("Empty", "emptyOutput"), "Francesco"),
-                ProtoUtils.outputCmd(),
+                callCmd(1, 2, Target.service("Empty", "emptyOutput"), "Francesco"),
+                outputCmd(),
                 END_MESSAGE)
             .named("empty output"),
         testInvocation(Empty::new, "emptyInputOutput")
-            .withInput(
-                startMessage(1),
-                inputCmd("Francesco"),
-                completionMessage(1).setValue(ByteString.EMPTY))
+            .withInput(startMessage(1), inputCmd("Francesco"), callCompletion(2, Serde.VOID, null))
             .onlyUnbuffered()
             .expectingOutput(
-                invokeMessage(Target.service("Empty", "emptyInputOutput")),
-                ProtoUtils.outputCmd(),
+                callCmd(1, 2, Target.service("Empty", "emptyInputOutput")),
+                outputCmd(),
                 END_MESSAGE)
             .named("empty input and empty output"),
         testInvocation(PrimitiveTypes::new, "primitiveOutput")
-            .withInput(startMessage(1), inputCmd(), completionMessage(1, JsonSerdes.INT, 10))
+            .withInput(startMessage(1), inputCmd(), callCompletion(2, JsonSerdes.INT, 10))
             .onlyUnbuffered()
             .expectingOutput(
-                invokeMessage(
-                    Target.service("PrimitiveTypes", "primitiveOutput"), Serde.VOID, null),
+                callCmd(
+                    1, 2, Target.service("PrimitiveTypes", "primitiveOutput"), Serde.VOID, null),
                 outputCmd(JsonSerdes.INT, 10),
                 END_MESSAGE)
             .named("primitive output"),
         testInvocation(PrimitiveTypes::new, "primitiveInput")
-            .withInput(
-                startMessage(1), inputCmd(10), completionMessage(1).setValue(ByteString.EMPTY))
+            .withInput(startMessage(1), inputCmd(10), callCompletion(2, Serde.VOID, null))
             .onlyUnbuffered()
             .expectingOutput(
-                invokeMessage(
-                    Target.service("PrimitiveTypes", "primitiveInput"), JsonSerdes.INT, 10),
+                callCmd(
+                    1, 2, Target.service("PrimitiveTypes", "primitiveInput"), JsonSerdes.INT, 10),
                 outputCmd(),
                 END_MESSAGE)
             .named("primitive input"),
@@ -263,10 +255,12 @@ public class CodegenTest implements TestSuite {
             .withInput(
                 startMessage(1),
                 inputCmd("{{".getBytes(StandardCharsets.UTF_8)),
-                completionMessage(1, Serde.VOID, null))
+                callCompletion(2, Serde.VOID, null))
             .onlyUnbuffered()
             .expectingOutput(
                 callCmd(
+                    1,
+                    2,
                     Target.service("RawInputOutput", "rawInput"),
                     "{{".getBytes(StandardCharsets.UTF_8)),
                 outputCmd(),
@@ -275,10 +269,12 @@ public class CodegenTest implements TestSuite {
             .withInput(
                 startMessage(1),
                 inputCmd("{{".getBytes(StandardCharsets.UTF_8)),
-                completionMessage(1, Serde.VOID, null))
+                callCompletion(2, Serde.VOID, null))
             .onlyUnbuffered()
             .expectingOutput(
                 callCmd(
+                    1,
+                    2,
                     Target.service("RawInputOutput", "rawInputWithCustomCt"),
                     "{{".getBytes(StandardCharsets.UTF_8)),
                 outputCmd(),
@@ -287,21 +283,25 @@ public class CodegenTest implements TestSuite {
             .withInput(
                 startMessage(1),
                 inputCmd(),
-                completionMessage(1, Serde.RAW, "{{".getBytes(StandardCharsets.UTF_8)))
+                callCompletion(2, Serde.RAW, "{{".getBytes(StandardCharsets.UTF_8)))
             .onlyUnbuffered()
             .expectingOutput(
-                invokeMessage(Target.service("RawInputOutput", "rawOutput"), Serde.VOID, null),
+                callCmd(1, 2, Target.service("RawInputOutput", "rawOutput"), Serde.VOID, null),
                 outputCmd("{{".getBytes(StandardCharsets.UTF_8)),
                 END_MESSAGE),
         testInvocation(RawInputOutput::new, "rawOutputWithCustomCT")
             .withInput(
                 startMessage(1),
                 inputCmd(),
-                completionMessage(1, Serde.RAW, "{{".getBytes(StandardCharsets.UTF_8)))
+                callCompletion(2, Serde.RAW, "{{".getBytes(StandardCharsets.UTF_8)))
             .onlyUnbuffered()
             .expectingOutput(
-                invokeMessage(
-                    Target.service("RawInputOutput", "rawOutputWithCustomCT"), Serde.VOID, null),
+                callCmd(
+                    1,
+                    2,
+                    Target.service("RawInputOutput", "rawOutputWithCustomCT"),
+                    Serde.VOID,
+                    null),
                 outputCmd("{{".getBytes(StandardCharsets.UTF_8)),
                 END_MESSAGE));
   }

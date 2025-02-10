@@ -152,7 +152,9 @@ public abstract class EagerStateTestSuite implements TestSuite {
                     .setStateKeys(stateKeys("a", "b")))
             .onlyUnbuffered()
             .expectingOutput(
-                GetLazyStateKeysCommandMessage.getDefaultInstance(), outputCmd("a,b"), END_MESSAGE)
+                GetLazyStateKeysCommandMessage.newBuilder().setResultCompletionId(1),
+                outputCmd("a,b"),
+                END_MESSAGE)
             .named("With partial state"),
         this.listKeys()
             .withInput(

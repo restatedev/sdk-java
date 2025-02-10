@@ -8,10 +8,13 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import static dev.restate.sdk.core.AssertUtils.containsOnlyExactErrorMessage;
+import static dev.restate.sdk.core.AssertUtils.*;
 import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
 
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
+import dev.restate.sdk.core.generated.protocol.Protocol;
 import java.util.stream.Stream;
 
 public abstract class StateTestSuite implements TestDefinitions.TestSuite {
@@ -92,6 +95,13 @@ public abstract class StateTestSuite implements TestDefinitions.TestSuite {
             .named("With GetState completed later"),
         this.setNullState()
             .withInput(startMessage(1), inputCmd("Till"))
-            .assertingOutput(containsOnlyExactErrorMessage(new NullPointerException())));
+            .assertingOutput(
+                containsOnly(
+                    errorMessage(
+                        errorMessage ->
+                            assertThat(errorMessage)
+                                .extracting(Protocol.ErrorMessage::getDescription, STRING)
+                                .startsWith(NullPointerException.class.getName()))))
+            .named("Set null state"));
   }
 }

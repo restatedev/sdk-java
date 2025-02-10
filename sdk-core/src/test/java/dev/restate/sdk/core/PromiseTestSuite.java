@@ -99,6 +99,7 @@ public abstract class PromiseTestSuite implements TestSuite {
                 PeekPromiseCompletionNotificationMessage.newBuilder()
                     .setCompletionId(1)
                     .setValue(value("my value")))
+            .onlyUnbuffered()
             .expectingOutput(
                 peekPromiseCmd(1, PROMISE_KEY), outputCmd(TestSerdes.BOOLEAN, true), END_MESSAGE)
             .named("Completed with success"),
