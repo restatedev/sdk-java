@@ -12,6 +12,7 @@ import dev.restate.sdk.core.StateMachineFailuresTestSuite
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder
 import dev.restate.sdk.kotlin.KotlinCoroutinesTests.Companion.testDefinitionForService
 import dev.restate.sdk.kotlin.KotlinCoroutinesTests.Companion.testDefinitionForVirtualObject
+import dev.restate.sdk.types.AbortedExecutionException
 import dev.restate.sdk.types.StateKey
 import dev.restate.sdk.types.TerminalException
 import dev.restate.serde.Serde
@@ -35,6 +36,10 @@ class StateMachineFailuresTest : StateMachineFailuresTestSuite() {
         try {
           ctx.get(STATE)
         } catch (e: Throwable) {
+          // A user should never catch Throwable!!!
+          if (AbortedExecutionException.INSTANCE == e) {
+            throw e
+          }
           // A user should never catch Throwable!!!
           if (e !is CancellationException && e !is TerminalException) {
             nonTerminalExceptionsSeen.addAndGet(1)

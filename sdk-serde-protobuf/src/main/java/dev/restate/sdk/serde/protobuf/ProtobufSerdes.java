@@ -9,8 +9,8 @@
 package dev.restate.sdk.serde.protobuf;
 
 import com.google.protobuf.*;
-import dev.restate.sdk.serde.Serde;
-import java.nio.ByteBuffer;
+import dev.restate.common.Slice;
+import dev.restate.serde.Serde;
 import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
@@ -22,30 +22,14 @@ public abstract class ProtobufSerdes {
   public static <T extends MessageLite> Serde<T> of(Parser<T> parser) {
     return new Serde<>() {
       @Override
-      public byte[] serialize(@Nullable T value) {
-        return Objects.requireNonNull(value).toByteArray();
+      public Slice serialize(@Nullable T value) {
+        return Slice.wrap(Objects.requireNonNull(value).toByteArray());
       }
 
       @Override
-      public T deserialize(byte[] value) {
+      public T deserialize(Slice value) {
         try {
-          return parser.parseFrom(value);
-        } catch (InvalidProtocolBufferException e) {
-          throw new RuntimeException("Cannot deserialize Protobuf object", e);
-        }
-      }
-
-      // -- We reimplement the ByteBuffer variants here as it might be more efficient to use them.
-
-      @Override
-      public ByteBuffer serializeToByteBuffer(@Nullable T value) {
-        return Objects.requireNonNull(value).toByteString().asReadOnlyByteBuffer();
-      }
-
-      @Override
-      public T deserialize(ByteBuffer byteBuffer) {
-        try {
-          return parser.parseFrom(UnsafeByteOperations.unsafeWrap(byteBuffer.rewind()));
+          return parser.parseFrom(value.toByteArray());
         } catch (InvalidProtocolBufferException e) {
           throw new RuntimeException("Cannot deserialize Protobuf object", e);
         }

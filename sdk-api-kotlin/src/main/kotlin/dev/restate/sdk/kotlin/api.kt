@@ -46,8 +46,9 @@ sealed interface Context {
    * [Awaitable.await].
    *
    * @param duration for which to sleep.
+   * @param name name to be used for the timer
    */
-  suspend fun timer(duration: Duration): Awaitable<Unit>
+  suspend fun timer(duration: Duration, name: String? = null): Awaitable<Unit>
 
   /**
    * Invoke another Restate service method and wait for the response. Same as
@@ -395,7 +396,7 @@ sealed interface Awaitable<T> {
   /** Clause for [select] operator. */
   val onAwait: SelectClause<T>
 
-  fun <R> map(transform: (value: T) -> R): Awaitable<R>
+  suspend fun <R> map(transform: suspend (value: T) -> R): Awaitable<R>
 
   companion object {
     fun all(
@@ -455,13 +456,13 @@ suspend fun <T> awaitAll(vararg awaitables: Awaitable<T>): List<T> {
  * val result = select {
  *   callAwaitable.onAwait { it.message }
  *   timeout.onAwait { throw TimeoutException() }
- * }
+ * }.await()
  * ```
  */
-suspend inline fun <R> select(crossinline builder: SelectBuilder<R>.() -> Unit): R {
+suspend inline fun <R> select(crossinline builder: SelectBuilder<R>.() -> Unit): Awaitable<R> {
   val selectImpl = SelectImplementation<R>()
   builder.invoke(selectImpl)
-  return selectImpl.doSelect()
+  return selectImpl.build()
 }
 
 sealed interface SelectBuilder<in R> {

@@ -16,6 +16,7 @@ import dev.restate.sdk.endpoint.definition.HandlerContext;
 import dev.restate.sdk.types.RetryPolicy;
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 
@@ -57,4 +58,8 @@ interface HandlerContextInternal extends HandlerContext {
   String getFullyQualifiedMethodName();
 
   InvocationState getInvocationState();
+
+  Executor stateMachineExecutor();
+
+  void failWithoutContextSwitch(Throwable throwable);
 }

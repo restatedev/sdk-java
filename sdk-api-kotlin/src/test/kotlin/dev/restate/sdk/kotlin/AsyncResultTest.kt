@@ -14,7 +14,9 @@ import dev.restate.sdk.core.TestSerdes
 import dev.restate.sdk.kotlin.KotlinCoroutinesTests.Companion.callGreeterGreetService
 import dev.restate.sdk.kotlin.KotlinCoroutinesTests.Companion.testDefinitionForVirtualObject
 import dev.restate.sdk.types.StateKey
+import dev.restate.sdk.types.TimeoutException
 import java.util.stream.Stream
+import kotlin.time.Duration.Companion.days
 
 class AsyncResultTest : AsyncResultTestSuite() {
   override fun reverseAwaitOrder(): TestInvocationBuilder =
@@ -26,13 +28,13 @@ class AsyncResultTest : AsyncResultTestSuite() {
         ctx.set(StateKey.of("A2", TestSerdes.STRING), a2Res)
 
         val a1Res: String = a1.await()
-        "$a1Res-$a2Res"
+        return@testDefinitionForVirtualObject "$a1Res-$a2Res"
       }
 
   override fun awaitTwiceTheSameAwaitable(): TestInvocationBuilder =
       testDefinitionForVirtualObject("AwaitTwiceTheSameAwaitable") { ctx, _: Unit ->
         val a = callGreeterGreetService(ctx, "Francesco")
-        "${a.await()}-${a.await()}"
+        return@testDefinitionForVirtualObject "${a.await()}-${a.await()}"
       }
 
   override fun awaitAll(): TestInvocationBuilder =
@@ -40,24 +42,30 @@ class AsyncResultTest : AsyncResultTestSuite() {
         val a1 = callGreeterGreetService(ctx, "Francesco")
         val a2 = callGreeterGreetService(ctx, "Till")
 
-        listOf(a1, a2).awaitAll().joinToString(separator = "-")
+        return@testDefinitionForVirtualObject listOf(a1, a2)
+            .awaitAll()
+            .joinToString(separator = "-")
       }
 
   override fun awaitAny(): TestInvocationBuilder =
       testDefinitionForVirtualObject("AwaitAny") { ctx, _: Unit ->
         val a1 = callGreeterGreetService(ctx, "Francesco")
         val a2 = callGreeterGreetService(ctx, "Till")
-        Awaitable.any(a1, a2).await() as String
+
+        return@testDefinitionForVirtualObject Awaitable.any(a1, a2)
+            .map { it -> if (it == 0) a1.await() else a2.await() }
+            .await()
       }
 
   private fun awaitSelect(): TestInvocationBuilder =
       testDefinitionForVirtualObject("AwaitSelect") { ctx, _: Unit ->
         val a1 = callGreeterGreetService(ctx, "Francesco")
         val a2 = callGreeterGreetService(ctx, "Till")
-        select {
-          a1.onAwait { it }
-          a2.onAwait { it }
-        }
+        return@testDefinitionForVirtualObject select {
+              a1.onAwait { it }
+              a2.onAwait { it }
+            }
+            .await()
       }
 
   override fun combineAnyWithAll(): TestInvocationBuilder =
@@ -67,12 +75,12 @@ class AsyncResultTest : AsyncResultTestSuite() {
         val a3 = ctx.awakeable(TestSerdes.STRING)
         val a4 = ctx.awakeable(TestSerdes.STRING)
 
-        val a12 = Awaitable.any(a1, a2)
-        val a23 = Awaitable.any(a2, a3)
-        val a34 = Awaitable.any(a3, a4)
+        val a12 = Awaitable.any(a1, a2).map { if (it == 0) a1.await() else a2.await() }
+        val a23 = Awaitable.any(a2, a3).map { if (it == 0) a2.await() else a3.await() }
+        val a34 = Awaitable.any(a3, a4).map { if (it == 0) a3.await() else a4.await() }
         Awaitable.all(a12, a23, a34).await()
 
-        a12.await().toString() + a23.await() as String + a34.await()
+        return@testDefinitionForVirtualObject a12.await() + a23.await() + a34.await()
       }
 
   override fun awaitAnyIndex(): TestInvocationBuilder =
@@ -82,7 +90,9 @@ class AsyncResultTest : AsyncResultTestSuite() {
         val a3 = ctx.awakeable(TestSerdes.STRING)
         val a4 = ctx.awakeable(TestSerdes.STRING)
 
-        Awaitable.any(a1, Awaitable.all(a2, a3), a4).toString()
+        return@testDefinitionForVirtualObject Awaitable.any(a1, Awaitable.all(a2, a3), a4)
+            .await()
+            .toString()
       }
 
   override fun awaitOnAlreadyResolvedAwaitables(): TestInvocationBuilder =
@@ -95,12 +105,18 @@ class AsyncResultTest : AsyncResultTestSuite() {
         a12and1.await()
         a121and12.await()
 
-        a1.await() + a2.await()
+        return@testDefinitionForVirtualObject a1.await() + a2.await()
       }
 
-  override fun awaitWithTimeout(): TestInvocationBuilder {
-    return unsupported("This is a feature not available in sdk-api-kotlin")
-  }
+  override fun awaitWithTimeout(): TestInvocationBuilder =
+      testDefinitionForVirtualObject("AwaitWithTimeout") { ctx, _: Unit ->
+        val a1 = callGreeterGreetService(ctx, "Francesco")
+        return@testDefinitionForVirtualObject try {
+          a1.await(1.days)
+        } catch (_: TimeoutException) {
+          "timeout"
+        }
+      }
 
   override fun definitions(): Stream<TestDefinition> =
       Stream.concat(super.definitions(), super.anyTestDefinitions { awaitSelect() })

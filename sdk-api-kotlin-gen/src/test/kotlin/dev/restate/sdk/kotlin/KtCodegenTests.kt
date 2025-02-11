@@ -14,10 +14,10 @@ import dev.restate.sdk.core.MockSingleThread
 import dev.restate.sdk.core.TestDefinitions
 import dev.restate.sdk.core.TestDefinitions.TestExecutor
 import dev.restate.sdk.core.TestRunner
-import dev.restate.sdk.core.manifest.Handler
-import dev.restate.sdk.core.manifest.Input
-import dev.restate.sdk.core.manifest.Output
-import dev.restate.sdk.core.manifest.Service
+import dev.restate.sdk.core.generated.manifest.Handler
+import dev.restate.sdk.core.generated.manifest.Input
+import dev.restate.sdk.core.generated.manifest.Output
+import dev.restate.sdk.core.generated.manifest.Service
 import java.util.stream.Stream
 import org.assertj.core.api.InstanceOfAssertFactories.type
 import org.junit.jupiter.api.Test

@@ -100,11 +100,11 @@ public final class EndpointRequestHandler {
       @Nullable Executor coreExecutor)
       throws ProtocolException {
     // Discovery request
-    if (DISCOVER_PATH.equalsIgnoreCase(path)) {
+    if (path.endsWith(DISCOVER_PATH)) {
       return this.handleDiscoveryRequest(headersAccessor);
     }
 
-    if (HEALTH_PATH.equalsIgnoreCase(path)) {
+    if (path.endsWith(HEALTH_PATH)) {
       return new StaticResponseRequestProcessor(
           200,
           "text/plain",

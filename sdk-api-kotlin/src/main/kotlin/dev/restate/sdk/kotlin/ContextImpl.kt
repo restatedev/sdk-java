@@ -34,7 +34,7 @@ internal class ContextImpl internal constructor(internal val handlerContext: Han
 
   override suspend fun <T : Any> get(key: StateKey<T>): T? =
       SingleAwaitableImpl(handlerContext.get(key.name()).await())
-          .map { it.getOrNull()?.let { key.serde().deserialize(it) } }
+          .simpleMap { it.getOrNull()?.let { key.serde().deserialize(it) } }
           .await()
 
   override suspend fun stateKeys(): Collection<String> =
@@ -53,8 +53,8 @@ internal class ContextImpl internal constructor(internal val handlerContext: Han
     handlerContext.clearAll().await()
   }
 
-  override suspend fun timer(duration: Duration): Awaitable<Unit> =
-      SingleAwaitableImpl(handlerContext.sleep(duration.toJavaDuration()).await()).map {}
+  override suspend fun timer(duration: Duration, name: String?): Awaitable<Unit> =
+      SingleAwaitableImpl(handlerContext.timer(duration.toJavaDuration(), name).await()).map {}
 
   override suspend fun <T : Any?, R : Any?> callAsync(
       target: dev.restate.common.Target,
@@ -150,25 +150,31 @@ internal class ContextImpl internal constructor(internal val handlerContext: Han
   inner class DurablePromiseImpl<T : Any>(private val key: DurablePromiseKey<T>) :
       DurablePromise<T> {
     override suspend fun awaitable(): Awaitable<T> =
-        SingleAwaitableImpl(handlerContext.promise(key.name()).await()).map {
+        SingleAwaitableImpl(handlerContext.promise(key.name()).await()).simpleMap {
           key.serde().deserialize(it)
         }
 
     override suspend fun peek(): Output<T> =
         SingleAwaitableImpl(handlerContext.peekPromise(key.name()).await())
-            .map { it.map { key.serde().deserialize(it) } }
+            .simpleMap { it.map { key.serde().deserialize(it) } }
             .await()
   }
 
   inner class DurablePromiseHandleImpl<T : Any>(private val key: DurablePromiseKey<T>) :
       DurablePromiseHandle<T> {
     override suspend fun resolve(payload: T) {
-      handlerContext.resolvePromise(
-          key.name(), key.serde().serializeWrappingException(handlerContext, payload))
+      SingleAwaitableImpl(
+              handlerContext
+                  .resolvePromise(
+                      key.name(), key.serde().serializeWrappingException(handlerContext, payload))
+                  .await())
+          .await()
     }
 
     override suspend fun reject(reason: String) {
-      handlerContext.rejectPromise(key.name(), TerminalException(reason))
+      SingleAwaitableImpl(
+              handlerContext.rejectPromise(key.name(), TerminalException(reason)).await())
+          .await()
     }
   }
 }

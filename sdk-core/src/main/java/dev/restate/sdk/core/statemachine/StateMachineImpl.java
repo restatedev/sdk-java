@@ -250,15 +250,21 @@ class StateMachineImpl implements StateMachine {
   }
 
   @Override
-  public int sleep(Duration duration) {
+  public int sleep(Duration duration, @Nullable String name) {
     LOG.debug("Executing 'Sleeping for {}'", duration);
     var completionId = this.stateContext.getJournal().nextCompletionNotificationId();
+
+    var sleepCommandBuilder =
+        Protocol.SleepCommandMessage.newBuilder()
+            .setWakeUpTime(Instant.now().toEpochMilli() + duration.toMillis())
+            .setResultCompletionId(completionId);
+    if (name != null) {
+      sleepCommandBuilder.setName(name);
+    }
+
     return this.stateContext.getCurrentState()
         .processCompletableCommand(
-            Protocol.SleepCommandMessage.newBuilder()
-                .setWakeUpTime(Instant.now().toEpochMilli() + duration.toMillis())
-                .setResultCompletionId(completionId)
-                .build(),
+            sleepCommandBuilder.build(),
             CommandAccessor.SLEEP,
             new int[] {completionId},
             this.stateContext)[0];
@@ -531,12 +537,13 @@ class StateMachineImpl implements StateMachine {
 
   @Override
   public int run(String name) {
+    LOG.debug("Executing 'Created run {}'", name);
     return this.stateContext.getCurrentState().processRunCommand(name, this.stateContext);
   }
 
   @Override
   public void proposeRunCompletion(int handle, Slice value) {
-    LOG.debug("Executing 'Run completed with success");
+    LOG.debug("Executing 'Run completed with success'");
     this.stateContext.getCurrentState().proposeRunCompletion(handle, value, this.stateContext);
   }
 
@@ -546,7 +553,7 @@ class StateMachineImpl implements StateMachine {
       Throwable exception,
       Duration attemptDuration,
       @Nullable RetryPolicy retryPolicy) {
-    LOG.debug("Executing 'Run completed with failure");
+    LOG.debug("Executing 'Run completed with failure'");
     this.stateContext
         .getCurrentState()
         .proposeRunCompletion(handle, exception, attemptDuration, retryPolicy, this.stateContext);
@@ -554,7 +561,7 @@ class StateMachineImpl implements StateMachine {
 
   @Override
   public void cancelInvocation(String targetInvocationId) {
-    LOG.debug("Executing 'Cancel invocation {}", targetInvocationId);
+    LOG.debug("Executing 'Cancel invocation {}'", targetInvocationId);
     this.stateContext
         .getCurrentState()
         .processNonCompletableCommand(
@@ -569,7 +576,7 @@ class StateMachineImpl implements StateMachine {
 
   @Override
   public void writeOutput(Slice value) {
-    LOG.debug("Executing 'Write invocation output with success");
+    LOG.debug("Executing 'Write invocation output with success'");
     this.stateContext
         .getCurrentState()
         .processNonCompletableCommand(
@@ -582,7 +589,7 @@ class StateMachineImpl implements StateMachine {
 
   @Override
   public void writeOutput(TerminalException exception) {
-    LOG.debug("Executing 'Write invocation output with failure");
+    LOG.debug("Executing 'Write invocation output with failure'");
     this.stateContext
         .getCurrentState()
         .processNonCompletableCommand(

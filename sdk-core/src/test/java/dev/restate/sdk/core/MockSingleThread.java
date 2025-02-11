@@ -24,6 +24,8 @@ import io.smallrye.mutiny.helpers.test.AssertSubscriber;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import org.apache.logging.log4j.ThreadContext;
 
 public final class MockSingleThread implements TestExecutor {
@@ -39,6 +41,8 @@ public final class MockSingleThread implements TestExecutor {
 
   @Override
   public void executeTest(TestDefinition definition) {
+    Executor syscallsExecutor = Executors.newSingleThreadExecutor();
+
     ServiceDefinition<?> serviceDefinition = definition.getServiceDefinition();
 
     // Prepare server
@@ -60,16 +64,20 @@ public final class MockSingleThread implements TestExecutor {
             HeadersAccessor.wrap(
                 Map.of("content-type", ProtoUtils.serviceProtocolContentTypeHeader())),
             EndpointRequestHandler.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
-            null);
+            syscallsExecutor);
 
     // Wire invocation
     AssertSubscriber<Slice> assertSubscriber = AssertSubscriber.create(Long.MAX_VALUE);
     Multi.createFrom()
         .iterable(definition.getInput())
+        .runSubscriptionOn(syscallsExecutor)
         .map(ProtoUtils::invocationInputToByteString)
         .map(Slice::wrap)
         .subscribe(handler);
-    Multi.createFrom().publisher(handler).subscribe(assertSubscriber);
+    Multi.createFrom()
+        .publisher(handler)
+        .runSubscriptionOn(syscallsExecutor)
+        .subscribe(assertSubscriber);
 
     // Check completed
     assertSubscriber.awaitCompletion(Duration.ofSeconds(1));

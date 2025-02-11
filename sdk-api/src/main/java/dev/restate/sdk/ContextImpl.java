@@ -29,11 +29,11 @@ import org.jspecify.annotations.NonNull;
 class ContextImpl implements ObjectContext, WorkflowContext {
 
   private final HandlerContext handlerContext;
-  private final Executor userCodeExecutor;
+  private final Executor serviceExecutor;
 
-  ContextImpl(HandlerContext handlerContext, Executor userCodeExecutor) {
+  ContextImpl(HandlerContext handlerContext, Executor serviceExecutor) {
     this.handlerContext = handlerContext;
-    this.userCodeExecutor = userCodeExecutor;
+    this.serviceExecutor = serviceExecutor;
   }
 
   @Override
@@ -48,8 +48,9 @@ class ContextImpl implements ObjectContext, WorkflowContext {
 
   @Override
   public <T> Optional<T> get(StateKey<T> key) {
-    return Awaitable.fromAsyncResult(Util.awaitCompletableFuture(handlerContext.get(key.name())))
-        .map(opt -> opt.map(key.serde()::deserialize))
+    return Awaitable.fromAsyncResult(
+            Util.awaitCompletableFuture(handlerContext.get(key.name())), serviceExecutor)
+        .mapWithoutExecutor(opt -> opt.map(key.serde()::deserialize))
         .await();
   }
 
@@ -78,7 +79,8 @@ class ContextImpl implements ObjectContext, WorkflowContext {
 
   @Override
   public Awaitable<Void> timer(Duration duration) {
-    return Awaitable.fromAsyncResult(Util.awaitCompletableFuture(handlerContext.sleep(duration)));
+    return Awaitable.fromAsyncResult(
+        Util.awaitCompletableFuture(handlerContext.timer(duration, null)), serviceExecutor);
   }
 
   @Override
@@ -87,7 +89,8 @@ class ContextImpl implements ObjectContext, WorkflowContext {
     Slice input = Util.serializeWrappingException(handlerContext, inputSerde, parameter);
     HandlerContext.CallResult result =
         Util.awaitCompletableFuture(handlerContext.call(target, input, null, null));
-    return Awaitable.fromAsyncResult(result.callAsyncResult()).map(outputSerde::deserialize);
+    return Awaitable.fromAsyncResult(result.callAsyncResult(), serviceExecutor)
+        .mapWithoutExecutor(outputSerde::deserialize);
   }
 
   @Override
@@ -110,7 +113,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
                 handlerContext.submitRun(
                     name,
                     runCompleter ->
-                        userCodeExecutor.execute(
+                        serviceExecutor.execute(
                             () -> {
                               Slice result;
                               try {
@@ -120,15 +123,16 @@ class ContextImpl implements ObjectContext, WorkflowContext {
                                 return;
                               }
                               runCompleter.proposeSuccess(result);
-                            }))))
-        .map(serde::deserialize);
+                            }))),
+            serviceExecutor)
+        .mapWithoutExecutor(serde::deserialize);
   }
 
   @Override
   public <T> Awakeable<T> awakeable(Serde<T> serde) throws TerminalException {
     // Retrieve the awakeable
     HandlerContext.Awakeable awakeable = Util.awaitCompletableFuture(handlerContext.awakeable());
-    return new Awakeable<>(awakeable.asyncResult(), serde, awakeable.id());
+    return new Awakeable<>(awakeable.asyncResult(), serviceExecutor, serde, awakeable.id());
   }
 
   @Override
@@ -160,7 +164,8 @@ class ContextImpl implements ObjectContext, WorkflowContext {
       @Override
       public Awaitable<T> awaitable() {
         AsyncResult<Slice> result = Util.awaitCompletableFuture(handlerContext.promise(key.name()));
-        return Awaitable.fromAsyncResult(result).map(key.serde()::deserialize);
+        return Awaitable.fromAsyncResult(result, serviceExecutor)
+            .mapWithoutExecutor(key.serde()::deserialize);
       }
 
       @Override

@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 /**
@@ -36,6 +37,8 @@ import java.util.stream.Collectors;
 public abstract class Awaitable<T> {
 
   protected abstract AsyncResult<T> asyncResult();
+
+  protected abstract Executor serviceExecutor();
 
   /**
    * Wait for the current awaitable to complete. Executing this method may trigger the suspension of
@@ -64,8 +67,11 @@ public abstract class Awaitable<T> {
    */
   public final Awaitable<T> withTimeout(Duration timeout) {
     return any(
-            this, fromAsyncResult(Util.awaitCompletableFuture(asyncResult().ctx().sleep(timeout))))
-        .map(
+            this,
+            fromAsyncResult(
+                Util.awaitCompletableFuture(asyncResult().ctx().timer(timeout, null)),
+                this.serviceExecutor()))
+        .mapWithoutExecutor(
             i -> {
               if (i == 1) {
                 throw new TimeoutException("Timed out waiting for awaitable after " + timeout);
@@ -76,11 +82,35 @@ public abstract class Awaitable<T> {
 
   /** Map the result of this {@link Awaitable}. */
   public final <U> Awaitable<U> map(ThrowingFunction<T, U> mapper) {
-    return fromAsyncResult(asyncResult().map(mapper));
+    return fromAsyncResult(
+        asyncResult()
+            .map(
+                i ->
+                    CompletableFuture.supplyAsync(
+                        () -> {
+                          try {
+                            return mapper.apply(i);
+                          } catch (Throwable e) {
+                            Util.sneakyThrow(e);
+                            return null;
+                          }
+                        },
+                        serviceExecutor())),
+        this.serviceExecutor());
   }
 
-  static <T> Awaitable<T> fromAsyncResult(AsyncResult<T> asyncResult) {
-    return new SingleAwaitable<>(asyncResult);
+  /**
+   * Map without executor switching. This is an optimization used only internally for operations
+   * safe to perform without switching executor.
+   */
+  final <U> Awaitable<U> mapWithoutExecutor(ThrowingFunction<T, U> mapper) {
+    return fromAsyncResult(
+        asyncResult().map(i -> CompletableFuture.completedFuture(mapper.apply(i))),
+        this.serviceExecutor());
+  }
+
+  static <T> Awaitable<T> fromAsyncResult(AsyncResult<T> asyncResult, Executor serviceExecutor) {
+    return new SingleAwaitable<>(asyncResult, serviceExecutor);
   }
 
   /**
@@ -113,7 +143,8 @@ public abstract class Awaitable<T> {
     HandlerContext ctx = awaitables.get(0).asyncResult().ctx();
     return fromAsyncResult(
         ctx.createAnyAsyncResult(
-            awaitables.stream().map(Awaitable::asyncResult).collect(Collectors.toList())));
+            awaitables.stream().map(Awaitable::asyncResult).collect(Collectors.toList())),
+        awaitables.get(0).serviceExecutor());
   }
 
   /**
@@ -145,26 +176,34 @@ public abstract class Awaitable<T> {
       throw new IllegalArgumentException("Awaitable all doesn't support an empty list");
     }
     if (awaitables.size() == 1) {
-      return awaitables.get(0).map(unused -> null);
+      return awaitables.get(0).mapWithoutExecutor(unused -> null);
     } else {
       HandlerContext ctx = awaitables.get(0).asyncResult().ctx();
       return fromAsyncResult(
           ctx.createAllAsyncResult(
-              awaitables.stream().map(Awaitable::asyncResult).collect(Collectors.toList())));
+              awaitables.stream().map(Awaitable::asyncResult).collect(Collectors.toList())),
+          awaitables.get(0).serviceExecutor());
     }
   }
 
   static class SingleAwaitable<T> extends Awaitable<T> {
 
     private final AsyncResult<T> asyncResult;
+    private final Executor serviceExecutor;
 
-    SingleAwaitable(AsyncResult<T> asyncResult) {
+    SingleAwaitable(AsyncResult<T> asyncResult, Executor serviceExecutor) {
       this.asyncResult = asyncResult;
+      this.serviceExecutor = serviceExecutor;
     }
 
     @Override
     protected AsyncResult<T> asyncResult() {
       return this.asyncResult;
+    }
+
+    @Override
+    protected Executor serviceExecutor() {
+      return serviceExecutor;
     }
   }
 }

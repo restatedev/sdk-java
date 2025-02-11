@@ -8,12 +8,12 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.lambda.testservices;
 
+import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.lambda.BaseRestateLambdaHandler;
-import dev.restate.sdk.lambda.RestateLambdaEndpointBuilder;
 
 public class MyServicesHandler extends BaseRestateLambdaHandler {
   @Override
-  public void register(RestateLambdaEndpointBuilder builder) {
+  public void register(Endpoint.Builder builder) {
     builder.bind(new JavaCounterService()).bind(KotlinCounterServiceKt.counter());
   }
 }

@@ -44,9 +44,10 @@ class TestUtilsServiceImpl : TestUtilsService {
 
     val timeout = ctx.timer(req.awaitTimeout.milliseconds)
     return select {
-      awakeable.onAwait { AwakeableResultResponse(it) }
-      timeout.onAwait { TimeoutResponse }
-    }
+          awakeable.onAwait { AwakeableResultResponse(it) }
+          timeout.onAwait { TimeoutResponse }
+        }
+        .await()
   }
 
   override suspend fun sleepConcurrently(context: Context, millisDuration: List<Long>) {

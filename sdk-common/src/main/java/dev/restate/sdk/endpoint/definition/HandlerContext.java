@@ -50,7 +50,7 @@ public interface HandlerContext {
 
   // ----- Syscalls
 
-  CompletableFuture<AsyncResult<Void>> sleep(Duration duration);
+  CompletableFuture<AsyncResult<Void>> timer(Duration duration, @Nullable String name);
 
   record CallResult(
       AsyncResult<String> invocationIdAsyncResult, AsyncResult<Slice> callAsyncResult) {}

@@ -71,8 +71,8 @@ final class ExecutorSwitchingHandlerContextImpl extends HandlerContextImpl {
   }
 
   @Override
-  public CompletableFuture<AsyncResult<Void>> sleep(Duration duration) {
-    return CompletableFuture.supplyAsync(() -> super.sleep(duration), coreExecutor)
+  public CompletableFuture<AsyncResult<Void>> timer(Duration duration, String name) {
+    return CompletableFuture.supplyAsync(() -> super.timer(duration, name), coreExecutor)
         .thenCompose(Function.identity());
   }
 

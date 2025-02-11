@@ -20,9 +20,10 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
-import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.core.manifest.EndpointManifestSchema;
-import dev.restate.sdk.core.manifest.Service;
+import dev.restate.sdk.core.generated.manifest.EndpointManifestSchema;
+import dev.restate.sdk.core.generated.manifest.Service;
+import dev.restate.sdk.core.generated.protocol.Protocol;
+import dev.restate.sdk.core.statemachine.MessageHeader;
 import dev.restate.sdk.core.statemachine.ProtoUtils;
 import dev.restate.sdk.lambda.testservices.JavaCounterDefinitions;
 import dev.restate.sdk.lambda.testservices.MyServicesHandler;
@@ -69,7 +70,7 @@ class LambdaHandlerTest {
     assertThat(response.getIsBase64Encoded()).isTrue();
     assertThat(response.getBody())
         .asBase64Decoded()
-        .isEqualTo(serializeEntries(getLazyStateMessage("counter").build(), suspensionMessage(1)));
+        .isEqualTo(serializeEntries(getLazyStateCmd(1, "counter").build(), suspensionMessage(1)));
   }
 
   @Test
@@ -103,7 +104,7 @@ class LambdaHandlerTest {
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
     for (MessageLite msg : msgs) {
       ByteBuffer headerBuf = ByteBuffer.allocate(8);
-      headerBuf.putLong(ProtoUtils.headerFromMessage(msg).encode());
+      headerBuf.putLong(MessageHeader.fromMessage(msg).encode());
       outputStream.write(headerBuf.array());
       msg.writeTo(outputStream);
     }

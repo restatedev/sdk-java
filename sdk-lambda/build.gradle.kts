@@ -21,6 +21,7 @@ dependencies {
   testAnnotationProcessor(project(":sdk-api-gen"))
   testImplementation(project(":sdk-api"))
   testImplementation(project(":sdk-api-kotlin"))
+  testImplementation(project(":client"))
   testImplementation(project(":sdk-core", "testArchive"))
   testImplementation(project(":sdk-serde-jackson"))
   testImplementation(libs.junit.jupiter)

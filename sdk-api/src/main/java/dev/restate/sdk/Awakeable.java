@@ -11,6 +11,8 @@ package dev.restate.sdk;
 import dev.restate.common.Slice;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
 import dev.restate.serde.Serde;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * An {@link Awakeable} is a special type of {@link Awaitable} which can be arbitrarily completed by
@@ -30,10 +32,14 @@ public final class Awakeable<T> extends Awaitable<T> {
 
   private final String identifier;
   private final AsyncResult<T> asyncResult;
+  private final Executor serviceExecutor;
 
-  Awakeable(AsyncResult<Slice> asyncResult, Serde<T> serde, String identifier) {
+  Awakeable(
+      AsyncResult<Slice> asyncResult, Executor serviceExecutor, Serde<T> serde, String identifier) {
     this.identifier = identifier;
-    this.asyncResult = asyncResult.map(serde::deserialize);
+    this.asyncResult =
+        asyncResult.map(s -> CompletableFuture.completedFuture(serde.deserialize(s)));
+    this.serviceExecutor = serviceExecutor;
   }
 
   /**
@@ -46,5 +52,10 @@ public final class Awakeable<T> extends Awaitable<T> {
   @Override
   protected AsyncResult<T> asyncResult() {
     return asyncResult;
+  }
+
+  @Override
+  protected Executor serviceExecutor() {
+    return serviceExecutor;
   }
 }

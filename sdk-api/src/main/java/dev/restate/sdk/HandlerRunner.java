@@ -52,7 +52,7 @@ public class HandlerRunner<REQ, RES>
 
     // Wrap the executor for setting/unsetting the thread local
     Options finalOptions = options;
-    Executor wrapped =
+    Executor serviceExecutor =
         runnable ->
             finalOptions.executor.execute(
                 () -> {
@@ -63,10 +63,10 @@ public class HandlerRunner<REQ, RES>
                     HANDLER_CONTEXT_THREAD_LOCAL.remove();
                   }
                 });
-    wrapped.execute(
+    serviceExecutor.execute(
         () -> {
           // Any context switching, if necessary, will be done by ResolvedEndpointHandler
-          Context ctx = new ContextImpl(handlerContext, wrapped);
+          Context ctx = new ContextImpl(handlerContext, serviceExecutor);
 
           // Parse input
           REQ req;

@@ -23,5 +23,5 @@ public interface AsyncResult<T> {
 
   HandlerContext ctx();
 
-  <U> AsyncResult<U> map(ThrowingFunction<T, U> mapper);
+  <U> AsyncResult<U> map(ThrowingFunction<T, CompletableFuture<U>> mapper);
 }

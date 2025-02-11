@@ -86,7 +86,7 @@ public interface StateMachine extends Flow.Processor<Slice, Slice> {
 
   void stateClearAll();
 
-  int sleep(Duration duration);
+  int sleep(Duration duration, String name);
 
   record CallHandle(int invocationIdHandle, int resultHandle) {}
 

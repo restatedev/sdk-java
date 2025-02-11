@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import org.jspecify.annotations.Nullable;
 
@@ -66,6 +67,11 @@ class HandlerContextImpl implements HandlerContextInternal {
   @Override
   public InvocationState getInvocationState() {
     return this.stateMachine.state();
+  }
+
+  @Override
+  public Executor stateMachineExecutor() {
+    return Runnable::run;
   }
 
   @Override
@@ -118,12 +124,12 @@ class HandlerContextImpl implements HandlerContextInternal {
   }
 
   @Override
-  public CompletableFuture<AsyncResult<Void>> sleep(Duration duration) {
+  public CompletableFuture<AsyncResult<Void>> timer(Duration duration, String name) {
     return catchExceptions(
         () ->
             AsyncResults.single(
                 this,
-                this.stateMachine.sleep(duration),
+                this.stateMachine.sleep(duration, name),
                 (s, cf) -> {
                   if (s instanceof NotificationValue.Empty) {
                     cf.complete(null);
@@ -186,19 +192,16 @@ class HandlerContextImpl implements HandlerContextInternal {
           int sendHandle =
               this.stateMachine.send(target, parameter, idempotencyKey, headers, delay);
 
-          AsyncResult<String> invocationIdAsyncResult =
-              AsyncResults.single(
-                  this,
-                  sendHandle,
-                  (s, cf) -> {
-                    if (s instanceof NotificationValue.InvocationId) {
-                      cf.complete(((NotificationValue.InvocationId) s).invocationId());
-                    } else {
-                      throw ProtocolException.unexpectedNotificationVariant(s.getClass());
-                    }
-                  });
-
-          return invocationIdAsyncResult;
+          return AsyncResults.single(
+              this,
+              sendHandle,
+              (s, cf) -> {
+                if (s instanceof NotificationValue.InvocationId) {
+                  cf.complete(((NotificationValue.InvocationId) s).invocationId());
+                } else {
+                  throw ProtocolException.unexpectedNotificationVariant(s.getClass());
+                }
+              });
         });
   }
 
@@ -387,12 +390,13 @@ class HandlerContextImpl implements HandlerContextInternal {
   public void proposeRunSuccess(int runHandle, Slice toWrite) {
     try {
       this.stateMachine.proposeRunCompletion(runHandle, toWrite);
-      if (this.nextProcessedRun != null) {
-        this.nextProcessedRun.complete(null);
-        this.nextProcessedRun = null;
-      }
     } catch (Exception e) {
-      this.fail(e);
+      this.failWithoutContextSwitch(e);
+    }
+    if (this.nextProcessedRun != null) {
+      var fut = this.nextProcessedRun;
+      this.nextProcessedRun = null;
+      fut.complete(null);
     }
   }
 
@@ -404,12 +408,13 @@ class HandlerContextImpl implements HandlerContextInternal {
       @Nullable RetryPolicy retryPolicy) {
     try {
       this.stateMachine.proposeRunCompletion(runHandle, toWrite, attemptDuration, retryPolicy);
-      if (this.nextProcessedRun != null) {
-        this.nextProcessedRun.complete(null);
-        this.nextProcessedRun = null;
-      }
     } catch (Exception e) {
-      this.fail(e);
+      this.failWithoutContextSwitch(e);
+    }
+    if (this.nextProcessedRun != null) {
+      var fut = this.nextProcessedRun;
+      this.nextProcessedRun = null;
+      fut.complete(null);
     }
   }
 
@@ -447,6 +452,11 @@ class HandlerContextImpl implements HandlerContextInternal {
 
   @Override
   public void fail(Throwable cause) {
+    this.failWithoutContextSwitch(cause);
+  }
+
+  @Override
+  public void failWithoutContextSwitch(Throwable cause) {
     this.stateMachine.onError(cause);
   }
 
@@ -457,7 +467,7 @@ class HandlerContextImpl implements HandlerContextInternal {
       r.run();
       return CompletableFuture.completedFuture(null);
     } catch (Throwable e) {
-      this.fail(e);
+      this.failWithoutContextSwitch(e);
       return CompletableFuture.failedFuture(AbortedExecutionException.INSTANCE);
     }
   }
@@ -466,7 +476,7 @@ class HandlerContextImpl implements HandlerContextInternal {
     try {
       return CompletableFuture.completedFuture(r.get());
     } catch (Throwable e) {
-      this.fail(e);
+      this.failWithoutContextSwitch(e);
       return CompletableFuture.failedFuture(AbortedExecutionException.INSTANCE);
     }
   }

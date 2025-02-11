@@ -20,9 +20,7 @@ import dev.restate.sdk.core.RequestProcessor;
 import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.version.Version;
-import io.opentelemetry.context.propagation.TextMapGetter;
 import java.util.*;
-import java.util.regex.Pattern;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.ThreadContext;
@@ -31,24 +29,6 @@ import org.apache.logging.log4j.ThreadContext;
 public final class LambdaEndpointRequestHandler {
 
   private static final Logger LOG = LogManager.getLogger(LambdaEndpointRequestHandler.class);
-
-  private static final Pattern SLASH = Pattern.compile(Pattern.quote("/"));
-
-  private static final TextMapGetter<Map<String, String>> OTEL_HEADERS_GETTER =
-      new TextMapGetter<>() {
-        @Override
-        public Iterable<String> keys(Map<String, String> carrier) {
-          return carrier.keySet();
-        }
-
-        @Override
-        public String get(Map<String, String> carrier, String key) {
-          if (carrier == null) {
-            return null;
-          }
-          return carrier.get(key);
-        }
-      };
 
   private final EndpointRequestHandler endpoint;
 
@@ -73,22 +53,7 @@ public final class LambdaEndpointRequestHandler {
       requestProcessor =
           this.endpoint.processorForRequest(
               path,
-              new HeadersAccessor() {
-                @Override
-                public Iterable<String> keys() {
-                  return input.getHeaders().keySet();
-                }
-
-                @Override
-                public String get(String key) {
-                  for (var k : input.getHeaders().values()) {
-                    if (k.equalsIgnoreCase(key)) {
-                      return input.getHeaders().get(k);
-                    }
-                  }
-                  return null;
-                }
-              },
+              HeadersAccessor.wrap(input.getHeaders()),
               EndpointRequestHandler.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
               null);
     } catch (ProtocolException e) {

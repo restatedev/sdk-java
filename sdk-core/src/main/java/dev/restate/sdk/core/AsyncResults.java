@@ -83,7 +83,7 @@ abstract class AsyncResults {
     }
 
     @Override
-    public <U> AsyncResult<U> map(ThrowingFunction<T, U> mapper) {
+    public <U> AsyncResult<U> map(ThrowingFunction<T, CompletableFuture<U>> mapper) {
       return new MappedSingleAsyncResultInternal<>(this, mapper);
     }
   }
@@ -141,14 +141,31 @@ abstract class AsyncResults {
     private final AsyncResultInternal<T> asyncResult;
 
     MappedSingleAsyncResultInternal(
-        AsyncResultInternal<T> asyncResult, ThrowingFunction<T, U> mapper) {
+        AsyncResultInternal<T> asyncResult, ThrowingFunction<T, CompletableFuture<U>> mapper) {
       super(
           asyncResult
               .publicFuture()
               .thenCompose(
                   t -> {
                     try {
-                      return CompletableFuture.completedFuture(mapper.apply(t));
+                      CompletableFuture<U> fut = new CompletableFuture<>();
+                      mapper
+                          .apply(t)
+                          .whenCompleteAsync(
+                              (u, throwable) -> {
+                                if (throwable != null) {
+                                  if (ExceptionUtils.isTerminalException(throwable)) {
+                                    fut.completeExceptionally(throwable);
+                                  } else {
+                                    asyncResult.ctx().failWithoutContextSwitch(throwable);
+                                    fut.completeExceptionally(AbortedExecutionException.INSTANCE);
+                                  }
+                                } else {
+                                  fut.complete(u);
+                                }
+                              },
+                              asyncResult.ctx().stateMachineExecutor());
+                      return fut;
                     } catch (Throwable e) {
                       if (ExceptionUtils.isTerminalException(e)) {
                         return CompletableFuture.failedFuture(e);

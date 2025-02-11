@@ -281,7 +281,7 @@ class CodegenTest : TestDefinitions.TestSuite {
             .withInput(
                 startMessage(1),
                 inputCmd("{{".toByteArray()),
-                callCompletion(2, KtSerdes.UNIT, null))
+                callCompletion(2, KtSerdes.UNIT, Unit))
             .onlyUnbuffered()
             .expectingOutput(
                 callCmd(1, 2, Target.service("RawInputOutput", "rawInput"), "{{".toByteArray()),
@@ -291,7 +291,7 @@ class CodegenTest : TestDefinitions.TestSuite {
             .withInput(
                 startMessage(1),
                 inputCmd("{{".toByteArray()),
-                callCompletion(2, KtSerdes.UNIT, null))
+                callCompletion(2, KtSerdes.UNIT, Unit))
             .onlyUnbuffered()
             .expectingOutput(
                 callCmd(
@@ -306,7 +306,7 @@ class CodegenTest : TestDefinitions.TestSuite {
                 startMessage(1), inputCmd(), callCompletion(2, Serde.RAW, "{{".toByteArray()))
             .onlyUnbuffered()
             .expectingOutput(
-                callCmd(1, 2, Target.service("RawInputOutput", "rawOutput"), KtSerdes.UNIT, null),
+                callCmd(1, 2, Target.service("RawInputOutput", "rawOutput"), KtSerdes.UNIT, Unit),
                 outputCmd("{{".toByteArray()),
                 END_MESSAGE),
         testInvocation({ RawInputOutput() }, "rawOutputWithCustomCT")
@@ -319,7 +319,7 @@ class CodegenTest : TestDefinitions.TestSuite {
                     2,
                     Target.service("RawInputOutput", "rawOutputWithCustomCT"),
                     KtSerdes.UNIT,
-                    null),
+                    Unit),
                 outputCmd("{{".toByteArray()),
                 END_MESSAGE),
         testInvocation({ CornerCases() }, "returnNull")

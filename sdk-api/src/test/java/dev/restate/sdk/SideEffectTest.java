@@ -33,7 +33,7 @@ public class SideEffectTest extends SideEffectTestSuite {
   @Override
   protected TestInvocationBuilder namedSideEffect(String name, String sideEffectOutput) {
     return testDefinitionForService(
-        "SideEffect",
+        "NamedSideEffect",
         Serde.VOID,
         JsonSerdes.STRING,
         (ctx, unused) -> {

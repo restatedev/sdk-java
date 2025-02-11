@@ -9,13 +9,17 @@
 package dev.restate.sdk;
 
 import static dev.restate.sdk.JavaBlockingTests.*;
+import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.restate.sdk.core.AsyncResultTestSuite;
+import dev.restate.sdk.core.TestDefinitions;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import dev.restate.sdk.types.StateKey;
 import dev.restate.sdk.types.TimeoutException;
 import dev.restate.serde.Serde;
 import java.time.Duration;
+import java.util.stream.Stream;
 
 public class AsyncResultTest extends AsyncResultTestSuite {
 
@@ -159,5 +163,42 @@ public class AsyncResultTest extends AsyncResultTestSuite {
 
           return result;
         });
+  }
+
+  private TestInvocationBuilder checkAwaitableMapThread() {
+    return testDefinitionForService(
+        "CheckAwaitableThread",
+        Serde.VOID,
+        Serde.VOID,
+        (ctx, unused) -> {
+          var currentThreadName = Thread.currentThread().getName().split("-");
+          var currentThreadPool = currentThreadName[0] + "-" + currentThreadName[1];
+
+          callGreeterGreetService(ctx, "Francesco")
+              .map(
+                  u -> {
+                    assertThat(Thread.currentThread().getName()).startsWith(currentThreadPool);
+                    return null;
+                  })
+              .await();
+
+          return null;
+        });
+  }
+
+  @Override
+  public Stream<TestDefinitions.TestDefinition> definitions() {
+    return Stream.concat(
+        super.definitions(),
+        Stream.of(
+            this.checkAwaitableMapThread()
+                .withInput(
+                    startMessage(3),
+                    inputCmd(),
+                    callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
+                    callCompletion(2, "FRANCESCO"))
+                .onlyUnbuffered()
+                .expectingOutput(outputCmd(), END_MESSAGE)
+                .named("Check map constraints")));
   }
 }
