@@ -67,10 +67,10 @@ internal constructor(
         try {
           req = requestSerde.deserialize(handlerContext.request().body)
         } catch (e: Throwable) {
-          LOG.warn("Error when deserializing input", e)
+          LOG.warn("Error deserializing request", e)
           completableFuture.completeExceptionally(
               throw TerminalException(
-                  TerminalException.BAD_REQUEST_CODE, "Cannot deserialize input: " + e.message))
+                  TerminalException.BAD_REQUEST_CODE, "Cannot deserialize request: " + e.message))
           return@launch
         }
 
@@ -81,7 +81,7 @@ internal constructor(
         try {
           serializedResult = responseSerde.serialize(res)
         } catch (e: Throwable) {
-          LOG.warn("Error when serializing output", e)
+          LOG.warn("Error when serializing response", e)
           completableFuture.completeExceptionally(e)
           return@launch
         }
