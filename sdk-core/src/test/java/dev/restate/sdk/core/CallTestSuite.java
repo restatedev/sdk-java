@@ -14,6 +14,8 @@ import dev.restate.common.Slice;
 import dev.restate.common.Target;
 import dev.restate.sdk.core.TestDefinitions.TestDefinition;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
+import dev.restate.sdk.core.generated.protocol.Protocol;
+import dev.restate.sdk.types.TerminalException;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -21,6 +23,9 @@ public abstract class CallTestSuite implements TestSuite {
 
   protected abstract TestDefinitions.TestInvocationBuilder oneWayCall(
       Target target, String idempotencyKey, Map<String, String> headers, Slice body);
+
+  protected abstract TestDefinitions.TestInvocationBuilder implicitCancellation(
+      Target target, Slice body);
 
   private static String IDEMPOTENCY_KEY = "my-idempotency-key";
   private static Map<String, String> HEADERS = Map.of("abc", "123", "fge", "456");
@@ -48,6 +53,28 @@ public abstract class CallTestSuite implements TestSuite {
             .expectingOutput(
                 oneWayCallCmd(1, GREETER_VIRTUAL_OBJECT_TARGET, IDEMPOTENCY_KEY, HEADERS, BODY),
                 outputCmd(),
-                END_MESSAGE));
+                END_MESSAGE),
+        implicitCancellation(GREETER_SERVICE_TARGET, BODY)
+            .withInput(
+                startMessage(3),
+                inputCmd(),
+                callCmd(1, 2, GREETER_SERVICE_TARGET, BODY.toByteArray()),
+                CANCELLATION_SIGNAL)
+            .onlyBidiStream()
+            .expectingOutput(Protocol.SuspensionMessage.newBuilder().addWaitingCompletions(1))
+            .named("Suspends on waiting the invocation id"),
+        implicitCancellation(GREETER_SERVICE_TARGET, BODY)
+            .withInput(
+                startMessage(4),
+                inputCmd(),
+                callCmd(1, 2, GREETER_SERVICE_TARGET, BODY.toByteArray()),
+                CANCELLATION_SIGNAL,
+                callInvocationIdCompletion(1, "my-id"))
+            .onlyBidiStream()
+            .expectingOutput(
+                sendCancelSignal("my-id"),
+                outputCmd(new TerminalException(TerminalException.CANCELLED_CODE)),
+                END_MESSAGE)
+            .named("Surfaces cancellation"));
   }
 }

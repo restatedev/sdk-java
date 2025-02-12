@@ -32,4 +32,9 @@ class CallTest : CallTestSuite() {
               this.headers = LinkedHashMap(headers)
             })
       }
+
+  override fun implicitCancellation(target: Target, body: Slice) =
+      testDefinitionForService("ImplicitCancellation") { ctx, _: Unit ->
+        ctx.call(target, Serde.SLICE, Serde.RAW, body)
+      }
 }

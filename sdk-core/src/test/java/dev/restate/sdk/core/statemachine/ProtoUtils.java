@@ -113,6 +113,7 @@ public class ProtoUtils {
   public static Protocol.SuspensionMessage suspensionMessage(Integer... completionIds) {
     return Protocol.SuspensionMessage.newBuilder()
         .addAllWaitingCompletions(List.of(completionIds))
+        .addWaitingSignals(1)
         .build();
   }
 
@@ -449,6 +450,14 @@ public class ProtoUtils {
         .setFailure(failure(code, message));
   }
 
+  public static Protocol.SendSignalCommandMessage sendCancelSignal(String targetInvocationId) {
+    return Protocol.SendSignalCommandMessage.newBuilder()
+        .setTargetInvocationId(targetInvocationId)
+        .setIdx(1)
+        .setVoid(Protocol.Void.getDefaultInstance())
+        .build();
+  }
+
   public static Protocol.Failure failure(int code, String message) {
     return Util.toProtocolFailure(code, message);
   }
@@ -468,6 +477,11 @@ public class ProtoUtils {
   }
 
   public static final Protocol.EndMessage END_MESSAGE = Protocol.EndMessage.getDefaultInstance();
+  public static final Protocol.SignalNotificationMessage CANCELLATION_SIGNAL =
+      Protocol.SignalNotificationMessage.newBuilder()
+          .setVoid(Protocol.Void.getDefaultInstance())
+          .setIdx(1)
+          .build();
 
   public static final Target GREETER_SERVICE_TARGET = Target.service("Greeter", "greeter");
   public static Target GREETER_VIRTUAL_OBJECT_TARGET =

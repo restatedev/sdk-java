@@ -13,6 +13,7 @@ import dev.restate.common.Slice;
 import dev.restate.common.Target;
 import dev.restate.common.function.ThrowingRunnable;
 import dev.restate.common.function.ThrowingSupplier;
+import dev.restate.sdk.core.AsyncResults.AsyncResultInternal;
 import dev.restate.sdk.core.statemachine.InvocationState;
 import dev.restate.sdk.core.statemachine.NotificationValue;
 import dev.restate.sdk.core.statemachine.StateMachine;
@@ -25,9 +26,12 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 
 class HandlerContextImpl implements HandlerContextInternal {
+
+  private static final int CANCEL_HANDLE = 1;
 
   private final Request request;
   private final StateMachine stateMachine;
@@ -35,6 +39,7 @@ class HandlerContextImpl implements HandlerContextInternal {
   private final String fullyQualifiedHandlerName;
 
   private CompletableFuture<Void> nextProcessedRun;
+  private final List<AsyncResultInternal<String>> invocationIdsToCancel;
   private final HashMap<Integer, Consumer<RunCompleter>> scheduledRuns;
 
   HandlerContextImpl(
@@ -46,6 +51,7 @@ class HandlerContextImpl implements HandlerContextInternal {
     this.objectKey = input.key();
     this.stateMachine = stateMachine;
     this.fullyQualifiedHandlerName = fullyQualifiedHandlerName;
+    this.invocationIdsToCancel = new ArrayList<>();
     this.scheduledRuns = new HashMap<>();
   }
 
@@ -84,8 +90,8 @@ class HandlerContextImpl implements HandlerContextInternal {
                 (s, cf) -> {
                   if (s instanceof NotificationValue.Empty) {
                     cf.complete(Optional.empty());
-                  } else if (s instanceof NotificationValue.Success) {
-                    cf.complete(Optional.of(((NotificationValue.Success) s).slice()));
+                  } else if (s instanceof NotificationValue.Success success) {
+                    cf.complete(Optional.of(success.slice()));
                   } else {
                     throw ProtocolException.unexpectedNotificationVariant(s.getClass());
                   }
@@ -100,8 +106,8 @@ class HandlerContextImpl implements HandlerContextInternal {
                 this,
                 this.stateMachine.stateGetKeys(),
                 (s, cf) -> {
-                  if (s instanceof NotificationValue.StateKeys) {
-                    cf.complete(((NotificationValue.StateKeys) s).stateKeys());
+                  if (s instanceof NotificationValue.StateKeys stateKeys) {
+                    cf.complete(stateKeys.stateKeys());
                   } else {
                     throw ProtocolException.unexpectedNotificationVariant(s.getClass());
                   }
@@ -150,17 +156,9 @@ class HandlerContextImpl implements HandlerContextInternal {
           StateMachine.CallHandle callHandle =
               this.stateMachine.call(target, parameter, idempotencyKey, headers);
 
-          AsyncResult<String> invocationIdAsyncResult =
-              AsyncResults.single(
-                  this,
-                  callHandle.invocationIdHandle(),
-                  (s, cf) -> {
-                    if (s instanceof NotificationValue.InvocationId invocationId) {
-                      cf.complete(invocationId.invocationId());
-                    } else {
-                      throw ProtocolException.unexpectedNotificationVariant(s.getClass());
-                    }
-                  });
+          AsyncResultInternal<String> invocationIdAsyncResult =
+              AsyncResults.single(this, callHandle.invocationIdHandle(), invocationIdCompleter());
+          this.invocationIdsToCancel.add(invocationIdAsyncResult);
 
           AsyncResult<Slice> callAsyncResult =
               AsyncResults.single(
@@ -192,17 +190,22 @@ class HandlerContextImpl implements HandlerContextInternal {
           int sendHandle =
               this.stateMachine.send(target, parameter, idempotencyKey, headers, delay);
 
-          return AsyncResults.single(
-              this,
-              sendHandle,
-              (s, cf) -> {
-                if (s instanceof NotificationValue.InvocationId invocationId) {
-                  cf.complete(invocationId.invocationId());
-                } else {
-                  throw ProtocolException.unexpectedNotificationVariant(s.getClass());
-                }
-              });
+          AsyncResultInternal<String> invocationIdAsyncResult =
+              AsyncResults.single(this, sendHandle, invocationIdCompleter());
+          this.invocationIdsToCancel.add(invocationIdAsyncResult);
+
+          return invocationIdAsyncResult;
         });
+  }
+
+  private static AsyncResults.Completer<String> invocationIdCompleter() {
+    return (s, cf) -> {
+      if (s instanceof NotificationValue.InvocationId invocationId) {
+        cf.complete(invocationId.invocationId());
+      } else {
+        throw ProtocolException.unexpectedNotificationVariant(s.getClass());
+      }
+    };
   }
 
   @Override
@@ -216,10 +219,10 @@ class HandlerContextImpl implements HandlerContextInternal {
               this,
               runHandle,
               (s, cf) -> {
-                if (s instanceof NotificationValue.Success) {
-                  cf.complete(((NotificationValue.Success) s).slice());
-                } else if (s instanceof NotificationValue.Failure) {
-                  cf.completeExceptionally(((NotificationValue.Failure) s).exception());
+                if (s instanceof NotificationValue.Success success) {
+                  cf.complete(success.slice());
+                } else if (s instanceof NotificationValue.Failure failure) {
+                  cf.completeExceptionally(failure.exception());
                 } else {
                   throw ProtocolException.unexpectedNotificationVariant(s.getClass());
                 }
@@ -238,10 +241,10 @@ class HandlerContextImpl implements HandlerContextInternal {
                   this,
                   awakeable.handle(),
                   (s, cf) -> {
-                    if (s instanceof NotificationValue.Success) {
-                      cf.complete(((NotificationValue.Success) s).slice());
-                    } else if (s instanceof NotificationValue.Failure) {
-                      cf.completeExceptionally(((NotificationValue.Failure) s).exception());
+                    if (s instanceof NotificationValue.Success success) {
+                      cf.complete(success.slice());
+                    } else if (s instanceof NotificationValue.Failure failure) {
+                      cf.completeExceptionally(failure.exception());
                     } else {
                       throw ProtocolException.unexpectedNotificationVariant(s.getClass());
                     }
@@ -267,10 +270,10 @@ class HandlerContextImpl implements HandlerContextInternal {
                 this,
                 this.stateMachine.promiseGet(key),
                 (s, cf) -> {
-                  if (s instanceof NotificationValue.Success) {
-                    cf.complete(((NotificationValue.Success) s).slice());
-                  } else if (s instanceof NotificationValue.Failure) {
-                    cf.completeExceptionally(((NotificationValue.Failure) s).exception());
+                  if (s instanceof NotificationValue.Success success) {
+                    cf.complete(success.slice());
+                  } else if (s instanceof NotificationValue.Failure failure) {
+                    cf.completeExceptionally(failure.exception());
                   } else {
                     throw ProtocolException.unexpectedNotificationVariant(s.getClass());
                   }
@@ -287,10 +290,10 @@ class HandlerContextImpl implements HandlerContextInternal {
                 (s, cf) -> {
                   if (s instanceof NotificationValue.Empty) {
                     cf.complete(Output.notReady());
-                  } else if (s instanceof NotificationValue.Success) {
-                    cf.complete(Output.ready(((NotificationValue.Success) s).slice()));
-                  } else if (s instanceof NotificationValue.Failure) {
-                    cf.completeExceptionally(((NotificationValue.Failure) s).exception());
+                  } else if (s instanceof NotificationValue.Success success) {
+                    cf.complete(Output.ready(success.slice()));
+                  } else if (s instanceof NotificationValue.Failure failure) {
+                    cf.completeExceptionally(failure.exception());
                   } else {
                     throw ProtocolException.unexpectedNotificationVariant(s.getClass());
                   }
@@ -307,8 +310,8 @@ class HandlerContextImpl implements HandlerContextInternal {
                 (s, cf) -> {
                   if (s instanceof NotificationValue.Empty) {
                     cf.complete(null);
-                  } else if (s instanceof NotificationValue.Failure) {
-                    cf.completeExceptionally(((NotificationValue.Failure) s).exception());
+                  } else if (s instanceof NotificationValue.Failure failure) {
+                    cf.completeExceptionally(failure.exception());
                   } else {
                     throw ProtocolException.unexpectedNotificationVariant(s.getClass());
                   }
@@ -325,8 +328,8 @@ class HandlerContextImpl implements HandlerContextInternal {
                 (s, cf) -> {
                   if (s instanceof NotificationValue.Empty) {
                     cf.complete(null);
-                  } else if (s instanceof NotificationValue.Failure) {
-                    cf.completeExceptionally(((NotificationValue.Failure) s).exception());
+                  } else if (s instanceof NotificationValue.Failure failure) {
+                    cf.completeExceptionally(failure.exception());
                   } else {
                     throw ProtocolException.unexpectedNotificationVariant(s.getClass());
                   }
@@ -344,15 +347,46 @@ class HandlerContextImpl implements HandlerContextInternal {
   }
 
   @Override
-  public void pollAsyncResult(AsyncResults.AsyncResultInternal<?> asyncResult) {
+  public void pollAsyncResult(AsyncResultInternal<?> asyncResult) {
     // We use the separate function for the recursion,
     // as there's no need to jump back and forth between threads again.
     this.pollAsyncResultInner(asyncResult);
   }
 
-  private void pollAsyncResultInner(AsyncResults.AsyncResultInternal<?> asyncResult) {
+  private void pollAsyncResultInner(AsyncResultInternal<?> asyncResult) {
     while (true) {
       if (asyncResult.isDone()) {
+        return;
+      }
+
+      // Let's look for the cancellation notification
+      var cancellationNotification = this.stateMachine.takeNotification(CANCEL_HANDLE);
+      if (cancellationNotification.isPresent()) {
+        // Let's wait to cancel all
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        AsyncResultInternal<Void> allInvocationIds =
+            AsyncResults.all(this, (List) this.invocationIdsToCancel);
+        allInvocationIds
+            .publicFuture()
+            .whenComplete(
+                (ignored, throwable) -> {
+                  if (throwable != null) {
+                    // Already handled
+                    return;
+                  }
+                  try {
+                    for (var invocationIdAr : this.invocationIdsToCancel) {
+                      this.stateMachine.cancelInvocation(
+                          Objects.requireNonNull(invocationIdAr.publicFuture().getNow(null)));
+                    }
+                    asyncResult.tryCancel();
+                  } catch (Throwable e) {
+                    // Not good!
+                    this.failWithoutContextSwitch(e);
+                  }
+                });
+        // Let's resolve all the invocation IDs
+        pollAsyncResultInner(allInvocationIds);
         return;
       }
 
@@ -360,8 +394,9 @@ class HandlerContextImpl implements HandlerContextInternal {
       asyncResult.tryComplete(this.stateMachine);
 
       // Now let's take the unprocessed leaves
-      List<Integer> uncompletedLeaves = asyncResult.uncompletedLeaves().toList();
-      if (uncompletedLeaves.isEmpty()) {
+      List<Integer> uncompletedLeaves =
+          Stream.concat(asyncResult.uncompletedLeaves(), Stream.of(CANCEL_HANDLE)).toList();
+      if (uncompletedLeaves.size() == 1) {
         // Nothing else to do!
         return;
       }
