@@ -58,12 +58,12 @@ public abstract class StateTestSuite implements TestDefinitions.TestSuite {
                 inputCmd("Till"),
                 getLazyStateCmd(1, "STATE"),
                 getLazyStateCompletion(1, "Francesco"))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(outputCmd("Hello Francesco"), END_MESSAGE)
             .named("With GetStateEntry and completed with later CompletionFrame"),
         this.getState()
             .withInput(startMessage(1), inputCmd("Till"), getLazyStateCompletion(1, "Francesco"))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(getLazyStateCmd(1, "STATE"), outputCmd("Hello Francesco"), END_MESSAGE)
             .named("Without GetStateEntry and completed with later CompletionFrame"),
         this.getAndSetState()
@@ -86,7 +86,7 @@ public abstract class StateTestSuite implements TestDefinitions.TestSuite {
             .named("With GetState already completed"),
         this.getAndSetState()
             .withInput(startMessage(1), inputCmd("Till"), getLazyStateCompletion(1, "Francesco"))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(
                 getLazyStateCmd(1, "STATE"),
                 setStateCmd("STATE", "Till"),

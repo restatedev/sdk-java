@@ -76,6 +76,9 @@ class StateMachineImpl implements StateMachine {
 
   @Override
   public CompletableFuture<Void> waitNextInputSignal() {
+    if (this.stateContext.isInputClosed()) {
+      return CompletableFuture.completedFuture(null);
+    }
     if (waitNextProcessedInput == null) {
       this.waitNextProcessedInput = new CompletableFuture<>();
     }
@@ -85,8 +88,8 @@ class StateMachineImpl implements StateMachine {
   private void triggerWaitNextInputSignal() {
     if (this.waitNextProcessedInput != null) {
       CompletableFuture<Void> fut = this.waitNextProcessedInput;
-      fut.complete(null);
       this.waitNextProcessedInput = null;
+      fut.complete(null);
     }
   }
 

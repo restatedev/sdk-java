@@ -214,30 +214,30 @@ class CodegenTest : TestDefinitions.TestSuite {
     return Stream.of(
         testInvocation({ ServiceGreeter() }, "greet")
             .withInput(startMessage(1), inputCmd("Francesco"))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(outputCmd("Francesco"), END_MESSAGE),
         testInvocation({ ObjectGreeter() }, "greet")
             .withInput(startMessage(1, "slinkydeveloper"), inputCmd("Francesco"))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(outputCmd("Francesco"), END_MESSAGE),
         testInvocation({ ObjectGreeter() }, "sharedGreet")
             .withInput(startMessage(1, "slinkydeveloper"), inputCmd("Francesco"))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(outputCmd("Francesco"), END_MESSAGE),
         testInvocation({ NestedDataClass() }, "greet")
             .withInput(
                 startMessage(1, "slinkydeveloper"),
                 inputCmd(KtSerdes.json(), NestedDataClass.Input("123")))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(
                 outputCmd(KtSerdes.json(), NestedDataClass.Output("123")), END_MESSAGE),
         testInvocation({ ObjectGreeterImplementedFromInterface() }, "greet")
             .withInput(startMessage(1, "slinkydeveloper"), inputCmd("Francesco"))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(outputCmd("Francesco"), END_MESSAGE),
         testInvocation({ Empty() }, "emptyInput")
             .withInput(startMessage(1), inputCmd(), callCompletion(2, "Till"))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(
                 callCmd(1, 2, Target.service("Empty", "emptyInput")),
                 outputCmd("Till"),
@@ -245,7 +245,7 @@ class CodegenTest : TestDefinitions.TestSuite {
             .named("empty output"),
         testInvocation({ Empty() }, "emptyOutput")
             .withInput(startMessage(1), inputCmd("Francesco"), callCompletion(2, Serde.VOID, null))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(
                 callCmd(1, 2, Target.service("Empty", "emptyOutput"), "Francesco"),
                 outputCmd(),
@@ -253,7 +253,7 @@ class CodegenTest : TestDefinitions.TestSuite {
             .named("empty output"),
         testInvocation({ Empty() }, "emptyInputOutput")
             .withInput(startMessage(1), inputCmd("Francesco"), callCompletion(2, Serde.VOID, null))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(
                 callCmd(1, 2, Target.service("Empty", "emptyInputOutput")),
                 outputCmd(),
@@ -261,7 +261,7 @@ class CodegenTest : TestDefinitions.TestSuite {
             .named("empty input and empty output"),
         testInvocation({ PrimitiveTypes() }, "primitiveOutput")
             .withInput(startMessage(1), inputCmd(), callCompletion(2, TestSerdes.INT, 10))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(
                 callCmd(
                     1, 2, Target.service("PrimitiveTypes", "primitiveOutput"), Serde.VOID, null),
@@ -270,7 +270,7 @@ class CodegenTest : TestDefinitions.TestSuite {
             .named("primitive output"),
         testInvocation({ PrimitiveTypes() }, "primitiveInput")
             .withInput(startMessage(1), inputCmd(10), callCompletion(2, Serde.VOID, null))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(
                 callCmd(
                     1, 2, Target.service("PrimitiveTypes", "primitiveInput"), TestSerdes.INT, 10),
@@ -282,7 +282,7 @@ class CodegenTest : TestDefinitions.TestSuite {
                 startMessage(1),
                 inputCmd("{{".toByteArray()),
                 callCompletion(2, KtSerdes.UNIT, Unit))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(
                 callCmd(1, 2, Target.service("RawInputOutput", "rawInput"), "{{".toByteArray()),
                 outputCmd(),
@@ -292,7 +292,7 @@ class CodegenTest : TestDefinitions.TestSuite {
                 startMessage(1),
                 inputCmd("{{".toByteArray()),
                 callCompletion(2, KtSerdes.UNIT, Unit))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(
                 callCmd(
                     1,
@@ -304,7 +304,7 @@ class CodegenTest : TestDefinitions.TestSuite {
         testInvocation({ RawInputOutput() }, "rawOutput")
             .withInput(
                 startMessage(1), inputCmd(), callCompletion(2, Serde.RAW, "{{".toByteArray()))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(
                 callCmd(1, 2, Target.service("RawInputOutput", "rawOutput"), KtSerdes.UNIT, Unit),
                 outputCmd("{{".toByteArray()),
@@ -312,7 +312,7 @@ class CodegenTest : TestDefinitions.TestSuite {
         testInvocation({ RawInputOutput() }, "rawOutputWithCustomCT")
             .withInput(
                 startMessage(1), inputCmd(), callCompletion(2, Serde.RAW, "{{".toByteArray()))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(
                 callCmd(
                     1,
@@ -327,7 +327,7 @@ class CodegenTest : TestDefinitions.TestSuite {
                 startMessage(1, "mykey"),
                 inputCmd(),
                 callCompletion(2, KtSerdes.json<String?>(), null))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(
                 callCmd(
                     1,

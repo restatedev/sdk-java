@@ -86,7 +86,7 @@ public abstract class AsyncResultTestSuite implements TestSuite {
         testInvocation
             .get()
             .withInput(startMessage(1), inputCmd(), callCompletion(2, "FRANCESCO"))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(
                 callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
                 callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
@@ -115,7 +115,7 @@ public abstract class AsyncResultTestSuite implements TestSuite {
                     inputCmd(),
                     callCompletion(2, "FRANCESCO"),
                     callCompletion(4, "TILL"))
-                .onlyUnbuffered()
+                .onlyBidiStream()
                 .expectingOutput(
                     callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
                     callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
@@ -129,7 +129,7 @@ public abstract class AsyncResultTestSuite implements TestSuite {
                     inputCmd(),
                     callCompletion(4, "TILL"),
                     callCompletion(2, "FRANCESCO"))
-                .onlyUnbuffered()
+                .onlyBidiStream()
                 .expectingOutput(
                     callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
                     callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
@@ -139,7 +139,7 @@ public abstract class AsyncResultTestSuite implements TestSuite {
                 .named("A2 and A1 completed later in reverse order"),
             this.reverseAwaitOrder()
                 .withInput(startMessage(1), inputCmd(), callCompletion(4, "TILL"))
-                .onlyUnbuffered()
+                .onlyBidiStream()
                 .expectingOutput(
                     callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
                     callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
@@ -148,7 +148,7 @@ public abstract class AsyncResultTestSuite implements TestSuite {
                 .named("Only A2 completed"),
             this.reverseAwaitOrder()
                 .withInput(startMessage(1), inputCmd(), callCompletion(2, "FRANCESCO"))
-                .onlyUnbuffered()
+                .onlyBidiStream()
                 .expectingOutput(
                     callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
                     callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
@@ -158,7 +158,7 @@ public abstract class AsyncResultTestSuite implements TestSuite {
             // --- Await twice the same executable
             this.awaitTwiceTheSameAwaitable()
                 .withInput(startMessage(1), inputCmd(), callCompletion(2, "FRANCESCO"))
-                .onlyUnbuffered()
+                .onlyBidiStream()
                 .expectingOutput(
                     callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
                     outputCmd("FRANCESCO-FRANCESCO"),
@@ -197,7 +197,7 @@ public abstract class AsyncResultTestSuite implements TestSuite {
                     inputCmd(),
                     callCompletion(2, "FRANCESCO"),
                     callCompletion(4, "TILL"))
-                .onlyUnbuffered()
+                .onlyBidiStream()
                 .expectingOutput(
                     callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
                     callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
@@ -209,7 +209,7 @@ public abstract class AsyncResultTestSuite implements TestSuite {
                     startMessage(1),
                     inputCmd(),
                     callCompletion(2, new IllegalStateException("My error")))
-                .onlyUnbuffered()
+                .onlyBidiStream()
                 .expectingOutput(
                     callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
                     callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
@@ -222,7 +222,7 @@ public abstract class AsyncResultTestSuite implements TestSuite {
                     inputCmd(),
                     callCompletion(2, "FRANCESCO"),
                     callCompletion(4, new IllegalStateException("My error")))
-                .onlyUnbuffered()
+                .onlyBidiStream()
                 .expectingOutput(
                     callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
                     callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
@@ -284,7 +284,7 @@ public abstract class AsyncResultTestSuite implements TestSuite {
             // --- Await with timeout
             this.awaitWithTimeout()
                 .withInput(startMessage(1), inputCmd(), callCompletion(2, "FRANCESCO"))
-                .onlyUnbuffered()
+                .onlyBidiStream()
                 .assertingOutput(
                     messages -> {
                       assertThat(messages).hasSize(4);
@@ -305,7 +305,7 @@ public abstract class AsyncResultTestSuite implements TestSuite {
                         .setCompletionId(3)
                         .setVoid(Protocol.Void.getDefaultInstance())
                         .build())
-                .onlyUnbuffered()
+                .onlyBidiStream()
                 .assertingOutput(
                     messages -> {
                       assertThat(messages).hasSize(4);

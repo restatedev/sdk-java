@@ -393,11 +393,7 @@ class HandlerContextImpl implements HandlerContextInternal {
     } catch (Exception e) {
       this.failWithoutContextSwitch(e);
     }
-    if (this.nextProcessedRun != null) {
-      var fut = this.nextProcessedRun;
-      this.nextProcessedRun = null;
-      fut.complete(null);
-    }
+    triggerNextProcessedRun();
   }
 
   @Override
@@ -411,6 +407,10 @@ class HandlerContextImpl implements HandlerContextInternal {
     } catch (Exception e) {
       this.failWithoutContextSwitch(e);
     }
+    triggerNextProcessedRun();
+  }
+
+  private void triggerNextProcessedRun() {
     if (this.nextProcessedRun != null) {
       var fut = this.nextProcessedRun;
       this.nextProcessedRun = null;

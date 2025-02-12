@@ -21,7 +21,7 @@ import kotlinx.coroutines.Dispatchers
 
 class KotlinCoroutinesTests : TestRunner() {
   override fun executors(): Stream<TestExecutor> {
-    return Stream.of(MockSingleThread.INSTANCE, MockMultiThreaded.INSTANCE)
+    return Stream.of(MockRequestResponse.INSTANCE, MockBidiStream.INSTANCE)
   }
 
   public override fun definitions(): Stream<TestDefinitions.TestSuite> {

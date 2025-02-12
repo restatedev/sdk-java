@@ -11,8 +11,8 @@ package dev.restate.sdk;
 import static dev.restate.sdk.core.statemachine.ProtoUtils.GREETER_SERVICE_TARGET;
 
 import dev.restate.common.function.ThrowingBiFunction;
-import dev.restate.sdk.core.MockMultiThreaded;
-import dev.restate.sdk.core.MockSingleThread;
+import dev.restate.sdk.core.MockBidiStream;
+import dev.restate.sdk.core.MockRequestResponse;
 import dev.restate.sdk.core.TestDefinitions;
 import dev.restate.sdk.core.TestDefinitions.TestExecutor;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
@@ -30,7 +30,7 @@ public class JavaBlockingTests extends TestRunner {
 
   @Override
   protected Stream<TestExecutor> executors() {
-    return Stream.of(MockSingleThread.INSTANCE, MockMultiThreaded.INSTANCE);
+    return Stream.of(MockRequestResponse.INSTANCE, MockBidiStream.INSTANCE);
   }
 
   @Override

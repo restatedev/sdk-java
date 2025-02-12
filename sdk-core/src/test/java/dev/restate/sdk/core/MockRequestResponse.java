@@ -12,6 +12,8 @@ import static dev.restate.sdk.core.AssertUtils.assertThatDecodingMessages;
 
 import com.google.protobuf.MessageLite;
 import dev.restate.common.Slice;
+import dev.restate.sdk.core.TestDefinitions.TestDefinition;
+import dev.restate.sdk.core.TestDefinitions.TestExecutor;
 import dev.restate.sdk.core.statemachine.InvocationInput;
 import dev.restate.sdk.core.statemachine.ProtoUtils;
 import dev.restate.sdk.endpoint.Endpoint;
@@ -26,22 +28,21 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import org.apache.logging.log4j.ThreadContext;
 
-public final class MockMultiThreaded implements TestDefinitions.TestExecutor {
+public final class MockRequestResponse implements TestExecutor {
 
-  public static final MockMultiThreaded INSTANCE = new MockMultiThreaded();
+  public static final MockRequestResponse INSTANCE = new MockRequestResponse();
 
-  private MockMultiThreaded() {}
+  private MockRequestResponse() {}
 
   @Override
   public boolean buffered() {
-    return false;
+    return true;
   }
 
   @Override
-  public void executeTest(TestDefinitions.TestDefinition definition) {
+  public void executeTest(TestDefinition definition) {
     Executor syscallsExecutor = Executors.newSingleThreadExecutor();
 
-    // This test infra supports only services returning one service definition
     ServiceDefinition<?> serviceDefinition = definition.getServiceDefinition();
 
     // Prepare server
@@ -54,7 +55,7 @@ public final class MockMultiThreaded implements TestDefinitions.TestExecutor {
     if (definition.isEnablePreviewContext()) {
       builder.enablePreviewContext();
     }
-    EndpointRequestHandler server = EndpointRequestHandler.forBidiStream(builder.build());
+    EndpointRequestHandler server = EndpointRequestHandler.forRequestResponse(builder.build());
 
     // Start invocation
     RequestProcessor handler =
@@ -67,8 +68,6 @@ public final class MockMultiThreaded implements TestDefinitions.TestExecutor {
 
     // Wire invocation
     AssertSubscriber<Slice> assertSubscriber = AssertSubscriber.create(Long.MAX_VALUE);
-
-    // Wire invocation and start it
     Multi.createFrom()
         .iterable(definition.getInput())
         .runSubscriptionOn(syscallsExecutor)
@@ -81,8 +80,7 @@ public final class MockMultiThreaded implements TestDefinitions.TestExecutor {
         .subscribe(assertSubscriber);
 
     // Check completed
-    assertSubscriber.awaitCompletion(Duration.ofSeconds(1));
-
+    assertSubscriber.awaitCompletion(Duration.ofSeconds(5));
     // Unwrap messages and decode them
     //noinspection unchecked
     assertThatDecodingMessages(assertSubscriber.getItems().toArray(Slice[]::new))

@@ -195,23 +195,23 @@ public class CodegenTest implements TestSuite {
     return Stream.of(
         testInvocation(ServiceGreeter::new, "greet")
             .withInput(startMessage(1), inputCmd("Francesco"))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(outputCmd("Francesco"), END_MESSAGE),
         testInvocation(ObjectGreeter::new, "greet")
             .withInput(startMessage(1, "slinkydeveloper"), inputCmd("Francesco"))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(outputCmd("Francesco"), END_MESSAGE),
         testInvocation(ObjectGreeter::new, "sharedGreet")
             .withInput(startMessage(1, "slinkydeveloper"), inputCmd("Francesco"))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(outputCmd("Francesco"), END_MESSAGE),
         testInvocation(ObjectGreeterImplementedFromInterface::new, "greet")
             .withInput(startMessage(1, "slinkydeveloper"), inputCmd("Francesco"))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(outputCmd("Francesco"), END_MESSAGE),
         testInvocation(Empty::new, "emptyInput")
             .withInput(startMessage(1), inputCmd(), callCompletion(2, "Till"))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(
                 callCmd(1, 2, Target.service("Empty", "emptyInput")),
                 outputCmd("Till"),
@@ -219,7 +219,7 @@ public class CodegenTest implements TestSuite {
             .named("empty output"),
         testInvocation(Empty::new, "emptyOutput")
             .withInput(startMessage(1), inputCmd("Francesco"), callCompletion(2, Serde.VOID, null))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(
                 callCmd(1, 2, Target.service("Empty", "emptyOutput"), "Francesco"),
                 outputCmd(),
@@ -227,7 +227,7 @@ public class CodegenTest implements TestSuite {
             .named("empty output"),
         testInvocation(Empty::new, "emptyInputOutput")
             .withInput(startMessage(1), inputCmd("Francesco"), callCompletion(2, Serde.VOID, null))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(
                 callCmd(1, 2, Target.service("Empty", "emptyInputOutput")),
                 outputCmd(),
@@ -235,7 +235,7 @@ public class CodegenTest implements TestSuite {
             .named("empty input and empty output"),
         testInvocation(PrimitiveTypes::new, "primitiveOutput")
             .withInput(startMessage(1), inputCmd(), callCompletion(2, JsonSerdes.INT, 10))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(
                 callCmd(
                     1, 2, Target.service("PrimitiveTypes", "primitiveOutput"), Serde.VOID, null),
@@ -244,7 +244,7 @@ public class CodegenTest implements TestSuite {
             .named("primitive output"),
         testInvocation(PrimitiveTypes::new, "primitiveInput")
             .withInput(startMessage(1), inputCmd(10), callCompletion(2, Serde.VOID, null))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(
                 callCmd(
                     1, 2, Target.service("PrimitiveTypes", "primitiveInput"), JsonSerdes.INT, 10),
@@ -256,7 +256,7 @@ public class CodegenTest implements TestSuite {
                 startMessage(1),
                 inputCmd("{{".getBytes(StandardCharsets.UTF_8)),
                 callCompletion(2, Serde.VOID, null))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(
                 callCmd(
                     1,
@@ -270,7 +270,7 @@ public class CodegenTest implements TestSuite {
                 startMessage(1),
                 inputCmd("{{".getBytes(StandardCharsets.UTF_8)),
                 callCompletion(2, Serde.VOID, null))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(
                 callCmd(
                     1,
@@ -284,7 +284,7 @@ public class CodegenTest implements TestSuite {
                 startMessage(1),
                 inputCmd(),
                 callCompletion(2, Serde.RAW, "{{".getBytes(StandardCharsets.UTF_8)))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(
                 callCmd(1, 2, Target.service("RawInputOutput", "rawOutput"), Serde.VOID, null),
                 outputCmd("{{".getBytes(StandardCharsets.UTF_8)),
@@ -294,7 +294,7 @@ public class CodegenTest implements TestSuite {
                 startMessage(1),
                 inputCmd(),
                 callCompletion(2, Serde.RAW, "{{".getBytes(StandardCharsets.UTF_8)))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(
                 callCmd(
                     1,

@@ -88,7 +88,7 @@ public abstract class EagerStateTestSuite implements TestSuite {
                 startMessage(1).setPartialState(true),
                 INPUT_TILL,
                 getLazyStateCompletion(1, "Francesco"))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(
                 getLazyStateCmd(1, "STATE"),
                 SET_STATE_FRANCESCO_TILL,
@@ -110,7 +110,7 @@ public abstract class EagerStateTestSuite implements TestSuite {
                 startMessage(1).setPartialState(true),
                 INPUT_TILL,
                 getLazyStateCompletion(1, "Francesco"))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(
                 getLazyStateCmd(1, "STATE"),
                 clearStateCmd("STATE"),
@@ -134,7 +134,7 @@ public abstract class EagerStateTestSuite implements TestSuite {
                 startMessage(1).setPartialState(true),
                 INPUT_TILL,
                 getLazyStateCompletion(1, STATE_FRANCESCO.getValue()))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(
                 getLazyStateCmd(1, "STATE"),
                 ClearAllStateCommandMessage.getDefaultInstance(),
@@ -150,7 +150,7 @@ public abstract class EagerStateTestSuite implements TestSuite {
                 GetLazyStateKeysCompletionNotificationMessage.newBuilder()
                     .setCompletionId(1)
                     .setStateKeys(stateKeys("a", "b")))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(
                 GetLazyStateKeysCommandMessage.newBuilder().setResultCompletionId(1),
                 outputCmd("a,b"),

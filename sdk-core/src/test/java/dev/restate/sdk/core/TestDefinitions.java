@@ -173,7 +173,7 @@ public final class TestDefinitions {
       return this;
     }
 
-    public WithInputBuilder onlyUnbuffered() {
+    public WithInputBuilder onlyBidiStream() {
       this.onlyUnbuffered = true;
       return this;
     }

@@ -28,7 +28,7 @@ public abstract class InvocationIdTestSuite implements TestSuite {
     return Stream.of(
         returnInvocationId()
             .withInput(startMessage(1).setDebugId(debugId).setId(id), inputCmd())
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(outputCmd(debugId), END_MESSAGE));
   }
 }

@@ -11,8 +11,8 @@ package dev.restate.sdk;
 import static dev.restate.sdk.core.AssertUtils.assertThatDiscovery;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
-import dev.restate.sdk.core.MockMultiThreaded;
-import dev.restate.sdk.core.MockSingleThread;
+import dev.restate.sdk.core.MockBidiStream;
+import dev.restate.sdk.core.MockRequestResponse;
 import dev.restate.sdk.core.TestDefinitions.TestExecutor;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
 import dev.restate.sdk.core.TestRunner;
@@ -27,7 +27,7 @@ public class JavaCodegenTests extends TestRunner {
 
   @Override
   protected Stream<TestExecutor> executors() {
-    return Stream.of(MockSingleThread.INSTANCE, MockMultiThreaded.INSTANCE);
+    return Stream.of(MockRequestResponse.INSTANCE, MockBidiStream.INSTANCE);
   }
 
   @Override

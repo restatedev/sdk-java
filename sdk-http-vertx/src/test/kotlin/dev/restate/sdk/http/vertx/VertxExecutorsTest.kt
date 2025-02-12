@@ -86,7 +86,7 @@ class VertxExecutorsTest : TestDefinitions.TestSuite {
                     Dispatchers.Default + nonBlockingCoroutineName),
                 "do")
             .withInput(startMessage(1), inputCmd(), ackMessage(1))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(
                 Protocol.RunEntryMessage.newBuilder().setValue(ByteString.EMPTY),
                 outputCmd(),
@@ -108,7 +108,7 @@ class VertxExecutorsTest : TestDefinitions.TestSuite {
                 HandlerRunner.Options.DEFAULT,
                 "do")
             .withInput(startMessage(1), inputCmd(), ackMessage(1))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(
                 Protocol.RunEntryMessage.newBuilder().setValue(ByteString.EMPTY),
                 outputCmd(),

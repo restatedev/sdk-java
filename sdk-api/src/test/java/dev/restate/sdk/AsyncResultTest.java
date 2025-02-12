@@ -197,7 +197,7 @@ public class AsyncResultTest extends AsyncResultTestSuite {
                     inputCmd(),
                     callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
                     callCompletion(2, "FRANCESCO"))
-                .onlyUnbuffered()
+                .onlyBidiStream()
                 .expectingOutput(outputCmd(), END_MESSAGE)
                 .named("Check map constraints")));
   }

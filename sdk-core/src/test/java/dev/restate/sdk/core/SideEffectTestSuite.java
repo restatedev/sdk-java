@@ -45,7 +45,7 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
             .named("Run and propose completion"),
         this.sideEffect("Francesco")
             .withInput(startMessage(3), inputCmd("Till"), runCmd(1), runCompletion(1, "Francesco"))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .expectingOutput(outputCmd("Hello Francesco"), END_MESSAGE)
             .named("Replay from completion"),
         this.namedSideEffect("get-my-name", "Francesco")
@@ -114,7 +114,7 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
                 "some failure",
                 RetryPolicy.exponential(Duration.ofMillis(100), 1.0f).setMaxAttempts(2))
             .withInput(startMessage(1).setRetryCountSinceLastStoredEntry(0), inputCmd())
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .assertingOutput(
                 msgs ->
                     assertThat(msgs)
@@ -145,7 +145,7 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
         // --- Other tests
         this.checkContextSwitching()
             .withInput(startMessage(1), inputCmd())
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .assertingOutput(
                 actualOutputMessages ->
                     assertThat(actualOutputMessages).element(2).isEqualTo(suspensionMessage(1))));

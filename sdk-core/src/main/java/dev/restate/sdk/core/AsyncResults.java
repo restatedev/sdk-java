@@ -170,7 +170,7 @@ abstract class AsyncResults {
                       if (ExceptionUtils.isTerminalException(e)) {
                         return CompletableFuture.failedFuture(e);
                       }
-                      asyncResult.ctx().fail(e);
+                      asyncResult.ctx().failWithoutContextSwitch(e);
                       return CompletableFuture.failedFuture(AbortedExecutionException.INSTANCE);
                     }
                   }));

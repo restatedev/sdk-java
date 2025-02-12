@@ -98,7 +98,7 @@ public abstract class SleepTestSuite implements TestDefinitions.TestSuite {
                 Protocol.SleepCompletionNotificationMessage.newBuilder()
                     .setCompletionId(1)
                     .setVoid(Protocol.Void.getDefaultInstance()))
-            .onlyUnbuffered()
+            .onlyBidiStream()
             .assertingOutput(
                 messageLites -> {
                   assertThat(messageLites)
