@@ -60,7 +60,7 @@ object KtSerdes {
 
   val UNIT: Serde<Unit> =
       object : Serde<Unit> {
-        override fun serialize(value: Unit): Slice {
+        override fun serialize(value: Unit?): Slice {
           return Slice.EMPTY
         }
 

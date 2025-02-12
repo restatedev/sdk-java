@@ -81,9 +81,9 @@ internal constructor(
         try {
           serializedResult = responseSerde.serialize(res)
         } catch (e: Throwable) {
-          LOG.warn("Error when serializing input", e)
-          throw TerminalException(
-              TerminalException.INTERNAL_SERVER_ERROR_CODE, "Cannot serialize output: $e")
+          LOG.warn("Error when serializing output", e)
+          completableFuture.completeExceptionally(e)
+          return@launch
         }
       } catch (e: Throwable) {
         completableFuture.completeExceptionally(e)
