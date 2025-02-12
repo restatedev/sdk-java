@@ -43,7 +43,7 @@ fun main(args: Array<String>) {
   val endpoint = endpoint {
     if (env == "*") {
       for (svc in KNOWN_SERVICES_FACTORIES.values) {
-        bind(svc)
+        bind(svc())
       }
     } else {
       for (svc in env.split(",".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()) {

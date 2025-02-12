@@ -155,8 +155,8 @@ class HandlerContextImpl implements HandlerContextInternal {
                   this,
                   callHandle.invocationIdHandle(),
                   (s, cf) -> {
-                    if (s instanceof NotificationValue.InvocationId) {
-                      cf.complete(((NotificationValue.InvocationId) s).invocationId());
+                    if (s instanceof NotificationValue.InvocationId invocationId) {
+                      cf.complete(invocationId.invocationId());
                     } else {
                       throw ProtocolException.unexpectedNotificationVariant(s.getClass());
                     }
@@ -167,10 +167,10 @@ class HandlerContextImpl implements HandlerContextInternal {
                   this,
                   callHandle.resultHandle(),
                   (s, cf) -> {
-                    if (s instanceof NotificationValue.Success) {
-                      cf.complete(((NotificationValue.Success) s).slice());
-                    } else if (s instanceof NotificationValue.Failure) {
-                      cf.completeExceptionally(((NotificationValue.Failure) s).exception());
+                    if (s instanceof NotificationValue.Success success) {
+                      cf.complete(success.slice());
+                    } else if (s instanceof NotificationValue.Failure failure) {
+                      cf.completeExceptionally(failure.exception());
                     } else {
                       throw ProtocolException.unexpectedNotificationVariant(s.getClass());
                     }
@@ -196,8 +196,8 @@ class HandlerContextImpl implements HandlerContextInternal {
               this,
               sendHandle,
               (s, cf) -> {
-                if (s instanceof NotificationValue.InvocationId) {
-                  cf.complete(((NotificationValue.InvocationId) s).invocationId());
+                if (s instanceof NotificationValue.InvocationId invocationId) {
+                  cf.complete(invocationId.invocationId());
                 } else {
                   throw ProtocolException.unexpectedNotificationVariant(s.getClass());
                 }

@@ -14,12 +14,12 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.boot.context.properties.bind.Name;
 
 @ConfigurationProperties(prefix = "restate.sdk.http")
-public class RestateEndpointHttpServerProperties {
+public class RestateHttpServerProperties {
 
   private final int port;
 
   @ConstructorBinding
-  public RestateEndpointHttpServerProperties(@Name("port") @DefaultValue(value = "9080") int port) {
+  public RestateHttpServerProperties(@Name("port") @DefaultValue(value = "9080") int port) {
     this.port = port;
   }
 

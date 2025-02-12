@@ -45,6 +45,7 @@ public final class ServiceDefinitionFactories {
   /** Resolve the code generated {@link ServiceDefinitionFactory} */
   @SuppressWarnings("unchecked")
   public static ServiceDefinitionFactory<Object, Object> discover(Object service) {
+    Objects.requireNonNull(service, "service is null");
     if (service instanceof ServiceDefinitionFactory<?, ?>) {
       // We got this already
       return (ServiceDefinitionFactory<Object, Object>) service;

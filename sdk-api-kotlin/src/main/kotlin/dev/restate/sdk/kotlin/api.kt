@@ -102,7 +102,7 @@ sealed interface Context {
       inputSerde: Serde<T>,
       parameter: T,
       sendOptions: SendOptions = SendOptions.DEFAULT
-  )
+  ): Unit
 
   /**
    * Execute a non-deterministic closure, recording the result value in the journal. The result

@@ -27,17 +27,14 @@ import org.springframework.stereotype.Component;
  * @see Component
  */
 @Component
-@EnableConfigurationProperties({
-  RestateEndpointHttpServerProperties.class,
-  RestateEndpointProperties.class
-})
+@EnableConfigurationProperties({RestateHttpServerProperties.class, RestateEndpointProperties.class})
 public class RestateHttpEndpointBean implements InitializingBean, SmartLifecycle {
 
   private final Logger logger = LoggerFactory.getLogger(getClass());
 
   private final ApplicationContext applicationContext;
   private final RestateEndpointProperties restateEndpointProperties;
-  private final RestateEndpointHttpServerProperties restateEndpointHttpServerProperties;
+  private final RestateHttpServerProperties restateHttpServerProperties;
 
   private volatile boolean running;
 
@@ -46,10 +43,10 @@ public class RestateHttpEndpointBean implements InitializingBean, SmartLifecycle
   public RestateHttpEndpointBean(
       ApplicationContext applicationContext,
       RestateEndpointProperties restateEndpointProperties,
-      RestateEndpointHttpServerProperties restateEndpointHttpServerProperties) {
+      RestateHttpServerProperties restateHttpServerProperties) {
     this.applicationContext = applicationContext;
     this.restateEndpointProperties = restateEndpointProperties;
-    this.restateEndpointHttpServerProperties = restateEndpointHttpServerProperties;
+    this.restateHttpServerProperties = restateHttpServerProperties;
   }
 
   @Override
@@ -85,7 +82,7 @@ public class RestateHttpEndpointBean implements InitializingBean, SmartLifecycle
     if (this.server != null) {
       try {
         this.server
-            .listen(this.restateEndpointHttpServerProperties.getPort())
+            .listen(this.restateHttpServerProperties.getPort())
             .toCompletionStage()
             .toCompletableFuture()
             .get();
@@ -93,7 +90,7 @@ public class RestateHttpEndpointBean implements InitializingBean, SmartLifecycle
       } catch (Exception e) {
         logger.error(
             "Error when starting Restate Spring HTTP server on port {}",
-            this.restateEndpointHttpServerProperties.getPort(),
+            this.restateHttpServerProperties.getPort(),
             e);
       }
       this.running = true;

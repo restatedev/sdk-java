@@ -35,6 +35,14 @@ public abstract class CallTestSuite implements TestSuite {
                 oneWayCallCmd(1, GREETER_SERVICE_TARGET, IDEMPOTENCY_KEY, HEADERS, BODY),
                 outputCmd(),
                 END_MESSAGE),
+        oneWayCall(GREETER_SERVICE_TARGET, IDEMPOTENCY_KEY, HEADERS, BODY)
+            .withInput(
+                startMessage(3),
+                inputCmd(),
+                oneWayCallCmd(1, GREETER_SERVICE_TARGET, IDEMPOTENCY_KEY, HEADERS, BODY),
+                callInvocationIdCompletion(1, "abc"))
+            .expectingOutput(outputCmd(), END_MESSAGE)
+            .named("With invocation ID completion"),
         oneWayCall(GREETER_VIRTUAL_OBJECT_TARGET, IDEMPOTENCY_KEY, HEADERS, BODY)
             .withInput(startMessage(1), inputCmd())
             .expectingOutput(

@@ -81,14 +81,15 @@ internal class ContextImpl internal constructor(internal val handlerContext: Han
       parameter: T,
       sendOptions: SendOptions
   ) {
-    handlerContext
-        .send(
-            target,
-            inputSerde.serializeWrappingException(handlerContext, parameter),
-            sendOptions.idempotencyKey,
-            sendOptions.headers?.entries,
-            sendOptions.delay?.toJavaDuration())
-        .await()
+    val ignored =
+        handlerContext
+            .send(
+                target,
+                inputSerde.serializeWrappingException(handlerContext, parameter),
+                sendOptions.idempotencyKey,
+                sendOptions.headers?.entries,
+                sendOptions.delay?.toJavaDuration())
+            .await()
   }
 
   override suspend fun <T : Any?> runAsync(
