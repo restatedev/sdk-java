@@ -58,15 +58,17 @@ sealed interface Context {
    * @param inputSerde Input serde
    * @param outputSerde Output serde
    * @param parameter the invocation request parameter.
+   * @param callOptions request options.
    * @return the invocation response.
    */
   suspend fun <T : Any?, R : Any?> call(
       target: dev.restate.common.Target,
       inputSerde: Serde<T>,
       outputSerde: Serde<R>,
-      parameter: T
+      parameter: T,
+      callOptions: CallOptions = CallOptions.DEFAULT
   ): R {
-    return callAsync(target, inputSerde, outputSerde, parameter).await()
+    return callAsync(target, inputSerde, outputSerde, parameter, callOptions).await()
   }
 
   /**
@@ -76,13 +78,15 @@ sealed interface Context {
    * @param inputSerde Input serde
    * @param outputSerde Output serde
    * @param parameter the invocation request parameter.
+   * @param callOptions request options.
    * @return an [Awaitable] that wraps the Restate service method result.
    */
   suspend fun <T : Any?, R : Any?> callAsync(
       target: dev.restate.common.Target,
       inputSerde: Serde<T>,
       outputSerde: Serde<R>,
-      parameter: T
+      parameter: T,
+      callOptions: CallOptions = CallOptions.DEFAULT
   ): Awaitable<R>
 
   /**
@@ -91,13 +95,13 @@ sealed interface Context {
    * @param target the address of the callee
    * @param inputSerde Input serde
    * @param parameter the invocation request parameter.
-   * @param delay time to wait before executing the call
+   * @param sendOptions request options.
    */
   suspend fun <T : Any?> send(
       target: dev.restate.common.Target,
       inputSerde: Serde<T>,
       parameter: T,
-      delay: Duration = Duration.ZERO
+      sendOptions: SendOptions = SendOptions.DEFAULT
   )
 
   /**

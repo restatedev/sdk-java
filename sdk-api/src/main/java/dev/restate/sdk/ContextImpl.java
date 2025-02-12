@@ -85,24 +85,26 @@ class ContextImpl implements ObjectContext, WorkflowContext {
 
   @Override
   public <T, R> Awaitable<R> call(
-      Target target, Serde<T> inputSerde, Serde<R> outputSerde, T parameter) {
+      Target target, Serde<T> inputSerde, Serde<R> outputSerde, T parameter, CallOptions options) {
     Slice input = Util.serializeWrappingException(handlerContext, inputSerde, parameter);
     HandlerContext.CallResult result =
-        Util.awaitCompletableFuture(handlerContext.call(target, input, null, null));
+        Util.awaitCompletableFuture(
+            handlerContext.call(
+                target, input, options.getIdempotencyKey(), options.getHeaders().entrySet()));
     return Awaitable.fromAsyncResult(result.callAsyncResult(), serviceExecutor)
         .mapWithoutExecutor(outputSerde::deserialize);
   }
 
   @Override
-  public <T> void send(Target target, Serde<T> inputSerde, T parameter) {
+  public <T> void send(Target target, Serde<T> inputSerde, T parameter, SendOptions sendOptions) {
     Slice input = Util.serializeWrappingException(handlerContext, inputSerde, parameter);
-    Util.awaitCompletableFuture(handlerContext.send(target, input, null, null, null));
-  }
-
-  @Override
-  public <T> void send(Target target, Serde<T> inputSerde, T parameter, Duration delay) {
-    Slice input = Util.serializeWrappingException(handlerContext, inputSerde, parameter);
-    Util.awaitCompletableFuture(handlerContext.send(target, input, null, null, delay));
+    Util.awaitCompletableFuture(
+        handlerContext.send(
+            target,
+            input,
+            sendOptions.getIdempotencyKey(),
+            sendOptions.getHeaders().entrySet(),
+            sendOptions.getDelay()));
   }
 
   @Override

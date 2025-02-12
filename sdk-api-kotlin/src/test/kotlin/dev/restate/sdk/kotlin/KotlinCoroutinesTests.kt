@@ -28,6 +28,7 @@ class KotlinCoroutinesTests : TestRunner() {
     return Stream.of(
         AwakeableIdTest(),
         AsyncResultTest(),
+        CallTest(),
         EagerStateTest(),
         StateTest(),
         InvocationIdTest(),

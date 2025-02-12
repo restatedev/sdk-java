@@ -2,6 +2,8 @@
 
 import dev.restate.sdk.kotlin.Awaitable
 import dev.restate.sdk.kotlin.Context
+import dev.restate.sdk.kotlin.SendOptions
+import dev.restate.sdk.kotlin.CallOptions
 import dev.restate.sdk.types.StateKey
 import dev.restate.serde.Serde
 import dev.restate.common.Target
@@ -24,26 +26,27 @@ object {{generatedClassSimpleName}} {
 
     class ContextClient(private val ctx: Context{{#isKeyed}}, private val key: String{{/isKeyed}}){
         {{#handlers}}
-        suspend fun {{methodName}}({{^inputEmpty}}req: {{{inputFqcn}}}{{/inputEmpty}}): Awaitable<{{{boxedOutputFqcn}}}> {
+        suspend fun {{methodName}}({{^inputEmpty}}req: {{{inputFqcn}}}, {{/inputEmpty}} options: CallOptions = CallOptions.DEFAULT): Awaitable<{{{boxedOutputFqcn}}}> {
             return this.ctx.callAsync(
                 {{{targetExpr this "this.key"}}},
                 {{inputSerdeRef}},
                 {{outputSerdeRef}},
-                {{#if inputEmpty}}Unit{{else}}req{{/if}})
+                {{#if inputEmpty}}Unit{{else}}req{{/if}},
+                options)
         }{{/handlers}}
 
-        fun send(delay: Duration = Duration.ZERO): Send {
-            return Send(delay)
+        fun send(): Send {
+            return Send()
         }
 
-        inner class Send(private val delay: Duration) {
+        inner class Send internal constructor() {
             {{#handlers}}
-            suspend fun {{methodName}}({{^inputEmpty}}req: {{{inputFqcn}}}{{/inputEmpty}}) {
+            suspend fun {{methodName}}({{^inputEmpty}}req: {{{inputFqcn}}}, {{/inputEmpty}} options: SendOptions = SendOptions.DEFAULT) {
                 this@ContextClient.ctx.send(
                     {{{targetExpr this "this@ContextClient.key"}}},
                     {{inputSerdeRef}},
                     {{#if inputEmpty}}Unit{{else}}req{{/if}},
-                    delay);
+                    options);
             }{{/handlers}}
         }
     }

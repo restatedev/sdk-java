@@ -2,6 +2,8 @@
 
 import dev.restate.sdk.Awaitable;
 import dev.restate.sdk.Context;
+import dev.restate.sdk.CallOptions;
+import dev.restate.sdk.SendOptions;
 import dev.restate.sdk.types.StateKey;
 import dev.restate.serde.Serde;
 import dev.restate.common.Target;
@@ -38,24 +40,26 @@ public class {{generatedClassSimpleName}} {
                 {{{targetExpr this "this.key"}}},
                 {{inputSerdeRef}},
                 {{outputSerdeRef}},
-                {{#if inputEmpty}}null{{else}}req{{/if}});
+                {{#if inputEmpty}}null{{else}}req{{/if}},
+                CallOptions.DEFAULT);
+        }
+
+        public Awaitable<{{{boxedOutputFqcn}}}> {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}CallOptions options) {
+            return this.ctx.call(
+                {{{targetExpr this "this.key"}}},
+                {{inputSerdeRef}},
+                {{outputSerdeRef}},
+                {{#if inputEmpty}}null{{else}}req{{/if}},
+                options);
         }{{/handlers}}
 
         public Send send() {
-            return new Send(null);
-        }
-
-        public Send send(Duration delay) {
-            return new Send(delay);
+            return new Send();
         }
 
         public class Send {
 
-            private final Duration delay;
-
-            Send(Duration delay) {
-                this.delay = delay;
-            }
+            private Send() {}
 
             {{#handlers}}
             public void {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
@@ -63,7 +67,15 @@ public class {{generatedClassSimpleName}} {
                     {{{targetExpr this "ContextClient.this.key"}}},
                     {{inputSerdeRef}},
                     {{#if inputEmpty}}null{{else}}req{{/if}},
-                    delay);
+                    SendOptions.DEFAULT);
+            }
+
+            public void {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}SendOptions options) {
+                ContextClient.this.ctx.send(
+                    {{{targetExpr this "ContextClient.this.key"}}},
+                    {{inputSerdeRef}},
+                    {{#if inputEmpty}}null{{else}}req{{/if}},
+                    options);
             }{{/handlers}}
         }
     }

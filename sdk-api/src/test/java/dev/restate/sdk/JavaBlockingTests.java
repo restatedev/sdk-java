@@ -38,6 +38,7 @@ public class JavaBlockingTests extends TestRunner {
     return Stream.of(
         new AwakeableIdTest(),
         new AsyncResultTest(),
+        new CallTest(),
         new EagerStateTest(),
         new StateTest(),
         new InvocationIdTest(),

@@ -12,6 +12,7 @@ import dev.restate.common.Target
 import dev.restate.sdk.kotlin.Awaitable
 import dev.restate.sdk.kotlin.Context
 import dev.restate.sdk.kotlin.awaitAll
+import dev.restate.sdk.kotlin.sendOptions
 import dev.restate.sdk.testservices.contracts.ManyCallRequest
 import dev.restate.sdk.testservices.contracts.Proxy
 import dev.restate.sdk.testservices.contracts.ProxyRequest
@@ -37,7 +38,7 @@ class ProxyImpl : Proxy {
         request.toTarget(),
         Serde.RAW,
         request.message,
-        request.delayMillis?.milliseconds ?: Duration.ZERO)
+        sendOptions { delay = request.delayMillis?.milliseconds ?: Duration.ZERO })
   }
 
   override suspend fun manyCalls(context: Context, requests: List<ManyCallRequest>) {
@@ -49,7 +50,7 @@ class ProxyImpl : Proxy {
             request.proxyRequest.toTarget(),
             Serde.RAW,
             request.proxyRequest.message,
-            request.proxyRequest.delayMillis?.milliseconds ?: Duration.ZERO)
+            sendOptions { delay = request.proxyRequest.delayMillis?.milliseconds ?: Duration.ZERO })
       } else {
         val awaitable =
             context.callAsync(

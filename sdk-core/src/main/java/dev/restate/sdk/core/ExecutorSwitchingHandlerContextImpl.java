@@ -17,7 +17,6 @@ import dev.restate.sdk.types.*;
 import io.opentelemetry.context.Context;
 import java.time.Duration;
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -81,7 +80,7 @@ final class ExecutorSwitchingHandlerContextImpl extends HandlerContextImpl {
       Target target,
       Slice parameter,
       @Nullable String idempotencyKey,
-      @Nullable List<Map.Entry<String, String>> headers) {
+      @Nullable Collection<Map.Entry<String, String>> headers) {
     return CompletableFuture.supplyAsync(
             () -> super.call(target, parameter, idempotencyKey, headers), coreExecutor)
         .thenCompose(Function.identity());
@@ -92,7 +91,7 @@ final class ExecutorSwitchingHandlerContextImpl extends HandlerContextImpl {
       Target target,
       Slice parameter,
       @Nullable String idempotencyKey,
-      @Nullable List<Map.Entry<String, String>> headers,
+      @Nullable Collection<Map.Entry<String, String>> headers,
       @Nullable Duration delay) {
     return CompletableFuture.supplyAsync(
             () -> super.send(target, parameter, idempotencyKey, headers, delay), coreExecutor)

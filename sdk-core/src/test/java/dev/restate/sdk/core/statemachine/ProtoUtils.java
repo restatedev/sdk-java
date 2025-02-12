@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.Nullable;
 
 public class ProtoUtils {
 
@@ -274,6 +275,41 @@ public class ProtoUtils {
       int invocationIdCompletionId, int resultCompletionId, Target target, String parameter) {
     return callCmd(
         invocationIdCompletionId, resultCompletionId, target, TestSerdes.STRING, parameter);
+  }
+
+  public static Protocol.OneWayCallCommandMessage.Builder oneWayCallCmd(
+      int invocationIdCompletionId,
+      Target target,
+      @Nullable String idempotencyKey,
+      @Nullable Map<String, String> headers,
+      Slice input) {
+    Protocol.OneWayCallCommandMessage.Builder builder =
+        Protocol.OneWayCallCommandMessage.newBuilder()
+            .setServiceName(target.getService())
+            .setHandlerName(target.getHandler());
+    if (target.getKey() != null) {
+      builder.setKey(target.getKey());
+    }
+    if (idempotencyKey != null) {
+      builder.setIdempotencyKey(idempotencyKey);
+    }
+    if (headers != null) {
+      builder.addAllHeaders(
+          headers.entrySet().stream()
+              .map(
+                  e ->
+                      Protocol.Header.newBuilder()
+                          .setKey(e.getKey())
+                          .setValue(e.getValue())
+                          .build())
+              .toList());
+    }
+
+    builder
+        .setParameter(UnsafeByteOperations.unsafeWrap(input.asReadOnlyByteBuffer()))
+        .setInvocationIdNotificationIdx(invocationIdCompletionId);
+
+    return builder;
   }
 
   public static <T> Protocol.CallCompletionNotificationMessage.Builder callCompletion(

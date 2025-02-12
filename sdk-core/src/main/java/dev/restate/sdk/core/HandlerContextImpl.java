@@ -144,7 +144,7 @@ class HandlerContextImpl implements HandlerContextInternal {
       Target target,
       Slice parameter,
       @Nullable String idempotencyKey,
-      @Nullable List<Map.Entry<String, String>> headers) {
+      @Nullable Collection<Map.Entry<String, String>> headers) {
     return catchExceptions(
         () -> {
           StateMachine.CallHandle callHandle =
@@ -185,7 +185,7 @@ class HandlerContextImpl implements HandlerContextInternal {
       Target target,
       Slice parameter,
       @Nullable String idempotencyKey,
-      @Nullable List<Map.Entry<String, String>> headers,
+      @Nullable Collection<Map.Entry<String, String>> headers,
       @Nullable Duration delay) {
     return catchExceptions(
         () -> {

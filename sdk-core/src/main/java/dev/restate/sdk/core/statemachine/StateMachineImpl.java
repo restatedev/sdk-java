@@ -278,7 +278,7 @@ class StateMachineImpl implements StateMachine {
       Target target,
       Slice payload,
       @Nullable String idempotencyKey,
-      @Nullable List<Map.Entry<String, String>> headers) {
+      @Nullable Collection<Map.Entry<String, String>> headers) {
     LOG.debug("Executing 'Call {}'", target);
     if (idempotencyKey != null && idempotencyKey.isBlank()) {
       throw ProtocolException.idempotencyKeyIsEmpty();
@@ -327,7 +327,7 @@ class StateMachineImpl implements StateMachine {
       Target target,
       Slice payload,
       @Nullable String idempotencyKey,
-      @Nullable List<Map.Entry<String, String>> headers,
+      @Nullable Collection<Map.Entry<String, String>> headers,
       @Nullable Duration delay) {
     LOG.debug("Executing 'Send {}'", target);
     if (idempotencyKey != null && idempotencyKey.isBlank()) {

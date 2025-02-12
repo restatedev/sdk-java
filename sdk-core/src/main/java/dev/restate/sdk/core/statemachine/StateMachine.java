@@ -14,6 +14,7 @@ import dev.restate.sdk.core.EndpointRequestHandler;
 import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.types.*;
 import java.time.Duration;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -94,13 +95,13 @@ public interface StateMachine extends Flow.Processor<Slice, Slice> {
       Target target,
       Slice payload,
       @Nullable String idempotencyKey,
-      @Nullable List<Map.Entry<String, String>> headers);
+      @Nullable Collection<Map.Entry<String, String>> headers);
 
   int send(
       Target target,
       Slice payload,
       @Nullable String idempotencyKey,
-      @Nullable List<Map.Entry<String, String>> headers,
+      @Nullable Collection<Map.Entry<String, String>> headers,
       @Nullable Duration delay);
 
   record Awakeable(String awakeableId, int handle) {}

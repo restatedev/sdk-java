@@ -43,11 +43,38 @@ public interface Context {
    * @param parameter the invocation request parameter.
    * @return an {@link Awaitable} that wraps the Restate service method result.
    */
-  <T, R> Awaitable<R> call(Target target, Serde<T> inputSerde, Serde<R> outputSerde, T parameter);
+  default <T, R> Awaitable<R> call(
+      Target target, Serde<T> inputSerde, Serde<R> outputSerde, T parameter) {
+    return call(target, inputSerde, outputSerde, parameter, CallOptions.DEFAULT);
+  }
 
   /** Like {@link #call(Target, Serde, Serde, Object)} with raw input/output. */
   default Awaitable<byte[]> call(Target target, byte[] parameter) {
     return call(target, Serde.RAW, Serde.RAW, parameter);
+  }
+
+  /** Like {@link #call(Target, Serde, Serde, Object)} but providing request options. */
+  <T, R> Awaitable<R> call(
+      Target target, Serde<T> inputSerde, Serde<R> outputSerde, T parameter, CallOptions options);
+
+  /** Like {@link #call(Target, byte[])} but providing request options. */
+  default Awaitable<byte[]> call(Target target, byte[] parameter, CallOptions options) {
+    return call(target, Serde.RAW, Serde.RAW, parameter, options);
+  }
+
+  /** Like {@link #call(Target, Serde, Serde, Object)} but providing request options. */
+  default <T, R> Awaitable<R> call(
+      Target target,
+      Serde<T> inputSerde,
+      Serde<R> outputSerde,
+      T parameter,
+      CallOptions.Builder options) {
+    return call(target, inputSerde, outputSerde, parameter, options.build());
+  }
+
+  /** Like {@link #call(Target, byte[])} but providing request options. */
+  default Awaitable<byte[]> call(Target target, byte[] parameter, CallOptions.Builder options) {
+    return call(target, Serde.RAW, Serde.RAW, parameter, options);
   }
 
   /**
@@ -57,29 +84,32 @@ public interface Context {
    * @param inputSerde Input serde
    * @param parameter the invocation request parameter.
    */
-  <T> void send(Target target, Serde<T> inputSerde, T parameter);
+  default <T> void send(Target target, Serde<T> inputSerde, T parameter) {
+    send(target, inputSerde, parameter, SendOptions.DEFAULT);
+  }
 
-  /** Like {@link #send(Target, Serde, Object)} with bytes input. */
+  /** Like {@link #send(Target, Serde, Object)} with raw input. */
   default void send(Target target, byte[] parameter) {
     send(target, Serde.RAW, parameter);
   }
 
-  /**
-   * Invoke another Restate service without waiting for the response after the provided {@code
-   * delay} has elapsed.
-   *
-   * <p>This method returns immediately, as the timer is executed and awaited on Restate.
-   *
-   * @param target the address of the callee
-   * @param inputSerde Input serde
-   * @param parameter the invocation request parameter.
-   * @param delay time to wait before executing the call.
-   */
-  <T> void send(Target target, Serde<T> inputSerde, T parameter, Duration delay);
+  /** Like {@link #send(Target, Serde, Object)} but providing request options. */
+  <T> void send(Target target, Serde<T> inputSerde, T parameter, SendOptions options);
 
-  /** Like {@link #send(Target, Serde, Object, Duration)} with bytes input. */
-  default void send(Target target, byte[] parameter, Duration delay) {
-    send(target, Serde.RAW, parameter, delay);
+  /** Like {@link #send(Target, byte[])} but providing request options. */
+  default void send(Target target, byte[] parameter, SendOptions options) {
+    send(target, Serde.RAW, parameter, options);
+  }
+
+  /** Like {@link #send(Target, Serde, Object)} but providing request options. */
+  default <T> void send(
+      Target target, Serde<T> inputSerde, T parameter, SendOptions.Builder options) {
+    send(target, inputSerde, parameter, options.build());
+  }
+
+  /** Like {@link #send(Target, byte[])} but providing request options. */
+  default void send(Target target, byte[] parameter, SendOptions.Builder options) {
+    send(target, Serde.RAW, parameter, options);
   }
 
   /**

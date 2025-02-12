@@ -60,15 +60,17 @@ internal class ContextImpl internal constructor(internal val handlerContext: Han
       target: dev.restate.common.Target,
       inputSerde: Serde<T>,
       outputSerde: Serde<R>,
-      parameter: T
+      parameter: T,
+      callOptions: CallOptions
   ): Awaitable<R> =
       SingleAwaitableImpl(
               handlerContext
                   .call(
                       target,
                       inputSerde.serializeWrappingException(handlerContext, parameter),
-                      null,
-                      null)
+                      callOptions.idempotencyKey,
+                      callOptions.headers?.entries,
+                  )
                   .await()
                   .callAsyncResult)
           .map { outputSerde.deserialize(it) }
@@ -77,15 +79,15 @@ internal class ContextImpl internal constructor(internal val handlerContext: Han
       target: dev.restate.common.Target,
       inputSerde: Serde<T>,
       parameter: T,
-      delay: Duration
+      sendOptions: SendOptions
   ) {
     handlerContext
         .send(
             target,
             inputSerde.serializeWrappingException(handlerContext, parameter),
-            null,
-            null,
-            delay.toJavaDuration())
+            sendOptions.idempotencyKey,
+            sendOptions.headers?.entries,
+            sendOptions.delay?.toJavaDuration())
         .await()
   }
 

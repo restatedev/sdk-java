@@ -10,7 +10,6 @@ package dev.restate.serde;
 
 import dev.restate.common.Slice;
 import dev.restate.common.function.ThrowingFunction;
-import java.nio.ByteBuffer;
 import java.util.Objects;
 import org.jspecify.annotations.*;
 
@@ -140,17 +139,17 @@ public interface Serde<T extends @Nullable Object> {
         }
       };
 
-  /** Pass through {@link Serde} for {@link ByteBuffer}. */
-  Serde<ByteBuffer> BYTE_BUFFER =
+  /** Passthrough serializer/deserializer */
+  Serde<Slice> SLICE =
       new Serde<>() {
         @Override
-        public Slice serialize(ByteBuffer value) {
-          return Slice.wrap(Objects.requireNonNull(value));
+        public Slice serialize(Slice value) {
+          return value;
         }
 
         @Override
-        public ByteBuffer deserialize(Slice value) {
-          return value.asReadOnlyByteBuffer();
+        public Slice deserialize(Slice value) {
+          return value;
         }
       };
 }

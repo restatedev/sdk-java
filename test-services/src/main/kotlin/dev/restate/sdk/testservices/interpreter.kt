@@ -136,8 +136,9 @@ class ObjectInterpreterImpl(private val layer: Int) : ObjectInterpreter {
         }
         is IncrementViaDelayedCall -> {
           ServiceInterpreterHelperClient.fromContext(ctx)
-              .send(delay = cmd.duration.milliseconds)
-              .incrementIndirectly(interpreterId(ctx))
+              .send()
+              .incrementIndirectly(
+                  interpreterId(ctx), sendOptions { delay = cmd.duration.milliseconds })
         }
         is RecoverTerminalCall -> {
           var caught = false

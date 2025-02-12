@@ -59,13 +59,13 @@ public interface HandlerContext {
       Target target,
       Slice parameter,
       @Nullable String idempotencyKey,
-      @Nullable List<Map.Entry<String, String>> headers);
+      @Nullable Collection<Map.Entry<String, String>> headers);
 
   CompletableFuture<AsyncResult<String>> send(
       Target target,
       Slice parameter,
       @Nullable String idempotencyKey,
-      @Nullable List<Map.Entry<String, String>> headers,
+      @Nullable Collection<Map.Entry<String, String>> headers,
       @Nullable Duration delay);
 
   interface RunCompleter {
