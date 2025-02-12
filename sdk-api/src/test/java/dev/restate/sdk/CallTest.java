@@ -38,7 +38,7 @@ public class CallTest extends CallTestSuite {
   @Override
   protected TestInvocationBuilder implicitCancellation(Target target, Slice body) {
     return testDefinitionForService(
-        "Implicit cancellation",
+        "ImplicitCancellation",
         Serde.VOID,
         Serde.RAW,
         (context, unused) -> context.call(target, body.toByteArray()).await());

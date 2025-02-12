@@ -27,9 +27,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
 
 class HandlerContextImpl implements HandlerContextInternal {
+
+  private static final Logger LOG = LogManager.getLogger(HandlerContextImpl.class);
 
   private static final int CANCEL_HANDLE = 1;
 
@@ -362,6 +366,8 @@ class HandlerContextImpl implements HandlerContextInternal {
       // Let's look for the cancellation notification
       var cancellationNotification = this.stateMachine.takeNotification(CANCEL_HANDLE);
       if (cancellationNotification.isPresent()) {
+        LOG.info("Detected cancellation signal! Will start cancelling child invocations");
+
         // Let's wait to cancel all
         @SuppressWarnings({"rawtypes", "unchecked"})
         AsyncResultInternal<Void> allInvocationIds =
@@ -374,6 +380,7 @@ class HandlerContextImpl implements HandlerContextInternal {
                     // Already handled
                     return;
                   }
+                  LOG.info("All child invocation ids retrieved");
                   try {
                     for (var invocationIdAr : this.invocationIdsToCancel) {
                       this.stateMachine.cancelInvocation(
