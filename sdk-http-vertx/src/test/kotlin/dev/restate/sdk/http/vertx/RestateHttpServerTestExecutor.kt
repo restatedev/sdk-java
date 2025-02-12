@@ -11,6 +11,7 @@ package dev.restate.sdk.http.vertx
 import dev.restate.sdk.core.TestDefinitions.TestDefinition
 import dev.restate.sdk.core.TestDefinitions.TestExecutor
 import dev.restate.sdk.core.statemachine.ProtoUtils
+import dev.restate.sdk.endpoint.Endpoint
 import dev.restate.sdk.endpoint.definition.ServiceDefinition
 import io.netty.buffer.Unpooled
 import io.vertx.core.Vertx
@@ -28,7 +29,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 
-class HttpVertxTestExecutor(private val vertx: Vertx) : TestExecutor {
+class RestateHttpServerTestExecutor(private val vertx: Vertx) : TestExecutor {
   override fun buffered(): Boolean {
     return false
   }
@@ -36,20 +37,21 @@ class HttpVertxTestExecutor(private val vertx: Vertx) : TestExecutor {
   override fun executeTest(definition: TestDefinition) {
     runBlocking(vertx.dispatcher()) {
       // Build server
-      val serverBuilder =
-          RestateHttpEndpointBuilder.builder(vertx)
-              .withOptions(HttpServerOptions().setPort(0))
+      val endpointBuilder =
+          Endpoint.builder()
               .bind(
                   definition.serviceDefinition as ServiceDefinition<Any>, definition.serviceOptions)
       if (definition.isEnablePreviewContext()) {
-        serverBuilder.enablePreviewContext()
+        endpointBuilder.enablePreviewContext()
       }
 
       // Start server
-      val server = serverBuilder.build()
+      val server =
+          RestateHttpServer.fromEndpoint(
+              vertx, endpointBuilder.build(), HttpServerOptions().setPort(0))
       server.listen().coAwait()
 
-      val client = vertx.createHttpClient(RestateHttpEndpointTest.HTTP_CLIENT_OPTIONS)
+      val client = vertx.createHttpClient(RestateHttpServerTest.HTTP_CLIENT_OPTIONS)
 
       val request =
           client

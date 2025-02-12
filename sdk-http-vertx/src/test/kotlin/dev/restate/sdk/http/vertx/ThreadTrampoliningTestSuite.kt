@@ -8,21 +8,16 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.http.vertx
 
-import com.google.protobuf.ByteString
-import dev.restate.generated.service.protocol.Protocol
-import dev.restate.sdk.HandlerRunner
 import dev.restate.sdk.core.TestDefinitions
 import dev.restate.sdk.core.TestDefinitions.testInvocation
 import dev.restate.sdk.core.statemachine.ProtoUtils.*
-import dev.restate.sdk.definition.HandlerSpecification
 import dev.restate.sdk.endpoint.definition.HandlerDefinition
 import dev.restate.sdk.endpoint.definition.HandlerType
 import dev.restate.sdk.endpoint.definition.ServiceDefinition
 import dev.restate.sdk.endpoint.definition.ServiceType
-import dev.restate.sdk.kotlin.Context
 import dev.restate.sdk.kotlin.KtSerdes
 import dev.restate.sdk.kotlin.runBlock
-import dev.restate.sdk.serde.Serde
+import dev.restate.serde.Serde
 import io.vertx.core.Vertx
 import java.util.stream.Stream
 import kotlin.coroutines.coroutineContext
@@ -30,7 +25,7 @@ import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import org.apache.logging.log4j.LogManager
 
-class VertxExecutorsTest : TestDefinitions.TestSuite {
+class ThreadTrampoliningTestSuite : TestDefinitions.TestSuite {
 
   private val nonBlockingCoroutineName = CoroutineName("CheckContextSwitchingTestCoroutine")
 
@@ -46,7 +41,6 @@ class VertxExecutorsTest : TestDefinitions.TestSuite {
     check(coroutineContext[CoroutineName] == nonBlockingCoroutineName)
     ctx.runBlock {
       LOG.info("I am on the thread I am when executing side effect")
-      check(coroutineContext[CoroutineName] == nonBlockingCoroutineName)
       check(Vertx.currentContext() == null)
     }
     LOG.info("I am on the thread I am after executing side effect")
@@ -60,10 +54,7 @@ class VertxExecutorsTest : TestDefinitions.TestSuite {
   ): Void? {
     val id = Thread.currentThread().id
     check(Vertx.currentContext() == null)
-    ctx.run {
-      check(Thread.currentThread().id == id)
-      check(Vertx.currentContext() == null)
-    }
+    ctx.run { check(Vertx.currentContext() == null) }
     check(Thread.currentThread().id == id)
     check(Vertx.currentContext() == null)
     return null
@@ -77,41 +68,39 @@ class VertxExecutorsTest : TestDefinitions.TestSuite {
                     ServiceType.SERVICE,
                     listOf(
                         HandlerDefinition.of(
-                            HandlerSpecification.of(
-                                "do", HandlerType.SHARED, KtSerdes.UNIT, KtSerdes.UNIT),
-                            dev.restate.sdk.kotlin.HandlerRunner.of { ctx: Context, _: Unit ->
+                            "do",
+                            HandlerType.SHARED,
+                            KtSerdes.UNIT,
+                            KtSerdes.UNIT,
+                            dev.restate.sdk.kotlin.HandlerRunner.of {
+                                ctx: dev.restate.sdk.kotlin.Context,
+                                _: Unit ->
                               checkNonBlockingComponentTrampolineExecutor(ctx)
                             }))),
                 dev.restate.sdk.kotlin.HandlerRunner.Options(
                     Dispatchers.Default + nonBlockingCoroutineName),
                 "do")
-            .withInput(startMessage(1), inputCmd(), ackMessage(1))
+            .withInput(startMessage(1), inputCmd())
             .onlyBidiStream()
             .expectingOutput(
-                Protocol.RunEntryMessage.newBuilder().setValue(ByteString.EMPTY),
-                outputCmd(),
-                END_MESSAGE),
+                runCmd(1), proposeRunCompletion(1, Serde.VOID, null), suspensionMessage(1)),
         testInvocation(
                 ServiceDefinition.of(
                     "CheckBlockingComponentTrampolineExecutor",
                     ServiceType.SERVICE,
                     listOf(
                         HandlerDefinition.of(
-                            HandlerSpecification.of(
-                                "do",
-                                HandlerType.SHARED,
-                                Serde.VOID,
-                                Serde.VOID,
-                            ),
+                            "do",
+                            HandlerType.SHARED,
+                            Serde.VOID,
+                            Serde.VOID,
                             dev.restate.sdk.HandlerRunner.of(
                                 this::checkBlockingComponentTrampolineExecutor)))),
-                HandlerRunner.Options.DEFAULT,
+                dev.restate.sdk.HandlerRunner.Options.DEFAULT,
                 "do")
-            .withInput(startMessage(1), inputCmd(), ackMessage(1))
+            .withInput(startMessage(1), inputCmd())
             .onlyBidiStream()
             .expectingOutput(
-                Protocol.RunEntryMessage.newBuilder().setValue(ByteString.EMPTY),
-                outputCmd(),
-                END_MESSAGE))
+                runCmd(1), proposeRunCompletion(1, Serde.VOID, null), suspensionMessage(1)))
   }
 }

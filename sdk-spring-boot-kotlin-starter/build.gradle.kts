@@ -11,6 +11,7 @@ dependencies {
   compileOnly(libs.jspecify)
 
   api(project(":sdk-api-kotlin"))
+  api(project(":client-kotlin"))
   api(project(":sdk-spring-boot"))
 
   kspTest(project(":sdk-api-kotlin-gen"))

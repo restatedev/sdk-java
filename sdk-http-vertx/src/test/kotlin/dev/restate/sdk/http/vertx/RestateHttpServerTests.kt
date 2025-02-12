@@ -19,7 +19,7 @@ import java.util.stream.Stream
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 
-class HttpVertxTests : dev.restate.sdk.core.TestRunner() {
+class RestateHttpServerTests : dev.restate.sdk.core.TestRunner() {
 
   lateinit var vertx: Vertx
 
@@ -34,7 +34,7 @@ class HttpVertxTests : dev.restate.sdk.core.TestRunner() {
   }
 
   override fun executors(): Stream<TestExecutor> {
-    return Stream.of(HttpVertxTestExecutor(vertx))
+    return Stream.of(RestateHttpServerTestExecutor(vertx))
   }
 
   override fun definitions(): Stream<TestSuite> {
@@ -42,6 +42,6 @@ class HttpVertxTests : dev.restate.sdk.core.TestRunner() {
         Stream.concat(
             Stream.concat(JavaBlockingTests().definitions(), JavaCodegenTests().definitions()),
             Stream.concat(KotlinCoroutinesTests().definitions(), KtCodegenTests().definitions())),
-        Stream.of(VertxExecutorsTest()))
+        Stream.of(ThreadTrampoliningTestSuite()))
   }
 }

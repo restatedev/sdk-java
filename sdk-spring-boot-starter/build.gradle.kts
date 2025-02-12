@@ -18,6 +18,12 @@ dependencies {
     exclude(group = "com.fasterxml.jackson.core")
     exclude(group = "com.fasterxml.jackson.datatype")
   }
+  api(project(":client")) {
+    // Let spring bring jackson in
+    exclude(group = "com.fasterxml.jackson")
+    exclude(group = "com.fasterxml.jackson.core")
+    exclude(group = "com.fasterxml.jackson.datatype")
+  }
   api(project(":sdk-serde-jackson")) {
     // Let spring bring jackson in
     exclude(group = "com.fasterxml.jackson")

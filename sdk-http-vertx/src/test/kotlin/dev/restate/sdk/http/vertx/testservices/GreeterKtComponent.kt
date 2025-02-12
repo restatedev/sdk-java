@@ -8,7 +8,6 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.http.vertx.testservices
 
-import dev.restate.sdk.definition.HandlerSpecification
 import dev.restate.sdk.endpoint.definition.HandlerDefinition
 import dev.restate.sdk.endpoint.definition.HandlerType
 import dev.restate.sdk.endpoint.definition.ServiceDefinition
@@ -29,8 +28,10 @@ fun greeter(): ServiceDefinition<*> =
         ServiceType.VIRTUAL_OBJECT,
         listOf(
             HandlerDefinition.of(
-                HandlerSpecification.of(
-                    "greet", HandlerType.EXCLUSIVE, KtSerdes.json(), KtSerdes.json()),
+                "greet",
+                HandlerType.EXCLUSIVE,
+                KtSerdes.json(),
+                KtSerdes.json(),
                 HandlerRunner.of { ctx: ObjectContext, request: String ->
                   LOG.info("Greet invoked!")
 

@@ -11,12 +11,14 @@ package dev.restate.sdk.http.vertx
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.protobuf.ByteString
 import com.google.protobuf.MessageLite
-import dev.restate.generated.service.protocol.Protocol.*
 import dev.restate.sdk.JsonSerdes
-import dev.restate.sdk.core.manifest.EndpointManifestSchema
+import dev.restate.sdk.core.generated.manifest.EndpointManifestSchema
+import dev.restate.sdk.core.generated.protocol.Protocol
 import dev.restate.sdk.core.statemachine.ProtoUtils.*
+import dev.restate.sdk.endpoint.Endpoint
 import dev.restate.sdk.http.vertx.testservices.BlockingGreeter
 import dev.restate.sdk.http.vertx.testservices.greeter
+import dev.restate.sdk.kotlin.endpoint.endpoint
 import io.netty.buffer.Unpooled
 import io.netty.handler.codec.http.HttpResponseStatus
 import io.vertx.core.Vertx
@@ -39,7 +41,7 @@ import org.junit.jupiter.api.parallel.Isolated
 
 @Isolated
 @ExtendWith(VertxExtension::class)
-internal class RestateHttpEndpointTest {
+internal class RestateHttpServerTest {
 
   companion object {
     val HTTP_CLIENT_OPTIONS: HttpClientOptions =
@@ -52,29 +54,23 @@ internal class RestateHttpEndpointTest {
   @Timeout(value = 1, timeUnit = TimeUnit.SECONDS)
   @Test
   fun endpointWithNonBlockingService(vertx: Vertx): Unit =
-      greetTest(vertx, "KtGreeter") { it.bind(greeter()) }
+      greetTest(vertx, "KtGreeter") { bind(greeter()) }
 
   @Timeout(value = 1, timeUnit = TimeUnit.SECONDS)
   @Test
   fun endpointWithBlockingService(vertx: Vertx): Unit =
-      greetTest(vertx, BlockingGreeter::class.simpleName!!) { it.bind(BlockingGreeter()) }
+      greetTest(vertx, BlockingGreeter::class.simpleName!!) { bind(BlockingGreeter()) }
 
   private fun greetTest(
       vertx: Vertx,
       componentName: String,
-      consumeBuilderFn: (RestateHttpEndpointBuilder) -> RestateHttpEndpointBuilder
+      initEndpoint: Endpoint.Builder.() -> Unit
   ): Unit =
       runBlocking(vertx.dispatcher()) {
-        val endpointBuilder = RestateHttpEndpointBuilder.builder(vertx)
-        consumeBuilderFn(endpointBuilder)
+        val endpoint = endpoint(initEndpoint)
+        val server = RestateHttpServer.fromEndpoint(vertx, endpoint, HttpServerOptions().setPort(0))
 
-        val endpointPort: Int =
-            endpointBuilder
-                .withOptions(HttpServerOptions().setPort(0))
-                .build()
-                .listen()
-                .coAwait()
-                .actualPort()
+        val endpointPort: Int = server.listen().coAwait().actualPort()
 
         val client = vertx.createHttpClient(HTTP_CLIENT_OPTIONS)
 
@@ -104,43 +100,40 @@ internal class RestateHttpEndpointTest {
         // Wait for Get State Entry
         val getStateEntry = inputChannel.receive()
 
-        assertThat(getStateEntry).isInstanceOf(GetStateEntryMessage::class.java)
-        assertThat(getStateEntry as GetStateEntryMessage)
-            .returns(ByteString.copyFromUtf8("counter"), GetStateEntryMessage::getKey)
+        assertThat(getStateEntry).isInstanceOf(Protocol.GetLazyStateCommandMessage::class.java)
+        assertThat(getStateEntry as Protocol.GetLazyStateCommandMessage)
+            .returns(
+                ByteString.copyFromUtf8("counter"), Protocol.GetLazyStateCommandMessage::getKey)
 
         // Send completion
-        request.write(
-            encode(
-                completionMessage(1)
-                    .setValue(ByteString.copyFrom(JsonSerdes.LONG.serialize(2)))
-                    .build()))
+        request.write(encode(getLazyStateCompletion(1, JsonSerdes.LONG, 2)))
 
         // Wait for Set State Entry
         val setStateEntry = inputChannel.receive()
 
-        assertThat(setStateEntry).isInstanceOf(SetStateEntryMessage::class.java)
-        assertThat(setStateEntry as SetStateEntryMessage)
-            .returns(ByteString.copyFromUtf8("counter"), SetStateEntryMessage::getKey)
-            .returns(ByteString.copyFromUtf8("3"), SetStateEntryMessage::getValue)
+        assertThat(setStateEntry).isInstanceOf(Protocol.SetStateCommandMessage::class.java)
+        assertThat(setStateEntry as Protocol.SetStateCommandMessage)
+            .returns(ByteString.copyFromUtf8("counter"), Protocol.SetStateCommandMessage::getKey)
+            .returns(ByteString.copyFromUtf8("3")) { it.value.content }
 
         // Wait for the sleep and complete it
         val sleepEntry = inputChannel.receive()
 
-        assertThat(sleepEntry).isInstanceOf(SleepEntryMessage::class.java)
+        assertThat(sleepEntry).isInstanceOf(Protocol.SleepCommandMessage::class.java)
 
         // Wait a bit, then send the completion
         delay(1.seconds)
         request.write(
             encode(
-                CompletionMessage.newBuilder()
-                    .setEntryIndex(3)
-                    .setEmpty(Empty.getDefaultInstance())
+                Protocol.SleepCompletionNotificationMessage.newBuilder()
+                    .setCompletionId(2)
+                    .setVoid(Protocol.Void.getDefaultInstance())
                     .build()))
 
         // Now wait for response
         val outputEntry = inputChannel.receive()
 
-        assertThat(outputEntry).isInstanceOf(OutputEntryMessage::class.java)
+        assertThat(outputEntry).isInstanceOf(Protocol.OutputCommandMessage::class.java)
         assertThat(outputEntry).isEqualTo(outputCmd("Hello Francesco. Count: 3"))
 
         // Wait for closing request and response
@@ -151,10 +144,8 @@ internal class RestateHttpEndpointTest {
   fun return404(vertx: Vertx): Unit =
       runBlocking(vertx.dispatcher()) {
         val endpointPort: Int =
-            RestateHttpEndpointBuilder.builder(vertx)
-                .bind(BlockingGreeter())
-                .withOptions(HttpServerOptions().setPort(0))
-                .build()
+            RestateHttpServer.fromEndpoint(
+                    vertx, endpoint { bind(BlockingGreeter()) }, HttpServerOptions().setPort(0))
                 .listen()
                 .coAwait()
                 .actualPort()
@@ -189,10 +180,8 @@ internal class RestateHttpEndpointTest {
   fun serviceDiscovery(vertx: Vertx): Unit =
       runBlocking(vertx.dispatcher()) {
         val endpointPort: Int =
-            RestateHttpEndpointBuilder.builder(vertx)
-                .bind(BlockingGreeter())
-                .withOptions(HttpServerOptions().setPort(0))
-                .build()
+            RestateHttpServer.fromEndpoint(
+                    vertx, endpoint { bind(BlockingGreeter()) }, HttpServerOptions().setPort(0))
                 .listen()
                 .coAwait()
                 .actualPort()

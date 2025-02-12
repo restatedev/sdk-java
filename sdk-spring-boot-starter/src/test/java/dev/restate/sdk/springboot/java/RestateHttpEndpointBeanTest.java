@@ -11,7 +11,7 @@ package dev.restate.sdk.springboot.java;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import dev.restate.sdk.core.manifest.EndpointManifestSchema;
+import dev.restate.sdk.core.generated.manifest.EndpointManifestSchema;
 import dev.restate.sdk.springboot.RestateHttpEndpointBean;
 import java.io.IOException;
 import java.net.URI;
@@ -52,7 +52,7 @@ public class RestateHttpEndpointBeanTest {
         new ObjectMapper().readValue(response.body(), EndpointManifestSchema.class);
 
     assertThat(endpointManifest.getServices())
-        .map(dev.restate.sdk.core.manifest.Service::getName)
+        .map(dev.restate.sdk.core.generated.manifest.Service::getName)
         .containsOnly("greeter");
   }
 }

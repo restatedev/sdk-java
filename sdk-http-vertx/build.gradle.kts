@@ -26,6 +26,7 @@ dependencies {
   testImplementation(project(":sdk-serde-jackson"))
   testAnnotationProcessor(project(":sdk-api-gen"))
   testImplementation(project(":sdk-api-kotlin"))
+  testImplementation(project(":client"))
   testImplementation(project(":sdk-core", "testArchive"))
   testImplementation(project(":sdk-api", "testArchive"))
   testImplementation(project(":sdk-api-gen", "testArchive"))

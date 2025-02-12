@@ -20,6 +20,7 @@ import dev.restate.sdk.endpoint.definition.ServiceDefinition;
 import dev.restate.sdk.endpoint.definition.ServiceDefinitionAndOptions;
 import io.opentelemetry.context.propagation.TextMapGetter;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
@@ -93,11 +94,17 @@ public final class EndpointRequestHandler {
     void set(String key, String value);
   }
 
+  /**
+   * @param coreExecutor This executor MUST serialize the execution of all scheduled tasks. For
+   *     example {@link Executors#newSingleThreadExecutor()} can be used.
+   * @return The request processor
+   * @throws ProtocolException in
+   */
   public RequestProcessor processorForRequest(
       String path,
       HeadersAccessor headersAccessor,
       LoggingContextSetter loggingContextSetter,
-      @Nullable Executor coreExecutor)
+      Executor coreExecutor)
       throws ProtocolException {
     // Discovery request
     if (path.endsWith(DISCOVER_PATH)) {

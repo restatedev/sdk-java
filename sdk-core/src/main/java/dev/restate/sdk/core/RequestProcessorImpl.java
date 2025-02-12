@@ -30,7 +30,7 @@ final class RequestProcessorImpl implements RequestProcessor {
   private final Context otelContext;
   private final EndpointRequestHandler.LoggingContextSetter loggingContextSetter;
   private final @Nullable Object serviceOptions;
-  private final @Nullable Executor syscallsExecutor;
+  private final Executor syscallsExecutor;
 
   @SuppressWarnings("unchecked")
   public RequestProcessorImpl(
@@ -40,7 +40,7 @@ final class RequestProcessorImpl implements RequestProcessor {
       Context otelContext,
       EndpointRequestHandler.LoggingContextSetter loggingContextSetter,
       @Nullable Object serviceOptions,
-      @Nullable Executor syscallExecutor) {
+      Executor syscallExecutor) {
     this.fullyQualifiedHandlerName = fullyQualifiedHandlerName;
     this.stateMachine = stateMachine;
     this.otelContext = otelContext;

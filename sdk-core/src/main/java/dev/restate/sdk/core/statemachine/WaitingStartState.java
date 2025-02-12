@@ -38,7 +38,7 @@ final class WaitingStartState implements State {
         new StartInfo(
             startMessage.getId(),
             startMessage.getDebugId(),
-            startMessage.getDebugId(),
+            startMessage.getKey(),
             startMessage.getKnownEntries(),
             startMessage.getRetryCountSinceLastStoredEntry(),
             Duration.ofMillis(startMessage.getDurationSinceLastStoredEntry())));

@@ -325,7 +325,7 @@ class CodegenTest : TestDefinitions.TestSuite {
         testInvocation({ CornerCases() }, "returnNull")
             .withInput(
                 startMessage(1, "mykey"),
-                inputCmd(),
+                inputCmd(KtSerdes.json<String?>().serialize(null).toByteArray()),
                 callCompletion(2, KtSerdes.json<String?>(), null))
             .onlyBidiStream()
             .expectingOutput(

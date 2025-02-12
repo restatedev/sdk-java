@@ -21,6 +21,8 @@ import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.version.Version;
 import java.util.*;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.ThreadContext;
@@ -47,6 +49,7 @@ public final class LambdaEndpointRequestHandler {
 
     // Parse request body
     final Slice requestBody = parseInputBody(input);
+    final Executor coreExecutor = Executors.newSingleThreadExecutor();
 
     RequestProcessor requestProcessor;
     try {
@@ -55,7 +58,7 @@ public final class LambdaEndpointRequestHandler {
               path,
               HeadersAccessor.wrap(input.getHeaders()),
               EndpointRequestHandler.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
-              null);
+              coreExecutor);
     } catch (ProtocolException e) {
       // We can handle protocol exceptions by returning back the correct response
       LOG.warn("Error when handling the request", e);
@@ -70,7 +73,7 @@ public final class LambdaEndpointRequestHandler {
     ResultSubscriber subscriber = new ResultSubscriber();
 
     // Wire handler
-    publisher.subscribe(requestProcessor);
+    coreExecutor.execute(() -> publisher.subscribe(requestProcessor));
     requestProcessor.subscribe(subscriber);
 
     // Await the result
