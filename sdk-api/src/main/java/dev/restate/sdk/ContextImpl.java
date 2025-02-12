@@ -78,9 +78,9 @@ class ContextImpl implements ObjectContext, WorkflowContext {
   }
 
   @Override
-  public Awaitable<Void> timer(Duration duration) {
+  public Awaitable<Void> timer(String name, Duration duration) {
     return Awaitable.fromAsyncResult(
-        Util.awaitCompletableFuture(handlerContext.timer(duration, null)), serviceExecutor);
+        Util.awaitCompletableFuture(handlerContext.timer(duration, name)), serviceExecutor);
   }
 
   @Override

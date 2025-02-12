@@ -97,7 +97,18 @@ public interface Context {
    *
    * @param duration for which to sleep.
    */
-  Awaitable<Void> timer(Duration duration);
+  default Awaitable<Void> timer(Duration duration) {
+    return timer(null, duration);
+  }
+
+  /**
+   * Causes the start of a timer for the given duration. You can await on the timer end by invoking
+   * {@link Awaitable#await()}.
+   *
+   * @param name name used for observability
+   * @param duration for which to sleep.
+   */
+  Awaitable<Void> timer(String name, Duration duration);
 
   /**
    * Execute a non-deterministic closure, recording the result value in the journal. The result
