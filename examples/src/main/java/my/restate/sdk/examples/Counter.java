@@ -8,9 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package my.restate.sdk.examples;
 
-import dev.restate.sdk.JsonSerdes;
-import dev.restate.sdk.ObjectContext;
-import dev.restate.sdk.SharedObjectContext;
+import dev.restate.client.Client;
+import dev.restate.sdk.*;
 import dev.restate.sdk.annotation.Handler;
 import dev.restate.sdk.annotation.Shared;
 import dev.restate.sdk.annotation.VirtualObject;
@@ -18,6 +17,8 @@ import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.http.vertx.RestateHttpServer;
 import dev.restate.sdk.types.StateKey;
 import java.time.Duration;
+
+import dev.restate.sdk.types.TerminalException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -38,6 +39,54 @@ public class Counter {
   /** Add the given value to the count. */
   @Handler
   public void add(ObjectContext ctx, long request) {
+
+    // --- From Context
+
+//    // Normal call
+//    CallAwaitable<Long> res = ctx.call(
+//      CounterRequests.add(request)
+//    );
+//    // The Awaitable is overriden to let people get invocation id
+//    String invocationId = res.invocationId().await();
+//    ctx.call(
+//            CounterRequests.add(request)
+//                    .idempotencyId("my-ass")
+//    )
+//    // Send
+//    Awaitable<String> invocationId = ctx.send(
+//      CounterRequests.add(request)
+//    )
+//    // Code generated client (pretty much for getting started, generation can be disabled)
+//    CounterClient.ContextClient client = CounterClient.fromContext(ctx);
+//    CallAwaitable<Long> res = client.add(request);
+//
+//    // --- From ingress
+//
+//    Client client = Client.connect("http://myass:9080");
+//    // Simple
+//    client.call(
+//            CounterRequests.add(request)
+//    )
+//    // Complex, get back response headers
+//    CompletableFuture<CallResponse<Long>> res = client.callWithInfo(
+//            CounterRequests.add(request)
+//                    .idempotencyId("myass")
+//    )
+//    // Get result
+//    res.join().result();
+//    // Get headers
+//    res.join().headers();
+//    client.send(
+//            CounterRequests.add(request)
+//    )
+//    // Code generated client (pretty much for getting started, generation can be disabled)
+//    CounterClient.IngressClient client = CounterClient.connect("http://myass:9080");
+//    Long res = client.add(request);
+//
+//    ctx.send(
+//      CounterRequests.add(request)
+//    )
+
     long currentValue = ctx.get(TOTAL).orElse(0L);
     long newValue = currentValue + request;
     ctx.sleep(Duration.ofSeconds(120));

@@ -78,6 +78,60 @@ internal abstract class BaseAwaitableImpl<T : Any?> : Awaitable<T> {
           completableFuture
         })
   }
+
+  override suspend fun <R> map(
+    transformSuccess: suspend (T) -> R,
+    transformFailure: suspend (TerminalException) -> R
+  ): Awaitable<R> {
+    var ctx = currentCoroutineContext()
+    return SingleAwaitableImpl(
+      this.asyncResult().map({ t ->
+        val completableFuture = CompletableFuture<R>()
+        CoroutineScope(ctx).launch {
+          val r: R
+          try {
+            r = transformSuccess(t)
+          } catch (throwable: Throwable) {
+            completableFuture.completeExceptionally(throwable)
+            return@launch
+          }
+          completableFuture.complete(r)
+        }
+        completableFuture
+      }, {t ->
+        val completableFuture = CompletableFuture<R>()
+        CoroutineScope(ctx).launch {
+          val r: R
+          try {
+            r = transformFailure(t)
+          } catch (throwable: Throwable) {
+            completableFuture.completeExceptionally(throwable)
+            return@launch
+          }
+          completableFuture.complete(r)
+        }
+        completableFuture
+      }))
+  }
+
+  override suspend fun mapFailure(transform: suspend (TerminalException) -> T): Awaitable<T> {
+    var ctx = currentCoroutineContext()
+    return SingleAwaitableImpl(
+      this.asyncResult().mapFailure{t ->
+        val completableFuture = CompletableFuture<T>()
+        CoroutineScope(ctx).launch {
+          val newT: T
+          try {
+            newT = transform(t)
+          } catch (throwable: Throwable) {
+            completableFuture.completeExceptionally(throwable)
+            return@launch
+          }
+          completableFuture.complete(newT)
+        }
+        completableFuture
+      })
+  }
 }
 
 internal open class SingleAwaitableImpl<T : Any?>(private val asyncResult: AsyncResult<T>) :

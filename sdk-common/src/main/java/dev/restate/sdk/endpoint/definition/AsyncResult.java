@@ -9,6 +9,9 @@
 package dev.restate.sdk.endpoint.definition;
 
 import dev.restate.common.function.ThrowingFunction;
+import dev.restate.sdk.types.TerminalException;
+import org.jspecify.annotations.Nullable;
+
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -23,5 +26,13 @@ public interface AsyncResult<T> {
 
   HandlerContext ctx();
 
-  <U> AsyncResult<U> map(ThrowingFunction<T, CompletableFuture<U>> mapper);
+  <U> AsyncResult<U> map(ThrowingFunction<T, CompletableFuture<U>> successMapper, ThrowingFunction<TerminalException, CompletableFuture<U>> failureMapper);
+
+  default <U> AsyncResult<U> map(ThrowingFunction<T, CompletableFuture<U>> successMapper) {
+    return map(successMapper, null);
+  }
+
+  default    AsyncResult<T> mapFailure(ThrowingFunction<TerminalException, CompletableFuture<T>> failureMapper) {
+     return map(null, failureMapper);
+   }
 }

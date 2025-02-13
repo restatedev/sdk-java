@@ -21,6 +21,9 @@ import org.jspecify.annotations.Nullable;
 
 public interface Client {
 
+  <Req, Res> CompletableFuture<ClientResponse<Res>> callWithInfo(
+      Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req, RequestOptions options);
+
   <Req, Res> CompletableFuture<Res> callAsync(
       Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req, RequestOptions options);
 
@@ -310,11 +313,23 @@ public interface Client {
   }
 
   static Client connect(String baseUri, Map<String, String> headers) {
-    // Important! Don't change the imports to global,
-    // this makes sure the HttpClient class is loaded only if the user calls this method.
-    //
-    // Not all JVMs contain HttpClient (see Android).
-    return dev.restate.client.jdk.JdkClient.of(
-        java.net.http.HttpClient.newHttpClient(), baseUri, headers);
+    // We load through reflections to avoid CNF exceptions in JVMs
+    // where JDK's HttpClient is not available (see Android!)
+    try {
+      Class.forName("java.net.http.HttpClient");
+    } catch (ClassNotFoundException e) {
+      throw new IllegalStateException(
+          "Cannot load the JdkClient, because the java.net.http.HttpClient is not available on this JVM. Please use another client",
+          e);
+    }
+
+    try {
+      return (Client)
+          Class.forName("dev.restate.client.jdk.JdkClient")
+              .getMethod("of", String.class, Map.class)
+              .invoke(null, baseUri, headers);
+    } catch (Exception e) {
+      throw new IllegalStateException("Cannot instantiate the client", e);
+    }
   }
 }

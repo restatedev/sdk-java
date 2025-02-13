@@ -99,7 +99,7 @@ final class AsyncResultsState {
   }
 
   public Set<NotificationId> resolveNotificationHandles(List<Integer> handles) {
-    Set<NotificationId> result = new HashSet<>();
+    Set<NotificationId> result = new LinkedHashSet<>();
     for (int handle : handles) {
       NotificationId id = handleMapping.get(handle);
       if (id != null) {

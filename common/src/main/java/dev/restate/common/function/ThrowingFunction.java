@@ -19,6 +19,10 @@ public interface ThrowingFunction<T, R> {
     return fn.asFunction();
   }
 
+  static <T> ThrowingFunction<T, T> identity() {
+    return t -> t;
+  }
+
   default Function<T, R> asFunction() {
     return t -> {
       try {

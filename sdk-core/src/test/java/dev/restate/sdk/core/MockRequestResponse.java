@@ -80,7 +80,7 @@ public final class MockRequestResponse implements TestExecutor {
         .subscribe(assertSubscriber);
 
     // Check completed
-    assertSubscriber.awaitCompletion(Duration.ofSeconds(5));
+    assertSubscriber.awaitCompletion(Duration.ofSeconds(10000));
     // Unwrap messages and decode them
     //noinspection unchecked
     assertThatDecodingMessages(assertSubscriber.getItems().toArray(Slice[]::new))

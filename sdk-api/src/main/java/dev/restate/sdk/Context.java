@@ -43,27 +43,27 @@ public interface Context {
    * @param parameter the invocation request parameter.
    * @return an {@link Awaitable} that wraps the Restate service method result.
    */
-  default <T, R> Awaitable<R> call(
+  default <T, R> CallAwaitable<R> call(
       Target target, Serde<T> inputSerde, Serde<R> outputSerde, T parameter) {
     return call(target, inputSerde, outputSerde, parameter, CallOptions.DEFAULT);
   }
 
   /** Like {@link #call(Target, Serde, Serde, Object)} with raw input/output. */
-  default Awaitable<byte[]> call(Target target, byte[] parameter) {
+  default CallAwaitable<byte[]> call(Target target, byte[] parameter) {
     return call(target, Serde.RAW, Serde.RAW, parameter);
   }
 
   /** Like {@link #call(Target, Serde, Serde, Object)} but providing request options. */
-  <T, R> Awaitable<R> call(
+  <T, R> CallAwaitable<R> call(
       Target target, Serde<T> inputSerde, Serde<R> outputSerde, T parameter, CallOptions options);
 
   /** Like {@link #call(Target, byte[])} but providing request options. */
-  default Awaitable<byte[]> call(Target target, byte[] parameter, CallOptions options) {
+  default CallAwaitable<byte[]> call(Target target, byte[] parameter, CallOptions options) {
     return call(target, Serde.RAW, Serde.RAW, parameter, options);
   }
 
   /** Like {@link #call(Target, Serde, Serde, Object)} but providing request options. */
-  default <T, R> Awaitable<R> call(
+  default <T, R> CallAwaitable<R> call(
       Target target,
       Serde<T> inputSerde,
       Serde<R> outputSerde,
@@ -73,7 +73,7 @@ public interface Context {
   }
 
   /** Like {@link #call(Target, byte[])} but providing request options. */
-  default Awaitable<byte[]> call(Target target, byte[] parameter, CallOptions.Builder options) {
+  default CallAwaitable<byte[]> call(Target target, byte[] parameter, CallOptions.Builder options) {
     return call(target, Serde.RAW, Serde.RAW, parameter, options);
   }
 
@@ -83,33 +83,34 @@ public interface Context {
    * @param target the address of the callee
    * @param inputSerde Input serde
    * @param parameter the invocation request parameter.
+   * @return an {@link Awaitable} returning the invocation id
    */
-  default <T> void send(Target target, Serde<T> inputSerde, T parameter) {
-    send(target, inputSerde, parameter, SendOptions.DEFAULT);
+  default <T> SendHandle send(Target target, Serde<T> inputSerde, T parameter) {
+    return send(target, inputSerde, parameter, SendOptions.DEFAULT);
   }
 
   /** Like {@link #send(Target, Serde, Object)} with raw input. */
-  default void send(Target target, byte[] parameter) {
-    send(target, Serde.RAW, parameter);
+  default SendHandle send(Target target, byte[] parameter) {
+    return send(target, Serde.RAW, parameter);
   }
 
   /** Like {@link #send(Target, Serde, Object)} but providing request options. */
-  <T> void send(Target target, Serde<T> inputSerde, T parameter, SendOptions options);
+  <T> SendHandle send(Target target, Serde<T> inputSerde, T parameter, SendOptions options);
 
   /** Like {@link #send(Target, byte[])} but providing request options. */
-  default void send(Target target, byte[] parameter, SendOptions options) {
-    send(target, Serde.RAW, parameter, options);
+  default SendHandle send(Target target, byte[] parameter, SendOptions options) {
+    return send(target, Serde.RAW, parameter, options);
   }
 
   /** Like {@link #send(Target, Serde, Object)} but providing request options. */
-  default <T> void send(
+  default <T> SendHandle send(
       Target target, Serde<T> inputSerde, T parameter, SendOptions.Builder options) {
-    send(target, inputSerde, parameter, options.build());
+    return send(target, inputSerde, parameter, options.build());
   }
 
   /** Like {@link #send(Target, byte[])} but providing request options. */
-  default void send(Target target, byte[] parameter, SendOptions.Builder options) {
-    send(target, Serde.RAW, parameter, options);
+  default SendHandle send(Target target, byte[] parameter, SendOptions.Builder options) {
+    return send(target, Serde.RAW, parameter, options);
   }
 
   /**

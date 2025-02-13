@@ -85,18 +85,69 @@ public abstract class Awaitable<T> {
     return fromAsyncResult(
         asyncResult()
             .map(
-                i ->
+                t ->
                     CompletableFuture.supplyAsync(
                         () -> {
                           try {
-                            return mapper.apply(i);
+                            return mapper.apply(t);
                           } catch (Throwable e) {
                             Util.sneakyThrow(e);
                             return null;
                           }
                         },
-                        serviceExecutor())),
+                        serviceExecutor()),
+                    null
+            ),
         this.serviceExecutor());
+  }
+
+  public final <U> Awaitable<U> map(ThrowingFunction<T, U> successMapper, ThrowingFunction<TerminalException, U> failureMapper) {
+    return fromAsyncResult(
+            asyncResult()
+                    .map(
+                            t ->
+                                    CompletableFuture.supplyAsync(
+                                            () -> {
+                                              try {
+                                                return successMapper.apply(t);
+                                              } catch (Throwable e) {
+                                                Util.sneakyThrow(e);
+                                                return null;
+                                              }
+                                            },
+                                            serviceExecutor()),
+                            t ->
+                                    CompletableFuture.supplyAsync(
+                                            () -> {
+                                              try {
+                                                return failureMapper.apply(t);
+                                              } catch (Throwable e) {
+                                                Util.sneakyThrow(e);
+                                                return null;
+                                              }
+                                            },
+                                            serviceExecutor())
+                    ),
+            this.serviceExecutor());
+  }
+
+  public final Awaitable<T> mapFailure(ThrowingFunction<TerminalException, T> failureMapper) {
+    return fromAsyncResult(
+            asyncResult()
+                    .mapFailure(
+                            t ->
+                                    CompletableFuture.supplyAsync(
+                                            () -> {
+                                              try {
+                                                return failureMapper.apply(t);
+                                              } catch (Throwable e) {
+                                                Util.sneakyThrow(e);
+                                                return null;
+                                              }
+                                            },
+                                            serviceExecutor())
+                    ),
+            this.serviceExecutor());
   }
 
   /**
@@ -105,7 +156,7 @@ public abstract class Awaitable<T> {
    */
   final <U> Awaitable<U> mapWithoutExecutor(ThrowingFunction<T, U> mapper) {
     return fromAsyncResult(
-        asyncResult().map(i -> CompletableFuture.completedFuture(mapper.apply(i))),
+        asyncResult().map(i -> CompletableFuture.completedFuture(mapper.apply(i)), null),
         this.serviceExecutor());
   }
 
@@ -140,10 +191,11 @@ public abstract class Awaitable<T> {
     if (awaitables.isEmpty()) {
       throw new IllegalArgumentException("Awaitable any doesn't support an empty list");
     }
-    HandlerContext ctx = awaitables.get(0).asyncResult().ctx();
+    List<AsyncResult<?>> ars = awaitables.stream().map(Awaitable::asyncResult).collect(Collectors.toList());
+    HandlerContext ctx = ars.get(0).ctx();
     return fromAsyncResult(
         ctx.createAnyAsyncResult(
-            awaitables.stream().map(Awaitable::asyncResult).collect(Collectors.toList())),
+            ars),
         awaitables.get(0).serviceExecutor());
   }
 
@@ -178,15 +230,15 @@ public abstract class Awaitable<T> {
     if (awaitables.size() == 1) {
       return awaitables.get(0).mapWithoutExecutor(unused -> null);
     } else {
-      HandlerContext ctx = awaitables.get(0).asyncResult().ctx();
+      List<AsyncResult<?>> ars = awaitables.stream().map(Awaitable::asyncResult).collect(Collectors.toList());
+      HandlerContext ctx = ars.get(0).ctx();
       return fromAsyncResult(
-          ctx.createAllAsyncResult(
-              awaitables.stream().map(Awaitable::asyncResult).collect(Collectors.toList())),
+          ctx.createAllAsyncResult(ars),
           awaitables.get(0).serviceExecutor());
     }
   }
 
-  static class SingleAwaitable<T> extends Awaitable<T> {
+  static final class SingleAwaitable<T> extends Awaitable<T> {
 
     private final AsyncResult<T> asyncResult;
     private final Executor serviceExecutor;

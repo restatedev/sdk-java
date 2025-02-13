@@ -28,7 +28,7 @@ import org.jspecify.annotations.NonNull;
  *
  * <p>To ser/de POJOs using JSON, you can use the module {@code sdk-serde-jackson}.
  */
-public abstract class JsonSerdes {
+public final class JsonSerdes {
 
   private JsonSerdes() {}
 

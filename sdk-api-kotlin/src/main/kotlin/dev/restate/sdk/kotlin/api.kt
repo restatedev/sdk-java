@@ -12,6 +12,7 @@ import dev.restate.common.Output
 import dev.restate.sdk.types.DurablePromiseKey
 import dev.restate.sdk.types.Request
 import dev.restate.sdk.types.StateKey
+import dev.restate.sdk.types.TerminalException
 import dev.restate.serde.Serde
 import java.util.*
 import kotlin.random.Random
@@ -401,6 +402,10 @@ sealed interface Awaitable<T> {
   val onAwait: SelectClause<T>
 
   suspend fun <R> map(transform: suspend (value: T) -> R): Awaitable<R>
+
+  suspend fun <R> map(transformSuccess: suspend (value: T) -> R, transformFailure: suspend (exception: TerminalException) -> R): Awaitable<R>
+
+  suspend fun mapFailure(transform: suspend (exception: TerminalException) -> T): Awaitable<T>
 
   companion object {
     fun all(

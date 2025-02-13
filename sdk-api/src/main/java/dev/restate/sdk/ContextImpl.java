@@ -23,6 +23,7 @@ import dev.restate.serde.Serde;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import org.jspecify.annotations.NonNull;
 
@@ -84,27 +85,33 @@ class ContextImpl implements ObjectContext, WorkflowContext {
   }
 
   @Override
-  public <T, R> Awaitable<R> call(
+  public <T, R> CallAwaitable<R> call(
       Target target, Serde<T> inputSerde, Serde<R> outputSerde, T parameter, CallOptions options) {
     Slice input = Util.serializeWrappingException(handlerContext, inputSerde, parameter);
     HandlerContext.CallResult result =
         Util.awaitCompletableFuture(
             handlerContext.call(
                 target, input, options.getIdempotencyKey(), options.getHeaders().entrySet()));
-    return Awaitable.fromAsyncResult(result.callAsyncResult(), serviceExecutor)
-        .mapWithoutExecutor(outputSerde::deserialize);
+
+    return new CallAwaitable<>(
+         result.callAsyncResult()
+            .map(s -> CompletableFuture.completedFuture(outputSerde.deserialize(s))),
+            Awaitable.fromAsyncResult(result.invocationIdAsyncResult(), serviceExecutor)
+    );
   }
 
   @Override
-  public <T> void send(Target target, Serde<T> inputSerde, T parameter, SendOptions sendOptions) {
+  public <T> SendHandle send(Target target, Serde<T> inputSerde, T parameter, SendOptions sendOptions) {
     Slice input = Util.serializeWrappingException(handlerContext, inputSerde, parameter);
-    Util.awaitCompletableFuture(
+    var invocationIdAsyncResult = Util.awaitCompletableFuture(
         handlerContext.send(
             target,
             input,
             sendOptions.getIdempotencyKey(),
             sendOptions.getHeaders().entrySet(),
             sendOptions.getDelay()));
+    return new SendHandle(
+            Awaitable.fromAsyncResult(invocationIdAsyncResult, serviceExecutor));
   }
 
   @Override

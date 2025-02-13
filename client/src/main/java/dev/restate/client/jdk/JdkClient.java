@@ -474,8 +474,14 @@ public class JdkClient implements Client {
     return resultMap;
   }
 
+  /** Create a new JDK Client */
   public static JdkClient of(HttpClient httpClient, String baseUri, Map<String, String> headers) {
     return new JdkClient(httpClient, baseUri, headers);
+  }
+
+  /** Create a new JDK Client */
+  public static JdkClient of(String baseUri, Map<String, String> headers) {
+    return new JdkClient(HttpClient.newHttpClient(), baseUri, headers);
   }
 
   static IngressException createIngressException(

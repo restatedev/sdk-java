@@ -133,6 +133,13 @@ public final class Endpoint {
     return new Builder();
   }
 
+  /**
+   * @see Builder#bind(Object)
+   */
+  public static Builder bind(Object object) {
+    return new Builder().bind(object);
+  }
+
   public ServiceDefinitionAndOptions<?> resolveServiceAndOptions(String serviceName) {
     return services.get(serviceName);
   }

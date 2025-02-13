@@ -40,9 +40,9 @@ public class RestateHttpServer {
 
   private static final Logger LOG = LogManager.getLogger(RestateHttpServer.class);
 
-  private static int DEFAULT_PORT =
+  private static final int DEFAULT_PORT =
       Optional.ofNullable(System.getenv("PORT")).map(Integer::parseInt).orElse(9080);
-  private static HttpServerOptions DEFAULT_OPTIONS =
+  private static final HttpServerOptions DEFAULT_OPTIONS =
       new HttpServerOptions()
           .setInitialSettings(new Http2Settings().setMaxConcurrentStreams(Integer.MAX_VALUE));
 
@@ -61,6 +61,13 @@ public class RestateHttpServer {
   }
 
   /**
+   * Like {@link #listen(Endpoint)}
+   */
+  public static int listen(Endpoint.Builder endpointBuilder) {
+    return listen(endpointBuilder.build());
+  }
+
+  /**
    * Start serving the provided {@code endpoint} on the specified port.
    *
    * <p>NOTE: this method will block for opening the socket and reserving the port. If you need a
@@ -73,9 +80,23 @@ public class RestateHttpServer {
     return handleStart(fromEndpoint(endpoint).listen(port));
   }
 
+  /**
+   * Like {@link #listen(Endpoint, int)}
+   */
+  public static int listen(Endpoint.Builder endpointBuilder, int port) {
+    return listen(endpointBuilder.build(), port);
+  }
+
   /** Create a Vert.x {@link HttpServer} from the provided endpoint. */
   public static HttpServer fromEndpoint(Endpoint endpoint) {
     return fromEndpoint(endpoint, DEFAULT_OPTIONS);
+  }
+
+  /**
+   * Like {@link #fromEndpoint(Endpoint)}
+   */
+  public static HttpServer fromEndpoint(Endpoint.Builder endpointBuilder) {
+    return fromEndpoint(endpointBuilder.build());
   }
 
   /**
@@ -86,9 +107,23 @@ public class RestateHttpServer {
     return fromEndpoint(Vertx.vertx(), endpoint, options);
   }
 
+  /**
+   * Like {@link #fromEndpoint(Endpoint, HttpServerOptions)}
+   */
+  public static HttpServer fromEndpoint(Endpoint.Builder endpointBuilder, HttpServerOptions options) {
+    return fromEndpoint(endpointBuilder.build(), options);
+  }
+
   /** Create a Vert.x {@link HttpServer} from the provided endpoint. */
   public static HttpServer fromEndpoint(Vertx vertx, Endpoint endpoint) {
     return fromEndpoint(vertx, endpoint, DEFAULT_OPTIONS);
+  }
+
+  /**
+   * Like {@link #fromEndpoint(Vertx, Endpoint)}
+   */
+  public static HttpServer fromEndpoint(Vertx vertx, Endpoint.Builder endpointBuilder) {
+    return fromEndpoint(vertx, endpointBuilder.build());
   }
 
   /**
@@ -99,6 +134,13 @@ public class RestateHttpServer {
     HttpServer server = vertx.createHttpServer(options);
     server.requestHandler(HttpEndpointRequestHandler.fromEndpoint(endpoint));
     return server;
+  }
+
+  /**
+   * Like {@link #fromEndpoint(Vertx, Endpoint, HttpServerOptions)}
+   */
+  public static HttpServer fromEndpoint(Vertx vertx, Endpoint.Builder endpointBuilder, HttpServerOptions options) {
+    return fromEndpoint(vertx, endpointBuilder.build(), options);
   }
 
   private static int handleStart(Future<HttpServer> fut) {
