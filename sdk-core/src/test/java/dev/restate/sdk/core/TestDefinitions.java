@@ -16,6 +16,7 @@ import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.core.statemachine.InvocationInput;
 import dev.restate.sdk.core.statemachine.MessageHeader;
 import dev.restate.sdk.core.statemachine.ProtoUtils;
+import dev.restate.sdk.endpoint.definition.HandlerRunner;
 import dev.restate.sdk.endpoint.definition.ServiceDefinition;
 import dev.restate.sdk.endpoint.definition.ServiceDefinitionFactories;
 import java.util.*;
@@ -31,9 +32,9 @@ public final class TestDefinitions {
   private TestDefinitions() {}
 
   public interface TestDefinition {
-    ServiceDefinition<?> getServiceDefinition();
+    ServiceDefinition getServiceDefinition();
 
-    Object getServiceOptions();
+    HandlerRunner.Options getServiceOptions();
 
     String getMethod();
 
@@ -76,17 +77,17 @@ public final class TestDefinitions {
 
   public static TestInvocationBuilder testInvocation(Object service, String handler) {
     if (service instanceof ServiceDefinition) {
-      return new TestInvocationBuilder((ServiceDefinition<?>) service, null, handler);
+      return new TestInvocationBuilder((ServiceDefinition) service, null, handler);
     }
 
     // In case it's code generated, discover the adapter
-    ServiceDefinition<?> serviceDefinition =
-        ServiceDefinitionFactories.discover(service).create(service);
+    ServiceDefinition serviceDefinition =
+        ServiceDefinitionFactories.discover(service).create(service, null);
     return new TestInvocationBuilder(serviceDefinition, null, handler);
   }
 
-  public static <O> TestInvocationBuilder testInvocation(
-      ServiceDefinition<O> service, O options, String handler) {
+  public static TestInvocationBuilder testInvocation(
+      ServiceDefinition service,  HandlerRunner.Options options, String handler) {
     return new TestInvocationBuilder(service, options, handler);
   }
 
@@ -95,12 +96,12 @@ public final class TestDefinitions {
   }
 
   public static class TestInvocationBuilder {
-    protected final @Nullable ServiceDefinition<?> service;
-    protected final @Nullable Object options;
+    protected final @Nullable ServiceDefinition service;
+    protected final  HandlerRunner.@Nullable Options options;
     protected final @Nullable String handler;
     protected final @Nullable String invalidReason;
 
-    TestInvocationBuilder(ServiceDefinition<?> service, @Nullable Object options, String handler) {
+    TestInvocationBuilder(ServiceDefinition service,  HandlerRunner.@Nullable Options options, String handler) {
       this.service = service;
       this.options = options;
       this.handler = handler;
@@ -150,8 +151,8 @@ public final class TestDefinitions {
     }
 
     WithInputBuilder(
-        ServiceDefinition<?> service,
-        @Nullable Object options,
+        ServiceDefinition service,
+        HandlerRunner.@Nullable Options options,
         String method,
         List<InvocationInput> input) {
       super(service, options, method);
@@ -207,8 +208,8 @@ public final class TestDefinitions {
   }
 
   public abstract static class BaseTestDefinition implements TestDefinition {
-    protected final @Nullable ServiceDefinition<?> service;
-    protected final @Nullable Object options;
+    protected final @Nullable ServiceDefinition service;
+    protected final  HandlerRunner.@Nullable Options options;
     protected final @Nullable String invalidReason;
     protected final String method;
     protected final List<InvocationInput> input;
@@ -217,8 +218,8 @@ public final class TestDefinitions {
     protected final String named;
 
     private BaseTestDefinition(
-        @Nullable ServiceDefinition<?> service,
-        @Nullable Object options,
+        @Nullable ServiceDefinition service,
+        HandlerRunner.@Nullable Options options,
         @Nullable String invalidReason,
         String method,
         List<InvocationInput> input,
@@ -236,12 +237,12 @@ public final class TestDefinitions {
     }
 
     @Override
-    public ServiceDefinition<?> getServiceDefinition() {
+    public ServiceDefinition getServiceDefinition() {
       return Objects.requireNonNull(service);
     }
 
     @Override
-    public Object getServiceOptions() {
+    public HandlerRunner.Options getServiceOptions() {
       return options;
     }
 
@@ -281,8 +282,8 @@ public final class TestDefinitions {
     private final Consumer<List<MessageLite>> messagesAssert;
 
     private ExpectingOutputMessages(
-        @Nullable ServiceDefinition<?> service,
-        @Nullable Object options,
+        @Nullable ServiceDefinition service,
+        HandlerRunner.@Nullable Options options,
         @Nullable String invalidReason,
         String method,
         List<InvocationInput> input,
@@ -302,8 +303,8 @@ public final class TestDefinitions {
     }
 
     ExpectingOutputMessages(
-        @Nullable ServiceDefinition<?> service,
-        @Nullable Object options,
+        @Nullable ServiceDefinition service,
+        HandlerRunner.@Nullable Options options,
         @Nullable String invalidReason,
         String method,
         List<InvocationInput> input,

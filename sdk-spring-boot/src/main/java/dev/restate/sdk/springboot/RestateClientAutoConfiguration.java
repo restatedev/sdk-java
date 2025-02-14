@@ -30,6 +30,6 @@ public class RestateClientAutoConfiguration {
     if (headers == null) {
       headers = Collections.emptyMap();
     }
-    return Client.connect(restateClientProperties.getBaseUri(), headers);
+    return Client.connect(headers, restateClientProperties.getBaseUri());
   }
 }

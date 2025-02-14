@@ -16,6 +16,7 @@ import dev.restate.common.function.ThrowingFunction;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
 import dev.restate.sdk.types.TerminalException;
 import dev.restate.serde.Serde;
+import dev.restate.serde.SerdeFactory;
 import io.opentelemetry.context.Scope;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -28,33 +29,32 @@ import org.jspecify.annotations.Nullable;
  * Adapter class for {@link dev.restate.sdk.endpoint.definition.HandlerRunner} to use the Java API.
  */
 public class HandlerRunner<REQ, RES>
-    implements dev.restate.sdk.endpoint.definition.HandlerRunner<REQ, RES, HandlerRunner.Options> {
+    implements dev.restate.sdk.endpoint.definition.HandlerRunner<REQ, RES> {
   private final ThrowingBiFunction<Context, REQ, RES> runner;
+  private final SerdeFactory contextSerdeFactory;
+  private final Options options;
+
 
   private static final Logger LOG = LogManager.getLogger(HandlerRunner.class);
 
-  HandlerRunner(ThrowingBiFunction<? extends Context, REQ, RES> runner) {
+  HandlerRunner(ThrowingBiFunction<? extends Context, REQ, RES> runner, SerdeFactory contextSerdeFactory, @Nullable Options options) {
     //noinspection unchecked
     this.runner = (ThrowingBiFunction<Context, REQ, RES>) runner;
+      this.contextSerdeFactory = contextSerdeFactory;
+      this.options = (options != null) ? options : Options.DEFAULT ;
   }
 
   @Override
   public CompletableFuture<Slice> run(
-      HandlerContext handlerContext,
-      Serde<REQ> requestSerde,
-      Serde<RES> responseSerde,
-      @Nullable Options options) {
+          HandlerContext handlerContext,
+          Serde<REQ> requestSerde,
+          Serde<RES> responseSerde) {
     CompletableFuture<Slice> returnFuture = new CompletableFuture<>();
 
-    if (options == null) {
-      options = Options.DEFAULT;
-    }
-
     // Wrap the executor for setting/unsetting the thread local
-    Options finalOptions = options;
     Executor serviceExecutor =
         runnable ->
-            finalOptions.executor.execute(
+            options.executor.execute(
                 () -> {
                   HANDLER_CONTEXT_THREAD_LOCAL.set(handlerContext);
                   try (Scope ignored = handlerContext.request().otelContext().makeCurrent()) {
@@ -66,7 +66,7 @@ public class HandlerRunner<REQ, RES>
     serviceExecutor.execute(
         () -> {
           // Any context switching, if necessary, will be done by ResolvedEndpointHandler
-          Context ctx = new ContextImpl(handlerContext, serviceExecutor);
+          Context ctx = new ContextImpl(handlerContext, serviceExecutor, contextSerdeFactory);
 
           // Parse input
           REQ req;
@@ -111,33 +111,41 @@ public class HandlerRunner<REQ, RES>
   }
 
   public static <CTX extends Context, REQ, RES> HandlerRunner<REQ, RES> of(
-      ThrowingBiFunction<CTX, REQ, RES> runner) {
-    return new HandlerRunner<>(runner);
+                                                                           ThrowingBiFunction<CTX, REQ, RES> runner,
+                                                                           SerdeFactory contextSerdeFactory,
+                                                                           @Nullable Options options) {
+    return new HandlerRunner<>(runner, contextSerdeFactory, options);
   }
 
   @SuppressWarnings("unchecked")
   public static <CTX extends Context, RES> HandlerRunner<Void, RES> of(
-      ThrowingFunction<CTX, RES> runner) {
-    return new HandlerRunner<>((context, o) -> runner.apply((CTX) context));
+                                                                       ThrowingFunction<CTX, RES> runner,
+                                                                       SerdeFactory contextSerdeFactory,
+                                                                       @Nullable Options options) {
+    return new HandlerRunner<>((context, o) -> runner.apply((CTX) context),contextSerdeFactory,  options);
   }
 
   @SuppressWarnings("unchecked")
   public static <CTX extends Context, REQ> HandlerRunner<REQ, Void> of(
-      ThrowingBiConsumer<CTX, REQ> runner) {
+                                                                       ThrowingBiConsumer<CTX, REQ> runner,
+                                                                       SerdeFactory contextSerdeFactory,
+                                                                       @Nullable Options options) {
     return new HandlerRunner<>(
         (context, o) -> {
           runner.accept((CTX) context, o);
           return null;
-        });
+        },contextSerdeFactory,  options);
   }
 
   @SuppressWarnings("unchecked")
-  public static <CTX extends Context> HandlerRunner<Void, Void> of(ThrowingConsumer<CTX> runner) {
+  public static <CTX extends Context> HandlerRunner<Void, Void> of(ThrowingConsumer<CTX> runner,
+                                                                   SerdeFactory contextSerdeFactory,
+                                                                   @Nullable Options options) {
     return new HandlerRunner<>(
         (ctx, o) -> {
           runner.accept((CTX) ctx);
           return null;
-        });
+        },contextSerdeFactory,  options);
   }
 
   public static class Options {
@@ -149,8 +157,13 @@ public class HandlerRunner<REQ, RES>
      * You can run on virtual threads by using the executor {@code
      * Executors.newVirtualThreadPerTaskExecutor()}.
      */
-    public Options(Executor executor) {
+    private Options(Executor executor) {
       this.executor = executor;
     }
+
+    public static Options withExecutor(Executor executor) {
+        return new Options(executor);
+    }
+
   }
 }

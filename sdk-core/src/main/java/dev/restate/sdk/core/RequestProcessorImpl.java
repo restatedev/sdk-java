@@ -26,27 +26,24 @@ final class RequestProcessorImpl implements RequestProcessor {
 
   private final String fullyQualifiedHandlerName;
   private final StateMachine stateMachine;
-  private final HandlerDefinition<Object, Object, Object> handlerDefinition;
+  private final HandlerDefinition<Object, Object> handlerDefinition;
   private final Context otelContext;
   private final EndpointRequestHandler.LoggingContextSetter loggingContextSetter;
-  private final @Nullable Object serviceOptions;
   private final Executor syscallsExecutor;
 
   @SuppressWarnings("unchecked")
   public RequestProcessorImpl(
       String fullyQualifiedHandlerName,
       StateMachine stateMachine,
-      HandlerDefinition<?, ?, Object> handlerDefinition,
+      HandlerDefinition<?, ?> handlerDefinition,
       Context otelContext,
       EndpointRequestHandler.LoggingContextSetter loggingContextSetter,
-      @Nullable Object serviceOptions,
       Executor syscallExecutor) {
     this.fullyQualifiedHandlerName = fullyQualifiedHandlerName;
     this.stateMachine = stateMachine;
     this.otelContext = otelContext;
     this.loggingContextSetter = loggingContextSetter;
-    this.handlerDefinition = (HandlerDefinition<Object, Object, Object>) handlerDefinition;
-    this.serviceOptions = serviceOptions;
+    this.handlerDefinition = (HandlerDefinition<Object, Object>) handlerDefinition;
     this.syscallsExecutor = syscallExecutor;
   }
 
@@ -122,8 +119,8 @@ final class RequestProcessorImpl implements RequestProcessor {
             .run(
                 contextInternal,
                 handlerDefinition.getRequestSerde(),
-                handlerDefinition.getResponseSerde(),
-                serviceOptions);
+                handlerDefinition.getResponseSerde()
+            );
 
     return userCodeFuture.handle(
         (slice, t) -> {

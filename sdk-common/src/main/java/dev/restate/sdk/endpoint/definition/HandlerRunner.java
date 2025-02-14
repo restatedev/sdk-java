@@ -11,9 +11,8 @@ package dev.restate.sdk.endpoint.definition;
 import dev.restate.common.Slice;
 import dev.restate.serde.Serde;
 import java.util.concurrent.CompletableFuture;
-import org.jspecify.annotations.Nullable;
 
-public interface HandlerRunner<REQ, RES, O> {
+public interface HandlerRunner<REQ, RES> {
   /**
    * Thread local to store {@link HandlerContext}.
    *
@@ -24,9 +23,13 @@ public interface HandlerRunner<REQ, RES, O> {
    */
   ThreadLocal<HandlerContext> HANDLER_CONTEXT_THREAD_LOCAL = new ThreadLocal<>();
 
+  /**
+   * Marker interface of runner options.
+   */
+  interface Options {}
+
   CompletableFuture<Slice> run(
       HandlerContext handlerContext,
       Serde<REQ> requestSerde,
-      Serde<RES> responseSerde,
-      @Nullable O options);
+      Serde<RES> responseSerde);
 }

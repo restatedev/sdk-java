@@ -50,11 +50,11 @@ object KtDurablePromiseKey {
 object KtSerdes {
 
   /** Creates a [Serde] implementation using the `kotlinx.serialization` json module. */
-  inline fun <reified T : Any?> json(): Serde<T> {
+  inline fun <reified T : Any?> json(json: Json = Json.Default): Serde<T> {
     @Suppress("UNCHECKED_CAST")
     return when (typeOf<T>()) {
       typeOf<Unit>() -> UNIT as Serde<T>
-      else -> json(serializer())
+      else -> json(json, serializer())
     }
   }
 
@@ -74,18 +74,18 @@ object KtSerdes {
       }
 
   /** Creates a [Serde] implementation using the `kotlinx.serialization` json module. */
-  inline fun <reified T : Any?> json(serializer: KSerializer<T>): Serde<T> {
+  inline fun <reified T : Any?> json(json: Json = Json.Default, serializer: KSerializer<T>): Serde<T> {
     return object : RichSerde<T> {
       override fun serialize(value: T?): Slice {
         if (value == null) {
-          return Slice.wrap(Json.encodeToString(JsonNull.serializer(), JsonNull))
+          return Slice.wrap(json.encodeToString(JsonNull.serializer(), JsonNull))
         }
 
-        return Slice.wrap(Json.encodeToString(serializer, value))
+        return Slice.wrap(json.encodeToString(serializer, value))
       }
 
       override fun deserialize(value: Slice): T {
-        return Json.decodeFromString(
+        return json.decodeFromString(
             serializer, String(value.toByteArray(), StandardCharsets.UTF_8))
       }
 

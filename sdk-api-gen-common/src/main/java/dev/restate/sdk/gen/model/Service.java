@@ -24,21 +24,26 @@ public class Service {
   private final ServiceType serviceType;
   private final List<Handler> handlers;
   private final @Nullable String documentation;
+  private final boolean contextClientEnabled;
+  private final boolean ingressClientEnabled;
+  private final String serdeFactoryDecl;
 
   public Service(
-      CharSequence targetPkg,
-      CharSequence targetFqcn,
-      String serviceName,
-      ServiceType serviceType,
-      List<Handler> handlers,
-      @Nullable String documentation) {
+          CharSequence targetPkg,
+          CharSequence targetFqcn,
+          String serviceName,
+          ServiceType serviceType,
+          List<Handler> handlers,
+          @Nullable String documentation, boolean contextClientEnabled, boolean ingressClientEnabled, String serdeFactoryDecl) {
     this.targetPkg = targetPkg;
     this.targetFqcn = targetFqcn;
     this.serviceName = serviceName;
-
     this.serviceType = serviceType;
     this.handlers = handlers;
     this.documentation = documentation;
+      this.contextClientEnabled = contextClientEnabled;
+      this.ingressClientEnabled = ingressClientEnabled;
+      this.serdeFactoryDecl = serdeFactoryDecl;
   }
 
   public CharSequence getTargetPkg() {
@@ -76,6 +81,18 @@ public class Service {
     return documentation;
   }
 
+  public boolean isContextClientEnabled() {
+    return contextClientEnabled;
+  }
+
+  public boolean isIngressClientEnabled() {
+    return ingressClientEnabled;
+  }
+
+  public String getSerdeFactoryDecl() {
+    return serdeFactoryDecl;
+  }
+
   public static Builder builder() {
     return new Builder();
   }
@@ -87,6 +104,9 @@ public class Service {
     private ServiceType serviceType;
     private final List<Handler> handlers = new ArrayList<>();
     private String documentation;
+    private boolean contextClientEnabled = true;
+    private  boolean ingressClientEnabled = true;
+    private String serdeFactoryDecl;
 
     public Builder withTargetPkg(CharSequence targetPkg) {
       this.targetPkg = targetPkg;
@@ -120,6 +140,22 @@ public class Service {
 
     public Builder withDocumentation(String documentation) {
       this.documentation = documentation;
+      return this;
+    }
+
+    public Builder withContextClientEnabled(   boolean contextClientEnabled) {
+      this.contextClientEnabled = contextClientEnabled;
+      return this;
+    }
+
+    public Builder withIngressClientEnabled(
+     boolean ingressClientEnabled) {
+      this.ingressClientEnabled = ingressClientEnabled;
+      return this;
+    }
+
+    public Builder withSerdeFactoryDecl(String serdeFactoryDecl) {
+      this.serdeFactoryDecl = serdeFactoryDecl;
       return this;
     }
 
@@ -164,13 +200,18 @@ public class Service {
         throw new IllegalArgumentException("Cannot have two handlers with the same name");
       }
 
+      Objects.requireNonNull(serdeFactoryDecl, "Serde factory should not be null");
+
       return new Service(
           Objects.requireNonNull(targetPkg),
           Objects.requireNonNull(targetFqcn),
           Objects.requireNonNull(serviceName),
           Objects.requireNonNull(serviceType),
           handlers,
-          documentation);
+          documentation,
+              contextClientEnabled,
+              ingressClientEnabled,
+              serdeFactoryDecl);
     }
   }
 }

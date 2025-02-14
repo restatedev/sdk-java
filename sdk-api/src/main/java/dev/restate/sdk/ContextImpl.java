@@ -8,9 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.common.Output;
-import dev.restate.common.Slice;
-import dev.restate.common.Target;
+import dev.restate.common.*;
 import dev.restate.common.function.ThrowingSupplier;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
@@ -25,16 +23,20 @@ import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+
+import dev.restate.serde.SerdeFactory;
 import org.jspecify.annotations.NonNull;
 
 class ContextImpl implements ObjectContext, WorkflowContext {
 
   private final HandlerContext handlerContext;
   private final Executor serviceExecutor;
+  private final SerdeFactory serdeFactory;
 
-  ContextImpl(HandlerContext handlerContext, Executor serviceExecutor) {
+  ContextImpl(HandlerContext handlerContext, Executor serviceExecutor, SerdeFactory serdeFactory) {
     this.handlerContext = handlerContext;
     this.serviceExecutor = serviceExecutor;
+      this.serdeFactory = serdeFactory;
   }
 
   @Override
@@ -51,7 +53,9 @@ class ContextImpl implements ObjectContext, WorkflowContext {
   public <T> Optional<T> get(StateKey<T> key) {
     return Awaitable.fromAsyncResult(
             Util.awaitCompletableFuture(handlerContext.get(key.name())), serviceExecutor)
-        .mapWithoutExecutor(opt -> opt.map(key.serde()::deserialize))
+        .mapWithoutExecutor(opt -> opt.map(
+                serdeFactory.create(key.serdeInfo())::deserialize
+        ))
         .await();
   }
 
@@ -75,7 +79,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
   public <T> void set(StateKey<T> key, @NonNull T value) {
     Util.awaitCompletableFuture(
         handlerContext.set(
-            key.name(), Util.serializeWrappingException(handlerContext, key.serde(), value)));
+            key.name(), Util.executeOrFail(handlerContext, serdeFactory.create(key.serdeInfo())::serialize, value)));
   }
 
   @Override
@@ -85,31 +89,34 @@ class ContextImpl implements ObjectContext, WorkflowContext {
   }
 
   @Override
-  public <T, R> CallAwaitable<R> call(
-      Target target, Serde<T> inputSerde, Serde<R> outputSerde, T parameter, CallOptions options) {
-    Slice input = Util.serializeWrappingException(handlerContext, inputSerde, parameter);
+  public <T, R> CallAwaitable<R> call(CallRequest<T, R> callRequest) {
+    Slice input = Util.executeOrFail(handlerContext, serdeFactory.create(callRequest.requestSerdeInfo())::serialize, callRequest.request());
     HandlerContext.CallResult result =
         Util.awaitCompletableFuture(
             handlerContext.call(
-                target, input, options.getIdempotencyKey(), options.getHeaders().entrySet()));
+                callRequest.target(), input, callRequest.idempotencyKey(), callRequest.headers().entrySet()));
 
     return new CallAwaitable<>(
          result.callAsyncResult()
-            .map(s -> CompletableFuture.completedFuture(outputSerde.deserialize(s))),
+            .map(s -> CompletableFuture.completedFuture(
+            serdeFactory.create(callRequest.responseSerdeInfo())
+                    .deserialize(s)
+
+            )),
             Awaitable.fromAsyncResult(result.invocationIdAsyncResult(), serviceExecutor)
     );
   }
 
   @Override
-  public <T> SendHandle send(Target target, Serde<T> inputSerde, T parameter, SendOptions sendOptions) {
-    Slice input = Util.serializeWrappingException(handlerContext, inputSerde, parameter);
+  public <T> SendHandle send(SendRequest<T> sendRequest) {
+    Slice input = Util.executeOrFail(handlerContext, serdeFactory.create(sendRequest.requestSerdeInfo())::serialize, sendRequest.request());
     var invocationIdAsyncResult = Util.awaitCompletableFuture(
         handlerContext.send(
-            target,
+            sendRequest.target(),
             input,
-            sendOptions.getIdempotencyKey(),
-            sendOptions.getHeaders().entrySet(),
-            sendOptions.getDelay()));
+            sendRequest.idempotencyKey(),
+            sendRequest.headers().entrySet(),
+            sendRequest.delay()));
     return new SendHandle(
             Awaitable.fromAsyncResult(invocationIdAsyncResult, serviceExecutor));
   }
@@ -151,7 +158,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
       public <T> void resolve(Serde<T> serde, @NonNull T payload) {
         Util.awaitCompletableFuture(
             handlerContext.resolveAwakeable(
-                id, Util.serializeWrappingException(handlerContext, serde, payload)));
+                id, Util.executeOrFail(handlerContext, serdeFactory.create(serde)::serialize, payload)));
       }
 
       @Override
@@ -174,14 +181,14 @@ class ContextImpl implements ObjectContext, WorkflowContext {
       public Awaitable<T> awaitable() {
         AsyncResult<Slice> result = Util.awaitCompletableFuture(handlerContext.promise(key.name()));
         return Awaitable.fromAsyncResult(result, serviceExecutor)
-            .mapWithoutExecutor(key.serde()::deserialize);
+            .mapWithoutExecutor(serdeFactory.create(key.serdeInfo())::deserialize);
       }
 
       @Override
       public Output<T> peek() {
         return Util.awaitCompletableFuture(
                 Util.awaitCompletableFuture(handlerContext.peekPromise(key.name())).poll())
-            .map(key.serde()::deserialize);
+            .map(serdeFactory.create(key.serdeInfo())::deserialize);
       }
     };
   }
@@ -195,7 +202,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
             Util.awaitCompletableFuture(
                     handlerContext.resolvePromise(
                         key.name(),
-                        Util.serializeWrappingException(handlerContext, key.serde(), payload)))
+                        Util.executeOrFail(handlerContext, serdeFactory.create(key.serdeInfo())::serialize, payload)))
                 .poll());
       }
 

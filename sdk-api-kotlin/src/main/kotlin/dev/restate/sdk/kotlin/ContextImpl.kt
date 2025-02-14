@@ -34,14 +34,14 @@ internal class ContextImpl internal constructor(internal val handlerContext: Han
 
   override suspend fun <T : Any> get(key: StateKey<T>): T? =
       SingleAwaitableImpl(handlerContext.get(key.name()).await())
-          .simpleMap { it.getOrNull()?.let { key.serde().deserialize(it) } }
+          .simpleMap { it.getOrNull()?.let { key.serdeInfo().deserialize(it) } }
           .await()
 
   override suspend fun stateKeys(): Collection<String> =
       SingleAwaitableImpl(handlerContext.getKeys().await()).await()
 
   override suspend fun <T : Any> set(key: StateKey<T>, value: T) {
-    val serializedValue = key.serde().serializeWrappingException(handlerContext, value)
+    val serializedValue = key.serdeInfo().serializeWrappingException(handlerContext, value)
     handlerContext.set(key.name(), serializedValue).await()
   }
 
@@ -154,12 +154,12 @@ internal class ContextImpl internal constructor(internal val handlerContext: Han
       DurablePromise<T> {
     override suspend fun awaitable(): Awaitable<T> =
         SingleAwaitableImpl(handlerContext.promise(key.name()).await()).simpleMap {
-          key.serde().deserialize(it)
+          key.serdeInfo().deserialize(it)
         }
 
     override suspend fun peek(): Output<T> =
         SingleAwaitableImpl(handlerContext.peekPromise(key.name()).await())
-            .simpleMap { it.map { key.serde().deserialize(it) } }
+            .simpleMap { it.map { key.serdeInfo().deserialize(it) } }
             .await()
   }
 
@@ -169,7 +169,7 @@ internal class ContextImpl internal constructor(internal val handlerContext: Han
       SingleAwaitableImpl(
               handlerContext
                   .resolvePromise(
-                      key.name(), key.serde().serializeWrappingException(handlerContext, payload))
+                      key.name(), key.serdeInfo().serializeWrappingException(handlerContext, payload))
                   .await())
           .await()
     }

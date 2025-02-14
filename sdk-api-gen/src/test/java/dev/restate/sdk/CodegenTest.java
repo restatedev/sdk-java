@@ -17,6 +17,7 @@ import dev.restate.sdk.annotation.*;
 import dev.restate.sdk.annotation.Service;
 import dev.restate.sdk.core.TestDefinitions;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
+import dev.restate.sdk.core.TestSerdes;
 import dev.restate.serde.Serde;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -234,12 +235,12 @@ public class CodegenTest implements TestSuite {
                 END_MESSAGE)
             .named("empty input and empty output"),
         testInvocation(PrimitiveTypes::new, "primitiveOutput")
-            .withInput(startMessage(1), inputCmd(), callCompletion(2, JsonSerdes.INT, 10))
+            .withInput(startMessage(1), inputCmd(), callCompletion(2, TestSerdes.INT, 10))
             .onlyBidiStream()
             .expectingOutput(
                 callCmd(
                     1, 2, Target.service("PrimitiveTypes", "primitiveOutput"), Serde.VOID, null),
-                outputCmd(JsonSerdes.INT, 10),
+                outputCmd(TestSerdes.INT, 10),
                 END_MESSAGE)
             .named("primitive output"),
         testInvocation(PrimitiveTypes::new, "primitiveInput")
@@ -247,7 +248,7 @@ public class CodegenTest implements TestSuite {
             .onlyBidiStream()
             .expectingOutput(
                 callCmd(
-                    1, 2, Target.service("PrimitiveTypes", "primitiveInput"), JsonSerdes.INT, 10),
+                    1, 2, Target.service("PrimitiveTypes", "primitiveInput"), TestSerdes.INT, 10),
                 outputCmd(),
                 END_MESSAGE)
             .named("primitive input"),

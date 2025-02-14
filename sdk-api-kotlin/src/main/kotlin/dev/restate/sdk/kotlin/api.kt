@@ -286,7 +286,7 @@ sealed interface SharedObjectContext : Context {
   fun key(): String
 
   /**
-   * Gets the state stored under key, deserializing the raw value using the [StateKey.serde].
+   * Gets the state stored under key, deserializing the raw value using the [StateKey.serdeInfo].
    *
    * @param key identifying the state to get and its type.
    * @return the value containing the stored state deserialized.
@@ -309,7 +309,7 @@ sealed interface SharedObjectContext : Context {
 sealed interface ObjectContext : SharedObjectContext {
 
   /**
-   * Sets the given value under the given key, serializing the value using the [StateKey.serde].
+   * Sets the given value under the given key, serializing the value using the [StateKey.serdeInfo].
    *
    * @param key identifying the value to store and its type.
    * @param value to store under the given key.

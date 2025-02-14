@@ -8,11 +8,10 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.common.Slice;
 import dev.restate.common.function.ThrowingFunction;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
 import dev.restate.sdk.types.AbortedExecutionException;
-import dev.restate.serde.Serde;
+
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -23,7 +22,7 @@ class Util {
 
   private Util() {}
 
-  static <T, R> R executeMappingException(
+  static <T, R> R executeOrFail(
       HandlerContext handlerContext, ThrowingFunction<T, R> fn, T t) {
     try {
       return fn.apply(t);
@@ -32,11 +31,6 @@ class Util {
       AbortedExecutionException.sneakyThrow();
       return null;
     }
-  }
-
-  static <T> Slice serializeWrappingException(
-      HandlerContext handlerContext, Serde<T> serde, T value) {
-    return executeMappingException(handlerContext, serde::serialize, value);
   }
 
   static <T> @NonNull T awaitCompletableFuture(CompletableFuture<T> future) {

@@ -25,7 +25,7 @@ import org.jspecify.annotations.*;
  * <p>You can create a custom one using {@link #using(String, ThrowingFunction, ThrowingFunction)}.
  */
 @NullMarked
-public interface Serde<T extends @Nullable Object> {
+public non-sealed interface Serde<T extends @Nullable Object> extends SerdeInfo<T> {
 
   Slice serialize(T value);
 
@@ -41,6 +41,23 @@ public interface Serde<T extends @Nullable Object> {
   default @Nullable String contentType() {
     return "application/octet-stream";
   }
+
+  /**
+   * @return a Draft 2020-12 Json Schema. It should be self-contained, and MUST not contain refs to
+   *     files or HTTP. The schema is currently used by Restate to introspect the service contract
+   *     and generate an OpenAPI definition.
+   */
+  default @Nullable Schema jsonSchema() {
+    return null;
+  }
+
+  sealed interface Schema {}
+
+  /** Schema to be serialized using internal Jackson mapper. */
+  record JsonSchema(Object schema) implements Schema {}
+
+  /** Schema already serialized to String. The string should be a valid json schema. */
+  record StringifiedJsonSchema(String schema) implements Schema {}
 
   /**
    * Like {@link #using(String, ThrowingFunction, ThrowingFunction)}, using content-type {@code

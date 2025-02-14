@@ -43,14 +43,12 @@ public final class MockRequestResponse implements TestExecutor {
   public void executeTest(TestDefinition definition) {
     Executor syscallsExecutor = Executors.newSingleThreadExecutor();
 
-    ServiceDefinition<?> serviceDefinition = definition.getServiceDefinition();
+    ServiceDefinition serviceDefinition = definition.getServiceDefinition();
 
     // Prepare server
-    @SuppressWarnings("unchecked")
     Endpoint.Builder builder =
         Endpoint.builder()
-            .bind(
-                (ServiceDefinition<? super Object>) serviceDefinition,
+            .bind(serviceDefinition,
                 definition.getServiceOptions());
     if (definition.isEnablePreviewContext()) {
       builder.enablePreviewContext();

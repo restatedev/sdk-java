@@ -8,6 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
+import dev.restate.common.CallRequest;
+import dev.restate.common.SendRequest;
 import dev.restate.common.Target;
 import dev.restate.common.function.ThrowingRunnable;
 import dev.restate.common.function.ThrowingSupplier;
@@ -37,80 +39,30 @@ public interface Context {
   /**
    * Invoke another Restate service method.
    *
-   * @param target the address of the callee
-   * @param inputSerde Input serde
-   * @param outputSerde Output serde
-   * @param parameter the invocation request parameter.
+   * @param callRequest request
    * @return an {@link Awaitable} that wraps the Restate service method result.
    */
-  default <T, R> CallAwaitable<R> call(
-      Target target, Serde<T> inputSerde, Serde<R> outputSerde, T parameter) {
-    return call(target, inputSerde, outputSerde, parameter, CallOptions.DEFAULT);
-  }
-
-  /** Like {@link #call(Target, Serde, Serde, Object)} with raw input/output. */
-  default CallAwaitable<byte[]> call(Target target, byte[] parameter) {
-    return call(target, Serde.RAW, Serde.RAW, parameter);
-  }
-
-  /** Like {@link #call(Target, Serde, Serde, Object)} but providing request options. */
   <T, R> CallAwaitable<R> call(
-      Target target, Serde<T> inputSerde, Serde<R> outputSerde, T parameter, CallOptions options);
+          CallRequest<T, R> callRequest);
 
-  /** Like {@link #call(Target, byte[])} but providing request options. */
-  default CallAwaitable<byte[]> call(Target target, byte[] parameter, CallOptions options) {
-    return call(target, Serde.RAW, Serde.RAW, parameter, options);
-  }
-
-  /** Like {@link #call(Target, Serde, Serde, Object)} but providing request options. */
+  /**
+   * Like {@link #call(CallRequest)}
+   */
   default <T, R> CallAwaitable<R> call(
-      Target target,
-      Serde<T> inputSerde,
-      Serde<R> outputSerde,
-      T parameter,
-      CallOptions.Builder options) {
-    return call(target, inputSerde, outputSerde, parameter, options.build());
-  }
-
-  /** Like {@link #call(Target, byte[])} but providing request options. */
-  default CallAwaitable<byte[]> call(Target target, byte[] parameter, CallOptions.Builder options) {
-    return call(target, Serde.RAW, Serde.RAW, parameter, options);
+          CallRequest.Builder<T, R> callRequestBuilder) {
+    return call(callRequestBuilder.build());
   }
 
   /**
    * Invoke another Restate service without waiting for the response.
    *
-   * @param target the address of the callee
-   * @param inputSerde Input serde
-   * @param parameter the invocation request parameter.
-   * @return an {@link Awaitable} returning the invocation id
+   * @param sendRequest request
+   * @return an {@link SendHandle} that can be used to retrieve the invocation id
    */
-  default <T> SendHandle send(Target target, Serde<T> inputSerde, T parameter) {
-    return send(target, inputSerde, parameter, SendOptions.DEFAULT);
-  }
+  <T> SendHandle send(SendRequest<T> sendRequest);
 
-  /** Like {@link #send(Target, Serde, Object)} with raw input. */
-  default SendHandle send(Target target, byte[] parameter) {
-    return send(target, Serde.RAW, parameter);
-  }
-
-  /** Like {@link #send(Target, Serde, Object)} but providing request options. */
-  <T> SendHandle send(Target target, Serde<T> inputSerde, T parameter, SendOptions options);
-
-  /** Like {@link #send(Target, byte[])} but providing request options. */
-  default SendHandle send(Target target, byte[] parameter, SendOptions options) {
-    return send(target, Serde.RAW, parameter, options);
-  }
-
-  /** Like {@link #send(Target, Serde, Object)} but providing request options. */
-  default <T> SendHandle send(
-      Target target, Serde<T> inputSerde, T parameter, SendOptions.Builder options) {
-    return send(target, inputSerde, parameter, options.build());
-  }
-
-  /** Like {@link #send(Target, byte[])} but providing request options. */
-  default SendHandle send(Target target, byte[] parameter, SendOptions.Builder options) {
-    return send(target, Serde.RAW, parameter, options);
+  default <T> SendHandle send(SendRequest.Builder<T> sendRequest) {
+    return send(sendRequest.build());
   }
 
   /**

@@ -13,7 +13,7 @@ import java.util.Collections;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
 
-public final class HandlerDefinition<REQ, RES, OPT> {
+public final class HandlerDefinition<REQ, RES> {
 
   private final String name;
   private final HandlerType handlerType;
@@ -22,7 +22,7 @@ public final class HandlerDefinition<REQ, RES, OPT> {
   private final Serde<RES> responseSerde;
   private final @Nullable String documentation;
   private final Map<String, String> metadata;
-  private final HandlerRunner<REQ, RES, OPT> runner;
+  private final HandlerRunner<REQ, RES> runner;
 
   HandlerDefinition(
       String name,
@@ -32,7 +32,7 @@ public final class HandlerDefinition<REQ, RES, OPT> {
       Serde<RES> responseSerde,
       @Nullable String documentation,
       Map<String, String> metadata,
-      HandlerRunner<REQ, RES, OPT> runner) {
+      HandlerRunner<REQ, RES> runner) {
     this.name = name;
     this.handlerType = handlerType;
     this.acceptContentType = acceptContentType;
@@ -71,11 +71,11 @@ public final class HandlerDefinition<REQ, RES, OPT> {
     return metadata;
   }
 
-  public HandlerRunner<REQ, RES, OPT> getRunner() {
+  public HandlerRunner<REQ, RES> getRunner() {
     return runner;
   }
 
-  public HandlerDefinition<REQ, RES, OPT> withAcceptContentType(String acceptContentType) {
+  public HandlerDefinition<REQ, RES> withAcceptContentType(String acceptContentType) {
     return new HandlerDefinition<>(
         name,
         handlerType,
@@ -87,7 +87,7 @@ public final class HandlerDefinition<REQ, RES, OPT> {
         runner);
   }
 
-  public HandlerDefinition<REQ, RES, OPT> withDocumentation(@Nullable String documentation) {
+  public HandlerDefinition<REQ, RES> withDocumentation(@Nullable String documentation) {
     return new HandlerDefinition<>(
         name,
         handlerType,
@@ -99,7 +99,7 @@ public final class HandlerDefinition<REQ, RES, OPT> {
         runner);
   }
 
-  public HandlerDefinition<REQ, RES, OPT> withMetadata(Map<String, String> metadata) {
+  public HandlerDefinition<REQ, RES> withMetadata(Map<String, String> metadata) {
     return new HandlerDefinition<>(
         name,
         handlerType,
@@ -111,12 +111,12 @@ public final class HandlerDefinition<REQ, RES, OPT> {
         runner);
   }
 
-  public static <REQ, RES, OPT> HandlerDefinition<REQ, RES, OPT> of(
+  public static <REQ, RES> HandlerDefinition<REQ, RES> of(
       String handler,
       HandlerType handlerType,
       Serde<REQ> requestSerde,
       Serde<RES> responseSerde,
-      HandlerRunner<REQ, RES, OPT> runner) {
+      HandlerRunner<REQ, RES> runner) {
     return new HandlerDefinition<>(
         handler,
         handlerType,

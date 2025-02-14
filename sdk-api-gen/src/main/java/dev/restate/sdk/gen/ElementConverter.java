@@ -29,6 +29,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
+
 import org.jspecify.annotations.Nullable;
 
 class ElementConverter {
@@ -95,6 +96,12 @@ class ElementConverter {
           Diagnostic.Kind.WARNING, "The service " + serviceName + " has no handlers", element);
     }
 
+    String serdeFactoryDecl = "new dev.restate.sdk.serde.jackson.JacksonSerdeFactory()";
+    CustomSerdeFactory customSerdeFactory = element.getAnnotation(CustomSerdeFactory.class);
+    if (customSerdeFactory != null) {
+      serdeFactoryDecl = "new " + customSerdeFactory.value().getCanonicalName() + "()";
+    }
+
     try {
       return new Service.Builder()
           .withTargetPkg(targetPkg)
@@ -103,6 +110,7 @@ class ElementConverter {
           .withDocumentation(sanitizeJavadoc(elements.getDocComment(element)))
           .withServiceType(metaAnnotation.getServiceType())
           .withHandlers(handlers)
+              .withSerdeFactoryDecl(serdeFactoryDecl)
           .validateAndBuild();
     } catch (Exception e) {
       messager.printMessage(
@@ -311,7 +319,7 @@ class ElementConverter {
           element);
     }
 
-    String serdeDecl = rawAnnotation != null ? RAW_SERDE : jsonSerdeDecl(ty);
+    String serdeDecl = rawAnnotation != null ? RAW_SERDE : serdeDecl(ty);
     if (rawAnnotation != null
         && !rawAnnotation
             .contentType()
@@ -332,22 +340,14 @@ class ElementConverter {
     return "dev.restate.serde.Serde.withContentType(\"" + contentType + "\", " + serdeDecl + ")";
   }
 
-  private static String jsonSerdeDecl(TypeMirror ty) {
+  private static String serdeDecl(TypeMirror ty) {
     return switch (ty.getKind()) {
-      case BOOLEAN -> "dev.restate.sdk.JsonSerdes.BOOLEAN";
-      case BYTE -> "dev.restate.sdk.JsonSerdes.BYTE";
-      case SHORT -> "dev.restate.sdk.JsonSerdes.SHORT";
-      case INT -> "dev.restate.sdk.JsonSerdes.INT";
-      case LONG -> "dev.restate.sdk.JsonSerdes.LONG";
-      case CHAR -> "dev.restate.sdk.JsonSerdes.CHAR";
-      case FLOAT -> "dev.restate.sdk.JsonSerdes.FLOAT";
-      case DOUBLE -> "dev.restate.sdk.JsonSerdes.DOUBLE";
       case VOID -> "dev.restate.serde.Serde.VOID";
       default ->
           // Default to Jackson type reference serde
-          "dev.restate.sdk.serde.jackson.JacksonSerdes.of(new com.fasterxml.jackson.core.type.TypeReference<"
-              + ty
-              + ">() {})";
+          "SERDE_FACTORY.create(dev.restate.serde.SerdeInfo.of(new dev.restate.serde.TypeRef<"
+              + boxedType(ty)
+              + ">() {}))";
     };
   }
 

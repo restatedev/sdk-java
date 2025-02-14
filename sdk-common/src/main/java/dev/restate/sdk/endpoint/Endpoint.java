@@ -8,8 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.endpoint;
 
+import dev.restate.sdk.endpoint.definition.HandlerRunner;
 import dev.restate.sdk.endpoint.definition.ServiceDefinition;
-import dev.restate.sdk.endpoint.definition.ServiceDefinitionAndOptions;
 import dev.restate.sdk.endpoint.definition.ServiceDefinitionFactories;
 import io.opentelemetry.api.OpenTelemetry;
 import java.util.*;
@@ -20,13 +20,13 @@ import java.util.stream.Stream;
 /** Restate endpoint, encapsulating the configured services, together with additional options. */
 public final class Endpoint {
 
-  private final Map<String, ServiceDefinitionAndOptions<?>> services;
+  private final Map<String, ServiceDefinition> services;
   private final OpenTelemetry openTelemetry;
   private final RequestIdentityVerifier requestIdentityVerifier;
   private final boolean experimentalContextEnabled;
 
   private Endpoint(
-      Map<String, ServiceDefinitionAndOptions<?>> services,
+      Map<String, ServiceDefinition> services,
       OpenTelemetry openTelemetry,
       RequestIdentityVerifier requestIdentityVerifier,
       boolean experimentalContextEnabled) {
@@ -37,7 +37,7 @@ public final class Endpoint {
   }
 
   public static class Builder {
-    private final List<ServiceDefinitionAndOptions<?>> services = new ArrayList<>();
+    private final List<ServiceDefinition> services = new ArrayList<>();
     private RequestIdentityVerifier requestIdentityVerifier = RequestIdentityVerifier.noop();
     private OpenTelemetry openTelemetry = OpenTelemetry.noop();
     private boolean experimentalContextEnabled = false;
@@ -50,22 +50,25 @@ public final class Endpoint {
      * #bind(ServiceDefinition)}.
      */
     public Builder bind(Object service) {
-      return this.bind(ServiceDefinitionFactories.discover(service).create(service));
+      return this.bind(ServiceDefinitionFactories.discover(service).create(service, null));
     }
 
     /**
-     * Add a Restate service to the endpoint.
+     * Like {@link #bind(Object)}, but allows to provide options for the handler runner. This allows to configure for the Java API the executor where to run the handler code, or the Kotlin API the coroutine context.
+     * <p>
+     * Look at the respective documentations of the HandlerRunner class in the Java or in the Kotlin module.
      *
-     * <p>To set the options, use {@link #bind(ServiceDefinition, Object)}.
+     * @see #bind(Object)
      */
-    public Builder bind(ServiceDefinition<?> serviceDefinition) {
-      //noinspection unchecked
-      return this.bind((ServiceDefinition<Object>) serviceDefinition, null);
+    public Builder bind(Object service, HandlerRunner.Options options) {
+      return this.bind(ServiceDefinitionFactories.discover(service).create(service, options));
     }
 
-    /** Add a Restate service to the endpoint, setting the options. */
-    public <O> Builder bind(ServiceDefinition<O> serviceDefinition, O options) {
-      this.services.add(new ServiceDefinitionAndOptions<>(serviceDefinition, options));
+    /**
+     * Add a manual {@link ServiceDefinition} to the endpoint.
+     */
+    public Builder bind(ServiceDefinition serviceDefinition) {
+      this.services.add(serviceDefinition);
       return this;
     }
 
@@ -122,7 +125,7 @@ public final class Endpoint {
     public Endpoint build() {
       return new Endpoint(
           this.services.stream()
-              .collect(Collectors.toMap(c -> c.service().getServiceName(), Function.identity())),
+              .collect(Collectors.toMap(ServiceDefinition::getServiceName, Function.identity())),
           this.openTelemetry,
           this.requestIdentityVerifier,
           this.experimentalContextEnabled);
@@ -140,12 +143,12 @@ public final class Endpoint {
     return new Builder().bind(object);
   }
 
-  public ServiceDefinitionAndOptions<?> resolveServiceAndOptions(String serviceName) {
+  public ServiceDefinition resolveService(String serviceName) {
     return services.get(serviceName);
   }
 
-  public Stream<ServiceDefinition<?>> getServiceDefinitions() {
-    return this.services.values().stream().map(ServiceDefinitionAndOptions::service);
+  public Stream<ServiceDefinition> getServiceDefinitions() {
+    return this.services.values().stream();
   }
 
   public OpenTelemetry getOpenTelemetry() {

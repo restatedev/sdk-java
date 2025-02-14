@@ -17,6 +17,7 @@ import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.http.vertx.RestateHttpServer;
 import dev.restate.sdk.types.StateKey;
 import java.time.Duration;
+import java.util.concurrent.Executors;
 
 import dev.restate.sdk.types.TerminalException;
 import org.apache.logging.log4j.LogManager;
@@ -113,7 +114,18 @@ public class Counter {
   }
 
   public static void main(String[] args) {
-    Endpoint endpoint = Endpoint.builder().bind(new Counter()).build();
+
+    // Using defaults
+    Endpoint endpoint = Endpoint.builder()
+            .bind(new Counter())
+            .build();
+
+    // Customize executor
+    Endpoint endpoint = Endpoint.builder()
+            .bind(new Counter(), HandlerRunner.Options.withExecutor(myAwesomeExecutor))
+            .build();
+
+
 
     RestateHttpServer.listen(endpoint);
   }

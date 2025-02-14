@@ -17,7 +17,6 @@ import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.endpoint.definition.HandlerDefinition;
 import dev.restate.sdk.endpoint.definition.ServiceDefinition;
-import dev.restate.sdk.endpoint.definition.ServiceDefinitionAndOptions;
 import io.opentelemetry.context.propagation.TextMapGetter;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -144,12 +143,11 @@ public final class EndpointRequestHandler {
 
     // Resolve the service method definition
     @SuppressWarnings("unchecked")
-    ServiceDefinitionAndOptions<Object> svc =
-        (ServiceDefinitionAndOptions<Object>) this.endpoint.resolveServiceAndOptions(serviceName);
+    ServiceDefinition svc = this.endpoint.resolveService(serviceName);
     if (svc == null) {
       throw ProtocolException.methodNotFound(serviceName, handlerName);
     }
-    HandlerDefinition<?, ?, Object> handler = svc.service().getHandler(handlerName);
+    HandlerDefinition<?, ?> handler = svc.getHandler(handlerName);
     if (handler == null) {
       throw ProtocolException.methodNotFound(serviceName, handlerName);
     }
@@ -190,7 +188,6 @@ public final class EndpointRequestHandler {
         handler,
         otelContext,
         loggingContextSetter,
-        svc.options(),
         coreExecutor);
   }
 

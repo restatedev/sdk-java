@@ -31,9 +31,10 @@ import javax.tools.StandardLocation;
 @SupportedSourceVersion(SourceVersion.RELEASE_17)
 public class ServiceProcessor extends AbstractProcessor {
 
-  private HandlebarsTemplateEngine definitionsCodegen;
+  private HandlebarsTemplateEngine metadataCodegen;
   private HandlebarsTemplateEngine serviceDefinitionFactoryCodegen;
   private HandlebarsTemplateEngine clientCodegen;
+  private HandlebarsTemplateEngine requestsCodegen;
 
   private static final Set<String> RESERVED_METHOD_NAMES =
       Set.of("send", "submit", "workflowHandle");
@@ -44,17 +45,17 @@ public class ServiceProcessor extends AbstractProcessor {
 
     FilerTemplateLoader filerTemplateLoader = new FilerTemplateLoader(processingEnv.getFiler());
 
-    this.definitionsCodegen =
+    this.metadataCodegen =
         new HandlebarsTemplateEngine(
-            "Definitions",
+            "Metadata",
             filerTemplateLoader,
             Map.of(
                 ServiceType.WORKFLOW,
-                "templates/Definitions.hbs",
+                "templates/Metadata.hbs",
                 ServiceType.SERVICE,
-                "templates/Definitions.hbs",
+                "templates/Metadata.hbs",
                 ServiceType.VIRTUAL_OBJECT,
-                "templates/Definitions.hbs"),
+                "templates/Metadata.hbs"),
             RESERVED_METHOD_NAMES);
     this.serviceDefinitionFactoryCodegen =
         new HandlebarsTemplateEngine(
@@ -80,6 +81,18 @@ public class ServiceProcessor extends AbstractProcessor {
                 ServiceType.VIRTUAL_OBJECT,
                 "templates/Client.hbs"),
             RESERVED_METHOD_NAMES);
+    this.requestsCodegen =
+            new HandlebarsTemplateEngine(
+                    "Requests",
+                    filerTemplateLoader,
+                    Map.of(
+                            ServiceType.WORKFLOW,
+                            "templates/Requests.hbs",
+                            ServiceType.SERVICE,
+                            "templates/Requests.hbs",
+                            ServiceType.VIRTUAL_OBJECT,
+                            "templates/Requests.hbs"),
+                    RESERVED_METHOD_NAMES);
   }
 
   @Override
@@ -115,9 +128,12 @@ public class ServiceProcessor extends AbstractProcessor {
       try {
         ThrowingFunction<String, Writer> fileCreator =
             name -> filer.createSourceFile(name, e.getKey()).openWriter();
-        this.definitionsCodegen.generate(fileCreator, e.getValue());
+        this.metadataCodegen.generate(fileCreator, e.getValue());
         this.serviceDefinitionFactoryCodegen.generate(fileCreator, e.getValue());
-        this.clientCodegen.generate(fileCreator, e.getValue());
+        this.requestsCodegen.generate(fileCreator, e.getValue());
+        if (e.getValue().isContextClientEnabled() || e.getValue().isIngressClientEnabled()) {
+          this.clientCodegen.generate(fileCreator, e.getValue());
+        }
       } catch (Throwable ex) {
         throw new RuntimeException(ex);
       }

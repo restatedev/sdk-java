@@ -8,9 +8,14 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.endpoint.definition;
 
-public interface ServiceDefinitionFactory<T, O> {
+import org.jspecify.annotations.Nullable;
 
-  ServiceDefinition<O> create(T serviceObject);
+public interface ServiceDefinitionFactory<T> {
+
+  ServiceDefinition create(
+          T serviceObject,
+          HandlerRunner.@Nullable Options overrideHandlerOptions
+  );
 
   boolean supports(Object serviceObject);
 }

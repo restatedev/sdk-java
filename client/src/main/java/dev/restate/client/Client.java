@@ -8,9 +8,12 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.client;
 
+import dev.restate.common.CallRequest;
 import dev.restate.common.Output;
+import dev.restate.common.SendRequest;
 import dev.restate.common.Target;
 import dev.restate.serde.Serde;
+import dev.restate.serde.SerdeFactory;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
@@ -21,22 +24,16 @@ import org.jspecify.annotations.Nullable;
 
 public interface Client {
 
-  <Req, Res> CompletableFuture<ClientResponse<Res>> callWithInfo(
-      Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req, RequestOptions options);
+  <Req, Res> CompletableFuture<Res> callAsync(CallRequest<Req, Res> request);
 
-  <Req, Res> CompletableFuture<Res> callAsync(
-      Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req, RequestOptions options);
-
-  default <Req, Res> CompletableFuture<Res> callAsync(
-      Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req) {
-    return callAsync(target, reqSerde, resSerde, req, RequestOptions.DEFAULT);
+  default <Req, Res> CompletableFuture<Res> callAsync(CallRequest.Builder<Req, Res> request) {
+    return callAsync(request.build());
   }
 
-  default <Req, Res> Res call(
-      Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req, RequestOptions options)
+  default <Req, Res> Res call(CallRequest<Req, Res> request)
       throws IngressException {
     try {
-      return callAsync(target, reqSerde, resSerde, req, options).join();
+      return callAsync(request).join();
     } catch (CompletionException e) {
       if (e.getCause() instanceof RuntimeException) {
         throw (RuntimeException) e.getCause();
@@ -45,33 +42,23 @@ public interface Client {
     }
   }
 
-  default <Req, Res> Res call(Target target, Serde<Req> reqSerde, Serde<Res> resSerde, Req req)
-      throws IngressException {
-    return call(target, reqSerde, resSerde, req, RequestOptions.DEFAULT);
+  default <Req, Res> Res call(CallRequest.Builder<Req, Res> request)
+          throws IngressException {
+    return call(request.build());
   }
 
   <Req> CompletableFuture<SendResponse> sendAsync(
-      Target target,
-      Serde<Req> reqSerde,
-      Req req,
-      @Nullable Duration delay,
-      RequestOptions options);
+          SendRequest<Req> request);
 
   default <Req> CompletableFuture<SendResponse> sendAsync(
-      Target target, Serde<Req> reqSerde, Req req, @Nullable Duration delay) {
-    return sendAsync(target, reqSerde, req, delay, RequestOptions.DEFAULT);
+          SendRequest.Builder<Req> request) {
+    return sendAsync(request.build());
   }
 
-  default <Req> CompletableFuture<SendResponse> sendAsync(
-      Target target, Serde<Req> reqSerde, Req req) {
-    return sendAsync(target, reqSerde, req, null, RequestOptions.DEFAULT);
-  }
-
-  default <Req> SendResponse send(
-      Target target, Serde<Req> reqSerde, Req req, @Nullable Duration delay, RequestOptions options)
+  default <Req> SendResponse send(SendRequest<Req> request)
       throws IngressException {
     try {
-      return sendAsync(target, reqSerde, req, delay, options).join();
+      return sendAsync(request).join();
     } catch (CompletionException e) {
       if (e.getCause() instanceof RuntimeException) {
         throw (RuntimeException) e.getCause();
@@ -80,15 +67,9 @@ public interface Client {
     }
   }
 
-  default <Req> SendResponse send(
-      Target target, Serde<Req> reqSerde, Req req, @Nullable Duration delay)
+  default <Req> SendResponse send(SendRequest.Builder<Req> request)
       throws IngressException {
-    return send(target, reqSerde, req, delay, RequestOptions.DEFAULT);
-  }
-
-  default <Req> SendResponse send(Target target, Serde<Req> reqSerde, Req req)
-      throws IngressException {
-    return send(target, reqSerde, req, null, RequestOptions.DEFAULT);
+    return send(request.build());
   }
 
   /**
@@ -309,10 +290,18 @@ public interface Client {
   }
 
   static Client connect(String baseUri) {
-    return connect(baseUri, Collections.emptyMap());
+    return connect(baseUri, SerdeFactory.NOOP, Collections.emptyMap());
   }
 
   static Client connect(String baseUri, Map<String, String> headers) {
+    return connect(baseUri, SerdeFactory.NOOP, headers);
+  }
+
+  static Client connect(String baseUri, SerdeFactory serdeFactory) {
+    return connect(baseUri, serdeFactory, Collections.emptyMap());
+  }
+
+  static Client connect(String baseUri, SerdeFactory serdeFactory, Map<String, String> headers) {
     // We load through reflections to avoid CNF exceptions in JVMs
     // where JDK's HttpClient is not available (see Android!)
     try {
@@ -326,8 +315,8 @@ public interface Client {
     try {
       return (Client)
           Class.forName("dev.restate.client.jdk.JdkClient")
-              .getMethod("of", String.class, Map.class)
-              .invoke(null, baseUri, headers);
+              .getMethod("of", String.class, SerdeFactory.class, Map.class)
+              .invoke(null, baseUri, serdeFactory, headers);
     } catch (Exception e) {
       throw new IllegalStateException("Cannot instantiate the client", e);
     }

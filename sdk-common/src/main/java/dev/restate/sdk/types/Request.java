@@ -13,7 +13,7 @@ import io.opentelemetry.context.Context;
 import java.nio.ByteBuffer;
 import java.util.Map;
 
-/** The Request object represents the incoming request to an handler. */
+/** The Request object represents the incoming request to a handler. */
 public record Request(
     InvocationId invocationId, Context otelContext, Slice body, Map<String, String> headers) {
   public byte[] bodyAsByteArray() {

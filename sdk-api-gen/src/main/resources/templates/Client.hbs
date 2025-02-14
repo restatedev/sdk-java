@@ -12,10 +12,13 @@ import java.time.Duration;
 
 public class {{generatedClassSimpleName}} {
 
+    {{#contextClientEnabled}}
     public static ContextClient fromContext(Context ctx{{#isKeyed}}, String key{{/isKeyed}}) {
         return new ContextClient(ctx{{#isKeyed}}, key{{/isKeyed}});
     }
+    {{/contextClientEnabled}}
 
+    {{#ingressClientEnabled}}
     public static IngressClient fromClient(dev.restate.client.Client client{{#isKeyed}}, String key{{/isKeyed}}) {
         return new IngressClient(client{{#isKeyed}}, key{{/isKeyed}});
     }
@@ -23,7 +26,9 @@ public class {{generatedClassSimpleName}} {
     public static IngressClient connect(String baseUri{{#isKeyed}}, String key{{/isKeyed}}) {
         return new IngressClient(dev.restate.client.Client.connect(baseUri){{#isKeyed}}, key{{/isKeyed}});
     }
+    {{/ingressClientEnabled}}
 
+    {{#contextClientEnabled}}
     public static class ContextClient {
 
         private final Context ctx;
@@ -37,21 +42,10 @@ public class {{generatedClassSimpleName}} {
         {{#handlers}}
         public Awaitable<{{{boxedOutputFqcn}}}> {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
             return this.ctx.call(
-                {{{targetExpr this "this.key"}}},
-                {{inputSerdeRef}},
-                {{outputSerdeRef}},
-                {{#if inputEmpty}}null{{else}}req{{/if}},
-                CallOptions.DEFAULT);
+                {{../requestsClass}}.{{methodName}}({{#if ../isKeyed}}this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}})
+            );
         }
-
-        public Awaitable<{{{boxedOutputFqcn}}}> {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}CallOptions options) {
-            return this.ctx.call(
-                {{{targetExpr this "this.key"}}},
-                {{inputSerdeRef}},
-                {{outputSerdeRef}},
-                {{#if inputEmpty}}null{{else}}req{{/if}},
-                options);
-        }{{/handlers}}
+        {{/handlers}}
 
         public Send send() {
             return new Send();
@@ -62,24 +56,17 @@ public class {{generatedClassSimpleName}} {
             private Send() {}
 
             {{#handlers}}
-            public void {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-                ContextClient.this.ctx.send(
-                    {{{targetExpr this "ContextClient.this.key"}}},
-                    {{inputSerdeRef}},
-                    {{#if inputEmpty}}null{{else}}req{{/if}},
-                    SendOptions.DEFAULT);
+            public dev.restate.sdk.SendHandle {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
+                return ContextClient.this.ctx.send(
+                    {{../requestsClass}}.Send.{{methodName}}({{#if ../isKeyed}}ContextClient.this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}})
+                );
             }
-
-            public void {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}SendOptions options) {
-                ContextClient.this.ctx.send(
-                    {{{targetExpr this "ContextClient.this.key"}}},
-                    {{inputSerdeRef}},
-                    {{#if inputEmpty}}null{{else}}req{{/if}},
-                    options);
-            }{{/handlers}}
+            {{/handlers}}
         }
     }
+    {{/contextClientEnabled}}
 
+    {{#ingressClientEnabled}}
     public static class IngressClient {
 
         private final dev.restate.client.Client client;
@@ -93,70 +80,35 @@ public class {{generatedClassSimpleName}} {
         {{#handlers}}{{#if isWorkflow}}
         public dev.restate.client.Client.WorkflowHandle<{{{boxedOutputFqcn}}}> workflowHandle() {
             return IngressClient.this.client.workflowHandle(
-                {{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME,
+                {{metadataClass}}.SERVICE_NAME,
                 this.key,
                 {{outputSerdeRef}});
         }
 
         public dev.restate.client.SendResponse submit({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-            return this.submit(
-                {{^inputEmpty}}req, {{/inputEmpty}}
-                dev.restate.client.RequestOptions.DEFAULT);
-        }
-
-        public dev.restate.client.SendResponse submit({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.client.RequestOptions requestOptions) {
             return IngressClient.this.client.send(
-                {{{targetExpr this "this.key"}}},
-                {{inputSerdeRef}},
-                {{#if inputEmpty}}null{{else}}req{{/if}},
-                null,
-                requestOptions);
+                {{../requestsClass}}.Send.{{methodName}}({{#if ../isKeyed}}this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}})
+            );
         }
 
         public java.util.concurrent.CompletableFuture<dev.restate.client.SendResponse> submitAsync({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-            return this.submitAsync(
-                {{^inputEmpty}}req, {{/inputEmpty}}
-                dev.restate.client.RequestOptions.DEFAULT);
-        }
-
-        public java.util.concurrent.CompletableFuture<dev.restate.client.SendResponse> submitAsync({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.client.RequestOptions requestOptions) {
             return IngressClient.this.client.sendAsync(
-                {{{targetExpr this "this.key"}}},
-                {{inputSerdeRef}},
-                {{#if inputEmpty}}null{{else}}req{{/if}},
-                null,
-                requestOptions);
+                {{../requestsClass}}.Send.{{methodName}}({{#if ../isKeyed}}this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}})
+            );
         }
         {{else}}
         public {{#if outputEmpty}}void{{else}}{{{outputFqcn}}}{{/if}} {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-            {{^outputEmpty}}return {{/outputEmpty}}this.{{methodName}}(
-                {{^inputEmpty}}req, {{/inputEmpty}}
-                dev.restate.client.CallRequestOptions.DEFAULT);
-        }
-
-        public {{#if outputEmpty}}void{{else}}{{{outputFqcn}}}{{/if}} {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.client.CallRequestOptions requestOptions) {
             {{^outputEmpty}}return {{/outputEmpty}}this.client.call(
-                {{{targetExpr this "this.key"}}},
-                {{inputSerdeRef}},
-                {{outputSerdeRef}},
-                {{#if inputEmpty}}null{{else}}req{{/if}},
-                requestOptions);
+                {{../requestsClass}}.{{methodName}}({{#if ../isKeyed}}this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}})
+            );
         }
 
         public {{#if outputEmpty}}java.util.concurrent.CompletableFuture<Void>{{else}}java.util.concurrent.CompletableFuture<{{{boxedOutputFqcn}}}>{{/if}} {{methodName}}Async({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-            return this.{{methodName}}Async(
-                {{^inputEmpty}}req, {{/inputEmpty}}
-                dev.restate.client.CallRequestOptions.DEFAULT);
-        }
-
-        public {{#if outputEmpty}}java.util.concurrent.CompletableFuture<Void>{{else}}java.util.concurrent.CompletableFuture<{{{boxedOutputFqcn}}}>{{/if}} {{methodName}}Async({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.client.CallRequestOptions requestOptions) {
             return this.client.callAsync(
-                {{{targetExpr this "this.key"}}},
-                {{inputSerdeRef}},
-                {{outputSerdeRef}},
-                {{#if inputEmpty}}null{{else}}req{{/if}},
-                requestOptions);
-        }{{/if}}{{/handlers}}
+                {{../requestsClass}}.{{methodName}}({{#if ../isKeyed}}this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}})
+            );
+        }
+        {{/if}}{{/handlers}}
 
         public Send send() {
             return new Send(null);
@@ -176,34 +128,17 @@ public class {{generatedClassSimpleName}} {
 
             {{#handlers}}{{^isWorkflow}}
             public dev.restate.client.SendResponse {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-                return this.{{methodName}}(
-                    {{^inputEmpty}}req, {{/inputEmpty}}
-                    dev.restate.client.CallRequestOptions.DEFAULT);
-            }
-
-            public dev.restate.client.SendResponse {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.client.CallRequestOptions requestOptions) {
                 return IngressClient.this.client.send(
-                    {{{targetExpr this "IngressClient.this.key"}}},
-                    {{inputSerdeRef}},
-                    {{#if inputEmpty}}null{{else}}req{{/if}},
-                    this.delay,
-                    requestOptions);
+                    {{../requestsClass}}.Send.{{methodName}}({{#if ../isKeyed}}IngressClient.this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}})
+                );
             }
 
             public java.util.concurrent.CompletableFuture<dev.restate.client.SendResponse> {{methodName}}Async({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
-                return this.{{methodName}}Async(
-                    {{^inputEmpty}}req, {{/inputEmpty}}
-                    dev.restate.client.CallRequestOptions.DEFAULT);
-            }
-
-            public java.util.concurrent.CompletableFuture<dev.restate.client.SendResponse> {{methodName}}Async({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}dev.restate.client.CallRequestOptions requestOptions) {
                 return IngressClient.this.client.sendAsync(
-                    {{{targetExpr this "IngressClient.this.key"}}},
-                    {{inputSerdeRef}},
-                    {{#if inputEmpty}}null{{else}}req{{/if}},
-                    this.delay,
-                    requestOptions);
+                    {{../requestsClass}}.Send.{{methodName}}({{#if ../isKeyed}}IngressClient.this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}})
+                );
             }{{/isWorkflow}}{{/handlers}}
         }
     }
+    {{/ingressClientEnabled}}
 }

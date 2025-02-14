@@ -15,8 +15,6 @@ dependencies {
 
   implementation(libs.log4j.api)
 
-  implementation(libs.jackson.core)
-
   testImplementation(project(":sdk-core"))
   testImplementation(libs.junit.jupiter)
   testImplementation(libs.assertj)

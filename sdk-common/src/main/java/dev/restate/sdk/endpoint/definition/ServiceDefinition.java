@@ -11,20 +11,22 @@ package dev.restate.sdk.endpoint.definition;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import dev.restate.serde.SerdeFactory;
 import org.jspecify.annotations.Nullable;
 
-public final class ServiceDefinition<OPT> {
+public final class ServiceDefinition {
 
   private final String serviceName;
   private final ServiceType serviceType;
-  private final Map<String, HandlerDefinition<?, ?, OPT>> handlers;
+  private final Map<String, HandlerDefinition<?, ?>> handlers;
   private final @Nullable String documentation;
   private final Map<String, String> metadata;
 
   private ServiceDefinition(
       String serviceName,
       ServiceType serviceType,
-      Map<String, HandlerDefinition<?, ?, OPT>> handlers,
+      Map<String, HandlerDefinition<?, ?>> handlers,
       @Nullable String documentation,
       Map<String, String> metadata) {
     this.serviceName = serviceName;
@@ -42,11 +44,11 @@ public final class ServiceDefinition<OPT> {
     return serviceType;
   }
 
-  public Collection<HandlerDefinition<?, ?, OPT>> getHandlers() {
+  public Collection<HandlerDefinition<?, ?>> getHandlers() {
     return handlers.values();
   }
 
-  public HandlerDefinition<?, ?, OPT> getHandler(String name) {
+  public HandlerDefinition<?, ?> getHandler(String name) {
     return handlers.get(name);
   }
 
@@ -58,19 +60,19 @@ public final class ServiceDefinition<OPT> {
     return metadata;
   }
 
-  public ServiceDefinition<OPT> withDocumentation(@Nullable String documentation) {
-    return new ServiceDefinition<>(serviceName, serviceType, handlers, documentation, metadata);
+  public ServiceDefinition withDocumentation(@Nullable String documentation) {
+    return new ServiceDefinition(serviceName, serviceType, handlers, documentation, metadata);
   }
 
-  public ServiceDefinition<OPT> withMetadata(Map<String, String> metadata) {
-    return new ServiceDefinition<>(serviceName, serviceType, handlers, documentation, metadata);
+  public ServiceDefinition withMetadata(Map<String, String> metadata) {
+    return new ServiceDefinition(serviceName, serviceType, handlers, documentation, metadata);
   }
 
   @Override
   public boolean equals(Object object) {
     if (this == object) return true;
     if (object == null || getClass() != object.getClass()) return false;
-    ServiceDefinition<?> that = (ServiceDefinition<?>) object;
+    ServiceDefinition that = (ServiceDefinition) object;
     return Objects.equals(serviceName, that.serviceName)
         && serviceType == that.serviceType
         && Objects.equals(handlers, that.handlers);
@@ -81,9 +83,9 @@ public final class ServiceDefinition<OPT> {
     return Objects.hash(serviceName, serviceType, handlers);
   }
 
-  public static <O> ServiceDefinition<O> of(
-      String name, ServiceType ty, Collection<HandlerDefinition<?, ?, O>> handlers) {
-    return new ServiceDefinition<>(
+  public static ServiceDefinition of(
+      String name, ServiceType ty, Collection<HandlerDefinition<?, ?>> handlers) {
+    return new ServiceDefinition(
         name,
         ty,
         handlers.stream()

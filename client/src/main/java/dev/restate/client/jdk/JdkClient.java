@@ -12,10 +12,9 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import dev.restate.client.*;
-import dev.restate.common.Output;
-import dev.restate.common.Slice;
-import dev.restate.common.Target;
+import dev.restate.common.*;
 import dev.restate.serde.Serde;
+import dev.restate.serde.SerdeFactory;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -38,82 +37,98 @@ public class JdkClient implements Client {
 
   private final HttpClient httpClient;
   private final URI baseUri;
+  private final SerdeFactory serdeFactory;
   private final Map<String, String> headers;
 
-  private JdkClient(HttpClient httpClient, String baseUri, Map<String, String> headers) {
+  private JdkClient(
+      HttpClient httpClient,
+      SerdeFactory serdeFactory,
+      String baseUri,
+      Map<String, String> headers) {
     this.httpClient = httpClient;
     this.baseUri = URI.create(baseUri);
+    this.serdeFactory = serdeFactory;
     this.headers = headers;
   }
 
+//  @Override
+//  public <Req, Res> CompletableFuture<Res> callAsync(
+//      Target target,
+//      Serde<Req> reqSerde,
+//      Serde<Res> resSerde,
+//      Req req,
+//      RequestOptions requestOptions) {
+//    HttpRequest request = prepareHttpRequest(target, false, reqSerde, req, null, requestOptions);
+//    return httpClient
+//        .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
+//        .handle(
+//            (response, throwable) -> {
+//              if (throwable != null) {
+//                throw createIngressException(
+//                    "Error when executing the request", request, throwable);
+//              }
+//
+//              if (response.statusCode() >= 300) {
+//                handleNonSuccessResponse(response);
+//              }
+//
+//              try {
+//                return resSerde.deserialize(Slice.wrap(response.body()));
+//              } catch (Exception e) {
+//                throw createIngressException("Cannot deserialize the response", response, e);
+//              }
+//            });
+//  }
+
   @Override
-  public <Req, Res> CompletableFuture<Res> callAsync(
-      Target target,
-      Serde<Req> reqSerde,
-      Serde<Res> resSerde,
-      Req req,
-      RequestOptions requestOptions) {
-    HttpRequest request = prepareHttpRequest(target, false, reqSerde, req, null, requestOptions);
-    return httpClient
-        .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
-        .handle(
-            (response, throwable) -> {
-              if (throwable != null) {
-                throw createIngressException(
-                    "Error when executing the request", request, throwable);
-              }
-
-              if (response.statusCode() >= 300) {
-                handleNonSuccessResponse(response);
-              }
-
-              try {
-                return resSerde.deserialize(Slice.wrap(response.body()));
-              } catch (Exception e) {
-                throw createIngressException("Cannot deserialize the response", response, e);
-              }
-            });
+  public <Req, Res> CompletableFuture<Res> callAsync(CallRequest<Req, Res> request) {
+    return null;
   }
 
   @Override
-  public <Req> CompletableFuture<SendResponse> sendAsync(
-      Target target, Serde<Req> reqSerde, Req req, Duration delay, RequestOptions options) {
-    HttpRequest request = prepareHttpRequest(target, true, reqSerde, req, delay, options);
-    return httpClient
-        .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
-        .handle(
-            (response, throwable) -> {
-              if (throwable != null) {
-                throw createIngressException(
-                    "Error when executing the request", request, throwable);
-              }
-              if (response.statusCode() >= 300) {
-                handleNonSuccessResponse(response);
-              }
-
-              Map<String, String> fields;
-              try {
-                fields =
-                    findStringFieldsInJsonObject(
-                        new ByteArrayInputStream(response.body()), "invocationId", "status");
-              } catch (Exception e) {
-                throw createIngressException("Cannot deserialize the response", response, e);
-              }
-
-              String statusField = fields.get("status");
-              SendResponse.SendStatus status;
-              if ("Accepted".equals(statusField)) {
-                status = SendResponse.SendStatus.ACCEPTED;
-              } else if ("PreviouslyAccepted".equals(statusField)) {
-                status = SendResponse.SendStatus.PREVIOUSLY_ACCEPTED;
-              } else {
-                throw createIngressException(
-                    "Cannot deserialize the response status, got " + statusField, response);
-              }
-
-              return new SendResponse(status, fields.get("invocationId"));
-            });
+  public <Req> CompletableFuture<SendResponse> sendAsync(SendRequest<Req> request) {
+    return null;
   }
+
+//  @Override
+//  public <Req> CompletableFuture<SendResponse> sendAsync(
+//      Target target, Serde<Req> reqSerde, Req req, Duration delay, RequestOptions options) {
+//    HttpRequest request = prepareHttpRequest(target, true, reqSerde, req, delay, options);
+//    return httpClient
+//        .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
+//        .handle(
+//            (response, throwable) -> {
+//              if (throwable != null) {
+//                throw createIngressException(
+//                    "Error when executing the request", request, throwable);
+//              }
+//              if (response.statusCode() >= 300) {
+//                handleNonSuccessResponse(response);
+//              }
+//
+//              Map<String, String> fields;
+//              try {
+//                fields =
+//                    findStringFieldsInJsonObject(
+//                        new ByteArrayInputStream(response.body()), "invocationId", "status");
+//              } catch (Exception e) {
+//                throw createIngressException("Cannot deserialize the response", response, e);
+//              }
+//
+//              String statusField = fields.get("status");
+//              SendResponse.SendStatus status;
+//              if ("Accepted".equals(statusField)) {
+//                status = SendResponse.SendStatus.ACCEPTED;
+//              } else if ("PreviouslyAccepted".equals(statusField)) {
+//                status = SendResponse.SendStatus.PREVIOUSLY_ACCEPTED;
+//              } else {
+//                throw createIngressException(
+//                    "Cannot deserialize the response status, got " + statusField, response);
+//              }
+//
+//              return new SendResponse(status, fields.get("invocationId"));
+//            });
+//  }
 
   @Override
   public AwakeableHandle awakeableHandle(String id) {
@@ -475,13 +490,18 @@ public class JdkClient implements Client {
   }
 
   /** Create a new JDK Client */
-  public static JdkClient of(HttpClient httpClient, String baseUri, Map<String, String> headers) {
-    return new JdkClient(httpClient, baseUri, headers);
+  public static JdkClient of(
+      HttpClient httpClient,
+      String baseUri,
+      SerdeFactory serdeFactory,
+      Map<String, String> headers) {
+    return new JdkClient(httpClient, serdeFactory, baseUri, headers);
   }
 
   /** Create a new JDK Client */
-  public static JdkClient of(String baseUri, Map<String, String> headers) {
-    return new JdkClient(HttpClient.newHttpClient(), baseUri, headers);
+  public static JdkClient of(
+      String baseUri, SerdeFactory serdeFactory, Map<String, String> headers) {
+    return new JdkClient(HttpClient.newHttpClient(), serdeFactory, baseUri, headers);
   }
 
   static IngressException createIngressException(

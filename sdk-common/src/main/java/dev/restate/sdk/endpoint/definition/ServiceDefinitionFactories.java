@@ -9,6 +9,7 @@
 package dev.restate.sdk.endpoint.definition;
 
 import java.util.*;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
@@ -44,18 +45,18 @@ public final class ServiceDefinitionFactories {
 
   /** Resolve the code generated {@link ServiceDefinitionFactory} */
   @SuppressWarnings("unchecked")
-  public static ServiceDefinitionFactory<Object, Object> discover(Object service) {
+  public static ServiceDefinitionFactory<Object> discover(Object service) {
     Objects.requireNonNull(service, "service is null");
-    if (service instanceof ServiceDefinitionFactory<?, ?>) {
+    if (service instanceof ServiceDefinitionFactory<?>) {
       // We got this already
-      return (ServiceDefinitionFactory<Object, Object>) service;
+      return (ServiceDefinitionFactory<Object>) service;
     }
-    if (service instanceof ServiceDefinition<?>) {
+    if (service instanceof ServiceDefinition) {
       // We got this already
       return new ServiceDefinitionFactory<>() {
         @Override
-        public ServiceDefinition<Object> create(Object serviceObject) {
-          return (ServiceDefinition<Object>) serviceObject;
+        public ServiceDefinition create(Object serviceObject, @org.jetbrains.annotations.Nullable HandlerRunner.Options overrideHandlerOptions) {
+          return (ServiceDefinition) serviceObject;
         }
 
         @Override
