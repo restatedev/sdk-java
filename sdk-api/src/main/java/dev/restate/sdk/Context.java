@@ -445,7 +445,7 @@ public interface Context {
    * service consume from Kafka the responses of given external system interaction by using {@link
    * #awakeableHandle(String)}.
    *
-   * @param clazz the response type to use for deserializing the {@link Awakeable} result.
+   * @param clazz the response type to use for deserializing the {@link Awakeable} result. When using generic types, use {@link #awakeable(TypeTag)} instead.
    * @return the {@link Awakeable} to await on.
    * @see Awakeable
    */
@@ -462,7 +462,6 @@ public interface Context {
    * #awakeableHandle(String)}.
    *
    * @param typeTag the response type tag to use for deserializing the {@link Awakeable} result.
-   *     When using generic types, use {@link #awakeable(TypeRef)} instead.
    * @return the {@link Awakeable} to await on.
    * @see Awakeable
    */

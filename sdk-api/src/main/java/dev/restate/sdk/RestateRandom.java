@@ -20,10 +20,9 @@ import java.util.UUID;
  *
  * <p>This instance is useful to generate identifiers, idempotency keys, and for uniform sampling
  * from a set of options. If a cryptographically secure value is needed, please generate that
- * externally using {@link ObjectContext#run(Serde, ThrowingSupplier)}.
+ * externally using {@link Context#run(String, Class, ThrowingSupplier)}.
  *
- * <p>You <b>MUST NOT</b> use this object inside a {@link ObjectContext#run(Serde,
- * ThrowingSupplier)}.
+ * <p>You <b>MUST NOT</b> use this object inside a {@link Context#run(String, Class, ThrowingSupplier)}/{@link Context#runAsync(String, Class, ThrowingSupplier)}.
  */
 public class RestateRandom extends Random {
 
