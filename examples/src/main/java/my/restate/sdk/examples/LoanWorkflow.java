@@ -9,7 +9,6 @@
 package my.restate.sdk.examples;
 
 import dev.restate.sdk.Context;
-import dev.restate.sdk.JsonSerdes;
 import dev.restate.sdk.SharedWorkflowContext;
 import dev.restate.sdk.WorkflowContext;
 import dev.restate.sdk.annotation.Handler;
@@ -18,7 +17,6 @@ import dev.restate.sdk.annotation.Shared;
 import dev.restate.sdk.annotation.Workflow;
 import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.http.vertx.RestateHttpServer;
-import dev.restate.sdk.serde.jackson.JacksonSerdes;
 import dev.restate.sdk.types.DurablePromiseKey;
 import dev.restate.sdk.types.StateKey;
 import dev.restate.sdk.types.TerminalException;
@@ -48,14 +46,13 @@ public class LoanWorkflow {
 
   private static final Logger LOG = LogManager.getLogger(LoanWorkflow.class);
 
-  private static final StateKey<Status> STATUS =
-      StateKey.of("status", JacksonSerdes.of(Status.class));
+  private static final StateKey<Status> STATUS = StateKey.of("status", Status.class);
   private static final StateKey<LoanRequest> LOAN_REQUEST =
-      StateKey.of("loanRequest", JacksonSerdes.of(LoanRequest.class));
+      StateKey.of("loanRequest", LoanRequest.class);
   private static final DurablePromiseKey<Boolean> HUMAN_APPROVAL =
-      DurablePromiseKey.of("humanApproval", JsonSerdes.BOOLEAN);
+      DurablePromiseKey.of("humanApproval", Boolean.class);
   private static final StateKey<String> TRANSFER_EXECUTION_TIME =
-      StateKey.of("transferExecutionTime", JsonSerdes.STRING);
+      StateKey.of("transferExecutionTime", String.class);
 
   // --- The main workflow method
 

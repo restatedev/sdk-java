@@ -17,6 +17,7 @@ import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.*
 import com.google.devtools.ksp.visitor.KSDefaultVisitor
 import dev.restate.sdk.annotation.Accept
+import dev.restate.sdk.annotation.CustomSerdeFactory
 import dev.restate.sdk.annotation.Json
 import dev.restate.sdk.annotation.Raw
 import dev.restate.sdk.endpoint.definition.ServiceType
@@ -37,7 +38,11 @@ class KElementConverter(
   companion object {
     private val SUPPORTED_CLASS_KIND: Set<ClassKind> = setOf(ClassKind.CLASS, ClassKind.INTERFACE)
     private val EMPTY_PAYLOAD: PayloadType =
-        PayloadType(true, "", "Unit", "dev.restate.sdk.kotlin.KtSerdes.UNIT")
+        PayloadType(
+            true,
+            "",
+            "Unit",
+            "dev.restate.sdk.kotlin.serialization.KotlinSerializationSerdeFactory.UNIT")
     private const val RAW_SERDE: String = "dev.restate.serde.Serde.RAW"
   }
 
@@ -94,6 +99,14 @@ class KElementConverter(
           "The class declaration $targetFqcn has no methods annotated as handlers",
           classDeclaration)
     }
+
+    var serdeFactoryDecl = "dev.restate.sdk.kotlin.serialization.KotlinSerializationSerdeFactory()"
+    val customSerdeFactory: CustomSerdeFactory? =
+        classDeclaration.getAnnotationsByType(CustomSerdeFactory::class).firstOrNull()
+    if (customSerdeFactory != null) {
+      serdeFactoryDecl = "new " + customSerdeFactory.value + "()"
+    }
+    data.withSerdeFactoryDecl(serdeFactoryDecl)
   }
 
   @OptIn(KspExperimental::class)
@@ -287,8 +300,9 @@ class KElementConverter(
 
   private fun jsonSerdeDecl(ty: KSType, qualifiedTypeName: String): String {
     return when (ty) {
-      builtIns.unitType -> "dev.restate.sdk.kotlin.KtSerdes.UNIT"
-      else -> "dev.restate.sdk.kotlin.KtSerdes.json<${boxedType(ty, qualifiedTypeName)}>()"
+      builtIns.unitType -> EMPTY_PAYLOAD.serdeDecl
+      else ->
+          "SERDE_FACTORY.create(dev.restate.sdk.kotlin.serialization.typeTag<${boxedType(ty, qualifiedTypeName)}>())"
     }
   }
 

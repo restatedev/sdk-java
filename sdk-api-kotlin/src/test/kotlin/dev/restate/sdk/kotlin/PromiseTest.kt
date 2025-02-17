@@ -24,9 +24,7 @@ class PromiseTest : PromiseTestSuite() {
       emptyCaseReturnValue: String
   ): TestDefinitions.TestInvocationBuilder =
       testDefinitionForWorkflow("AwaitPeekPromise") { ctx, _: Unit ->
-        ctx.promise(durablePromiseKey<String>(promiseKey))
-            .peek()
-            .orElse(emptyCaseReturnValue)
+        ctx.promise(durablePromiseKey<String>(promiseKey)).peek().orElse(emptyCaseReturnValue)
       }
 
   override fun awaitIsPromiseCompleted(promiseKey: String): TestDefinitions.TestInvocationBuilder =

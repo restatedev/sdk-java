@@ -1,9 +1,8 @@
 {{#if originalClassPkg}}package {{originalClassPkg}};{{/if}}
 
 import dev.restate.sdk.Awaitable;
+import dev.restate.sdk.CallAwaitable;
 import dev.restate.sdk.Context;
-import dev.restate.sdk.CallOptions;
-import dev.restate.sdk.SendOptions;
 import dev.restate.sdk.types.StateKey;
 import dev.restate.serde.Serde;
 import dev.restate.common.Target;
@@ -44,7 +43,7 @@ public class {{generatedClassSimpleName}} {
         }
 
         {{#handlers}}
-        public Awaitable<{{{boxedOutputFqcn}}}> {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
+        public CallAwaitable<{{{boxedOutputFqcn}}}> {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
             return this.ctx.call(
                 {{../requestsClass}}.{{methodName}}({{#if ../isKeyed}}this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}})
             );
@@ -52,17 +51,25 @@ public class {{generatedClassSimpleName}} {
         {{/handlers}}
 
         public Send send() {
-            return new Send();
+            return new Send(null);
+        }
+
+        public Send send(Duration delay) {
+            return new Send(delay);
         }
 
         public class Send {
 
-            private Send() {}
+            private final Duration delay;
+
+            Send(Duration delay) {
+                this.delay = delay;
+            }
 
             {{#handlers}}
             public dev.restate.sdk.SendHandle {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
                 return ContextClient.this.ctx.send(
-                    {{../requestsClass}}.Send.{{methodName}}({{#if ../isKeyed}}ContextClient.this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}})
+                    {{../requestsClass}}.Send.{{methodName}}({{#if ../isKeyed}}ContextClient.this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}}).delay(this.delay)
                 );
             }
             {{/handlers}}
@@ -133,13 +140,13 @@ public class {{generatedClassSimpleName}} {
             {{#handlers}}{{^isWorkflow}}
             public dev.restate.client.SendResponse {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
                 return IngressClient.this.client.send(
-                    {{../requestsClass}}.Send.{{methodName}}({{#if ../isKeyed}}IngressClient.this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}})
+                    {{../requestsClass}}.Send.{{methodName}}({{#if ../isKeyed}}IngressClient.this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}}).delay(this.delay)
                 ).response();
             }
 
             public java.util.concurrent.CompletableFuture<dev.restate.client.SendResponse> {{methodName}}Async({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
                 return IngressClient.this.client.sendAsync(
-                    {{../requestsClass}}.Send.{{methodName}}({{#if ../isKeyed}}IngressClient.this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}})
+                    {{../requestsClass}}.Send.{{methodName}}({{#if ../isKeyed}}IngressClient.this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}}).delay(this.delay)
                 ).thenApply(dev.restate.client.ClientResponse::response);
             }{{/isWorkflow}}{{/handlers}}
         }

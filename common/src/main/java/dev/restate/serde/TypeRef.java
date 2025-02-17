@@ -11,12 +11,18 @@ package dev.restate.serde;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
-public abstract class TypeRef<T> {
+/**
+ * This generic abstract class is used for obtaining full generics type information by sub-classing.
+ * Similar to Jackson's TypeReference.
+ *
+ * @param <T>
+ */
+public abstract class TypeRef<T> implements TypeTag<T> {
   private final Type type;
 
   protected TypeRef() {
     Type superClass = this.getClass().getGenericSuperclass();
-    if (superClass instanceof Class) {
+    if (superClass instanceof java.lang.Class<?>) {
       throw new IllegalArgumentException(
           "Internal error: TypeRef constructed without actual type information");
     } else {

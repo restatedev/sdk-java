@@ -8,17 +8,17 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testservices
 
+import dev.restate.common.CallRequest
+import dev.restate.common.SendRequest
 import dev.restate.common.Target
-import dev.restate.sdk.kotlin.Awaitable
-import dev.restate.sdk.kotlin.Context
-import dev.restate.sdk.kotlin.awaitAll
-import dev.restate.sdk.kotlin.sendOptions
+import dev.restate.sdk.kotlin.*
 import dev.restate.sdk.testservices.contracts.ManyCallRequest
 import dev.restate.sdk.testservices.contracts.Proxy
 import dev.restate.sdk.testservices.contracts.ProxyRequest
 import dev.restate.serde.Serde
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.toJavaDuration
 
 class ProxyImpl : Proxy {
   private fun ProxyRequest.toTarget(): Target {
@@ -30,15 +30,15 @@ class ProxyImpl : Proxy {
   }
 
   override suspend fun call(context: Context, request: ProxyRequest): ByteArray {
-    return context.call(request.toTarget(), Serde.RAW, Serde.RAW, request.message)
+    return context
+        .call(CallRequest.of(request.toTarget(), Serde.RAW, Serde.RAW, request.message))
+        .await()
   }
 
   override suspend fun oneWayCall(context: Context, request: ProxyRequest) {
     context.send(
-        request.toTarget(),
-        Serde.RAW,
-        request.message,
-        sendOptions { delay = request.delayMillis?.milliseconds ?: Duration.ZERO })
+        SendRequest.of(request.toTarget(), Serde.RAW, request.message)
+            .delay((request.delayMillis?.milliseconds ?: Duration.ZERO).toJavaDuration()))
   }
 
   override suspend fun manyCalls(context: Context, requests: List<ManyCallRequest>) {
@@ -47,14 +47,18 @@ class ProxyImpl : Proxy {
     for (request in requests) {
       if (request.oneWayCall) {
         context.send(
-            request.proxyRequest.toTarget(),
-            Serde.RAW,
-            request.proxyRequest.message,
-            sendOptions { delay = request.proxyRequest.delayMillis?.milliseconds ?: Duration.ZERO })
+            SendRequest.of(request.proxyRequest.toTarget(), Serde.RAW, request.proxyRequest.message)
+                .delay(
+                    (request.proxyRequest.delayMillis?.milliseconds ?: Duration.ZERO)
+                        .toJavaDuration()))
       } else {
         val awaitable =
-            context.callAsync(
-                request.proxyRequest.toTarget(), Serde.RAW, Serde.RAW, request.proxyRequest.message)
+            context.call(
+                CallRequest.of(
+                    request.proxyRequest.toTarget(),
+                    Serde.RAW,
+                    Serde.RAW,
+                    request.proxyRequest.message))
         if (request.awaitAtTheEnd) {
           toAwait.add(awaitable)
         }

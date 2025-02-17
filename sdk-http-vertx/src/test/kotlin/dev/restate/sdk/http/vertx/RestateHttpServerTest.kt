@@ -11,7 +11,7 @@ package dev.restate.sdk.http.vertx
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.protobuf.ByteString
 import com.google.protobuf.MessageLite
-import dev.restate.sdk.JsonSerdes
+import dev.restate.sdk.core.TestSerdes
 import dev.restate.sdk.core.generated.manifest.EndpointManifestSchema
 import dev.restate.sdk.core.generated.protocol.Protocol
 import dev.restate.sdk.core.statemachine.ProtoUtils.*
@@ -106,7 +106,7 @@ internal class RestateHttpServerTest {
                 ByteString.copyFromUtf8("counter"), Protocol.GetLazyStateCommandMessage::getKey)
 
         // Send completion
-        request.write(encode(getLazyStateCompletion(1, JsonSerdes.LONG, 2)))
+        request.write(encode(getLazyStateCompletion(1, TestSerdes.LONG, 2)))
 
         // Wait for Set State Entry
         val setStateEntry = inputChannel.receive()

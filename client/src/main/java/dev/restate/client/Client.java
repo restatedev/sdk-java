@@ -14,7 +14,7 @@ import dev.restate.common.SendRequest;
 import dev.restate.common.Target;
 import dev.restate.serde.Serde;
 import dev.restate.serde.SerdeFactory;
-import dev.restate.serde.SerdeInfo;
+import dev.restate.serde.TypeTag;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import org.jspecify.annotations.NonNull;
@@ -71,7 +71,7 @@ public interface Client {
 
   /**
    * Create a new {@link AwakeableHandle} for the provided identifier. You can use it to {@link
-   * AwakeableHandle#resolve(SerdeInfo, Object)} or {@link AwakeableHandle#reject(String)} an
+   * AwakeableHandle#resolve(TypeTag, Object)} or {@link AwakeableHandle#reject(String)} an
    * Awakeable from the ingress.
    */
   AwakeableHandle awakeableHandle(String id);
@@ -81,19 +81,19 @@ public interface Client {
    * ingress
    */
   interface AwakeableHandle {
-    /** Same as {@link #resolve(SerdeInfo, Object)} but async with options. */
+    /** Same as {@link #resolve(TypeTag, Object)} but async with options. */
     <T> CompletableFuture<ClientResponse<Void>> resolveAsync(
-        SerdeInfo<T> serde, @NonNull T payload, ClientRequestOptions options);
+        TypeTag<T> serde, @NonNull T payload, ClientRequestOptions options);
 
-    /** Same as {@link #resolve(SerdeInfo, Object)} but async. */
+    /** Same as {@link #resolve(TypeTag, Object)} but async. */
     default <T> CompletableFuture<ClientResponse<Void>> resolveAsync(
-        SerdeInfo<T> serde, @NonNull T payload) {
+        TypeTag<T> serde, @NonNull T payload) {
       return resolveAsync(serde, payload, ClientRequestOptions.DEFAULT);
     }
 
-    /** Same as {@link #resolve(SerdeInfo, Object)} with options. */
+    /** Same as {@link #resolve(TypeTag, Object)} with options. */
     default <T> ClientResponse<Void> resolve(
-        SerdeInfo<T> serde, @NonNull T payload, ClientRequestOptions options) {
+        TypeTag<T> serde, @NonNull T payload, ClientRequestOptions options) {
       try {
         return resolveAsync(serde, payload, options).join();
       } catch (CompletionException e) {
@@ -110,7 +110,7 @@ public interface Client {
      * @param serde used to serialize the Awakeable result payload.
      * @param payload the result payload. MUST NOT be null.
      */
-    default <T> ClientResponse<Void> resolve(SerdeInfo<T> serde, @NonNull T payload) {
+    default <T> ClientResponse<Void> resolve(TypeTag<T> serde, @NonNull T payload) {
       return this.resolve(serde, payload, ClientRequestOptions.DEFAULT);
     }
 
@@ -145,7 +145,7 @@ public interface Client {
     }
   }
 
-  <Res> InvocationHandle<Res> invocationHandle(String invocationId, SerdeInfo<Res> resSerde);
+  <Res> InvocationHandle<Res> invocationHandle(String invocationId, TypeTag<Res> resSerde);
 
   interface InvocationHandle<Res> {
 
@@ -196,7 +196,7 @@ public interface Client {
   }
 
   <Res> IdempotentInvocationHandle<Res> idempotentInvocationHandle(
-      Target target, String idempotencyKey, SerdeInfo<Res> resSerde);
+      Target target, String idempotencyKey, TypeTag<Res> resSerde);
 
   interface IdempotentInvocationHandle<Res> {
 
@@ -245,7 +245,7 @@ public interface Client {
   }
 
   <Res> WorkflowHandle<Res> workflowHandle(
-      String workflowName, String workflowId, SerdeInfo<Res> resSerde);
+      String workflowName, String workflowId, TypeTag<Res> resSerde);
 
   interface WorkflowHandle<Res> {
     CompletableFuture<ClientResponse<Res>> attachAsync(ClientRequestOptions options);
@@ -316,7 +316,8 @@ public interface Client {
    *
    * @param baseUri uri to connect to
    * @param serdeFactory Serde factory to use. You must provide this when the provided {@link
-   *     SerdeInfo} are not {@link Serde} instances.
+   *     TypeTag} are not {@link Serde} instances. If you're just wrapping this client in a
+   *     code-generated client, you don't need to provide this parameter.
    */
   static Client connect(String baseUri, SerdeFactory serdeFactory) {
     return connect(baseUri, serdeFactory, ClientRequestOptions.DEFAULT);
@@ -327,7 +328,8 @@ public interface Client {
    *
    * @param baseUri uri to connect to
    * @param serdeFactory Serde factory to use. You must provide this when the provided {@link
-   *     SerdeInfo} are not {@link Serde} instances.
+   *     TypeTag} are not {@link Serde} instances. If you're just wrapping this client in a
+   *     code-generated client, you don't need to provide this parameter.
    * @param options default options to use in all the requests.
    */
   static Client connect(String baseUri, SerdeFactory serdeFactory, ClientRequestOptions options) {

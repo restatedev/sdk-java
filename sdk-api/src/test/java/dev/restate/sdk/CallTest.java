@@ -10,6 +10,8 @@ package dev.restate.sdk;
 
 import static dev.restate.sdk.JavaBlockingTests.testDefinitionForService;
 
+import dev.restate.common.CallRequest;
+import dev.restate.common.SendRequest;
 import dev.restate.common.Slice;
 import dev.restate.common.Target;
 import dev.restate.sdk.core.CallTestSuite;
@@ -28,9 +30,9 @@ public class CallTest extends CallTestSuite {
         Serde.VOID,
         (context, unused) -> {
           context.send(
-              target,
-              body.toByteArray(),
-              SendOptions.builder().headers(headers).idempotencyKey(idempotencyKey).build());
+              SendRequest.ofRaw(target, body.toByteArray())
+                  .headers(headers)
+                  .idempotencyKey(idempotencyKey));
           return null;
         });
   }
@@ -41,6 +43,6 @@ public class CallTest extends CallTestSuite {
         "ImplicitCancellation",
         Serde.VOID,
         Serde.RAW,
-        (context, unused) -> context.call(target, body.toByteArray()).await());
+        (context, unused) -> context.call(CallRequest.ofRaw(target, body.toByteArray())).await());
   }
 }

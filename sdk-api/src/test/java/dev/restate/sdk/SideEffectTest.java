@@ -12,6 +12,7 @@ import static dev.restate.sdk.JavaBlockingTests.testDefinitionForService;
 
 import dev.restate.sdk.core.SideEffectTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
+import dev.restate.sdk.core.TestSerdes;
 import dev.restate.sdk.types.RetryPolicy;
 import dev.restate.serde.Serde;
 import java.util.Objects;
@@ -23,9 +24,9 @@ public class SideEffectTest extends SideEffectTestSuite {
     return testDefinitionForService(
         "SideEffect",
         Serde.VOID,
-        JsonSerdes.STRING,
+        TestSerdes.STRING,
         (ctx, unused) -> {
-          String result = ctx.run(JsonSerdes.STRING, () -> sideEffectOutput);
+          String result = ctx.run(String.class, () -> sideEffectOutput);
           return "Hello " + result;
         });
   }
@@ -35,9 +36,9 @@ public class SideEffectTest extends SideEffectTestSuite {
     return testDefinitionForService(
         "NamedSideEffect",
         Serde.VOID,
-        JsonSerdes.STRING,
+        TestSerdes.STRING,
         (ctx, unused) -> {
-          String result = ctx.run(name, JsonSerdes.STRING, () -> sideEffectOutput);
+          String result = ctx.run(name, String.class, () -> sideEffectOutput);
           return "Hello " + result;
         });
   }
@@ -47,10 +48,10 @@ public class SideEffectTest extends SideEffectTestSuite {
     return testDefinitionForService(
         "ConsecutiveSideEffect",
         Serde.VOID,
-        JsonSerdes.STRING,
+        TestSerdes.STRING,
         (ctx, unused) -> {
-          String firstResult = ctx.run(JsonSerdes.STRING, () -> sideEffectOutput);
-          String secondResult = ctx.run(JsonSerdes.STRING, firstResult::toUpperCase);
+          String firstResult = ctx.run(String.class, () -> sideEffectOutput);
+          String secondResult = ctx.run(String.class, firstResult::toUpperCase);
 
           return "Hello " + secondResult;
         });
@@ -61,12 +62,11 @@ public class SideEffectTest extends SideEffectTestSuite {
     return testDefinitionForService(
         "CheckContextSwitching",
         Serde.VOID,
-        JsonSerdes.STRING,
+        TestSerdes.STRING,
         (ctx, unused) -> {
           String currentThread = Thread.currentThread().getName();
 
-          String sideEffectThread =
-              ctx.run(JsonSerdes.STRING, () -> Thread.currentThread().getName());
+          String sideEffectThread = ctx.run(String.class, () -> Thread.currentThread().getName());
 
           if (!Objects.equals(currentThread, sideEffectThread)) {
             throw new IllegalStateException(
@@ -85,7 +85,7 @@ public class SideEffectTest extends SideEffectTestSuite {
     return testDefinitionForService(
         "FailingSideEffect",
         Serde.VOID,
-        JsonSerdes.STRING,
+        TestSerdes.STRING,
         (ctx, unused) -> {
           ctx.run(
               name,
@@ -102,9 +102,10 @@ public class SideEffectTest extends SideEffectTestSuite {
     return testDefinitionForService(
         "FailingSideEffectWithRetryPolicy",
         Serde.VOID,
-        JsonSerdes.STRING,
+        TestSerdes.STRING,
         (ctx, unused) -> {
           ctx.run(
+              null,
               retryPolicy,
               () -> {
                 throw new IllegalStateException(reason);

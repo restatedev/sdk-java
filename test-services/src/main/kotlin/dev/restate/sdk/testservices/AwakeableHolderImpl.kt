@@ -8,16 +8,14 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testservices
 
-import dev.restate.sdk.kotlin.KtStateKey
-import dev.restate.sdk.kotlin.ObjectContext
-import dev.restate.sdk.kotlin.resolve
+import dev.restate.sdk.kotlin.*
 import dev.restate.sdk.testservices.contracts.AwakeableHolder
 import dev.restate.sdk.types.StateKey
 import dev.restate.sdk.types.TerminalException
 
 class AwakeableHolderImpl : AwakeableHolder {
   companion object {
-    private val ID_KEY: StateKey<String> = KtStateKey.json<String>("id")
+    private val ID_KEY: StateKey<String> = stateKey<String>("id")
   }
 
   override suspend fun hold(context: ObjectContext, id: String) {

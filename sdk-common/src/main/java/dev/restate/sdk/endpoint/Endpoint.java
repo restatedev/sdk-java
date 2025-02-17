@@ -54,9 +54,12 @@ public final class Endpoint {
     }
 
     /**
-     * Like {@link #bind(Object)}, but allows to provide options for the handler runner. This allows to configure for the Java API the executor where to run the handler code, or the Kotlin API the coroutine context.
-     * <p>
-     * Look at the respective documentations of the HandlerRunner class in the Java or in the Kotlin module.
+     * Like {@link #bind(Object)}, but allows to provide options for the handler runner. This allows
+     * to configure for the Java API the executor where to run the handler code, or the Kotlin API
+     * the coroutine context.
+     *
+     * <p>Look at the respective documentations of the HandlerRunner class in the Java or in the
+     * Kotlin module.
      *
      * @see #bind(Object)
      */
@@ -64,9 +67,7 @@ public final class Endpoint {
       return this.bind(ServiceDefinitionFactories.discover(service).create(service, options));
     }
 
-    /**
-     * Add a manual {@link ServiceDefinition} to the endpoint.
-     */
+    /** Add a manual {@link ServiceDefinition} to the endpoint. */
     public Builder bind(ServiceDefinition serviceDefinition) {
       this.services.add(serviceDefinition);
       return this;

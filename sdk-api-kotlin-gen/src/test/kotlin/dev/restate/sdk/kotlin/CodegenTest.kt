@@ -15,6 +15,9 @@ import dev.restate.sdk.core.TestDefinitions.TestDefinition
 import dev.restate.sdk.core.TestDefinitions.testInvocation
 import dev.restate.sdk.core.TestSerdes
 import dev.restate.sdk.core.statemachine.ProtoUtils.*
+import dev.restate.sdk.kotlin.*
+import dev.restate.sdk.kotlin.serialization.KotlinSerializationSerdeFactory
+import dev.restate.sdk.kotlin.serialization.jsonSerde
 import dev.restate.serde.Serde
 import java.util.stream.Stream
 import kotlinx.serialization.Serializable
@@ -120,7 +123,7 @@ class CodegenTest : TestDefinitions.TestSuite {
     @Exclusive
     suspend fun returnNull(context: ObjectContext, request: String?): String? {
       return CodegenTestCornerCasesClient.fromContext(context, context.key())
-          .returnNull(request)
+          .returnNull(request) {}
           .await()
     }
   }
@@ -141,6 +144,7 @@ class CodegenTest : TestDefinitions.TestSuite {
       return CodegenTestWorkflowCornerCasesClient.connect("invalid", request)
           .workflowHandle()
           .output
+          .response()
           .value
     }
   }
@@ -227,10 +231,11 @@ class CodegenTest : TestDefinitions.TestSuite {
         testInvocation({ NestedDataClass() }, "greet")
             .withInput(
                 startMessage(1, "slinkydeveloper"),
-                inputCmd(KtSerdes.json(), NestedDataClass.Input("123")))
+                inputCmd(jsonSerde<NestedDataClass.Input>(), NestedDataClass.Input("123")))
             .onlyBidiStream()
             .expectingOutput(
-                outputCmd(KtSerdes.json(), NestedDataClass.Output("123")), END_MESSAGE),
+                outputCmd(jsonSerde<NestedDataClass.Output>(), NestedDataClass.Output("123")),
+                END_MESSAGE),
         testInvocation({ ObjectGreeterImplementedFromInterface() }, "greet")
             .withInput(startMessage(1, "slinkydeveloper"), inputCmd("Francesco"))
             .onlyBidiStream()
@@ -281,7 +286,7 @@ class CodegenTest : TestDefinitions.TestSuite {
             .withInput(
                 startMessage(1),
                 inputCmd("{{".toByteArray()),
-                callCompletion(2, KtSerdes.UNIT, Unit))
+                callCompletion(2, KotlinSerializationSerdeFactory.UNIT, Unit))
             .onlyBidiStream()
             .expectingOutput(
                 callCmd(1, 2, Target.service("RawInputOutput", "rawInput"), "{{".toByteArray()),
@@ -291,7 +296,7 @@ class CodegenTest : TestDefinitions.TestSuite {
             .withInput(
                 startMessage(1),
                 inputCmd("{{".toByteArray()),
-                callCompletion(2, KtSerdes.UNIT, Unit))
+                callCompletion(2, KotlinSerializationSerdeFactory.UNIT, Unit))
             .onlyBidiStream()
             .expectingOutput(
                 callCmd(
@@ -306,7 +311,12 @@ class CodegenTest : TestDefinitions.TestSuite {
                 startMessage(1), inputCmd(), callCompletion(2, Serde.RAW, "{{".toByteArray()))
             .onlyBidiStream()
             .expectingOutput(
-                callCmd(1, 2, Target.service("RawInputOutput", "rawOutput"), KtSerdes.UNIT, Unit),
+                callCmd(
+                    1,
+                    2,
+                    Target.service("RawInputOutput", "rawOutput"),
+                    KotlinSerializationSerdeFactory.UNIT,
+                    Unit),
                 outputCmd("{{".toByteArray()),
                 END_MESSAGE),
         testInvocation({ RawInputOutput() }, "rawOutputWithCustomCT")
@@ -318,24 +328,24 @@ class CodegenTest : TestDefinitions.TestSuite {
                     1,
                     2,
                     Target.service("RawInputOutput", "rawOutputWithCustomCT"),
-                    KtSerdes.UNIT,
+                    KotlinSerializationSerdeFactory.UNIT,
                     Unit),
                 outputCmd("{{".toByteArray()),
                 END_MESSAGE),
         testInvocation({ CornerCases() }, "returnNull")
             .withInput(
                 startMessage(1, "mykey"),
-                inputCmd(KtSerdes.json<String?>().serialize(null).toByteArray()),
-                callCompletion(2, KtSerdes.json<String?>(), null))
+                inputCmd(jsonSerde<String?>(), null),
+                callCompletion(2, jsonSerde<String?>(), null))
             .onlyBidiStream()
             .expectingOutput(
                 callCmd(
                     1,
                     2,
                     Target.virtualObject("CodegenTestCornerCases", "mykey", "returnNull"),
-                    KtSerdes.json<String?>(),
+                    jsonSerde<String?>(),
                     null),
-                outputCmd(KtSerdes.json<String?>(), null),
+                outputCmd(jsonSerde<String?>(), null),
                 END_MESSAGE),
     )
   }

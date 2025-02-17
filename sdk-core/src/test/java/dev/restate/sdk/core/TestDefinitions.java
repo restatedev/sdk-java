@@ -87,7 +87,7 @@ public final class TestDefinitions {
   }
 
   public static TestInvocationBuilder testInvocation(
-      ServiceDefinition service,  HandlerRunner.Options options, String handler) {
+      ServiceDefinition service, HandlerRunner.Options options, String handler) {
     return new TestInvocationBuilder(service, options, handler);
   }
 
@@ -97,11 +97,12 @@ public final class TestDefinitions {
 
   public static class TestInvocationBuilder {
     protected final @Nullable ServiceDefinition service;
-    protected final  HandlerRunner.@Nullable Options options;
+    protected final HandlerRunner.@Nullable Options options;
     protected final @Nullable String handler;
     protected final @Nullable String invalidReason;
 
-    TestInvocationBuilder(ServiceDefinition service,  HandlerRunner.@Nullable Options options, String handler) {
+    TestInvocationBuilder(
+        ServiceDefinition service, HandlerRunner.@Nullable Options options, String handler) {
       this.service = service;
       this.options = options;
       this.handler = handler;
@@ -209,7 +210,7 @@ public final class TestDefinitions {
 
   public abstract static class BaseTestDefinition implements TestDefinition {
     protected final @Nullable ServiceDefinition service;
-    protected final  HandlerRunner.@Nullable Options options;
+    protected final HandlerRunner.@Nullable Options options;
     protected final @Nullable String invalidReason;
     protected final String method;
     protected final List<InvocationInput> input;

@@ -23,12 +23,9 @@ public class PromiseTest extends PromiseTestSuite {
     return testDefinitionForWorkflow(
         "AwaitPromise",
         Serde.VOID,
-        JsonSerdes.STRING,
+        TestSerdes.STRING,
         (context, unused) ->
-            context
-                .promise(DurablePromiseKey.of(promiseKey, TestSerdes.STRING))
-                .awaitable()
-                .await());
+            context.promise(DurablePromiseKey.of(promiseKey, String.class)).awaitable().await());
   }
 
   @Override
@@ -37,10 +34,10 @@ public class PromiseTest extends PromiseTestSuite {
     return testDefinitionForWorkflow(
         "PeekPromise",
         Serde.VOID,
-        JsonSerdes.STRING,
+        TestSerdes.STRING,
         (context, unused) ->
             context
-                .promise(DurablePromiseKey.of(promiseKey, TestSerdes.STRING))
+                .promise(DurablePromiseKey.of(promiseKey, String.class))
                 .peek()
                 .orElse(emptyCaseReturnValue));
   }
@@ -50,9 +47,9 @@ public class PromiseTest extends PromiseTestSuite {
     return testDefinitionForWorkflow(
         "IsCompletedPromise",
         Serde.VOID,
-        JsonSerdes.BOOLEAN,
+        TestSerdes.BOOLEAN,
         (context, unused) ->
-            context.promise(DurablePromiseKey.of(promiseKey, TestSerdes.STRING)).peek().isReady());
+            context.promise(DurablePromiseKey.of(promiseKey, String.class)).peek().isReady());
   }
 
   @Override
@@ -61,11 +58,11 @@ public class PromiseTest extends PromiseTestSuite {
     return testDefinitionForWorkflow(
         "ResolvePromise",
         Serde.VOID,
-        JsonSerdes.BOOLEAN,
+        TestSerdes.BOOLEAN,
         (context, unused) -> {
           try {
             context
-                .promiseHandle(DurablePromiseKey.of(promiseKey, TestSerdes.STRING))
+                .promiseHandle(DurablePromiseKey.of(promiseKey, String.class))
                 .resolve(completionValue);
             return true;
           } catch (TerminalException e) {
@@ -80,11 +77,11 @@ public class PromiseTest extends PromiseTestSuite {
     return testDefinitionForWorkflow(
         "RejectPromise",
         Serde.VOID,
-        JsonSerdes.BOOLEAN,
+        TestSerdes.BOOLEAN,
         (context, unused) -> {
           try {
             context
-                .promiseHandle(DurablePromiseKey.of(promiseKey, TestSerdes.STRING))
+                .promiseHandle(DurablePromiseKey.of(promiseKey, String.class))
                 .reject(rejectReason);
             return true;
           } catch (TerminalException e) {

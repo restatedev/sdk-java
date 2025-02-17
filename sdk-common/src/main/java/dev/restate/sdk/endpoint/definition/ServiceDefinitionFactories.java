@@ -9,7 +9,6 @@
 package dev.restate.sdk.endpoint.definition;
 
 import java.util.*;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
@@ -55,7 +54,9 @@ public final class ServiceDefinitionFactories {
       // We got this already
       return new ServiceDefinitionFactory<>() {
         @Override
-        public ServiceDefinition create(Object serviceObject, @org.jetbrains.annotations.Nullable HandlerRunner.Options overrideHandlerOptions) {
+        public ServiceDefinition create(
+            Object serviceObject,
+            @org.jetbrains.annotations.Nullable HandlerRunner.Options overrideHandlerOptions) {
           return (ServiceDefinition) serviceObject;
         }
 

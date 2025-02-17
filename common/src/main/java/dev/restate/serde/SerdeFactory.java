@@ -14,13 +14,13 @@ public interface SerdeFactory {
 
   <T> Serde<T> create(Class<T> clazz);
 
-  default <T> Serde<T> create(SerdeInfo<T> serdeInfo) {
-    if (serdeInfo instanceof SerdeInfo.Class<T> tClass) {
+  default <T> Serde<T> create(TypeTag<T> typeTag) {
+    if (typeTag instanceof TypeTag.Class<T> tClass) {
       return this.create(tClass.type());
-    } else if (serdeInfo instanceof SerdeInfo.TypeRef<T> tTypeRef) {
-      return this.create(tTypeRef.typeRef());
+    } else if (typeTag instanceof TypeRef<T> tTypeRef) {
+      return this.create(tTypeRef);
     } else {
-      return ((Serde<T>) serdeInfo);
+      return ((Serde<T>) typeTag);
     }
   }
 

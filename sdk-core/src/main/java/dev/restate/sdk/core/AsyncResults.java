@@ -83,7 +83,9 @@ abstract class AsyncResults {
     }
 
     @Override
-    public <U> AsyncResult<U> map(ThrowingFunction<T, CompletableFuture<U>> successMapper, ThrowingFunction<TerminalException, CompletableFuture<U>> failureMapper) {
+    public <U> AsyncResult<U> map(
+        ThrowingFunction<T, CompletableFuture<U>> successMapper,
+        ThrowingFunction<TerminalException, CompletableFuture<U>> failureMapper) {
       return new MappedSingleAsyncResultInternal<>(this, successMapper, failureMapper);
     }
   }
@@ -141,10 +143,10 @@ abstract class AsyncResults {
     private final AsyncResultInternal<T> asyncResult;
 
     MappedSingleAsyncResultInternal(
-        AsyncResultInternal<T> asyncResult, ThrowingFunction<T, CompletableFuture<U>> successMapper, ThrowingFunction<TerminalException, CompletableFuture<U>> failureMapper) {
-      super(
-              compose(asyncResult.ctx(),     asyncResult
-                      .publicFuture(), successMapper, failureMapper));
+        AsyncResultInternal<T> asyncResult,
+        ThrowingFunction<T, CompletableFuture<U>> successMapper,
+        ThrowingFunction<TerminalException, CompletableFuture<U>> failureMapper) {
+      super(compose(asyncResult.ctx(), asyncResult.publicFuture(), successMapper, failureMapper));
       this.asyncResult = asyncResult;
     }
 
@@ -173,67 +175,82 @@ abstract class AsyncResults {
       return asyncResult.ctx();
     }
 
-    private static <T, U> CompletableFuture<U> compose(HandlerContextInternal ctx, CompletableFuture<T> upstreamFuture, ThrowingFunction<T, CompletableFuture<U>> successMapper, ThrowingFunction<TerminalException, CompletableFuture<U>> failureMapper) {
+    private static <T, U> CompletableFuture<U> compose(
+        HandlerContextInternal ctx,
+        CompletableFuture<T> upstreamFuture,
+        ThrowingFunction<T, CompletableFuture<U>> successMapper,
+        ThrowingFunction<TerminalException, CompletableFuture<U>> failureMapper) {
       CompletableFuture<U> downstreamFuture = new CompletableFuture<>();
 
-      upstreamFuture.whenComplete((t, throwable) -> {
-        if (ExceptionUtils.isTerminalException(throwable)) {
-          // Upstream future failed with Terminal exception
-          if (failureMapper != null) {
-            try {
-              failureMapper.apply((TerminalException) throwable).whenCompleteAsync((u, mapperT) -> {
-                if (ExceptionUtils.isTerminalException(mapperT)) {
-                  downstreamFuture.completeExceptionally(mapperT);
-                } else if (mapperT != null) {
-                  ctx.failWithoutContextSwitch(mapperT);
-                  downstreamFuture.completeExceptionally(AbortedExecutionException.INSTANCE);
-                } else {
-                  downstreamFuture.complete(u);
+      upstreamFuture.whenComplete(
+          (t, throwable) -> {
+            if (ExceptionUtils.isTerminalException(throwable)) {
+              // Upstream future failed with Terminal exception
+              if (failureMapper != null) {
+                try {
+                  failureMapper
+                      .apply((TerminalException) throwable)
+                      .whenCompleteAsync(
+                          (u, mapperT) -> {
+                            if (ExceptionUtils.isTerminalException(mapperT)) {
+                              downstreamFuture.completeExceptionally(mapperT);
+                            } else if (mapperT != null) {
+                              ctx.failWithoutContextSwitch(mapperT);
+                              downstreamFuture.completeExceptionally(
+                                  AbortedExecutionException.INSTANCE);
+                            } else {
+                              downstreamFuture.complete(u);
+                            }
+                          },
+                          ctx.stateMachineExecutor());
+                } catch (Throwable mapperT) {
+                  if (ExceptionUtils.isTerminalException(mapperT)) {
+                    downstreamFuture.completeExceptionally(mapperT);
+                  } else {
+                    ctx.failWithoutContextSwitch(mapperT);
+                    downstreamFuture.completeExceptionally(AbortedExecutionException.INSTANCE);
+                  }
                 }
-              }, ctx.stateMachineExecutor());
-            } catch (Throwable mapperT) {
-              if (ExceptionUtils.isTerminalException(mapperT)) {
-                downstreamFuture.completeExceptionally(mapperT);
               } else {
-                ctx.failWithoutContextSwitch(mapperT);
-                downstreamFuture.completeExceptionally(AbortedExecutionException.INSTANCE);
+                downstreamFuture.completeExceptionally(throwable);
+              }
+            } else if (throwable != null) {
+              // Aborted exception/some other exception. Just propagate it through
+              downstreamFuture.completeExceptionally(throwable);
+            } else {
+              // Success case!
+              if (successMapper != null) {
+                try {
+                  successMapper
+                      .apply(t)
+                      .whenCompleteAsync(
+                          (u, mapperT) -> {
+                            if (ExceptionUtils.isTerminalException(mapperT)) {
+                              downstreamFuture.completeExceptionally(mapperT);
+                            } else if (mapperT != null) {
+                              ctx.failWithoutContextSwitch(mapperT);
+                              downstreamFuture.completeExceptionally(
+                                  AbortedExecutionException.INSTANCE);
+                            } else {
+                              downstreamFuture.complete(u);
+                            }
+                          },
+                          ctx.stateMachineExecutor());
+                } catch (Throwable mapperT) {
+                  if (ExceptionUtils.isTerminalException(mapperT)) {
+                    downstreamFuture.completeExceptionally(mapperT);
+                  } else {
+                    ctx.failWithoutContextSwitch(mapperT);
+                    downstreamFuture.completeExceptionally(AbortedExecutionException.INSTANCE);
+                  }
+                }
+              } else {
+                // Type checked by the API itself
+                //noinspection unchecked
+                downstreamFuture.complete((U) t);
               }
             }
-          } else {
-            downstreamFuture.completeExceptionally(throwable);
-          }
-        } else if (throwable != null) {
-          // Aborted exception/some other exception. Just propagate it through
-          downstreamFuture.completeExceptionally(throwable);
-        } else {
-          // Success case!
-          if (successMapper != null) {
-            try {
-              successMapper.apply(t).whenCompleteAsync((u, mapperT) -> {
-                if (ExceptionUtils.isTerminalException(mapperT)) {
-                  downstreamFuture.completeExceptionally(mapperT);
-                } else if (mapperT != null) {
-                  ctx.failWithoutContextSwitch(mapperT);
-                  downstreamFuture.completeExceptionally(AbortedExecutionException.INSTANCE);
-                } else {
-                  downstreamFuture.complete(u);
-                }
-              }, ctx.stateMachineExecutor());
-            } catch (Throwable mapperT) {
-              if (ExceptionUtils.isTerminalException(mapperT)) {
-                downstreamFuture.completeExceptionally(mapperT);
-              } else {
-                ctx.failWithoutContextSwitch(mapperT);
-                downstreamFuture.completeExceptionally(AbortedExecutionException.INSTANCE);
-              }
-            }
-          } else {
-            // Type checked by the API itself
-              //noinspection unchecked
-              downstreamFuture.complete((U) t);
-          }
-        }
-      });
+          });
 
       return downstreamFuture;
     }

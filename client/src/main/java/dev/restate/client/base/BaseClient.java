@@ -15,7 +15,7 @@ import dev.restate.client.*;
 import dev.restate.common.*;
 import dev.restate.serde.Serde;
 import dev.restate.serde.SerdeFactory;
-import dev.restate.serde.SerdeInfo;
+import dev.restate.serde.TypeTag;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -155,7 +155,7 @@ public abstract class BaseClient implements Client {
     return new AwakeableHandle() {
       @Override
       public <T> CompletableFuture<ClientResponse<Void>> resolveAsync(
-          SerdeInfo<T> serde, @NonNull T payload, ClientRequestOptions options) {
+          TypeTag<T> serde, @NonNull T payload, ClientRequestOptions options) {
         Serde<T> reqSerde = serdeFactory.create(serde);
         Slice requestBody = reqSerde.serialize(payload);
 
@@ -198,7 +198,7 @@ public abstract class BaseClient implements Client {
 
   @Override
   public <Res> InvocationHandle<Res> invocationHandle(
-      String invocationId, SerdeInfo<Res> resSerdeInfo) {
+      String invocationId, TypeTag<Res> resTypeTag) {
     return new InvocationHandle<>() {
       @Override
       public String invocationId() {
@@ -207,7 +207,7 @@ public abstract class BaseClient implements Client {
 
       @Override
       public CompletableFuture<ClientResponse<Res>> attachAsync(ClientRequestOptions options) {
-        Serde<Res> resSerde = serdeFactory.create(resSerdeInfo);
+        Serde<Res> resSerde = serdeFactory.create(resTypeTag);
 
         URI requestUri = baseUri.resolve("/restate/invocation/" + invocationId + "/attach");
         Stream<Map.Entry<String, String>> headersStream =
@@ -221,7 +221,7 @@ public abstract class BaseClient implements Client {
       @Override
       public CompletableFuture<ClientResponse<Output<Res>>> getOutputAsync(
           ClientRequestOptions options) {
-        Serde<Res> resSerde = serdeFactory.create(resSerdeInfo);
+        Serde<Res> resSerde = serdeFactory.create(resTypeTag);
 
         URI requestUri = baseUri.resolve("/restate/invocation/" + invocationId + "/output");
         Stream<Map.Entry<String, String>> headersStream =
@@ -236,11 +236,11 @@ public abstract class BaseClient implements Client {
 
   @Override
   public <Res> IdempotentInvocationHandle<Res> idempotentInvocationHandle(
-      Target target, String idempotencyKey, SerdeInfo<Res> resSerdeInfo) {
+      Target target, String idempotencyKey, TypeTag<Res> resTypeTag) {
     return new IdempotentInvocationHandle<>() {
       @Override
       public CompletableFuture<ClientResponse<Res>> attachAsync(ClientRequestOptions options) {
-        Serde<Res> resSerde = serdeFactory.create(resSerdeInfo);
+        Serde<Res> resSerde = serdeFactory.create(resTypeTag);
 
         URI requestUri =
             baseUri.resolve(
@@ -260,7 +260,7 @@ public abstract class BaseClient implements Client {
       @Override
       public CompletableFuture<ClientResponse<Output<Res>>> getOutputAsync(
           ClientRequestOptions options) {
-        Serde<Res> resSerde = serdeFactory.create(resSerdeInfo);
+        Serde<Res> resSerde = serdeFactory.create(resTypeTag);
 
         URI requestUri =
             baseUri.resolve(
@@ -281,11 +281,11 @@ public abstract class BaseClient implements Client {
 
   @Override
   public <Res> WorkflowHandle<Res> workflowHandle(
-      String workflowName, String workflowId, SerdeInfo<Res> resSerdeInfo) {
+      String workflowName, String workflowId, TypeTag<Res> resTypeTag) {
     return new WorkflowHandle<>() {
       @Override
       public CompletableFuture<ClientResponse<Res>> attachAsync(ClientRequestOptions options) {
-        Serde<Res> resSerde = serdeFactory.create(resSerdeInfo);
+        Serde<Res> resSerde = serdeFactory.create(resTypeTag);
 
         URI requestUri =
             baseUri.resolve(
@@ -305,7 +305,7 @@ public abstract class BaseClient implements Client {
       @Override
       public CompletableFuture<ClientResponse<Output<Res>>> getOutputAsync(
           ClientRequestOptions options) {
-        Serde<Res> resSerde = serdeFactory.create(resSerdeInfo);
+        Serde<Res> resSerde = serdeFactory.create(resTypeTag);
 
         URI requestUri =
             baseUri.resolve(

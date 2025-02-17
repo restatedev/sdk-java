@@ -12,6 +12,7 @@ import static dev.restate.sdk.JavaBlockingTests.testDefinitionForService;
 
 import dev.restate.sdk.core.RandomTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
+import dev.restate.sdk.core.TestSerdes;
 import dev.restate.serde.Serde;
 import java.util.Random;
 
@@ -22,7 +23,7 @@ public class RandomTest extends RandomTestSuite {
     return testDefinitionForService(
         "RandomShouldBeDeterministic",
         Serde.VOID,
-        JsonSerdes.INT,
+        TestSerdes.INT,
         (ctx, unused) -> ctx.random().nextInt());
   }
 

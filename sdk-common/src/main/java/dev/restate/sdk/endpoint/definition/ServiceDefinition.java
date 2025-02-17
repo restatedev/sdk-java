@@ -11,8 +11,6 @@ package dev.restate.sdk.endpoint.definition;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
-import dev.restate.serde.SerdeFactory;
 import org.jspecify.annotations.Nullable;
 
 public final class ServiceDefinition {

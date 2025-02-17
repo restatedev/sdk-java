@@ -13,8 +13,9 @@ import dev.restate.sdk.endpoint.definition.HandlerType
 import dev.restate.sdk.endpoint.definition.ServiceDefinition
 import dev.restate.sdk.endpoint.definition.ServiceType
 import dev.restate.sdk.kotlin.HandlerRunner
-import dev.restate.sdk.kotlin.KtSerdes
 import dev.restate.sdk.kotlin.ObjectContext
+import dev.restate.sdk.kotlin.serialization.KotlinSerializationSerdeFactory
+import dev.restate.sdk.kotlin.serialization.jsonSerde
 import dev.restate.sdk.types.StateKey
 import dev.restate.serde.Serde
 import java.nio.charset.StandardCharsets
@@ -26,7 +27,7 @@ private val COUNTER: StateKey<Long> =
             { l: Long -> l.toString().toByteArray(StandardCharsets.UTF_8) },
             { v: ByteArray? -> String(v!!, StandardCharsets.UTF_8).toLong() }))
 
-fun counter(): ServiceDefinition<*> =
+fun counter(): ServiceDefinition =
     ServiceDefinition.of(
         "KtCounter",
         ServiceType.VIRTUAL_OBJECT,
@@ -34,6 +35,8 @@ fun counter(): ServiceDefinition<*> =
             HandlerDefinition.of(
                 "get",
                 HandlerType.EXCLUSIVE,
-                KtSerdes.UNIT,
-                KtSerdes.json<Long>(),
-                HandlerRunner.of { ctx: ObjectContext, _: Unit -> ctx.get(COUNTER) ?: -1 })))
+                jsonSerde<Unit>(),
+                jsonSerde<Long>(),
+                HandlerRunner.of(KotlinSerializationSerdeFactory()) { ctx: ObjectContext, _: Unit ->
+                  ctx.get(COUNTER) ?: -1
+                })))

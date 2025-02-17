@@ -15,6 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import dev.restate.sdk.core.AsyncResultTestSuite;
 import dev.restate.sdk.core.TestDefinitions;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
+import dev.restate.sdk.core.TestSerdes;
 import dev.restate.sdk.types.StateKey;
 import dev.restate.sdk.types.TimeoutException;
 import dev.restate.serde.Serde;
@@ -28,13 +29,13 @@ public class AsyncResultTest extends AsyncResultTestSuite {
     return testDefinitionForVirtualObject(
         "ReverseAwaitOrder",
         Serde.VOID,
-        JsonSerdes.STRING,
+        TestSerdes.STRING,
         (context, unused) -> {
           Awaitable<String> a1 = callGreeterGreetService(context, "Francesco");
           Awaitable<String> a2 = callGreeterGreetService(context, "Till");
 
           String a2Res = a2.await();
-          context.set(StateKey.of("A2", JsonSerdes.STRING), a2Res);
+          context.set(StateKey.of("A2", TestSerdes.STRING), a2Res);
 
           String a1Res = a1.await();
 
@@ -47,7 +48,7 @@ public class AsyncResultTest extends AsyncResultTestSuite {
     return testDefinitionForService(
         "AwaitTwiceTheSameAwaitable",
         Serde.VOID,
-        JsonSerdes.STRING,
+        TestSerdes.STRING,
         (context, unused) -> {
           Awaitable<String> a = callGreeterGreetService(context, "Francesco");
 
@@ -60,7 +61,7 @@ public class AsyncResultTest extends AsyncResultTestSuite {
     return testDefinitionForService(
         "AwaitAll",
         Serde.VOID,
-        JsonSerdes.STRING,
+        TestSerdes.STRING,
         (context, unused) -> {
           Awaitable<String> a1 = callGreeterGreetService(context, "Francesco");
           Awaitable<String> a2 = callGreeterGreetService(context, "Till");
@@ -76,7 +77,7 @@ public class AsyncResultTest extends AsyncResultTestSuite {
     return testDefinitionForService(
         "AwaitAny",
         Serde.VOID,
-        JsonSerdes.STRING,
+        TestSerdes.STRING,
         (context, unused) -> {
           Awaitable<String> a1 = callGreeterGreetService(context, "Francesco");
           Awaitable<String> a2 = callGreeterGreetService(context, "Till");
@@ -90,12 +91,12 @@ public class AsyncResultTest extends AsyncResultTestSuite {
     return testDefinitionForService(
         "CombineAnyWithAll",
         Serde.VOID,
-        JsonSerdes.STRING,
+        TestSerdes.STRING,
         (ctx, unused) -> {
-          Awaitable<String> a1 = ctx.awakeable(JsonSerdes.STRING);
-          Awaitable<String> a2 = ctx.awakeable(JsonSerdes.STRING);
-          Awaitable<String> a3 = ctx.awakeable(JsonSerdes.STRING);
-          Awaitable<String> a4 = ctx.awakeable(JsonSerdes.STRING);
+          Awaitable<String> a1 = ctx.awakeable(String.class);
+          Awaitable<String> a2 = ctx.awakeable(String.class);
+          Awaitable<String> a3 = ctx.awakeable(String.class);
+          Awaitable<String> a4 = ctx.awakeable(String.class);
 
           Awaitable<String> a12 = Select.<String>select().or(a1).or(a2);
           Awaitable<String> a23 = Select.<String>select().or(a2).or(a3);
@@ -112,12 +113,12 @@ public class AsyncResultTest extends AsyncResultTestSuite {
     return testDefinitionForService(
         "AwaitAnyIndex",
         Serde.VOID,
-        JsonSerdes.STRING,
+        TestSerdes.STRING,
         (ctx, unused) -> {
-          Awaitable<String> a1 = ctx.awakeable(JsonSerdes.STRING);
-          Awaitable<String> a2 = ctx.awakeable(JsonSerdes.STRING);
-          Awaitable<String> a3 = ctx.awakeable(JsonSerdes.STRING);
-          Awaitable<String> a4 = ctx.awakeable(JsonSerdes.STRING);
+          Awaitable<String> a1 = ctx.awakeable(String.class);
+          Awaitable<String> a2 = ctx.awakeable(String.class);
+          Awaitable<String> a3 = ctx.awakeable(String.class);
+          Awaitable<String> a4 = ctx.awakeable(String.class);
 
           return String.valueOf(Awaitable.any(a1, Awaitable.all(a2, a3), a4).await());
         });
@@ -128,10 +129,10 @@ public class AsyncResultTest extends AsyncResultTestSuite {
     return testDefinitionForService(
         "AwaitOnAlreadyResolvedAwaitables",
         Serde.VOID,
-        JsonSerdes.STRING,
+        TestSerdes.STRING,
         (ctx, unused) -> {
-          Awaitable<String> a1 = ctx.awakeable(JsonSerdes.STRING);
-          Awaitable<String> a2 = ctx.awakeable(JsonSerdes.STRING);
+          Awaitable<String> a1 = ctx.awakeable(String.class);
+          Awaitable<String> a2 = ctx.awakeable(String.class);
 
           Awaitable<Void> a12 = Awaitable.all(a1, a2);
           Awaitable<Void> a12and1 = Awaitable.all(a12, a1);
@@ -149,7 +150,7 @@ public class AsyncResultTest extends AsyncResultTestSuite {
     return testDefinitionForService(
         "AwaitWithTimeout",
         Serde.VOID,
-        JsonSerdes.STRING,
+        TestSerdes.STRING,
         (ctx, unused) -> {
           Awaitable<String> call = callGreeterGreetService(ctx, "Francesco");
 

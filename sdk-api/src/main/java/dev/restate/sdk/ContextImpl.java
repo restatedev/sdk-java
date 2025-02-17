@@ -19,6 +19,7 @@ import dev.restate.sdk.types.StateKey;
 import dev.restate.sdk.types.TerminalException;
 import dev.restate.serde.Serde;
 import dev.restate.serde.SerdeFactory;
+import dev.restate.serde.TypeTag;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Optional;
@@ -132,7 +133,8 @@ class ContextImpl implements ObjectContext, WorkflowContext {
 
   @Override
   public <T> Awaitable<T> runAsync(
-      String name, Serde<T> serde, RetryPolicy retryPolicy, ThrowingSupplier<T> action) {
+      String name, TypeTag<T> typeTag, RetryPolicy retryPolicy, ThrowingSupplier<T> action) {
+    Serde<T> serde = serdeFactory.create(typeTag);
     return Awaitable.fromAsyncResult(
             Util.awaitCompletableFuture(
                 handlerContext.submitRun(
@@ -154,7 +156,8 @@ class ContextImpl implements ObjectContext, WorkflowContext {
   }
 
   @Override
-  public <T> Awakeable<T> awakeable(Serde<T> serde) throws TerminalException {
+  public <T> Awakeable<T> awakeable(TypeTag<T> typeTag) throws TerminalException {
+    Serde<T> serde = serdeFactory.create(typeTag);
     // Retrieve the awakeable
     HandlerContext.Awakeable awakeable = Util.awaitCompletableFuture(handlerContext.awakeable());
     return new Awakeable<>(awakeable.asyncResult(), serviceExecutor, serde, awakeable.id());
@@ -164,7 +167,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
   public AwakeableHandle awakeableHandle(String id) {
     return new AwakeableHandle() {
       @Override
-      public <T> void resolve(Serde<T> serde, @NonNull T payload) {
+      public <T> void resolve(TypeTag<T> serde, @NonNull T payload) {
         Util.awaitCompletableFuture(
             handlerContext.resolveAwakeable(
                 id,

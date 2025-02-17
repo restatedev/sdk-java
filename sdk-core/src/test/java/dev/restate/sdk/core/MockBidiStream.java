@@ -49,9 +49,7 @@ public final class MockBidiStream implements TestDefinitions.TestExecutor {
 
     // Prepare server
     Endpoint.Builder builder =
-        Endpoint.builder()
-            .bind( serviceDefinition,
-                definition.getServiceOptions());
+        Endpoint.builder().bind(serviceDefinition, definition.getServiceOptions());
     if (definition.isEnablePreviewContext()) {
       builder.enablePreviewContext();
     }

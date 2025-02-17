@@ -12,6 +12,7 @@ import static dev.restate.sdk.JavaBlockingTests.testDefinitionForService;
 
 import dev.restate.sdk.core.InvocationIdTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
+import dev.restate.sdk.core.TestSerdes;
 import dev.restate.serde.Serde;
 
 public class InvocationIdTest extends InvocationIdTestSuite {
@@ -21,7 +22,7 @@ public class InvocationIdTest extends InvocationIdTestSuite {
     return testDefinitionForService(
         "ReturnInvocationId",
         Serde.VOID,
-        JsonSerdes.STRING,
+        TestSerdes.STRING,
         (ctx, unused) -> ctx.request().invocationId().toString());
   }
 }

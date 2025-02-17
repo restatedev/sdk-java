@@ -12,6 +12,7 @@ import static dev.restate.sdk.JavaBlockingTests.testDefinitionForService;
 
 import dev.restate.sdk.core.OnlyInputAndOutputTestSuite;
 import dev.restate.sdk.core.TestDefinitions;
+import dev.restate.sdk.core.TestSerdes;
 
 public class OnlyInputAndOutputTest extends OnlyInputAndOutputTestSuite {
 
@@ -19,8 +20,8 @@ public class OnlyInputAndOutputTest extends OnlyInputAndOutputTestSuite {
   protected TestDefinitions.TestInvocationBuilder noSyscallsGreeter() {
     return testDefinitionForService(
         "NoSyscallsGreeter",
-        JsonSerdes.STRING,
-        JsonSerdes.STRING,
+        TestSerdes.STRING,
+        TestSerdes.STRING,
         (ctx, input) -> "Hello " + input);
   }
 }

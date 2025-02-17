@@ -15,8 +15,9 @@ import dev.restate.sdk.endpoint.definition.HandlerDefinition
 import dev.restate.sdk.endpoint.definition.HandlerType
 import dev.restate.sdk.endpoint.definition.ServiceDefinition
 import dev.restate.sdk.endpoint.definition.ServiceType
-import dev.restate.sdk.kotlin.KtSerdes
 import dev.restate.sdk.kotlin.runBlock
+import dev.restate.sdk.kotlin.serialization.KotlinSerializationSerdeFactory
+import dev.restate.sdk.serde.jackson.JacksonSerdeFactory
 import dev.restate.serde.Serde
 import io.vertx.core.Vertx
 import java.util.stream.Stream
@@ -70,15 +71,16 @@ class ThreadTrampoliningTestSuite : TestDefinitions.TestSuite {
                         HandlerDefinition.of(
                             "do",
                             HandlerType.SHARED,
-                            KtSerdes.UNIT,
-                            KtSerdes.UNIT,
-                            dev.restate.sdk.kotlin.HandlerRunner.of {
-                                ctx: dev.restate.sdk.kotlin.Context,
-                                _: Unit ->
-                              checkNonBlockingComponentTrampolineExecutor(ctx)
-                            }))),
-                dev.restate.sdk.kotlin.HandlerRunner.Options(
-                    Dispatchers.Default + nonBlockingCoroutineName),
+                            KotlinSerializationSerdeFactory.UNIT,
+                            KotlinSerializationSerdeFactory.UNIT,
+                            dev.restate.sdk.kotlin.HandlerRunner.of(
+                                KotlinSerializationSerdeFactory(),
+                                dev.restate.sdk.kotlin.HandlerRunner.Options(
+                                    Dispatchers.Default + nonBlockingCoroutineName)) {
+                                    ctx: dev.restate.sdk.kotlin.Context,
+                                    _: Unit ->
+                                  checkNonBlockingComponentTrampolineExecutor(ctx)
+                                }))),
                 "do")
             .withInput(startMessage(1), inputCmd())
             .onlyBidiStream()
@@ -95,8 +97,9 @@ class ThreadTrampoliningTestSuite : TestDefinitions.TestSuite {
                             Serde.VOID,
                             Serde.VOID,
                             dev.restate.sdk.HandlerRunner.of(
-                                this::checkBlockingComponentTrampolineExecutor)))),
-                dev.restate.sdk.HandlerRunner.Options.DEFAULT,
+                                this::checkBlockingComponentTrampolineExecutor,
+                                JacksonSerdeFactory(),
+                                null)))),
                 "do")
             .withInput(startMessage(1), inputCmd())
             .onlyBidiStream()

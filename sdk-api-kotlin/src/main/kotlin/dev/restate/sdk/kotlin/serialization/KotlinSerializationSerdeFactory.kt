@@ -1,11 +1,21 @@
+// Copyright (c) 2023 - Restate Software, Inc., Restate GmbH
+//
+// This file is part of the Restate Java SDK,
+// which is released under the MIT license.
+//
+// You can find a copy of the license in file LICENSE in the root
+// directory of this repository or package, or at
+// https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin.serialization
 
 import dev.restate.common.Slice
 import dev.restate.serde.Serde
 import dev.restate.serde.SerdeFactory
-import dev.restate.serde.SerdeInfo
 import dev.restate.serde.TypeRef
+import dev.restate.serde.TypeTag
 import java.nio.charset.StandardCharsets
+import kotlin.reflect.KClass
+import kotlin.reflect.KType
 import kotlinx.serialization.*
 import kotlinx.serialization.builtins.*
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -18,25 +28,23 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonTransformingSerializer
 import kotlinx.serialization.modules.SerializersModule
-import kotlin.reflect.KClass
-import kotlin.reflect.KType
 
-class KotlinSerializationSerdeFactory(private val json: Json = Json.Default): SerdeFactory {
+class KotlinSerializationSerdeFactory
+@JvmOverloads
+constructor(private val json: Json = Json.Default) : SerdeFactory {
 
   @PublishedApi
-  internal class KtSerdeInfo<T>(
-    internal val type: KClass<*>,
-    /**
-     * Reified type
-     */
-    internal val kotlinType: KType?
-  ): SerdeInfo<T>
+  internal class KtTypeTag<T>(
+      internal val type: KClass<*>,
+      /** Reified type */
+      internal val kotlinType: KType?
+  ) : TypeTag<T>
 
-  override fun <T : Any?> create(serdeInfo: SerdeInfo<T>): Serde<T> {
-    if (serdeInfo is KtSerdeInfo) {
-      return create(serdeInfo)
+  override fun <T : Any?> create(typeTag: TypeTag<T>): Serde<T> {
+    if (typeTag is KtTypeTag) {
+      return create(typeTag)
     }
-    return super.create(serdeInfo)
+    return super.create(typeTag)
   }
 
   @Suppress("UNCHECKED_CAST")
@@ -44,7 +52,8 @@ class KotlinSerializationSerdeFactory(private val json: Json = Json.Default): Se
     if (typeRef.type == Unit::class.java) {
       return UNIT as Serde<T>
     }
-    val serializer: KSerializer<T> = json.serializersModule.serializer(typeRef.type) as KSerializer<T>
+    val serializer: KSerializer<T> =
+        json.serializersModule.serializer(typeRef.type) as KSerializer<T>
     return jsonSerde(json, serializer)
   }
 
@@ -53,35 +62,36 @@ class KotlinSerializationSerdeFactory(private val json: Json = Json.Default): Se
     if (clazz == Unit::class.java) {
       return UNIT as Serde<T>
     }
-     val serializer: KSerializer<T> = json.serializersModule.serializer(clazz) as KSerializer<T>
+    val serializer: KSerializer<T> = json.serializersModule.serializer(clazz) as KSerializer<T>
     return jsonSerde(json, serializer)
   }
 
   @Suppress("UNCHECKED_CAST")
   @OptIn(InternalSerializationApi::class, ExperimentalSerializationApi::class)
-  private fun <T : Any?> create(ktSerdeInfo: KtSerdeInfo<T>): Serde<T> {
+  private fun <T : Any?> create(ktSerdeInfo: KtTypeTag<T>): Serde<T> {
     if (ktSerdeInfo.type == Unit::class) {
       return UNIT as Serde<T>
     }
-    val serializer: KSerializer<T> = json.serializersModule.serializerForKtTypeInfo(ktSerdeInfo) as KSerializer<T>
+    val serializer: KSerializer<T> =
+        json.serializersModule.serializerForKtTypeInfo(ktSerdeInfo) as KSerializer<T>
     return jsonSerde(json, serializer)
   }
 
   companion object {
     val UNIT: Serde<Unit> =
-      object : Serde<Unit> {
-        override fun serialize(value: Unit?): Slice {
-          return Slice.EMPTY
-        }
+        object : Serde<Unit> {
+          override fun serialize(value: Unit?): Slice {
+            return Slice.EMPTY
+          }
 
-        override fun deserialize(value: Slice) {
-          return
-        }
+          override fun deserialize(value: Slice) {
+            return
+          }
 
-        override fun contentType(): String? {
-          return null
+          override fun contentType(): String? {
+            return null
+          }
         }
-      }
 
     /** Creates a [Serde] implementation using the `kotlinx.serialization` json module. */
     fun <T : Any?> jsonSerde(json: Json = Json.Default, serializer: KSerializer<T>): Serde<T> {
@@ -97,7 +107,7 @@ class KotlinSerializationSerdeFactory(private val json: Json = Json.Default): Se
 
         override fun deserialize(value: Slice): T {
           return json.decodeFromString(
-            serializer, String(value.toByteArray(), StandardCharsets.UTF_8))
+              serializer, String(value.toByteArray(), StandardCharsets.UTF_8))
         }
 
         override fun contentType(): String {
@@ -114,8 +124,8 @@ class KotlinSerializationSerdeFactory(private val json: Json = Json.Default): Se
     @Serializable
     @PublishedApi
     internal data class JsonSchema(
-      @Serializable(with = StringListSerializer::class) val type: List<String>? = null,
-      val format: String? = null,
+        @Serializable(with = StringListSerializer::class) val type: List<String>? = null,
+        val format: String? = null,
     ) {
       companion object {
         val INT = JsonSchema(type = listOf("number"), format = "int32")
@@ -139,7 +149,7 @@ class KotlinSerializationSerdeFactory(private val json: Json = Json.Default): Se
     }
 
     object StringListSerializer :
-      JsonTransformingSerializer<List<String>>(ListSerializer(String.Companion.serializer())) {
+        JsonTransformingSerializer<List<String>>(ListSerializer(String.Companion.serializer())) {
       override fun transformSerialize(element: JsonElement): JsonElement {
         require(element is JsonArray)
         return element.singleOrNull() ?: element
@@ -153,20 +163,20 @@ class KotlinSerializationSerdeFactory(private val json: Json = Json.Default): Se
     @PublishedApi
     internal fun SerialDescriptor.jsonSchema(): JsonSchema {
       var schema =
-        when (this.kind) {
-          PrimitiveKind.BOOLEAN -> JsonSchema.BOOLEAN
-          PrimitiveKind.BYTE -> JsonSchema.INT
-          PrimitiveKind.CHAR -> JsonSchema.STRING
-          PrimitiveKind.DOUBLE -> JsonSchema.DOUBLE
-          PrimitiveKind.FLOAT -> JsonSchema.FLOAT
-          PrimitiveKind.INT -> JsonSchema.INT
-          PrimitiveKind.LONG -> JsonSchema.LONG
-          PrimitiveKind.SHORT -> JsonSchema.INT
-          PrimitiveKind.STRING -> JsonSchema.STRING
-          StructureKind.LIST -> JsonSchema.LIST
-          StructureKind.MAP -> JsonSchema.OBJECT
-          else -> JsonSchema.ANY
-        }
+          when (this.kind) {
+            PrimitiveKind.BOOLEAN -> JsonSchema.BOOLEAN
+            PrimitiveKind.BYTE -> JsonSchema.INT
+            PrimitiveKind.CHAR -> JsonSchema.STRING
+            PrimitiveKind.DOUBLE -> JsonSchema.DOUBLE
+            PrimitiveKind.FLOAT -> JsonSchema.FLOAT
+            PrimitiveKind.INT -> JsonSchema.INT
+            PrimitiveKind.LONG -> JsonSchema.LONG
+            PrimitiveKind.SHORT -> JsonSchema.INT
+            PrimitiveKind.STRING -> JsonSchema.STRING
+            StructureKind.LIST -> JsonSchema.LIST
+            StructureKind.MAP -> JsonSchema.OBJECT
+            else -> JsonSchema.ANY
+          }
 
       // Add nullability constraint
       if (this.isNullable && schema.type != null) {
@@ -179,25 +189,24 @@ class KotlinSerializationSerdeFactory(private val json: Json = Json.Default): Se
 
   @InternalSerializationApi
   @ExperimentalSerializationApi
-  /**
-   * Copy-pasted from ktor!
-   */
-  private fun SerializersModule.serializerForKtTypeInfo(ktSerdeInfoInfo: KtSerdeInfo<*>): KSerializer<*> {
+  /** Copy-pasted from ktor! */
+  private fun SerializersModule.serializerForKtTypeInfo(
+      ktSerdeInfoInfo: KtTypeTag<*>
+  ): KSerializer<*> {
     val module = this
-    return ktSerdeInfoInfo.kotlinType
-      ?.let { type ->
-        if (type.arguments.isEmpty()) {
-          null // fallback to a simple case because of
-          // https://github.com/Kotlin/kotlinx.serialization/issues/1870
-        } else {
-          module.serializerOrNull(type)
-        }
+    return ktSerdeInfoInfo.kotlinType?.let { type ->
+      if (type.arguments.isEmpty()) {
+        null // fallback to a simple case because of
+        // https://github.com/Kotlin/kotlinx.serialization/issues/1870
+      } else {
+        module.serializerOrNull(type)
       }
-      ?: module.getContextual(ktSerdeInfoInfo.type)?.maybeNullable(ktSerdeInfoInfo)
-      ?: ktSerdeInfoInfo.type.serializer().maybeNullable(ktSerdeInfoInfo)
+    }
+        ?: module.getContextual(ktSerdeInfoInfo.type)?.maybeNullable(ktSerdeInfoInfo)
+        ?: ktSerdeInfoInfo.type.serializer().maybeNullable(ktSerdeInfoInfo)
   }
 
-  private fun <T : Any> KSerializer<T>.maybeNullable(typeInfo: KtSerdeInfo<*>): KSerializer<*> {
+  private fun <T : Any> KSerializer<T>.maybeNullable(typeInfo: KtTypeTag<*>): KSerializer<*> {
     return if (typeInfo.kotlinType?.isMarkedNullable == true) this.nullable else this
   }
 }

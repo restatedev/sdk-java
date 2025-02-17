@@ -8,10 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testservices
 
-import dev.restate.sdk.kotlin.Awakeable
-import dev.restate.sdk.kotlin.KtStateKey
-import dev.restate.sdk.kotlin.ObjectContext
-import dev.restate.sdk.kotlin.awakeable
+import dev.restate.sdk.kotlin.*
 import dev.restate.sdk.testservices.contracts.AwakeableHolderClient
 import dev.restate.sdk.testservices.contracts.BlockingOperation
 import dev.restate.sdk.testservices.contracts.CancelTest
@@ -23,7 +20,7 @@ import kotlin.time.Duration.Companion.days
 class CancelTestImpl {
   class RunnerImpl : CancelTest.Runner {
     companion object {
-      private val CANCELED_STATE: StateKey<Boolean> = KtStateKey.json("canceled")
+      private val CANCELED_STATE: StateKey<Boolean> = stateKey("canceled")
     }
 
     override suspend fun startTest(context: ObjectContext, operation: BlockingOperation) {

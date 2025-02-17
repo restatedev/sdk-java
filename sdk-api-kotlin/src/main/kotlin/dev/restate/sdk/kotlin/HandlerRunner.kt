@@ -26,8 +26,8 @@ import org.apache.logging.log4j.LogManager
 class HandlerRunner<REQ, RES, CTX : Context>
 internal constructor(
     private val runner: suspend (CTX, REQ) -> RES,
-  private val contextSerdeFactory: SerdeFactory,
-  private val options: Options
+    private val contextSerdeFactory: SerdeFactory,
+    private val options: Options
 ) : dev.restate.sdk.endpoint.definition.HandlerRunner<REQ, RES> {
 
   companion object {
@@ -35,14 +35,17 @@ internal constructor(
 
     fun <REQ, RES, CTX : Context> of(
         contextSerdeFactory: SerdeFactory,
-         options: Options = Options.DEFAULT,
+        options: Options = Options.DEFAULT,
         runner: suspend (CTX, REQ) -> RES,
     ): HandlerRunner<REQ, RES, CTX> {
       return HandlerRunner(runner, contextSerdeFactory, options)
     }
 
-    fun <RES, CTX : Context> of(  contextSerdeFactory: SerdeFactory,
-                                options: Options = Options.DEFAULT, runner: suspend (CTX) -> RES,): HandlerRunner<Unit, RES, CTX> {
+    fun <RES, CTX : Context> of(
+        contextSerdeFactory: SerdeFactory,
+        options: Options = Options.DEFAULT,
+        runner: suspend (CTX) -> RES,
+    ): HandlerRunner<Unit, RES, CTX> {
       return HandlerRunner({ ctx: CTX, _: Unit -> runner(ctx) }, contextSerdeFactory, options)
     }
   }
@@ -102,7 +105,8 @@ internal constructor(
     return completableFuture
   }
 
-  data class Options(val coroutineContext: CoroutineContext): dev.restate.sdk.endpoint.definition.HandlerRunner.Options {
+  data class Options(val coroutineContext: CoroutineContext) :
+      dev.restate.sdk.endpoint.definition.HandlerRunner.Options {
     companion object {
       val DEFAULT: Options = Options(Dispatchers.Default)
     }

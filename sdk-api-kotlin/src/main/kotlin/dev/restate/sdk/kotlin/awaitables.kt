@@ -10,11 +10,10 @@ package dev.restate.sdk.kotlin
 
 import dev.restate.common.Slice
 import dev.restate.sdk.endpoint.definition.AsyncResult
-import dev.restate.sdk.endpoint.definition.HandlerContext
 import dev.restate.sdk.types.TerminalException
 import dev.restate.sdk.types.TimeoutException
 import dev.restate.serde.Serde
-import dev.restate.serde.SerdeInfo
+import dev.restate.serde.TypeTag
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
 import kotlin.time.Duration
@@ -81,57 +80,60 @@ internal abstract class BaseAwaitableImpl<T : Any?> : Awaitable<T> {
   }
 
   override suspend fun <R> map(
-    transformSuccess: suspend (T) -> R,
-    transformFailure: suspend (TerminalException) -> R
+      transformSuccess: suspend (T) -> R,
+      transformFailure: suspend (TerminalException) -> R
   ): Awaitable<R> {
     var ctx = currentCoroutineContext()
     return SingleAwaitableImpl(
-      this.asyncResult().map({ t ->
-        val completableFuture = CompletableFuture<R>()
-        CoroutineScope(ctx).launch {
-          val r: R
-          try {
-            r = transformSuccess(t)
-          } catch (throwable: Throwable) {
-            completableFuture.completeExceptionally(throwable)
-            return@launch
-          }
-          completableFuture.complete(r)
-        }
-        completableFuture
-      }, {t ->
-        val completableFuture = CompletableFuture<R>()
-        CoroutineScope(ctx).launch {
-          val r: R
-          try {
-            r = transformFailure(t)
-          } catch (throwable: Throwable) {
-            completableFuture.completeExceptionally(throwable)
-            return@launch
-          }
-          completableFuture.complete(r)
-        }
-        completableFuture
-      }))
+        this.asyncResult()
+            .map(
+                { t ->
+                  val completableFuture = CompletableFuture<R>()
+                  CoroutineScope(ctx).launch {
+                    val r: R
+                    try {
+                      r = transformSuccess(t)
+                    } catch (throwable: Throwable) {
+                      completableFuture.completeExceptionally(throwable)
+                      return@launch
+                    }
+                    completableFuture.complete(r)
+                  }
+                  completableFuture
+                },
+                { t ->
+                  val completableFuture = CompletableFuture<R>()
+                  CoroutineScope(ctx).launch {
+                    val r: R
+                    try {
+                      r = transformFailure(t)
+                    } catch (throwable: Throwable) {
+                      completableFuture.completeExceptionally(throwable)
+                      return@launch
+                    }
+                    completableFuture.complete(r)
+                  }
+                  completableFuture
+                }))
   }
 
   override suspend fun mapFailure(transform: suspend (TerminalException) -> T): Awaitable<T> {
     var ctx = currentCoroutineContext()
     return SingleAwaitableImpl(
-      this.asyncResult().mapFailure{t ->
-        val completableFuture = CompletableFuture<T>()
-        CoroutineScope(ctx).launch {
-          val newT: T
-          try {
-            newT = transform(t)
-          } catch (throwable: Throwable) {
-            completableFuture.completeExceptionally(throwable)
-            return@launch
+        this.asyncResult().mapFailure { t ->
+          val completableFuture = CompletableFuture<T>()
+          CoroutineScope(ctx).launch {
+            val newT: T
+            try {
+              newT = transform(t)
+            } catch (throwable: Throwable) {
+              completableFuture.completeExceptionally(throwable)
+              return@launch
+            }
+            completableFuture.complete(newT)
           }
-          completableFuture.complete(newT)
-        }
-        completableFuture
-      })
+          completableFuture
+        })
   }
 }
 
@@ -155,15 +157,18 @@ internal fun wrapAnyAwaitable(awaitables: List<Awaitable<*>>): BaseAwaitableImpl
       ctx.createAnyAsyncResult(awaitables.map { (it as BaseAwaitableImpl<*>).asyncResult() }))
 }
 
-internal class CallAwaitableImpl<T:Any?> internal constructor(callAsyncResult: AsyncResult<T>,
-                                                              private val invocationIdAsyncResult: AsyncResult<String>
-): SingleAwaitableImpl<T>(callAsyncResult), CallAwaitable<T> {
+internal class CallAwaitableImpl<T : Any?>
+internal constructor(
+    callAsyncResult: AsyncResult<T>,
+    private val invocationIdAsyncResult: AsyncResult<String>
+) : SingleAwaitableImpl<T>(callAsyncResult), CallAwaitable<T> {
   override suspend fun invocationId(): String {
     return invocationIdAsyncResult.poll().await()
   }
 }
 
-internal class SendHandleImpl internal constructor(private val invocationIdAsyncResult: AsyncResult<String>): SendHandle {
+internal class SendHandleImpl
+internal constructor(private val invocationIdAsyncResult: AsyncResult<String>) : SendHandle {
   override suspend fun invocationId(): String {
     return invocationIdAsyncResult.poll().await()
   }
@@ -175,11 +180,10 @@ internal constructor(asyncResult: AsyncResult<Slice>, serde: Serde<T>, override 
         asyncResult.map { CompletableFuture.completedFuture(serde.deserialize(it)) }),
     Awakeable<T>
 
-internal class AwakeableHandleImpl(val contextImpl: ContextImpl, val id: String) :
-    AwakeableHandle {
-  override suspend fun <T : Any> resolve(serdeInfo: SerdeInfo<T>, payload: T) {
+internal class AwakeableHandleImpl(val contextImpl: ContextImpl, val id: String) : AwakeableHandle {
+  override suspend fun <T : Any> resolve(typeTag: TypeTag<T>, payload: T) {
     contextImpl.handlerContext
-        .resolveAwakeable(id, contextImpl.resolveAndSerialize(serdeInfo, payload))
+        .resolveAwakeable(id, contextImpl.resolveAndSerialize(typeTag, payload))
         .await()
   }
 

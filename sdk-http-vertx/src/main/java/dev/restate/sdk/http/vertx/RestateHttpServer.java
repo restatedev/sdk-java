@@ -60,9 +60,7 @@ public class RestateHttpServer {
     return handleStart(fromEndpoint(endpoint).listen(DEFAULT_PORT));
   }
 
-  /**
-   * Like {@link #listen(Endpoint)}
-   */
+  /** Like {@link #listen(Endpoint)} */
   public static int listen(Endpoint.Builder endpointBuilder) {
     return listen(endpointBuilder.build());
   }
@@ -80,9 +78,7 @@ public class RestateHttpServer {
     return handleStart(fromEndpoint(endpoint).listen(port));
   }
 
-  /**
-   * Like {@link #listen(Endpoint, int)}
-   */
+  /** Like {@link #listen(Endpoint, int)} */
   public static int listen(Endpoint.Builder endpointBuilder, int port) {
     return listen(endpointBuilder.build(), port);
   }
@@ -92,9 +88,7 @@ public class RestateHttpServer {
     return fromEndpoint(endpoint, DEFAULT_OPTIONS);
   }
 
-  /**
-   * Like {@link #fromEndpoint(Endpoint)}
-   */
+  /** Like {@link #fromEndpoint(Endpoint)} */
   public static HttpServer fromEndpoint(Endpoint.Builder endpointBuilder) {
     return fromEndpoint(endpointBuilder.build());
   }
@@ -107,10 +101,9 @@ public class RestateHttpServer {
     return fromEndpoint(Vertx.vertx(), endpoint, options);
   }
 
-  /**
-   * Like {@link #fromEndpoint(Endpoint, HttpServerOptions)}
-   */
-  public static HttpServer fromEndpoint(Endpoint.Builder endpointBuilder, HttpServerOptions options) {
+  /** Like {@link #fromEndpoint(Endpoint, HttpServerOptions)} */
+  public static HttpServer fromEndpoint(
+      Endpoint.Builder endpointBuilder, HttpServerOptions options) {
     return fromEndpoint(endpointBuilder.build(), options);
   }
 
@@ -119,9 +112,7 @@ public class RestateHttpServer {
     return fromEndpoint(vertx, endpoint, DEFAULT_OPTIONS);
   }
 
-  /**
-   * Like {@link #fromEndpoint(Vertx, Endpoint)}
-   */
+  /** Like {@link #fromEndpoint(Vertx, Endpoint)} */
   public static HttpServer fromEndpoint(Vertx vertx, Endpoint.Builder endpointBuilder) {
     return fromEndpoint(vertx, endpointBuilder.build());
   }
@@ -136,10 +127,9 @@ public class RestateHttpServer {
     return server;
   }
 
-  /**
-   * Like {@link #fromEndpoint(Vertx, Endpoint, HttpServerOptions)}
-   */
-  public static HttpServer fromEndpoint(Vertx vertx, Endpoint.Builder endpointBuilder, HttpServerOptions options) {
+  /** Like {@link #fromEndpoint(Vertx, Endpoint, HttpServerOptions)} */
+  public static HttpServer fromEndpoint(
+      Vertx vertx, Endpoint.Builder endpointBuilder, HttpServerOptions options) {
     return fromEndpoint(vertx, endpointBuilder.build(), options);
   }
 

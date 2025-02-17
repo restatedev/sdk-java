@@ -25,7 +25,7 @@ import dev.restate.sdk.core.generated.manifest.Service;
 import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.core.statemachine.MessageHeader;
 import dev.restate.sdk.core.statemachine.ProtoUtils;
-import dev.restate.sdk.lambda.testservices.JavaCounterDefinitions;
+import dev.restate.sdk.lambda.testservices.JavaCounterMetadata;
 import dev.restate.sdk.lambda.testservices.MyServicesHandler;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -37,7 +37,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class LambdaHandlerTest {
 
-  @ValueSource(strings = {JavaCounterDefinitions.SERVICE_NAME, "KtCounter"})
+  @ValueSource(strings = {JavaCounterMetadata.SERVICE_NAME, "KtCounter"})
   @ParameterizedTest
   public void testInvoke(String serviceName) throws IOException {
     MyServicesHandler handler = new MyServicesHandler();
@@ -97,7 +97,7 @@ class LambdaHandlerTest {
 
     assertThat(discoveryResponse.getServices())
         .map(Service::getName)
-        .containsOnly(JavaCounterDefinitions.SERVICE_NAME, "KtCounter");
+        .containsOnly(JavaCounterMetadata.SERVICE_NAME, "KtCounter");
   }
 
   private static byte[] serializeEntries(MessageLite... msgs) throws IOException {

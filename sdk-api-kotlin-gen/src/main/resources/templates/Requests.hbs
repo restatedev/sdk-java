@@ -1,0 +1,31 @@
+{{#if originalClassPkg}}package {{originalClassPkg}}{{/if}}
+
+object {{generatedClassSimpleName}} {
+
+    {{#handlers}}
+    fun {{methodName}}({{#if ../isKeyed}}key: String, {{/if}}{{^inputEmpty}}req: {{{inputFqcn}}}, {{/inputEmpty}}init: dev.restate.common.CallRequest.Builder<{{{boxedInputFqcn}}}, {{{boxedOutputFqcn}}}>.() -> Unit = {}): dev.restate.common.CallRequest<{{{boxedInputFqcn}}}, {{{boxedOutputFqcn}}}> {
+        val builder = dev.restate.common.CallRequest.of<{{{boxedInputFqcn}}}, {{{boxedOutputFqcn}}}>(
+            {{{targetExpr this "key"}}},
+            {{inputSerdeRef}},
+            {{outputSerdeRef}},
+            {{#if inputEmpty}}null{{else}}req{{/if}});
+        builder.init()
+        return builder.build()
+    }
+
+    {{/handlers}}
+
+    object Send {
+        {{#handlers}}
+        fun {{methodName}}({{#if ../isKeyed}}key: String, {{/if}}{{^inputEmpty}}req: {{{inputFqcn}}}, {{/inputEmpty}}init: dev.restate.common.SendRequest.Builder<{{{boxedInputFqcn}}}>.() -> Unit = {}): dev.restate.common.SendRequest<{{{boxedInputFqcn}}}> {
+            val builder = dev.restate.common.SendRequest.of<{{{boxedInputFqcn}}}>(
+                {{{targetExpr this "key"}}},
+                {{inputSerdeRef}},
+                {{#if inputEmpty}}null{{else}}req{{/if}});
+            builder.init()
+            return builder.build()
+        }
+
+        {{/handlers}}
+    }
+}

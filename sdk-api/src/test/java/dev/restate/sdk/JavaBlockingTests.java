@@ -10,18 +10,17 @@ package dev.restate.sdk;
 
 import static dev.restate.sdk.core.statemachine.ProtoUtils.GREETER_SERVICE_TARGET;
 
+import dev.restate.common.CallRequest;
 import dev.restate.common.function.ThrowingBiFunction;
-import dev.restate.sdk.core.MockBidiStream;
-import dev.restate.sdk.core.MockRequestResponse;
-import dev.restate.sdk.core.TestDefinitions;
+import dev.restate.sdk.core.*;
 import dev.restate.sdk.core.TestDefinitions.TestExecutor;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
-import dev.restate.sdk.core.TestRunner;
 import dev.restate.sdk.endpoint.definition.HandlerDefinition;
 import dev.restate.sdk.endpoint.definition.HandlerType;
 import dev.restate.sdk.endpoint.definition.ServiceDefinition;
 import dev.restate.sdk.endpoint.definition.ServiceType;
+import dev.restate.sdk.serde.jackson.JacksonSerdeFactory;
 import dev.restate.serde.Serde;
 import java.util.List;
 import java.util.stream.Stream;
@@ -59,7 +58,11 @@ public class JavaBlockingTests extends TestRunner {
             ServiceType.SERVICE,
             List.of(
                 HandlerDefinition.of(
-                    "run", HandlerType.SHARED, reqSerde, resSerde, HandlerRunner.of(runner)))),
+                    "run",
+                    HandlerType.SHARED,
+                    reqSerde,
+                    resSerde,
+                    HandlerRunner.of(runner, new JacksonSerdeFactory(), null)))),
         "run");
   }
 
@@ -74,7 +77,11 @@ public class JavaBlockingTests extends TestRunner {
             ServiceType.VIRTUAL_OBJECT,
             List.of(
                 HandlerDefinition.of(
-                    "run", HandlerType.EXCLUSIVE, reqSerde, resSerde, HandlerRunner.of(runner)))),
+                    "run",
+                    HandlerType.EXCLUSIVE,
+                    reqSerde,
+                    resSerde,
+                    HandlerRunner.of(runner, new JacksonSerdeFactory(), null)))),
         "run");
   }
 
@@ -89,11 +96,16 @@ public class JavaBlockingTests extends TestRunner {
             ServiceType.WORKFLOW,
             List.of(
                 HandlerDefinition.of(
-                    "run", HandlerType.WORKFLOW, reqSerde, resSerde, HandlerRunner.of(runner)))),
+                    "run",
+                    HandlerType.WORKFLOW,
+                    reqSerde,
+                    resSerde,
+                    HandlerRunner.of(runner, new JacksonSerdeFactory(), null)))),
         "run");
   }
 
   public static Awaitable<String> callGreeterGreetService(Context ctx, String parameter) {
-    return ctx.call(GREETER_SERVICE_TARGET, JsonSerdes.STRING, JsonSerdes.STRING, parameter);
+    return ctx.call(
+        CallRequest.of(GREETER_SERVICE_TARGET, TestSerdes.STRING, TestSerdes.STRING, parameter));
   }
 }

@@ -13,8 +13,9 @@ import dev.restate.sdk.endpoint.definition.HandlerType
 import dev.restate.sdk.endpoint.definition.ServiceDefinition
 import dev.restate.sdk.endpoint.definition.ServiceType
 import dev.restate.sdk.kotlin.HandlerRunner
-import dev.restate.sdk.kotlin.KtSerdes
 import dev.restate.sdk.kotlin.ObjectContext
+import dev.restate.sdk.kotlin.serialization.KotlinSerializationSerdeFactory
+import dev.restate.sdk.kotlin.serialization.jsonSerde
 import dev.restate.sdk.types.StateKey
 import kotlin.time.Duration.Companion.seconds
 import org.apache.logging.log4j.LogManager
@@ -22,7 +23,7 @@ import org.apache.logging.log4j.LogManager
 private val LOG = LogManager.getLogger()
 private val COUNTER: StateKey<Long> = BlockingGreeter.COUNTER
 
-fun greeter(): ServiceDefinition<*> =
+fun greeter(): ServiceDefinition =
     ServiceDefinition.of(
         "KtGreeter",
         ServiceType.VIRTUAL_OBJECT,
@@ -30,9 +31,11 @@ fun greeter(): ServiceDefinition<*> =
             HandlerDefinition.of(
                 "greet",
                 HandlerType.EXCLUSIVE,
-                KtSerdes.json(),
-                KtSerdes.json(),
-                HandlerRunner.of { ctx: ObjectContext, request: String ->
+                jsonSerde<String>(),
+                jsonSerde<String>(),
+                HandlerRunner.of(KotlinSerializationSerdeFactory()) {
+                    ctx: ObjectContext,
+                    request: String ->
                   LOG.info("Greet invoked!")
 
                   val count = (ctx.get(COUNTER) ?: 0) + 1

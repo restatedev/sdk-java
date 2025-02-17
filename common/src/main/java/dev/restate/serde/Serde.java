@@ -25,7 +25,7 @@ import org.jspecify.annotations.*;
  * <p>You can create a custom one using {@link #using(String, ThrowingFunction, ThrowingFunction)}.
  */
 @NullMarked
-public interface Serde<T extends @Nullable Object> extends SerdeInfo<T> {
+public interface Serde<T extends @Nullable Object> extends TypeTag<T> {
 
   Slice serialize(T value);
 

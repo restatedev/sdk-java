@@ -11,15 +11,17 @@ package dev.restate.sdk.kotlin
 import dev.restate.common.CallRequest
 import dev.restate.common.Output
 import dev.restate.common.SendRequest
-import dev.restate.sdk.kotlin.serialization.serdeInfo
+import dev.restate.sdk.kotlin.serialization.typeTag
 import dev.restate.sdk.types.DurablePromiseKey
 import dev.restate.sdk.types.Request
 import dev.restate.sdk.types.StateKey
 import dev.restate.sdk.types.TerminalException
-import dev.restate.serde.SerdeInfo
+import dev.restate.serde.TypeTag
 import java.util.*
 import kotlin.random.Random
 import kotlin.time.Duration
+import kotlin.time.toJavaDuration
+import kotlin.time.toKotlinDuration
 
 /**
  * This interface exposes the Restate functionalities to Restate services. It can be used to
@@ -64,9 +66,7 @@ sealed interface Context {
    * @param callOptions request options.
    * @return a [CallAwaitable] that wraps the result.
    */
-  suspend fun <T : Any?, R : Any?> call(
-    callRequest: CallRequest<T, R>
-  ): CallAwaitable<R>
+  suspend fun <T : Any?, R : Any?> call(callRequest: CallRequest<T, R>): CallAwaitable<R>
 
   /**
    * Invoke another Restate service method.
@@ -79,7 +79,7 @@ sealed interface Context {
    * @return a [CallAwaitable] that wraps the result.
    */
   suspend fun <T : Any?, R : Any?> call(
-    callRequestBuilder: CallRequest.Builder<T, R>
+      callRequestBuilder: CallRequest.Builder<T, R>
   ): CallAwaitable<R> {
     return call(callRequestBuilder.build())
   }
@@ -93,9 +93,7 @@ sealed interface Context {
    * @param sendOptions request options.
    * @return a [SendHandle] to interact with the sent request.
    */
-  suspend fun <T : Any?> send(
-    sendRequest: SendRequest<T>
-  ): SendHandle
+  suspend fun <T : Any?> send(sendRequest: SendRequest<T>): SendHandle
 
   /**
    * Invoke another Restate service without waiting for the response.
@@ -106,9 +104,7 @@ sealed interface Context {
    * @param sendOptions request options.
    * @return a [SendHandle] to interact with the sent request.
    */
-  suspend fun <T : Any?> send(
-    sendRequestBuilder: SendRequest.Builder<T>
-  ): SendHandle {
+  suspend fun <T : Any?> send(sendRequestBuilder: SendRequest.Builder<T>): SendHandle {
     return send(sendRequestBuilder.build())
   }
 
@@ -153,23 +149,23 @@ sealed interface Context {
    *
    * To propagate failures to the run call-site, make sure to wrap them in [TerminalException].
    *
-   * @param serdeInfo the type tag of the return value, used to serialize/deserialize it.
+   * @param typeTag the type tag of the return value, used to serialize/deserialize it.
    * @param name the name of the side effect.
    * @param block closure to execute.
    * @param T type of the return value.
    * @return value of the runBlock operation.
    */
   suspend fun <T : Any?> runBlock(
-    serdeInfo: SerdeInfo<T>,
-    name: String = "",
-    retryPolicy: RetryPolicy? = null,
-    block: suspend () -> T
+      typeTag: TypeTag<T>,
+      name: String = "",
+      retryPolicy: RetryPolicy? = null,
+      block: suspend () -> T
   ): T {
-    return runAsync(serdeInfo, name, retryPolicy, block).await()
+    return runAsync(typeTag, name, retryPolicy, block).await()
   }
 
   suspend fun <T : Any?> runAsync(
-    serdeInfo: SerdeInfo<T>,
+      typeTag: TypeTag<T>,
       name: String = "",
       retryPolicy: RetryPolicy? = null,
       block: suspend () -> T
@@ -186,7 +182,7 @@ sealed interface Context {
    * @return the [Awakeable] to await on.
    * @see Awakeable
    */
-  suspend fun <T : Any> awakeable(serdeInfo: SerdeInfo<T>): Awakeable<T>
+  suspend fun <T : Any> awakeable(typeTag: TypeTag<T>): Awakeable<T>
 
   /**
    * Create a new [AwakeableHandle] for the provided identifier. You can use it to
@@ -212,10 +208,10 @@ sealed interface Context {
 }
 
 /**
- * Execute a non-deterministic closure, recording the result value in the journal.
- * The result value will be re-played in case of re-invocation (e.g. because of
- * failure recovery or suspension point) without re-executing the closure. Use this feature if you
- * want to perform <b>non-deterministic operations</b>.
+ * Execute a non-deterministic closure, recording the result value in the journal. The result value
+ * will be re-played in case of re-invocation (e.g. because of failure recovery or suspension point)
+ * without re-executing the closure. Use this feature if you want to perform <b>non-deterministic
+ * operations</b>.
  *
  * <p>The closure should tolerate retries, that is Restate might re-execute the closure multiple
  * times until it records a result. To control and limit the amount of retries, pass a [RetryPolicy]
@@ -258,7 +254,7 @@ suspend inline fun <reified T : Any> Context.runBlock(
     retryPolicy: RetryPolicy? = null,
     noinline block: suspend () -> T
 ): T {
-  return this.runBlock(serdeInfo<T>(), name, retryPolicy, block)
+  return this.runBlock(typeTag<T>(), name, retryPolicy, block)
 }
 
 suspend inline fun <reified T : Any> Context.runAsync(
@@ -266,7 +262,7 @@ suspend inline fun <reified T : Any> Context.runAsync(
     retryPolicy: RetryPolicy? = null,
     noinline block: suspend () -> T
 ): Awaitable<T> {
-  return this.runAsync(serdeInfo<T>(), name, retryPolicy, block)
+  return this.runAsync(typeTag<T>(), name, retryPolicy, block)
 }
 
 /**
@@ -280,7 +276,7 @@ suspend inline fun <reified T : Any> Context.runAsync(
  * @see Awakeable
  */
 suspend inline fun <reified T : Any> Context.awakeable(): Awakeable<T> {
-  return this.awakeable(serdeInfo<T>())
+  return this.awakeable(typeTag<T>())
 }
 
 /**
@@ -310,14 +306,11 @@ sealed interface SharedObjectContext : Context {
 }
 
 inline fun <reified T> stateKey(name: String): StateKey<T> {
-  return StateKey.of(name, serdeInfo<T>())
+  return StateKey.of(name, typeTag<T>())
 }
 
-suspend inline fun <reified T : Any> SharedObjectContext.get(
-  key: String
-): T? {
-  return this.get(
-    StateKey.of<T>(key, serdeInfo<T>()))
+suspend inline fun <reified T : Any> SharedObjectContext.get(key: String): T? {
+  return this.get(StateKey.of<T>(key, typeTag<T>()))
 }
 
 /**
@@ -345,10 +338,8 @@ sealed interface ObjectContext : SharedObjectContext {
   suspend fun clearAll()
 }
 
-suspend inline fun <reified T : Any> ObjectContext.set(
-  key: String, value: T
-) {
-  this.set(StateKey.of<T>(key, serdeInfo<T>()), value)
+suspend inline fun <reified T : Any> ObjectContext.set(key: String, value: T) {
+  this.set(StateKey.of<T>(key, typeTag<T>()), value)
 }
 
 /**
@@ -427,7 +418,10 @@ sealed interface Awaitable<T> {
 
   suspend fun <R> map(transform: suspend (value: T) -> R): Awaitable<R>
 
-  suspend fun <R> map(transformSuccess: suspend (value: T) -> R, transformFailure: suspend (exception: TerminalException) -> R): Awaitable<R>
+  suspend fun <R> map(
+      transformSuccess: suspend (value: T) -> R,
+      transformFailure: suspend (exception: TerminalException) -> R
+  ): Awaitable<R>
 
   suspend fun mapFailure(transform: suspend (exception: TerminalException) -> T): Awaitable<T>
 
@@ -507,16 +501,12 @@ sealed interface SelectClause<T> {
   val awaitable: Awaitable<T>
 }
 
-/**
- * The [Awaitable] returned by a [Context.call].
- */
+/** The [Awaitable] returned by a [Context.call]. */
 sealed interface CallAwaitable<T> : Awaitable<T> {
   suspend fun invocationId(): String
 }
 
-/**
- * The handle returned by a [Context.send].
- */
+/** The handle returned by a [Context.send]. */
 sealed interface SendHandle {
   suspend fun invocationId(): String
 }
@@ -542,11 +532,11 @@ sealed interface AwakeableHandle {
   /**
    * Complete with success the [Awakeable].
    *
-   * @param serdeInfo used to serialize the [Awakeable] result payload.
+   * @param typeTag used to serialize the [Awakeable] result payload.
    * @param payload the result payload.
    * @see Awakeable
    */
-  suspend fun <T : Any> resolve(serdeInfo: SerdeInfo<T>, payload: T)
+  suspend fun <T : Any> resolve(typeTag: TypeTag<T>, payload: T)
 
   /**
    * Complete with failure the [Awakeable].
@@ -564,7 +554,7 @@ sealed interface AwakeableHandle {
  * @see Awakeable
  */
 suspend inline fun <reified T : Any> AwakeableHandle.resolve(payload: T) {
-  return this.resolve(serdeInfo<T>(), payload)
+  return this.resolve(typeTag<T>(), payload)
 }
 
 /**
@@ -612,5 +602,11 @@ sealed interface DurablePromiseHandle<T> {
 }
 
 inline fun <reified T> durablePromiseKey(name: String): DurablePromiseKey<T> {
-  return DurablePromiseKey.of(name, serdeInfo<T>())
+  return DurablePromiseKey.of(name, typeTag<T>())
 }
+
+var <T : Any?> SendRequest.Builder<T>.delay: Duration?
+  get() = this.delay()?.toKotlinDuration()
+  set(value) {
+    this.delay(value?.toJavaDuration())
+  }

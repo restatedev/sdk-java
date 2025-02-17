@@ -119,8 +119,7 @@ final class RequestProcessorImpl implements RequestProcessor {
             .run(
                 contextInternal,
                 handlerDefinition.getRequestSerde(),
-                handlerDefinition.getResponseSerde()
-            );
+                handlerDefinition.getResponseSerde());
 
     return userCodeFuture.handle(
         (slice, t) -> {

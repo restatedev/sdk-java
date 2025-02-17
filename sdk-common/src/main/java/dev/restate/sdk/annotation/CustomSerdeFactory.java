@@ -9,7 +9,6 @@
 package dev.restate.sdk.annotation;
 
 import dev.restate.serde.SerdeFactory;
-
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -18,5 +17,5 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.SOURCE)
 public @interface CustomSerdeFactory {
-    Class<? extends SerdeFactory> value();
+  Class<? extends SerdeFactory> value();
 }

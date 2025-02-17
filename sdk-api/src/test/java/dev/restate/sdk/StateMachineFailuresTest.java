@@ -12,6 +12,7 @@ import static dev.restate.sdk.JavaBlockingTests.testDefinitionForVirtualObject;
 
 import dev.restate.sdk.core.StateMachineFailuresTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
+import dev.restate.sdk.core.TestSerdes;
 import dev.restate.sdk.types.AbortedExecutionException;
 import dev.restate.sdk.types.StateKey;
 import dev.restate.sdk.types.TerminalException;
@@ -33,7 +34,7 @@ public class StateMachineFailuresTest extends StateMachineFailuresTestSuite {
     return testDefinitionForVirtualObject(
         "GetState",
         Serde.VOID,
-        JsonSerdes.STRING,
+        TestSerdes.STRING,
         (ctx, unused) -> {
           try {
             ctx.get(STATE);
@@ -58,7 +59,7 @@ public class StateMachineFailuresTest extends StateMachineFailuresTestSuite {
     return testDefinitionForVirtualObject(
         "SideEffectFailure",
         Serde.VOID,
-        JsonSerdes.STRING,
+        TestSerdes.STRING,
         (ctx, unused) -> {
           ctx.run(serde, () -> 0);
           return "Francesco";

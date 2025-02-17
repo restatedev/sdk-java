@@ -9,7 +9,7 @@
 package dev.restate.common;
 
 import dev.restate.serde.Serde;
-import dev.restate.serde.SerdeInfo;
+import dev.restate.serde.TypeTag;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -19,7 +19,7 @@ import org.jspecify.annotations.Nullable;
 public final class SendRequest<Req> {
 
   private final Target target;
-  private final SerdeInfo<Req> reqSerdeInfo;
+  private final TypeTag<Req> reqTypeTag;
   private final Req request;
   @Nullable private final String idempotencyKey;
   @Nullable private final LinkedHashMap<String, String> headers;
@@ -27,13 +27,13 @@ public final class SendRequest<Req> {
 
   private SendRequest(
       Target target,
-      SerdeInfo<Req> reqSerdeInfo,
+      TypeTag<Req> reqTypeTag,
       Req request,
       @Nullable String idempotencyKey,
       @Nullable LinkedHashMap<String, String> headers,
       @Nullable Duration delay) {
     this.target = target;
-    this.reqSerdeInfo = reqSerdeInfo;
+    this.reqTypeTag = reqTypeTag;
     this.request = request;
     this.idempotencyKey = idempotencyKey;
     this.headers = headers;
@@ -44,8 +44,8 @@ public final class SendRequest<Req> {
     return target;
   }
 
-  public SerdeInfo<Req> requestSerdeInfo() {
-    return reqSerdeInfo;
+  public TypeTag<Req> requestSerdeInfo() {
+    return reqTypeTag;
   }
 
   public Req request() {
@@ -67,8 +67,8 @@ public final class SendRequest<Req> {
     return delay;
   }
 
-  public static <Req> Builder<Req> of(Target target, SerdeInfo<Req> reqSerdeInfo, Req request) {
-    return new Builder<>(target, reqSerdeInfo, request);
+  public static <Req> Builder<Req> of(Target target, TypeTag<Req> reqTypeTag, Req request) {
+    return new Builder<>(target, reqTypeTag, request);
   }
 
   public static Builder<Void> withNoRequestBody(Target target) {
@@ -76,20 +76,20 @@ public final class SendRequest<Req> {
   }
 
   public static Builder<byte[]> ofRaw(Target target, byte[] request) {
-    return new Builder<>(target, SerdeInfo.of(Serde.RAW), request);
+    return new Builder<>(target, TypeTag.of(Serde.RAW), request);
   }
 
   public static final class Builder<Req> {
     private final Target target;
-    private final SerdeInfo<Req> reqSerdeInfo;
+    private final TypeTag<Req> reqTypeTag;
     private final Req request;
     @Nullable private String idempotencyKey;
     @Nullable private LinkedHashMap<String, String> headers;
     @Nullable private Duration delay;
 
-    private Builder(Target target, SerdeInfo<Req> reqSerdeInfo, Req request) {
+    private Builder(Target target, TypeTag<Req> reqTypeTag, Req request) {
       this.target = target;
-      this.reqSerdeInfo = reqSerdeInfo;
+      this.reqTypeTag = reqTypeTag;
       this.request = request;
     }
 
@@ -153,18 +153,14 @@ public final class SendRequest<Req> {
       return headers(headers);
     }
 
-    public @Nullable Duration getDelay() {
+    public @Nullable Duration delay() {
       return delay;
-    }
-
-    public Builder<Req> setDelay(@Nullable Duration delay) {
-      return delay(delay);
     }
 
     public SendRequest<Req> build() {
       return new SendRequest<>(
           this.target,
-          this.reqSerdeInfo,
+          this.reqTypeTag,
           this.request,
           this.idempotencyKey,
           this.headers,
@@ -176,7 +172,7 @@ public final class SendRequest<Req> {
   public boolean equals(Object o) {
     if (!(o instanceof SendRequest<?> that)) return false;
     return Objects.equals(target, that.target)
-        && Objects.equals(reqSerdeInfo, that.reqSerdeInfo)
+        && Objects.equals(reqTypeTag, that.reqTypeTag)
         && Objects.equals(request, that.request)
         && Objects.equals(idempotencyKey, that.idempotencyKey)
         && Objects.equals(headers, that.headers)
@@ -185,7 +181,7 @@ public final class SendRequest<Req> {
 
   @Override
   public int hashCode() {
-    return Objects.hash(target, reqSerdeInfo, request, idempotencyKey, headers, delay);
+    return Objects.hash(target, reqTypeTag, request, idempotencyKey, headers, delay);
   }
 
   @Override
@@ -194,7 +190,7 @@ public final class SendRequest<Req> {
         + "target="
         + target
         + ", reqSerdeInfo="
-        + reqSerdeInfo
+        + reqTypeTag
         + ", request="
         + request
         + ", idempotencyKey='"

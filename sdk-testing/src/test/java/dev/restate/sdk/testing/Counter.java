@@ -8,7 +8,6 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testing;
 
-import dev.restate.sdk.JsonSerdes;
 import dev.restate.sdk.ObjectContext;
 import dev.restate.sdk.annotation.Handler;
 import dev.restate.sdk.annotation.VirtualObject;
@@ -21,7 +20,7 @@ public class Counter {
 
   private static final Logger LOG = LogManager.getLogger(Counter.class);
 
-  private static final StateKey<Long> TOTAL = StateKey.of("total", JsonSerdes.LONG);
+  private static final StateKey<Long> TOTAL = StateKey.of("total", Long.class);
 
   @Handler
   public void reset(ObjectContext ctx) {

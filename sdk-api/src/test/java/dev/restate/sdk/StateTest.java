@@ -12,6 +12,7 @@ import static dev.restate.sdk.JavaBlockingTests.testDefinitionForVirtualObject;
 
 import dev.restate.sdk.core.StateTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
+import dev.restate.sdk.core.TestSerdes;
 import dev.restate.sdk.types.StateKey;
 import dev.restate.serde.Serde;
 
@@ -22,9 +23,9 @@ public class StateTest extends StateTestSuite {
     return testDefinitionForVirtualObject(
         "GetState",
         Serde.VOID,
-        JsonSerdes.STRING,
+        TestSerdes.STRING,
         (ctx, unused) -> {
-          String state = ctx.get(StateKey.of("STATE", JsonSerdes.STRING)).orElse("Unknown");
+          String state = ctx.get(StateKey.of("STATE", String.class)).orElse("Unknown");
 
           return "Hello " + state;
         });
@@ -34,12 +35,12 @@ public class StateTest extends StateTestSuite {
   protected TestInvocationBuilder getAndSetState() {
     return testDefinitionForVirtualObject(
         "GetState",
-        JsonSerdes.STRING,
-        JsonSerdes.STRING,
+        TestSerdes.STRING,
+        TestSerdes.STRING,
         (ctx, input) -> {
-          String state = ctx.get(StateKey.of("STATE", JsonSerdes.STRING)).get();
+          String state = ctx.get(StateKey.of("STATE", String.class)).get();
 
-          ctx.set(StateKey.of("STATE", JsonSerdes.STRING), input);
+          ctx.set(StateKey.of("STATE", String.class), input);
 
           return "Hello " + state;
         });
@@ -50,7 +51,7 @@ public class StateTest extends StateTestSuite {
     return testDefinitionForVirtualObject(
         "GetState",
         Serde.VOID,
-        JsonSerdes.STRING,
+        TestSerdes.STRING,
         (ctx, unused) -> {
           ctx.set(
               StateKey.of(

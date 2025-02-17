@@ -3,6 +3,7 @@
 object {{generatedClassSimpleName}} {
 
     const val SERVICE_NAME: String = "{{serviceName}}"
+    val SERDE_FACTORY: dev.restate.serde.SerdeFactory = {{serdeFactoryDecl}}
 
     object Serde {
         {{#handlers}}

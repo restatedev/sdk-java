@@ -345,7 +345,7 @@ class ElementConverter {
       case VOID -> "dev.restate.serde.Serde.VOID";
       default ->
           // Default to Jackson type reference serde
-          "SERDE_FACTORY.create(dev.restate.serde.SerdeInfo.of(new dev.restate.serde.TypeRef<"
+          "SERDE_FACTORY.create(dev.restate.serde.TypeTag.of(new dev.restate.serde.TypeRef<"
               + boxedType(ty)
               + ">() {}))";
     };

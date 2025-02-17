@@ -25,19 +25,16 @@ class CallTest : CallTestSuite() {
       body: Slice
   ) =
       testDefinitionForService("OneWayCall") { ctx, _: Unit ->
-        val ignored = ctx.send(
-          SendRequest.of<Slice>(
-            target,
-            Serde.SLICE,
-            body
-          ).idempotencyKey(idempotencyKey).headers(headers))
+        val ignored =
+            ctx.send(
+                SendRequest.of<Slice>(target, Serde.SLICE, body)
+                    .idempotencyKey(idempotencyKey)
+                    .headers(headers))
       }
 
   override fun implicitCancellation(target: Target, body: Slice) =
       testDefinitionForService("ImplicitCancellation") { ctx, _: Unit ->
-        val ignored = ctx.call(
-          CallRequest.of<Slice, ByteArray>(
-            target, Serde.SLICE, Serde.RAW, body
-          )).await()
+        val ignored =
+            ctx.call(CallRequest.of<Slice, ByteArray>(target, Serde.SLICE, Serde.RAW, body)).await()
       }
 }

@@ -9,10 +9,10 @@
 package dev.restate.sdk.kotlin.serialization
 
 import dev.restate.serde.Serde
-import dev.restate.serde.SerdeInfo
+import dev.restate.serde.TypeTag
+import kotlin.reflect.typeOf
 import kotlinx.serialization.json.*
 import kotlinx.serialization.serializer
-import kotlin.reflect.typeOf
 
 /** Creates a [Serde] implementation using the `kotlinx.serialization` json module. */
 inline fun <reified T : Any?> jsonSerde(json: Json = Json.Default): Serde<T> {
@@ -23,5 +23,6 @@ inline fun <reified T : Any?> jsonSerde(json: Json = Json.Default): Serde<T> {
   }
 }
 
-inline fun <reified T : Any?> serdeInfo(): SerdeInfo<T> =
-  KotlinSerializationSerdeFactory.KtSerdeInfo(T::class, typeOf<T>())
+/** Kotlin specific [TypeTag], using Kotlin's reified generics. */
+inline fun <reified T : Any?> typeTag(): TypeTag<T> =
+    KotlinSerializationSerdeFactory.KtTypeTag(T::class, typeOf<T>())

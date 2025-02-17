@@ -12,10 +12,7 @@ import org.jspecify.annotations.Nullable;
 
 public interface ServiceDefinitionFactory<T> {
 
-  ServiceDefinition create(
-          T serviceObject,
-          HandlerRunner.@Nullable Options overrideHandlerOptions
-  );
+  ServiceDefinition create(T serviceObject, HandlerRunner.@Nullable Options overrideHandlerOptions);
 
   boolean supports(Object serviceObject);
 }

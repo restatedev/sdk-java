@@ -9,8 +9,7 @@
 package dev.restate.sdk.types;
 
 import dev.restate.serde.Serde;
-import dev.restate.serde.SerdeInfo;
-import dev.restate.serde.TypeRef;
+import dev.restate.serde.TypeTag;
 
 /**
  * This class holds information about state's name and its type tag to be used for serializing and
@@ -21,26 +20,21 @@ import dev.restate.serde.TypeRef;
 public final class StateKey<T> {
 
   private final String name;
-  private final SerdeInfo<T> serde;
+  private final TypeTag<T> serde;
 
-  private StateKey(String name, SerdeInfo<T> serde) {
+  private StateKey(String name, TypeTag<T> serde) {
     this.name = name;
     this.serde = serde;
   }
 
   /** Create a new {@link StateKey}. */
-  public static <T> StateKey<T> of(String name, SerdeInfo<T> serde) {
+  public static <T> StateKey<T> of(String name, TypeTag<T> serde) {
     return new StateKey<>(name, serde);
   }
 
   /** Create a new {@link StateKey}. */
   public static <T> StateKey<T> of(String name, Class<T> clazz) {
-    return new StateKey<>(name, SerdeInfo.of(clazz));
-  }
-
-  /** Create a new {@link StateKey}. */
-  public static <T> StateKey<T> of(String name, TypeRef<T> typeRef) {
-    return new StateKey<>(name, SerdeInfo.of(typeRef));
+    return new StateKey<>(name, TypeTag.of(clazz));
   }
 
   /** Create a new {@link StateKey} for bytes state. */
@@ -52,7 +46,7 @@ public final class StateKey<T> {
     return name;
   }
 
-  public SerdeInfo<T> serdeInfo() {
+  public TypeTag<T> serdeInfo() {
     return serde;
   }
 }

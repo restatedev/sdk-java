@@ -12,6 +12,7 @@ import static dev.restate.sdk.JavaBlockingTests.testDefinitionForService;
 
 import dev.restate.sdk.core.SleepTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
+import dev.restate.sdk.core.TestSerdes;
 import dev.restate.serde.Serde;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -24,7 +25,7 @@ public class SleepTest extends SleepTestSuite {
     return testDefinitionForService(
         "SleepGreeter",
         Serde.VOID,
-        JsonSerdes.STRING,
+        TestSerdes.STRING,
         (ctx, unused) -> {
           ctx.sleep(Duration.ofSeconds(1));
           return "Hello";

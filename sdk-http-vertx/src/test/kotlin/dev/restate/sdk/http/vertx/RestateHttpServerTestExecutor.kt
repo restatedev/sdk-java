@@ -39,8 +39,7 @@ class RestateHttpServerTestExecutor(private val vertx: Vertx) : TestExecutor {
       // Build server
       val endpointBuilder =
           Endpoint.builder()
-              .bind(
-                  definition.serviceDefinition as ServiceDefinition<Any>, definition.serviceOptions)
+              .bind(definition.serviceDefinition as ServiceDefinition, definition.serviceOptions)
       if (definition.isEnablePreviewContext()) {
         endpointBuilder.enablePreviewContext()
       }

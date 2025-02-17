@@ -56,15 +56,20 @@ class SideEffectTest : SideEffectTestSuite() {
                       HandlerType.SHARED,
                       jsonSerde<Unit>(),
                       jsonSerde<String>(),
-                      HandlerRunner.of(KotlinSerializationSerdeFactory(), HandlerRunner.Options(
-                        Dispatchers.Unconfined + CoroutineName("CheckContextSwitchingTestCoroutine"))) { ctx: Context, _: Unit ->
-                        val sideEffectCoroutine =
-                            ctx.runBlock { coroutineContext[CoroutineName]!!.name }
-                        check(sideEffectCoroutine == "CheckContextSwitchingTestCoroutine") {
-                          "Side effect thread is not running within the same coroutine context of the handler method: $sideEffectCoroutine"
-                        }
-                        "Hello"
-                      }))),
+                      HandlerRunner.of(
+                          KotlinSerializationSerdeFactory(),
+                          HandlerRunner.Options(
+                              Dispatchers.Unconfined +
+                                  CoroutineName("CheckContextSwitchingTestCoroutine"))) {
+                              ctx: Context,
+                              _: Unit ->
+                            val sideEffectCoroutine =
+                                ctx.runBlock { coroutineContext[CoroutineName]!!.name }
+                            check(sideEffectCoroutine == "CheckContextSwitchingTestCoroutine") {
+                              "Side effect thread is not running within the same coroutine context of the handler method: $sideEffectCoroutine"
+                            }
+                            "Hello"
+                          }))),
           "run")
 
   override fun failingSideEffect(name: String, reason: String): TestInvocationBuilder =

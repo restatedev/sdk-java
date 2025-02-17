@@ -19,16 +19,19 @@ import dev.restate.sdk.types.StateKey
 import dev.restate.sdk.types.TerminalException
 import dev.restate.serde.Serde
 import dev.restate.serde.SerdeFactory
-import dev.restate.serde.SerdeInfo
+import dev.restate.serde.TypeTag
+import java.util.concurrent.CompletableFuture
 import kotlin.jvm.optionals.getOrNull
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
 import kotlinx.coroutines.*
 import kotlinx.coroutines.future.await
-import java.util.concurrent.CompletableFuture
 
-internal class ContextImpl internal constructor(internal val handlerContext: HandlerContext, internal val contextSerdeFactory: SerdeFactory) :
-    WorkflowContext {
+internal class ContextImpl
+internal constructor(
+    internal val handlerContext: HandlerContext,
+    internal val contextSerdeFactory: SerdeFactory
+) : WorkflowContext {
   override fun key(): String {
     return this.handlerContext.objectKey()
   }
@@ -38,10 +41,12 @@ internal class ContextImpl internal constructor(internal val handlerContext: Han
   }
 
   override suspend fun <T : Any> get(key: StateKey<T>): T? =
-    resolveSerde<T?>(key.serdeInfo()).let { serde -> SingleAwaitableImpl(handlerContext.get(key.name()).await())
-      .simpleMap { it.getOrNull()?.let {
-        serde.deserialize(it)
-      } }}
+      resolveSerde<T?>(key.serdeInfo())
+          .let { serde ->
+            SingleAwaitableImpl(handlerContext.get(key.name()).await()).simpleMap {
+              it.getOrNull()?.let { serde.deserialize(it) }
+            }
+          }
           .await()
 
   override suspend fun stateKeys(): Collection<String> =
@@ -62,45 +67,43 @@ internal class ContextImpl internal constructor(internal val handlerContext: Han
   override suspend fun timer(duration: Duration, name: String?): Awaitable<Unit> =
       SingleAwaitableImpl(handlerContext.timer(duration.toJavaDuration(), name).await()).map {}
 
-  override suspend fun <T : Any?, R : Any?> call(
-      callRequest: CallRequest<T, R>
-  ): CallAwaitable<R> =
-    resolveSerde<R>(callRequest.responseSerdeInfo()).let { responseSerde ->
-      val callHandle =handlerContext
-        .call(
-          callRequest.target(),
-          resolveAndSerialize<T>(callRequest.requestSerdeInfo(), callRequest.request()),
-          callRequest.idempotencyKey(),
-          callRequest.headers().entries
-        )
-        .await()
+  override suspend fun <T : Any?, R : Any?> call(callRequest: CallRequest<T, R>): CallAwaitable<R> =
+      resolveSerde<R>(callRequest.responseSerdeInfo()).let { responseSerde ->
+        val callHandle =
+            handlerContext
+                .call(
+                    callRequest.target(),
+                    resolveAndSerialize<T>(callRequest.requestSerdeInfo(), callRequest.request()),
+                    callRequest.idempotencyKey(),
+                    callRequest.headers().entries)
+                .await()
 
-      val callAsyncResult = callHandle.callAsyncResult.map { CompletableFuture.completedFuture<R>(responseSerde.deserialize(it)) }
+        val callAsyncResult =
+            callHandle.callAsyncResult.map {
+              CompletableFuture.completedFuture<R>(responseSerde.deserialize(it))
+            }
 
-      return@let CallAwaitableImpl(callAsyncResult, callHandle.invocationIdAsyncResult)
-    }
+        return@let CallAwaitableImpl(callAsyncResult, callHandle.invocationIdAsyncResult)
+      }
 
-  override suspend fun <T : Any?> send(
-      sendRequest: SendRequest<T>
-  ): SendHandle = SendHandleImpl(
-    handlerContext
-      .send(
-        sendRequest.target(),
-        resolveAndSerialize<T>(sendRequest.requestSerdeInfo(), sendRequest.request()),
-        sendRequest.idempotencyKey(),
-        sendRequest.headers().entries,
-        sendRequest.delay()
-      )
-      .await()
-  )
+  override suspend fun <T : Any?> send(sendRequest: SendRequest<T>): SendHandle =
+      SendHandleImpl(
+          handlerContext
+              .send(
+                  sendRequest.target(),
+                  resolveAndSerialize<T>(sendRequest.requestSerdeInfo(), sendRequest.request()),
+                  sendRequest.idempotencyKey(),
+                  sendRequest.headers().entries,
+                  sendRequest.delay())
+              .await())
 
   override suspend fun <T : Any?> runAsync(
-      serdeInfo: SerdeInfo<T>,
+      typeTag: TypeTag<T>,
       name: String,
       retryPolicy: RetryPolicy?,
       block: suspend () -> T
   ): Awaitable<T> {
-    var serde: Serde<T> = resolveSerde(serdeInfo);
+    var serde: Serde<T> = resolveSerde(typeTag)
     var coroutineCtx = currentCoroutineContext()
     val javaRetryPolicy =
         retryPolicy?.let {
@@ -131,8 +134,8 @@ internal class ContextImpl internal constructor(internal val handlerContext: Han
     return SingleAwaitableImpl(asyncResult).map { serde.deserialize(it) }
   }
 
-  override suspend fun <T : Any> awakeable(serdeInfo: SerdeInfo<T>): Awakeable<T> {
-    val serde: Serde<T> = resolveSerde(serdeInfo)
+  override suspend fun <T : Any> awakeable(typeTag: TypeTag<T>): Awakeable<T> {
+    val serde: Serde<T> = resolveSerde(typeTag)
     val awk = handlerContext.awakeable().await()
     return AwakeableImpl(awk.asyncResult, serde, awk.id)
   }
@@ -155,7 +158,7 @@ internal class ContextImpl internal constructor(internal val handlerContext: Han
 
   inner class DurablePromiseImpl<T : Any>(private val key: DurablePromiseKey<T>) :
       DurablePromise<T> {
-        val serde: Serde<T> = resolveSerde(key.serdeInfo())
+    val serde: Serde<T> = resolveSerde(key.serdeInfo())
 
     override suspend fun awaitable(): Awaitable<T> =
         SingleAwaitableImpl(handlerContext.promise(key.name()).await()).simpleMap {
@@ -188,9 +191,9 @@ internal class ContextImpl internal constructor(internal val handlerContext: Han
     }
   }
 
-  internal fun <T : Any?>  resolveAndSerialize(serdeInfo: SerdeInfo<T>, value: T): Slice {
+  internal fun <T : Any?> resolveAndSerialize(typeTag: TypeTag<T>, value: T): Slice {
     return try {
-      val serde = contextSerdeFactory.create<T>(serdeInfo)
+      val serde = contextSerdeFactory.create<T>(typeTag)
       serde.serialize(value)
     } catch (e: Exception) {
       handlerContext.fail(e)
@@ -198,9 +201,9 @@ internal class ContextImpl internal constructor(internal val handlerContext: Han
     }
   }
 
-  private fun <T : Any?>  resolveSerde(serdeInfo: SerdeInfo<T>): Serde<T> {
+  private fun <T : Any?> resolveSerde(typeTag: TypeTag<T>): Serde<T> {
     return try {
-      contextSerdeFactory.create<T>(serdeInfo)!!
+      contextSerdeFactory.create<T>(typeTag)!!
     } catch (e: Exception) {
       handlerContext.fail(e)
       throw CancellationException("Cannot resolve serde", e)

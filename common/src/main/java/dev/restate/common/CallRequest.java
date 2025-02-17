@@ -9,7 +9,7 @@
 package dev.restate.common;
 
 import dev.restate.serde.Serde;
-import dev.restate.serde.SerdeInfo;
+import dev.restate.serde.TypeTag;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -18,22 +18,22 @@ import org.jspecify.annotations.Nullable;
 public final class CallRequest<Req, Res> {
 
   private final Target target;
-  private final SerdeInfo<Req> reqSerdeInfo;
-  private final SerdeInfo<Res> resSerdeInfo;
+  private final TypeTag<Req> reqTypeTag;
+  private final TypeTag<Res> resTypeTag;
   private final Req request;
   @Nullable private final String idempotencyKey;
   @Nullable private final LinkedHashMap<String, String> headers;
 
   private CallRequest(
       Target target,
-      SerdeInfo<Req> reqSerdeInfo,
-      SerdeInfo<Res> resSerdeInfo,
+      TypeTag<Req> reqTypeTag,
+      TypeTag<Res> resTypeTag,
       Req request,
       @Nullable String idempotencyKey,
       @Nullable LinkedHashMap<String, String> headers) {
     this.target = target;
-    this.reqSerdeInfo = reqSerdeInfo;
-    this.resSerdeInfo = resSerdeInfo;
+    this.reqTypeTag = reqTypeTag;
+    this.resTypeTag = resTypeTag;
     this.request = request;
     this.idempotencyKey = idempotencyKey;
     this.headers = headers;
@@ -43,12 +43,12 @@ public final class CallRequest<Req, Res> {
     return target;
   }
 
-  public SerdeInfo<Req> requestSerdeInfo() {
-    return reqSerdeInfo;
+  public TypeTag<Req> requestSerdeInfo() {
+    return reqTypeTag;
   }
 
-  public SerdeInfo<Res> responseSerdeInfo() {
-    return resSerdeInfo;
+  public TypeTag<Res> responseSerdeInfo() {
+    return resTypeTag;
   }
 
   public Req request() {
@@ -67,37 +67,35 @@ public final class CallRequest<Req, Res> {
   }
 
   public static <Req, Res> Builder<Req, Res> of(
-      Target target, SerdeInfo<Req> reqSerdeInfo, SerdeInfo<Res> resSerdeInfo, Req request) {
-    return new Builder<>(target, reqSerdeInfo, resSerdeInfo, request);
+      Target target, TypeTag<Req> reqTypeTag, TypeTag<Res> resTypeTag, Req request) {
+    return new Builder<>(target, reqTypeTag, resTypeTag, request);
   }
 
-  public static <Res> Builder<Void, Res> withNoRequestBody(
-      Target target, SerdeInfo<Res> resSerdeInfo) {
-    return new Builder<>(target, Serde.VOID, resSerdeInfo, null);
+  public static <Res> Builder<Void, Res> withNoRequestBody(Target target, TypeTag<Res> resTypeTag) {
+    return new Builder<>(target, Serde.VOID, resTypeTag, null);
   }
 
   public static <Req> Builder<Req, Void> withNoResponseBody(
-      Target target, SerdeInfo<Req> reqSerdeInfo, Req request) {
-    return new Builder<>(target, reqSerdeInfo, Serde.VOID, request);
+      Target target, TypeTag<Req> reqTypeTag, Req request) {
+    return new Builder<>(target, reqTypeTag, Serde.VOID, request);
   }
 
   public static Builder<byte[], byte[]> ofRaw(Target target, byte[] request) {
-    return new Builder<>(target, SerdeInfo.of(Serde.RAW), SerdeInfo.of(Serde.RAW), request);
+    return new Builder<>(target, TypeTag.of(Serde.RAW), TypeTag.of(Serde.RAW), request);
   }
 
   public static final class Builder<Req, Res> {
     private final Target target;
-    private final SerdeInfo<Req> reqSerdeInfo;
-    private final SerdeInfo<Res> resSerdeInfo;
+    private final TypeTag<Req> reqTypeTag;
+    private final TypeTag<Res> resTypeTag;
     private final Req request;
     @Nullable private String idempotencyKey;
     @Nullable private LinkedHashMap<String, String> headers;
 
-    private Builder(
-        Target target, SerdeInfo<Req> reqSerdeInfo, SerdeInfo<Res> resSerdeInfo, Req request) {
+    private Builder(Target target, TypeTag<Req> reqTypeTag, TypeTag<Res> resTypeTag, Req request) {
       this.target = target;
-      this.reqSerdeInfo = reqSerdeInfo;
-      this.resSerdeInfo = resSerdeInfo;
+      this.reqTypeTag = reqTypeTag;
+      this.resTypeTag = resTypeTag;
       this.request = request;
     }
 
@@ -154,8 +152,8 @@ public final class CallRequest<Req, Res> {
     public CallRequest<Req, Res> build() {
       return new CallRequest<>(
           this.target,
-          this.reqSerdeInfo,
-          this.resSerdeInfo,
+          this.reqTypeTag,
+          this.resTypeTag,
           this.request,
           this.idempotencyKey,
           this.headers);
@@ -166,8 +164,8 @@ public final class CallRequest<Req, Res> {
   public boolean equals(Object o) {
     if (!(o instanceof CallRequest<?, ?> that)) return false;
     return Objects.equals(target, that.target)
-        && Objects.equals(reqSerdeInfo, that.reqSerdeInfo)
-        && Objects.equals(resSerdeInfo, that.resSerdeInfo)
+        && Objects.equals(reqTypeTag, that.reqTypeTag)
+        && Objects.equals(resTypeTag, that.resTypeTag)
         && Objects.equals(request, that.request)
         && Objects.equals(idempotencyKey, that.idempotencyKey)
         && Objects.equals(headers, that.headers);
@@ -175,7 +173,7 @@ public final class CallRequest<Req, Res> {
 
   @Override
   public int hashCode() {
-    return Objects.hash(target, reqSerdeInfo, resSerdeInfo, request, idempotencyKey, headers);
+    return Objects.hash(target, reqTypeTag, resTypeTag, request, idempotencyKey, headers);
   }
 
   @Override
@@ -184,9 +182,9 @@ public final class CallRequest<Req, Res> {
         + "target="
         + target
         + ", reqSerdeInfo="
-        + reqSerdeInfo
+        + reqTypeTag
         + ", resSerdeInfo="
-        + resSerdeInfo
+        + resTypeTag
         + ", request="
         + request
         + ", idempotencyKey='"

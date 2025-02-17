@@ -23,13 +23,9 @@ public interface HandlerRunner<REQ, RES> {
    */
   ThreadLocal<HandlerContext> HANDLER_CONTEXT_THREAD_LOCAL = new ThreadLocal<>();
 
-  /**
-   * Marker interface of runner options.
-   */
+  /** Marker interface of runner options. */
   interface Options {}
 
   CompletableFuture<Slice> run(
-      HandlerContext handlerContext,
-      Serde<REQ> requestSerde,
-      Serde<RES> responseSerde);
+      HandlerContext handlerContext, Serde<REQ> requestSerde, Serde<RES> responseSerde);
 }

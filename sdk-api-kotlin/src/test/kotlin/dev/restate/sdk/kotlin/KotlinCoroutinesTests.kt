@@ -57,10 +57,12 @@ class KotlinCoroutinesTests : TestRunner() {
                   HandlerDefinition.of(
                       "run",
                       HandlerType.SHARED,
-                    jsonSerde<REQ>(),
-                    jsonSerde<RES>(),
-                      HandlerRunner.of(KotlinSerializationSerdeFactory(), HandlerRunner.Options(Dispatchers.Unconfined), runner)
-                  ))),
+                      jsonSerde<REQ>(),
+                      jsonSerde<RES>(),
+                      HandlerRunner.of(
+                          KotlinSerializationSerdeFactory(),
+                          HandlerRunner.Options(Dispatchers.Unconfined),
+                          runner)))),
           "run")
     }
 
@@ -76,10 +78,12 @@ class KotlinCoroutinesTests : TestRunner() {
                   HandlerDefinition.of(
                       "run",
                       HandlerType.EXCLUSIVE,
-                    jsonSerde<REQ>(),
-                    jsonSerde<RES>(),
-                    HandlerRunner.of(KotlinSerializationSerdeFactory(), HandlerRunner.Options(Dispatchers.Unconfined), runner)
-                  ))),
+                      jsonSerde<REQ>(),
+                      jsonSerde<RES>(),
+                      HandlerRunner.of(
+                          KotlinSerializationSerdeFactory(),
+                          HandlerRunner.Options(Dispatchers.Unconfined),
+                          runner)))),
           "run")
     }
 
@@ -95,17 +99,19 @@ class KotlinCoroutinesTests : TestRunner() {
                   HandlerDefinition.of(
                       "run",
                       HandlerType.WORKFLOW,
-                    jsonSerde<REQ>(),
-                    jsonSerde<RES>(),
-                    HandlerRunner.of(KotlinSerializationSerdeFactory(), HandlerRunner.Options(Dispatchers.Unconfined), runner)
-                  ))),
+                      jsonSerde<REQ>(),
+                      jsonSerde<RES>(),
+                      HandlerRunner.of(
+                          KotlinSerializationSerdeFactory(),
+                          HandlerRunner.Options(Dispatchers.Unconfined),
+                          runner)))),
           "run")
     }
 
     suspend fun callGreeterGreetService(ctx: Context, parameter: String): Awaitable<String> {
       return ctx.call(
-        CallRequest.of<String, String>( ProtoUtils.GREETER_SERVICE_TARGET, TestSerdes.STRING, TestSerdes.STRING, parameter)
-        )
+          CallRequest.of<String, String>(
+              ProtoUtils.GREETER_SERVICE_TARGET, TestSerdes.STRING, TestSerdes.STRING, parameter))
     }
   }
 }
