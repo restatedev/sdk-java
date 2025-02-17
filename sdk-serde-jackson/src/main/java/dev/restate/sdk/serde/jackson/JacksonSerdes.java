@@ -98,7 +98,7 @@ public final class JacksonSerdes {
   /** Serialize/Deserialize class using the provided object mapper. */
   public static <T> Serde<T> of(ObjectMapper mapper, Class<T> clazz) {
     return JacksonSerdeFactory.create(
-            mapper.constructType(clazz), schemaGenerator, mapper
+            mapper.constructType(clazz), clazz, schemaGenerator, mapper
     );
   }
 
@@ -110,7 +110,7 @@ public final class JacksonSerdes {
   /** Serialize/Deserialize {@link TypeReference} using the default object mapper. */
   public static <T> Serde<T> of(ObjectMapper mapper, TypeReference<T> typeReference) {
     return JacksonSerdeFactory.create(
-            mapper.constructType(typeReference), schemaGenerator, mapper
+            mapper.constructType(typeReference), typeReference.getType(), schemaGenerator, mapper
     );
   }
 

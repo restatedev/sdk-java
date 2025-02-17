@@ -14,23 +14,21 @@ import dev.restate.common.SendRequest;
 import dev.restate.common.Target;
 import dev.restate.serde.Serde;
 import dev.restate.serde.SerdeFactory;
-import java.time.Duration;
-import java.util.Collections;
-import java.util.Map;
+import dev.restate.serde.SerdeInfo;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 
 public interface Client {
 
-  <Req, Res> CompletableFuture<Res> callAsync(CallRequest<Req, Res> request);
+  <Req, Res> CompletableFuture<ClientResponse<Res>> callAsync(CallRequest<Req, Res> request);
 
-  default <Req, Res> CompletableFuture<Res> callAsync(CallRequest.Builder<Req, Res> request) {
+  default <Req, Res> CompletableFuture<ClientResponse<Res>> callAsync(
+      CallRequest.Builder<Req, Res> request) {
     return callAsync(request.build());
   }
 
-  default <Req, Res> Res call(CallRequest<Req, Res> request)
+  default <Req, Res> ClientResponse<Res> call(CallRequest<Req, Res> request)
       throws IngressException {
     try {
       return callAsync(request).join();
@@ -42,20 +40,19 @@ public interface Client {
     }
   }
 
-  default <Req, Res> Res call(CallRequest.Builder<Req, Res> request)
-          throws IngressException {
+  default <Req, Res> ClientResponse<Res> call(CallRequest.Builder<Req, Res> request)
+      throws IngressException {
     return call(request.build());
   }
 
-  <Req> CompletableFuture<SendResponse> sendAsync(
-          SendRequest<Req> request);
+  <Req> CompletableFuture<ClientResponse<SendResponse>> sendAsync(SendRequest<Req> request);
 
-  default <Req> CompletableFuture<SendResponse> sendAsync(
-          SendRequest.Builder<Req> request) {
+  default <Req> CompletableFuture<ClientResponse<SendResponse>> sendAsync(
+      SendRequest.Builder<Req> request) {
     return sendAsync(request.build());
   }
 
-  default <Req> SendResponse send(SendRequest<Req> request)
+  default <Req> ClientResponse<SendResponse> send(SendRequest<Req> request)
       throws IngressException {
     try {
       return sendAsync(request).join();
@@ -67,15 +64,15 @@ public interface Client {
     }
   }
 
-  default <Req> SendResponse send(SendRequest.Builder<Req> request)
+  default <Req> ClientResponse<SendResponse> send(SendRequest.Builder<Req> request)
       throws IngressException {
     return send(request.build());
   }
 
   /**
    * Create a new {@link AwakeableHandle} for the provided identifier. You can use it to {@link
-   * AwakeableHandle#resolve(Serde, Object)} or {@link AwakeableHandle#reject(String)} an Awakeable
-   * from the ingress.
+   * AwakeableHandle#resolve(SerdeInfo, Object)} or {@link AwakeableHandle#reject(String)} an
+   * Awakeable from the ingress.
    */
   AwakeableHandle awakeableHandle(String id);
 
@@ -84,19 +81,21 @@ public interface Client {
    * ingress
    */
   interface AwakeableHandle {
-    /** Same as {@link #resolve(Serde, Object)} but async with options. */
-    <T> CompletableFuture<Void> resolveAsync(
-        Serde<T> serde, @NonNull T payload, RequestOptions options);
+    /** Same as {@link #resolve(SerdeInfo, Object)} but async with options. */
+    <T> CompletableFuture<ClientResponse<Void>> resolveAsync(
+        SerdeInfo<T> serde, @NonNull T payload, ClientRequestOptions options);
 
-    /** Same as {@link #resolve(Serde, Object)} but async. */
-    default <T> CompletableFuture<Void> resolveAsync(Serde<T> serde, @NonNull T payload) {
-      return resolveAsync(serde, payload, RequestOptions.DEFAULT);
+    /** Same as {@link #resolve(SerdeInfo, Object)} but async. */
+    default <T> CompletableFuture<ClientResponse<Void>> resolveAsync(
+        SerdeInfo<T> serde, @NonNull T payload) {
+      return resolveAsync(serde, payload, ClientRequestOptions.DEFAULT);
     }
 
-    /** Same as {@link #resolve(Serde, Object)} with options. */
-    default <T> void resolve(Serde<T> serde, @NonNull T payload, RequestOptions options) {
+    /** Same as {@link #resolve(SerdeInfo, Object)} with options. */
+    default <T> ClientResponse<Void> resolve(
+        SerdeInfo<T> serde, @NonNull T payload, ClientRequestOptions options) {
       try {
-        resolveAsync(serde, payload, options).join();
+        return resolveAsync(serde, payload, options).join();
       } catch (CompletionException e) {
         if (e.getCause() instanceof RuntimeException) {
           throw (RuntimeException) e.getCause();
@@ -111,22 +110,23 @@ public interface Client {
      * @param serde used to serialize the Awakeable result payload.
      * @param payload the result payload. MUST NOT be null.
      */
-    default <T> void resolve(Serde<T> serde, @NonNull T payload) {
-      this.resolve(serde, payload, RequestOptions.DEFAULT);
+    default <T> ClientResponse<Void> resolve(SerdeInfo<T> serde, @NonNull T payload) {
+      return this.resolve(serde, payload, ClientRequestOptions.DEFAULT);
     }
 
     /** Same as {@link #reject(String)} but async with options. */
-    CompletableFuture<Void> rejectAsync(String reason, RequestOptions options);
+    CompletableFuture<ClientResponse<Void>> rejectAsync(
+        String reason, ClientRequestOptions options);
 
     /** Same as {@link #reject(String)} but async. */
-    default CompletableFuture<Void> rejectAsync(String reason) {
-      return rejectAsync(reason, RequestOptions.DEFAULT);
+    default CompletableFuture<ClientResponse<Void>> rejectAsync(String reason) {
+      return rejectAsync(reason, ClientRequestOptions.DEFAULT);
     }
 
     /** Same as {@link #reject(String)} with options. */
-    default void reject(String reason, RequestOptions options) {
+    default ClientResponse<Void> reject(String reason, ClientRequestOptions options) {
       try {
-        rejectAsync(reason, options).join();
+        return rejectAsync(reason, options).join();
       } catch (CompletionException e) {
         if (e.getCause() instanceof RuntimeException) {
           throw (RuntimeException) e.getCause();
@@ -140,24 +140,24 @@ public interface Client {
      *
      * @param reason the rejection reason. MUST NOT be null.
      */
-    default void reject(String reason) {
-      this.reject(reason, RequestOptions.DEFAULT);
+    default ClientResponse<Void> reject(String reason) {
+      return this.reject(reason, ClientRequestOptions.DEFAULT);
     }
   }
 
-  <Res> InvocationHandle<Res> invocationHandle(String invocationId, Serde<Res> resSerde);
+  <Res> InvocationHandle<Res> invocationHandle(String invocationId, SerdeInfo<Res> resSerde);
 
   interface InvocationHandle<Res> {
 
     String invocationId();
 
-    CompletableFuture<Res> attachAsync(RequestOptions options);
+    CompletableFuture<ClientResponse<Res>> attachAsync(ClientRequestOptions options);
 
-    default CompletableFuture<Res> attachAsync() {
-      return attachAsync(RequestOptions.DEFAULT);
+    default CompletableFuture<ClientResponse<Res>> attachAsync() {
+      return attachAsync(ClientRequestOptions.DEFAULT);
     }
 
-    default Res attach(RequestOptions options) throws IngressException {
+    default ClientResponse<Res> attach(ClientRequestOptions options) throws IngressException {
       try {
         return attachAsync(options).join();
       } catch (CompletionException e) {
@@ -168,17 +168,18 @@ public interface Client {
       }
     }
 
-    default Res attach() throws IngressException {
-      return attach(RequestOptions.DEFAULT);
+    default ClientResponse<Res> attach() throws IngressException {
+      return attach(ClientRequestOptions.DEFAULT);
     }
 
-    CompletableFuture<Output<Res>> getOutputAsync(RequestOptions options);
+    CompletableFuture<ClientResponse<Output<Res>>> getOutputAsync(ClientRequestOptions options);
 
-    default CompletableFuture<Output<Res>> getOutputAsync() {
-      return getOutputAsync(RequestOptions.DEFAULT);
+    default CompletableFuture<ClientResponse<Output<Res>>> getOutputAsync() {
+      return getOutputAsync(ClientRequestOptions.DEFAULT);
     }
 
-    default Output<Res> getOutput(RequestOptions options) throws IngressException {
+    default ClientResponse<Output<Res>> getOutput(ClientRequestOptions options)
+        throws IngressException {
       try {
         return getOutputAsync(options).join();
       } catch (CompletionException e) {
@@ -189,23 +190,23 @@ public interface Client {
       }
     }
 
-    default Output<Res> getOutput() throws IngressException {
-      return getOutput(RequestOptions.DEFAULT);
+    default ClientResponse<Output<Res>> getOutput() throws IngressException {
+      return getOutput(ClientRequestOptions.DEFAULT);
     }
   }
 
   <Res> IdempotentInvocationHandle<Res> idempotentInvocationHandle(
-      Target target, String idempotencyKey, Serde<Res> resSerde);
+      Target target, String idempotencyKey, SerdeInfo<Res> resSerde);
 
   interface IdempotentInvocationHandle<Res> {
 
-    CompletableFuture<Res> attachAsync(RequestOptions options);
+    CompletableFuture<ClientResponse<Res>> attachAsync(ClientRequestOptions options);
 
-    default CompletableFuture<Res> attachAsync() {
-      return attachAsync(RequestOptions.DEFAULT);
+    default CompletableFuture<ClientResponse<Res>> attachAsync() {
+      return attachAsync(ClientRequestOptions.DEFAULT);
     }
 
-    default Res attach(RequestOptions options) throws IngressException {
+    default ClientResponse<Res> attach(ClientRequestOptions options) throws IngressException {
       try {
         return attachAsync(options).join();
       } catch (CompletionException e) {
@@ -216,17 +217,18 @@ public interface Client {
       }
     }
 
-    default Res attach() throws IngressException {
-      return attach(RequestOptions.DEFAULT);
+    default ClientResponse<Res> attach() throws IngressException {
+      return attach(ClientRequestOptions.DEFAULT);
     }
 
-    CompletableFuture<Output<Res>> getOutputAsync(RequestOptions options);
+    CompletableFuture<ClientResponse<Output<Res>>> getOutputAsync(ClientRequestOptions options);
 
-    default CompletableFuture<Output<Res>> getOutputAsync() {
-      return getOutputAsync(RequestOptions.DEFAULT);
+    default CompletableFuture<ClientResponse<Output<Res>>> getOutputAsync() {
+      return getOutputAsync(ClientRequestOptions.DEFAULT);
     }
 
-    default Output<Res> getOutput(RequestOptions options) throws IngressException {
+    default ClientResponse<Output<Res>> getOutput(ClientRequestOptions options)
+        throws IngressException {
       try {
         return getOutputAsync(options).join();
       } catch (CompletionException e) {
@@ -237,22 +239,22 @@ public interface Client {
       }
     }
 
-    default Output<Res> getOutput() throws IngressException {
-      return getOutput(RequestOptions.DEFAULT);
+    default ClientResponse<Output<Res>> getOutput() throws IngressException {
+      return getOutput(ClientRequestOptions.DEFAULT);
     }
   }
 
   <Res> WorkflowHandle<Res> workflowHandle(
-      String workflowName, String workflowId, Serde<Res> resSerde);
+      String workflowName, String workflowId, SerdeInfo<Res> resSerde);
 
   interface WorkflowHandle<Res> {
-    CompletableFuture<Res> attachAsync(RequestOptions options);
+    CompletableFuture<ClientResponse<Res>> attachAsync(ClientRequestOptions options);
 
-    default CompletableFuture<Res> attachAsync() {
-      return attachAsync(RequestOptions.DEFAULT);
+    default CompletableFuture<ClientResponse<Res>> attachAsync() {
+      return attachAsync(ClientRequestOptions.DEFAULT);
     }
 
-    default Res attach(RequestOptions options) throws IngressException {
+    default ClientResponse<Res> attach(ClientRequestOptions options) throws IngressException {
       try {
         return attachAsync(options).join();
       } catch (CompletionException e) {
@@ -263,17 +265,18 @@ public interface Client {
       }
     }
 
-    default Res attach() throws IngressException {
-      return attach(RequestOptions.DEFAULT);
+    default ClientResponse<Res> attach() throws IngressException {
+      return attach(ClientRequestOptions.DEFAULT);
     }
 
-    CompletableFuture<Output<Res>> getOutputAsync(RequestOptions options);
+    CompletableFuture<ClientResponse<Output<Res>>> getOutputAsync(ClientRequestOptions options);
 
-    default CompletableFuture<Output<Res>> getOutputAsync() {
-      return getOutputAsync(RequestOptions.DEFAULT);
+    default CompletableFuture<ClientResponse<Output<Res>>> getOutputAsync() {
+      return getOutputAsync(ClientRequestOptions.DEFAULT);
     }
 
-    default Output<Res> getOutput(RequestOptions options) throws IngressException {
+    default ClientResponse<Output<Res>> getOutput(ClientRequestOptions options)
+        throws IngressException {
       try {
         return getOutputAsync(options).join();
       } catch (CompletionException e) {
@@ -284,24 +287,50 @@ public interface Client {
       }
     }
 
-    default Output<Res> getOutput() throws IngressException {
-      return getOutput(RequestOptions.DEFAULT);
+    default ClientResponse<Output<Res>> getOutput() throws IngressException {
+      return getOutput(ClientRequestOptions.DEFAULT);
     }
   }
 
+  /**
+   * Create a default JDK client.
+   *
+   * @param baseUri uri to connect to.
+   */
   static Client connect(String baseUri) {
-    return connect(baseUri, SerdeFactory.NOOP, Collections.emptyMap());
+    return connect(baseUri, SerdeFactory.NOOP, ClientRequestOptions.DEFAULT);
   }
 
-  static Client connect(String baseUri, Map<String, String> headers) {
-    return connect(baseUri, SerdeFactory.NOOP, headers);
+  /**
+   * Create a default JDK client.
+   *
+   * @param baseUri uri to connect to
+   * @param options default options to use in all the requests.
+   */
+  static Client connect(String baseUri, ClientRequestOptions options) {
+    return connect(baseUri, SerdeFactory.NOOP, options);
   }
 
+  /**
+   * Create a default JDK client.
+   *
+   * @param baseUri uri to connect to
+   * @param serdeFactory Serde factory to use. You must provide this when the provided {@link
+   *     SerdeInfo} are not {@link Serde} instances.
+   */
   static Client connect(String baseUri, SerdeFactory serdeFactory) {
-    return connect(baseUri, serdeFactory, Collections.emptyMap());
+    return connect(baseUri, serdeFactory, ClientRequestOptions.DEFAULT);
   }
 
-  static Client connect(String baseUri, SerdeFactory serdeFactory, Map<String, String> headers) {
+  /**
+   * Create a default JDK client.
+   *
+   * @param baseUri uri to connect to
+   * @param serdeFactory Serde factory to use. You must provide this when the provided {@link
+   *     SerdeInfo} are not {@link Serde} instances.
+   * @param options default options to use in all the requests.
+   */
+  static Client connect(String baseUri, SerdeFactory serdeFactory, ClientRequestOptions options) {
     // We load through reflections to avoid CNF exceptions in JVMs
     // where JDK's HttpClient is not available (see Android!)
     try {
@@ -315,8 +344,8 @@ public interface Client {
     try {
       return (Client)
           Class.forName("dev.restate.client.jdk.JdkClient")
-              .getMethod("of", String.class, SerdeFactory.class, Map.class)
-              .invoke(null, baseUri, serdeFactory, headers);
+              .getMethod("of", String.class, SerdeFactory.class, ClientRequestOptions.class)
+              .invoke(null, baseUri, serdeFactory, options);
     } catch (Exception e) {
       throw new IllegalStateException("Cannot instantiate the client", e);
     }

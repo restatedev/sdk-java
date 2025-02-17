@@ -11,6 +11,7 @@ import dev.restate.serde.TypeRef;
 import org.jspecify.annotations.NonNull;
 
 import java.io.IOException;
+import java.lang.reflect.Type;
 
 import static dev.restate.sdk.serde.jackson.JacksonSerdes.sneakyThrow;
 
@@ -36,19 +37,19 @@ public class JacksonSerdeFactory implements SerdeFactory {
 
     @Override
     public <T> Serde<T> create(TypeRef<T> typeRef) {
-        return create(mapper.constructType(typeRef.getType()), schemaGenerator, mapper);
+        return create(mapper.constructType(typeRef.getType()), typeRef.getType(), schemaGenerator, mapper);
     }
 
     @Override
     public <T> Serde<T> create(Class<T> clazz) {
-        return create(mapper.constructType(clazz), schemaGenerator, mapper);
+        return create(mapper.constructType(clazz), clazz, schemaGenerator, mapper);
     }
 
-    static <T> Serde<T> create(JavaType constructedType, SchemaGenerator schemaGenerator, ObjectMapper mapper) {
+    static <T> Serde<T> create(JavaType constructedType, Type originalType, SchemaGenerator schemaGenerator, ObjectMapper mapper) {
         return new Serde<>() {
             @Override
             public Schema jsonSchema() {
-                return new Serde.JsonSchema(schemaGenerator.generateSchema(constructedType));
+                return new Serde.JsonSchema(schemaGenerator.generateSchema(originalType));
             }
 
             @Override

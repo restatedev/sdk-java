@@ -61,22 +61,22 @@ object {{generatedClassSimpleName}} {
                 {{outputSerdeRef}});
         }
 
-        suspend fun submit({{^inputEmpty}}req: {{{inputFqcn}}}, {{/inputEmpty}}requestOptions: dev.restate.client.RequestOptions = dev.restate.client.RequestOptions.DEFAULT): dev.restate.client.SendResponse {
+        suspend fun submit({{^inputEmpty}}req: {{{inputFqcn}}}, {{/inputEmpty}}clientRequestOptions: dev.restate.client.ClientRequestOptions = dev.restate.client.ClientRequestOptions.DEFAULT): dev.restate.client.SendResponse {
             return this@IngressClient.client.sendSuspend(
                 {{{targetExpr this "this.key"}}},
                 {{inputSerdeRef}},
                 {{#if inputEmpty}}Unit{{else}}req{{/if}},
                 kotlin.time.Duration.ZERO,
-                requestOptions);
+                clientRequestOptions);
         }
         {{else}}
-        suspend fun {{methodName}}({{^inputEmpty}}req: {{{inputFqcn}}}, {{/inputEmpty}}requestOptions: dev.restate.client.CallRequestOptions = dev.restate.client.CallRequestOptions.DEFAULT): {{{boxedOutputFqcn}}} {
+        suspend fun {{methodName}}({{^inputEmpty}}req: {{{inputFqcn}}}, {{/inputEmpty}}clientRequestOptions: dev.restate.client.CallRequestOptions = dev.restate.client.CallRequestOptions.DEFAULT): {{{boxedOutputFqcn}}} {
             return this@IngressClient.client.callSuspend(
                 {{{targetExpr this "this.key"}}},
                 {{inputSerdeRef}},
                 {{outputSerdeRef}},
                 {{#if inputEmpty}}Unit{{else}}req{{/if}},
-                requestOptions);
+                clientRequestOptions);
         }
         {{/if}}{{/handlers}}
 
@@ -86,13 +86,13 @@ object {{generatedClassSimpleName}} {
 
         inner class Send(private val delay: Duration) {
             {{#handlers}}{{^isWorkflow}}
-            suspend fun {{methodName}}({{^inputEmpty}}req: {{{inputFqcn}}}, {{/inputEmpty}}requestOptions: dev.restate.client.CallRequestOptions = dev.restate.client.CallRequestOptions.DEFAULT): dev.restate.client.SendResponse {
+            suspend fun {{methodName}}({{^inputEmpty}}req: {{{inputFqcn}}}, {{/inputEmpty}}clientRequestOptions: dev.restate.client.CallRequestOptions = dev.restate.client.CallRequestOptions.DEFAULT): dev.restate.client.SendResponse {
                 return this@IngressClient.client.sendSuspend(
                     {{{targetExpr this "this@IngressClient.key"}}},
                     {{inputSerdeRef}},
                     {{#if inputEmpty}}Unit{{else}}req{{/if}},
                     delay,
-                    requestOptions);
+                    clientRequestOptions);
             }{{/isWorkflow}}{{/handlers}}
         }
     }

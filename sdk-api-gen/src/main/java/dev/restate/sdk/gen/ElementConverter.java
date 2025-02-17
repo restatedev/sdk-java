@@ -24,6 +24,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.*;
+import javax.lang.model.type.MirroredTypeException;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
@@ -99,7 +100,7 @@ class ElementConverter {
     String serdeFactoryDecl = "new dev.restate.sdk.serde.jackson.JacksonSerdeFactory()";
     CustomSerdeFactory customSerdeFactory = element.getAnnotation(CustomSerdeFactory.class);
     if (customSerdeFactory != null) {
-      serdeFactoryDecl = "new " + customSerdeFactory.value().getCanonicalName() + "()";
+      serdeFactoryDecl = "new " + getCustomSerdeClassCanonicalName(customSerdeFactory) + "()";
     }
 
     try {
@@ -364,6 +365,15 @@ class ElementConverter {
       case VOID -> "Void";
       default -> ty.toString();
     };
+  }
+
+  private String getCustomSerdeClassCanonicalName(CustomSerdeFactory customSerdeFactoryAnnotation) {
+    try {
+      Class<?> clazz = customSerdeFactoryAnnotation.value();
+      return clazz.getCanonicalName();
+    } catch (MirroredTypeException e) {
+      return e.getTypeMirror().toString();
+    }
   }
 
   private static String sanitizeJavadoc(String documentation) {

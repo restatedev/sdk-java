@@ -23,7 +23,7 @@ public class IngressException extends RuntimeException {
       String requestMethod,
       String requestURI,
       int statusCode,
-      byte[] responseBody,
+      @Nullable byte[] responseBody,
       Throwable cause) {
     super(message, cause);
     this.statusCode = statusCode;

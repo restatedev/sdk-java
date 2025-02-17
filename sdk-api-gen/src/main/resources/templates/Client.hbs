@@ -24,7 +24,11 @@ public class {{generatedClassSimpleName}} {
     }
 
     public static IngressClient connect(String baseUri{{#isKeyed}}, String key{{/isKeyed}}) {
-        return new IngressClient(dev.restate.client.Client.connect(baseUri){{#isKeyed}}, key{{/isKeyed}});
+        return new IngressClient(dev.restate.client.Client.connect(baseUri, {{metadataClass}}.SERDE_FACTORY){{#isKeyed}}, key{{/isKeyed}});
+    }
+
+    public static IngressClient connect(String baseUri, dev.restate.client.ClientRequestOptions requestOptions, {{#isKeyed}}, String key{{/isKeyed}}) {
+        return new IngressClient(dev.restate.client.Client.connect(baseUri, {{metadataClass}}.SERDE_FACTORY, requestOptions){{#isKeyed}}, key{{/isKeyed}});
     }
     {{/ingressClientEnabled}}
 

@@ -9,5 +9,18 @@
 package dev.restate.client;
 
 import java.util.Map;
+import java.util.Set;
+import org.jspecify.annotations.Nullable;
 
-public record ClientResponse<R>(int statusCode, Map<String, String> headers, R response) {}
+public record ClientResponse<R>(int statusCode, Headers headers, R response) {
+  public interface Headers {
+    @Nullable String get(String key);
+
+    Set<String> keys();
+
+    /**
+     * @return headers to lowercase keys map
+     */
+    Map<String, String> toLowercaseMap();
+  }
+}

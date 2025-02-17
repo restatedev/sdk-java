@@ -11,6 +11,7 @@ package dev.restate.sdk;
 import static dev.restate.sdk.core.TestDefinitions.testInvocation;
 import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 import static dev.restate.sdk.core.statemachine.ProtoUtils.callCompletion;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.restate.common.Target;
 import dev.restate.sdk.annotation.*;
@@ -191,6 +192,16 @@ public class CodegenTest implements TestSuite {
     }
   }
 
+  @Service
+  @CustomSerdeFactory(MySerdeFactory.class)
+  static class CustomSerde {
+    @Handler
+    String greet(Context context, String request) {
+      assertThat(request).isEqualTo("INPUT");
+      return "output";
+    }
+  }
+
   @Override
   public Stream<TestDefinitions.TestDefinition> definitions() {
     return Stream.of(
@@ -304,6 +315,10 @@ public class CodegenTest implements TestSuite {
                     Serde.VOID,
                     null),
                 outputCmd("{{".getBytes(StandardCharsets.UTF_8)),
-                END_MESSAGE));
+                END_MESSAGE),
+            testInvocation(CustomSerde::new, "greet")
+                    .withInput(startMessage(1), inputCmd(MySerdeFactory.SERDE, "input"))
+                    .expectingOutput(outputCmd(MySerdeFactory.SERDE, "OUTPUT"), END_MESSAGE)
+            );
   }
 }
