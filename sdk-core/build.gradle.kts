@@ -1,4 +1,6 @@
+import org.gradle.kotlin.dsl.allDependencies
 import org.jetbrains.dokka.gradle.AbstractDokkaTask
+import org.jetbrains.kotlin.gradle.utils.extendsFrom
 
 plugins {
   `java-library`
@@ -8,6 +10,7 @@ plugins {
   `library-publishing-conventions`
   alias(libs.plugins.jsonschema2pojo)
   alias(libs.plugins.protobuf)
+  alias(libs.plugins.shadow)
 
   // https://github.com/gradle/gradle/issues/20084#issuecomment-1060822638
   id(libs.plugins.spotless.get().pluginId) apply false
@@ -15,12 +18,18 @@ plugins {
 
 description = "Restate SDK Core"
 
+val shade by configurations.creating
+val implementation by configurations.getting
+implementation.extendsFrom(shade)
+val api by configurations.getting
+api.extendsFrom(shade)
+
 dependencies {
   compileOnly(libs.jspecify)
 
   implementation(project(":sdk-common"))
 
-  implementation(libs.protobuf.java)
+  shade(libs.protobuf.java)
   implementation(libs.log4j.api)
 
   // We need this for the manifest
@@ -33,6 +42,7 @@ dependencies {
   api(libs.opentelemetry.api)
 
   testCompileOnly(libs.jspecify)
+  testImplementation(libs.protobuf.java)
   testImplementation(libs.mutiny)
   testImplementation(libs.junit.jupiter)
   testImplementation(libs.assertj)
@@ -75,6 +85,24 @@ tasks {
     dependsOn(generateJsonSchema2Pojo, generateProto)
   }
   withType<AbstractDokkaTask>().configureEach { dependsOn(generateJsonSchema2Pojo, generateProto) }
+
+  getByName("jar") {
+    enabled = false
+    dependsOn(shadowJar)
+  }
+
+  shadowJar {
+    configurations = listOf(shade)
+    enableRelocation = true
+    archiveClassifier = null
+    relocate("com.google.protobuf", "dev.restate.shaded.com.google.protobuf")
+    dependencies {
+      project.configurations["shadow"].allDependencies.forEach {
+        exclude(dependency(it))
+      }
+      exclude("**/google/protobuf/*.proto")
+    }
+  }
 }
 
 // spotless configuration for protobuf

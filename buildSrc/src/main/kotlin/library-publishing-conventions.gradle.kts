@@ -7,10 +7,67 @@ project.afterEvaluate {
     publishing {
         publications {
             create<MavenPublication>("maven") {
+                afterEvaluate {
+                    val shadowJar = tasks.findByName("shadowJar")
+                    if (shadowJar == null) {
+                        from(components["java"])
+                    }
+                    else {
+                        apply(plugin = "com.gradleup.shadow")
+
+                        from(components["shadow"])
+                        artifact(tasks["sourcesJar"]!!)
+                        artifact(tasks["javadocJar"]!!)
+
+                        afterEvaluate {
+                            // Fix for avoiding inclusion of runtime dependencies marked as 'shadow' in MANIFEST Class-Path.
+                            // https://github.com/johnrengelman/shadow/issues/324
+                            pom.withXml {
+                                val rootNode = asElement()
+                                val doc = rootNode.ownerDocument
+
+                                val dependenciesNode =
+                                    if (rootNode.getElementsByTagName("dependencies").length != 0) {
+                                        rootNode.getElementsByTagName("dependencies").item(0)
+                                    } else {
+                                        rootNode.appendChild(
+                                            doc.createElement("dependencies")
+                                        )
+                                    }
+
+                                project.configurations["shade"].allDependencies.forEach { dep ->
+                                    dependenciesNode.appendChild(
+                                        doc.createElement("dependency").apply {
+                                            appendChild(
+                                                doc.createElement("groupId").apply {
+                                                    textContent = dep.group
+                                                }
+                                            )
+                                            appendChild(
+                                                doc.createElement("artifactId").apply {
+                                                    textContent = dep.name
+                                                }
+                                            )
+                                            appendChild(
+                                                doc.createElement("version").apply {
+                                                    textContent = dep.version
+                                                }
+                                            )
+                                            appendChild(
+                                                doc.createElement("scope").apply {
+                                                    textContent = "runtime"
+                                                }
+                                            )
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
                 groupId = "dev.restate"
                 artifactId = project.name
-
-                from(components["java"])
 
                 pom {
                     name = "Restate SDK :: ${project.name}"
