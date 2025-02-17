@@ -1,5 +1,4 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-import com.github.jengelman.gradle.plugins.shadow.transformers.ServiceFileTransformer
 
 plugins {
   `java-conventions`
@@ -40,6 +39,6 @@ application {
 
 tasks.withType<Jar> { this.enabled = false }
 
-tasks.withType<ShadowJar> { transform(ServiceFileTransformer::class.java) }
+tasks.withType<ShadowJar> { mergeServiceFiles() }
 
 tasks.withType<JavaCompile> { options.compilerArgs.add("-parameters") }

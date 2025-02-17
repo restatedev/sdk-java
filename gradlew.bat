@@ -44,7 +44,7 @@ set JAVA_EXE=java.exe
 if %ERRORLEVEL% equ 0 goto execute
 
 echo.
-echo ERROR: JAVA_HOME is not set and no 'java' commandAccessor could be found in your PATH.
+echo ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH.
 echo.
 echo Please set the JAVA_HOME variable in your environment to match the
 echo location of your Java installation.
@@ -66,7 +66,7 @@ echo location of your Java installation.
 goto fail
 
 :execute
-@rem Setup the commandAccessor line
+@rem Setup the command line
 
 set CLASSPATH=%APP_HOME%\gradle\wrapper\gradle-wrapper.jar
 
