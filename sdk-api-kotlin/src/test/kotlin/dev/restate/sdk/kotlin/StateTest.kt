@@ -13,6 +13,7 @@ import dev.restate.sdk.core.TestDefinitions.*
 import dev.restate.sdk.core.TestSerdes
 import dev.restate.sdk.core.statemachine.ProtoUtils.*
 import dev.restate.sdk.kotlin.KotlinCoroutinesTests.Companion.testDefinitionForVirtualObject
+import dev.restate.sdk.kotlin.serialization.jsonSerde
 import dev.restate.sdk.types.StateKey
 import java.util.stream.Stream
 import kotlinx.serialization.Serializable
@@ -41,7 +42,7 @@ class StateTest : StateTestSuite() {
   @Serializable data class Data(var a: Int, val b: String)
 
   private companion object {
-    val DATA: StateKey<Data> = StateKey.of("STATE", KtSerdes.json())
+    val DATA: StateKey<Data> = stateKey<Data>("STATE")
   }
 
   private fun getAndSetStateUsingKtSerdes(): TestInvocationBuilder =
@@ -61,17 +62,17 @@ class StateTest : StateTestSuite() {
                 .withInput(
                     startMessage(3),
                     inputCmd(),
-                    getEagerStateCmd("STATE", KtSerdes.json(), Data(1, "Till")),
-                    setStateCmd("STATE", KtSerdes.json(), Data(2, "Till")))
+                    getEagerStateCmd("STATE", jsonSerde<Data>(), Data(1, "Till")),
+                    setStateCmd("STATE", jsonSerde<Data>(), Data(2, "Till")))
                 .expectingOutput(outputCmd("Hello " + Data(2, "Till")), END_MESSAGE)
                 .named("With GetState and SetState"),
             getAndSetStateUsingKtSerdes()
                 .withInput(
                     startMessage(2),
                     inputCmd(),
-                    getEagerStateCmd("STATE", KtSerdes.json(), Data(1, "Till")))
+                    getEagerStateCmd("STATE", jsonSerde<Data>(), Data(1, "Till")))
                 .expectingOutput(
-                    setStateCmd("STATE", KtSerdes.json(), Data(2, "Till")),
+                    setStateCmd("STATE", jsonSerde<Data>(), Data(2, "Till")),
                     outputCmd("Hello " + Data(2, "Till")),
                     END_MESSAGE)
                 .named("With GetState already completed"),

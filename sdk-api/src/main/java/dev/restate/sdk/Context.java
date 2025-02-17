@@ -10,7 +10,6 @@ package dev.restate.sdk;
 
 import dev.restate.common.CallRequest;
 import dev.restate.common.SendRequest;
-import dev.restate.common.Target;
 import dev.restate.common.function.ThrowingRunnable;
 import dev.restate.common.function.ThrowingSupplier;
 import dev.restate.sdk.types.AbortedExecutionException;
@@ -42,14 +41,10 @@ public interface Context {
    * @param callRequest request
    * @return an {@link Awaitable} that wraps the Restate service method result.
    */
-  <T, R> CallAwaitable<R> call(
-          CallRequest<T, R> callRequest);
+  <T, R> CallAwaitable<R> call(CallRequest<T, R> callRequest);
 
-  /**
-   * Like {@link #call(CallRequest)}
-   */
-  default <T, R> CallAwaitable<R> call(
-          CallRequest.Builder<T, R> callRequestBuilder) {
+  /** Like {@link #call(CallRequest)} */
+  default <T, R> CallAwaitable<R> call(CallRequest.Builder<T, R> callRequestBuilder) {
     return call(callRequestBuilder.build());
   }
 

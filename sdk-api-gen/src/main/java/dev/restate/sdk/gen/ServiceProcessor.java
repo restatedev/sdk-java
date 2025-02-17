@@ -82,17 +82,17 @@ public class ServiceProcessor extends AbstractProcessor {
                 "templates/Client.hbs"),
             RESERVED_METHOD_NAMES);
     this.requestsCodegen =
-            new HandlebarsTemplateEngine(
-                    "Requests",
-                    filerTemplateLoader,
-                    Map.of(
-                            ServiceType.WORKFLOW,
-                            "templates/Requests.hbs",
-                            ServiceType.SERVICE,
-                            "templates/Requests.hbs",
-                            ServiceType.VIRTUAL_OBJECT,
-                            "templates/Requests.hbs"),
-                    RESERVED_METHOD_NAMES);
+        new HandlebarsTemplateEngine(
+            "Requests",
+            filerTemplateLoader,
+            Map.of(
+                ServiceType.WORKFLOW,
+                "templates/Requests.hbs",
+                ServiceType.SERVICE,
+                "templates/Requests.hbs",
+                ServiceType.VIRTUAL_OBJECT,
+                "templates/Requests.hbs"),
+            RESERVED_METHOD_NAMES);
   }
 
   @Override

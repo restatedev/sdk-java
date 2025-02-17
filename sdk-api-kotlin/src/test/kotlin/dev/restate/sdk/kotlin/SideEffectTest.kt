@@ -16,6 +16,8 @@ import dev.restate.sdk.endpoint.definition.HandlerType
 import dev.restate.sdk.endpoint.definition.ServiceDefinition
 import dev.restate.sdk.endpoint.definition.ServiceType
 import dev.restate.sdk.kotlin.KotlinCoroutinesTests.Companion.testDefinitionForService
+import dev.restate.sdk.kotlin.serialization.KotlinSerializationSerdeFactory
+import dev.restate.sdk.kotlin.serialization.jsonSerde
 import java.util.*
 import kotlin.coroutines.coroutineContext
 import kotlin.time.toKotlinDuration
@@ -52,9 +54,10 @@ class SideEffectTest : SideEffectTestSuite() {
                   HandlerDefinition.of(
                       "run",
                       HandlerType.SHARED,
-                      KtSerdes.UNIT,
-                      KtSerdes.json(),
-                      HandlerRunner.of { ctx: Context, _: Unit ->
+                      jsonSerde<Unit>(),
+                      jsonSerde<String>(),
+                      HandlerRunner.of(KotlinSerializationSerdeFactory(), HandlerRunner.Options(
+                        Dispatchers.Unconfined + CoroutineName("CheckContextSwitchingTestCoroutine"))) { ctx: Context, _: Unit ->
                         val sideEffectCoroutine =
                             ctx.runBlock { coroutineContext[CoroutineName]!!.name }
                         check(sideEffectCoroutine == "CheckContextSwitchingTestCoroutine") {
@@ -62,8 +65,6 @@ class SideEffectTest : SideEffectTestSuite() {
                         }
                         "Hello"
                       }))),
-          HandlerRunner.Options(
-              Dispatchers.Unconfined + CoroutineName("CheckContextSwitchingTestCoroutine")),
           "run")
 
   override fun failingSideEffect(name: String, reason: String): TestInvocationBuilder =

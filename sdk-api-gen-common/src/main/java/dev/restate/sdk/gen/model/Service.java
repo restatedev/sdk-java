@@ -29,21 +29,24 @@ public class Service {
   private final String serdeFactoryDecl;
 
   public Service(
-          CharSequence targetPkg,
-          CharSequence targetFqcn,
-          String serviceName,
-          ServiceType serviceType,
-          List<Handler> handlers,
-          @Nullable String documentation, boolean contextClientEnabled, boolean ingressClientEnabled, String serdeFactoryDecl) {
+      CharSequence targetPkg,
+      CharSequence targetFqcn,
+      String serviceName,
+      ServiceType serviceType,
+      List<Handler> handlers,
+      @Nullable String documentation,
+      boolean contextClientEnabled,
+      boolean ingressClientEnabled,
+      String serdeFactoryDecl) {
     this.targetPkg = targetPkg;
     this.targetFqcn = targetFqcn;
     this.serviceName = serviceName;
     this.serviceType = serviceType;
     this.handlers = handlers;
     this.documentation = documentation;
-      this.contextClientEnabled = contextClientEnabled;
-      this.ingressClientEnabled = ingressClientEnabled;
-      this.serdeFactoryDecl = serdeFactoryDecl;
+    this.contextClientEnabled = contextClientEnabled;
+    this.ingressClientEnabled = ingressClientEnabled;
+    this.serdeFactoryDecl = serdeFactoryDecl;
   }
 
   public CharSequence getTargetPkg() {
@@ -105,7 +108,7 @@ public class Service {
     private final List<Handler> handlers = new ArrayList<>();
     private String documentation;
     private boolean contextClientEnabled = true;
-    private  boolean ingressClientEnabled = true;
+    private boolean ingressClientEnabled = true;
     private String serdeFactoryDecl;
 
     public Builder withTargetPkg(CharSequence targetPkg) {
@@ -143,13 +146,12 @@ public class Service {
       return this;
     }
 
-    public Builder withContextClientEnabled(   boolean contextClientEnabled) {
+    public Builder withContextClientEnabled(boolean contextClientEnabled) {
       this.contextClientEnabled = contextClientEnabled;
       return this;
     }
 
-    public Builder withIngressClientEnabled(
-     boolean ingressClientEnabled) {
+    public Builder withIngressClientEnabled(boolean ingressClientEnabled) {
       this.ingressClientEnabled = ingressClientEnabled;
       return this;
     }
@@ -209,9 +211,9 @@ public class Service {
           Objects.requireNonNull(serviceType),
           handlers,
           documentation,
-              contextClientEnabled,
-              ingressClientEnabled,
-              serdeFactoryDecl);
+          contextClientEnabled,
+          ingressClientEnabled,
+          serdeFactoryDecl);
     }
   }
 }

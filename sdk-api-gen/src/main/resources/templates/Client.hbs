@@ -27,7 +27,7 @@ public class {{generatedClassSimpleName}} {
         return new IngressClient(dev.restate.client.Client.connect(baseUri, {{metadataClass}}.SERDE_FACTORY){{#isKeyed}}, key{{/isKeyed}});
     }
 
-    public static IngressClient connect(String baseUri, dev.restate.client.ClientRequestOptions requestOptions, {{#isKeyed}}, String key{{/isKeyed}}) {
+    public static IngressClient connect(String baseUri, dev.restate.client.ClientRequestOptions requestOptions{{#isKeyed}}, String key{{/isKeyed}}) {
         return new IngressClient(dev.restate.client.Client.connect(baseUri, {{metadataClass}}.SERDE_FACTORY, requestOptions){{#isKeyed}}, key{{/isKeyed}});
     }
     {{/ingressClientEnabled}}
@@ -92,25 +92,25 @@ public class {{generatedClassSimpleName}} {
         public dev.restate.client.SendResponse submit({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
             return IngressClient.this.client.send(
                 {{../requestsClass}}.Send.{{methodName}}({{#if ../isKeyed}}this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}})
-            );
+            ).response();
         }
 
         public java.util.concurrent.CompletableFuture<dev.restate.client.SendResponse> submitAsync({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
             return IngressClient.this.client.sendAsync(
                 {{../requestsClass}}.Send.{{methodName}}({{#if ../isKeyed}}this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}})
-            );
+            ).thenApply(dev.restate.client.ClientResponse::response);
         }
         {{else}}
         public {{#if outputEmpty}}void{{else}}{{{outputFqcn}}}{{/if}} {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
             {{^outputEmpty}}return {{/outputEmpty}}this.client.call(
                 {{../requestsClass}}.{{methodName}}({{#if ../isKeyed}}this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}})
-            );
+            ).response();
         }
 
         public {{#if outputEmpty}}java.util.concurrent.CompletableFuture<Void>{{else}}java.util.concurrent.CompletableFuture<{{{boxedOutputFqcn}}}>{{/if}} {{methodName}}Async({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
             return this.client.callAsync(
                 {{../requestsClass}}.{{methodName}}({{#if ../isKeyed}}this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}})
-            );
+            ).thenApply(dev.restate.client.ClientResponse::response);
         }
         {{/if}}{{/handlers}}
 
@@ -134,13 +134,13 @@ public class {{generatedClassSimpleName}} {
             public dev.restate.client.SendResponse {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
                 return IngressClient.this.client.send(
                     {{../requestsClass}}.Send.{{methodName}}({{#if ../isKeyed}}IngressClient.this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}})
-                );
+                ).response();
             }
 
             public java.util.concurrent.CompletableFuture<dev.restate.client.SendResponse> {{methodName}}Async({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
                 return IngressClient.this.client.sendAsync(
                     {{../requestsClass}}.Send.{{methodName}}({{#if ../isKeyed}}IngressClient.this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}})
-                );
+                ).thenApply(dev.restate.client.ClientResponse::response);
             }{{/isWorkflow}}{{/handlers}}
         }
     }

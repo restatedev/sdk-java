@@ -69,6 +69,14 @@ public final class ClientRequestOptions {
       return this;
     }
 
+    public @Nullable Map<String, String> getHeaders() {
+      return headers;
+    }
+
+    public Builder setHeaders(Map<String, String> newHeaders) {
+      return headers(newHeaders);
+    }
+
     public ClientRequestOptions build() {
       return new ClientRequestOptions(this.headers);
     }

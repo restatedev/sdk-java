@@ -49,7 +49,8 @@ public class HandlebarsTemplateEngine {
           return switch (h.serviceType) {
             case SERVICE ->
                 String.format(
-                    "dev.restate.common.Target.service(%s.SERVICE_NAME, \"%s\")", h.metadataClass, h.name);
+                    "dev.restate.common.Target.service(%s.SERVICE_NAME, \"%s\")",
+                    h.metadataClass, h.name);
             case VIRTUAL_OBJECT ->
                 String.format(
                     "dev.restate.common.Target.virtualObject(%s.SERVICE_NAME, %s, \"%s\")",
@@ -151,10 +152,7 @@ public class HandlebarsTemplateEngine {
               .map(
                   h ->
                       new HandlerTemplateModel(
-                          h,
-                          inner.getServiceType(),
-                              metadataClass,
-                          handlerNamesToPrefix))
+                          h, inner.getServiceType(), metadataClass, handlerNamesToPrefix))
               .collect(Collectors.toList());
     }
   }

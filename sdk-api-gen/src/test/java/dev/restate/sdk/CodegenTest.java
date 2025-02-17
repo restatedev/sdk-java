@@ -125,6 +125,7 @@ public class CodegenTest implements TestSuite {
       return CodegenTestWorkflowCornerCasesClient.connect("invalid", request)
           .workflowHandle()
           .getOutput()
+          .response()
           .getValue();
     }
   }
@@ -316,9 +317,8 @@ public class CodegenTest implements TestSuite {
                     null),
                 outputCmd("{{".getBytes(StandardCharsets.UTF_8)),
                 END_MESSAGE),
-            testInvocation(CustomSerde::new, "greet")
-                    .withInput(startMessage(1), inputCmd(MySerdeFactory.SERDE, "input"))
-                    .expectingOutput(outputCmd(MySerdeFactory.SERDE, "OUTPUT"), END_MESSAGE)
-            );
+        testInvocation(CustomSerde::new, "greet")
+            .withInput(startMessage(1), inputCmd(MySerdeFactory.SERDE, "input"))
+            .expectingOutput(outputCmd(MySerdeFactory.SERDE, "OUTPUT"), END_MESSAGE));
   }
 }

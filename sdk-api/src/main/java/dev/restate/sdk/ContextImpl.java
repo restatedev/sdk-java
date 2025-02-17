@@ -18,13 +18,12 @@ import dev.restate.sdk.types.RetryPolicy;
 import dev.restate.sdk.types.StateKey;
 import dev.restate.sdk.types.TerminalException;
 import dev.restate.serde.Serde;
+import dev.restate.serde.SerdeFactory;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-
-import dev.restate.serde.SerdeFactory;
 import org.jspecify.annotations.NonNull;
 
 class ContextImpl implements ObjectContext, WorkflowContext {
@@ -36,7 +35,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
   ContextImpl(HandlerContext handlerContext, Executor serviceExecutor, SerdeFactory serdeFactory) {
     this.handlerContext = handlerContext;
     this.serviceExecutor = serviceExecutor;
-      this.serdeFactory = serdeFactory;
+    this.serdeFactory = serdeFactory;
   }
 
   @Override
@@ -53,9 +52,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
   public <T> Optional<T> get(StateKey<T> key) {
     return Awaitable.fromAsyncResult(
             Util.awaitCompletableFuture(handlerContext.get(key.name())), serviceExecutor)
-        .mapWithoutExecutor(opt -> opt.map(
-                serdeFactory.create(key.serdeInfo())::deserialize
-        ))
+        .mapWithoutExecutor(opt -> opt.map(serdeFactory.create(key.serdeInfo())::deserialize))
         .await();
   }
 
@@ -79,7 +76,9 @@ class ContextImpl implements ObjectContext, WorkflowContext {
   public <T> void set(StateKey<T> key, @NonNull T value) {
     Util.awaitCompletableFuture(
         handlerContext.set(
-            key.name(), Util.executeOrFail(handlerContext, serdeFactory.create(key.serdeInfo())::serialize, value)));
+            key.name(),
+            Util.executeOrFail(
+                handlerContext, serdeFactory.create(key.serdeInfo())::serialize, value)));
   }
 
   @Override
@@ -90,35 +89,45 @@ class ContextImpl implements ObjectContext, WorkflowContext {
 
   @Override
   public <T, R> CallAwaitable<R> call(CallRequest<T, R> callRequest) {
-    Slice input = Util.executeOrFail(handlerContext, serdeFactory.create(callRequest.requestSerdeInfo())::serialize, callRequest.request());
+    Slice input =
+        Util.executeOrFail(
+            handlerContext,
+            serdeFactory.create(callRequest.requestSerdeInfo())::serialize,
+            callRequest.request());
     HandlerContext.CallResult result =
         Util.awaitCompletableFuture(
             handlerContext.call(
-                callRequest.target(), input, callRequest.idempotencyKey(), callRequest.headers().entrySet()));
+                callRequest.target(),
+                input,
+                callRequest.idempotencyKey(),
+                callRequest.headers().entrySet()));
 
     return new CallAwaitable<>(
-         result.callAsyncResult()
-            .map(s -> CompletableFuture.completedFuture(
-            serdeFactory.create(callRequest.responseSerdeInfo())
-                    .deserialize(s)
-
-            )),
-            Awaitable.fromAsyncResult(result.invocationIdAsyncResult(), serviceExecutor)
-    );
+        result
+            .callAsyncResult()
+            .map(
+                s ->
+                    CompletableFuture.completedFuture(
+                        serdeFactory.create(callRequest.responseSerdeInfo()).deserialize(s))),
+        Awaitable.fromAsyncResult(result.invocationIdAsyncResult(), serviceExecutor));
   }
 
   @Override
   public <T> SendHandle send(SendRequest<T> sendRequest) {
-    Slice input = Util.executeOrFail(handlerContext, serdeFactory.create(sendRequest.requestSerdeInfo())::serialize, sendRequest.request());
-    var invocationIdAsyncResult = Util.awaitCompletableFuture(
-        handlerContext.send(
-            sendRequest.target(),
-            input,
-            sendRequest.idempotencyKey(),
-            sendRequest.headers().entrySet(),
-            sendRequest.delay()));
-    return new SendHandle(
-            Awaitable.fromAsyncResult(invocationIdAsyncResult, serviceExecutor));
+    Slice input =
+        Util.executeOrFail(
+            handlerContext,
+            serdeFactory.create(sendRequest.requestSerdeInfo())::serialize,
+            sendRequest.request());
+    var invocationIdAsyncResult =
+        Util.awaitCompletableFuture(
+            handlerContext.send(
+                sendRequest.target(),
+                input,
+                sendRequest.idempotencyKey(),
+                sendRequest.headers().entrySet(),
+                sendRequest.delay()));
+    return new SendHandle(Awaitable.fromAsyncResult(invocationIdAsyncResult, serviceExecutor));
   }
 
   @Override
@@ -158,7 +167,9 @@ class ContextImpl implements ObjectContext, WorkflowContext {
       public <T> void resolve(Serde<T> serde, @NonNull T payload) {
         Util.awaitCompletableFuture(
             handlerContext.resolveAwakeable(
-                id, Util.executeOrFail(handlerContext, serdeFactory.create(serde)::serialize, payload)));
+                id,
+                Util.executeOrFail(
+                    handlerContext, serdeFactory.create(serde)::serialize, payload)));
       }
 
       @Override
@@ -202,7 +213,10 @@ class ContextImpl implements ObjectContext, WorkflowContext {
             Util.awaitCompletableFuture(
                     handlerContext.resolvePromise(
                         key.name(),
-                        Util.executeOrFail(handlerContext, serdeFactory.create(key.serdeInfo())::serialize, payload)))
+                        Util.executeOrFail(
+                            handlerContext,
+                            serdeFactory.create(key.serdeInfo())::serialize,
+                            payload)))
                 .poll());
       }
 

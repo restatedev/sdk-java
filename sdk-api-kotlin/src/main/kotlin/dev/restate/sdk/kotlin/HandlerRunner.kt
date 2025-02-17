@@ -12,6 +12,7 @@ import dev.restate.common.Slice
 import dev.restate.sdk.endpoint.definition.HandlerContext
 import dev.restate.sdk.types.TerminalException
 import dev.restate.serde.Serde
+import dev.restate.serde.SerdeFactory
 import io.opentelemetry.extension.kotlin.asContextElement
 import java.util.concurrent.CompletableFuture
 import kotlin.coroutines.CoroutineContext
@@ -25,19 +26,24 @@ import org.apache.logging.log4j.LogManager
 class HandlerRunner<REQ, RES, CTX : Context>
 internal constructor(
     private val runner: suspend (CTX, REQ) -> RES,
-) : dev.restate.sdk.endpoint.definition.HandlerRunner<REQ, RES, HandlerRunner.Options> {
+  private val contextSerdeFactory: SerdeFactory,
+  private val options: Options
+) : dev.restate.sdk.endpoint.definition.HandlerRunner<REQ, RES> {
 
   companion object {
     private val LOG = LogManager.getLogger(HandlerRunner::class.java)
 
     fun <REQ, RES, CTX : Context> of(
-        runner: suspend (CTX, REQ) -> RES
+        contextSerdeFactory: SerdeFactory,
+         options: Options = Options.DEFAULT,
+        runner: suspend (CTX, REQ) -> RES,
     ): HandlerRunner<REQ, RES, CTX> {
-      return HandlerRunner(runner)
+      return HandlerRunner(runner, contextSerdeFactory, options)
     }
 
-    fun <RES, CTX : Context> of(runner: suspend (CTX) -> RES): HandlerRunner<Unit, RES, CTX> {
-      return HandlerRunner { ctx: CTX, _: Unit -> runner(ctx) }
+    fun <RES, CTX : Context> of(  contextSerdeFactory: SerdeFactory,
+                                options: Options = Options.DEFAULT, runner: suspend (CTX) -> RES,): HandlerRunner<Unit, RES, CTX> {
+      return HandlerRunner({ ctx: CTX, _: Unit -> runner(ctx) }, contextSerdeFactory, options)
     }
   }
 
@@ -45,13 +51,12 @@ internal constructor(
       handlerContext: HandlerContext,
       requestSerde: Serde<REQ>,
       responseSerde: Serde<RES>,
-      options: Options?
   ): CompletableFuture<Slice> {
-    val ctx: Context = ContextImpl(handlerContext)
+    val ctx: Context = ContextImpl(handlerContext, contextSerdeFactory)
 
     val scope =
         CoroutineScope(
-            (options?.coroutineContext ?: Options.DEFAULT.coroutineContext) +
+            options.coroutineContext +
                 dev.restate.sdk.endpoint.definition.HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL
                     .asContextElement(handlerContext) +
                 handlerContext.request().otelContext()!!.asContextElement())
@@ -97,7 +102,7 @@ internal constructor(
     return completableFuture
   }
 
-  class Options(val coroutineContext: CoroutineContext) {
+  data class Options(val coroutineContext: CoroutineContext): dev.restate.sdk.endpoint.definition.HandlerRunner.Options {
     companion object {
       val DEFAULT: Options = Options(Dispatchers.Default)
     }

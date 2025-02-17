@@ -34,21 +34,21 @@ public class HandlerRunner<REQ, RES>
   private final SerdeFactory contextSerdeFactory;
   private final Options options;
 
-
   private static final Logger LOG = LogManager.getLogger(HandlerRunner.class);
 
-  HandlerRunner(ThrowingBiFunction<? extends Context, REQ, RES> runner, SerdeFactory contextSerdeFactory, @Nullable Options options) {
+  HandlerRunner(
+      ThrowingBiFunction<? extends Context, REQ, RES> runner,
+      SerdeFactory contextSerdeFactory,
+      @Nullable Options options) {
     //noinspection unchecked
     this.runner = (ThrowingBiFunction<Context, REQ, RES>) runner;
-      this.contextSerdeFactory = contextSerdeFactory;
-      this.options = (options != null) ? options : Options.DEFAULT ;
+    this.contextSerdeFactory = contextSerdeFactory;
+    this.options = (options != null) ? options : Options.DEFAULT;
   }
 
   @Override
   public CompletableFuture<Slice> run(
-          HandlerContext handlerContext,
-          Serde<REQ> requestSerde,
-          Serde<RES> responseSerde) {
+      HandlerContext handlerContext, Serde<REQ> requestSerde, Serde<RES> responseSerde) {
     CompletableFuture<Slice> returnFuture = new CompletableFuture<>();
 
     // Wrap the executor for setting/unsetting the thread local
@@ -111,41 +111,45 @@ public class HandlerRunner<REQ, RES>
   }
 
   public static <CTX extends Context, REQ, RES> HandlerRunner<REQ, RES> of(
-                                                                           ThrowingBiFunction<CTX, REQ, RES> runner,
-                                                                           SerdeFactory contextSerdeFactory,
-                                                                           @Nullable Options options) {
+      ThrowingBiFunction<CTX, REQ, RES> runner,
+      SerdeFactory contextSerdeFactory,
+      @Nullable Options options) {
     return new HandlerRunner<>(runner, contextSerdeFactory, options);
   }
 
   @SuppressWarnings("unchecked")
   public static <CTX extends Context, RES> HandlerRunner<Void, RES> of(
-                                                                       ThrowingFunction<CTX, RES> runner,
-                                                                       SerdeFactory contextSerdeFactory,
-                                                                       @Nullable Options options) {
-    return new HandlerRunner<>((context, o) -> runner.apply((CTX) context),contextSerdeFactory,  options);
+      ThrowingFunction<CTX, RES> runner,
+      SerdeFactory contextSerdeFactory,
+      @Nullable Options options) {
+    return new HandlerRunner<>(
+        (context, o) -> runner.apply((CTX) context), contextSerdeFactory, options);
   }
 
   @SuppressWarnings("unchecked")
   public static <CTX extends Context, REQ> HandlerRunner<REQ, Void> of(
-                                                                       ThrowingBiConsumer<CTX, REQ> runner,
-                                                                       SerdeFactory contextSerdeFactory,
-                                                                       @Nullable Options options) {
+      ThrowingBiConsumer<CTX, REQ> runner,
+      SerdeFactory contextSerdeFactory,
+      @Nullable Options options) {
     return new HandlerRunner<>(
         (context, o) -> {
           runner.accept((CTX) context, o);
           return null;
-        },contextSerdeFactory,  options);
+        },
+        contextSerdeFactory,
+        options);
   }
 
   @SuppressWarnings("unchecked")
-  public static <CTX extends Context> HandlerRunner<Void, Void> of(ThrowingConsumer<CTX> runner,
-                                                                   SerdeFactory contextSerdeFactory,
-                                                                   @Nullable Options options) {
+  public static <CTX extends Context> HandlerRunner<Void, Void> of(
+      ThrowingConsumer<CTX> runner, SerdeFactory contextSerdeFactory, @Nullable Options options) {
     return new HandlerRunner<>(
         (ctx, o) -> {
           runner.accept((CTX) ctx);
           return null;
-        },contextSerdeFactory,  options);
+        },
+        contextSerdeFactory,
+        options);
   }
 
   public static class Options {
@@ -162,8 +166,7 @@ public class HandlerRunner<REQ, RES>
     }
 
     public static Options withExecutor(Executor executor) {
-        return new Options(executor);
+      return new Options(executor);
     }
-
   }
 }

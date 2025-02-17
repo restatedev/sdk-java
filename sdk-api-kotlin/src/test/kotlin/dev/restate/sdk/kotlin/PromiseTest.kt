@@ -16,7 +16,7 @@ import dev.restate.sdk.types.TerminalException
 class PromiseTest : PromiseTestSuite() {
   override fun awaitPromise(promiseKey: String): TestDefinitions.TestInvocationBuilder =
       testDefinitionForWorkflow("AwaitPromise") { ctx, _: Unit ->
-        ctx.promise(KtDurablePromiseKey.json<String>(promiseKey)).awaitable().await()
+        ctx.promise(durablePromiseKey<String>(promiseKey)).awaitable().await()
       }
 
   override fun awaitPeekPromise(
@@ -24,14 +24,14 @@ class PromiseTest : PromiseTestSuite() {
       emptyCaseReturnValue: String
   ): TestDefinitions.TestInvocationBuilder =
       testDefinitionForWorkflow("AwaitPeekPromise") { ctx, _: Unit ->
-        ctx.promise(KtDurablePromiseKey.json<String>(promiseKey))
+        ctx.promise(durablePromiseKey<String>(promiseKey))
             .peek()
             .orElse(emptyCaseReturnValue)
       }
 
   override fun awaitIsPromiseCompleted(promiseKey: String): TestDefinitions.TestInvocationBuilder =
       testDefinitionForWorkflow("IsCompletedPromise") { ctx, _: Unit ->
-        ctx.promise(KtDurablePromiseKey.json<String>(promiseKey)).peek().isReady
+        ctx.promise(durablePromiseKey<String>(promiseKey)).peek().isReady
       }
 
   override fun awaitResolvePromise(
@@ -40,7 +40,7 @@ class PromiseTest : PromiseTestSuite() {
   ): TestDefinitions.TestInvocationBuilder =
       testDefinitionForWorkflow("ResolvePromise") { ctx, _: Unit ->
         try {
-          ctx.promiseHandle(KtDurablePromiseKey.json<String>(promiseKey)).resolve(completionValue)
+          ctx.promiseHandle(durablePromiseKey<String>(promiseKey)).resolve(completionValue)
           return@testDefinitionForWorkflow true
         } catch (e: TerminalException) {
           return@testDefinitionForWorkflow false
@@ -53,7 +53,7 @@ class PromiseTest : PromiseTestSuite() {
   ): TestDefinitions.TestInvocationBuilder =
       testDefinitionForWorkflow("RejectPromise") { ctx, _: Unit ->
         try {
-          ctx.promiseHandle(KtDurablePromiseKey.json<String>(promiseKey)).reject(rejectReason)
+          ctx.promiseHandle(durablePromiseKey<String>(promiseKey)).reject(rejectReason)
           return@testDefinitionForWorkflow true
         } catch (e: TerminalException) {
           return@testDefinitionForWorkflow false

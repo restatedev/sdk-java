@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.serde;
 
-public sealed interface SerdeInfo<T> permits Serde, SerdeInfo.Class, SerdeInfo.TypeRef {
+public interface SerdeInfo<T> {
 
   record Class<T>(java.lang.Class<T> type) implements SerdeInfo<T> {}
 

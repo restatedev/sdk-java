@@ -8,12 +8,15 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
+import dev.restate.common.CallRequest
 import dev.restate.common.Output
+import dev.restate.common.SendRequest
+import dev.restate.sdk.kotlin.serialization.serdeInfo
 import dev.restate.sdk.types.DurablePromiseKey
 import dev.restate.sdk.types.Request
 import dev.restate.sdk.types.StateKey
 import dev.restate.sdk.types.TerminalException
-import dev.restate.serde.Serde
+import dev.restate.serde.SerdeInfo
 import java.util.*
 import kotlin.random.Random
 import kotlin.time.Duration
@@ -52,25 +55,18 @@ sealed interface Context {
   suspend fun timer(duration: Duration, name: String? = null): Awaitable<Unit>
 
   /**
-   * Invoke another Restate service method and wait for the response. Same as
-   * `call(methodDescriptor, parameter).await()`.
+   * Invoke another Restate service method.
    *
    * @param target the address of the callee
    * @param inputSerde Input serde
    * @param outputSerde Output serde
    * @param parameter the invocation request parameter.
    * @param callOptions request options.
-   * @return the invocation response.
+   * @return a [CallAwaitable] that wraps the result.
    */
   suspend fun <T : Any?, R : Any?> call(
-      target: dev.restate.common.Target,
-      inputSerde: Serde<T>,
-      outputSerde: Serde<R>,
-      parameter: T,
-      callOptions: CallOptions = CallOptions.DEFAULT
-  ): R {
-    return callAsync(target, inputSerde, outputSerde, parameter, callOptions).await()
-  }
+    callRequest: CallRequest<T, R>
+  ): CallAwaitable<R>
 
   /**
    * Invoke another Restate service method.
@@ -80,15 +76,13 @@ sealed interface Context {
    * @param outputSerde Output serde
    * @param parameter the invocation request parameter.
    * @param callOptions request options.
-   * @return an [Awaitable] that wraps the Restate service method result.
+   * @return a [CallAwaitable] that wraps the result.
    */
-  suspend fun <T : Any?, R : Any?> callAsync(
-      target: dev.restate.common.Target,
-      inputSerde: Serde<T>,
-      outputSerde: Serde<R>,
-      parameter: T,
-      callOptions: CallOptions = CallOptions.DEFAULT
-  ): Awaitable<R>
+  suspend fun <T : Any?, R : Any?> call(
+    callRequestBuilder: CallRequest.Builder<T, R>
+  ): CallAwaitable<R> {
+    return call(callRequestBuilder.build())
+  }
 
   /**
    * Invoke another Restate service without waiting for the response.
@@ -97,13 +91,26 @@ sealed interface Context {
    * @param inputSerde Input serde
    * @param parameter the invocation request parameter.
    * @param sendOptions request options.
+   * @return a [SendHandle] to interact with the sent request.
    */
   suspend fun <T : Any?> send(
-      target: dev.restate.common.Target,
-      inputSerde: Serde<T>,
-      parameter: T,
-      sendOptions: SendOptions = SendOptions.DEFAULT
-  ): Unit
+    sendRequest: SendRequest<T>
+  ): SendHandle
+
+  /**
+   * Invoke another Restate service without waiting for the response.
+   *
+   * @param target the address of the callee
+   * @param inputSerde Input serde
+   * @param parameter the invocation request parameter.
+   * @param sendOptions request options.
+   * @return a [SendHandle] to interact with the sent request.
+   */
+  suspend fun <T : Any?> send(
+    sendRequestBuilder: SendRequest.Builder<T>
+  ): SendHandle {
+    return send(sendRequestBuilder.build())
+  }
 
   /**
    * Execute a non-deterministic closure, recording the result value in the journal. The result
@@ -146,23 +153,23 @@ sealed interface Context {
    *
    * To propagate failures to the run call-site, make sure to wrap them in [TerminalException].
    *
-   * @param serde the type tag of the return value, used to serialize/deserialize it.
+   * @param serdeInfo the type tag of the return value, used to serialize/deserialize it.
    * @param name the name of the side effect.
    * @param block closure to execute.
    * @param T type of the return value.
    * @return value of the runBlock operation.
    */
   suspend fun <T : Any?> runBlock(
-      serde: Serde<T>,
-      name: String = "",
-      retryPolicy: RetryPolicy? = null,
-      block: suspend () -> T
+    serdeInfo: SerdeInfo<T>,
+    name: String = "",
+    retryPolicy: RetryPolicy? = null,
+    block: suspend () -> T
   ): T {
-    return runAsync(serde, name, retryPolicy, block).await()
+    return runAsync(serdeInfo, name, retryPolicy, block).await()
   }
 
   suspend fun <T : Any?> runAsync(
-      serde: Serde<T>,
+    serdeInfo: SerdeInfo<T>,
       name: String = "",
       retryPolicy: RetryPolicy? = null,
       block: suspend () -> T
@@ -179,7 +186,7 @@ sealed interface Context {
    * @return the [Awakeable] to await on.
    * @see Awakeable
    */
-  suspend fun <T : Any> awakeable(serde: Serde<T>): Awakeable<T>
+  suspend fun <T : Any> awakeable(serdeInfo: SerdeInfo<T>): Awakeable<T>
 
   /**
    * Create a new [AwakeableHandle] for the provided identifier. You can use it to
@@ -205,8 +212,8 @@ sealed interface Context {
 }
 
 /**
- * Execute a non-deterministic closure, recording the result value in the journal using
- * [KtSerdes.json]. The result value will be re-played in case of re-invocation (e.g. because of
+ * Execute a non-deterministic closure, recording the result value in the journal.
+ * The result value will be re-played in case of re-invocation (e.g. because of
  * failure recovery or suspension point) without re-executing the closure. Use this feature if you
  * want to perform <b>non-deterministic operations</b>.
  *
@@ -251,7 +258,7 @@ suspend inline fun <reified T : Any> Context.runBlock(
     retryPolicy: RetryPolicy? = null,
     noinline block: suspend () -> T
 ): T {
-  return this.runBlock(KtSerdes.json(), name, retryPolicy, block)
+  return this.runBlock(serdeInfo<T>(), name, retryPolicy, block)
 }
 
 suspend inline fun <reified T : Any> Context.runAsync(
@@ -259,11 +266,11 @@ suspend inline fun <reified T : Any> Context.runAsync(
     retryPolicy: RetryPolicy? = null,
     noinline block: suspend () -> T
 ): Awaitable<T> {
-  return this.runAsync(KtSerdes.json(), name, retryPolicy, block)
+  return this.runAsync(serdeInfo<T>(), name, retryPolicy, block)
 }
 
 /**
- * Create an [Awakeable] using [KtSerdes.json] deserializer, addressable through [Awakeable.id].
+ * Create an [Awakeable], addressable through [Awakeable.id].
  *
  * You can use this feature to implement external asynchronous systems interactions, for example you
  * can send a Kafka record including the [Awakeable.id], and then let another service consume from
@@ -273,7 +280,7 @@ suspend inline fun <reified T : Any> Context.runAsync(
  * @see Awakeable
  */
 suspend inline fun <reified T : Any> Context.awakeable(): Awakeable<T> {
-  return this.awakeable(KtSerdes.json())
+  return this.awakeable(serdeInfo<T>())
 }
 
 /**
@@ -302,6 +309,17 @@ sealed interface SharedObjectContext : Context {
   suspend fun stateKeys(): Collection<String>
 }
 
+inline fun <reified T> stateKey(name: String): StateKey<T> {
+  return StateKey.of(name, serdeInfo<T>())
+}
+
+suspend inline fun <reified T : Any> SharedObjectContext.get(
+  key: String
+): T? {
+  return this.get(
+    StateKey.of<T>(key, serdeInfo<T>()))
+}
+
 /**
  * This interface can be used only within exclusive handlers of virtual objects. It extends
  * [Context] adding access to the virtual object instance key-value state storage.
@@ -325,6 +343,12 @@ sealed interface ObjectContext : SharedObjectContext {
 
   /** Clears all the state of this virtual object instance key-value state storage */
   suspend fun clearAll()
+}
+
+suspend inline fun <reified T : Any> ObjectContext.set(
+  key: String, value: T
+) {
+  this.set(StateKey.of<T>(key, serdeInfo<T>()), value)
 }
 
 /**
@@ -484,6 +508,20 @@ sealed interface SelectClause<T> {
 }
 
 /**
+ * The [Awaitable] returned by a [Context.call].
+ */
+sealed interface CallAwaitable<T> : Awaitable<T> {
+  suspend fun invocationId(): String
+}
+
+/**
+ * The handle returned by a [Context.send].
+ */
+sealed interface SendHandle {
+  suspend fun invocationId(): String
+}
+
+/**
  * An [Awakeable] is a special type of [Awaitable] which can be arbitrarily completed by another
  * service, by addressing it with its [id].
  *
@@ -504,11 +542,11 @@ sealed interface AwakeableHandle {
   /**
    * Complete with success the [Awakeable].
    *
-   * @param serde used to serialize the [Awakeable] result payload.
+   * @param serdeInfo used to serialize the [Awakeable] result payload.
    * @param payload the result payload.
    * @see Awakeable
    */
-  suspend fun <T : Any> resolve(serde: Serde<T>, payload: T)
+  suspend fun <T : Any> resolve(serdeInfo: SerdeInfo<T>, payload: T)
 
   /**
    * Complete with failure the [Awakeable].
@@ -520,13 +558,13 @@ sealed interface AwakeableHandle {
 }
 
 /**
- * Complete with success the [Awakeable] using [KtSerdes.json] serializer.
+ * Complete with success the [Awakeable].
  *
  * @param payload the result payload.
  * @see Awakeable
  */
 suspend inline fun <reified T : Any> AwakeableHandle.resolve(payload: T) {
-  return this.resolve(KtSerdes.json(), payload)
+  return this.resolve(serdeInfo<T>(), payload)
 }
 
 /**
@@ -571,4 +609,8 @@ sealed interface DurablePromiseHandle<T> {
    * @see DurablePromise
    */
   suspend fun reject(reason: String)
+}
+
+inline fun <reified T> durablePromiseKey(name: String): DurablePromiseKey<T> {
+  return DurablePromiseKey.of(name, serdeInfo<T>())
 }

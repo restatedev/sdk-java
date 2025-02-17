@@ -8,111 +8,91 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.client.kotlin
 
-import dev.restate.client.CallRequestOptions
 import dev.restate.client.Client
 import dev.restate.client.ClientRequestOptions
+import dev.restate.client.ClientResponse
 import dev.restate.client.SendResponse
+import dev.restate.common.CallRequest
 import dev.restate.common.Output
-import dev.restate.common.Target
+import dev.restate.common.SendRequest
 import dev.restate.serde.Serde
-import kotlin.time.Duration
-import kotlin.time.toJavaDuration
 import kotlinx.coroutines.future.await
 
 // Extension methods for the Client
 
-data class RequestOptionsBuilder(
-    var additionalHeaders: MutableMap<String, String> = mutableMapOf<String, String>(),
-) {
-  fun build() = ClientRequestOptions(additionalHeaders)
-}
-
-fun requestOptions(init: RequestOptionsBuilder.() -> Unit): ClientRequestOptions {
-  val builder = RequestOptionsBuilder()
+fun clientRequestOptions(init: ClientRequestOptions.Builder.() -> Unit): ClientRequestOptions {
+  val builder = ClientRequestOptions.builder()
   builder.init()
   return builder.build()
 }
 
-data class CallRequestOptionsBuilder(
-    var additionalHeaders: MutableMap<String, String> = mutableMapOf<String, String>(),
-    var idempotencyKey: String? = null
-) {
-  fun build() = CallRequestOptions(additionalHeaders, idempotencyKey)
-}
-
-fun callRequestOptions(init: CallRequestOptionsBuilder.() -> Unit): CallRequestOptions {
-  val builder = CallRequestOptionsBuilder()
-  builder.init()
-  return builder.build()
+suspend fun <Req, Res> Client.callSuspend(callRequest: CallRequest<Req, Res>): ClientResponse<Res> {
+  return this.callAsync(callRequest).await()
 }
 
 suspend fun <Req, Res> Client.callSuspend(
-    target: Target,
-    reqSerde: Serde<Req>,
-    resSerde: Serde<Res>,
-    req: Req,
-    options: ClientRequestOptions = ClientRequestOptions.DEFAULT
-): Res {
-  return this.callAsync(target, reqSerde, resSerde, req, options).await()
+    callRequestBuilder: CallRequest.Builder<Req, Res>
+): ClientResponse<Res> {
+  return this.callAsync(callRequestBuilder).await()
+}
+
+suspend fun <Req> Client.sendSuspend(sendRequest: SendRequest<Req>): ClientResponse<SendResponse> {
+  return this.sendAsync(sendRequest).await()
 }
 
 suspend fun <Req> Client.sendSuspend(
-    target: Target,
-    reqSerde: Serde<Req>,
-    req: Req,
-    delay: Duration = Duration.ZERO,
-    options: ClientRequestOptions = ClientRequestOptions.DEFAULT
-): SendResponse {
-  return this.sendAsync(target, reqSerde, req, delay.toJavaDuration(), options).await()
+    sendRequestBuilder: SendRequest.Builder<Req>
+): ClientResponse<SendResponse> {
+  return this.sendAsync(sendRequestBuilder).await()
 }
 
 suspend fun <T : Any> Client.AwakeableHandle.resolveSuspend(
     serde: Serde<T>,
     payload: T,
     options: ClientRequestOptions = ClientRequestOptions.DEFAULT
-) {
-  this.resolveAsync(serde, payload, options).await()
+): ClientResponse<Void> {
+  return this.resolveAsync(serde, payload, options).await()
 }
 
 suspend fun Client.AwakeableHandle.rejectSuspend(
     reason: String,
     options: ClientRequestOptions = ClientRequestOptions.DEFAULT
-) {
-  this.rejectAsync(reason, options).await()
+): ClientResponse<Void> {
+  return this.rejectAsync(reason, options).await()
 }
 
 suspend fun <T> Client.InvocationHandle<T>.attachSuspend(
     options: ClientRequestOptions = ClientRequestOptions.DEFAULT
-): T {
+): ClientResponse<T> {
   return this.attachAsync(options).await()
 }
 
 suspend fun <T : Any?> Client.InvocationHandle<T>.getOutputSuspend(
     options: ClientRequestOptions = ClientRequestOptions.DEFAULT
-): Output<T> {
+): ClientResponse<Output<T>> {
   return this.getOutputAsync(options).await()
 }
 
 suspend fun <T> Client.IdempotentInvocationHandle<T>.attachSuspend(
     options: ClientRequestOptions = ClientRequestOptions.DEFAULT
-): T {
+): ClientResponse<T> {
   return this.attachAsync(options).await()
 }
 
 suspend fun <T> Client.IdempotentInvocationHandle<T>.getOutputSuspend(
     options: ClientRequestOptions = ClientRequestOptions.DEFAULT
-): Output<T> {
+): ClientResponse<Output<T>> {
   return this.getOutputAsync(options).await()
 }
 
 suspend fun <T> Client.WorkflowHandle<T>.attachSuspend(
     options: ClientRequestOptions = ClientRequestOptions.DEFAULT
-): T {
+): ClientResponse<T> {
   return this.attachAsync(options).await()
 }
 
 suspend fun <T> Client.WorkflowHandle<T>.getOutputSuspend(
     options: ClientRequestOptions = ClientRequestOptions.DEFAULT
-): Output<T> {
+): ClientResponse<Output<T>> {
   return this.getOutputAsync(options).await()
 }

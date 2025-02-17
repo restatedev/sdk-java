@@ -8,6 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
+import dev.restate.common.CallRequest
 import dev.restate.sdk.core.*
 import dev.restate.sdk.core.TestDefinitions.TestExecutor
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder
@@ -16,6 +17,8 @@ import dev.restate.sdk.endpoint.definition.HandlerDefinition
 import dev.restate.sdk.endpoint.definition.HandlerType
 import dev.restate.sdk.endpoint.definition.ServiceDefinition
 import dev.restate.sdk.endpoint.definition.ServiceType
+import dev.restate.sdk.kotlin.serialization.KotlinSerializationSerdeFactory
+import dev.restate.sdk.kotlin.serialization.jsonSerde
 import java.util.stream.Stream
 import kotlinx.coroutines.Dispatchers
 
@@ -54,10 +57,10 @@ class KotlinCoroutinesTests : TestRunner() {
                   HandlerDefinition.of(
                       "run",
                       HandlerType.SHARED,
-                      KtSerdes.json(),
-                      KtSerdes.json(),
-                      HandlerRunner.of(runner)))),
-          HandlerRunner.Options(Dispatchers.Unconfined),
+                    jsonSerde<REQ>(),
+                    jsonSerde<RES>(),
+                      HandlerRunner.of(KotlinSerializationSerdeFactory(), HandlerRunner.Options(Dispatchers.Unconfined), runner)
+                  ))),
           "run")
     }
 
@@ -73,10 +76,10 @@ class KotlinCoroutinesTests : TestRunner() {
                   HandlerDefinition.of(
                       "run",
                       HandlerType.EXCLUSIVE,
-                      KtSerdes.json(),
-                      KtSerdes.json(),
-                      HandlerRunner.of(runner)))),
-          HandlerRunner.Options(Dispatchers.Unconfined),
+                    jsonSerde<REQ>(),
+                    jsonSerde<RES>(),
+                    HandlerRunner.of(KotlinSerializationSerdeFactory(), HandlerRunner.Options(Dispatchers.Unconfined), runner)
+                  ))),
           "run")
     }
 
@@ -92,16 +95,17 @@ class KotlinCoroutinesTests : TestRunner() {
                   HandlerDefinition.of(
                       "run",
                       HandlerType.WORKFLOW,
-                      KtSerdes.json(),
-                      KtSerdes.json(),
-                      HandlerRunner.of(runner)))),
-          HandlerRunner.Options(Dispatchers.Unconfined),
+                    jsonSerde<REQ>(),
+                    jsonSerde<RES>(),
+                    HandlerRunner.of(KotlinSerializationSerdeFactory(), HandlerRunner.Options(Dispatchers.Unconfined), runner)
+                  ))),
           "run")
     }
 
     suspend fun callGreeterGreetService(ctx: Context, parameter: String): Awaitable<String> {
-      return ctx.callAsync(
-          ProtoUtils.GREETER_SERVICE_TARGET, TestSerdes.STRING, TestSerdes.STRING, parameter)
+      return ctx.call(
+        CallRequest.of<String, String>( ProtoUtils.GREETER_SERVICE_TARGET, TestSerdes.STRING, TestSerdes.STRING, parameter)
+        )
     }
   }
 }

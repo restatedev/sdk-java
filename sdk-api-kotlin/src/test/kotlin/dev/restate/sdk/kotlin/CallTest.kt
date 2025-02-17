@@ -8,6 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
+import dev.restate.common.CallRequest
+import dev.restate.common.SendRequest
 import dev.restate.common.Slice
 import dev.restate.common.Target
 import dev.restate.sdk.core.CallTestSuite
@@ -23,18 +25,19 @@ class CallTest : CallTestSuite() {
       body: Slice
   ) =
       testDefinitionForService("OneWayCall") { ctx, _: Unit ->
-        ctx.send(
+        val ignored = ctx.send(
+          SendRequest.of<Slice>(
             target,
             Serde.SLICE,
-            body,
-            sendOptions {
-              this.idempotencyKey = idempotencyKey
-              this.headers = LinkedHashMap(headers)
-            })
+            body
+          ).idempotencyKey(idempotencyKey).headers(headers))
       }
 
   override fun implicitCancellation(target: Target, body: Slice) =
       testDefinitionForService("ImplicitCancellation") { ctx, _: Unit ->
-        ctx.call(target, Serde.SLICE, Serde.RAW, body)
+        val ignored = ctx.call(
+          CallRequest.of<Slice, ByteArray>(
+            target, Serde.SLICE, Serde.RAW, body
+          )).await()
       }
 }

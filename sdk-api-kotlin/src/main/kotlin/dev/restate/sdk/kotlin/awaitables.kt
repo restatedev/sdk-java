@@ -14,6 +14,7 @@ import dev.restate.sdk.endpoint.definition.HandlerContext
 import dev.restate.sdk.types.TerminalException
 import dev.restate.sdk.types.TimeoutException
 import dev.restate.serde.Serde
+import dev.restate.serde.SerdeInfo
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
 import kotlin.time.Duration
@@ -154,23 +155,37 @@ internal fun wrapAnyAwaitable(awaitables: List<Awaitable<*>>): BaseAwaitableImpl
       ctx.createAnyAsyncResult(awaitables.map { (it as BaseAwaitableImpl<*>).asyncResult() }))
 }
 
+internal class CallAwaitableImpl<T:Any?> internal constructor(callAsyncResult: AsyncResult<T>,
+                                                              private val invocationIdAsyncResult: AsyncResult<String>
+): SingleAwaitableImpl<T>(callAsyncResult), CallAwaitable<T> {
+  override suspend fun invocationId(): String {
+    return invocationIdAsyncResult.poll().await()
+  }
+}
+
+internal class SendHandleImpl internal constructor(private val invocationIdAsyncResult: AsyncResult<String>): SendHandle {
+  override suspend fun invocationId(): String {
+    return invocationIdAsyncResult.poll().await()
+  }
+}
+
 internal class AwakeableImpl<T : Any?>
 internal constructor(asyncResult: AsyncResult<Slice>, serde: Serde<T>, override val id: String) :
     SingleAwaitableImpl<T>(
         asyncResult.map { CompletableFuture.completedFuture(serde.deserialize(it)) }),
     Awakeable<T>
 
-internal class AwakeableHandleImpl(val handlerContext: HandlerContext, val id: String) :
+internal class AwakeableHandleImpl(val contextImpl: ContextImpl, val id: String) :
     AwakeableHandle {
-  override suspend fun <T : Any> resolve(serde: Serde<T>, payload: T) {
-    handlerContext
-        .resolveAwakeable(id, serde.serializeWrappingException(handlerContext, payload))
+  override suspend fun <T : Any> resolve(serdeInfo: SerdeInfo<T>, payload: T) {
+    contextImpl.handlerContext
+        .resolveAwakeable(id, contextImpl.resolveAndSerialize(serdeInfo, payload))
         .await()
   }
 
   override suspend fun reject(reason: String) {
     return
-    handlerContext.rejectAwakeable(id, TerminalException(reason)).await()
+    contextImpl.handlerContext.rejectAwakeable(id, TerminalException(reason)).await()
   }
 }
 

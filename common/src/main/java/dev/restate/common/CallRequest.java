@@ -135,6 +135,22 @@ public final class CallRequest<Req, Res> {
       return this;
     }
 
+    public @Nullable String getIdempotencyKey() {
+      return idempotencyKey;
+    }
+
+    public Builder<Req, Res> setIdempotencyKey(@Nullable String idempotencyKey) {
+      return idempotencyKey(idempotencyKey);
+    }
+
+    public @Nullable Map<String, String> getHeaders() {
+      return headers;
+    }
+
+    public Builder<Req, Res> setHeaders(@Nullable Map<String, String> headers) {
+      return headers(headers);
+    }
+
     public CallRequest<Req, Res> build() {
       return new CallRequest<>(
           this.target,

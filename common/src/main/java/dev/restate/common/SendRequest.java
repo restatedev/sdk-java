@@ -137,6 +137,30 @@ public final class SendRequest<Req> {
       return this;
     }
 
+    public @Nullable String getIdempotencyKey() {
+      return idempotencyKey;
+    }
+
+    public Builder<Req> setIdempotencyKey(@Nullable String idempotencyKey) {
+      return idempotencyKey(idempotencyKey);
+    }
+
+    public @Nullable Map<String, String> getHeaders() {
+      return headers;
+    }
+
+    public Builder<Req> setHeaders(@Nullable Map<String, String> headers) {
+      return headers(headers);
+    }
+
+    public @Nullable Duration getDelay() {
+      return delay;
+    }
+
+    public Builder<Req> setDelay(@Nullable Duration delay) {
+      return delay(delay);
+    }
+
     public SendRequest<Req> build() {
       return new SendRequest<>(
           this.target,

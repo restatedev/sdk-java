@@ -30,7 +30,6 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
-
 import org.jspecify.annotations.Nullable;
 
 class ElementConverter {
@@ -111,7 +110,7 @@ class ElementConverter {
           .withDocumentation(sanitizeJavadoc(elements.getDocComment(element)))
           .withServiceType(metaAnnotation.getServiceType())
           .withHandlers(handlers)
-              .withSerdeFactoryDecl(serdeFactoryDecl)
+          .withSerdeFactoryDecl(serdeFactoryDecl)
           .validateAndBuild();
     } catch (Exception e) {
       messager.printMessage(
