@@ -35,10 +35,11 @@ class ProxyImpl : Proxy {
         .await()
   }
 
-  override suspend fun oneWayCall(context: Context, request: ProxyRequest) {
-    context.send(
-        SendRequest.of(request.toTarget(), Serde.RAW, request.message)
-            .delay((request.delayMillis?.milliseconds ?: Duration.ZERO).toJavaDuration()))
+  override suspend fun oneWayCall(context: Context, request: ProxyRequest): Unit {
+    val ignored =
+        context.send(
+            SendRequest.of(request.toTarget(), Serde.RAW, request.message)
+                .delay((request.delayMillis?.milliseconds ?: Duration.ZERO).toJavaDuration()))
   }
 
   override suspend fun manyCalls(context: Context, requests: List<ManyCallRequest>) {

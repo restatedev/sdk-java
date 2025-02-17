@@ -17,7 +17,6 @@ import dev.restate.sdk.types.Request;
 import dev.restate.sdk.types.RetryPolicy;
 import dev.restate.sdk.types.TerminalException;
 import dev.restate.serde.Serde;
-import dev.restate.serde.TypeRef;
 import dev.restate.serde.TypeTag;
 import java.time.Duration;
 
@@ -445,7 +444,8 @@ public interface Context {
    * service consume from Kafka the responses of given external system interaction by using {@link
    * #awakeableHandle(String)}.
    *
-   * @param clazz the response type to use for deserializing the {@link Awakeable} result. When using generic types, use {@link #awakeable(TypeTag)} instead.
+   * @param clazz the response type to use for deserializing the {@link Awakeable} result. When
+   *     using generic types, use {@link #awakeable(TypeTag)} instead.
    * @return the {@link Awakeable} to await on.
    * @see Awakeable
    */

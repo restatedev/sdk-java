@@ -15,7 +15,7 @@ import dev.restate.sdk.types.StateKey
 class ListObjectImpl : ListObject {
   companion object {
     private val LIST_KEY: StateKey<List<String>> =
-        stateKey<List<String>>(
+        stateKey(
             "list",
         )
   }
