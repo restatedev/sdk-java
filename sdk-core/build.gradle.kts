@@ -30,17 +30,18 @@ dependencies {
 
   shadow(project(":sdk-common"))
 
-  shade(libs.protobuf.java)
   shadow(libs.log4j.api)
+  shadow(libs.opentelemetry.api)
 
   // We need this for the manifest
   shadow(libs.jackson.annotations)
   shadow(libs.jackson.databind)
 
+  // We shade protobuf java
+  shade(libs.protobuf.java)
+
   // We don't want a hard-dependency on it
   compileOnly(libs.log4j.core)
-
-  shadow(libs.opentelemetry.api)
 
   testCompileOnly(libs.jspecify)
   testAnnotationProcessor(project(":sdk-api-gen"))
