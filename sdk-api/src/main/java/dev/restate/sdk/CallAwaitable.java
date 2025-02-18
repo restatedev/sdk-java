@@ -9,15 +9,21 @@
 package dev.restate.sdk;
 
 import dev.restate.sdk.endpoint.definition.AsyncResult;
+import dev.restate.sdk.endpoint.definition.HandlerContext;
 import java.util.concurrent.Executor;
 
 /** {@link Awaitable} returned by a call to another service. */
 public final class CallAwaitable<T> extends Awaitable<T> {
 
+  private final HandlerContext context;
   private final AsyncResult<T> asyncResult;
   private final Awaitable<String> invocationIdAwaitable;
 
-  CallAwaitable(AsyncResult<T> callAsyncResult, Awaitable<String> invocationIdAwaitable) {
+  CallAwaitable(
+      HandlerContext context,
+      AsyncResult<T> callAsyncResult,
+      Awaitable<String> invocationIdAwaitable) {
+    this.context = context;
     this.asyncResult = callAsyncResult;
     this.invocationIdAwaitable = invocationIdAwaitable;
   }
@@ -27,6 +33,11 @@ public final class CallAwaitable<T> extends Awaitable<T> {
    */
   public String invocationId() {
     return this.invocationIdAwaitable.await();
+  }
+
+  /** Cancel this invocation */
+  public void cancel() {
+    Util.awaitCompletableFuture(context.cancelInvocation(invocationId()));
   }
 
   @Override

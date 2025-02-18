@@ -37,7 +37,7 @@ class HandlerContextImpl implements HandlerContextInternal {
 
   private static final int CANCEL_HANDLE = 1;
 
-  private final Request request;
+  private final HandlerRequest handlerRequest;
   private final StateMachine stateMachine;
   private final @Nullable String objectKey;
   private final String fullyQualifiedHandlerName;
@@ -51,12 +51,46 @@ class HandlerContextImpl implements HandlerContextInternal {
       StateMachine stateMachine,
       Context otelContext,
       StateMachine.Input input) {
-    this.request = new Request(input.invocationId(), otelContext, input.body(), input.headers());
+    this.handlerRequest =
+        new HandlerRequest(input.invocationId(), otelContext, input.body(), input.headers());
     this.objectKey = input.key();
     this.stateMachine = stateMachine;
     this.fullyQualifiedHandlerName = fullyQualifiedHandlerName;
     this.invocationIdsToCancel = new ArrayList<>();
     this.scheduledRuns = new HashMap<>();
+  }
+
+  private static void parseSuccessOrFailure(NotificationValue s, CompletableFuture<Slice> cf) {
+    if (s instanceof NotificationValue.Success success) {
+      cf.complete(success.slice());
+    } else if (s instanceof NotificationValue.Failure failure) {
+      cf.completeExceptionally(failure.exception());
+    } else {
+      throw ProtocolException.unexpectedNotificationVariant(s.getClass());
+    }
+  }
+
+  private static void parseEmptyOrSuccessOrFailure(
+      NotificationValue s, CompletableFuture<Output<Slice>> cf) {
+    if (s instanceof NotificationValue.Empty) {
+      cf.complete(Output.notReady());
+    } else if (s instanceof NotificationValue.Success success) {
+      cf.complete(Output.ready(success.slice()));
+    } else if (s instanceof NotificationValue.Failure failure) {
+      cf.completeExceptionally(failure.exception());
+    } else {
+      throw ProtocolException.unexpectedNotificationVariant(s.getClass());
+    }
+  }
+
+  private static void parseEmptyOrFailure(NotificationValue s, CompletableFuture<Void> cf) {
+    if (s instanceof NotificationValue.Empty) {
+      cf.complete(null);
+    } else if (s instanceof NotificationValue.Failure failure) {
+      cf.completeExceptionally(failure.exception());
+    } else {
+      throw ProtocolException.unexpectedNotificationVariant(s.getClass());
+    }
   }
 
   @Override
@@ -65,8 +99,8 @@ class HandlerContextImpl implements HandlerContextInternal {
   }
 
   @Override
-  public Request request() {
-    return this.request;
+  public HandlerRequest request() {
+    return this.handlerRequest;
   }
 
   @Override
@@ -166,17 +200,7 @@ class HandlerContextImpl implements HandlerContextInternal {
 
           AsyncResult<Slice> callAsyncResult =
               AsyncResults.single(
-                  this,
-                  callHandle.resultHandle(),
-                  (s, cf) -> {
-                    if (s instanceof NotificationValue.Success success) {
-                      cf.complete(success.slice());
-                    } else if (s instanceof NotificationValue.Failure failure) {
-                      cf.completeExceptionally(failure.exception());
-                    } else {
-                      throw ProtocolException.unexpectedNotificationVariant(s.getClass());
-                    }
-                  });
+                  this, callHandle.resultHandle(), HandlerContextImpl::parseSuccessOrFailure);
 
           return new CallResult(invocationIdAsyncResult, callAsyncResult);
         });
@@ -219,18 +243,7 @@ class HandlerContextImpl implements HandlerContextInternal {
         () -> {
           int runHandle = this.stateMachine.run(name);
           this.scheduledRuns.put(runHandle, closure);
-          return AsyncResults.single(
-              this,
-              runHandle,
-              (s, cf) -> {
-                if (s instanceof NotificationValue.Success success) {
-                  cf.complete(success.slice());
-                } else if (s instanceof NotificationValue.Failure failure) {
-                  cf.completeExceptionally(failure.exception());
-                } else {
-                  throw ProtocolException.unexpectedNotificationVariant(s.getClass());
-                }
-              });
+          return AsyncResults.single(this, runHandle, HandlerContextImpl::parseSuccessOrFailure);
         });
   }
 
@@ -242,17 +255,7 @@ class HandlerContextImpl implements HandlerContextInternal {
           return new Awakeable(
               awakeable.awakeableId(),
               AsyncResults.single(
-                  this,
-                  awakeable.handle(),
-                  (s, cf) -> {
-                    if (s instanceof NotificationValue.Success success) {
-                      cf.complete(success.slice());
-                    } else if (s instanceof NotificationValue.Failure failure) {
-                      cf.completeExceptionally(failure.exception());
-                    } else {
-                      throw ProtocolException.unexpectedNotificationVariant(s.getClass());
-                    }
-                  }));
+                  this, awakeable.handle(), HandlerContextImpl::parseSuccessOrFailure));
         });
   }
 
@@ -273,15 +276,7 @@ class HandlerContextImpl implements HandlerContextInternal {
             AsyncResults.single(
                 this,
                 this.stateMachine.promiseGet(key),
-                (s, cf) -> {
-                  if (s instanceof NotificationValue.Success success) {
-                    cf.complete(success.slice());
-                  } else if (s instanceof NotificationValue.Failure failure) {
-                    cf.completeExceptionally(failure.exception());
-                  } else {
-                    throw ProtocolException.unexpectedNotificationVariant(s.getClass());
-                  }
-                }));
+                HandlerContextImpl::parseSuccessOrFailure));
   }
 
   @Override
@@ -291,17 +286,7 @@ class HandlerContextImpl implements HandlerContextInternal {
             AsyncResults.single(
                 this,
                 this.stateMachine.promisePeek(key),
-                (s, cf) -> {
-                  if (s instanceof NotificationValue.Empty) {
-                    cf.complete(Output.notReady());
-                  } else if (s instanceof NotificationValue.Success success) {
-                    cf.complete(Output.ready(success.slice()));
-                  } else if (s instanceof NotificationValue.Failure failure) {
-                    cf.completeExceptionally(failure.exception());
-                  } else {
-                    throw ProtocolException.unexpectedNotificationVariant(s.getClass());
-                  }
-                }));
+                HandlerContextImpl::parseEmptyOrSuccessOrFailure));
   }
 
   @Override
@@ -311,15 +296,7 @@ class HandlerContextImpl implements HandlerContextInternal {
             AsyncResults.single(
                 this,
                 this.stateMachine.promiseComplete(key, payload),
-                (s, cf) -> {
-                  if (s instanceof NotificationValue.Empty) {
-                    cf.complete(null);
-                  } else if (s instanceof NotificationValue.Failure failure) {
-                    cf.completeExceptionally(failure.exception());
-                  } else {
-                    throw ProtocolException.unexpectedNotificationVariant(s.getClass());
-                  }
-                }));
+                HandlerContextImpl::parseEmptyOrFailure));
   }
 
   @Override
@@ -329,15 +306,32 @@ class HandlerContextImpl implements HandlerContextInternal {
             AsyncResults.single(
                 this,
                 this.stateMachine.promiseComplete(key, reason),
-                (s, cf) -> {
-                  if (s instanceof NotificationValue.Empty) {
-                    cf.complete(null);
-                  } else if (s instanceof NotificationValue.Failure failure) {
-                    cf.completeExceptionally(failure.exception());
-                  } else {
-                    throw ProtocolException.unexpectedNotificationVariant(s.getClass());
-                  }
-                }));
+                HandlerContextImpl::parseEmptyOrFailure));
+  }
+
+  @Override
+  public CompletableFuture<Void> cancelInvocation(String invocationId) {
+    return this.catchExceptions(() -> this.stateMachine.cancelInvocation(invocationId));
+  }
+
+  @Override
+  public CompletableFuture<AsyncResult<Slice>> attachInvocation(String invocationId) {
+    return catchExceptions(
+        () ->
+            AsyncResults.single(
+                this,
+                this.stateMachine.attachInvocation(invocationId),
+                HandlerContextImpl::parseSuccessOrFailure));
+  }
+
+  @Override
+  public CompletableFuture<AsyncResult<Output<Slice>>> getInvocationOutput(String invocationId) {
+    return catchExceptions(
+        () ->
+            AsyncResults.single(
+                this,
+                this.stateMachine.getInvocationOutput(invocationId),
+                HandlerContextImpl::parseEmptyOrSuccessOrFailure));
   }
 
   @Override

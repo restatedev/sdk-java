@@ -8,8 +8,10 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
+import dev.restate.common.Output
 import dev.restate.common.Slice
 import dev.restate.sdk.endpoint.definition.AsyncResult
+import dev.restate.sdk.endpoint.definition.HandlerContext
 import dev.restate.sdk.types.TerminalException
 import dev.restate.sdk.types.TimeoutException
 import dev.restate.serde.Serde
@@ -167,11 +169,25 @@ internal constructor(
   }
 }
 
-internal class SendHandleImpl
-internal constructor(private val invocationIdAsyncResult: AsyncResult<String>) : SendHandle {
-  override suspend fun invocationId(): String {
-    return invocationIdAsyncResult.poll().await()
+internal abstract class BaseInvocationHandle<Res>
+internal constructor(
+    private val handlerContext: HandlerContext,
+    private val responseSerde: Serde<Res>
+) : InvocationHandle<Res> {
+  override suspend fun cancel() {
+    val ignored = handlerContext.cancelInvocation(invocationId()).await()
   }
+
+  override suspend fun attach(): Awaitable<Res> =
+      SingleAwaitableImpl(
+          handlerContext.attachInvocation(invocationId()).await().map {
+            CompletableFuture.completedFuture<Res>(responseSerde.deserialize(it))
+          })
+
+  override suspend fun output(): Output<Res> =
+      SingleAwaitableImpl(handlerContext.getInvocationOutput(invocationId()).await())
+          .simpleMap { it.map { responseSerde.deserialize(it) } }
+          .await()
 }
 
 internal class AwakeableImpl<T : Any?>

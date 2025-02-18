@@ -578,6 +578,36 @@ class StateMachineImpl implements StateMachine {
   }
 
   @Override
+  public int attachInvocation(String invocationId) {
+    LOG.debug("Executing 'Attach invocation {}'", invocationId);
+    var completionId = this.stateContext.getJournal().nextCompletionNotificationId();
+    return this.stateContext.getCurrentState()
+        .processCompletableCommand(
+            Protocol.AttachInvocationCommandMessage.newBuilder()
+                .setInvocationId(invocationId)
+                .setResultCompletionId(completionId)
+                .build(),
+            CommandAccessor.ATTACH_INVOCATION,
+            new int[] {completionId},
+            this.stateContext)[0];
+  }
+
+  @Override
+  public int getInvocationOutput(String invocationId) {
+    LOG.debug("Executing 'Get invocation output {}'", invocationId);
+    var completionId = this.stateContext.getJournal().nextCompletionNotificationId();
+    return this.stateContext.getCurrentState()
+        .processCompletableCommand(
+            Protocol.GetInvocationOutputCommandMessage.newBuilder()
+                .setInvocationId(invocationId)
+                .setResultCompletionId(completionId)
+                .build(),
+            CommandAccessor.GET_INVOCATION_OUTPUT,
+            new int[] {completionId},
+            this.stateContext)[0];
+  }
+
+  @Override
   public void writeOutput(Slice value) {
     LOG.debug("Executing 'Write invocation output with success'");
     this.stateContext

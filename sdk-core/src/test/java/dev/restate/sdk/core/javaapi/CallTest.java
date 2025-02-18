@@ -10,7 +10,7 @@ package dev.restate.sdk.core.javaapi;
 
 import static dev.restate.sdk.core.javaapi.JavaAPITests.testDefinitionForService;
 
-import dev.restate.common.CallRequest;
+import dev.restate.common.Request;
 import dev.restate.common.SendRequest;
 import dev.restate.common.Slice;
 import dev.restate.common.Target;
@@ -43,6 +43,6 @@ public class CallTest extends CallTestSuite {
         "ImplicitCancellation",
         Serde.VOID,
         Serde.RAW,
-        (context, unused) -> context.call(CallRequest.ofRaw(target, body.toByteArray())).await());
+        (context, unused) -> context.call(Request.ofRaw(target, body.toByteArray())).await());
   }
 }

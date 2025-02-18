@@ -8,12 +8,12 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.common.CallRequest;
-import dev.restate.common.SendRequest;
+import dev.restate.common.Request;
+import dev.restate.common.Slice;
 import dev.restate.common.function.ThrowingRunnable;
 import dev.restate.common.function.ThrowingSupplier;
 import dev.restate.sdk.types.AbortedExecutionException;
-import dev.restate.sdk.types.Request;
+import dev.restate.sdk.types.HandlerRequest;
 import dev.restate.sdk.types.RetryPolicy;
 import dev.restate.sdk.types.TerminalException;
 import dev.restate.serde.Serde;
@@ -34,31 +34,50 @@ import java.time.Duration;
  */
 public interface Context {
 
-  Request request();
+  HandlerRequest request();
 
   /**
    * Invoke another Restate service method.
    *
-   * @param callRequest request
+   * @param request request
    * @return an {@link Awaitable} that wraps the Restate service method result.
    */
-  <T, R> CallAwaitable<R> call(CallRequest<T, R> callRequest);
+  <T, R> CallAwaitable<R> call(Request<T, R> request);
 
-  /** Like {@link #call(CallRequest)} */
-  default <T, R> CallAwaitable<R> call(CallRequest.Builder<T, R> callRequestBuilder) {
-    return call(callRequestBuilder.build());
+  /** Like {@link #call(Request)} */
+  default <T, R> CallAwaitable<R> call(Request.Builder<T, R> requestBuilder) {
+    return call(requestBuilder.build());
   }
 
   /**
    * Invoke another Restate service without waiting for the response.
    *
-   * @param sendRequest request
-   * @return an {@link SendHandle} that can be used to retrieve the invocation id
+   * @param request request
+   * @return an {@link InvocationHandle} that can be used to retrieve the invocation id, cancel the
+   *     invocation, attach to its result.
    */
-  <T> SendHandle send(SendRequest<T> sendRequest);
+  <T, R> InvocationHandle<R> send(Request<T, R> request);
 
-  default <T> SendHandle send(SendRequest.Builder<T> sendRequest) {
-    return send(sendRequest.build());
+  /** Like {@link #send(Request)} */
+  default <T, R> InvocationHandle<R> send(Request.Builder<T, R> requestBuilder) {
+    return send(requestBuilder.asSend());
+  }
+
+  <R> InvocationHandle<R> invocationHandle(String invocationId, TypeTag<R> responseTypeTag);
+
+  /**
+   * Get an {@link InvocationHandle} for an already existing invocation. This will let you interact
+   * with a running invocation, for example to cancel it or retrieve its result.
+   *
+   * @param invocationId The invocation to interact with.
+   * @param responseClazz The response class.
+   */
+  default <R> InvocationHandle<R> invocationHandle(String invocationId, Class<R> responseClazz) {
+    return invocationHandle(invocationId, TypeTag.of(responseClazz));
+  }
+
+  default InvocationHandle<Slice> invocationHandle(String invocationId) {
+    return invocationHandle(invocationId, Serde.SLICE);
   }
 
   /**

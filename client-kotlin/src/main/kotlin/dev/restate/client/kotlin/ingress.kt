@@ -12,9 +12,8 @@ import dev.restate.client.Client
 import dev.restate.client.ClientRequestOptions
 import dev.restate.client.ClientResponse
 import dev.restate.client.SendResponse
-import dev.restate.common.CallRequest
 import dev.restate.common.Output
-import dev.restate.common.SendRequest
+import dev.restate.common.Request
 import dev.restate.serde.Serde
 import kotlinx.coroutines.future.await
 
@@ -26,24 +25,26 @@ fun clientRequestOptions(init: ClientRequestOptions.Builder.() -> Unit): ClientR
   return builder.build()
 }
 
-suspend fun <Req, Res> Client.callSuspend(callRequest: CallRequest<Req, Res>): ClientResponse<Res> {
-  return this.callAsync(callRequest).await()
+suspend fun <Req, Res> Client.callSuspend(request: Request<Req, Res>): ClientResponse<Res> {
+  return this.callAsync(request).await()
 }
 
 suspend fun <Req, Res> Client.callSuspend(
-    callRequestBuilder: CallRequest.Builder<Req, Res>
+    requestBuilder: Request.Builder<Req, Res>
 ): ClientResponse<Res> {
-  return this.callAsync(callRequestBuilder).await()
+  return this.callAsync(requestBuilder).await()
 }
 
-suspend fun <Req> Client.sendSuspend(sendRequest: SendRequest<Req>): ClientResponse<SendResponse> {
-  return this.sendAsync(sendRequest).await()
+suspend fun <Req, Res> Client.sendSuspend(
+    request: Request<Req, Res>
+): ClientResponse<SendResponse<Res>> {
+  return this.sendAsync(request).await()
 }
 
-suspend fun <Req> Client.sendSuspend(
-    sendRequestBuilder: SendRequest.Builder<Req>
-): ClientResponse<SendResponse> {
-  return this.sendAsync(sendRequestBuilder).await()
+suspend fun <Req, Res> Client.sendSuspend(
+    request: Request.Builder<Req, Res>
+): ClientResponse<SendResponse<Res>> {
+  return this.sendSuspend(request.build())
 }
 
 suspend fun <T : Any> Client.AwakeableHandle.resolveSuspend(

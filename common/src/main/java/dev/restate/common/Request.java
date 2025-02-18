@@ -10,12 +10,13 @@ package dev.restate.common;
 
 import dev.restate.serde.Serde;
 import dev.restate.serde.TypeTag;
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
-public final class CallRequest<Req, Res> {
+public sealed class Request<Req, Res> permits SendRequest {
 
   private final Target target;
   private final TypeTag<Req> reqTypeTag;
@@ -24,7 +25,7 @@ public final class CallRequest<Req, Res> {
   @Nullable private final String idempotencyKey;
   @Nullable private final LinkedHashMap<String, String> headers;
 
-  private CallRequest(
+  Request(
       Target target,
       TypeTag<Req> reqTypeTag,
       TypeTag<Res> resTypeTag,
@@ -43,11 +44,11 @@ public final class CallRequest<Req, Res> {
     return target;
   }
 
-  public TypeTag<Req> requestSerdeInfo() {
+  public TypeTag<Req> requestTypeTag() {
     return reqTypeTag;
   }
 
-  public TypeTag<Res> responseSerdeInfo() {
+  public TypeTag<Res> responseTypeTag() {
     return resTypeTag;
   }
 
@@ -71,13 +72,13 @@ public final class CallRequest<Req, Res> {
     return new Builder<>(target, reqTypeTag, resTypeTag, request);
   }
 
-  public static <Res> Builder<Void, Res> withNoRequestBody(Target target, TypeTag<Res> resTypeTag) {
-    return new Builder<>(target, Serde.VOID, resTypeTag, null);
-  }
-
   public static <Req> Builder<Req, Void> withNoResponseBody(
       Target target, TypeTag<Req> reqTypeTag, Req request) {
     return new Builder<>(target, reqTypeTag, Serde.VOID, request);
+  }
+
+  public static <Res> Builder<Void, Res> withNoRequestBody(Target target, TypeTag<Res> resTypeTag) {
+    return new Builder<>(target, Serde.VOID, resTypeTag, null);
   }
 
   public static Builder<byte[], byte[]> ofRaw(Target target, byte[] request) {
@@ -91,6 +92,21 @@ public final class CallRequest<Req, Res> {
     private final Req request;
     @Nullable private String idempotencyKey;
     @Nullable private LinkedHashMap<String, String> headers;
+
+    public Builder(
+        Target target,
+        TypeTag<Req> reqTypeTag,
+        TypeTag<Res> resTypeTag,
+        Req request,
+        @Nullable String idempotencyKey,
+        @Nullable LinkedHashMap<String, String> headers) {
+      this.target = target;
+      this.reqTypeTag = reqTypeTag;
+      this.resTypeTag = resTypeTag;
+      this.request = request;
+      this.idempotencyKey = idempotencyKey;
+      this.headers = headers;
+    }
 
     private Builder(Target target, TypeTag<Req> reqTypeTag, TypeTag<Res> resTypeTag, Req request) {
       this.target = target;
@@ -149,8 +165,18 @@ public final class CallRequest<Req, Res> {
       return headers(headers);
     }
 
-    public CallRequest<Req, Res> build() {
-      return new CallRequest<>(
+    public SendRequest<Req, Res> asSend() {
+      return new SendRequest<>(
+          target, reqTypeTag, resTypeTag, request, idempotencyKey, headers, null);
+    }
+
+    public SendRequest<Req, Res> asSendDelayed(Duration delay) {
+      return new SendRequest<>(
+          target, reqTypeTag, resTypeTag, request, idempotencyKey, headers, delay);
+    }
+
+    public Request<Req, Res> build() {
+      return new Request<>(
           this.target,
           this.reqTypeTag,
           this.resTypeTag,
@@ -160,9 +186,29 @@ public final class CallRequest<Req, Res> {
     }
   }
 
+  public Builder<Req, Res> toBuilder() {
+    return new Builder<>(
+        this.target,
+        this.reqTypeTag,
+        this.resTypeTag,
+        this.request,
+        this.idempotencyKey,
+        this.headers);
+  }
+
+  public SendRequest<Req, Res> asSend() {
+    return new SendRequest<>(
+        target, reqTypeTag, resTypeTag, request, idempotencyKey, headers, null);
+  }
+
+  public SendRequest<Req, Res> asSendDelayed(Duration delay) {
+    return new SendRequest<>(
+        target, reqTypeTag, resTypeTag, request, idempotencyKey, headers, delay);
+  }
+
   @Override
   public boolean equals(Object o) {
-    if (!(o instanceof CallRequest<?, ?> that)) return false;
+    if (!(o instanceof Request<?, ?> that)) return false;
     return Objects.equals(target, that.target)
         && Objects.equals(reqTypeTag, that.reqTypeTag)
         && Objects.equals(resTypeTag, that.resTypeTag)

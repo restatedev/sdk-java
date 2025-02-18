@@ -8,12 +8,12 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.common.CallRequest
 import dev.restate.common.Output
+import dev.restate.common.Request
 import dev.restate.common.SendRequest
 import dev.restate.sdk.kotlin.serialization.typeTag
 import dev.restate.sdk.types.DurablePromiseKey
-import dev.restate.sdk.types.Request
+import dev.restate.sdk.types.HandlerRequest
 import dev.restate.sdk.types.StateKey
 import dev.restate.sdk.types.TerminalException
 import dev.restate.serde.TypeTag
@@ -21,7 +21,6 @@ import java.util.*
 import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
-import kotlin.time.toKotlinDuration
 
 /**
  * This interface exposes the Restate functionalities to Restate services. It can be used to
@@ -36,7 +35,7 @@ import kotlin.time.toKotlinDuration
  */
 sealed interface Context {
 
-  fun request(): Request
+  fun request(): HandlerRequest
 
   /**
    * Causes the current execution of the function invocation to sleep for the given duration.
@@ -66,7 +65,7 @@ sealed interface Context {
    * @param callOptions request options.
    * @return a [CallAwaitable] that wraps the result.
    */
-  suspend fun <T : Any?, R : Any?> call(callRequest: CallRequest<T, R>): CallAwaitable<R>
+  suspend fun <Req : Any?, Res : Any?> call(request: Request<Req, Res>): CallAwaitable<Res>
 
   /**
    * Invoke another Restate service method.
@@ -78,10 +77,10 @@ sealed interface Context {
    * @param callOptions request options.
    * @return a [CallAwaitable] that wraps the result.
    */
-  suspend fun <T : Any?, R : Any?> call(
-      callRequestBuilder: CallRequest.Builder<T, R>
-  ): CallAwaitable<R> {
-    return call(callRequestBuilder.build())
+  suspend fun <Req : Any?, Res : Any?> call(
+      requestBuilder: Request.Builder<Req, Res>
+  ): CallAwaitable<Res> {
+    return call(requestBuilder.build())
   }
 
   /**
@@ -93,7 +92,7 @@ sealed interface Context {
    * @param sendOptions request options.
    * @return a [SendHandle] to interact with the sent request.
    */
-  suspend fun <T : Any?> send(sendRequest: SendRequest<T>): SendHandle
+  suspend fun <Req : Any?, Res : Any?> send(request: Request<Req, Res>): InvocationHandle<Res>
 
   /**
    * Invoke another Restate service without waiting for the response.
@@ -104,9 +103,23 @@ sealed interface Context {
    * @param sendOptions request options.
    * @return a [SendHandle] to interact with the sent request.
    */
-  suspend fun <T : Any?> send(sendRequestBuilder: SendRequest.Builder<T>): SendHandle {
+  suspend fun <Req : Any?, Res : Any?> send(
+      sendRequestBuilder: Request.Builder<Req, Res>
+  ): InvocationHandle<Res> {
     return send(sendRequestBuilder.build())
   }
+
+  /**
+   * Get an [InvocationHandle] for an already existing invocation. This will let you interact with a
+   * running invocation, for example to cancel it or retrieve its result.
+   *
+   * @param invocationId The invocation to interact with.
+   * @param responseClazz The response class.
+   */
+  fun <Res : Any?> invocationHandle(
+      invocationId: String,
+      responseTypeTag: TypeTag<Res>
+  ): InvocationHandle<Res>
 
   /**
    * Execute a non-deterministic closure, recording the result value in the journal. The result
@@ -205,6 +218,19 @@ sealed interface Context {
    * @return the [Random] instance.
    */
   fun random(): RestateRandom
+}
+
+/**
+ * Get an [InvocationHandle] for an already existing invocation. This will let you interact with a
+ * running invocation, for example to cancel it or retrieve its result.
+ *
+ * @param invocationId The invocation to interact with.
+ * @param responseClazz The response class.
+ */
+inline fun <reified Res : Any?> Context.invocationHandle(
+    invocationId: String
+): InvocationHandle<Res> {
+  return this.invocationHandle(invocationId, typeTag<Res>())
 }
 
 /**
@@ -506,9 +532,19 @@ sealed interface CallAwaitable<T> : Awaitable<T> {
   suspend fun invocationId(): String
 }
 
-/** The handle returned by a [Context.send]. */
-sealed interface SendHandle {
+/** An invocation handle, that can be used to interact with a running invocation. */
+sealed interface InvocationHandle<Res : Any?> {
+  /** @return the invocation id of this invocation */
   suspend fun invocationId(): String
+
+  /** Cancel this invocation. */
+  suspend fun cancel()
+
+  /** Attach to this invocation. This will wait for the invocation to complete */
+  suspend fun attach(): Awaitable<Res>
+
+  /** @return the output of this invocation, if present. */
+  suspend fun output(): Output<Res>
 }
 
 /**
@@ -605,8 +641,14 @@ inline fun <reified T> durablePromiseKey(name: String): DurablePromiseKey<T> {
   return DurablePromiseKey.of(name, typeTag<T>())
 }
 
-var <T : Any?> SendRequest.Builder<T>.delay: Duration?
-  get() = this.delay()?.toKotlinDuration()
-  set(value) {
-    this.delay(value?.toJavaDuration())
-  }
+fun <Req : Any?, Res : Any?> Request.Builder<Req, Res>.asSendDelayed(
+    duration: Duration
+): SendRequest<Req, Res> {
+  return this.asSendDelayed(duration.toJavaDuration())
+}
+
+fun <Req : Any?, Res : Any?> Request<Req, Res>.asSendDelayed(
+    duration: Duration
+): SendRequest<Req, Res> {
+  return this.asSendDelayed(duration.toJavaDuration())
+}

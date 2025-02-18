@@ -49,10 +49,9 @@ public abstract class BaseClient implements Client {
   }
 
   @Override
-  public <Req, Res> CompletableFuture<ClientResponse<Res>> callAsync(
-      CallRequest<Req, Res> request) {
-    Serde<Req> reqSerde = this.serdeFactory.create(request.requestSerdeInfo());
-    Serde<Res> resSerde = this.serdeFactory.create(request.responseSerdeInfo());
+  public <Req, Res> CompletableFuture<ClientResponse<Res>> callAsync(Request<Req, Res> request) {
+    Serde<Req> reqSerde = this.serdeFactory.create(request.requestTypeTag());
+    Serde<Res> resSerde = this.serdeFactory.create(request.responseTypeTag());
 
     URI requestUri = toRequestURI(request.target(), false, null);
     Stream<Map.Entry<String, String>> headersStream =
@@ -75,10 +74,15 @@ public abstract class BaseClient implements Client {
   }
 
   @Override
-  public <Req> CompletableFuture<ClientResponse<SendResponse>> sendAsync(SendRequest<Req> request) {
-    Serde<Req> reqSerde = this.serdeFactory.create(request.requestSerdeInfo());
+  public <Req, Res> CompletableFuture<ClientResponse<SendResponse<Res>>> sendAsync(
+      Request<Req, Res> request) {
+    Serde<Req> reqSerde = this.serdeFactory.create(request.requestTypeTag());
 
-    URI requestUri = toRequestURI(request.target(), true, request.delay());
+    URI requestUri =
+        toRequestURI(
+            request.target(),
+            true,
+            (request instanceof SendRequest<Req, Res> sendRequest) ? sendRequest.delay() : null);
     Stream<Map.Entry<String, String>> headersStream =
         Stream.concat(
             baseOptions.headers().entrySet().stream(), request.headers().entrySet().stream());
@@ -146,7 +150,10 @@ public abstract class BaseClient implements Client {
           }
 
           return new ClientResponse<>(
-              statusCode, responseHeaders, new SendResponse(status, fields.get("invocationId")));
+              statusCode,
+              responseHeaders,
+              new SendResponse<>(
+                  status, invocationHandle(fields.get("invocationId"), request.responseTypeTag())));
         });
   }
 
@@ -199,6 +206,8 @@ public abstract class BaseClient implements Client {
   @Override
   public <Res> InvocationHandle<Res> invocationHandle(
       String invocationId, TypeTag<Res> resTypeTag) {
+    Serde<Res> resSerde = serdeFactory.create(resTypeTag);
+
     return new InvocationHandle<>() {
       @Override
       public String invocationId() {
@@ -207,8 +216,6 @@ public abstract class BaseClient implements Client {
 
       @Override
       public CompletableFuture<ClientResponse<Res>> attachAsync(ClientRequestOptions options) {
-        Serde<Res> resSerde = serdeFactory.create(resTypeTag);
-
         URI requestUri = baseUri.resolve("/restate/invocation/" + invocationId + "/attach");
         Stream<Map.Entry<String, String>> headersStream =
             Stream.concat(
@@ -221,8 +228,6 @@ public abstract class BaseClient implements Client {
       @Override
       public CompletableFuture<ClientResponse<Output<Res>>> getOutputAsync(
           ClientRequestOptions options) {
-        Serde<Res> resSerde = serdeFactory.create(resTypeTag);
-
         URI requestUri = baseUri.resolve("/restate/invocation/" + invocationId + "/output");
         Stream<Map.Entry<String, String>> headersStream =
             Stream.concat(

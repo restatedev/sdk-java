@@ -51,25 +51,20 @@ public class {{generatedClassSimpleName}} {
         {{/handlers}}
 
         public Send send() {
-            return new Send(null);
-        }
-
-        public Send send(Duration delay) {
-            return new Send(delay);
+            return new Send();
         }
 
         public class Send {
 
-            private final Duration delay;
-
-            Send(Duration delay) {
-                this.delay = delay;
-            }
-
             {{#handlers}}
-            public dev.restate.sdk.SendHandle {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
+            public dev.restate.sdk.InvocationHandle<{{{boxedOutputFqcn}}}> {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
                 return ContextClient.this.ctx.send(
-                    {{../requestsClass}}.Send.{{methodName}}({{#if ../isKeyed}}ContextClient.this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}}).delay(this.delay)
+                    {{../requestsClass}}.{{methodName}}({{#if ../isKeyed}}ContextClient.this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}}).asSend()
+                );
+            }
+            public dev.restate.sdk.InvocationHandle<{{{boxedOutputFqcn}}}> {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}Duration delay) {
+                return ContextClient.this.ctx.send(
+                    {{../requestsClass}}.{{methodName}}({{#if ../isKeyed}}ContextClient.this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}}).asSendDelayed(delay)
                 );
             }
             {{/handlers}}
@@ -98,13 +93,13 @@ public class {{generatedClassSimpleName}} {
 
         public dev.restate.client.SendResponse submit({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
             return IngressClient.this.client.send(
-                {{../requestsClass}}.Send.{{methodName}}({{#if ../isKeyed}}this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}})
+                {{../requestsClass}}.{{methodName}}({{#if ../isKeyed}}this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}}).asSend()
             ).response();
         }
 
         public java.util.concurrent.CompletableFuture<dev.restate.client.SendResponse> submitAsync({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
             return IngressClient.this.client.sendAsync(
-                {{../requestsClass}}.Send.{{methodName}}({{#if ../isKeyed}}this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}})
+                {{../requestsClass}}.{{methodName}}({{#if ../isKeyed}}this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}}).asSend()
             ).thenApply(dev.restate.client.ClientResponse::response);
         }
         {{else}}
@@ -139,14 +134,24 @@ public class {{generatedClassSimpleName}} {
 
             {{#handlers}}{{^isWorkflow}}
             public dev.restate.client.SendResponse {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
+                if (this.delay == null) {
+                    return IngressClient.this.client.send(
+                        {{../requestsClass}}.{{methodName}}({{#if ../isKeyed}}IngressClient.this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}}).asSend()
+                    ).response();
+                }
                 return IngressClient.this.client.send(
-                    {{../requestsClass}}.Send.{{methodName}}({{#if ../isKeyed}}IngressClient.this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}}).delay(this.delay)
+                    {{../requestsClass}}.{{methodName}}({{#if ../isKeyed}}IngressClient.this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}}).asSendDelayed(this.delay)
                 ).response();
             }
 
             public java.util.concurrent.CompletableFuture<dev.restate.client.SendResponse> {{methodName}}Async({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
+                if (this.delay == null) {
+                    return IngressClient.this.client.sendAsync(
+                        {{../requestsClass}}.{{methodName}}({{#if ../isKeyed}}IngressClient.this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}}).asSend()
+                    ).thenApply(dev.restate.client.ClientResponse::response);
+                }
                 return IngressClient.this.client.sendAsync(
-                    {{../requestsClass}}.Send.{{methodName}}({{#if ../isKeyed}}IngressClient.this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}}).delay(this.delay)
+                    {{../requestsClass}}.{{methodName}}({{#if ../isKeyed}}IngressClient.this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}}).asSendDelayed(this.delay)
                 ).thenApply(dev.restate.client.ClientResponse::response);
             }{{/isWorkflow}}{{/handlers}}
         }

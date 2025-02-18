@@ -136,4 +136,10 @@ interface CommandAccessor<E extends MessageLite> {
 
   CommandAccessor<Protocol.SendSignalCommandMessage> SEND_SIGNAL =
       Protocol.SendSignalCommandMessage::getName;
+
+  CommandAccessor<Protocol.AttachInvocationCommandMessage> ATTACH_INVOCATION =
+      Protocol.AttachInvocationCommandMessage::getName;
+
+  CommandAccessor<Protocol.GetInvocationOutputCommandMessage> GET_INVOCATION_OUTPUT =
+      Protocol.GetInvocationOutputCommandMessage::getName;
 }

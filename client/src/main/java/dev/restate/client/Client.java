@@ -8,9 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.client;
 
-import dev.restate.common.CallRequest;
 import dev.restate.common.Output;
-import dev.restate.common.SendRequest;
+import dev.restate.common.Request;
 import dev.restate.common.Target;
 import dev.restate.serde.Serde;
 import dev.restate.serde.SerdeFactory;
@@ -21,15 +20,14 @@ import org.jspecify.annotations.NonNull;
 
 public interface Client {
 
-  <Req, Res> CompletableFuture<ClientResponse<Res>> callAsync(CallRequest<Req, Res> request);
+  <Req, Res> CompletableFuture<ClientResponse<Res>> callAsync(Request<Req, Res> request);
 
   default <Req, Res> CompletableFuture<ClientResponse<Res>> callAsync(
-      CallRequest.Builder<Req, Res> request) {
+      Request.Builder<Req, Res> request) {
     return callAsync(request.build());
   }
 
-  default <Req, Res> ClientResponse<Res> call(CallRequest<Req, Res> request)
-      throws IngressException {
+  default <Req, Res> ClientResponse<Res> call(Request<Req, Res> request) throws IngressException {
     try {
       return callAsync(request).join();
     } catch (CompletionException e) {
@@ -40,19 +38,15 @@ public interface Client {
     }
   }
 
-  default <Req, Res> ClientResponse<Res> call(CallRequest.Builder<Req, Res> request)
+  default <Req, Res> ClientResponse<Res> call(Request.Builder<Req, Res> request)
       throws IngressException {
     return call(request.build());
   }
 
-  <Req> CompletableFuture<ClientResponse<SendResponse>> sendAsync(SendRequest<Req> request);
+  <Req, Res> CompletableFuture<ClientResponse<SendResponse<Res>>> sendAsync(
+      Request<Req, Res> request);
 
-  default <Req> CompletableFuture<ClientResponse<SendResponse>> sendAsync(
-      SendRequest.Builder<Req> request) {
-    return sendAsync(request.build());
-  }
-
-  default <Req> ClientResponse<SendResponse> send(SendRequest<Req> request)
+  default <Req, Res> ClientResponse<SendResponse<Res>> send(Request<Req, Res> request)
       throws IngressException {
     try {
       return sendAsync(request).join();
@@ -64,7 +58,12 @@ public interface Client {
     }
   }
 
-  default <Req> ClientResponse<SendResponse> send(SendRequest.Builder<Req> request)
+  default <Req, Res> CompletableFuture<ClientResponse<SendResponse<Res>>> sendAsync(
+      Request.Builder<Req, Res> request) {
+    return sendAsync(request.build());
+  }
+
+  default <Req, Res> ClientResponse<SendResponse<Res>> send(Request.Builder<Req, Res> request)
       throws IngressException {
     return send(request.build());
   }

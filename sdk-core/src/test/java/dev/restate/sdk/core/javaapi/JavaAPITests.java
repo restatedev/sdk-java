@@ -10,7 +10,7 @@ package dev.restate.sdk.core.javaapi;
 
 import static dev.restate.sdk.core.statemachine.ProtoUtils.GREETER_SERVICE_TARGET;
 
-import dev.restate.common.CallRequest;
+import dev.restate.common.Request;
 import dev.restate.common.function.ThrowingBiFunction;
 import dev.restate.sdk.*;
 import dev.restate.sdk.core.*;
@@ -108,6 +108,6 @@ public class JavaAPITests extends TestRunner {
 
   public static Awaitable<String> callGreeterGreetService(Context ctx, String parameter) {
     return ctx.call(
-        CallRequest.of(GREETER_SERVICE_TARGET, TestSerdes.STRING, TestSerdes.STRING, parameter));
+        Request.of(GREETER_SERVICE_TARGET, TestSerdes.STRING, TestSerdes.STRING, parameter));
   }
 }

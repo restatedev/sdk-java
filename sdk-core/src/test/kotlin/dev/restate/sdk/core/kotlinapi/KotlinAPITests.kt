@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core.kotlinapi
 
-import dev.restate.common.CallRequest
+import dev.restate.common.Request
 import dev.restate.sdk.core.*
 import dev.restate.sdk.core.TestDefinitions.TestExecutor
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder
@@ -111,7 +111,7 @@ class KotlinAPITests : TestRunner() {
 
     suspend fun callGreeterGreetService(ctx: Context, parameter: String): Awaitable<String> {
       return ctx.call(
-          CallRequest.of<String, String>(
+          Request.of<String, String>(
               ProtoUtils.GREETER_SERVICE_TARGET, TestSerdes.STRING, TestSerdes.STRING, parameter))
     }
   }

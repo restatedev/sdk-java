@@ -9,6 +9,7 @@
 package dev.restate.sdk;
 
 import dev.restate.common.function.ThrowingFunction;
+import dev.restate.common.function.ThrowingSupplier;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
 import dev.restate.sdk.types.AbortedExecutionException;
 import java.util.concurrent.CancellationException;
@@ -24,6 +25,16 @@ class Util {
   static <T, R> R executeOrFail(HandlerContext handlerContext, ThrowingFunction<T, R> fn, T t) {
     try {
       return fn.apply(t);
+    } catch (Throwable e) {
+      handlerContext.fail(e);
+      AbortedExecutionException.sneakyThrow();
+      return null;
+    }
+  }
+
+  static <R> R executeOrFail(HandlerContext handlerContext, ThrowingSupplier<R> fn) {
+    try {
+      return fn.get();
     } catch (Throwable e) {
       handlerContext.fail(e);
       AbortedExecutionException.sneakyThrow();

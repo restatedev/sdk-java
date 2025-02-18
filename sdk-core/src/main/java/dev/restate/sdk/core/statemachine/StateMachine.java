@@ -135,6 +135,10 @@ public interface StateMachine extends Flow.Processor<Slice, Slice> {
 
   void cancelInvocation(String targetInvocationId);
 
+  int attachInvocation(String invocationId);
+
+  int getInvocationOutput(String invocationId);
+
   void writeOutput(Slice value);
 
   void writeOutput(TerminalException exception);

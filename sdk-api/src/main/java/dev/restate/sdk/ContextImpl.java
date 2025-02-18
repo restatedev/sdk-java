@@ -13,7 +13,7 @@ import dev.restate.common.function.ThrowingSupplier;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
 import dev.restate.sdk.types.DurablePromiseKey;
-import dev.restate.sdk.types.Request;
+import dev.restate.sdk.types.HandlerRequest;
 import dev.restate.sdk.types.RetryPolicy;
 import dev.restate.sdk.types.StateKey;
 import dev.restate.sdk.types.TerminalException;
@@ -45,7 +45,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
   }
 
   @Override
-  public Request request() {
+  public HandlerRequest request() {
     return handlerContext.request();
   }
 
@@ -89,46 +89,97 @@ class ContextImpl implements ObjectContext, WorkflowContext {
   }
 
   @Override
-  public <T, R> CallAwaitable<R> call(CallRequest<T, R> callRequest) {
+  public <T, R> CallAwaitable<R> call(Request<T, R> request) {
     Slice input =
         Util.executeOrFail(
             handlerContext,
-            serdeFactory.create(callRequest.requestSerdeInfo())::serialize,
-            callRequest.request());
+            serdeFactory.create(request.requestTypeTag())::serialize,
+            request.request());
     HandlerContext.CallResult result =
         Util.awaitCompletableFuture(
             handlerContext.call(
-                callRequest.target(),
-                input,
-                callRequest.idempotencyKey(),
-                callRequest.headers().entrySet()));
+                request.target(), input, request.idempotencyKey(), request.headers().entrySet()));
 
     return new CallAwaitable<>(
+        handlerContext,
         result
             .callAsyncResult()
             .map(
                 s ->
                     CompletableFuture.completedFuture(
-                        serdeFactory.create(callRequest.responseSerdeInfo()).deserialize(s))),
+                        serdeFactory.create(request.responseTypeTag()).deserialize(s))),
         Awaitable.fromAsyncResult(result.invocationIdAsyncResult(), serviceExecutor));
   }
 
   @Override
-  public <T> SendHandle send(SendRequest<T> sendRequest) {
+  public <Req, Res> InvocationHandle<Res> send(Request<Req, Res> request) {
     Slice input =
         Util.executeOrFail(
             handlerContext,
-            serdeFactory.create(sendRequest.requestSerdeInfo())::serialize,
-            sendRequest.request());
-    var invocationIdAsyncResult =
-        Util.awaitCompletableFuture(
-            handlerContext.send(
-                sendRequest.target(),
-                input,
-                sendRequest.idempotencyKey(),
-                sendRequest.headers().entrySet(),
-                sendRequest.delay()));
-    return new SendHandle(Awaitable.fromAsyncResult(invocationIdAsyncResult, serviceExecutor));
+            serdeFactory.create(request.requestTypeTag())::serialize,
+            request.request());
+
+    var invocationIdAwaitable =
+        Awaitable.fromAsyncResult(
+            Util.awaitCompletableFuture(
+                handlerContext.send(
+                    request.target(),
+                    input,
+                    request.idempotencyKey(),
+                    request.headers().entrySet(),
+                    (request instanceof SendRequest<Req, Res> sendRequest)
+                        ? sendRequest.delay()
+                        : null)),
+            serviceExecutor);
+
+    return new BaseInvocationHandle<>(
+        Util.executeOrFail(handlerContext, () -> serdeFactory.create(request.responseTypeTag()))) {
+      @Override
+      public String invocationId() {
+        return invocationIdAwaitable.await();
+      }
+    };
+  }
+
+  @Override
+  public <R> InvocationHandle<R> invocationHandle(String invocationId, TypeTag<R> responseTypeTag) {
+    return new BaseInvocationHandle<>(
+        Util.executeOrFail(handlerContext, () -> serdeFactory.create(responseTypeTag))) {
+      @Override
+      public String invocationId() {
+        return invocationId;
+      }
+    };
+  }
+
+  abstract class BaseInvocationHandle<R> implements InvocationHandle<R> {
+    private final Serde<R> responseSerde;
+
+    BaseInvocationHandle(Serde<R> responseSerde) {
+      this.responseSerde = responseSerde;
+    }
+
+    @Override
+    public void cancel() {
+      Util.awaitCompletableFuture(handlerContext.cancelInvocation(invocationId()));
+    }
+
+    @Override
+    public Awaitable<R> attach() {
+      return Awaitable.fromAsyncResult(
+          Util.awaitCompletableFuture(handlerContext.attachInvocation(invocationId()))
+              .map(s -> CompletableFuture.completedFuture(responseSerde.deserialize(s))),
+          serviceExecutor);
+    }
+
+    @Override
+    public Output<R> getOutput() {
+      return Awaitable.fromAsyncResult(
+              Util.awaitCompletableFuture(handlerContext.getInvocationOutput(invocationId()))
+                  .map(o -> CompletableFuture.completedFuture(o.map(responseSerde::deserialize))),
+              serviceExecutor)
+          .await();
+    }
   }
 
   @Override

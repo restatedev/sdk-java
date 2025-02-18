@@ -8,13 +8,13 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.common.CallRequest
 import dev.restate.common.Output
+import dev.restate.common.Request
 import dev.restate.common.SendRequest
 import dev.restate.common.Slice
 import dev.restate.sdk.endpoint.definition.HandlerContext
 import dev.restate.sdk.types.DurablePromiseKey
-import dev.restate.sdk.types.Request
+import dev.restate.sdk.types.HandlerRequest
 import dev.restate.sdk.types.StateKey
 import dev.restate.sdk.types.TerminalException
 import dev.restate.serde.Serde
@@ -36,7 +36,7 @@ internal constructor(
     return this.handlerContext.objectKey()
   }
 
-  override fun request(): Request {
+  override fun request(): HandlerRequest {
     return this.handlerContext.request()
   }
 
@@ -67,35 +67,55 @@ internal constructor(
   override suspend fun timer(duration: Duration, name: String?): Awaitable<Unit> =
       SingleAwaitableImpl(handlerContext.timer(duration.toJavaDuration(), name).await()).map {}
 
-  override suspend fun <T : Any?, R : Any?> call(callRequest: CallRequest<T, R>): CallAwaitable<R> =
-      resolveSerde<R>(callRequest.responseSerdeInfo()).let { responseSerde ->
+  override suspend fun <Req : Any?, Res : Any?> call(
+      request: Request<Req, Res>
+  ): CallAwaitable<Res> =
+      resolveSerde<Res>(request.responseTypeTag()).let { responseSerde ->
         val callHandle =
             handlerContext
                 .call(
-                    callRequest.target(),
-                    resolveAndSerialize<T>(callRequest.requestSerdeInfo(), callRequest.request()),
-                    callRequest.idempotencyKey(),
-                    callRequest.headers().entries)
+                    request.target(),
+                    resolveAndSerialize<Req>(request.requestTypeTag(), request.request()),
+                    request.idempotencyKey(),
+                    request.headers().entries)
                 .await()
 
         val callAsyncResult =
             callHandle.callAsyncResult.map {
-              CompletableFuture.completedFuture<R>(responseSerde.deserialize(it))
+              CompletableFuture.completedFuture<Res>(responseSerde.deserialize(it))
             }
 
         return@let CallAwaitableImpl(callAsyncResult, callHandle.invocationIdAsyncResult)
       }
 
-  override suspend fun <T : Any?> send(sendRequest: SendRequest<T>): SendHandle =
-      SendHandleImpl(
-          handlerContext
-              .send(
-                  sendRequest.target(),
-                  resolveAndSerialize<T>(sendRequest.requestSerdeInfo(), sendRequest.request()),
-                  sendRequest.idempotencyKey(),
-                  sendRequest.headers().entries,
-                  sendRequest.delay())
-              .await())
+  override suspend fun <Req : Any?, Res : Any?> send(
+      request: Request<Req, Res>
+  ): InvocationHandle<Res> =
+      resolveSerde<Res>(request.responseTypeTag()).let { responseSerde ->
+        val invocationIdAsyncResult =
+            handlerContext
+                .send(
+                    request.target(),
+                    resolveAndSerialize<Req>(request.requestTypeTag(), request.request()),
+                    request.idempotencyKey(),
+                    request.headers().entries,
+                    (request as? SendRequest)?.delay())
+                .await()
+
+        object : BaseInvocationHandle<Res>(handlerContext, responseSerde) {
+          override suspend fun invocationId(): String = invocationIdAsyncResult.poll().await()
+        }
+      }
+
+  override fun <Res> invocationHandle(
+      invocationId: String,
+      responseTypeTag: TypeTag<Res>
+  ): InvocationHandle<Res> =
+      resolveSerde<Res>(responseTypeTag).let { responseSerde ->
+        object : BaseInvocationHandle<Res>(handlerContext, responseSerde) {
+          override suspend fun invocationId(): String = invocationId
+        }
+      }
 
   override suspend fun <T : Any?> runAsync(
       typeTag: TypeTag<T>,

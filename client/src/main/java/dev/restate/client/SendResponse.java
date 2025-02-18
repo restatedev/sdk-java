@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.client;
 
-public record SendResponse(SendStatus status, String invocationId) {
+public record SendResponse<Res>(SendStatus status, Client.InvocationHandle<Res> invocationHandle) {
   public enum SendStatus {
     /** The request was sent for the first time. */
     ACCEPTED,

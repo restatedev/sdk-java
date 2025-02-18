@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testservices
 
-import dev.restate.common.CallRequest
+import dev.restate.common.Request
 import dev.restate.common.SendRequest
 import dev.restate.common.Target
 import dev.restate.sdk.endpoint.definition.ServiceDefinition
@@ -17,6 +17,7 @@ import dev.restate.sdk.testservices.contracts.*
 import dev.restate.sdk.testservices.contracts.Program
 import dev.restate.sdk.types.StateKey
 import dev.restate.sdk.types.TerminalException
+import dev.restate.serde.Serde
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -94,7 +95,7 @@ class ObjectInterpreterImpl(private val layer: Int) : ObjectInterpreter {
         is CallObject -> {
           val awaitable =
               ctx.call(
-                  CallRequest.of(
+                  Request.of(
                       interpretTarget(layer + 1, cmd.key.toString()),
                       ObjectInterpreterMetadata.Serde.INTERPRET_INPUT,
                       ObjectInterpreterMetadata.Serde.INTERPRET_OUTPUT,
@@ -138,10 +139,9 @@ class ObjectInterpreterImpl(private val layer: Int) : ObjectInterpreter {
           ctx.awakeableHandle(theirPromiseIdForUsToResolve).resolve("ok")
         }
         is IncrementViaDelayedCall -> {
-          ServiceInterpreterHelperClient.fromContext(ctx).send().incrementIndirectly(
-              interpreterId(ctx)) {
-                delay = cmd.duration.milliseconds
-              }
+          ServiceInterpreterHelperClient.fromContext(ctx)
+              .send()
+              .incrementIndirectly(interpreterId(ctx), delay = cmd.duration.milliseconds)
         }
         is RecoverTerminalCall -> {
           var caught = false
@@ -216,6 +216,7 @@ class ServiceInterpreterHelperImpl : ServiceInterpreterHelper {
         SendRequest.of(
             interpretTarget(id.layer, id.key),
             ObjectInterpreterMetadata.Serde.INTERPRET_INPUT,
+            Serde.SLICE,
             Program(listOf(IncrementStateCounter()))))
   }
 
@@ -250,6 +251,7 @@ class ServiceInterpreterHelperImpl : ServiceInterpreterHelper {
         SendRequest.of(
             interpretTarget(req.interpreter.layer, req.interpreter.key),
             ObjectInterpreterMetadata.Serde.INTERPRET_INPUT,
+            Serde.SLICE,
             Program(listOf(IncrementStateCounter()))))
   }
 }

@@ -27,7 +27,7 @@ public interface HandlerContext {
 
   String objectKey();
 
-  Request request();
+  HandlerRequest request();
 
   // ----- IO
   // Note: These are not supposed to be exposed in the user's facing Context API.
@@ -92,6 +92,12 @@ public interface HandlerContext {
   CompletableFuture<AsyncResult<Void>> resolvePromise(String key, Slice payload);
 
   CompletableFuture<AsyncResult<Void>> rejectPromise(String key, TerminalException reason);
+
+  CompletableFuture<Void> cancelInvocation(String invocationId);
+
+  CompletableFuture<AsyncResult<Slice>> attachInvocation(String invocationId);
+
+  CompletableFuture<AsyncResult<Output<Slice>>> getInvocationOutput(String invocationId);
 
   void fail(Throwable cause);
 
