@@ -1,6 +1,4 @@
-import org.gradle.kotlin.dsl.allDependencies
 import org.jetbrains.dokka.gradle.AbstractDokkaTask
-import org.jetbrains.kotlin.gradle.utils.extendsFrom
 
 plugins {
   `java-library`
@@ -27,21 +25,26 @@ api.extendsFrom(shade)
 dependencies {
   compileOnly(libs.jspecify)
 
-  implementation(project(":sdk-common"))
+  shadow(project(":sdk-common"))
 
   shade(libs.protobuf.java)
-  implementation(libs.log4j.api)
+  shadow(libs.log4j.api)
 
   // We need this for the manifest
-  implementation(libs.jackson.annotations)
-  implementation(libs.jackson.databind)
+  shadow(libs.jackson.annotations)
+  shadow(libs.jackson.databind)
 
   // We don't want a hard-dependency on it
   compileOnly(libs.log4j.core)
 
-  api(libs.opentelemetry.api)
+  shadow(libs.opentelemetry.api)
 
   testCompileOnly(libs.jspecify)
+  testImplementation(libs.log4j.api)
+  testImplementation(project(":sdk-common"))
+  testImplementation(libs.jackson.annotations)
+  testImplementation(libs.jackson.databind)
+  testImplementation(libs.opentelemetry.api)
   testImplementation(libs.protobuf.java)
   testImplementation(libs.mutiny)
   testImplementation(libs.junit.jupiter)
