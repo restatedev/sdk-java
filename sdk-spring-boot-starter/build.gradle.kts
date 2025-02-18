@@ -1,7 +1,6 @@
 plugins {
   `java-conventions`
   `java-library`
-  `test-jar-conventions`
   `library-publishing-conventions`
   alias(libs.plugins.spring.dependency.management)
 }

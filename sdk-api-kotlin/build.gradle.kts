@@ -1,6 +1,5 @@
 plugins {
   `kotlin-conventions`
-  `test-jar-conventions`
   `library-publishing-conventions`
 }
 
@@ -15,13 +14,4 @@ dependencies {
 
   implementation(libs.log4j.api)
   implementation(libs.opentelemetry.kotlin)
-
-  testImplementation(project(":sdk-core"))
-  testImplementation(libs.junit.jupiter)
-  testImplementation(libs.assertj)
-  testImplementation(libs.log4j.core)
-  testImplementation(libs.protobuf.java)
-  testImplementation(libs.mutiny)
-
-  testImplementation(project(":sdk-core", "testArchive"))
 }

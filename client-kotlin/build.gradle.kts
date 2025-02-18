@@ -1,6 +1,5 @@
 plugins {
   `kotlin-conventions`
-  `test-jar-conventions`
   `library-publishing-conventions`
 }
 

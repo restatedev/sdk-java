@@ -4,11 +4,11 @@ plugins {
   `java-library`
   `java-conventions`
   `kotlin-conventions`
-  `test-jar-conventions`
   `library-publishing-conventions`
   alias(libs.plugins.jsonschema2pojo)
   alias(libs.plugins.protobuf)
   alias(libs.plugins.shadow)
+  alias(libs.plugins.ksp)
 
   // https://github.com/gradle/gradle/issues/20084#issuecomment-1060822638
   id(libs.plugins.spotless.get().pluginId) apply false
@@ -18,8 +18,11 @@ description = "Restate SDK Core"
 
 val shade by configurations.creating
 val implementation by configurations.getting
+
 implementation.extendsFrom(shade)
+
 val api by configurations.getting
+
 api.extendsFrom(shade)
 
 dependencies {
@@ -40,8 +43,16 @@ dependencies {
   shadow(libs.opentelemetry.api)
 
   testCompileOnly(libs.jspecify)
+  testAnnotationProcessor(project(":sdk-api-gen"))
+  kspTest(project(":sdk-api-kotlin-gen"))
   testImplementation(libs.log4j.api)
   testImplementation(project(":sdk-common"))
+  testImplementation(project(":client"))
+  testImplementation(project(":client-kotlin"))
+  testImplementation(project(":sdk-api"))
+  testImplementation(project(":sdk-api-kotlin"))
+  testImplementation(project(":sdk-http-vertx"))
+  testImplementation(project(":sdk-lambda"))
   testImplementation(libs.jackson.annotations)
   testImplementation(libs.jackson.databind)
   testImplementation(libs.opentelemetry.api)
@@ -50,6 +61,10 @@ dependencies {
   testImplementation(libs.junit.jupiter)
   testImplementation(libs.assertj)
   testImplementation(libs.log4j.core)
+  testImplementation(libs.kotlinx.coroutines.core)
+  testImplementation(libs.kotlinx.serialization.core)
+  testImplementation(libs.vertx.junit5)
+  testImplementation(libs.vertx.kotlin.coroutines)
 }
 
 // Configure source sets for protobuf plugin and jsonschema2pojo
@@ -100,9 +115,7 @@ tasks {
     archiveClassifier = null
     relocate("com.google.protobuf", "dev.restate.shaded.com.google.protobuf")
     dependencies {
-      project.configurations["shadow"].allDependencies.forEach {
-        exclude(dependency(it))
-      }
+      project.configurations["shadow"].allDependencies.forEach { exclude(dependency(it)) }
       exclude("**/google/protobuf/*.proto")
     }
   }
