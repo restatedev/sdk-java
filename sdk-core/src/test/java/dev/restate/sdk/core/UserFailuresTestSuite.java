@@ -10,12 +10,13 @@ package dev.restate.sdk.core;
 
 import static dev.restate.sdk.core.AssertUtils.containsOnlyExactErrorMessage;
 import static dev.restate.sdk.core.AssertUtils.exactErrorMessage;
-import static dev.restate.sdk.core.ProtoUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.*;
+import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.common.TerminalException;
+import dev.restate.sdk.core.generated.protocol.Protocol;
+import dev.restate.sdk.core.statemachine.ProtoUtils;
+import dev.restate.sdk.types.TerminalException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
@@ -42,14 +43,14 @@ public abstract class UserFailuresTestSuite implements TestSuite {
     return Stream.of(
         // Cases returning ErrorMessage
         this.throwIllegalStateException()
-            .withInput(startMessage(1), inputMessage())
+            .withInput(startMessage(1), inputCmd())
             .assertingOutput(containsOnlyExactErrorMessage(new IllegalStateException("Whatever"))),
         this.sideEffectThrowIllegalStateException(nonTerminalExceptionsSeen)
-            .withInput(startMessage(1), inputMessage())
+            .withInput(startMessage(1), inputCmd())
             .assertingOutput(
                 msgs -> {
-                  assertThat(msgs)
-                      .satisfiesExactly(exactErrorMessage(new IllegalStateException("Whatever")));
+                  assertThat(msgs.get(1))
+                      .satisfies(exactErrorMessage(new IllegalStateException("Whatever")));
 
                   // Check the counter has not been incremented
                   assertThat(nonTerminalExceptionsSeen).hasValue(0);
@@ -57,32 +58,47 @@ public abstract class UserFailuresTestSuite implements TestSuite {
 
         // Cases completing the invocation with OutputStreamEntry.failure
         this.throwTerminalException(TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR)
-            .withInput(startMessage(1), inputMessage())
+            .withInput(startMessage(1), inputCmd())
             .expectingOutput(
-                outputMessage(TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR), END_MESSAGE)
+                outputCmd(TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR), END_MESSAGE)
             .named("With internal error"),
         this.throwTerminalException(501, WHATEVER)
-            .withInput(startMessage(1), inputMessage())
-            .expectingOutput(outputMessage(501, WHATEVER), END_MESSAGE)
+            .withInput(startMessage(1), inputCmd())
+            .expectingOutput(outputCmd(501, WHATEVER), END_MESSAGE)
             .named("With unknown error"),
         this.sideEffectThrowTerminalException(
                 TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR)
-            .withInput(startMessage(1), inputMessage(), ackMessage(1))
+            .withInput(startMessage(1), inputCmd())
             .expectingOutput(
-                Protocol.RunEntryMessage.newBuilder()
+                Protocol.RunCommandMessage.newBuilder().setResultCompletionId(1),
+                Protocol.ProposeRunCompletionMessage.newBuilder()
+                    .setResultCompletionId(1)
                     .setFailure(
-                        Util.toProtocolFailure(
-                            TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR)),
-                outputMessage(TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR),
-                END_MESSAGE)
+                        ProtoUtils.failure(TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR)),
+                suspensionMessage(1))
             .named("With internal error"),
         this.sideEffectThrowTerminalException(501, WHATEVER)
-            .withInput(startMessage(1), inputMessage(), ackMessage(1))
+            .withInput(startMessage(1), inputCmd())
             .expectingOutput(
-                Protocol.RunEntryMessage.newBuilder()
-                    .setFailure(Util.toProtocolFailure(501, WHATEVER)),
-                outputMessage(501, WHATEVER),
-                END_MESSAGE)
-            .named("With unknown error"));
+                Protocol.RunCommandMessage.newBuilder().setResultCompletionId(1),
+                Protocol.ProposeRunCompletionMessage.newBuilder()
+                    .setResultCompletionId(1)
+                    .setFailure(ProtoUtils.failure(501, WHATEVER)),
+                suspensionMessage(1))
+            .named("With unknown error"),
+        this.sideEffectThrowTerminalException(
+                TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR)
+            .withInput(
+                startMessage(3),
+                inputCmd(),
+                runCmd(1),
+                runCompletion(1, TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR))
+            .expectingOutput(
+                outputCmd(TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR), END_MESSAGE)
+            .named("With internal error during replay"),
+        this.sideEffectThrowTerminalException(501, WHATEVER)
+            .withInput(startMessage(3), inputCmd(), runCmd(1), runCompletion(1, 501, WHATEVER))
+            .expectingOutput(outputCmd(501, WHATEVER), END_MESSAGE)
+            .named("With unknown error during replay"));
   }
 }

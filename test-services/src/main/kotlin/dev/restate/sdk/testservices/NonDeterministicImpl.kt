@@ -8,18 +8,17 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testservices
 
-import dev.restate.sdk.common.StateKey
-import dev.restate.sdk.kotlin.KtStateKey
-import dev.restate.sdk.kotlin.ObjectContext
+import dev.restate.sdk.kotlin.*
 import dev.restate.sdk.testservices.contracts.CounterClient
 import dev.restate.sdk.testservices.contracts.NonDeterministic
+import dev.restate.sdk.types.StateKey
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.milliseconds
 
 class NonDeterministicImpl : NonDeterministic {
   private val invocationCounts: ConcurrentHashMap<String, Int> = ConcurrentHashMap()
-  private val STATE_A: StateKey<String> = KtStateKey.json("a")
-  private val STATE_B: StateKey<String> = KtStateKey.json("b")
+  private val STATE_A: StateKey<String> = stateKey("a")
+  private val STATE_B: StateKey<String> = stateKey("b")
 
   override suspend fun eitherSleepOrCall(context: ObjectContext) {
     if (doLeftAction(context)) {

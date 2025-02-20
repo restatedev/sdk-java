@@ -8,8 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.springboot;
 
-import dev.restate.sdk.auth.RequestIdentityVerifier;
-import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder;
+import dev.restate.sdk.endpoint.Endpoint;
+import dev.restate.sdk.endpoint.RequestIdentityVerifier;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.ConstructorBinding;
 import org.springframework.boot.context.properties.bind.DefaultValue;
@@ -28,14 +28,14 @@ public class RestateEndpointProperties {
   }
 
   /**
-   * @see RestateHttpEndpointBuilder#enablePreviewContext()
+   * @see Endpoint.Builder#enablePreviewContext()
    */
   public boolean isEnablePreviewContext() {
     return enablePreviewContext;
   }
 
   /**
-   * @see RestateHttpEndpointBuilder#withRequestIdentityVerifier(RequestIdentityVerifier)
+   * @see Endpoint.Builder#withRequestIdentityVerifier(RequestIdentityVerifier)
    */
   public String getIdentityKey() {
     return identityKey;

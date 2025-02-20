@@ -8,9 +8,16 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.common.*;
-import dev.restate.sdk.common.function.ThrowingRunnable;
-import dev.restate.sdk.common.function.ThrowingSupplier;
+import dev.restate.common.Request;
+import dev.restate.common.Slice;
+import dev.restate.common.function.ThrowingRunnable;
+import dev.restate.common.function.ThrowingSupplier;
+import dev.restate.sdk.types.AbortedExecutionException;
+import dev.restate.sdk.types.HandlerRequest;
+import dev.restate.sdk.types.RetryPolicy;
+import dev.restate.sdk.types.TerminalException;
+import dev.restate.serde.Serde;
+import dev.restate.serde.TypeTag;
 import java.time.Duration;
 
 /**
@@ -27,54 +34,50 @@ import java.time.Duration;
  */
 public interface Context {
 
-  Request request();
+  HandlerRequest request();
 
   /**
    * Invoke another Restate service method.
    *
-   * @param target the address of the callee
-   * @param inputSerde Input serde
-   * @param outputSerde Output serde
-   * @param parameter the invocation request parameter.
+   * @param request request
    * @return an {@link Awaitable} that wraps the Restate service method result.
    */
-  <T, R> Awaitable<R> call(Target target, Serde<T> inputSerde, Serde<R> outputSerde, T parameter);
+  <T, R> CallAwaitable<R> call(Request<T, R> request);
 
-  /** Like {@link #call(Target, Serde, Serde, Object)} with raw input/output. */
-  default Awaitable<byte[]> call(Target target, byte[] parameter) {
-    return call(target, Serde.RAW, Serde.RAW, parameter);
+  /** Like {@link #call(Request)} */
+  default <T, R> CallAwaitable<R> call(Request.Builder<T, R> requestBuilder) {
+    return call(requestBuilder.build());
   }
 
   /**
    * Invoke another Restate service without waiting for the response.
    *
-   * @param target the address of the callee
-   * @param inputSerde Input serde
-   * @param parameter the invocation request parameter.
+   * @param request request
+   * @return an {@link InvocationHandle} that can be used to retrieve the invocation id, cancel the
+   *     invocation, attach to its result.
    */
-  <T> void send(Target target, Serde<T> inputSerde, T parameter);
+  <T, R> InvocationHandle<R> send(Request<T, R> request);
 
-  /** Like {@link #send(Target, Serde, Object)} with bytes input. */
-  default void send(Target target, byte[] parameter) {
-    send(target, Serde.RAW, parameter);
+  /** Like {@link #send(Request)} */
+  default <T, R> InvocationHandle<R> send(Request.Builder<T, R> requestBuilder) {
+    return send(requestBuilder.asSend());
   }
 
-  /**
-   * Invoke another Restate service without waiting for the response after the provided {@code
-   * delay} has elapsed.
-   *
-   * <p>This method returns immediately, as the timer is executed and awaited on Restate.
-   *
-   * @param target the address of the callee
-   * @param inputSerde Input serde
-   * @param parameter the invocation request parameter.
-   * @param delay time to wait before executing the call.
-   */
-  <T> void send(Target target, Serde<T> inputSerde, T parameter, Duration delay);
+  <R> InvocationHandle<R> invocationHandle(String invocationId, TypeTag<R> responseTypeTag);
 
-  /** Like {@link #send(Target, Serde, Object, Duration)} with bytes input. */
-  default void send(Target target, byte[] parameter, Duration delay) {
-    send(target, Serde.RAW, parameter, delay);
+  /**
+   * Get an {@link InvocationHandle} for an already existing invocation. This will let you interact
+   * with a running invocation, for example to cancel it or retrieve its result.
+   *
+   * @param invocationId The invocation to interact with.
+   * @param responseClazz The response class.
+   */
+  default <R> InvocationHandle<R> invocationHandle(String invocationId, Class<R> responseClazz) {
+    return invocationHandle(invocationId, TypeTag.of(responseClazz));
+  }
+
+  default InvocationHandle<Slice> invocationHandle(String invocationId) {
+    return invocationHandle(invocationId, Serde.SLICE);
   }
 
   /**
@@ -92,7 +95,48 @@ public interface Context {
    *
    * @param duration for which to sleep.
    */
-  Awaitable<Void> timer(Duration duration);
+  default Awaitable<Void> timer(Duration duration) {
+    return timer(null, duration);
+  }
+
+  /**
+   * Causes the start of a timer for the given duration. You can await on the timer end by invoking
+   * {@link Awaitable#await()}.
+   *
+   * @param name name used for observability
+   * @param duration for which to sleep.
+   */
+  Awaitable<Void> timer(String name, Duration duration);
+
+  /**
+   * Like {@link #run(String, TypeTag, ThrowingSupplier)}, but using a custom retry policy.
+   *
+   * <p>When a retry policy is not specified, the {@code run} will be retried using the <a
+   * href="https://docs.restate.dev/operate/configuration/server">Restate invoker retry policy</a>,
+   * which by default retries indefinitely.
+   *
+   * @see RetryPolicy
+   */
+  default <T> T run(
+      String name, TypeTag<T> typeTag, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
+      throws TerminalException {
+    return runAsync(name, typeTag, retryPolicy, action).await();
+  }
+
+  /**
+   * Like {@link #run(String, Class, ThrowingSupplier)}, but using a custom retry policy.
+   *
+   * <p>When a retry policy is not specified, the {@code run} will be retried using the <a
+   * href="https://docs.restate.dev/operate/configuration/server">Restate invoker retry policy</a>,
+   * which by default retries indefinitely.
+   *
+   * @see RetryPolicy
+   */
+  default <T> T run(
+      String name, Class<T> clazz, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
+      throws TerminalException {
+    return run(name, TypeTag.of(clazz), retryPolicy, action);
+  }
 
   /**
    * Execute a non-deterministic closure, recording the result value in the journal. The result
@@ -105,7 +149,7 @@ public interface Context {
    *
    * <p>The closure should tolerate retries, that is Restate might re-execute the closure multiple
    * times until it records a result. You can control and limit the amount of retries using {@link
-   * #run(String, Serde, RetryPolicy, ThrowingSupplier)}.
+   * #run(String, TypeTag, RetryPolicy, ThrowingSupplier)}.
    *
    * <p><b>Error handling</b>: Errors occurring within this closure won't be propagated to the
    * caller, unless they are {@link TerminalException}. Consider the following code:
@@ -136,27 +180,75 @@ public interface Context {
    * TerminalException}.
    *
    * @param name name of the side effect.
-   * @param serde the type tag of the return value, used to serialize/deserialize it.
+   * @param typeTag the type tag of the return value, used to serialize/deserialize it.
    * @param action closure to execute.
    * @param <T> type of the return value.
    * @return value of the run operation.
    */
-  default <T> T run(String name, Serde<T> serde, ThrowingSupplier<T> action)
+  default <T> T run(String name, TypeTag<T> typeTag, ThrowingSupplier<T> action)
       throws TerminalException {
-    return run(name, serde, null, action);
+    return run(name, typeTag, null, action);
   }
 
   /**
-   * Like {@link #run(String, Serde, ThrowingSupplier)}, but using a custom retry policy.
+   * Execute a non-deterministic closure, recording the result value in the journal. The result
+   * value will be re-played in case of re-invocation (e.g. because of failure recovery or
+   * suspension point) without re-executing the closure. Use this feature if you want to perform
+   * <b>non-deterministic operations</b>.
    *
-   * <p>When a retry policy is not specified, the {@code run} will be retried using the <a
-   * href="https://docs.restate.dev/operate/configuration/server">Restate invoker retry policy</a>,
-   * which by default retries indefinitely.
+   * <p>You can name this closure using the {@code name} parameter. This name will be available in
+   * the observability tools.
    *
-   * @see RetryPolicy
+   * <p>The closure should tolerate retries, that is Restate might re-execute the closure multiple
+   * times until it records a result. You can control and limit the amount of retries using {@link
+   * #run(String, Class, RetryPolicy, ThrowingSupplier)}.
+   *
+   * <p><b>Error handling</b>: Errors occurring within this closure won't be propagated to the
+   * caller, unless they are {@link TerminalException}. Consider the following code:
+   *
+   * <pre>{@code
+   * // Bad usage of try-catch outside the run
+   * try {
+   *     ctx.run(() -> {
+   *         throw new IllegalStateException();
+   *     }).await();
+   * } catch (IllegalStateException e) {
+   *     // This will never be executed,
+   *     // but the error will be retried by Restate,
+   *     // following the invocation retry policy.
+   * }
+   *
+   * // Good usage of try-catch outside the run
+   * try {
+   *     ctx.run(() -> {
+   *         throw new TerminalException("my error");
+   *     }).await();
+   * } catch (TerminalException e) {
+   *     // This is invoked
+   * }
+   * }</pre>
+   *
+   * To propagate run failures to the call-site, make sure to wrap them in {@link
+   * TerminalException}.
+   *
+   * @param name name of the side effect.
+   * @param clazz the class of the return value, used to serialize/deserialize it.
+   * @param action closure to execute.
+   * @param <T> type of the return value.
+   * @return value of the run operation.
    */
-  <T> T run(String name, Serde<T> serde, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
-      throws TerminalException;
+  default <T> T run(String name, Class<T> clazz, ThrowingSupplier<T> action)
+      throws TerminalException {
+    return run(name, TypeTag.of(clazz), action);
+  }
+
+  default <T> T run(TypeTag<T> typeTag, ThrowingSupplier<T> action) throws TerminalException {
+    return run(null, typeTag, null, action);
+  }
+
+  default <T> T run(Class<T> clazz, ThrowingSupplier<T> action) throws TerminalException {
+    return run(TypeTag.of(clazz), action);
+  }
 
   /**
    * Like {@link #run(String, ThrowingRunnable)}, but using a custom retry policy.
@@ -179,52 +271,188 @@ public interface Context {
         });
   }
 
-  /**
-   * Like {@link #run(Serde, ThrowingSupplier)}, but using a custom retry policy.
-   *
-   * <p>When a retry policy is not specified, the {@code run} will be retried using the <a
-   * href="https://docs.restate.dev/operate/configuration/server">Restate invoker retry policy</a>,
-   * which by default retries indefinitely.
-   *
-   * @see RetryPolicy
-   */
-  default <T> T run(Serde<T> serde, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
-      throws TerminalException {
-    return run(null, serde, retryPolicy, action);
-  }
-
-  /**
-   * Like {@link #run(ThrowingRunnable)}, but using a custom retry policy.
-   *
-   * <p>When a retry policy is not specified, the {@code run} will be retried using the <a
-   * href="https://docs.restate.dev/operate/configuration/server">Restate invoker retry policy</a>,
-   * which by default retries indefinitely.
-   *
-   * @see RetryPolicy
-   */
-  default void run(RetryPolicy retryPolicy, ThrowingRunnable runnable) throws TerminalException {
-    run(null, retryPolicy, runnable);
-  }
-
-  /** Like {@link #run(String, Serde, ThrowingSupplier)}, but without returning a value. */
+  /** Like {@link #run(String, Class, ThrowingSupplier)} without output. */
   default void run(String name, ThrowingRunnable runnable) throws TerminalException {
-    run(
+    run(name, null, runnable);
+  }
+
+  /** Like {@link #run(Class, ThrowingSupplier)} without output. */
+  default void run(ThrowingRunnable runnable) throws TerminalException {
+    run(null, runnable);
+  }
+
+  /**
+   * Like {@link #runAsync(String, TypeTag, ThrowingSupplier)}, but using a custom retry policy.
+   *
+   * <p>When a retry policy is not specified, the {@code run} will be retried using the <a
+   * href="https://docs.restate.dev/operate/configuration/server">Restate invoker retry policy</a>,
+   * which by default retries indefinitely.
+   *
+   * @see RetryPolicy
+   */
+  <T> Awaitable<T> runAsync(
+      String name, TypeTag<T> typeTag, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
+      throws TerminalException;
+
+  /**
+   * Like {@link #runAsync(String, Class, ThrowingSupplier)}, but using a custom retry policy.
+   *
+   * <p>When a retry policy is not specified, the {@code run} will be retried using the <a
+   * href="https://docs.restate.dev/operate/configuration/server">Restate invoker retry policy</a>,
+   * which by default retries indefinitely.
+   *
+   * @see RetryPolicy
+   */
+  default <T> Awaitable<T> runAsync(
+      String name, Class<T> clazz, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
+      throws TerminalException {
+    return runAsync(name, TypeTag.of(clazz), retryPolicy, action);
+  }
+
+  /**
+   * Execute a non-deterministic closure, recording the result value in the journal. The result
+   * value will be re-played in case of re-invocation (e.g. because of failure recovery or
+   * suspension point) without re-executing the closure. Use this feature if you want to perform
+   * <b>non-deterministic operations</b>.
+   *
+   * <p>You can name this closure using the {@code name} parameter. This name will be available in
+   * the observability tools.
+   *
+   * <p>The closure should tolerate retries, that is Restate might re-execute the closure multiple
+   * times until it records a result. You can control and limit the amount of retries using {@link
+   * #runAsync(String, TypeTag, RetryPolicy, ThrowingSupplier)}.
+   *
+   * <p><b>Error handling</b>: Errors occurring within this closure won't be propagated to the
+   * caller, unless they are {@link TerminalException}. Consider the following code:
+   *
+   * <pre>{@code
+   * // Bad usage of try-catch outside the run
+   * try {
+   *     ctx.runAsync(() -> {
+   *         throw new IllegalStateException();
+   *     }).await();
+   * } catch (IllegalStateException e) {
+   *     // This will never be executed,
+   *     // but the error will be retried by Restate,
+   *     // following the invocation retry policy.
+   * }
+   *
+   * // Good usage of try-catch outside the run
+   * try {
+   *     ctx.runAsync(() -> {
+   *         throw new TerminalException("my error");
+   *     }).await();
+   * } catch (TerminalException e) {
+   *     // This is invoked
+   * }
+   * }</pre>
+   *
+   * To propagate run failures to the call-site, make sure to wrap them in {@link
+   * TerminalException}.
+   *
+   * @param name name of the side effect.
+   * @param typeTag the type tag of the return value, used to serialize/deserialize it.
+   * @param action closure to execute.
+   * @param <T> type of the return value.
+   * @return value of the run operation.
+   */
+  default <T> Awaitable<T> runAsync(String name, TypeTag<T> typeTag, ThrowingSupplier<T> action)
+      throws TerminalException {
+    return runAsync(name, typeTag, null, action);
+  }
+
+  /**
+   * Execute a non-deterministic closure, recording the result value in the journal. The result
+   * value will be re-played in case of re-invocation (e.g. because of failure recovery or
+   * suspension point) without re-executing the closure. Use this feature if you want to perform
+   * <b>non-deterministic operations</b>.
+   *
+   * <p>You can name this closure using the {@code name} parameter. This name will be available in
+   * the observability tools.
+   *
+   * <p>The closure should tolerate retries, that is Restate might re-execute the closure multiple
+   * times until it records a result. You can control and limit the amount of retries using {@link
+   * #runAsync(String, Class, RetryPolicy, ThrowingSupplier)}.
+   *
+   * <p><b>Error handling</b>: Errors occurring within this closure won't be propagated to the
+   * caller, unless they are {@link TerminalException}. Consider the following code:
+   *
+   * <pre>{@code
+   * // Bad usage of try-catch outside the run
+   * try {
+   *     ctx.runAsync(() -> {
+   *         throw new IllegalStateException();
+   *     }).await();
+   * } catch (IllegalStateException e) {
+   *     // This will never be executed,
+   *     // but the error will be retried by Restate,
+   *     // following the invocation retry policy.
+   * }
+   *
+   * // Good usage of try-catch outside the run
+   * try {
+   *     ctx.runAsync(() -> {
+   *         throw new TerminalException("my error");
+   *     }).await();
+   * } catch (TerminalException e) {
+   *     // This is invoked
+   * }
+   * }</pre>
+   *
+   * To propagate run failures to the call-site, make sure to wrap them in {@link
+   * TerminalException}.
+   *
+   * @param name name of the side effect.
+   * @param clazz the class of the return value, used to serialize/deserialize it.
+   * @param action closure to execute.
+   * @param <T> type of the return value.
+   * @return value of the run operation.
+   */
+  default <T> Awaitable<T> runAsync(String name, Class<T> clazz, ThrowingSupplier<T> action)
+      throws TerminalException {
+    return runAsync(name, TypeTag.of(clazz), action);
+  }
+
+  default <T> Awaitable<T> runAsync(TypeTag<T> typeTag, ThrowingSupplier<T> action)
+      throws TerminalException {
+    return runAsync(null, typeTag, null, action);
+  }
+
+  default <T> Awaitable<T> runAsync(Class<T> clazz, ThrowingSupplier<T> action)
+      throws TerminalException {
+    return runAsync(TypeTag.of(clazz), action);
+  }
+
+  /**
+   * Like {@link #runAsync(String, ThrowingRunnable)}, but using a custom retry policy.
+   *
+   * <p>When a retry policy is not specified, the {@code run} will be retried using the <a
+   * href="https://docs.restate.dev/operate/configuration/server">Restate invoker retry policy</a>,
+   * which by default retries indefinitely.
+   *
+   * @see RetryPolicy
+   */
+  default Awaitable<Void> runAsync(String name, RetryPolicy retryPolicy, ThrowingRunnable runnable)
+      throws TerminalException {
+    return runAsync(
         name,
         Serde.VOID,
+        retryPolicy,
         () -> {
           runnable.run();
           return null;
         });
   }
 
-  /** Like {@link #run(String, Serde, ThrowingSupplier)}, but without a name. */
-  default <T> T run(Serde<T> serde, ThrowingSupplier<T> action) throws TerminalException {
-    return run(null, serde, action);
+  /** Like {@link #runAsync(String, Class, ThrowingSupplier)} without output. */
+  default Awaitable<Void> runAsync(String name, ThrowingRunnable runnable)
+      throws TerminalException {
+    return runAsync(name, null, runnable);
   }
 
-  /** Like {@link #run(String, ThrowingRunnable)}, but without a name. */
-  default void run(ThrowingRunnable runnable) throws TerminalException {
-    run((String) null, runnable);
+  /** Like {@link #runAsync(Class, ThrowingSupplier)} without output. */
+  default Awaitable<Void> runAsync(ThrowingRunnable runnable) throws TerminalException {
+    return runAsync(null, runnable);
   }
 
   /**
@@ -235,15 +463,32 @@ public interface Context {
    * service consume from Kafka the responses of given external system interaction by using {@link
    * #awakeableHandle(String)}.
    *
-   * @param serde the response type tag to use for deserializing the {@link Awakeable} result.
+   * @param clazz the response type to use for deserializing the {@link Awakeable} result. When
+   *     using generic types, use {@link #awakeable(TypeTag)} instead.
    * @return the {@link Awakeable} to await on.
    * @see Awakeable
    */
-  <T> Awakeable<T> awakeable(Serde<T> serde);
+  default <T> Awakeable<T> awakeable(Class<T> clazz) {
+    return awakeable(TypeTag.of(clazz));
+  }
+
+  /**
+   * Create an {@link Awakeable}, addressable through {@link Awakeable#id()}.
+   *
+   * <p>You can use this feature to implement external asynchronous systems interactions, for
+   * example you can send a Kafka record including the {@link Awakeable#id()}, and then let another
+   * service consume from Kafka the responses of given external system interaction by using {@link
+   * #awakeableHandle(String)}.
+   *
+   * @param typeTag the response type tag to use for deserializing the {@link Awakeable} result.
+   * @return the {@link Awakeable} to await on.
+   * @see Awakeable
+   */
+  <T> Awakeable<T> awakeable(TypeTag<T> typeTag);
 
   /**
    * Create a new {@link AwakeableHandle} for the provided identifier. You can use it to {@link
-   * AwakeableHandle#resolve(Serde, Object)} or {@link AwakeableHandle#reject(String)} the linked
+   * AwakeableHandle#resolve(TypeTag, Object)} or {@link AwakeableHandle#reject(String)} the linked
    * {@link Awakeable}.
    *
    * @see Awakeable

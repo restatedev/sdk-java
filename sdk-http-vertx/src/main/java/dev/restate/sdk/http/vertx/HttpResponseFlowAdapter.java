@@ -8,17 +8,16 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.http.vertx;
 
-import dev.restate.sdk.core.InvocationFlow;
-import dev.restate.sdk.core.Util;
+import dev.restate.common.Slice;
+import dev.restate.sdk.core.ExceptionUtils;
 import io.netty.buffer.Unpooled;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerResponse;
-import java.nio.ByteBuffer;
 import java.util.concurrent.Flow;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-class HttpResponseFlowAdapter implements InvocationFlow.InvocationOutputSubscriber {
+class HttpResponseFlowAdapter implements Flow.Subscriber<Slice> {
 
   private static final Logger LOG = LogManager.getLogger(HttpResponseFlowAdapter.class);
 
@@ -39,14 +38,15 @@ class HttpResponseFlowAdapter implements InvocationFlow.InvocationOutputSubscrib
   }
 
   @Override
-  public void onNext(ByteBuffer byteBuffer) {
+  public void onNext(Slice slice) {
     if (this.httpServerResponse.ended()) {
       cancelSubscription();
       return;
     }
 
     // If HTTP HEADERS frame have not been sent, Vert.x will send them
-    this.httpServerResponse.write(Buffer.buffer(Unpooled.wrappedBuffer(byteBuffer)));
+    this.httpServerResponse.write(
+        Buffer.buffer(Unpooled.wrappedBuffer(slice.asReadOnlyByteBuffer())));
   }
 
   @Override
@@ -69,7 +69,7 @@ class HttpResponseFlowAdapter implements InvocationFlow.InvocationOutputSubscrib
   private void propagatePublisherFailure(Throwable e) {
     if (!httpServerResponse.headWritten()) {
       // Try to write the failure in the head
-      Util.findProtocolException(e)
+      ExceptionUtils.findProtocolException(e)
           .ifPresentOrElse(
               pe -> httpServerResponse.setStatusCode(pe.getCode()),
               () -> httpServerResponse.setStatusCode(500));

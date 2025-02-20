@@ -8,16 +8,16 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import static dev.restate.sdk.core.ProtoUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
+import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.LONG;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 import com.google.protobuf.MessageLiteOrBuilder;
-import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.common.TerminalException;
+import dev.restate.sdk.core.generated.protocol.Protocol;
 import java.time.Instant;
+import java.util.function.Function;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -33,13 +33,13 @@ public abstract class SleepTestSuite implements TestDefinitions.TestSuite {
   public Stream<TestDefinitions.TestDefinition> definitions() {
     return Stream.of(
         this.sleepGreeter()
-            .withInput(startMessage(1), inputMessage("Till"))
+            .withInput(startMessage(1), inputCmd("Till"))
             .assertingOutput(
                 messageLites -> {
                   assertThat(messageLites)
                       .element(0)
-                      .asInstanceOf(type(Protocol.SleepEntryMessage.class))
-                      .extracting(Protocol.SleepEntryMessage::getWakeUpTime, LONG)
+                      .asInstanceOf(type(Protocol.SleepCommandMessage.class))
+                      .extracting(Protocol.SleepCommandMessage::getWakeUpTime, LONG)
                       .isGreaterThanOrEqualTo(startTime + 1000)
                       .isLessThanOrEqualTo(Instant.now().toEpochMilli() + 1000);
 
@@ -51,18 +51,20 @@ public abstract class SleepTestSuite implements TestDefinitions.TestSuite {
         this.sleepGreeter()
             .withInput(
                 startMessage(2),
-                inputMessage("Till"),
-                Protocol.SleepEntryMessage.newBuilder()
+                inputCmd("Till"),
+                Protocol.SleepCommandMessage.newBuilder()
                     .setWakeUpTime(Instant.now().toEpochMilli())
-                    .setEmpty(Protocol.Empty.getDefaultInstance())
-                    .build())
-            .expectingOutput(outputMessage("Hello"), END_MESSAGE)
+                    .setResultCompletionId(1),
+                Protocol.SleepCompletionNotificationMessage.newBuilder()
+                    .setCompletionId(1)
+                    .setVoid(Protocol.Void.getDefaultInstance()))
+            .expectingOutput(outputCmd("Hello"), END_MESSAGE)
             .named("Sleep 1000 ms sleep completed"),
         this.sleepGreeter()
             .withInput(
                 startMessage(2),
-                inputMessage("Till"),
-                Protocol.SleepEntryMessage.newBuilder()
+                inputCmd("Till"),
+                Protocol.SleepCommandMessage.newBuilder()
                     .setWakeUpTime(Instant.now().toEpochMilli())
                     .build())
             .expectingOutput(suspensionMessage(1))
@@ -70,42 +72,39 @@ public abstract class SleepTestSuite implements TestDefinitions.TestSuite {
         this.manySleeps()
             .withInput(
                 Stream.concat(
-                        Stream.of(startMessage(11), inputMessage("Till")),
-                        IntStream.rangeClosed(1, 10)
-                            .mapToObj(
-                                i ->
-                                    (i % 3 == 0)
-                                        ? Protocol.SleepEntryMessage.newBuilder()
+                    Stream.of(startMessage(14), inputCmd("Till")),
+                    IntStream.rangeClosed(1, 10)
+                        .mapToObj(
+                            i ->
+                                (i % 3 == 0)
+                                    ? Stream.<MessageLiteOrBuilder>of(
+                                        Protocol.SleepCommandMessage.newBuilder()
                                             .setWakeUpTime(Instant.now().toEpochMilli())
-                                            .setEmpty(Protocol.Empty.getDefaultInstance())
-                                            .build()
-                                        : Protocol.SleepEntryMessage.newBuilder()
+                                            .setResultCompletionId(i),
+                                        Protocol.SleepCompletionNotificationMessage.newBuilder()
+                                            .setCompletionId(i)
+                                            .setVoid(Protocol.Void.getDefaultInstance()))
+                                    : Stream.<MessageLiteOrBuilder>of(
+                                        Protocol.SleepCommandMessage.newBuilder()
                                             .setWakeUpTime(Instant.now().toEpochMilli())
-                                            .build()))
-                    .toArray(MessageLiteOrBuilder[]::new))
+                                            .setResultCompletionId(i)))
+                        .flatMap(Function.identity())))
             .expectingOutput(suspensionMessage(1, 2, 4, 5, 7, 8, 10))
             .named("Sleep 1000 ms sleep completed"),
         this.sleepGreeter()
             .withInput(
-                startMessage(2),
-                inputMessage("Till"),
-                Protocol.SleepEntryMessage.newBuilder()
-                    .setWakeUpTime(Instant.now().toEpochMilli())
-                    .setFailure(Util.toProtocolFailure(409, "canceled"))
-                    .build())
-            .expectingOutput(outputMessage(409, "canceled"), END_MESSAGE)
-            .named("Failed sleep"),
-        this.sleepGreeter()
-            .withInput(
                 startMessage(1),
-                inputMessage("Till"),
-                completionMessage(1, new TerminalException(409, "canceled")))
+                inputCmd("Till"),
+                Protocol.SleepCompletionNotificationMessage.newBuilder()
+                    .setCompletionId(1)
+                    .setVoid(Protocol.Void.getDefaultInstance()))
+            .onlyBidiStream()
             .assertingOutput(
                 messageLites -> {
                   assertThat(messageLites)
                       .element(0)
-                      .isInstanceOf(Protocol.SleepEntryMessage.class);
-                  assertThat(messageLites).element(1).isEqualTo(outputMessage(409, "canceled"));
+                      .isInstanceOf(Protocol.SleepCommandMessage.class);
+                  assertThat(messageLites).element(1).isEqualTo(outputCmd("Hello"));
                   assertThat(messageLites).element(2).isEqualTo(END_MESSAGE);
                 })
             .named("Failing sleep"));

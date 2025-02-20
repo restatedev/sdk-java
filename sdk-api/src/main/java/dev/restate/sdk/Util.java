@@ -8,93 +8,54 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.common.AbortedExecutionException;
-import dev.restate.sdk.common.Output;
-import dev.restate.sdk.common.Serde;
-import dev.restate.sdk.common.function.ThrowingFunction;
-import dev.restate.sdk.common.syscalls.Deferred;
-import dev.restate.sdk.common.syscalls.Result;
-import dev.restate.sdk.common.syscalls.SyscallCallback;
-import dev.restate.sdk.common.syscalls.Syscalls;
-import java.nio.ByteBuffer;
-import java.util.Optional;
+import dev.restate.common.function.ThrowingFunction;
+import dev.restate.common.function.ThrowingSupplier;
+import dev.restate.sdk.endpoint.definition.HandlerContext;
+import dev.restate.sdk.types.AbortedExecutionException;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
-import java.util.function.Consumer;
+import org.jspecify.annotations.NonNull;
 
 class Util {
 
   private Util() {}
 
-  static <T> T blockOnResolve(Syscalls syscalls, Deferred<T> deferred) {
-    if (!deferred.isCompleted()) {
-      Util.<Void>blockOnSyscall(cb -> syscalls.resolveDeferred(deferred, cb));
-    }
-
-    return Util.unwrapResult(deferred.toResult());
-  }
-
-  static <T> T awaitCompletableFuture(CompletableFuture<T> future) {
-    try {
-      return future.get();
-    } catch (InterruptedException | CancellationException e) {
-      AbortedExecutionException.sneakyThrow();
-      return null; // Previous statement throws an exception
-    } catch (ExecutionException e) {
-      throw (RuntimeException) e.getCause();
-    }
-  }
-
-  static <T> T blockOnSyscall(Consumer<SyscallCallback<T>> syscallExecutor) {
-    CompletableFuture<T> fut = new CompletableFuture<>();
-    syscallExecutor.accept(SyscallCallback.completingFuture(fut));
-    return Util.awaitCompletableFuture(fut);
-  }
-
-  static <T> T unwrapResult(Result<T> res) {
-    if (res.isSuccess()) {
-      return res.getValue();
-    }
-    throw res.getFailure();
-  }
-
-  static <T> Optional<T> unwrapOptionalReadyResult(Result<T> res) {
-    if (!res.isSuccess()) {
-      throw res.getFailure();
-    }
-    if (res.isEmpty()) {
-      return Optional.empty();
-    }
-    return Optional.of(res.getValue());
-  }
-
-  static <T> Output<T> unwrapOutputReadyResult(Result<T> res) {
-    if (!res.isSuccess()) {
-      throw res.getFailure();
-    }
-    if (res.isEmpty()) {
-      return Output.notReady();
-    }
-    return Output.ready(res.getValue());
-  }
-
-  static <T, R> R executeMappingException(Syscalls syscalls, ThrowingFunction<T, R> fn, T t) {
+  static <T, R> R executeOrFail(HandlerContext handlerContext, ThrowingFunction<T, R> fn, T t) {
     try {
       return fn.apply(t);
     } catch (Throwable e) {
-      syscalls.fail(e);
+      handlerContext.fail(e);
       AbortedExecutionException.sneakyThrow();
       return null;
     }
   }
 
-  static <T> ByteBuffer serializeWrappingException(Syscalls syscalls, Serde<T> serde, T value) {
-    return executeMappingException(syscalls, serde::serializeToByteBuffer, value);
+  static <R> R executeOrFail(HandlerContext handlerContext, ThrowingSupplier<R> fn) {
+    try {
+      return fn.get();
+    } catch (Throwable e) {
+      handlerContext.fail(e);
+      AbortedExecutionException.sneakyThrow();
+      return null;
+    }
   }
 
-  static <T> T deserializeWrappingException(
-      Syscalls syscalls, Serde<T> serde, ByteBuffer byteString) {
-    return executeMappingException(syscalls, serde::deserialize, byteString);
+  static <T> @NonNull T awaitCompletableFuture(CompletableFuture<T> future) {
+    try {
+      return future.get();
+    } catch (InterruptedException | CancellationException e) {
+      AbortedExecutionException.sneakyThrow();
+      return null; // Previous statement throws an exception
+    } catch (ExecutionException | CompletionException e) {
+      sneakyThrow(e.getCause());
+      return null; // Previous statement throws an exception
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <E extends Throwable> void sneakyThrow(Throwable e) throws E {
+    throw (E) e;
   }
 }

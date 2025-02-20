@@ -1,22 +1,27 @@
 {{#if originalClassPkg}}package {{originalClassPkg}}{{/if}}
 
-class {{generatedClassSimpleName}}: dev.restate.sdk.common.syscalls.ServiceDefinitionFactory<{{originalClassFqcn}}, dev.restate.sdk.kotlin.HandlerRunner.Options> {
+class {{generatedClassSimpleName}}: dev.restate.sdk.endpoint.definition.ServiceDefinitionFactory<{{originalClassFqcn}}> {
 
-    override fun create(bindableService: {{originalClassFqcn}}): dev.restate.sdk.common.syscalls.ServiceDefinition<dev.restate.sdk.kotlin.HandlerRunner.Options> {
-        return dev.restate.sdk.common.syscalls.ServiceDefinition.of(
-            {{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME,
-            {{#if isObject}}dev.restate.sdk.common.ServiceType.VIRTUAL_OBJECT{{else if isWorkflow}}dev.restate.sdk.common.ServiceType.WORKFLOW{{else}}dev.restate.sdk.common.ServiceType.SERVICE{{/if}},
+    override fun create(bindableService: {{originalClassFqcn}}, overrideHandlerOptions: dev.restate.sdk.endpoint.definition.HandlerRunner.Options?): dev.restate.sdk.endpoint.definition.ServiceDefinition {
+        val handlerRunnerOptions = if (overrideHandlerOptions != null) {
+            check(overrideHandlerOptions is dev.restate.sdk.kotlin.HandlerRunner.Options)
+            overrideHandlerOptions as dev.restate.sdk.kotlin.HandlerRunner.Options
+        } else {
+            dev.restate.sdk.kotlin.HandlerRunner.Options.DEFAULT
+        }
+
+        return dev.restate.sdk.endpoint.definition.ServiceDefinition.of(
+            {{metadataClass}}.SERVICE_NAME,
+            {{#if isObject}}dev.restate.sdk.endpoint.definition.ServiceType.VIRTUAL_OBJECT{{else if isWorkflow}}dev.restate.sdk.endpoint.definition.ServiceType.WORKFLOW{{else}}dev.restate.sdk.endpoint.definition.ServiceType.SERVICE{{/if}},
             listOf(
             {{#handlers}}
-                dev.restate.sdk.common.syscalls.HandlerDefinition.of(
-                dev.restate.sdk.common.syscalls.HandlerSpecification.of(
+                dev.restate.sdk.endpoint.definition.HandlerDefinition.of(
                 "{{name}}",
-                {{#if isExclusive}}dev.restate.sdk.common.HandlerType.EXCLUSIVE{{else if isWorkflow}}dev.restate.sdk.common.HandlerType.WORKFLOW{{else}}dev.restate.sdk.common.HandlerType.SHARED{{/if}},
+                {{#if isExclusive}}dev.restate.sdk.endpoint.definition.HandlerType.EXCLUSIVE{{else if isWorkflow}}dev.restate.sdk.endpoint.definition.HandlerType.WORKFLOW{{else}}dev.restate.sdk.endpoint.definition.HandlerType.SHARED{{/if}},
                 {{inputSerdeRef}},
-                {{outputSerdeRef}}
-                ){{#if inputAcceptContentType}}.withAcceptContentType("{{inputAcceptContentType}}"){{/if}},
-                dev.restate.sdk.kotlin.HandlerRunner.of(bindableService::{{name}})
-                ){{#unless @last}},{{/unless}}
+                {{outputSerdeRef}},
+                dev.restate.sdk.kotlin.HandlerRunner.of({{serdeFactoryRef}}, handlerRunnerOptions, bindableService::{{name}})
+                ){{#if inputAcceptContentType}}.withAcceptContentType("{{inputAcceptContentType}}"){{/if}}{{#unless @last}},{{/unless}}
             {{/handlers}}
             )
         )

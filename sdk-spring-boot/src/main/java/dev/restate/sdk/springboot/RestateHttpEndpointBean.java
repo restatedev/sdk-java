@@ -9,7 +9,8 @@
 package dev.restate.sdk.springboot;
 
 import dev.restate.sdk.auth.signing.RestateRequestIdentityVerifier;
-import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder;
+import dev.restate.sdk.endpoint.Endpoint;
+import dev.restate.sdk.http.vertx.RestateHttpServer;
 import io.vertx.core.http.HttpServer;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -26,17 +27,14 @@ import org.springframework.stereotype.Component;
  * @see Component
  */
 @Component
-@EnableConfigurationProperties({
-  RestateEndpointHttpServerProperties.class,
-  RestateEndpointProperties.class
-})
+@EnableConfigurationProperties({RestateHttpServerProperties.class, RestateEndpointProperties.class})
 public class RestateHttpEndpointBean implements InitializingBean, SmartLifecycle {
 
   private final Logger logger = LoggerFactory.getLogger(getClass());
 
   private final ApplicationContext applicationContext;
   private final RestateEndpointProperties restateEndpointProperties;
-  private final RestateEndpointHttpServerProperties restateEndpointHttpServerProperties;
+  private final RestateHttpServerProperties restateHttpServerProperties;
 
   private volatile boolean running;
 
@@ -45,10 +43,10 @@ public class RestateHttpEndpointBean implements InitializingBean, SmartLifecycle
   public RestateHttpEndpointBean(
       ApplicationContext applicationContext,
       RestateEndpointProperties restateEndpointProperties,
-      RestateEndpointHttpServerProperties restateEndpointHttpServerProperties) {
+      RestateHttpServerProperties restateHttpServerProperties) {
     this.applicationContext = applicationContext;
     this.restateEndpointProperties = restateEndpointProperties;
-    this.restateEndpointHttpServerProperties = restateEndpointHttpServerProperties;
+    this.restateHttpServerProperties = restateHttpServerProperties;
   }
 
   @Override
@@ -62,7 +60,7 @@ public class RestateHttpEndpointBean implements InitializingBean, SmartLifecycle
       return;
     }
 
-    var builder = RestateHttpEndpointBuilder.builder();
+    var builder = Endpoint.builder();
     for (Object component : restateComponents.values()) {
       builder = builder.bind(component);
     }
@@ -76,7 +74,7 @@ public class RestateHttpEndpointBean implements InitializingBean, SmartLifecycle
           RestateRequestIdentityVerifier.fromKey(restateEndpointProperties.getIdentityKey()));
     }
 
-    this.server = builder.build();
+    this.server = RestateHttpServer.fromEndpoint(builder.build());
   }
 
   @Override
@@ -84,7 +82,7 @@ public class RestateHttpEndpointBean implements InitializingBean, SmartLifecycle
     if (this.server != null) {
       try {
         this.server
-            .listen(this.restateEndpointHttpServerProperties.getPort())
+            .listen(this.restateHttpServerProperties.getPort())
             .toCompletionStage()
             .toCompletableFuture()
             .get();
@@ -92,7 +90,7 @@ public class RestateHttpEndpointBean implements InitializingBean, SmartLifecycle
       } catch (Exception e) {
         logger.error(
             "Error when starting Restate Spring HTTP server on port {}",
-            this.restateEndpointHttpServerProperties.getPort(),
+            this.restateHttpServerProperties.getPort(),
             e);
       }
       this.running = true;

@@ -8,20 +8,16 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testservices
 
-import dev.restate.sdk.common.DurablePromiseKey
-import dev.restate.sdk.common.StateKey
-import dev.restate.sdk.common.TerminalException
-import dev.restate.sdk.kotlin.KtSerdes
-import dev.restate.sdk.kotlin.KtStateKey
-import dev.restate.sdk.kotlin.SharedWorkflowContext
-import dev.restate.sdk.kotlin.WorkflowContext
+import dev.restate.sdk.kotlin.*
 import dev.restate.sdk.testservices.contracts.BlockAndWaitWorkflow
+import dev.restate.sdk.types.DurablePromiseKey
+import dev.restate.sdk.types.StateKey
+import dev.restate.sdk.types.TerminalException
 
 class BlockAndWaitWorkflowImpl : BlockAndWaitWorkflow {
   companion object {
-    private val MY_DURABLE_PROMISE: DurablePromiseKey<String> =
-        DurablePromiseKey.of("durable-promise", KtSerdes.json())
-    private val MY_STATE: StateKey<String> = KtStateKey.json("my-state")
+    private val MY_DURABLE_PROMISE: DurablePromiseKey<String> = durablePromiseKey("durable-promise")
+    private val MY_STATE: StateKey<String> = stateKey("my-state")
   }
 
   override suspend fun run(context: WorkflowContext, input: String): String {

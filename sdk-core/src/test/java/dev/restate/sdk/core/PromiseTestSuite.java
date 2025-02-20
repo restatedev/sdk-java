@@ -8,11 +8,14 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import static dev.restate.sdk.core.ProtoUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.*;
+import static dev.restate.sdk.core.generated.protocol.Protocol.*;
+import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 
-import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.common.TerminalException;
+import dev.restate.sdk.core.generated.protocol.Protocol;
+import dev.restate.sdk.core.generated.protocol.Protocol.GetPromiseCompletionNotificationMessage;
+import dev.restate.sdk.core.statemachine.ProtoUtils;
+import dev.restate.sdk.types.TerminalException;
 import java.util.stream.Stream;
 
 public abstract class PromiseTestSuite implements TestSuite {
@@ -37,95 +40,131 @@ public abstract class PromiseTestSuite implements TestSuite {
     return Stream.of(
         // --- Await promise
         this.awaitPromise(PROMISE_KEY)
-            .withInput(startMessage(1), inputMessage(), completionMessage(1, "my value"))
-            .expectingOutput(getPromise(PROMISE_KEY), outputMessage("my value"), END_MESSAGE)
+            .withInput(
+                startMessage(1),
+                inputCmd(),
+                GetPromiseCompletionNotificationMessage.newBuilder()
+                    .setCompletionId(1)
+                    .setValue(value("my value")))
+            .expectingOutput(getPromiseCmd(1, PROMISE_KEY), outputCmd("my value"), END_MESSAGE)
             .named("Completed with success"),
         this.awaitPromise(PROMISE_KEY)
             .withInput(
                 startMessage(1),
-                inputMessage(),
-                completionMessage(1, new TerminalException("myerror")))
+                inputCmd(),
+                GetPromiseCompletionNotificationMessage.newBuilder()
+                    .setCompletionId(1)
+                    .setFailure(ProtoUtils.failure(new TerminalException("myerror"))))
             .expectingOutput(
-                getPromise(PROMISE_KEY),
-                outputMessage(new TerminalException("myerror")),
+                getPromiseCmd(1, PROMISE_KEY),
+                outputCmd(new TerminalException("myerror")),
                 END_MESSAGE)
             .named("Completed with failure"),
         // --- Peek promise
         this.awaitPeekPromise(PROMISE_KEY, "null")
-            .withInput(startMessage(1), inputMessage(), completionMessage(1, "my value"))
-            .expectingOutput(peekPromise(PROMISE_KEY), outputMessage("my value"), END_MESSAGE)
+            .withInput(
+                startMessage(1),
+                inputCmd(),
+                PeekPromiseCompletionNotificationMessage.newBuilder()
+                    .setCompletionId(1)
+                    .setValue(value("my value")))
+            .expectingOutput(peekPromiseCmd(1, PROMISE_KEY), outputCmd("my value"), END_MESSAGE)
             .named("Completed with success"),
         this.awaitPeekPromise(PROMISE_KEY, "null")
             .withInput(
                 startMessage(1),
-                inputMessage(),
-                completionMessage(1, new TerminalException("myerror")))
+                inputCmd(),
+                PeekPromiseCompletionNotificationMessage.newBuilder()
+                    .setCompletionId(1)
+                    .setFailure(ProtoUtils.failure(new TerminalException("myerror"))))
             .expectingOutput(
-                peekPromise(PROMISE_KEY),
-                outputMessage(new TerminalException("myerror")),
+                peekPromiseCmd(1, PROMISE_KEY),
+                outputCmd(new TerminalException("myerror")),
                 END_MESSAGE)
             .named("Completed with failure"),
         this.awaitPeekPromise(PROMISE_KEY, "null")
             .withInput(
                 startMessage(1),
-                inputMessage(),
-                completionMessage(1).setEmpty(Protocol.Empty.getDefaultInstance()))
-            .expectingOutput(peekPromise(PROMISE_KEY), outputMessage("null"), END_MESSAGE)
+                inputCmd(),
+                PeekPromiseCompletionNotificationMessage.newBuilder()
+                    .setCompletionId(1)
+                    .setVoid(Protocol.Void.getDefaultInstance()))
+            .expectingOutput(peekPromiseCmd(1, PROMISE_KEY), outputCmd("null"), END_MESSAGE)
             .named("Completed with null"),
         // --- Promise is completed
         this.awaitIsPromiseCompleted(PROMISE_KEY)
-            .withInput(startMessage(1), inputMessage(), completionMessage(1, "my value"))
+            .withInput(
+                startMessage(1),
+                inputCmd(),
+                PeekPromiseCompletionNotificationMessage.newBuilder()
+                    .setCompletionId(1)
+                    .setValue(value("my value")))
+            .onlyBidiStream()
             .expectingOutput(
-                peekPromise(PROMISE_KEY), outputMessage(TestSerdes.BOOLEAN, true), END_MESSAGE)
+                peekPromiseCmd(1, PROMISE_KEY), outputCmd(TestSerdes.BOOLEAN, true), END_MESSAGE)
             .named("Completed with success"),
         this.awaitIsPromiseCompleted(PROMISE_KEY)
             .withInput(
                 startMessage(1),
-                inputMessage(),
-                completionMessage(1).setEmpty(Protocol.Empty.getDefaultInstance()))
+                inputCmd(),
+                PeekPromiseCompletionNotificationMessage.newBuilder()
+                    .setCompletionId(1)
+                    .setVoid(Protocol.Void.getDefaultInstance()))
             .expectingOutput(
-                peekPromise(PROMISE_KEY), outputMessage(TestSerdes.BOOLEAN, false), END_MESSAGE)
+                peekPromiseCmd(1, PROMISE_KEY), outputCmd(TestSerdes.BOOLEAN, false), END_MESSAGE)
             .named("Not completed"),
         // --- Promise resolve
         this.awaitResolvePromise(PROMISE_KEY, "my val")
             .withInput(
                 startMessage(1),
-                inputMessage(),
-                completionMessage(1).setEmpty(Protocol.Empty.getDefaultInstance()))
+                inputCmd(),
+                CompletePromiseCompletionNotificationMessage.newBuilder()
+                    .setCompletionId(1)
+                    .setVoid(Protocol.Void.getDefaultInstance())
+                    .build())
             .expectingOutput(
-                completePromise(PROMISE_KEY, "my val"),
-                outputMessage(TestSerdes.BOOLEAN, true),
+                completePromiseCmd(1, PROMISE_KEY, "my val"),
+                outputCmd(TestSerdes.BOOLEAN, true),
                 END_MESSAGE)
             .named("resolve succeeds"),
         this.awaitResolvePromise(PROMISE_KEY, "my val")
             .withInput(
                 startMessage(1),
-                inputMessage(),
-                completionMessage(1, new TerminalException("cannot write promise")))
+                inputCmd(),
+                CompletePromiseCompletionNotificationMessage.newBuilder()
+                    .setCompletionId(1)
+                    .setFailure(failure(new TerminalException("cannot write promise")))
+                    .build())
             .expectingOutput(
-                completePromise(PROMISE_KEY, "my val"),
-                outputMessage(TestSerdes.BOOLEAN, false),
+                completePromiseCmd(1, PROMISE_KEY, "my val"),
+                outputCmd(TestSerdes.BOOLEAN, false),
                 END_MESSAGE)
             .named("resolve fails"),
         // --- Promise reject
         this.awaitRejectPromise(PROMISE_KEY, "my failure")
             .withInput(
                 startMessage(1),
-                inputMessage(),
-                completionMessage(1).setEmpty(Protocol.Empty.getDefaultInstance()))
+                inputCmd(),
+                CompletePromiseCompletionNotificationMessage.newBuilder()
+                    .setCompletionId(1)
+                    .setVoid(Protocol.Void.getDefaultInstance())
+                    .build())
             .expectingOutput(
-                completePromise(PROMISE_KEY, new TerminalException("my failure")),
-                outputMessage(TestSerdes.BOOLEAN, true),
+                completePromiseCmd(1, PROMISE_KEY, new TerminalException("my failure")),
+                outputCmd(TestSerdes.BOOLEAN, true),
                 END_MESSAGE)
             .named("resolve succeeds"),
         this.awaitRejectPromise(PROMISE_KEY, "my failure")
             .withInput(
                 startMessage(1),
-                inputMessage(),
-                completionMessage(1, new TerminalException("cannot write promise")))
+                inputCmd(),
+                CompletePromiseCompletionNotificationMessage.newBuilder()
+                    .setCompletionId(1)
+                    .setFailure(failure(new TerminalException("cannot write promise")))
+                    .build())
             .expectingOutput(
-                completePromise(PROMISE_KEY, new TerminalException("my failure")),
-                outputMessage(TestSerdes.BOOLEAN, false),
+                completePromiseCmd(1, PROMISE_KEY, new TerminalException("my failure")),
+                outputCmd(TestSerdes.BOOLEAN, false),
                 END_MESSAGE)
             .named("resolve fails"));
   }

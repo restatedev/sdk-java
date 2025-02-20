@@ -8,8 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import static dev.restate.sdk.core.ProtoUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.TestDefinition;
+import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
@@ -23,7 +23,7 @@ public abstract class OnlyInputAndOutputTestSuite implements TestSuite {
   public Stream<TestDefinition> definitions() {
     return Stream.of(
         this.noSyscallsGreeter()
-            .withInput(startMessage(1), inputMessage("Francesco"))
-            .expectingOutput(outputMessage("Hello Francesco"), END_MESSAGE));
+            .withInput(startMessage(1), inputCmd("Francesco"))
+            .expectingOutput(outputCmd("Hello Francesco"), END_MESSAGE));
   }
 }

@@ -1,5 +1,4 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-import com.github.jengelman.gradle.plugins.shadow.transformers.ServiceFileTransformer
 
 plugins {
   `java-conventions`
@@ -13,6 +12,8 @@ dependencies {
   ksp(project(":sdk-api-kotlin-gen"))
   annotationProcessor(project(":sdk-api-gen"))
 
+  implementation(project(":client"))
+  implementation(project(":client-kotlin"))
   implementation(project(":sdk-api"))
   implementation(project(":sdk-lambda"))
   implementation(project(":sdk-http-vertx"))
@@ -38,6 +39,6 @@ application {
 
 tasks.withType<Jar> { this.enabled = false }
 
-tasks.withType<ShadowJar> { transform(ServiceFileTransformer::class.java) }
+tasks.withType<ShadowJar> { mergeServiceFiles() }
 
 tasks.withType<JavaCompile> { options.compilerArgs.add("-parameters") }

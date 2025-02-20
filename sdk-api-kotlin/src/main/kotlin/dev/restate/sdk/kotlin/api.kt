@@ -8,16 +8,19 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.common.DurablePromiseKey
-import dev.restate.sdk.common.Output
-import dev.restate.sdk.common.Request
-import dev.restate.sdk.common.Serde
-import dev.restate.sdk.common.StateKey
-import dev.restate.sdk.common.Target
-import dev.restate.sdk.common.syscalls.Syscalls
+import dev.restate.common.Output
+import dev.restate.common.Request
+import dev.restate.common.SendRequest
+import dev.restate.sdk.kotlin.serialization.typeTag
+import dev.restate.sdk.types.DurablePromiseKey
+import dev.restate.sdk.types.HandlerRequest
+import dev.restate.sdk.types.StateKey
+import dev.restate.sdk.types.TerminalException
+import dev.restate.serde.TypeTag
 import java.util.*
 import kotlin.random.Random
 import kotlin.time.Duration
+import kotlin.time.toJavaDuration
 
 /**
  * This interface exposes the Restate functionalities to Restate services. It can be used to
@@ -32,7 +35,7 @@ import kotlin.time.Duration
  */
 sealed interface Context {
 
-  fun request(): Request
+  fun request(): HandlerRequest
 
   /**
    * Causes the current execution of the function invocation to sleep for the given duration.
@@ -48,27 +51,9 @@ sealed interface Context {
    * [Awaitable.await].
    *
    * @param duration for which to sleep.
+   * @param name name to be used for the timer
    */
-  suspend fun timer(duration: Duration): Awaitable<Unit>
-
-  /**
-   * Invoke another Restate service method and wait for the response. Same as
-   * `call(methodDescriptor, parameter).await()`.
-   *
-   * @param target the address of the callee
-   * @param inputSerde Input serde
-   * @param outputSerde Output serde
-   * @param parameter the invocation request parameter.
-   * @return the invocation response.
-   */
-  suspend fun <T : Any?, R : Any?> call(
-      target: Target,
-      inputSerde: Serde<T>,
-      outputSerde: Serde<R>,
-      parameter: T
-  ): R {
-    return callAsync(target, inputSerde, outputSerde, parameter).await()
-  }
+  suspend fun timer(duration: Duration, name: String? = null): Awaitable<Unit>
 
   /**
    * Invoke another Restate service method.
@@ -77,14 +62,26 @@ sealed interface Context {
    * @param inputSerde Input serde
    * @param outputSerde Output serde
    * @param parameter the invocation request parameter.
-   * @return an [Awaitable] that wraps the Restate service method result.
+   * @param callOptions request options.
+   * @return a [CallAwaitable] that wraps the result.
    */
-  suspend fun <T : Any?, R : Any?> callAsync(
-      target: Target,
-      inputSerde: Serde<T>,
-      outputSerde: Serde<R>,
-      parameter: T
-  ): Awaitable<R>
+  suspend fun <Req : Any?, Res : Any?> call(request: Request<Req, Res>): CallAwaitable<Res>
+
+  /**
+   * Invoke another Restate service method.
+   *
+   * @param target the address of the callee
+   * @param inputSerde Input serde
+   * @param outputSerde Output serde
+   * @param parameter the invocation request parameter.
+   * @param callOptions request options.
+   * @return a [CallAwaitable] that wraps the result.
+   */
+  suspend fun <Req : Any?, Res : Any?> call(
+      requestBuilder: Request.Builder<Req, Res>
+  ): CallAwaitable<Res> {
+    return call(requestBuilder.build())
+  }
 
   /**
    * Invoke another Restate service without waiting for the response.
@@ -92,14 +89,37 @@ sealed interface Context {
    * @param target the address of the callee
    * @param inputSerde Input serde
    * @param parameter the invocation request parameter.
-   * @param delay time to wait before executing the call
+   * @param sendOptions request options.
+   * @return a [SendHandle] to interact with the sent request.
    */
-  suspend fun <T : Any?> send(
-      target: Target,
-      inputSerde: Serde<T>,
-      parameter: T,
-      delay: Duration = Duration.ZERO
-  )
+  suspend fun <Req : Any?, Res : Any?> send(request: Request<Req, Res>): InvocationHandle<Res>
+
+  /**
+   * Invoke another Restate service without waiting for the response.
+   *
+   * @param target the address of the callee
+   * @param inputSerde Input serde
+   * @param parameter the invocation request parameter.
+   * @param sendOptions request options.
+   * @return a [SendHandle] to interact with the sent request.
+   */
+  suspend fun <Req : Any?, Res : Any?> send(
+      sendRequestBuilder: Request.Builder<Req, Res>
+  ): InvocationHandle<Res> {
+    return send(sendRequestBuilder.build())
+  }
+
+  /**
+   * Get an [InvocationHandle] for an already existing invocation. This will let you interact with a
+   * running invocation, for example to cancel it or retrieve its result.
+   *
+   * @param invocationId The invocation to interact with.
+   * @param responseClazz The response class.
+   */
+  fun <Res : Any?> invocationHandle(
+      invocationId: String,
+      responseTypeTag: TypeTag<Res>
+  ): InvocationHandle<Res>
 
   /**
    * Execute a non-deterministic closure, recording the result value in the journal. The result
@@ -142,18 +162,27 @@ sealed interface Context {
    *
    * To propagate failures to the run call-site, make sure to wrap them in [TerminalException].
    *
-   * @param serde the type tag of the return value, used to serialize/deserialize it.
+   * @param typeTag the type tag of the return value, used to serialize/deserialize it.
    * @param name the name of the side effect.
    * @param block closure to execute.
    * @param T type of the return value.
    * @return value of the runBlock operation.
    */
   suspend fun <T : Any?> runBlock(
-      serde: Serde<T>,
+      typeTag: TypeTag<T>,
       name: String = "",
       retryPolicy: RetryPolicy? = null,
       block: suspend () -> T
-  ): T
+  ): T {
+    return runAsync(typeTag, name, retryPolicy, block).await()
+  }
+
+  suspend fun <T : Any?> runAsync(
+      typeTag: TypeTag<T>,
+      name: String = "",
+      retryPolicy: RetryPolicy? = null,
+      block: suspend () -> T
+  ): Awaitable<T>
 
   /**
    * Create an [Awakeable], addressable through [Awakeable.id].
@@ -166,7 +195,7 @@ sealed interface Context {
    * @return the [Awakeable] to await on.
    * @see Awakeable
    */
-  suspend fun <T : Any> awakeable(serde: Serde<T>): Awakeable<T>
+  suspend fun <T : Any> awakeable(typeTag: TypeTag<T>): Awakeable<T>
 
   /**
    * Create a new [AwakeableHandle] for the provided identifier. You can use it to
@@ -178,7 +207,7 @@ sealed interface Context {
 
   /**
    * Create a [RestateRandom] instance inherently predictable, seeded on the
-   * [dev.restate.sdk.common.InvocationId], which is not secret.
+   * [dev.restate.sdk.types.InvocationId], which is not secret.
    *
    * This instance is useful to generate identifiers, idempotency keys, and for uniform sampling
    * from a set of options. If a cryptographically secure value is needed, please generate that
@@ -192,10 +221,23 @@ sealed interface Context {
 }
 
 /**
- * Execute a non-deterministic closure, recording the result value in the journal using
- * [KtSerdes.json]. The result value will be re-played in case of re-invocation (e.g. because of
- * failure recovery or suspension point) without re-executing the closure. Use this feature if you
- * want to perform <b>non-deterministic operations</b>.
+ * Get an [InvocationHandle] for an already existing invocation. This will let you interact with a
+ * running invocation, for example to cancel it or retrieve its result.
+ *
+ * @param invocationId The invocation to interact with.
+ * @param responseClazz The response class.
+ */
+inline fun <reified Res : Any?> Context.invocationHandle(
+    invocationId: String
+): InvocationHandle<Res> {
+  return this.invocationHandle(invocationId, typeTag<Res>())
+}
+
+/**
+ * Execute a non-deterministic closure, recording the result value in the journal. The result value
+ * will be re-played in case of re-invocation (e.g. because of failure recovery or suspension point)
+ * without re-executing the closure. Use this feature if you want to perform <b>non-deterministic
+ * operations</b>.
  *
  * <p>The closure should tolerate retries, that is Restate might re-execute the closure multiple
  * times until it records a result. To control and limit the amount of retries, pass a [RetryPolicy]
@@ -238,11 +280,19 @@ suspend inline fun <reified T : Any> Context.runBlock(
     retryPolicy: RetryPolicy? = null,
     noinline block: suspend () -> T
 ): T {
-  return this.runBlock(KtSerdes.json(), name, retryPolicy, block)
+  return this.runBlock(typeTag<T>(), name, retryPolicy, block)
+}
+
+suspend inline fun <reified T : Any> Context.runAsync(
+    name: String = "",
+    retryPolicy: RetryPolicy? = null,
+    noinline block: suspend () -> T
+): Awaitable<T> {
+  return this.runAsync(typeTag<T>(), name, retryPolicy, block)
 }
 
 /**
- * Create an [Awakeable] using [KtSerdes.json] deserializer, addressable through [Awakeable.id].
+ * Create an [Awakeable], addressable through [Awakeable.id].
  *
  * You can use this feature to implement external asynchronous systems interactions, for example you
  * can send a Kafka record including the [Awakeable.id], and then let another service consume from
@@ -252,7 +302,7 @@ suspend inline fun <reified T : Any> Context.runBlock(
  * @see Awakeable
  */
 suspend inline fun <reified T : Any> Context.awakeable(): Awakeable<T> {
-  return this.awakeable(KtSerdes.json())
+  return this.awakeable(typeTag<T>())
 }
 
 /**
@@ -265,7 +315,7 @@ sealed interface SharedObjectContext : Context {
   fun key(): String
 
   /**
-   * Gets the state stored under key, deserializing the raw value using the [StateKey.serde].
+   * Gets the state stored under key, deserializing the raw value using the [StateKey.serdeInfo].
    *
    * @param key identifying the state to get and its type.
    * @return the value containing the stored state deserialized.
@@ -281,6 +331,14 @@ sealed interface SharedObjectContext : Context {
   suspend fun stateKeys(): Collection<String>
 }
 
+inline fun <reified T> stateKey(name: String): StateKey<T> {
+  return StateKey.of(name, typeTag<T>())
+}
+
+suspend inline fun <reified T : Any> SharedObjectContext.get(key: String): T? {
+  return this.get(StateKey.of<T>(key, typeTag<T>()))
+}
+
 /**
  * This interface can be used only within exclusive handlers of virtual objects. It extends
  * [Context] adding access to the virtual object instance key-value state storage.
@@ -288,7 +346,7 @@ sealed interface SharedObjectContext : Context {
 sealed interface ObjectContext : SharedObjectContext {
 
   /**
-   * Sets the given value under the given key, serializing the value using the [StateKey.serde].
+   * Sets the given value under the given key, serializing the value using the [StateKey.serdeInfo].
    *
    * @param key identifying the value to store and its type.
    * @param value to store under the given key.
@@ -304,6 +362,10 @@ sealed interface ObjectContext : SharedObjectContext {
 
   /** Clears all the state of this virtual object instance key-value state storage */
   suspend fun clearAll()
+}
+
+suspend inline fun <reified T : Any> ObjectContext.set(key: String, value: T) {
+  this.set(StateKey.of<T>(key, typeTag<T>()), value)
 }
 
 /**
@@ -348,11 +410,10 @@ sealed interface SharedWorkflowContext : SharedObjectContext {
  */
 sealed interface WorkflowContext : SharedWorkflowContext, ObjectContext
 
-class RestateRandom(seed: Long, private val syscalls: Syscalls) : Random() {
+class RestateRandom(seed: Long) : Random() {
   private val r = Random(seed)
 
   override fun nextBits(bitCount: Int): Int {
-    check(!syscalls.isInsideSideEffect) { "You can't use RestateRandom inside ctx.runBlock!" }
     return r.nextBits(bitCount)
   }
 
@@ -374,8 +435,21 @@ class RestateRandom(seed: Long, private val syscalls: Syscalls) : Random() {
 sealed interface Awaitable<T> {
   suspend fun await(): T
 
+  suspend fun await(duration: Duration): T
+
+  suspend fun withTimeout(duration: Duration): Awaitable<T>
+
   /** Clause for [select] operator. */
   val onAwait: SelectClause<T>
+
+  suspend fun <R> map(transform: suspend (value: T) -> R): Awaitable<R>
+
+  suspend fun <R> map(
+      transformSuccess: suspend (value: T) -> R,
+      transformFailure: suspend (exception: TerminalException) -> R
+  ): Awaitable<R>
+
+  suspend fun mapFailure(transform: suspend (exception: TerminalException) -> T): Awaitable<T>
 
   companion object {
     fun all(
@@ -386,7 +460,11 @@ sealed interface Awaitable<T> {
       return wrapAllAwaitable(listOf(first) + listOf(second) + others.asList())
     }
 
-    fun any(first: Awaitable<*>, second: Awaitable<*>, vararg others: Awaitable<*>): AnyAwaitable {
+    fun any(
+        first: Awaitable<*>,
+        second: Awaitable<*>,
+        vararg others: Awaitable<*>
+    ): Awaitable<Int> {
       return wrapAnyAwaitable(listOf(first) + listOf(second) + others.asList())
     }
   }
@@ -421,11 +499,6 @@ suspend fun <T> awaitAll(vararg awaitables: Awaitable<T>): List<T> {
   return awaitables.map { it.await() }.toList()
 }
 
-sealed interface AnyAwaitable : Awaitable<Any> {
-  /** Same as [Awaitable.await], but returns the index of the first completed element. */
-  suspend fun awaitIndex(): Int
-}
-
 /**
  * Like [kotlinx.coroutines.selects.select], but for [Awaitable]
  *
@@ -436,13 +509,13 @@ sealed interface AnyAwaitable : Awaitable<Any> {
  * val result = select {
  *   callAwaitable.onAwait { it.message }
  *   timeout.onAwait { throw TimeoutException() }
- * }
+ * }.await()
  * ```
  */
-suspend inline fun <R> select(crossinline builder: SelectBuilder<R>.() -> Unit): R {
+suspend inline fun <R> select(crossinline builder: SelectBuilder<R>.() -> Unit): Awaitable<R> {
   val selectImpl = SelectImplementation<R>()
   builder.invoke(selectImpl)
-  return selectImpl.doSelect()
+  return selectImpl.build()
 }
 
 sealed interface SelectBuilder<in R> {
@@ -452,6 +525,26 @@ sealed interface SelectBuilder<in R> {
 
 sealed interface SelectClause<T> {
   val awaitable: Awaitable<T>
+}
+
+/** The [Awaitable] returned by a [Context.call]. */
+sealed interface CallAwaitable<T> : Awaitable<T> {
+  suspend fun invocationId(): String
+}
+
+/** An invocation handle, that can be used to interact with a running invocation. */
+sealed interface InvocationHandle<Res : Any?> {
+  /** @return the invocation id of this invocation */
+  suspend fun invocationId(): String
+
+  /** Cancel this invocation. */
+  suspend fun cancel()
+
+  /** Attach to this invocation. This will wait for the invocation to complete */
+  suspend fun attach(): Awaitable<Res>
+
+  /** @return the output of this invocation, if present. */
+  suspend fun output(): Output<Res>
 }
 
 /**
@@ -475,11 +568,11 @@ sealed interface AwakeableHandle {
   /**
    * Complete with success the [Awakeable].
    *
-   * @param serde used to serialize the [Awakeable] result payload.
+   * @param typeTag used to serialize the [Awakeable] result payload.
    * @param payload the result payload.
    * @see Awakeable
    */
-  suspend fun <T : Any> resolve(serde: Serde<T>, payload: T)
+  suspend fun <T : Any> resolve(typeTag: TypeTag<T>, payload: T)
 
   /**
    * Complete with failure the [Awakeable].
@@ -491,13 +584,13 @@ sealed interface AwakeableHandle {
 }
 
 /**
- * Complete with success the [Awakeable] using [KtSerdes.json] serializer.
+ * Complete with success the [Awakeable].
  *
  * @param payload the result payload.
  * @see Awakeable
  */
 suspend inline fun <reified T : Any> AwakeableHandle.resolve(payload: T) {
-  return this.resolve(KtSerdes.json(), payload)
+  return this.resolve(typeTag<T>(), payload)
 }
 
 /**
@@ -542,4 +635,20 @@ sealed interface DurablePromiseHandle<T> {
    * @see DurablePromise
    */
   suspend fun reject(reason: String)
+}
+
+inline fun <reified T> durablePromiseKey(name: String): DurablePromiseKey<T> {
+  return DurablePromiseKey.of(name, typeTag<T>())
+}
+
+fun <Req : Any?, Res : Any?> Request.Builder<Req, Res>.asSendDelayed(
+    duration: Duration
+): SendRequest<Req, Res> {
+  return this.asSendDelayed(duration.toJavaDuration())
+}
+
+fun <Req : Any?, Res : Any?> Request<Req, Res>.asSendDelayed(
+    duration: Duration
+): SendRequest<Req, Res> {
+  return this.asSendDelayed(duration.toJavaDuration())
 }

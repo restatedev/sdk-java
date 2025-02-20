@@ -8,18 +8,14 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.serde.jackson;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.victools.jsonschema.generator.*;
 import com.github.victools.jsonschema.module.jackson.JacksonModule;
 import com.github.victools.jsonschema.module.jackson.JacksonOption;
-import dev.restate.sdk.common.RichSerde;
-import dev.restate.sdk.common.Serde;
-import java.io.IOException;
+import dev.restate.serde.Serde;
 import java.util.stream.StreamSupport;
-import org.jspecify.annotations.Nullable;
 
 /**
  * {@link Serde} implementations for Jackson.
@@ -46,8 +42,8 @@ public final class JacksonSerdes {
 
   private JacksonSerdes() {}
 
-  private static final ObjectMapper defaultMapper;
-  private static final SchemaGenerator schemaGenerator;
+  static final ObjectMapper defaultMapper;
+  static final SchemaGenerator schemaGenerator;
 
   static {
     defaultMapper = new ObjectMapper();
@@ -101,37 +97,7 @@ public final class JacksonSerdes {
 
   /** Serialize/Deserialize class using the provided object mapper. */
   public static <T> Serde<T> of(ObjectMapper mapper, Class<T> clazz) {
-    return new RichSerde<>() {
-      @Override
-      public @Nullable Object jsonSchema() {
-        return schemaGenerator.generateSchema(clazz);
-      }
-
-      @Override
-      public byte[] serialize(T value) {
-        try {
-          return mapper.writeValueAsBytes(value);
-        } catch (JsonProcessingException e) {
-          sneakyThrow(e);
-          return null;
-        }
-      }
-
-      @Override
-      public T deserialize(byte[] value) {
-        try {
-          return mapper.readValue(value, clazz);
-        } catch (IOException e) {
-          sneakyThrow(e);
-          return null;
-        }
-      }
-
-      @Override
-      public String contentType() {
-        return "application/json";
-      }
-    };
+    return JacksonSerdeFactory.create(mapper.constructType(clazz), clazz, schemaGenerator, mapper);
   }
 
   /** Serialize/Deserialize {@link TypeReference} using the default object mapper. */
@@ -141,41 +107,12 @@ public final class JacksonSerdes {
 
   /** Serialize/Deserialize {@link TypeReference} using the default object mapper. */
   public static <T> Serde<T> of(ObjectMapper mapper, TypeReference<T> typeReference) {
-    return new RichSerde<>() {
-      @Override
-      public @Nullable Object jsonSchema() {
-        return schemaGenerator.generateSchema(typeReference.getType());
-      }
-
-      @Override
-      public byte[] serialize(T value) {
-        try {
-          return mapper.writeValueAsBytes(value);
-        } catch (JsonProcessingException e) {
-          sneakyThrow(e);
-          return null;
-        }
-      }
-
-      @Override
-      public T deserialize(byte[] value) {
-        try {
-          return mapper.readValue(value, typeReference);
-        } catch (IOException e) {
-          sneakyThrow(e);
-          return null;
-        }
-      }
-
-      @Override
-      public String contentType() {
-        return "application/json";
-      }
-    };
+    return JacksonSerdeFactory.create(
+        mapper.constructType(typeReference), typeReference.getType(), schemaGenerator, mapper);
   }
 
   @SuppressWarnings("unchecked")
-  private static <E extends Throwable> void sneakyThrow(Object exception) throws E {
+  static <E extends Throwable> void sneakyThrow(Object exception) throws E {
     throw (E) exception;
   }
 }

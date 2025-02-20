@@ -1,23 +1,29 @@
 {{#if originalClassPkg}}package {{originalClassPkg}};{{/if}}
 
-public class {{generatedClassSimpleName}} implements dev.restate.sdk.common.syscalls.ServiceDefinitionFactory<{{originalClassFqcn}}, dev.restate.sdk.HandlerRunner.Options> {
+public class {{generatedClassSimpleName}} implements dev.restate.sdk.endpoint.definition.ServiceDefinitionFactory<{{originalClassFqcn}}> {
 
     @java.lang.Override
-    public dev.restate.sdk.common.syscalls.ServiceDefinition<dev.restate.sdk.HandlerRunner.Options> create({{originalClassFqcn}} bindableService) {
-        return dev.restate.sdk.common.syscalls.ServiceDefinition.of(
-            {{generatedClassSimpleNamePrefix}}Definitions.SERVICE_NAME,
-            {{#if isObject}}dev.restate.sdk.common.ServiceType.VIRTUAL_OBJECT{{else if isWorkflow}}dev.restate.sdk.common.ServiceType.WORKFLOW{{else}}dev.restate.sdk.common.ServiceType.SERVICE{{/if}},
+    public dev.restate.sdk.endpoint.definition.ServiceDefinition create({{originalClassFqcn}} bindableService, dev.restate.sdk.endpoint.definition.HandlerRunner.Options overrideHandlerOptions) {
+        dev.restate.sdk.HandlerRunner.Options handlerRunnerOptions = dev.restate.sdk.HandlerRunner.Options.DEFAULT;
+        if (overrideHandlerOptions != null) {
+            if (overrideHandlerOptions instanceof dev.restate.sdk.HandlerRunner.Options) {
+                handlerRunnerOptions = (dev.restate.sdk.HandlerRunner.Options)overrideHandlerOptions;
+            } else {
+                throw new IllegalArgumentException("The provided options class MUST be instance of dev.restate.sdk.HandlerRunner.Options, but was " + overrideHandlerOptions.getClass());
+            }
+        }
+        return dev.restate.sdk.endpoint.definition.ServiceDefinition.of(
+            {{metadataClass}}.SERVICE_NAME,
+            {{#if isObject}}dev.restate.sdk.endpoint.definition.ServiceType.VIRTUAL_OBJECT{{else if isWorkflow}}dev.restate.sdk.endpoint.definition.ServiceType.WORKFLOW{{else}}dev.restate.sdk.endpoint.definition.ServiceType.SERVICE{{/if}},
             java.util.List.of(
             {{#handlers}}
-                dev.restate.sdk.common.syscalls.HandlerDefinition.of(
-                dev.restate.sdk.common.syscalls.HandlerSpecification.of(
+                dev.restate.sdk.endpoint.definition.HandlerDefinition.of(
                 "{{name}}",
-                {{#if isExclusive}}dev.restate.sdk.common.HandlerType.EXCLUSIVE{{else if isWorkflow}}dev.restate.sdk.common.HandlerType.WORKFLOW{{else}}dev.restate.sdk.common.HandlerType.SHARED{{/if}},
+                {{#if isExclusive}}dev.restate.sdk.endpoint.definition.HandlerType.EXCLUSIVE{{else if isWorkflow}}dev.restate.sdk.endpoint.definition.HandlerType.WORKFLOW{{else}}dev.restate.sdk.endpoint.definition.HandlerType.SHARED{{/if}},
                 {{inputSerdeRef}},
-                {{outputSerdeRef}}
-                ){{#if inputAcceptContentType}}.withAcceptContentType("{{inputAcceptContentType}}"){{/if}}{{#if documentation}}.withDocumentation("{{escapeJava documentation}}"){{/if}},
-                dev.restate.sdk.HandlerRunner.of(bindableService::{{name}})
-                ){{#unless @last}},{{/unless}}
+                {{outputSerdeRef}},
+                dev.restate.sdk.HandlerRunner.of(bindableService::{{name}}, {{serdeFactoryRef}}, handlerRunnerOptions)
+                ){{#if inputAcceptContentType}}.withAcceptContentType("{{inputAcceptContentType}}"){{/if}}{{#if documentation}}.withDocumentation("{{escapeJava documentation}}"){{/if}}{{#unless @last}},{{/unless}}
             {{/handlers}}
             )
         ){{#if documentation}}.withDocumentation("{{escapeJava documentation}}"){{/if}};

@@ -8,19 +8,18 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.common.AbortedExecutionException;
-import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.common.function.ThrowingFunction;
-import dev.restate.sdk.common.syscalls.Deferred;
-import dev.restate.sdk.common.syscalls.Result;
-import dev.restate.sdk.common.syscalls.Syscalls;
+import dev.restate.common.function.ThrowingFunction;
+import dev.restate.sdk.endpoint.definition.AsyncResult;
+import dev.restate.sdk.endpoint.definition.HandlerContext;
+import dev.restate.sdk.types.AbortedExecutionException;
+import dev.restate.sdk.types.TerminalException;
+import dev.restate.sdk.types.TimeoutException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeoutException;
-import java.util.function.Function;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 /**
@@ -37,15 +36,9 @@ import java.util.stream.Collectors;
  */
 public abstract class Awaitable<T> {
 
-  protected final Syscalls syscalls;
+  protected abstract AsyncResult<T> asyncResult();
 
-  Awaitable(Syscalls syscalls) {
-    this.syscalls = syscalls;
-  }
-
-  protected abstract Deferred<?> deferred();
-
-  protected abstract Result<T> awaitResult();
+  protected abstract Executor serviceExecutor();
 
   /**
    * Wait for the current awaitable to complete. Executing this method may trigger the suspension of
@@ -57,42 +50,116 @@ public abstract class Awaitable<T> {
    * @throws TerminalException if the awaitable is ready and contains a failure
    */
   public final T await() throws TerminalException {
-    return Util.unwrapResult(this.awaitResult());
+    return Util.awaitCompletableFuture(asyncResult().poll());
   }
 
   /**
    * Same as {@link #await()}, but throws a {@link TimeoutException} if this {@link Awaitable}
    * doesn't complete before the provided {@code timeout}.
    */
-  public final T await(Duration timeout) throws TerminalException, TimeoutException {
-    Deferred<Void> sleep = Util.blockOnSyscall(cb -> this.syscalls.sleep(timeout, cb));
-    Awaitable<Void> sleepAwaitable = single(this.syscalls, sleep);
+  public final T await(Duration timeout) throws TerminalException {
+    return this.withTimeout(timeout).await();
+  }
 
-    int index = any(this, sleepAwaitable).awaitIndex();
-
-    if (index == 1) {
-      throw new TimeoutException();
-    }
-    // This await is no-op now
-    return this.await();
+  /**
+   * @return an Awaitable that throws a {@link TerminalException} if this awaitable doesn't complete
+   *     before the provided {@code timeout}.
+   */
+  public final Awaitable<T> withTimeout(Duration timeout) {
+    return any(
+            this,
+            fromAsyncResult(
+                Util.awaitCompletableFuture(asyncResult().ctx().timer(timeout, null)),
+                this.serviceExecutor()))
+        .mapWithoutExecutor(
+            i -> {
+              if (i == 1) {
+                throw new TimeoutException("Timed out waiting for awaitable after " + timeout);
+              }
+              return this.await();
+            });
   }
 
   /** Map the result of this {@link Awaitable}. */
   public final <U> Awaitable<U> map(ThrowingFunction<T, U> mapper) {
-    return new MappedAwaitable<>(
-        this,
-        result -> {
-          if (result.isSuccess()) {
-            return Result.success(
-                Util.executeMappingException(this.syscalls, mapper, result.getValue()));
-          }
-          //noinspection unchecked
-          return (Result<U>) result;
-        });
+    return fromAsyncResult(
+        asyncResult()
+            .map(
+                t ->
+                    CompletableFuture.supplyAsync(
+                        () -> {
+                          try {
+                            return mapper.apply(t);
+                          } catch (Throwable e) {
+                            Util.sneakyThrow(e);
+                            return null;
+                          }
+                        },
+                        serviceExecutor()),
+                null),
+        this.serviceExecutor());
   }
 
-  static <T> Awaitable<T> single(Syscalls syscalls, Deferred<T> deferred) {
-    return new SingleAwaitable<>(syscalls, deferred);
+  public final <U> Awaitable<U> map(
+      ThrowingFunction<T, U> successMapper, ThrowingFunction<TerminalException, U> failureMapper) {
+    return fromAsyncResult(
+        asyncResult()
+            .map(
+                t ->
+                    CompletableFuture.supplyAsync(
+                        () -> {
+                          try {
+                            return successMapper.apply(t);
+                          } catch (Throwable e) {
+                            Util.sneakyThrow(e);
+                            return null;
+                          }
+                        },
+                        serviceExecutor()),
+                t ->
+                    CompletableFuture.supplyAsync(
+                        () -> {
+                          try {
+                            return failureMapper.apply(t);
+                          } catch (Throwable e) {
+                            Util.sneakyThrow(e);
+                            return null;
+                          }
+                        },
+                        serviceExecutor())),
+        this.serviceExecutor());
+  }
+
+  public final Awaitable<T> mapFailure(ThrowingFunction<TerminalException, T> failureMapper) {
+    return fromAsyncResult(
+        asyncResult()
+            .mapFailure(
+                t ->
+                    CompletableFuture.supplyAsync(
+                        () -> {
+                          try {
+                            return failureMapper.apply(t);
+                          } catch (Throwable e) {
+                            Util.sneakyThrow(e);
+                            return null;
+                          }
+                        },
+                        serviceExecutor())),
+        this.serviceExecutor());
+  }
+
+  /**
+   * Map without executor switching. This is an optimization used only internally for operations
+   * safe to perform without switching executor.
+   */
+  final <U> Awaitable<U> mapWithoutExecutor(ThrowingFunction<T, U> mapper) {
+    return fromAsyncResult(
+        asyncResult().map(i -> CompletableFuture.completedFuture(mapper.apply(i)), null),
+        this.serviceExecutor());
+  }
+
+  static <T> Awaitable<T> fromAsyncResult(AsyncResult<T> asyncResult, Executor serviceExecutor) {
+    return new SingleAwaitable<>(asyncResult, serviceExecutor);
   }
 
   /**
@@ -101,17 +168,13 @@ public abstract class Awaitable<T> {
    * <p>The behavior is the same as {@link
    * java.util.concurrent.CompletableFuture#anyOf(CompletableFuture[])}.
    */
-  public static AnyAwaitable any(Awaitable<?> first, Awaitable<?> second, Awaitable<?>... others) {
+  public static Awaitable<Integer> any(
+      Awaitable<?> first, Awaitable<?> second, Awaitable<?>... others) {
     List<Awaitable<?>> awaitables = new ArrayList<>(2 + others.length);
     awaitables.add(first);
     awaitables.add(second);
     awaitables.addAll(Arrays.asList(others));
-
-    return new AnyAwaitable(
-        first.syscalls,
-        first.syscalls.createAnyDeferred(
-            awaitables.stream().map(Awaitable::deferred).collect(Collectors.toList())),
-        awaitables);
+    return any(awaitables);
   }
 
   /**
@@ -122,18 +185,14 @@ public abstract class Awaitable<T> {
    * <p>The behavior is the same as {@link
    * java.util.concurrent.CompletableFuture#anyOf(CompletableFuture[])}.
    */
-  public static AnyAwaitable any(List<Awaitable<?>> awaitables) {
+  public static Awaitable<Integer> any(List<Awaitable<?>> awaitables) {
     if (awaitables.isEmpty()) {
       throw new IllegalArgumentException("Awaitable any doesn't support an empty list");
     }
-    return new AnyAwaitable(
-        awaitables.get(0).syscalls,
-        awaitables
-            .get(0)
-            .syscalls
-            .createAnyDeferred(
-                awaitables.stream().map(Awaitable::deferred).collect(Collectors.toList())),
-        awaitables);
+    List<AsyncResult<?>> ars =
+        awaitables.stream().map(Awaitable::asyncResult).collect(Collectors.toList());
+    HandlerContext ctx = ars.get(0).ctx();
+    return fromAsyncResult(ctx.createAnyAsyncResult(ars), awaitables.get(0).serviceExecutor());
   }
 
   /**
@@ -144,12 +203,12 @@ public abstract class Awaitable<T> {
    */
   public static Awaitable<Void> all(
       Awaitable<?> first, Awaitable<?> second, Awaitable<?>... others) {
-    List<Deferred<?>> deferred = new ArrayList<>(2 + others.length);
-    deferred.add(first.deferred());
-    deferred.add(second.deferred());
-    Arrays.stream(others).map(Awaitable::deferred).forEach(deferred::add);
+    List<Awaitable<?>> awaitables = new ArrayList<>(2 + others.length);
+    awaitables.add(first);
+    awaitables.add(second);
+    awaitables.addAll(Arrays.asList(others));
 
-    return single(first.syscalls, first.syscalls.createAllDeferred(deferred));
+    return all(awaitables);
   }
 
   /**
@@ -165,68 +224,33 @@ public abstract class Awaitable<T> {
       throw new IllegalArgumentException("Awaitable all doesn't support an empty list");
     }
     if (awaitables.size() == 1) {
-      return awaitables.get(0).map(unused -> null);
+      return awaitables.get(0).mapWithoutExecutor(unused -> null);
     } else {
-      return single(
-          awaitables.get(0).syscalls,
-          awaitables
-              .get(0)
-              .syscalls
-              .createAllDeferred(
-                  awaitables.stream().map(Awaitable::deferred).collect(Collectors.toList())));
+      List<AsyncResult<?>> ars =
+          awaitables.stream().map(Awaitable::asyncResult).collect(Collectors.toList());
+      HandlerContext ctx = ars.get(0).ctx();
+      return fromAsyncResult(ctx.createAllAsyncResult(ars), awaitables.get(0).serviceExecutor());
     }
   }
 
-  static class SingleAwaitable<T> extends Awaitable<T> {
+  static final class SingleAwaitable<T> extends Awaitable<T> {
 
-    private final Deferred<T> deferred;
-    private Result<T> result;
+    private final AsyncResult<T> asyncResult;
+    private final Executor serviceExecutor;
 
-    SingleAwaitable(Syscalls syscalls, Deferred<T> deferred) {
-      super(syscalls);
-      this.deferred = deferred;
+    SingleAwaitable(AsyncResult<T> asyncResult, Executor serviceExecutor) {
+      this.asyncResult = asyncResult;
+      this.serviceExecutor = serviceExecutor;
     }
 
     @Override
-    protected Deferred<?> deferred() {
-      return this.deferred;
+    protected AsyncResult<T> asyncResult() {
+      return this.asyncResult;
     }
 
     @Override
-    protected Result<T> awaitResult() {
-      if (!this.deferred.isCompleted()) {
-        Util.<Void>blockOnSyscall(cb -> syscalls.resolveDeferred(this.deferred, cb));
-      }
-      if (this.result == null) {
-        this.result = this.deferred.toResult();
-      }
-      return this.result;
-    }
-  }
-
-  static class MappedAwaitable<T, U> extends Awaitable<U> {
-
-    private final Awaitable<T> inner;
-    private final Function<Result<T>, Result<U>> mapper;
-    private Result<U> mappedResult;
-
-    MappedAwaitable(Awaitable<T> inner, Function<Result<T>, Result<U>> mapper) {
-      super(inner.syscalls);
-      this.inner = inner;
-      this.mapper = mapper;
-    }
-
-    @Override
-    protected Deferred<?> deferred() {
-      return inner.deferred();
-    }
-
-    @Override
-    public Result<U> awaitResult() throws TerminalException {
-      if (mappedResult == null) {
-        this.mappedResult = this.mapper.apply(this.inner.awaitResult());
-      }
-      return this.mappedResult;
+    protected Executor serviceExecutor() {
+      return serviceExecutor;
     }
   }
 }

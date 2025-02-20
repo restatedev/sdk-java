@@ -8,18 +8,21 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testservices
 
-import dev.restate.sdk.common.StateKey
-import dev.restate.sdk.common.Target
-import dev.restate.sdk.common.TerminalException
-import dev.restate.sdk.common.syscalls.ServiceDefinition
+import dev.restate.common.Request
+import dev.restate.common.SendRequest
+import dev.restate.common.Target
+import dev.restate.sdk.endpoint.definition.ServiceDefinition
 import dev.restate.sdk.kotlin.*
 import dev.restate.sdk.testservices.contracts.*
 import dev.restate.sdk.testservices.contracts.Program
+import dev.restate.sdk.types.StateKey
+import dev.restate.sdk.types.TerminalException
+import dev.restate.serde.Serde
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
 
 fun interpreterName(layer: Int): String {
-  return "${ObjectInterpreterDefinitions.SERVICE_NAME}L$layer"
+  return "${ObjectInterpreterMetadata.SERVICE_NAME}L$layer"
 }
 
 fun interpretTarget(layer: Int, key: String): Target {
@@ -54,16 +57,16 @@ suspend fun <T> checkAwaitableFails(
 }
 
 fun cmdStateKey(key: Int): StateKey<String> {
-  return KtStateKey.json("key-$key")
+  return stateKey("key-$key")
 }
 
 class ObjectInterpreterImpl(private val layer: Int) : ObjectInterpreter {
   companion object {
-    private val COUNTER: StateKey<Int> = KtStateKey.json("counter")
+    private val COUNTER: StateKey<Int> = stateKey("counter")
 
-    fun getInterpreterDefinition(layer: Int): ServiceDefinition<HandlerRunner.Options> {
+    fun getInterpreterDefinition(layer: Int): ServiceDefinition {
       val originalDefinition =
-          ObjectInterpreterServiceDefinitionFactory().create(ObjectInterpreterImpl(layer))
+          ObjectInterpreterServiceDefinitionFactory().create(ObjectInterpreterImpl(layer), null)
       return ServiceDefinition.of(
           interpreterName(layer), originalDefinition.serviceType, originalDefinition.handlers)
     }
@@ -91,11 +94,12 @@ class ObjectInterpreterImpl(private val layer: Int) : ObjectInterpreter {
         }
         is CallObject -> {
           val awaitable =
-              ctx.callAsync(
-                  interpretTarget(layer + 1, cmd.key.toString()),
-                  ObjectInterpreterDefinitions.Serde.INTERPRET_INPUT,
-                  ObjectInterpreterDefinitions.Serde.INTERPRET_OUTPUT,
-                  cmd.program)
+              ctx.call(
+                  Request.of(
+                      interpretTarget(layer + 1, cmd.key.toString()),
+                      ObjectInterpreterMetadata.Serde.INTERPRET_INPUT,
+                      ObjectInterpreterMetadata.Serde.INTERPRET_OUTPUT,
+                      cmd.program))
           promises[i] = { awaitable.await() }
         }
         is CallService -> {
@@ -136,8 +140,8 @@ class ObjectInterpreterImpl(private val layer: Int) : ObjectInterpreter {
         }
         is IncrementViaDelayedCall -> {
           ServiceInterpreterHelperClient.fromContext(ctx)
-              .send(delay = cmd.duration.milliseconds)
-              .incrementIndirectly(interpreterId(ctx))
+              .send()
+              .incrementIndirectly(interpreterId(ctx), delay = cmd.duration.milliseconds)
         }
         is RecoverTerminalCall -> {
           var caught = false
@@ -209,9 +213,11 @@ class ServiceInterpreterHelperImpl : ServiceInterpreterHelper {
 
   override suspend fun incrementIndirectly(ctx: Context, id: InterpreterId) {
     ctx.send(
-        interpretTarget(id.layer, id.key),
-        ObjectInterpreterDefinitions.Serde.INTERPRET_INPUT,
-        Program(listOf(IncrementStateCounter())))
+        SendRequest.of(
+            interpretTarget(id.layer, id.key),
+            ObjectInterpreterMetadata.Serde.INTERPRET_INPUT,
+            Serde.SLICE,
+            Program(listOf(IncrementStateCounter()))))
   }
 
   override suspend fun resolveAwakeable(ctx: Context, id: String) {
@@ -242,8 +248,10 @@ class ServiceInterpreterHelperImpl : ServiceInterpreterHelper {
     // 4. to thank our interpret, let us ask it to inc its state.
     //
     ctx.send(
-        interpretTarget(req.interpreter.layer, req.interpreter.key),
-        ObjectInterpreterDefinitions.Serde.INTERPRET_INPUT,
-        Program(listOf(IncrementStateCounter())))
+        SendRequest.of(
+            interpretTarget(req.interpreter.layer, req.interpreter.key),
+            ObjectInterpreterMetadata.Serde.INTERPRET_INPUT,
+            Serde.SLICE,
+            Program(listOf(IncrementStateCounter()))))
   }
 }

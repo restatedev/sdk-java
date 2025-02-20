@@ -11,17 +11,20 @@ plugins {
 dependencies {
   ksp(project(":sdk-api-kotlin-gen"))
 
-  implementation(project(":sdk-api-kotlin"))
-  implementation(project(":sdk-http-vertx"))
-  implementation(project(":sdk-serde-jackson"))
+  implementation(project(":sdk-kotlin-http"))
   implementation(project(":sdk-request-identity"))
 
   implementation(libs.kotlinx.serialization.core)
   implementation(libs.kotlinx.serialization.json)
-
   implementation(libs.log4j.core)
-
   implementation(libs.kotlinx.coroutines.core)
+
+  // You might be wondering why I'm repeating these dependencies here. Well, don't, it's gradle.
+  implementation(project(":sdk-common"))
+  implementation(libs.log4j.api)
+  implementation(libs.opentelemetry.api)
+  implementation(libs.jackson.annotations)
+  implementation(libs.jackson.databind)
 }
 
 // Configuration of jib container images parameters

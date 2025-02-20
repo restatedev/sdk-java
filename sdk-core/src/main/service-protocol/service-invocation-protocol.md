@@ -9,7 +9,7 @@ The system is composed of two actors:
 - Restate Runtime
 - Service deployment, which is split into:
   - SDK, which contains the implementation of the Restate Protocol
-  - User business logic, which interacts with the SDK to access Restate system calls (or syscalls)
+  - User business logic, which interacts with the SDK to access Restate system calls (or handlerContext)
 
 Each invocation is modeled by the protocol as a state machine, where state transitions can be caused either by user code
 or by _Runtime events_.
@@ -37,7 +37,7 @@ sequenceDiagram
     Note over Runtime,SDK: Replaying
     Runtime->>SDK: [...]EntryMessage(s)
     Note over Runtime,SDK: Processing
-    SDK->>Runtime: HTTP Response headers
+    SDK->>Runtime: HTTP Response headersAccessor
     loop
         SDK->>Runtime: [...]EntryMessage
         Runtime->>SDK: CompletionMessage and/or EntryAckMessage
@@ -78,7 +78,7 @@ There are a couple of properties that we enforce through the design of the proto
 ### Syscalls
 
 Most Restate features, such as interaction with other services, accessing service instance state, and so on, are defined
-as _Restate syscalls_ and exposed through the service protocol. The user interacts with these syscalls using the SDK
+as _Restate syscalls_ and exposed through the service protocol. The user interacts with these handlerContext using the SDK
 APIs, which generate _Journal Entry_ messages that will be handled by the invocation state machine.
 
 Depending on the specific syscall, the Restate runtime generates as response either:

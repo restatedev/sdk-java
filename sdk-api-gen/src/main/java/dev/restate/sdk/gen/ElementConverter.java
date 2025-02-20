@@ -14,7 +14,7 @@ import dev.restate.sdk.SharedObjectContext;
 import dev.restate.sdk.SharedWorkflowContext;
 import dev.restate.sdk.WorkflowContext;
 import dev.restate.sdk.annotation.*;
-import dev.restate.sdk.common.ServiceType;
+import dev.restate.sdk.endpoint.definition.ServiceType;
 import dev.restate.sdk.gen.model.*;
 import dev.restate.sdk.gen.model.Handler;
 import dev.restate.sdk.gen.model.Service;
@@ -24,6 +24,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.*;
+import javax.lang.model.type.MirroredTypeException;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
@@ -34,8 +35,8 @@ import org.jspecify.annotations.Nullable;
 class ElementConverter {
 
   private static final PayloadType EMPTY_PAYLOAD =
-      new PayloadType(true, "", "Void", "dev.restate.sdk.common.Serde.VOID");
-  private static final String RAW_SERDE = "dev.restate.sdk.common.Serde.RAW";
+      new PayloadType(true, "", "Void", "dev.restate.serde.Serde.VOID");
+  private static final String RAW_SERDE = "dev.restate.serde.Serde.RAW";
 
   private final Messager messager;
   private final Elements elements;
@@ -95,6 +96,12 @@ class ElementConverter {
           Diagnostic.Kind.WARNING, "The service " + serviceName + " has no handlers", element);
     }
 
+    String serdeFactoryDecl = "new dev.restate.sdk.serde.jackson.JacksonSerdeFactory()";
+    CustomSerdeFactory customSerdeFactory = element.getAnnotation(CustomSerdeFactory.class);
+    if (customSerdeFactory != null) {
+      serdeFactoryDecl = "new " + getCustomSerdeClassCanonicalName(customSerdeFactory) + "()";
+    }
+
     try {
       return new Service.Builder()
           .withTargetPkg(targetPkg)
@@ -103,6 +110,7 @@ class ElementConverter {
           .withDocumentation(sanitizeJavadoc(elements.getDocComment(element)))
           .withServiceType(metaAnnotation.getServiceType())
           .withHandlers(handlers)
+          .withSerdeFactoryDecl(serdeFactoryDecl)
           .validateAndBuild();
     } catch (Exception e) {
       messager.printMessage(
@@ -311,7 +319,7 @@ class ElementConverter {
           element);
     }
 
-    String serdeDecl = rawAnnotation != null ? RAW_SERDE : jsonSerdeDecl(ty);
+    String serdeDecl = rawAnnotation != null ? RAW_SERDE : serdeDecl(ty);
     if (rawAnnotation != null
         && !rawAnnotation
             .contentType()
@@ -329,29 +337,17 @@ class ElementConverter {
   }
 
   private static String contentTypeDecoratedSerdeDecl(String serdeDecl, String contentType) {
-    return "dev.restate.sdk.common.Serde.withContentType(\""
-        + contentType
-        + "\", "
-        + serdeDecl
-        + ")";
+    return "dev.restate.serde.Serde.withContentType(\"" + contentType + "\", " + serdeDecl + ")";
   }
 
-  private static String jsonSerdeDecl(TypeMirror ty) {
+  private static String serdeDecl(TypeMirror ty) {
     return switch (ty.getKind()) {
-      case BOOLEAN -> "dev.restate.sdk.JsonSerdes.BOOLEAN";
-      case BYTE -> "dev.restate.sdk.JsonSerdes.BYTE";
-      case SHORT -> "dev.restate.sdk.JsonSerdes.SHORT";
-      case INT -> "dev.restate.sdk.JsonSerdes.INT";
-      case LONG -> "dev.restate.sdk.JsonSerdes.LONG";
-      case CHAR -> "dev.restate.sdk.JsonSerdes.CHAR";
-      case FLOAT -> "dev.restate.sdk.JsonSerdes.FLOAT";
-      case DOUBLE -> "dev.restate.sdk.JsonSerdes.DOUBLE";
-      case VOID -> "dev.restate.sdk.common.Serde.VOID";
+      case VOID -> "dev.restate.serde.Serde.VOID";
       default ->
           // Default to Jackson type reference serde
-          "dev.restate.sdk.serde.jackson.JacksonSerdes.of(new com.fasterxml.jackson.core.type.TypeReference<"
-              + ty
-              + ">() {})";
+          "SERDE_FACTORY.create(dev.restate.serde.TypeTag.of(new dev.restate.serde.TypeRef<"
+              + boxedType(ty)
+              + ">() {}))";
     };
   }
 
@@ -368,6 +364,15 @@ class ElementConverter {
       case VOID -> "Void";
       default -> ty.toString();
     };
+  }
+
+  private String getCustomSerdeClassCanonicalName(CustomSerdeFactory customSerdeFactoryAnnotation) {
+    try {
+      Class<?> clazz = customSerdeFactoryAnnotation.value();
+      return clazz.getCanonicalName();
+    } catch (MirroredTypeException e) {
+      return e.getTypeMirror().toString();
+    }
   }
 
   private static String sanitizeJavadoc(String documentation) {

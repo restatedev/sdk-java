@@ -17,9 +17,10 @@ import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.*
 import com.google.devtools.ksp.visitor.KSDefaultVisitor
 import dev.restate.sdk.annotation.Accept
+import dev.restate.sdk.annotation.CustomSerdeFactory
 import dev.restate.sdk.annotation.Json
 import dev.restate.sdk.annotation.Raw
-import dev.restate.sdk.common.ServiceType
+import dev.restate.sdk.endpoint.definition.ServiceType
 import dev.restate.sdk.gen.model.Handler
 import dev.restate.sdk.gen.model.HandlerType
 import dev.restate.sdk.gen.model.PayloadType
@@ -37,8 +38,12 @@ class KElementConverter(
   companion object {
     private val SUPPORTED_CLASS_KIND: Set<ClassKind> = setOf(ClassKind.CLASS, ClassKind.INTERFACE)
     private val EMPTY_PAYLOAD: PayloadType =
-        PayloadType(true, "", "Unit", "dev.restate.sdk.kotlin.KtSerdes.UNIT")
-    private const val RAW_SERDE: String = "dev.restate.sdk.common.Serde.RAW"
+        PayloadType(
+            true,
+            "",
+            "Unit",
+            "dev.restate.sdk.kotlin.serialization.KotlinSerializationSerdeFactory.UNIT")
+    private const val RAW_SERDE: String = "dev.restate.serde.Serde.RAW"
   }
 
   override fun defaultHandler(node: KSNode, data: Service.Builder) {}
@@ -94,6 +99,14 @@ class KElementConverter(
           "The class declaration $targetFqcn has no methods annotated as handlers",
           classDeclaration)
     }
+
+    var serdeFactoryDecl = "dev.restate.sdk.kotlin.serialization.KotlinSerializationSerdeFactory()"
+    val customSerdeFactory: CustomSerdeFactory? =
+        classDeclaration.getAnnotationsByType(CustomSerdeFactory::class).firstOrNull()
+    if (customSerdeFactory != null) {
+      serdeFactoryDecl = "new " + customSerdeFactory.value + "()"
+    }
+    data.withSerdeFactoryDecl(serdeFactoryDecl)
   }
 
   @OptIn(KspExperimental::class)
@@ -224,11 +237,7 @@ class KElementConverter(
   }
 
   private fun contentTypeDecoratedSerdeDecl(serdeDecl: String, contentType: String): String {
-    return ("dev.restate.sdk.common.Serde.withContentType(\"" +
-        contentType +
-        "\", " +
-        serdeDecl +
-        ")")
+    return ("dev.restate.serde.Serde.withContentType(\"" + contentType + "\", " + serdeDecl + ")")
   }
 
   private fun defaultHandlerType(serviceType: ServiceType): HandlerType {
@@ -291,8 +300,9 @@ class KElementConverter(
 
   private fun jsonSerdeDecl(ty: KSType, qualifiedTypeName: String): String {
     return when (ty) {
-      builtIns.unitType -> "dev.restate.sdk.kotlin.KtSerdes.UNIT"
-      else -> "dev.restate.sdk.kotlin.KtSerdes.json<${boxedType(ty, qualifiedTypeName)}>()"
+      builtIns.unitType -> EMPTY_PAYLOAD.serdeDecl
+      else ->
+          "SERDE_FACTORY.create(dev.restate.sdk.kotlin.serialization.typeTag<${boxedType(ty, qualifiedTypeName)}>())"
     }
   }
 

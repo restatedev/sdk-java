@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component;
  * dev.restate.sdk.annotation.Workflow} to bind them to the Restate HTTP Endpoint.
  *
  * <p>You can configure the Restate HTTP Endpoint using {@link RestateEndpointProperties} and {@link
- * RestateEndpointHttpServerProperties}.
+ * RestateHttpServerProperties}.
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)

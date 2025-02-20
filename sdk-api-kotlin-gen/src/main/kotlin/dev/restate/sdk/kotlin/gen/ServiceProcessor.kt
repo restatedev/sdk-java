@@ -18,8 +18,8 @@ import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.Origin
-import dev.restate.sdk.common.ServiceType
-import dev.restate.sdk.common.syscalls.ServiceDefinitionFactory
+import dev.restate.sdk.endpoint.definition.ServiceDefinitionFactory
+import dev.restate.sdk.endpoint.definition.ServiceType
 import dev.restate.sdk.gen.model.Service
 import dev.restate.sdk.gen.template.HandlebarsTemplateEngine
 import java.io.BufferedWriter
@@ -52,14 +52,23 @@ class ServiceProcessor(private val logger: KSPLogger, private val codeGenerator:
               ServiceType.WORKFLOW to "templates/Client",
               ServiceType.VIRTUAL_OBJECT to "templates/Client"),
           RESERVED_METHOD_NAMES)
-  private val definitionsCodegen: HandlebarsTemplateEngine =
+  private val metadataCodegen: HandlebarsTemplateEngine =
       HandlebarsTemplateEngine(
-          "Definitions",
+          "Metadata",
           ClassPathTemplateLoader(),
           mapOf(
-              ServiceType.SERVICE to "templates/Definitions",
-              ServiceType.WORKFLOW to "templates/Definitions",
-              ServiceType.VIRTUAL_OBJECT to "templates/Definitions"),
+              ServiceType.SERVICE to "templates/Metadata",
+              ServiceType.WORKFLOW to "templates/Metadata",
+              ServiceType.VIRTUAL_OBJECT to "templates/Metadata"),
+          RESERVED_METHOD_NAMES)
+  private val requestsCodegen: HandlebarsTemplateEngine =
+      HandlebarsTemplateEngine(
+          "Requests",
+          ClassPathTemplateLoader(),
+          mapOf(
+              ServiceType.SERVICE to "templates/Requests",
+              ServiceType.WORKFLOW to "templates/Requests",
+              ServiceType.VIRTUAL_OBJECT to "templates/Requests"),
           RESERVED_METHOD_NAMES)
 
   @OptIn(KspExperimental::class)
@@ -103,8 +112,11 @@ class ServiceProcessor(private val logger: KSPLogger, private val codeGenerator:
               .writer(Charset.defaultCharset())
         }
         this.bindableServiceFactoryCodegen.generate(fileCreator, service.second)
-        this.clientCodegen.generate(fileCreator, service.second)
-        this.definitionsCodegen.generate(fileCreator, service.second)
+        this.metadataCodegen.generate(fileCreator, service.second)
+        this.requestsCodegen.generate(fileCreator, service.second)
+        if (service.second.isContextClientEnabled || service.second.isIngressClientEnabled) {
+          this.clientCodegen.generate(fileCreator, service.second)
+        }
       } catch (ex: Throwable) {
         throw RuntimeException(ex)
       }

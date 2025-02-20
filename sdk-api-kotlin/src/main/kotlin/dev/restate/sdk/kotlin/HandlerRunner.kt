@@ -8,12 +8,13 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
-import dev.restate.sdk.common.TerminalException
-import dev.restate.sdk.common.syscalls.HandlerSpecification
-import dev.restate.sdk.common.syscalls.SyscallCallback
-import dev.restate.sdk.common.syscalls.Syscalls
+import dev.restate.common.Slice
+import dev.restate.sdk.endpoint.definition.HandlerContext
+import dev.restate.sdk.types.TerminalException
+import dev.restate.serde.Serde
+import dev.restate.serde.SerdeFactory
 import io.opentelemetry.extension.kotlin.asContextElement
-import java.nio.ByteBuffer
+import java.util.concurrent.CompletableFuture
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,52 +22,64 @@ import kotlinx.coroutines.asContextElement
 import kotlinx.coroutines.launch
 import org.apache.logging.log4j.LogManager
 
-/** Adapter class for [dev.restate.sdk.common.syscalls.HandlerRunner] to use the Kotlin API. */
+/** Adapter class for [dev.restate.sdk.endpoint.definition.HandlerRunner] to use the Kotlin API. */
 class HandlerRunner<REQ, RES, CTX : Context>
 internal constructor(
     private val runner: suspend (CTX, REQ) -> RES,
-) : dev.restate.sdk.common.syscalls.HandlerRunner<REQ, RES, HandlerRunner.Options> {
+    private val contextSerdeFactory: SerdeFactory,
+    private val options: Options
+) : dev.restate.sdk.endpoint.definition.HandlerRunner<REQ, RES> {
 
   companion object {
     private val LOG = LogManager.getLogger(HandlerRunner::class.java)
 
     fun <REQ, RES, CTX : Context> of(
-        runner: suspend (CTX, REQ) -> RES
+        contextSerdeFactory: SerdeFactory,
+        options: Options = Options.DEFAULT,
+        runner: suspend (CTX, REQ) -> RES,
     ): HandlerRunner<REQ, RES, CTX> {
-      return HandlerRunner(runner)
+      return HandlerRunner(runner, contextSerdeFactory, options)
     }
 
-    fun <RES, CTX : Context> of(runner: suspend (CTX) -> RES): HandlerRunner<Unit, RES, CTX> {
-      return HandlerRunner { ctx: CTX, _: Unit -> runner(ctx) }
+    fun <RES, CTX : Context> of(
+        contextSerdeFactory: SerdeFactory,
+        options: Options = Options.DEFAULT,
+        runner: suspend (CTX) -> RES,
+    ): HandlerRunner<Unit, RES, CTX> {
+      return HandlerRunner({ ctx: CTX, _: Unit -> runner(ctx) }, contextSerdeFactory, options)
     }
   }
 
   override fun run(
-      handlerSpecification: HandlerSpecification<REQ, RES>,
-      syscalls: Syscalls,
-      options: Options?,
-      callback: SyscallCallback<ByteBuffer>
-  ) {
-    val ctx: Context = ContextImpl(syscalls)
+      handlerContext: HandlerContext,
+      requestSerde: Serde<REQ>,
+      responseSerde: Serde<RES>,
+  ): CompletableFuture<Slice> {
+    val ctx: Context = ContextImpl(handlerContext, contextSerdeFactory)
 
     val scope =
         CoroutineScope(
-            (options?.coroutineContext ?: Options.DEFAULT.coroutineContext) +
-                dev.restate.sdk.common.syscalls.HandlerRunner.SYSCALLS_THREAD_LOCAL
-                    .asContextElement(syscalls) +
-                syscalls.request().otelContext()!!.asContextElement())
+            options.coroutineContext +
+                dev.restate.sdk.endpoint.definition.HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL
+                    .asContextElement(handlerContext) +
+                handlerContext.request().otelContext()!!.asContextElement())
+
+    val completableFuture = CompletableFuture<Slice>()
+
     scope.launch {
-      val serializedResult: ByteBuffer
+      val serializedResult: Slice
 
       try {
         // Parse input
         val req: REQ
         try {
-          req = handlerSpecification.requestSerde.deserialize(syscalls.request().bodyBuffer())
+          req = requestSerde.deserialize(handlerContext.request().body)
         } catch (e: Throwable) {
-          LOG.warn("Error when deserializing input", e)
-          throw TerminalException(
-              TerminalException.BAD_REQUEST_CODE, "Cannot deserialize input: " + e.message)
+          LOG.warn("Error deserializing request", e)
+          completableFuture.completeExceptionally(
+              throw TerminalException(
+                  TerminalException.BAD_REQUEST_CODE, "Cannot deserialize request: " + e.message))
+          return@launch
         }
 
         // Execute user code
@@ -74,23 +87,26 @@ internal constructor(
 
         // Serialize output
         try {
-          serializedResult = handlerSpecification.responseSerde.serializeToByteBuffer(res)
+          serializedResult = responseSerde.serialize(res)
         } catch (e: Throwable) {
-          LOG.warn("Error when serializing input", e)
-          throw TerminalException(
-              TerminalException.INTERNAL_SERVER_ERROR_CODE, "Cannot serialize output: $e")
+          LOG.warn("Error when serializing response", e)
+          completableFuture.completeExceptionally(e)
+          return@launch
         }
       } catch (e: Throwable) {
-        callback.onCancel(e)
+        completableFuture.completeExceptionally(e)
         return@launch
       }
 
       // Complete callback
-      callback.onSuccess(serializedResult)
+      completableFuture.complete(serializedResult)
     }
+
+    return completableFuture
   }
 
-  class Options(val coroutineContext: CoroutineContext) {
+  data class Options(val coroutineContext: CoroutineContext) :
+      dev.restate.sdk.endpoint.definition.HandlerRunner.Options {
     companion object {
       val DEFAULT: Options = Options(Dispatchers.Default)
     }

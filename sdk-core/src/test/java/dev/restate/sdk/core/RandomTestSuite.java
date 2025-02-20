@@ -9,18 +9,17 @@
 package dev.restate.sdk.core;
 
 import static dev.restate.sdk.core.AssertUtils.*;
-import static dev.restate.sdk.core.ProtoUtils.*;
+import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 
 import dev.restate.sdk.core.TestDefinitions.TestDefinition;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
+import dev.restate.sdk.core.statemachine.ProtoUtils;
 import java.util.stream.Stream;
 
 public abstract class RandomTestSuite implements TestSuite {
 
   protected abstract TestInvocationBuilder randomShouldBeDeterministic();
-
-  protected abstract TestInvocationBuilder randomInsideSideEffect();
 
   protected abstract int getExpectedInt(long seed);
 
@@ -30,14 +29,9 @@ public abstract class RandomTestSuite implements TestSuite {
 
     return Stream.of(
         this.randomShouldBeDeterministic()
-            .withInput(startMessage(1).setDebugId(debugId), ProtoUtils.inputMessage())
+            .withInput(startMessage(1).setDebugId(debugId), ProtoUtils.inputCmd())
             .expectingOutput(
-                outputMessage(getExpectedInt(new InvocationIdImpl(debugId).toRandomSeed())),
-                END_MESSAGE),
-        this.randomInsideSideEffect()
-            .withInput(startMessage(1).setDebugId(debugId), ProtoUtils.inputMessage())
-            .assertingOutput(
-                containsOnly(
-                    errorMessageStartingWith(IllegalStateException.class.getCanonicalName()))));
+                outputCmd(getExpectedInt(ProtoUtils.invocationIdToRandomSeed(debugId))),
+                END_MESSAGE));
   }
 }

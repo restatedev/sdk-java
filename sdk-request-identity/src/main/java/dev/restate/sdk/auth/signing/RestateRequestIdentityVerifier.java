@@ -15,7 +15,8 @@ import com.nimbusds.jose.jwk.Curve;
 import com.nimbusds.jose.jwk.OctetKeyPair;
 import com.nimbusds.jose.util.Base64URL;
 import com.nimbusds.jwt.SignedJWT;
-import dev.restate.sdk.auth.RequestIdentityVerifier;
+import dev.restate.sdk.endpoint.HeadersAccessor;
+import dev.restate.sdk.endpoint.RequestIdentityVerifier;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -34,7 +35,7 @@ public class RestateRequestIdentityVerifier implements RequestIdentityVerifier {
   }
 
   @Override
-  public void verifyRequest(Headers headers) throws Exception {
+  public void verifyRequest(HeadersAccessor headers) throws Exception {
     String signatureScheme = expectHeader(headers, SIGNATURE_SCHEME_HEADER);
     switch (signatureScheme) {
       case SIGNATURE_SCHEME_V1:
@@ -53,7 +54,7 @@ public class RestateRequestIdentityVerifier implements RequestIdentityVerifier {
     }
   }
 
-  private String expectHeader(Headers headers, String key) {
+  private String expectHeader(HeadersAccessor headers, String key) {
     String value = headers.get(key);
     if (value == null) {
       throw new IllegalArgumentException("Missing header " + key);

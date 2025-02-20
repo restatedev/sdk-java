@@ -1,0 +1,15 @@
+{{#if originalClassPkg}}package {{originalClassPkg}}{{/if}}
+
+object {{generatedClassSimpleName}} {
+
+    const val SERVICE_NAME: String = "{{serviceName}}"
+    val SERDE_FACTORY: dev.restate.serde.SerdeFactory = {{serdeFactoryDecl}}
+
+    object Serde {
+        {{#handlers}}
+        val {{inputSerdeFieldName}}: dev.restate.serde.Serde<{{{boxedInputFqcn}}}> = {{{inputSerdeDecl}}}
+        val {{outputSerdeFieldName}}: dev.restate.serde.Serde<{{{boxedOutputFqcn}}}> = {{{outputSerdeDecl}}}
+        {{/handlers}}
+    }
+
+}

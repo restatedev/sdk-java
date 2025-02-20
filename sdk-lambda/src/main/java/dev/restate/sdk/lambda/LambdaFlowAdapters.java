@@ -8,10 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.lambda;
 
-import dev.restate.sdk.core.InvocationFlow;
+import dev.restate.common.Slice;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.concurrent.CompletableFuture;
@@ -20,7 +19,7 @@ import java.util.concurrent.Flow;
 
 class LambdaFlowAdapters {
 
-  static class ResultSubscriber implements InvocationFlow.InvocationOutputSubscriber {
+  static class ResultSubscriber implements Flow.Subscriber<Slice> {
 
     private final CompletableFuture<Void> completionFuture;
     private final ByteArrayOutputStream outputStream;
@@ -38,9 +37,9 @@ class LambdaFlowAdapters {
     }
 
     @Override
-    public void onNext(ByteBuffer item) {
+    public void onNext(Slice item) {
       try {
-        this.channel.write(item);
+        this.channel.write(item.asReadOnlyByteBuffer());
       } catch (IOException e) {
         this.completionFuture.completeExceptionally(e);
       }
@@ -66,24 +65,24 @@ class LambdaFlowAdapters {
     }
   }
 
-  static class BufferedPublisher implements InvocationFlow.InvocationInputPublisher {
+  static class BufferedPublisher implements Flow.Publisher<Slice> {
 
-    private ByteBuffer buffer;
+    private Slice slice;
 
-    BufferedPublisher(ByteBuffer buffer) {
-      this.buffer = buffer.asReadOnlyBuffer();
+    BufferedPublisher(Slice slice) {
+      this.slice = slice;
     }
 
     @Override
-    public void subscribe(Flow.Subscriber<? super ByteBuffer> subscriber) {
+    public void subscribe(Flow.Subscriber<? super Slice> subscriber) {
       subscriber.onSubscribe(
           new Flow.Subscription() {
             @Override
             public void request(long l) {
-              if (buffer != null) {
-                subscriber.onNext(buffer);
+              if (slice != null) {
+                subscriber.onNext(slice);
                 subscriber.onComplete();
-                buffer = null;
+                slice = null;
               }
             }
 

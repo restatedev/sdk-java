@@ -12,9 +12,10 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import dev.restate.sdk.common.Serde;
-import dev.restate.sdk.common.function.ThrowingBiConsumer;
-import dev.restate.sdk.common.function.ThrowingFunction;
+import dev.restate.common.Slice;
+import dev.restate.common.function.ThrowingBiConsumer;
+import dev.restate.common.function.ThrowingFunction;
+import dev.restate.serde.Serde;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -112,19 +113,19 @@ public abstract class TestSerdes {
       ThrowingFunction<JsonParser, T> deserializer) {
     return new Serde<>() {
       @Override
-      public byte[] serialize(@Nullable T value) {
+      public Slice serialize(@Nullable T value) {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         try (JsonGenerator gen = JSON_FACTORY.createGenerator(outputStream)) {
           serializer.asBiConsumer().accept(gen, value);
         } catch (IOException e) {
           throw new RuntimeException("Cannot create JsonGenerator", e);
         }
-        return outputStream.toByteArray();
+        return Slice.wrap(outputStream.toByteArray());
       }
 
       @Override
-      public T deserialize(byte[] value) {
-        ByteArrayInputStream inputStream = new ByteArrayInputStream(value);
+      public T deserialize(Slice value) {
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(value.toByteArray());
         try (JsonParser parser = JSON_FACTORY.createParser(inputStream)) {
           return deserializer.asFunction().apply(parser);
         } catch (IOException e) {

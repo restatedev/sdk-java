@@ -9,6 +9,7 @@ description = "Restate SDK testing tools"
 
 dependencies {
   api(project(":sdk-common"))
+  api(project(":client"))
   api(libs.junit.api)
   api(libs.testcontainers)
 

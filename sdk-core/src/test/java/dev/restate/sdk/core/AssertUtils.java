@@ -14,18 +14,23 @@ import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 import com.google.protobuf.MessageLite;
-import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.common.syscalls.ServiceDefinition;
-import dev.restate.sdk.core.manifest.EndpointManifestSchema;
-import dev.restate.sdk.core.manifest.Handler;
-import dev.restate.sdk.core.manifest.Service;
-import java.util.Arrays;
+import dev.restate.common.Slice;
+import dev.restate.sdk.core.generated.manifest.EndpointManifestSchema;
+import dev.restate.sdk.core.generated.manifest.Handler;
+import dev.restate.sdk.core.generated.manifest.Service;
+import dev.restate.sdk.core.generated.protocol.Protocol;
+import dev.restate.sdk.core.statemachine.InvocationInput;
+import dev.restate.sdk.core.statemachine.MessageDecoder;
+import dev.restate.sdk.endpoint.Endpoint;
+import dev.restate.sdk.types.TerminalException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.assertj.core.api.AbstractObjectAssert;
+import org.assertj.core.api.ListAssert;
 import org.assertj.core.api.ObjectAssert;
 
 public class AssertUtils {
@@ -48,15 +53,19 @@ public class AssertUtils {
     return errorMessage(
         msg ->
             assertThat(msg)
-                .returns(e.toString(), Protocol.ErrorMessage::getMessage)
+                .returns(e.getMessage(), Protocol.ErrorMessage::getMessage)
                 .returns(
-                    TerminalException.INTERNAL_SERVER_ERROR_CODE, Protocol.ErrorMessage::getCode));
+                    TerminalException.INTERNAL_SERVER_ERROR_CODE, Protocol.ErrorMessage::getCode)
+                .extracting(Protocol.ErrorMessage::getDescription, STRING)
+                .startsWith(e.getClass().getName()));
   }
 
-  public static Consumer<? super MessageLite> errorMessageStartingWith(String str) {
+  public static Consumer<? super MessageLite> errorDescriptionStartingWith(String str) {
     return errorMessage(
         msg ->
-            assertThat(msg).extracting(Protocol.ErrorMessage::getMessage, STRING).startsWith(str));
+            assertThat(msg)
+                .extracting(Protocol.ErrorMessage::getDescription, STRING)
+                .startsWith(str));
   }
 
   public static Consumer<? super MessageLite> protocolExceptionErrorMessage(int code) {
@@ -64,26 +73,34 @@ public class AssertUtils {
         msg ->
             assertThat(msg)
                 .returns(code, Protocol.ErrorMessage::getCode)
-                .extracting(Protocol.ErrorMessage::getMessage, STRING)
+                .extracting(Protocol.ErrorMessage::getDescription, STRING)
                 .startsWith(ProtocolException.class.getCanonicalName()));
   }
 
   public static EndpointManifestSchemaAssert assertThatDiscovery(Object... services) {
+    Endpoint.Builder builder = Endpoint.builder();
+    for (var svc : services) {
+      builder.bind(svc);
+    }
+
     return new EndpointManifestSchemaAssert(
         new EndpointManifest(
                 EndpointManifestSchema.ProtocolMode.BIDI_STREAM,
-                Arrays.stream(services)
-                    .map(
-                        svc -> {
-                          if (svc instanceof ServiceDefinition<?>) {
-                            return (ServiceDefinition<?>) svc;
-                          }
-
-                          return RestateEndpoint.discoverServiceDefinitionFactory(svc).create(svc);
-                        }),
-                false)
+                builder.build().getServiceDefinitions(),
+                true)
             .manifest(),
         EndpointManifestSchemaAssert.class);
+  }
+
+  public static ListAssert<InvocationInput> assertThatDecodingMessages(Slice... slices) {
+    var messageDecoder = new MessageDecoder();
+    Stream.of(slices).forEach(messageDecoder::offer);
+
+    var outputList = new ArrayList<InvocationInput>();
+    while (messageDecoder.isNextAvailable()) {
+      outputList.add(messageDecoder.next());
+    }
+    return assertThat(outputList);
   }
 
   public static class EndpointManifestSchemaAssert

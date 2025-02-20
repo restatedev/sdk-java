@@ -9,22 +9,20 @@
 package my.restate.sdk.examples;
 
 import dev.restate.sdk.Context;
-import dev.restate.sdk.JsonSerdes;
 import dev.restate.sdk.SharedWorkflowContext;
 import dev.restate.sdk.WorkflowContext;
 import dev.restate.sdk.annotation.Handler;
 import dev.restate.sdk.annotation.Service;
 import dev.restate.sdk.annotation.Shared;
 import dev.restate.sdk.annotation.Workflow;
-import dev.restate.sdk.common.DurablePromiseKey;
-import dev.restate.sdk.common.StateKey;
-import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.http.vertx.RestateHttpEndpointBuilder;
-import dev.restate.sdk.serde.jackson.JacksonSerdes;
+import dev.restate.sdk.endpoint.Endpoint;
+import dev.restate.sdk.http.vertx.RestateHttpServer;
+import dev.restate.sdk.types.DurablePromiseKey;
+import dev.restate.sdk.types.StateKey;
+import dev.restate.sdk.types.TerminalException;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.concurrent.TimeoutException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -48,14 +46,13 @@ public class LoanWorkflow {
 
   private static final Logger LOG = LogManager.getLogger(LoanWorkflow.class);
 
-  private static final StateKey<Status> STATUS =
-      StateKey.of("status", JacksonSerdes.of(Status.class));
+  private static final StateKey<Status> STATUS = StateKey.of("status", Status.class);
   private static final StateKey<LoanRequest> LOAN_REQUEST =
-      StateKey.of("loanRequest", JacksonSerdes.of(LoanRequest.class));
+      StateKey.of("loanRequest", LoanRequest.class);
   private static final DurablePromiseKey<Boolean> HUMAN_APPROVAL =
-      DurablePromiseKey.of("humanApproval", JsonSerdes.BOOLEAN);
+      DurablePromiseKey.of("humanApproval", Boolean.class);
   private static final StateKey<String> TRANSFER_EXECUTION_TIME =
-      StateKey.of("transferExecutionTime", JsonSerdes.STRING);
+      StateKey.of("transferExecutionTime", String.class);
 
   // --- The main workflow method
 
@@ -90,7 +87,7 @@ public class LoanWorkflow {
               .transfer(
                   new TransferRequest(loanRequest.customerBankAccount(), loanRequest.amount()))
               .await(Duration.ofDays(7));
-    } catch (TerminalException | TimeoutException e) {
+    } catch (TerminalException e) {
       LOG.warn("Transaction failed", e);
       ctx.set(STATUS, Status.TRANSFER_FAILED);
       return "Failed";
@@ -124,10 +121,9 @@ public class LoanWorkflow {
   }
 
   public static void main(String[] args) {
-    RestateHttpEndpointBuilder.builder()
-        .bind(new LoanWorkflow())
-        .bind(new MockBank())
-        .buildAndListen();
+    Endpoint endpoint = Endpoint.builder().bind(new LoanWorkflow()).bind(new MockBank()).build();
+
+    RestateHttpServer.listen(endpoint);
 
     // Register the service in the meantime!
     LOG.info("Now it's time to register this deployment");

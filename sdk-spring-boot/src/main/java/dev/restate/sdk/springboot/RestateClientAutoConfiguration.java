@@ -8,7 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.springboot;
 
-import dev.restate.sdk.client.Client;
+import dev.restate.client.Client;
+import dev.restate.client.ClientRequestOptions;
 import java.util.Collections;
 import java.util.Map;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -30,6 +31,7 @@ public class RestateClientAutoConfiguration {
     if (headers == null) {
       headers = Collections.emptyMap();
     }
-    return Client.connect(restateClientProperties.getBaseUri(), headers);
+    return Client.connect(
+        restateClientProperties.getBaseUri(), ClientRequestOptions.withHeaders(headers).build());
   }
 }

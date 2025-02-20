@@ -10,7 +10,7 @@ kotlinx-coroutines = "1.9.0"
 junit = "5.10.2"
 spring-boot = "3.4.0"
 log4j = "2.24.2"
-restate = "1.3.0-SNAPSHOT"
+restate = "2.0.0-SNAPSHOT"
 
 [libraries]
 aws-lambda-core = "com.amazonaws:aws-lambda-java-core:1.2.3"
@@ -47,7 +47,7 @@ kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serializa
 jspecify = "org.jspecify:jspecify:1.0.0"
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
 junit-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit" }
-slf4j-nop = "org.slf4j:slf4j-nop:1.7.32"
+slf4j-nop = "org.slf4j:slf4j-nop:2.0.16"
 spring-boot-starter = { module = "org.springframework.boot:spring-boot-starter", version.ref = "spring-boot" }
 spring-boot-starter-json = { module = "org.springframework.boot:spring-boot-starter-json", version.ref = "spring-boot" }
 spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test", version.ref = "spring-boot" }
@@ -55,7 +55,7 @@ testcontainers = "org.testcontainers:testcontainers:1.20.4"
 
 [plugins]
 dependency-license-report = "com.github.jk1.dependency-license-report:2.0"
-shadow = "com.github.johnrengelman.shadow:8.1.1"
+shadow = "com.gradleup.shadow:9.0.0-beta8"
 jib = "com.google.cloud.tools.jib:3.4.4"
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 protobuf = "com.google.protobuf:0.9.4"

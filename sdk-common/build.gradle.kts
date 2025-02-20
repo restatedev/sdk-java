@@ -13,8 +13,10 @@ dependencies {
   compileOnly(libs.jspecify)
 
   api(libs.opentelemetry.api)
+  api(project(":common"))
 
   implementation(libs.jackson.core)
+  implementation(libs.log4j.api)
 
   testImplementation(libs.junit.jupiter)
   testImplementation(libs.assertj)

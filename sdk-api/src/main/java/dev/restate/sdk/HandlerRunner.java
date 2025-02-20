@@ -8,70 +8,73 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.common.function.ThrowingBiConsumer;
-import dev.restate.sdk.common.function.ThrowingBiFunction;
-import dev.restate.sdk.common.function.ThrowingConsumer;
-import dev.restate.sdk.common.function.ThrowingFunction;
-import dev.restate.sdk.common.syscalls.HandlerSpecification;
-import dev.restate.sdk.common.syscalls.SyscallCallback;
-import dev.restate.sdk.common.syscalls.Syscalls;
+import dev.restate.common.Slice;
+import dev.restate.common.function.ThrowingBiConsumer;
+import dev.restate.common.function.ThrowingBiFunction;
+import dev.restate.common.function.ThrowingConsumer;
+import dev.restate.common.function.ThrowingFunction;
+import dev.restate.sdk.endpoint.definition.HandlerContext;
+import dev.restate.sdk.types.TerminalException;
+import dev.restate.serde.Serde;
+import dev.restate.serde.SerdeFactory;
 import io.opentelemetry.context.Scope;
-import java.nio.ByteBuffer;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
 
-/** Adapter class for {@link dev.restate.sdk.common.syscalls.HandlerRunner} to use the Java API. */
+/**
+ * Adapter class for {@link dev.restate.sdk.endpoint.definition.HandlerRunner} to use the Java API.
+ */
 public class HandlerRunner<REQ, RES>
-    implements dev.restate.sdk.common.syscalls.HandlerRunner<REQ, RES, HandlerRunner.Options> {
+    implements dev.restate.sdk.endpoint.definition.HandlerRunner<REQ, RES> {
   private final ThrowingBiFunction<Context, REQ, RES> runner;
+  private final SerdeFactory contextSerdeFactory;
+  private final Options options;
 
   private static final Logger LOG = LogManager.getLogger(HandlerRunner.class);
 
-  HandlerRunner(ThrowingBiFunction<? extends Context, REQ, RES> runner) {
+  HandlerRunner(
+      ThrowingBiFunction<? extends Context, REQ, RES> runner,
+      SerdeFactory contextSerdeFactory,
+      @Nullable Options options) {
     //noinspection unchecked
     this.runner = (ThrowingBiFunction<Context, REQ, RES>) runner;
+    this.contextSerdeFactory = contextSerdeFactory;
+    this.options = (options != null) ? options : Options.DEFAULT;
   }
 
   @Override
-  public void run(
-      HandlerSpecification<REQ, RES> handlerSpecification,
-      Syscalls syscalls,
-      @Nullable Options options,
-      SyscallCallback<ByteBuffer> callback) {
-    if (options == null) {
-      options = Options.DEFAULT;
-    }
+  public CompletableFuture<Slice> run(
+      HandlerContext handlerContext, Serde<REQ> requestSerde, Serde<RES> responseSerde) {
+    CompletableFuture<Slice> returnFuture = new CompletableFuture<>();
 
     // Wrap the executor for setting/unsetting the thread local
-    Options finalOptions = options;
-    Executor wrapped =
+    Executor serviceExecutor =
         runnable ->
-            finalOptions.executor.execute(
+            options.executor.execute(
                 () -> {
-                  SYSCALLS_THREAD_LOCAL.set(syscalls);
-                  try (Scope ignored = syscalls.request().otelContext().makeCurrent()) {
+                  HANDLER_CONTEXT_THREAD_LOCAL.set(handlerContext);
+                  try (Scope ignored = handlerContext.request().otelContext().makeCurrent()) {
                     runnable.run();
                   } finally {
-                    SYSCALLS_THREAD_LOCAL.remove();
+                    HANDLER_CONTEXT_THREAD_LOCAL.remove();
                   }
                 });
-    wrapped.execute(
+    serviceExecutor.execute(
         () -> {
           // Any context switching, if necessary, will be done by ResolvedEndpointHandler
-          Context ctx = new ContextImpl(syscalls);
+          Context ctx = new ContextImpl(handlerContext, serviceExecutor, contextSerdeFactory);
 
           // Parse input
           REQ req;
           try {
-            req =
-                handlerSpecification.getRequestSerde().deserialize(syscalls.request().bodyBuffer());
+            req = requestSerde.deserialize(handlerContext.request().body());
           } catch (Throwable e) {
             LOG.warn("Cannot deserialize input", e);
-            callback.onCancel(
+            returnFuture.completeExceptionally(
                 new TerminalException(
                     TerminalException.BAD_REQUEST_CODE,
                     "Cannot deserialize input: " + e.getMessage()));
@@ -83,17 +86,17 @@ public class HandlerRunner<REQ, RES>
           try {
             res = this.runner.apply(ctx, req);
           } catch (Throwable e) {
-            callback.onCancel(e);
+            returnFuture.completeExceptionally(e);
             return;
           }
 
           // Serialize output
-          ByteBuffer serializedResult;
+          Slice serializedResult;
           try {
-            serializedResult = handlerSpecification.getResponseSerde().serializeToByteBuffer(res);
+            serializedResult = responseSerde.serialize(res);
           } catch (Throwable e) {
             LOG.warn("Cannot serialize output", e);
-            callback.onCancel(
+            returnFuture.completeExceptionally(
                 new TerminalException(
                     TerminalException.INTERNAL_SERVER_ERROR_CODE,
                     "Cannot serialize output: " + e.getMessage()));
@@ -101,38 +104,52 @@ public class HandlerRunner<REQ, RES>
           }
 
           // Complete callback
-          callback.onSuccess(serializedResult);
+          returnFuture.complete(serializedResult);
         });
+
+    return returnFuture;
   }
 
   public static <CTX extends Context, REQ, RES> HandlerRunner<REQ, RES> of(
-      ThrowingBiFunction<CTX, REQ, RES> runner) {
-    return new HandlerRunner<>(runner);
+      ThrowingBiFunction<CTX, REQ, RES> runner,
+      SerdeFactory contextSerdeFactory,
+      @Nullable Options options) {
+    return new HandlerRunner<>(runner, contextSerdeFactory, options);
   }
 
   @SuppressWarnings("unchecked")
   public static <CTX extends Context, RES> HandlerRunner<Void, RES> of(
-      ThrowingFunction<CTX, RES> runner) {
-    return new HandlerRunner<>((context, o) -> runner.apply((CTX) context));
+      ThrowingFunction<CTX, RES> runner,
+      SerdeFactory contextSerdeFactory,
+      @Nullable Options options) {
+    return new HandlerRunner<>(
+        (context, o) -> runner.apply((CTX) context), contextSerdeFactory, options);
   }
 
   @SuppressWarnings("unchecked")
   public static <CTX extends Context, REQ> HandlerRunner<REQ, Void> of(
-      ThrowingBiConsumer<CTX, REQ> runner) {
+      ThrowingBiConsumer<CTX, REQ> runner,
+      SerdeFactory contextSerdeFactory,
+      @Nullable Options options) {
     return new HandlerRunner<>(
         (context, o) -> {
           runner.accept((CTX) context, o);
           return null;
-        });
+        },
+        contextSerdeFactory,
+        options);
   }
 
   @SuppressWarnings("unchecked")
-  public static <CTX extends Context> HandlerRunner<Void, Void> of(ThrowingConsumer<CTX> runner) {
+  public static <CTX extends Context> HandlerRunner<Void, Void> of(
+      ThrowingConsumer<CTX> runner, SerdeFactory contextSerdeFactory, @Nullable Options options) {
     return new HandlerRunner<>(
         (ctx, o) -> {
           runner.accept((CTX) ctx);
           return null;
-        });
+        },
+        contextSerdeFactory,
+        options);
   }
 
   public static class Options {
@@ -144,8 +161,12 @@ public class HandlerRunner<REQ, RES>
      * You can run on virtual threads by using the executor {@code
      * Executors.newVirtualThreadPerTaskExecutor()}.
      */
-    public Options(Executor executor) {
+    private Options(Executor executor) {
       this.executor = executor;
+    }
+
+    public static Options withExecutor(Executor executor) {
+      return new Options(executor);
     }
   }
 }

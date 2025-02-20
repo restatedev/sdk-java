@@ -1,3 +1,5 @@
+import com.github.jk1.license.render.ReportRenderer
+
 plugins {
   alias(libs.plugins.dependency.license.report)
   alias(libs.plugins.nexus.publish)
@@ -45,7 +47,7 @@ allprojects {
   tasks.named("check") { dependsOn("checkLicense") }
 
   licenseReport {
-    renderers = arrayOf(com.github.jk1.license.render.CsvReportRenderer())
+    renderers = arrayOf<ReportRenderer>(com.github.jk1.license.render.CsvReportRenderer())
 
     excludeBoms = true
 

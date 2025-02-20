@@ -8,15 +8,14 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testservices
 
-import dev.restate.sdk.common.StateKey
-import dev.restate.sdk.kotlin.KtStateKey
-import dev.restate.sdk.kotlin.ObjectContext
+import dev.restate.sdk.kotlin.*
 import dev.restate.sdk.testservices.contracts.ListObject
+import dev.restate.sdk.types.StateKey
 
 class ListObjectImpl : ListObject {
   companion object {
     private val LIST_KEY: StateKey<List<String>> =
-        KtStateKey.json<List<String>>(
+        stateKey(
             "list",
         )
   }

@@ -8,208 +8,235 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.common.*;
-import dev.restate.sdk.common.function.ThrowingSupplier;
-import dev.restate.sdk.common.syscalls.Deferred;
-import dev.restate.sdk.common.syscalls.EnterSideEffectSyscallCallback;
-import dev.restate.sdk.common.syscalls.ExitSideEffectSyscallCallback;
-import dev.restate.sdk.common.syscalls.Syscalls;
-import java.nio.ByteBuffer;
+import dev.restate.common.*;
+import dev.restate.common.function.ThrowingSupplier;
+import dev.restate.sdk.endpoint.definition.AsyncResult;
+import dev.restate.sdk.endpoint.definition.HandlerContext;
+import dev.restate.sdk.types.DurablePromiseKey;
+import dev.restate.sdk.types.HandlerRequest;
+import dev.restate.sdk.types.RetryPolicy;
+import dev.restate.sdk.types.StateKey;
+import dev.restate.sdk.types.TerminalException;
+import dev.restate.serde.Serde;
+import dev.restate.serde.SerdeFactory;
+import dev.restate.serde.TypeTag;
 import java.time.Duration;
 import java.util.Collection;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 
 class ContextImpl implements ObjectContext, WorkflowContext {
 
-  final Syscalls syscalls;
+  private final HandlerContext handlerContext;
+  private final Executor serviceExecutor;
+  private final SerdeFactory serdeFactory;
 
-  ContextImpl(Syscalls syscalls) {
-    this.syscalls = syscalls;
+  ContextImpl(HandlerContext handlerContext, Executor serviceExecutor, SerdeFactory serdeFactory) {
+    this.handlerContext = handlerContext;
+    this.serviceExecutor = serviceExecutor;
+    this.serdeFactory = serdeFactory;
   }
 
   @Override
   public String key() {
-    return syscalls.objectKey();
+    return handlerContext.objectKey();
   }
 
   @Override
-  public Request request() {
-    return syscalls.request();
+  public HandlerRequest request() {
+    return handlerContext.request();
   }
 
   @Override
   public <T> Optional<T> get(StateKey<T> key) {
-    Deferred<ByteBuffer> deferred = Util.blockOnSyscall(cb -> syscalls.get(key.name(), cb));
-
-    if (!deferred.isCompleted()) {
-      Util.<Void>blockOnSyscall(cb -> syscalls.resolveDeferred(deferred, cb));
-    }
-
-    return Util.unwrapOptionalReadyResult(deferred.toResult())
-        .map(bs -> Util.deserializeWrappingException(syscalls, key.serde(), bs));
+    return Awaitable.fromAsyncResult(
+            Util.awaitCompletableFuture(handlerContext.get(key.name())), serviceExecutor)
+        .mapWithoutExecutor(opt -> opt.map(serdeFactory.create(key.serdeInfo())::deserialize))
+        .await();
   }
 
   @Override
   public Collection<String> stateKeys() {
-    Deferred<Collection<String>> deferred = Util.blockOnSyscall(syscalls::getKeys);
-
-    if (!deferred.isCompleted()) {
-      Util.<Void>blockOnSyscall(cb -> syscalls.resolveDeferred(deferred, cb));
-    }
-
-    return Util.unwrapResult(deferred.toResult());
+    return Util.awaitCompletableFuture(
+        Util.awaitCompletableFuture(handlerContext.getKeys()).poll());
   }
 
   @Override
   public void clear(StateKey<?> key) {
-    Util.<Void>blockOnSyscall(cb -> syscalls.clear(key.name(), cb));
+    Util.awaitCompletableFuture(handlerContext.clear(key.name()));
   }
 
   @Override
   public void clearAll() {
-    Util.<Void>blockOnSyscall(syscalls::clearAll);
+    Util.awaitCompletableFuture(handlerContext.clearAll());
   }
 
   @Override
   public <T> void set(StateKey<T> key, @NonNull T value) {
-    Util.<Void>blockOnSyscall(
-        cb ->
-            syscalls.set(
-                key.name(), Util.serializeWrappingException(syscalls, key.serde(), value), cb));
+    Util.awaitCompletableFuture(
+        handlerContext.set(
+            key.name(),
+            Util.executeOrFail(
+                handlerContext, serdeFactory.create(key.serdeInfo())::serialize, value)));
   }
 
   @Override
-  public Awaitable<Void> timer(Duration duration) {
-    Deferred<Void> result = Util.blockOnSyscall(cb -> syscalls.sleep(duration, cb));
-    return Awaitable.single(syscalls, result);
+  public Awaitable<Void> timer(String name, Duration duration) {
+    return Awaitable.fromAsyncResult(
+        Util.awaitCompletableFuture(handlerContext.timer(duration, name)), serviceExecutor);
   }
 
   @Override
-  public <T, R> Awaitable<R> call(
-      Target target, Serde<T> inputSerde, Serde<R> outputSerde, T parameter) {
-    ByteBuffer input = Util.serializeWrappingException(syscalls, inputSerde, parameter);
-    Deferred<ByteBuffer> result = Util.blockOnSyscall(cb -> syscalls.call(target, input, cb));
-    return Awaitable.single(syscalls, result)
-        .map(bs -> Util.deserializeWrappingException(syscalls, outputSerde, bs));
+  public <T, R> CallAwaitable<R> call(Request<T, R> request) {
+    Slice input =
+        Util.executeOrFail(
+            handlerContext,
+            serdeFactory.create(request.requestTypeTag())::serialize,
+            request.request());
+    HandlerContext.CallResult result =
+        Util.awaitCompletableFuture(
+            handlerContext.call(
+                request.target(), input, request.idempotencyKey(), request.headers().entrySet()));
+
+    return new CallAwaitable<>(
+        handlerContext,
+        result
+            .callAsyncResult()
+            .map(
+                s ->
+                    CompletableFuture.completedFuture(
+                        serdeFactory.create(request.responseTypeTag()).deserialize(s))),
+        Awaitable.fromAsyncResult(result.invocationIdAsyncResult(), serviceExecutor));
   }
 
   @Override
-  public <T> void send(Target target, Serde<T> inputSerde, T parameter) {
-    ByteBuffer input = Util.serializeWrappingException(syscalls, inputSerde, parameter);
-    Util.<Void>blockOnSyscall(cb -> syscalls.send(target, input, null, cb));
+  public <Req, Res> InvocationHandle<Res> send(Request<Req, Res> request) {
+    Slice input =
+        Util.executeOrFail(
+            handlerContext,
+            serdeFactory.create(request.requestTypeTag())::serialize,
+            request.request());
+
+    var invocationIdAwaitable =
+        Awaitable.fromAsyncResult(
+            Util.awaitCompletableFuture(
+                handlerContext.send(
+                    request.target(),
+                    input,
+                    request.idempotencyKey(),
+                    request.headers().entrySet(),
+                    (request instanceof SendRequest<Req, Res> sendRequest)
+                        ? sendRequest.delay()
+                        : null)),
+            serviceExecutor);
+
+    return new BaseInvocationHandle<>(
+        Util.executeOrFail(handlerContext, () -> serdeFactory.create(request.responseTypeTag()))) {
+      @Override
+      public String invocationId() {
+        return invocationIdAwaitable.await();
+      }
+    };
   }
 
   @Override
-  public <T> void send(Target target, Serde<T> inputSerde, T parameter, Duration delay) {
-    ByteBuffer input = Util.serializeWrappingException(syscalls, inputSerde, parameter);
-    Util.<Void>blockOnSyscall(cb -> syscalls.send(target, input, delay, cb));
+  public <R> InvocationHandle<R> invocationHandle(String invocationId, TypeTag<R> responseTypeTag) {
+    return new BaseInvocationHandle<>(
+        Util.executeOrFail(handlerContext, () -> serdeFactory.create(responseTypeTag))) {
+      @Override
+      public String invocationId() {
+        return invocationId;
+      }
+    };
   }
 
-  @Override
-  public <T> T run(
-      String name, Serde<T> serde, RetryPolicy retryPolicy, ThrowingSupplier<T> action) {
-    CompletableFuture<CompletableFuture<ByteBuffer>> enterFut = new CompletableFuture<>();
-    syscalls.enterSideEffectBlock(
-        name,
-        new EnterSideEffectSyscallCallback() {
-          @Override
-          public void onNotExecuted() {
-            enterFut.complete(new CompletableFuture<>());
-          }
+  abstract class BaseInvocationHandle<R> implements InvocationHandle<R> {
+    private final Serde<R> responseSerde;
 
-          @Override
-          public void onSuccess(ByteBuffer result) {
-            enterFut.complete(CompletableFuture.completedFuture(result));
-          }
-
-          @Override
-          public void onFailure(TerminalException t) {
-            enterFut.complete(CompletableFuture.failedFuture(t));
-          }
-
-          @Override
-          public void onCancel(Throwable t) {
-            enterFut.cancel(true);
-          }
-        });
-
-    // If a failure was stored, it's simply thrown here
-    CompletableFuture<ByteBuffer> exitFut = Util.awaitCompletableFuture(enterFut);
-    if (exitFut.isDone()) {
-      // We already have a result, we don't need to execute the action
-      return Util.deserializeWrappingException(
-          syscalls, serde, Util.awaitCompletableFuture(exitFut));
+    BaseInvocationHandle(Serde<R> responseSerde) {
+      this.responseSerde = responseSerde;
     }
 
-    ExitSideEffectSyscallCallback exitCallback =
-        new ExitSideEffectSyscallCallback() {
-          @Override
-          public void onSuccess(ByteBuffer result) {
-            exitFut.complete(result);
-          }
-
-          @Override
-          public void onFailure(TerminalException t) {
-            exitFut.completeExceptionally(t);
-          }
-
-          @Override
-          public void onCancel(@Nullable Throwable t) {
-            exitFut.cancel(true);
-          }
-        };
-
-    T res = null;
-    Throwable failure = null;
-    try {
-      res = action.get();
-    } catch (Throwable e) {
-      failure = e;
+    @Override
+    public void cancel() {
+      Util.awaitCompletableFuture(handlerContext.cancelInvocation(invocationId()));
     }
 
-    if (failure != null) {
-      syscalls.exitSideEffectBlockWithException(failure, retryPolicy, exitCallback);
-    } else {
-      syscalls.exitSideEffectBlock(
-          Util.serializeWrappingException(syscalls, serde, res), exitCallback);
+    @Override
+    public Awaitable<R> attach() {
+      return Awaitable.fromAsyncResult(
+          Util.awaitCompletableFuture(handlerContext.attachInvocation(invocationId()))
+              .map(s -> CompletableFuture.completedFuture(responseSerde.deserialize(s))),
+          serviceExecutor);
     }
 
-    return Util.deserializeWrappingException(syscalls, serde, Util.awaitCompletableFuture(exitFut));
+    @Override
+    public Output<R> getOutput() {
+      return Awaitable.fromAsyncResult(
+              Util.awaitCompletableFuture(handlerContext.getInvocationOutput(invocationId()))
+                  .map(o -> CompletableFuture.completedFuture(o.map(responseSerde::deserialize))),
+              serviceExecutor)
+          .await();
+    }
   }
 
   @Override
-  public <T> Awakeable<T> awakeable(Serde<T> serde) throws TerminalException {
+  public <T> Awaitable<T> runAsync(
+      String name, TypeTag<T> typeTag, RetryPolicy retryPolicy, ThrowingSupplier<T> action) {
+    Serde<T> serde = serdeFactory.create(typeTag);
+    return Awaitable.fromAsyncResult(
+            Util.awaitCompletableFuture(
+                handlerContext.submitRun(
+                    name,
+                    runCompleter ->
+                        serviceExecutor.execute(
+                            () -> {
+                              Slice result;
+                              try {
+                                result = serde.serialize(action.get());
+                              } catch (Throwable e) {
+                                runCompleter.proposeFailure(e, retryPolicy);
+                                return;
+                              }
+                              runCompleter.proposeSuccess(result);
+                            }))),
+            serviceExecutor)
+        .mapWithoutExecutor(serde::deserialize);
+  }
+
+  @Override
+  public <T> Awakeable<T> awakeable(TypeTag<T> typeTag) throws TerminalException {
+    Serde<T> serde = serdeFactory.create(typeTag);
     // Retrieve the awakeable
-    Map.Entry<String, Deferred<ByteBuffer>> awakeable = Util.blockOnSyscall(syscalls::awakeable);
-
-    return new Awakeable<>(syscalls, awakeable.getValue(), serde, awakeable.getKey());
+    HandlerContext.Awakeable awakeable = Util.awaitCompletableFuture(handlerContext.awakeable());
+    return new Awakeable<>(awakeable.asyncResult(), serviceExecutor, serde, awakeable.id());
   }
 
   @Override
   public AwakeableHandle awakeableHandle(String id) {
     return new AwakeableHandle() {
       @Override
-      public <T> void resolve(Serde<T> serde, @NonNull T payload) {
-        Util.<Void>blockOnSyscall(
-            cb ->
-                syscalls.resolveAwakeable(
-                    id, Util.serializeWrappingException(syscalls, serde, payload), cb));
+      public <T> void resolve(TypeTag<T> serde, @NonNull T payload) {
+        Util.awaitCompletableFuture(
+            handlerContext.resolveAwakeable(
+                id,
+                Util.executeOrFail(
+                    handlerContext, serdeFactory.create(serde)::serialize, payload)));
       }
 
       @Override
       public void reject(String reason) {
-        Util.<Void>blockOnSyscall(cb -> syscalls.rejectAwakeable(id, reason, cb));
+        Util.awaitCompletableFuture(
+            handlerContext.rejectAwakeable(id, new TerminalException(reason)));
       }
     };
   }
 
   @Override
   public RestateRandom random() {
-    return new RestateRandom(this.request().invocationId().toRandomSeed(), this.syscalls);
+    return new RestateRandom(this.request().invocationId().toRandomSeed());
   }
 
   @Override
@@ -217,22 +244,16 @@ class ContextImpl implements ObjectContext, WorkflowContext {
     return new DurablePromise<>() {
       @Override
       public Awaitable<T> awaitable() {
-        Deferred<ByteBuffer> result = Util.blockOnSyscall(cb -> syscalls.promise(key.name(), cb));
-        return Awaitable.single(syscalls, result)
-            .map(bs -> Util.deserializeWrappingException(syscalls, key.serde(), bs));
+        AsyncResult<Slice> result = Util.awaitCompletableFuture(handlerContext.promise(key.name()));
+        return Awaitable.fromAsyncResult(result, serviceExecutor)
+            .mapWithoutExecutor(serdeFactory.create(key.serdeInfo())::deserialize);
       }
 
       @Override
       public Output<T> peek() {
-        Deferred<ByteBuffer> deferred =
-            Util.blockOnSyscall(cb -> syscalls.peekPromise(key.name(), cb));
-
-        if (!deferred.isCompleted()) {
-          Util.<Void>blockOnSyscall(cb -> syscalls.resolveDeferred(deferred, cb));
-        }
-
-        return Util.unwrapOutputReadyResult(deferred.toResult())
-            .map(bs -> Util.deserializeWrappingException(syscalls, key.serde(), bs));
+        return Util.awaitCompletableFuture(
+                Util.awaitCompletableFuture(handlerContext.peekPromise(key.name())).poll())
+            .map(serdeFactory.create(key.serdeInfo())::deserialize);
       }
     };
   }
@@ -242,31 +263,23 @@ class ContextImpl implements ObjectContext, WorkflowContext {
     return new DurablePromiseHandle<>() {
       @Override
       public void resolve(T payload) throws IllegalStateException {
-        Deferred<Void> deferred =
-            Util.blockOnSyscall(
-                cb ->
-                    syscalls.resolvePromise(
+        Util.awaitCompletableFuture(
+            Util.awaitCompletableFuture(
+                    handlerContext.resolvePromise(
                         key.name(),
-                        Util.serializeWrappingException(syscalls, key.serde(), payload),
-                        cb));
-
-        if (!deferred.isCompleted()) {
-          Util.<Void>blockOnSyscall(cb -> syscalls.resolveDeferred(deferred, cb));
-        }
-
-        Util.unwrapResult(deferred.toResult());
+                        Util.executeOrFail(
+                            handlerContext,
+                            serdeFactory.create(key.serdeInfo())::serialize,
+                            payload)))
+                .poll());
       }
 
       @Override
       public void reject(String reason) throws IllegalStateException {
-        Deferred<Void> deferred =
-            Util.blockOnSyscall(cb -> syscalls.rejectPromise(key.name(), reason, cb));
-
-        if (!deferred.isCompleted()) {
-          Util.<Void>blockOnSyscall(cb -> syscalls.resolveDeferred(deferred, cb));
-        }
-
-        Util.unwrapResult(deferred.toResult());
+        Util.awaitCompletableFuture(
+            Util.awaitCompletableFuture(
+                    handlerContext.rejectPromise(key.name(), new TerminalException(reason)))
+                .poll());
       }
     };
   }

@@ -8,10 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.common.InvocationId;
-import dev.restate.sdk.common.Serde;
-import dev.restate.sdk.common.function.ThrowingSupplier;
-import dev.restate.sdk.common.syscalls.Syscalls;
+import dev.restate.common.function.ThrowingSupplier;
+import dev.restate.sdk.types.InvocationId;
 import java.util.Random;
 import java.util.UUID;
 
@@ -21,18 +19,17 @@ import java.util.UUID;
  *
  * <p>This instance is useful to generate identifiers, idempotency keys, and for uniform sampling
  * from a set of options. If a cryptographically secure value is needed, please generate that
- * externally using {@link ObjectContext#run(Serde, ThrowingSupplier)}.
+ * externally using {@link Context#run(String, Class, ThrowingSupplier)}.
  *
- * <p>You MUST NOT use this object inside a {@link ObjectContext#run(Serde, ThrowingSupplier)}.
+ * <p>You <b>MUST NOT</b> use this object inside a {@link Context#run(String, Class,
+ * ThrowingSupplier)}/{@link Context#runAsync(String, Class, ThrowingSupplier)}.
  */
 public class RestateRandom extends Random {
 
-  private final Syscalls syscalls;
   private boolean seedInitialized = false;
 
-  RestateRandom(long randomSeed, Syscalls syscalls) {
+  RestateRandom(long randomSeed) {
     super(randomSeed);
-    this.syscalls = syscalls;
   }
 
   /**
@@ -56,10 +53,6 @@ public class RestateRandom extends Random {
 
   @Override
   protected int next(int bits) {
-    if (this.syscalls.isInsideSideEffect()) {
-      throw new IllegalStateException("You can't use RestateRandom inside ctx.run!");
-    }
-
     return super.next(bits);
   }
 }

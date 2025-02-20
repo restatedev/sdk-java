@@ -9,8 +9,8 @@
 package dev.restate.sdk.springboot.kotlin
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import dev.restate.sdk.core.manifest.EndpointManifestSchema
-import dev.restate.sdk.core.manifest.Service
+import dev.restate.sdk.core.generated.manifest.EndpointManifestSchema
+import dev.restate.sdk.core.generated.manifest.Service
 import dev.restate.sdk.springboot.RestateHttpEndpointBean
 import java.io.IOException
 import java.net.URI

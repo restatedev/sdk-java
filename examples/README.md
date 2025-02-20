@@ -54,4 +54,4 @@ curl http://localhost:8080/Counter/my-counter/add --json "1"
 curl http://localhost:8080/Counter/my-counter/get
 ```
 
-The command assumes that the Restate runtime is reachable under `localhost:8080`.
+The commandAccessor assumes that the Restate runtime is reachable under `localhost:8080`.

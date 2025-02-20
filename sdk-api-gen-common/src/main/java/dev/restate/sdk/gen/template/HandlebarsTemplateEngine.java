@@ -15,8 +15,8 @@ import com.github.jknack.handlebars.context.FieldValueResolver;
 import com.github.jknack.handlebars.helper.StringHelpers;
 import com.github.jknack.handlebars.internal.text.StringEscapeUtils;
 import com.github.jknack.handlebars.io.TemplateLoader;
-import dev.restate.sdk.common.ServiceType;
-import dev.restate.sdk.common.function.ThrowingFunction;
+import dev.restate.common.function.ThrowingFunction;
+import dev.restate.sdk.endpoint.definition.ServiceType;
 import dev.restate.sdk.gen.model.Handler;
 import dev.restate.sdk.gen.model.HandlerType;
 import dev.restate.sdk.gen.model.Service;
@@ -49,15 +49,16 @@ public class HandlebarsTemplateEngine {
           return switch (h.serviceType) {
             case SERVICE ->
                 String.format(
-                    "Target.service(%s.SERVICE_NAME, \"%s\")", h.definitionsClass, h.name);
+                    "dev.restate.common.Target.service(%s.SERVICE_NAME, \"%s\")",
+                    h.metadataClass, h.name);
             case VIRTUAL_OBJECT ->
                 String.format(
-                    "Target.virtualObject(%s.SERVICE_NAME, %s, \"%s\")",
-                    h.definitionsClass, options.param(0), h.name);
+                    "dev.restate.common.Target.virtualObject(%s.SERVICE_NAME, %s, \"%s\")",
+                    h.metadataClass, options.param(0), h.name);
             case WORKFLOW ->
                 String.format(
-                    "Target.workflow(%s.SERVICE_NAME, %s, \"%s\")",
-                    h.definitionsClass, options.param(0), h.name);
+                    "dev.restate.common.Target.workflow(%s.SERVICE_NAME, %s, \"%s\")",
+                    h.metadataClass, options.param(0), h.name);
           };
         });
     handlebars.registerHelpers(StringEscapeUtils.class);
@@ -107,6 +108,14 @@ public class HandlebarsTemplateEngine {
     public final String serviceName;
     public final String documentation;
 
+    public final String metadataClass;
+    public final String requestsClass;
+
+    public final boolean contextClientEnabled;
+    public final boolean ingressClientEnabled;
+    public final String serdeFactoryDecl;
+    public final String serdeFactoryRef;
+
     public final String serviceType;
     public final boolean isWorkflow;
     public final boolean isObject;
@@ -122,6 +131,14 @@ public class HandlebarsTemplateEngine {
       this.generatedClassSimpleName = this.generatedClassSimpleNamePrefix + baseTemplateName;
       this.serviceName = inner.getFullyQualifiedServiceName();
 
+      this.metadataClass = this.generatedClassSimpleNamePrefix + "Metadata";
+      this.requestsClass = this.generatedClassSimpleNamePrefix + "Requests";
+
+      this.contextClientEnabled = inner.isContextClientEnabled();
+      this.ingressClientEnabled = inner.isIngressClientEnabled();
+      this.serdeFactoryDecl = inner.getSerdeFactoryDecl();
+      this.serdeFactoryRef = metadataClass + ".SERDE_FACTORY";
+
       this.documentation = inner.getDocumentation();
 
       this.serviceType = inner.getServiceType().toString();
@@ -135,10 +152,7 @@ public class HandlebarsTemplateEngine {
               .map(
                   h ->
                       new HandlerTemplateModel(
-                          h,
-                          inner.getServiceType(),
-                          this.generatedClassSimpleNamePrefix + "Definitions",
-                          handlerNamesToPrefix))
+                          h, inner.getServiceType(), metadataClass, handlerNamesToPrefix))
               .collect(Collectors.toList());
     }
   }
@@ -153,7 +167,7 @@ public class HandlebarsTemplateEngine {
     public final boolean isExclusive;
 
     private final ServiceType serviceType;
-    private final String definitionsClass;
+    private final String metadataClass;
     public final String documentation;
 
     public final boolean inputEmpty;
@@ -174,7 +188,7 @@ public class HandlebarsTemplateEngine {
     private HandlerTemplateModel(
         Handler inner,
         ServiceType serviceType,
-        String definitionsClass,
+        String metadataClass,
         Set<String> handlerNamesToPrefix) {
       this.name = inner.name().toString();
       this.methodName = (handlerNamesToPrefix.contains(this.name) ? "_" : "") + this.name;
@@ -185,7 +199,7 @@ public class HandlebarsTemplateEngine {
       this.isStateless = inner.handlerType() == HandlerType.STATELESS;
 
       this.serviceType = serviceType;
-      this.definitionsClass = definitionsClass;
+      this.metadataClass = metadataClass;
       this.documentation = inner.documentation();
 
       this.inputEmpty = inner.inputType().isEmpty();
@@ -194,14 +208,14 @@ public class HandlebarsTemplateEngine {
       this.boxedInputFqcn = inner.inputType().boxed();
       this.inputSerdeFieldName = this.name.toUpperCase() + "_INPUT";
       this.inputAcceptContentType = inner.inputAccept();
-      this.inputSerdeRef = definitionsClass + ".Serde." + this.inputSerdeFieldName;
+      this.inputSerdeRef = metadataClass + ".Serde." + this.inputSerdeFieldName;
 
       this.outputEmpty = inner.outputType().isEmpty();
       this.outputFqcn = inner.outputType().name();
       this.outputSerdeDecl = inner.outputType().serdeDecl();
       this.boxedOutputFqcn = inner.outputType().boxed();
       this.outputSerdeFieldName = this.name.toUpperCase() + "_OUTPUT";
-      this.outputSerdeRef = definitionsClass + ".Serde." + this.outputSerdeFieldName;
+      this.outputSerdeRef = metadataClass + ".Serde." + this.outputSerdeFieldName;
     }
   }
 }

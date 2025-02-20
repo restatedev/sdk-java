@@ -1,0 +1,17 @@
+{{#if originalClassPkg}}package {{originalClassPkg}};{{/if}}
+
+public final class {{generatedClassSimpleName}} {
+
+    private {{generatedClassSimpleName}}() {}
+
+    {{#handlers}}
+    public static dev.restate.common.Request.Builder<{{{boxedInputFqcn}}}, {{{boxedOutputFqcn}}}> {{methodName}}({{#if ../isKeyed}}String key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
+        return dev.restate.common.Request.of(
+            {{{targetExpr this "key"}}},
+            {{inputSerdeRef}},
+            {{outputSerdeRef}},
+            {{#if inputEmpty}}null{{else}}req{{/if}});
+    }
+
+    {{/handlers}}
+}

@@ -10,14 +10,13 @@ package dev.restate.sdk.core;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.restate.sdk.common.HandlerType;
-import dev.restate.sdk.common.Serde;
-import dev.restate.sdk.common.ServiceType;
-import dev.restate.sdk.common.syscalls.HandlerDefinition;
-import dev.restate.sdk.common.syscalls.HandlerSpecification;
-import dev.restate.sdk.common.syscalls.ServiceDefinition;
-import dev.restate.sdk.core.manifest.EndpointManifestSchema;
-import dev.restate.sdk.core.manifest.Service;
+import dev.restate.sdk.core.generated.manifest.EndpointManifestSchema;
+import dev.restate.sdk.core.generated.manifest.Service;
+import dev.restate.sdk.endpoint.definition.HandlerDefinition;
+import dev.restate.sdk.endpoint.definition.HandlerType;
+import dev.restate.sdk.endpoint.definition.ServiceDefinition;
+import dev.restate.sdk.endpoint.definition.ServiceType;
+import dev.restate.serde.Serde;
 import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -35,9 +34,7 @@ class ComponentDiscoveryHandlerTest {
                     ServiceType.SERVICE,
                     List.of(
                         HandlerDefinition.of(
-                            HandlerSpecification.of(
-                                "greet", HandlerType.EXCLUSIVE, Serde.VOID, Serde.VOID),
-                            null)))),
+                            "greet", HandlerType.EXCLUSIVE, Serde.VOID, Serde.VOID, null)))),
             false);
 
     EndpointManifestSchema manifest = deploymentManifest.manifest();

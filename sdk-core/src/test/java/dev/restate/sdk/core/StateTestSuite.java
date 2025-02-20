@@ -8,13 +8,13 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import static dev.restate.sdk.core.AssertUtils.containsOnlyExactErrorMessage;
-import static dev.restate.sdk.core.ProtoUtils.*;
-import static org.assertj.core.api.Assertions.assertThat;
+import static dev.restate.sdk.core.AssertUtils.*;
+import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
 
-import dev.restate.generated.service.protocol.Protocol;
-import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
+import dev.restate.sdk.core.generated.protocol.Protocol;
 import java.util.stream.Stream;
 
 public abstract class StateTestSuite implements TestDefinitions.TestSuite {
@@ -29,86 +29,79 @@ public abstract class StateTestSuite implements TestDefinitions.TestSuite {
   public Stream<TestDefinitions.TestDefinition> definitions() {
     return Stream.of(
         this.getState()
-            .withInput(startMessage(2), inputMessage("Till"), getStateMessage("STATE", "Francesco"))
-            .expectingOutput(outputMessage("Hello Francesco"), END_MESSAGE)
+            .withInput(
+                startMessage(3),
+                inputCmd("Till"),
+                getLazyStateCmd(1, "STATE"),
+                getLazyStateCompletion(1, "Francesco"))
+            .expectingOutput(outputCmd("Hello Francesco"), END_MESSAGE)
             .named("With GetStateEntry already completed"),
         this.getState()
             .withInput(
-                startMessage(2),
-                inputMessage("Till"),
-                getStateMessage("STATE").setEmpty(Protocol.Empty.getDefaultInstance()))
-            .expectingOutput(outputMessage("Hello Unknown"), END_MESSAGE)
+                startMessage(3),
+                inputCmd("Till"),
+                getLazyStateCmd(1, "STATE"),
+                getLazyStateCompletionEmpty(1))
+            .expectingOutput(outputCmd("Hello Unknown"), END_MESSAGE)
             .named("With GetStateEntry already completed empty"),
         this.getState()
-            .withInput(startMessage(1), inputMessage("Till"))
-            .expectingOutput(getStateMessage("STATE"), suspensionMessage(1))
+            .withInput(startMessage(1), inputCmd("Till"))
+            .expectingOutput(getLazyStateCmd(1, "STATE"), suspensionMessage(1))
             .named("Without GetStateEntry"),
         this.getState()
-            .withInput(startMessage(2), inputMessage("Till"), getStateMessage("STATE"))
+            .withInput(startMessage(2), inputCmd("Till"), getLazyStateCmd(1, "STATE"))
             .expectingOutput(suspensionMessage(1))
             .named("With GetStateEntry not completed"),
         this.getState()
             .withInput(
                 startMessage(2),
-                inputMessage("Till"),
-                getStateMessage("STATE"),
-                completionMessage(1, "Francesco"))
-            .onlyUnbuffered()
-            .expectingOutput(outputMessage("Hello Francesco"), END_MESSAGE)
+                inputCmd("Till"),
+                getLazyStateCmd(1, "STATE"),
+                getLazyStateCompletion(1, "Francesco"))
+            .onlyBidiStream()
+            .expectingOutput(outputCmd("Hello Francesco"), END_MESSAGE)
             .named("With GetStateEntry and completed with later CompletionFrame"),
         this.getState()
-            .withInput(startMessage(1), inputMessage("Till"), completionMessage(1, "Francesco"))
-            .onlyUnbuffered()
-            .expectingOutput(
-                getStateMessage("STATE"), outputMessage("Hello Francesco"), END_MESSAGE)
+            .withInput(startMessage(1), inputCmd("Till"), getLazyStateCompletion(1, "Francesco"))
+            .onlyBidiStream()
+            .expectingOutput(getLazyStateCmd(1, "STATE"), outputCmd("Hello Francesco"), END_MESSAGE)
             .named("Without GetStateEntry and completed with later CompletionFrame"),
-        this.getState()
+        this.getAndSetState()
             .withInput(
-                startMessage(2),
-                inputMessage("Till"),
-                getStateMessage("STATE", new TerminalException(409)))
-            .expectingOutput(outputMessage(new TerminalException(409)), END_MESSAGE)
-            .named("Failed GetStateEntry"),
-        this.getState()
-            .withInput(
-                startMessage(1),
-                inputMessage("Till"),
-                completionMessage(1, new TerminalException(409)))
-            .assertingOutput(
-                messageLites -> {
-                  assertThat(messageLites)
-                      .element(0)
-                      .isInstanceOf(Protocol.GetStateEntryMessage.class);
-                  assertThat(messageLites)
-                      .element(1)
-                      .isEqualTo(outputMessage(new TerminalException(409)));
-                  assertThat(messageLites).element(2).isEqualTo(END_MESSAGE);
-                })
-            .named("Failing GetStateEntry"),
+                startMessage(4),
+                inputCmd("Till"),
+                getLazyStateCmd(1, "STATE"),
+                getLazyStateCompletion(1, "Francesco"),
+                setStateCmd("STATE", "Till"))
+            .expectingOutput(outputCmd("Hello Francesco"), END_MESSAGE)
+            .named("With GetState and SetState"),
         this.getAndSetState()
             .withInput(
                 startMessage(3),
-                inputMessage("Till"),
-                getStateMessage("STATE", "Francesco"),
-                setStateMessage("STATE", "Till"))
-            .expectingOutput(outputMessage("Hello Francesco"), END_MESSAGE)
-            .named("With GetState and SetState"),
-        this.getAndSetState()
-            .withInput(startMessage(2), inputMessage("Till"), getStateMessage("STATE", "Francesco"))
+                inputCmd("Till"),
+                getLazyStateCmd(1, "STATE"),
+                getLazyStateCompletion(1, "Francesco"))
             .expectingOutput(
-                setStateMessage("STATE", "Till"), outputMessage("Hello Francesco"), END_MESSAGE)
+                setStateCmd("STATE", "Till"), outputCmd("Hello Francesco"), END_MESSAGE)
             .named("With GetState already completed"),
         this.getAndSetState()
-            .withInput(startMessage(1), inputMessage("Till"), completionMessage(1, "Francesco"))
-            .onlyUnbuffered()
+            .withInput(startMessage(1), inputCmd("Till"), getLazyStateCompletion(1, "Francesco"))
+            .onlyBidiStream()
             .expectingOutput(
-                getStateMessage("STATE"),
-                setStateMessage("STATE", "Till"),
-                outputMessage("Hello Francesco"),
+                getLazyStateCmd(1, "STATE"),
+                setStateCmd("STATE", "Till"),
+                outputCmd("Hello Francesco"),
                 END_MESSAGE)
             .named("With GetState completed later"),
         this.setNullState()
-            .withInput(startMessage(1), inputMessage("Till"))
-            .assertingOutput(containsOnlyExactErrorMessage(new NullPointerException())));
+            .withInput(startMessage(1), inputCmd("Till"))
+            .assertingOutput(
+                containsOnly(
+                    errorMessage(
+                        errorMessage ->
+                            assertThat(errorMessage)
+                                .extracting(Protocol.ErrorMessage::getDescription, STRING)
+                                .startsWith(NullPointerException.class.getName()))))
+            .named("Set null state"));
   }
 }

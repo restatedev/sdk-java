@@ -1,7 +1,6 @@
 plugins {
   `java-conventions`
   `java-library`
-  `test-jar-conventions`
   `library-publishing-conventions`
   alias(libs.plugins.spring.dependency.management)
 }
@@ -12,6 +11,13 @@ dependencies {
   compileOnly(libs.jspecify)
 
   api(project(":sdk-common")) {
+    // Let spring bring jackson in
+    exclude(group = "com.fasterxml.jackson")
+    exclude(group = "com.fasterxml.jackson.core")
+    exclude(group = "com.fasterxml.jackson.datatype")
+  }
+
+  api(project(":client")) {
     // Let spring bring jackson in
     exclude(group = "com.fasterxml.jackson")
     exclude(group = "com.fasterxml.jackson.core")

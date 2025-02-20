@@ -8,13 +8,11 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testservices
 
-import dev.restate.sdk.common.StateKey
-import dev.restate.sdk.common.TerminalException
-import dev.restate.sdk.kotlin.KtStateKey
-import dev.restate.sdk.kotlin.ObjectContext
-import dev.restate.sdk.kotlin.SharedObjectContext
+import dev.restate.sdk.kotlin.*
 import dev.restate.sdk.testservices.contracts.Counter
 import dev.restate.sdk.testservices.contracts.CounterUpdateResponse
+import dev.restate.sdk.types.StateKey
+import dev.restate.sdk.types.TerminalException
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 
@@ -23,7 +21,7 @@ class CounterImpl : Counter {
   companion object {
     private val logger: Logger = LogManager.getLogger(CounterImpl::class.java)
 
-    private val COUNTER_KEY: StateKey<Long> = KtStateKey.json<Long>("counter")
+    private val COUNTER_KEY: StateKey<Long> = stateKey<Long>("counter")
   }
 
   override suspend fun reset(context: ObjectContext) {
