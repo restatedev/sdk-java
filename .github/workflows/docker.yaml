@@ -1,0 +1,54 @@
+name: Docker
+
+on:    
+  push:    
+    branches: [main]    
+    tags:    
+      - v**
+
+jobs:
+  sdk-test-docker:
+    if: github.repository_owner == 'restatedev'
+    runs-on: ubuntu-latest
+    name: "Features integration test"
+    permissions:
+      contents: read
+      issues: read
+      checks: write
+      pull-requests: write
+      actions: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: restatedev/sdk-java
+
+      - name: Set up Docker containerd snapshotter
+        uses: crazy-max/ghaction-setup-docker@v3
+        with:
+          set-host: true
+          daemon-config: |
+            {
+              "features": {
+                "containerd-snapshotter": true
+              }
+            }
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build restatedev/java-test-services image
+        run: ./gradlew -Djib.console=plain :test-services:jibDockerBuild
+
+      - name: Push image
+        run: |
+          docker tag restatedev/java-test-services ghcr.io/restatedev/test-services-java:main
+          docker push ghcr.io/restatedev/test-services-java:main
+
+
