@@ -12,35 +12,16 @@ env:
   GHCR_REGISTRY_USERNAME: ${{ github.actor }}
   GHCR_REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-
-
 jobs:
   sdk-test-docker:
     if: github.repository_owner == 'restatedev'
     runs-on: ubuntu-latest
-    name: "Features integration test"
-    permissions:
-      contents: read
-      issues: read
-      checks: write
-      pull-requests: write
-      actions: read
-
+    name: "Create test-services Docker Image"
+    
     steps:
       - uses: actions/checkout@v4
         with:
           repository: restatedev/sdk-java
-
-      - name: Set up Docker containerd snapshotter
-        uses: crazy-max/ghaction-setup-docker@v3
-        with:
-          set-host: true
-          daemon-config: |
-            {
-              "features": {
-                "containerd-snapshotter": true
-              }
-            }
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -65,5 +46,3 @@ jobs:
         run: |
           docker tag restatedev/java-test-services ghcr.io/restatedev/test-services-java:main
           docker push ghcr.io/restatedev/test-services-java:main
-
-
