@@ -6,6 +6,14 @@ on:
     tags:    
       - v**
 
+env:
+  REPOSITORY_OWNER: ${{ github.repository_owner }}
+  GHCR_REGISTRY: "ghcr.io"
+  GHCR_REGISTRY_USERNAME: ${{ github.actor }}
+  GHCR_REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
+
 jobs:
   sdk-test-docker:
     if: github.repository_owner == 'restatedev'
@@ -43,10 +51,17 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
+      - name: Log into GitHub container registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.GHCR_REGISTRY }}
+          username: ${{ env.GHCR_REGISTRY_USERNAME }}
+          password: ${{ env.GHCR_REGISTRY_TOKEN }}
+
       - name: Build restatedev/java-test-services image
         run: ./gradlew -Djib.console=plain :test-services:jibDockerBuild
 
-      - name: Push image
+      - name: Push restatedev/test-services-java:main image
         run: |
           docker tag restatedev/java-test-services ghcr.io/restatedev/test-services-java:main
           docker push ghcr.io/restatedev/test-services-java:main
