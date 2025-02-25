@@ -212,12 +212,13 @@ class ServiceInterpreterHelperImpl : ServiceInterpreterHelper {
   }
 
   override suspend fun incrementIndirectly(ctx: Context, id: InterpreterId) {
-    ctx.send(
-        SendRequest.of(
-            interpretTarget(id.layer, id.key),
-            ObjectInterpreterMetadata.Serde.INTERPRET_INPUT,
-            Serde.SLICE,
-            Program(listOf(IncrementStateCounter()))))
+    val ignored =
+        ctx.send(
+            SendRequest.of(
+                interpretTarget(id.layer, id.key),
+                ObjectInterpreterMetadata.Serde.INTERPRET_INPUT,
+                Serde.SLICE,
+                Program(listOf(IncrementStateCounter()))))
   }
 
   override suspend fun resolveAwakeable(ctx: Context, id: String) {
@@ -247,11 +248,12 @@ class ServiceInterpreterHelperImpl : ServiceInterpreterHelper {
     //
     // 4. to thank our interpret, let us ask it to inc its state.
     //
-    ctx.send(
-        SendRequest.of(
-            interpretTarget(req.interpreter.layer, req.interpreter.key),
-            ObjectInterpreterMetadata.Serde.INTERPRET_INPUT,
-            Serde.SLICE,
-            Program(listOf(IncrementStateCounter()))))
+    val ignored =
+        ctx.send(
+            SendRequest.of(
+                interpretTarget(req.interpreter.layer, req.interpreter.key),
+                ObjectInterpreterMetadata.Serde.INTERPRET_INPUT,
+                Serde.SLICE,
+                Program(listOf(IncrementStateCounter()))))
   }
 }
