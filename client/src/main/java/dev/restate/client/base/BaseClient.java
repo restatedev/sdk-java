@@ -43,9 +43,13 @@ public abstract class BaseClient implements Client {
   private final ClientRequestOptions baseOptions;
 
   protected BaseClient(URI baseUri, SerdeFactory serdeFactory, ClientRequestOptions baseOptions) {
-    this.baseUri = baseUri;
-    this.serdeFactory = serdeFactory;
-    this.baseOptions = baseOptions;
+    this.baseUri = Objects.requireNonNull(baseUri, "Base uri cannot be null");
+    if (!this.baseUri.isAbsolute()) {
+      throw new IllegalArgumentException(
+          "The base uri " + baseUri + " is not absolute. This is not supported.");
+    }
+    this.serdeFactory = serdeFactory == null ? SerdeFactory.NOOP : serdeFactory;
+    this.baseOptions = baseOptions == null ? ClientRequestOptions.DEFAULT : baseOptions;
   }
 
   @Override
