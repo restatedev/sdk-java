@@ -8,8 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testservices.contracts
 
-import dev.restate.sdk.annotation.Exclusive
-import dev.restate.sdk.annotation.VirtualObject
+import dev.restate.sdk.annotation.*
 import dev.restate.sdk.kotlin.ObjectContext
 import kotlinx.serialization.Serializable
 

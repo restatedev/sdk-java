@@ -8,43 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testservices.contracts
 
-import dev.restate.sdk.annotation.Handler
-import dev.restate.sdk.annotation.Raw
-import dev.restate.sdk.annotation.Service
+import dev.restate.sdk.annotation.*
 import dev.restate.sdk.kotlin.Context
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
-
-@Serializable
-data class CreateAwakeableAndAwaitItRequest(
-    val awakeableKey: String,
-    // If not null, then await it with orTimeout()
-    val awaitTimeout: Long? = null
-)
-
-@Serializable sealed interface CreateAwakeableAndAwaitItResponse
-// This is serialized as `{"type": "timeout"}`
-@Serializable
-@SerialName("timeout")
-data object TimeoutResponse : CreateAwakeableAndAwaitItResponse
-// This is serialized as `{"type": "result", "value": <VALUE>}`
-@Serializable
-@SerialName("result")
-data class AwakeableResultResponse(val value: String) : CreateAwakeableAndAwaitItResponse
-
-@Serializable data class InterpretRequest(val listName: String, val commands: List<Command>)
-
-@Serializable sealed interface Command
-// This is serialized as `{"type": "createAwakeableAndAwaitIt", ...}`
-@Serializable
-@SerialName("createAwakeableAndAwaitIt")
-data class CreateAwakeableAndAwaitIt(val awakeableKey: String) : Command
-
-// This is serialized as `{"type": "getEnvVariable", ...}`
-// Reading an environment variable should be done within a side effect!
-@Serializable
-@SerialName("getEnvVariable")
-data class GetEnvVariable(val envName: String) : Command
 
 /** Collection of various utilities/corner cases scenarios used by tests */
 @Service(name = "TestUtilsService")
@@ -61,13 +26,6 @@ interface TestUtilsService {
   /** Just echo */
   @Handler @Raw suspend fun rawEcho(context: Context, @Raw input: ByteArray): ByteArray
 
-  /** Create an awakeable, register it to AwakeableHolder#hold, then await it. */
-  @Handler
-  suspend fun createAwakeableAndAwaitIt(
-      ctx: Context,
-      req: CreateAwakeableAndAwaitItRequest
-  ): CreateAwakeableAndAwaitItResponse
-
   /** Create timers and await them all. Durations in milliseconds */
   @Handler suspend fun sleepConcurrently(context: Context, millisDuration: List<Long>)
 
@@ -80,13 +38,6 @@ interface TestUtilsService {
    */
   @Handler suspend fun countExecutedSideEffects(context: Context, increments: Int): Int
 
-  /** Read an environment variable */
-  @Handler suspend fun getEnvVariable(context: Context, env: String): String
-
-  /**
-   * This handler should iterate through the list of commands and execute them.
-   *
-   * For each command, the output should be appended to the given list name.
-   */
-  @Handler suspend fun interpretCommands(context: Context, req: InterpretRequest)
+  /** Cancel invocation using the context. */
+  @Handler suspend fun cancelInvocation(context: Context, invocationId: String)
 }

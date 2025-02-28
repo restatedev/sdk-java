@@ -12,6 +12,7 @@ import dev.restate.sdk.auth.signing.RestateRequestIdentityVerifier
 import dev.restate.sdk.http.vertx.RestateHttpServer
 import dev.restate.sdk.kotlin.endpoint.endpoint
 import dev.restate.sdk.testservices.contracts.*
+import dev.restate.sdktesting.contracts.VirtualObjectCommandInterpreterMetadata
 
 val KNOWN_SERVICES_FACTORIES: Map<String, () -> Any> =
     mapOf(
@@ -28,6 +29,10 @@ val KNOWN_SERVICES_FACTORIES: Map<String, () -> Any> =
         NonDeterministicMetadata.SERVICE_NAME to { NonDeterministicImpl() },
         ProxyMetadata.SERVICE_NAME to { ProxyImpl() },
         TestUtilsServiceMetadata.SERVICE_NAME to { TestUtilsServiceImpl() },
+        VirtualObjectCommandInterpreterMetadata.SERVICE_NAME to
+            {
+              VirtualObjectCommandInterpreterImpl()
+            },
         interpreterName(0) to { ObjectInterpreterImpl.getInterpreterDefinition(0) },
         interpreterName(1) to { ObjectInterpreterImpl.getInterpreterDefinition(1) },
         interpreterName(2) to { ObjectInterpreterImpl.getInterpreterDefinition(2) },

@@ -31,25 +31,6 @@ class TestUtilsServiceImpl : TestUtilsService {
     return input
   }
 
-  override suspend fun createAwakeableAndAwaitIt(
-      ctx: Context,
-      req: CreateAwakeableAndAwaitItRequest
-  ): CreateAwakeableAndAwaitItResponse {
-    val awakeable = ctx.awakeable<String>()
-    AwakeableHolderClient.fromContext(ctx, req.awakeableKey).hold(awakeable.id)
-
-    if (req.awaitTimeout == null) {
-      return AwakeableResultResponse(awakeable.await())
-    }
-
-    val timeout = ctx.timer(req.awaitTimeout.milliseconds)
-    return select {
-          awakeable.onAwait { AwakeableResultResponse(it) }
-          timeout.onAwait { TimeoutResponse }
-        }
-        .await()
-  }
-
   override suspend fun sleepConcurrently(context: Context, millisDuration: List<Long>) {
     val timers = millisDuration.map { context.timer(it.milliseconds) }.toList()
 
@@ -66,21 +47,7 @@ class TestUtilsServiceImpl : TestUtilsService {
     return invokedSideEffects.get()
   }
 
-  override suspend fun getEnvVariable(context: Context, env: String): String {
-    return context.runBlock { System.getenv(env) ?: "" }
-  }
-
-  override suspend fun interpretCommands(context: Context, req: InterpretRequest) {
-    val listClient = ListObjectClient.fromContext(context, req.listName).send()
-    req.commands.forEach {
-      when (it) {
-        is CreateAwakeableAndAwaitIt -> {
-          val awakeable = context.awakeable<String>()
-          AwakeableHolderClient.fromContext(context, it.awakeableKey).hold(awakeable.id)
-          listClient.append(awakeable.await())
-        }
-        is GetEnvVariable -> listClient.append(getEnvVariable(context, it.envName))
-      }
-    }
+  override suspend fun cancelInvocation(context: Context, invocationId: String) {
+    context.invocationHandle<Unit>(invocationId).cancel()
   }
 }
