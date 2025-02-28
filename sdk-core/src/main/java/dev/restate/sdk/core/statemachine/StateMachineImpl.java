@@ -329,7 +329,11 @@ class StateMachineImpl implements StateMachine {
       @Nullable String idempotencyKey,
       @Nullable Collection<Map.Entry<String, String>> headers,
       @Nullable Duration delay) {
-    LOG.debug("Executing 'Send {}'", target);
+    if (delay != null && !delay.isZero()) {
+      LOG.debug("Executing 'Delayed send {} with delay {}'", target, delay);
+    } else {
+      LOG.debug("Executing 'Send {}'", target);
+    }
     if (idempotencyKey != null && idempotencyKey.isBlank()) {
       throw ProtocolException.idempotencyKeyIsEmpty();
     }

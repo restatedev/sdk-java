@@ -460,12 +460,20 @@ sealed interface Awaitable<T> {
       return wrapAllAwaitable(listOf(first) + listOf(second) + others.asList())
     }
 
+    fun all(awaitables: List<Awaitable<*>>): Awaitable<Unit> {
+      return wrapAllAwaitable(awaitables)
+    }
+
     fun any(
         first: Awaitable<*>,
         second: Awaitable<*>,
         vararg others: Awaitable<*>
     ): Awaitable<Int> {
       return wrapAnyAwaitable(listOf(first) + listOf(second) + others.asList())
+    }
+
+    fun any(awaitables: List<Awaitable<*>>): Awaitable<Int> {
+      return wrapAnyAwaitable(awaitables)
     }
   }
 }

@@ -8,19 +8,17 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testservices.contracts
 
-import dev.restate.sdk.annotation.Handler
-import dev.restate.sdk.annotation.Service
-import dev.restate.sdk.annotation.VirtualObject
+import dev.restate.sdk.annotation.*
 import dev.restate.sdk.kotlin.Context
 import dev.restate.sdk.kotlin.ObjectContext
 
 interface KillTest {
-  @Service
+  @Service(name = "KillTestRunner")
   interface Runner {
     @Handler suspend fun startCallTree(context: Context)
   }
 
-  @VirtualObject
+  @VirtualObject(name = "KillTestSingleton")
   interface Singleton {
     @Handler suspend fun recursiveCall(context: ObjectContext)
 

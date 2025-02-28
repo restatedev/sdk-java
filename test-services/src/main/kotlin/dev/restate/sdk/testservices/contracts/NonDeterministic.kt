@@ -8,8 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testservices.contracts
 
-import dev.restate.sdk.annotation.Handler
-import dev.restate.sdk.annotation.VirtualObject
+import dev.restate.sdk.annotation.*
 import dev.restate.sdk.kotlin.ObjectContext
 
 @VirtualObject(name = "NonDeterministic")

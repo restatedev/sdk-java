@@ -30,16 +30,26 @@ class ProxyImpl : Proxy {
 
   override suspend fun call(context: Context, request: ProxyRequest): ByteArray {
     return context
-        .call(Request.of(request.toTarget(), Serde.RAW, Serde.RAW, request.message))
+        .call(
+            Request.of(request.toTarget(), Serde.RAW, Serde.RAW, request.message).also {
+              if (request.idempotencyKey != null) {
+                it.idempotencyKey = request.idempotencyKey
+              }
+            })
         .await()
   }
 
-  override suspend fun oneWayCall(context: Context, request: ProxyRequest): Unit {
-    val ignored =
-        context.send(
-            SendRequest.of(request.toTarget(), Serde.RAW, Serde.SLICE, request.message)
-                .asSendDelayed((request.delayMillis?.milliseconds ?: Duration.ZERO)))
-  }
+  override suspend fun oneWayCall(context: Context, request: ProxyRequest): String =
+      context
+          .send(
+              SendRequest.of(request.toTarget(), Serde.RAW, Serde.SLICE, request.message)
+                  .also {
+                    if (request.idempotencyKey != null) {
+                      it.idempotencyKey = request.idempotencyKey
+                    }
+                  }
+                  .asSendDelayed((request.delayMillis?.milliseconds ?: Duration.ZERO)))
+          .invocationId()
 
   override suspend fun manyCalls(context: Context, requests: List<ManyCallRequest>) {
     val toAwait = mutableListOf<Awaitable<ByteArray>>()
@@ -52,15 +62,25 @@ class ProxyImpl : Proxy {
                     Serde.RAW,
                     Serde.SLICE,
                     request.proxyRequest.message)
+                .also {
+                  if (request.proxyRequest.idempotencyKey != null) {
+                    it.idempotencyKey = request.proxyRequest.idempotencyKey
+                  }
+                }
                 .asSendDelayed((request.proxyRequest.delayMillis?.milliseconds ?: Duration.ZERO)))
       } else {
         val awaitable =
             context.call(
                 Request.of(
-                    request.proxyRequest.toTarget(),
-                    Serde.RAW,
-                    Serde.RAW,
-                    request.proxyRequest.message))
+                        request.proxyRequest.toTarget(),
+                        Serde.RAW,
+                        Serde.RAW,
+                        request.proxyRequest.message)
+                    .also {
+                      if (request.proxyRequest.idempotencyKey != null) {
+                        it.idempotencyKey = request.proxyRequest.idempotencyKey
+                      }
+                    })
         if (request.awaitAtTheEnd) {
           toAwait.add(awaitable)
         }

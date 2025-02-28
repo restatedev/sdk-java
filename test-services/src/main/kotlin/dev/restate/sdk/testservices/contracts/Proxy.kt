@@ -18,8 +18,10 @@ data class ProxyRequest(
     val serviceName: String,
     val virtualObjectKey: String? = null, // If null, the request is to a service
     val handlerName: String,
+    // Bytes are encoded as array of numbers
     val message: ByteArray,
-    val delayMillis: Int? = null
+    val delayMillis: Int? = null,
+    val idempotencyKey: String? = null
 )
 
 @Serializable
@@ -34,11 +36,13 @@ data class ManyCallRequest(
     val awaitAtTheEnd: Boolean
 )
 
-@Service
+@Service(name = "Proxy")
 interface Proxy {
+  // Bytes are encoded as array of numbers
   @Handler suspend fun call(context: Context, request: ProxyRequest): ByteArray
 
-  @Handler suspend fun oneWayCall(context: Context, request: ProxyRequest)
+  // Returns the invocation id of the call
+  @Handler suspend fun oneWayCall(context: Context, request: ProxyRequest): String
 
   @Handler suspend fun manyCalls(context: Context, requests: List<ManyCallRequest>)
 }
