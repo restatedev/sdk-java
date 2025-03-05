@@ -24,7 +24,7 @@ class CancelTestImpl {
     }
 
     override suspend fun startTest(context: ObjectContext, operation: BlockingOperation) {
-      val client = CancelTestBlockingServiceClient.fromContext(context, "")
+      val client = CancelTestBlockingServiceClient.fromContext(context, context.key())
 
       try {
         client.block(operation).await()
@@ -44,8 +44,8 @@ class CancelTestImpl {
 
   class BlockingService : CancelTest.BlockingService {
     override suspend fun block(context: ObjectContext, operation: BlockingOperation) {
-      val self = CancelTestBlockingServiceClient.fromContext(context, "")
-      val client = AwakeableHolderClient.fromContext(context, "cancel")
+      val self = CancelTestBlockingServiceClient.fromContext(context, context.key())
+      val client = AwakeableHolderClient.fromContext(context, context.key())
 
       val awakeable = context.awakeable<String>()
       client.hold(awakeable.id).await()
