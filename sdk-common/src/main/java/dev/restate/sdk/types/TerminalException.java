@@ -19,12 +19,12 @@ public class TerminalException extends RuntimeException {
   private final int code;
 
   public TerminalException() {
-    this.code = INTERNAL_SERVER_ERROR_CODE;
+    this(INTERNAL_SERVER_ERROR_CODE);
   }
 
   /** Like {@link #TerminalException(int, String)}, without message. */
   public TerminalException(int code) {
-    this.code = code;
+    this(code, "Error " + code);
   }
 
   /**
