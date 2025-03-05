@@ -27,6 +27,9 @@ This SDK features:
 
 ## Using the SDK
 
+### Prerequisites
+- JDK >= 17
+
 ### tl;dr Use project templates
 
 To get started, follow the [Java quickstart](https://docs.restate.dev/get_started/quickstart).
