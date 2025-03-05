@@ -218,7 +218,7 @@ class HandlerContextImpl implements HandlerContextInternal {
           int sendHandle =
               this.stateMachine.send(target, parameter, idempotencyKey, headers, delay);
 
-            return AsyncResults.single(this, sendHandle, invocationIdCompleter());
+          return AsyncResults.single(this, sendHandle, invocationIdCompleter());
         });
   }
 
