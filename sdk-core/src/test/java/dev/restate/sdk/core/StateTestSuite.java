@@ -100,7 +100,7 @@ public abstract class StateTestSuite implements TestDefinitions.TestSuite {
                     errorMessage(
                         errorMessage ->
                             assertThat(errorMessage)
-                                .extracting(Protocol.ErrorMessage::getDescription, STRING)
+                                .extracting(Protocol.ErrorMessage::getStacktrace, STRING)
                                 .startsWith(NullPointerException.class.getName()))))
             .named("Set null state"));
   }
