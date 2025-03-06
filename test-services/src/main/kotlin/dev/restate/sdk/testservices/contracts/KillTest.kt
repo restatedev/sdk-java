@@ -9,13 +9,12 @@
 package dev.restate.sdk.testservices.contracts
 
 import dev.restate.sdk.annotation.*
-import dev.restate.sdk.kotlin.Context
 import dev.restate.sdk.kotlin.ObjectContext
 
 interface KillTest {
-  @Service(name = "KillTestRunner")
+  @VirtualObject(name = "KillTestRunner")
   interface Runner {
-    @Handler suspend fun startCallTree(context: Context)
+    @Handler suspend fun startCallTree(context: ObjectContext)
   }
 
   @VirtualObject(name = "KillTestSingleton")
