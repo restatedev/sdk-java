@@ -63,6 +63,7 @@ public interface Context {
     return send(requestBuilder.asSend());
   }
 
+  /** Like {@link #invocationHandle(String, Class)} */
   <R> InvocationHandle<R> invocationHandle(String invocationId, TypeTag<R> responseTypeTag);
 
   /**
@@ -76,6 +77,7 @@ public interface Context {
     return invocationHandle(invocationId, TypeTag.of(responseClazz));
   }
 
+  /** Like {@link #invocationHandle(String, Class)}, without providing a response parser */
   default InvocationHandle<Slice> invocationHandle(String invocationId) {
     return invocationHandle(invocationId, Serde.SLICE);
   }

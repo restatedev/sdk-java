@@ -33,6 +33,7 @@ internal constructor(
   companion object {
     private val LOG = LogManager.getLogger(HandlerRunner::class.java)
 
+    /** Factory method for [dev.restate.sdk.kotlin.HandlerRunner], used by codegen. */
     fun <REQ, RES, CTX : Context> of(
         contextSerdeFactory: SerdeFactory,
         options: Options = Options.DEFAULT,
@@ -41,6 +42,7 @@ internal constructor(
       return HandlerRunner(runner, contextSerdeFactory, options)
     }
 
+    /** Factory method for [dev.restate.sdk.kotlin.HandlerRunner], used by codegen. */
     fun <RES, CTX : Context> of(
         contextSerdeFactory: SerdeFactory,
         options: Options = Options.DEFAULT,
@@ -105,6 +107,10 @@ internal constructor(
     return completableFuture
   }
 
+  /**
+   * [dev.restate.sdk.kotlin.HandlerRunner] options. You can override the default options to
+   * configure the [CoroutineContext] to run the handler.
+   */
   data class Options(val coroutineContext: CoroutineContext) :
       dev.restate.sdk.endpoint.definition.HandlerRunner.Options {
     companion object {

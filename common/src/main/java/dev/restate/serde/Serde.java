@@ -16,13 +16,13 @@ import org.jspecify.annotations.*;
 /**
  * Interface defining serialization and deserialization of concrete types.
  *
- * <p>Serde implementations are provided in {@code JsonSerdes} in {@code sdk-api}, {@code KtSerdes}
- * in {@code sdk-api-kotlin}, {@code JacksonSerdes} in {@code sdk-serde-jackson}, {@code
- * ProtobufSerdes} in {@code sdk-serde-protobuf}.
+ * <p>For more info on the serialization stack, and how to customize it, see {@link SerdeFactory}.
  *
  * <p>Implementations <b>MUST</b> be thread safe.
  *
  * <p>You can create a custom one using {@link #using(String, ThrowingFunction, ThrowingFunction)}.
+ *
+ * @see SerdeFactory
  */
 @NullMarked
 public interface Serde<T extends @Nullable Object> extends TypeTag<T> {

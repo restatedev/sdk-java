@@ -13,3 +13,5 @@ dependencies {
   testImplementation(libs.junit.jupiter)
   testImplementation(libs.assertj)
 }
+
+tasks.withType<Javadoc> { isFailOnError = false }

@@ -22,6 +22,13 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import org.jspecify.annotations.NonNull;
 
+/**
+ * This class implements {@link SerdeFactory} using Jackson's {@link ObjectMapper}.
+ *
+ * <p>If you want to customize the {@link ObjectMapper} used in your service, it is recommended to
+ * subclass this class using the constructor {@link #JacksonSerdeFactory(ObjectMapper)}, and then
+ * register it using the {@link dev.restate.sdk.annotation.CustomSerdeFactory} annotation.
+ */
 public class JacksonSerdeFactory implements SerdeFactory {
 
   public static final JacksonSerdeFactory DEFAULT = new JacksonSerdeFactory();

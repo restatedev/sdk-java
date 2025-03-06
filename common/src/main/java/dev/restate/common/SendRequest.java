@@ -14,6 +14,13 @@ import java.util.LinkedHashMap;
 import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * Object encapsulating request parameters, including the parameters exclusive to one way calls
+ * (also referred as send).
+ *
+ * @param <Req> the request type
+ * @param <Res> the response type
+ */
 public final class SendRequest<Req, Res> extends Request<Req, Res> {
 
   @Nullable private final Duration delay;

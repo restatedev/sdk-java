@@ -95,7 +95,7 @@ public final class JacksonSerdes {
     return of(defaultMapper, clazz);
   }
 
-  /** Serialize/Deserialize class using the provided object mapper. */
+  /** Serialize/Deserialize class using a custom object mapper. */
   public static <T> Serde<T> of(ObjectMapper mapper, Class<T> clazz) {
     return JacksonSerdeFactory.create(mapper.constructType(clazz), clazz, schemaGenerator, mapper);
   }
@@ -105,7 +105,7 @@ public final class JacksonSerdes {
     return of(defaultMapper, typeReference);
   }
 
-  /** Serialize/Deserialize {@link TypeReference} using the default object mapper. */
+  /** Serialize/Deserialize {@link TypeReference} using a custom object mapper. */
   public static <T> Serde<T> of(ObjectMapper mapper, TypeReference<T> typeReference) {
     return JacksonSerdeFactory.create(
         mapper.constructType(typeReference), typeReference.getType(), schemaGenerator, mapper);

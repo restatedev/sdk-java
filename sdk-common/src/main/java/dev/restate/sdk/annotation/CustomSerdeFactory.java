@@ -14,6 +14,12 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Define the custom {@link SerdeFactory} to use for this service/virtual object/workflow.
+ *
+ * <p>This should be placed alongside the {@link Service}/{@link VirtualObject}/{@link Workflow}
+ * annotation.
+ */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.SOURCE)
 public @interface CustomSerdeFactory {

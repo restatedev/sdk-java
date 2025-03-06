@@ -30,7 +30,7 @@ public class CallTest extends CallTestSuite {
         Serde.VOID,
         (context, unused) -> {
           context.send(
-              SendRequest.ofRaw(target, body.toByteArray())
+              SendRequest.of(target, body.toByteArray())
                   .headers(headers)
                   .idempotencyKey(idempotencyKey));
           return null;
@@ -43,6 +43,6 @@ public class CallTest extends CallTestSuite {
         "ImplicitCancellation",
         Serde.VOID,
         Serde.RAW,
-        (context, unused) -> context.call(Request.ofRaw(target, body.toByteArray())).await());
+        (context, unused) -> context.call(Request.of(target, body.toByteArray())).await());
   }
 }
