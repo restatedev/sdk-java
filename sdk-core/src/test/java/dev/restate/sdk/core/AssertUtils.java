@@ -56,7 +56,7 @@ public class AssertUtils {
                 .returns(e.getMessage(), Protocol.ErrorMessage::getMessage)
                 .returns(
                     TerminalException.INTERNAL_SERVER_ERROR_CODE, Protocol.ErrorMessage::getCode)
-                .extracting(Protocol.ErrorMessage::getDescription, STRING)
+                .extracting(Protocol.ErrorMessage::getStacktrace, STRING)
                 .startsWith(e.getClass().getName()));
   }
 
@@ -64,7 +64,7 @@ public class AssertUtils {
     return errorMessage(
         msg ->
             assertThat(msg)
-                .extracting(Protocol.ErrorMessage::getDescription, STRING)
+                .extracting(Protocol.ErrorMessage::getStacktrace, STRING)
                 .startsWith(str));
   }
 
@@ -73,7 +73,7 @@ public class AssertUtils {
         msg ->
             assertThat(msg)
                 .returns(code, Protocol.ErrorMessage::getCode)
-                .extracting(Protocol.ErrorMessage::getDescription, STRING)
+                .extracting(Protocol.ErrorMessage::getStacktrace, STRING)
                 .startsWith(ProtocolException.class.getCanonicalName()));
   }
 

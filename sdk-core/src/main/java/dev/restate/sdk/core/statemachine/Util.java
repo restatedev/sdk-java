@@ -63,7 +63,7 @@ public class Util {
     StringWriter sw = new StringWriter();
     PrintWriter pw = new PrintWriter(sw);
     throwable.printStackTrace(pw);
-    msg.setDescription(sw.toString());
+    msg.setStacktrace(sw.toString());
 
     // Add journal entry info
     if (currentCommandIndex >= 0) {

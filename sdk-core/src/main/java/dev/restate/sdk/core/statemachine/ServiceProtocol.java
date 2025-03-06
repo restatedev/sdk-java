@@ -13,9 +13,9 @@ import java.util.Objects;
 
 public class ServiceProtocol {
   public static final Protocol.ServiceProtocolVersion MIN_SERVICE_PROTOCOL_VERSION =
-      Protocol.ServiceProtocolVersion.V4;
+      Protocol.ServiceProtocolVersion.V5;
   public static final Protocol.ServiceProtocolVersion MAX_SERVICE_PROTOCOL_VERSION =
-      Protocol.ServiceProtocolVersion.V4;
+      Protocol.ServiceProtocolVersion.V5;
 
   static final String CONTENT_TYPE = "content-type";
 
@@ -37,6 +37,9 @@ public class ServiceProtocol {
     if (version.equals("application/vnd.restate.invocation.v4")) {
       return Protocol.ServiceProtocolVersion.V4;
     }
+    if (version.equals("application/vnd.restate.invocation.v5")) {
+      return Protocol.ServiceProtocolVersion.V5;
+    }
     return Protocol.ServiceProtocolVersion.SERVICE_PROTOCOL_VERSION_UNSPECIFIED;
   }
 
@@ -52,6 +55,9 @@ public class ServiceProtocol {
     }
     if (Objects.requireNonNull(version) == Protocol.ServiceProtocolVersion.V4) {
       return "application/vnd.restate.invocation.v4";
+    }
+    if (Objects.requireNonNull(version) == Protocol.ServiceProtocolVersion.V5) {
+      return "application/vnd.restate.invocation.v5";
     }
     throw new IllegalArgumentException(
         String.format("Service protocol version '%s' has no header value", version.getNumber()));
