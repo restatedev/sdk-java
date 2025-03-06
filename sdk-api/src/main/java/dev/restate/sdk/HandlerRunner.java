@@ -110,6 +110,7 @@ public class HandlerRunner<REQ, RES>
     return returnFuture;
   }
 
+  /** Factory method for {@link HandlerRunner}, used by codegen */
   public static <CTX extends Context, REQ, RES> HandlerRunner<REQ, RES> of(
       ThrowingBiFunction<CTX, REQ, RES> runner,
       SerdeFactory contextSerdeFactory,
@@ -117,6 +118,7 @@ public class HandlerRunner<REQ, RES>
     return new HandlerRunner<>(runner, contextSerdeFactory, options);
   }
 
+  /** Factory method for {@link HandlerRunner}, used by codegen */
   @SuppressWarnings("unchecked")
   public static <CTX extends Context, RES> HandlerRunner<Void, RES> of(
       ThrowingFunction<CTX, RES> runner,
@@ -126,6 +128,7 @@ public class HandlerRunner<REQ, RES>
         (context, o) -> runner.apply((CTX) context), contextSerdeFactory, options);
   }
 
+  /** Factory method for {@link HandlerRunner}, used by codegen */
   @SuppressWarnings("unchecked")
   public static <CTX extends Context, REQ> HandlerRunner<REQ, Void> of(
       ThrowingBiConsumer<CTX, REQ> runner,
@@ -140,6 +143,7 @@ public class HandlerRunner<REQ, RES>
         options);
   }
 
+  /** Factory method for {@link HandlerRunner}, used by codegen */
   @SuppressWarnings("unchecked")
   public static <CTX extends Context> HandlerRunner<Void, Void> of(
       ThrowingConsumer<CTX> runner, SerdeFactory contextSerdeFactory, @Nullable Options options) {
@@ -152,7 +156,19 @@ public class HandlerRunner<REQ, RES>
         options);
   }
 
-  public static class Options {
+  /**
+   * {@link HandlerRunner} options. You can override the default options to configure the executor
+   * where to run the handlers.
+   *
+   * <p>You can run on virtual threads by using the executor {@code
+   * Executors.newVirtualThreadPerTaskExecutor()}.
+   */
+  public static final class Options
+      implements dev.restate.sdk.endpoint.definition.HandlerRunner.Options {
+    /**
+     * Default options will use a {@link Executors#newCachedThreadPool()} shared among all the
+     * {@link HandlerRunner} instances.
+     */
     public static final Options DEFAULT = new Options(Executors.newCachedThreadPool());
 
     private final Executor executor;
@@ -165,6 +181,7 @@ public class HandlerRunner<REQ, RES>
       this.executor = executor;
     }
 
+    /** Copy this options setting the given {@code executor}. */
     public static Options withExecutor(Executor executor) {
       return new Options(executor);
     }

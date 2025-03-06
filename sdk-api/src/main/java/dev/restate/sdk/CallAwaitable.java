@@ -12,7 +12,12 @@ import dev.restate.sdk.endpoint.definition.AsyncResult;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
 import java.util.concurrent.Executor;
 
-/** {@link Awaitable} returned by a call to another service. */
+/**
+ * {@link Awaitable} returned by a call to another service.
+ *
+ * <p>You can retrieve the call invocation id using {@link #invocationId()}, and you can cancel the
+ * invocation using {@link #cancel()}.
+ */
 public final class CallAwaitable<T> extends Awaitable<T> {
 
   private final HandlerContext context;

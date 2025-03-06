@@ -29,6 +29,13 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonTransformingSerializer
 import kotlinx.serialization.modules.SerializersModule
 
+/**
+ * This class implements [SerdeFactory] using Kotlinx serialization stack.
+ *
+ * If you want to customize the [Json] object used in your service, it is recommended to subclass
+ * this class, and then register it using the [dev.restate.sdk.annotation.CustomSerdeFactory]
+ * annotation.
+ */
 class KotlinSerializationSerdeFactory
 @JvmOverloads
 constructor(private val json: Json = Json.Default) : SerdeFactory {

@@ -9,15 +9,19 @@
 package dev.restate.serde;
 
 /**
- * Type tag is used to carry types runtime information for serialization/deserialization. Subclasses
- * include {@link Serde} and {@link TypeRef}.
+ * This interface is used by the serialization stack to carry types runtime information. It is used
+ * by the configured {@link SerdeFactory} to construct the concrete {@link Serde}.
  *
- * @param <T>
+ * <p>Subclasses include {@link TypeRef}, {@link Class} and {@link Serde} itself.
  */
 public interface TypeTag<T> {
 
   record Class<T>(java.lang.Class<T> type) implements TypeTag<T> {}
 
+  /**
+   * Create a {@link TypeTag} from a {@link java.lang.Class}. If the given type is parametrized, you
+   * should use {@link #of(TypeRef)} instead.
+   */
   static <T> TypeTag<T> of(java.lang.Class<T> type) {
     return new Class<>(type);
   }

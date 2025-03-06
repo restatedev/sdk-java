@@ -16,6 +16,12 @@ import java.util.Map;
 import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * Object encapsulating request parameters.
+ *
+ * @param <Req> the request type
+ * @param <Res> the response type
+ */
 public sealed class Request<Req, Res> permits SendRequest {
 
   private final Target target;
@@ -67,21 +73,25 @@ public sealed class Request<Req, Res> permits SendRequest {
     return headers;
   }
 
+  /**
+   * Create a new {@link Builder} for the given {@link Target}, request and response {@link TypeTag}
+   * and {@code request} object.
+   *
+   * <p>When using the annotation processor, you can rely on the generated {@code Client} class or
+   * the generated {@code Requests} class, instead of manually using this builder.
+   */
   public static <Req, Res> Builder<Req, Res> of(
       Target target, TypeTag<Req> reqTypeTag, TypeTag<Res> resTypeTag, Req request) {
     return new Builder<>(target, reqTypeTag, resTypeTag, request);
   }
 
-  public static <Req> Builder<Req, Void> withNoResponseBody(
-      Target target, TypeTag<Req> reqTypeTag, Req request) {
-    return new Builder<>(target, reqTypeTag, Serde.VOID, request);
-  }
-
-  public static <Res> Builder<Void, Res> withNoRequestBody(Target target, TypeTag<Res> resTypeTag) {
-    return new Builder<>(target, Serde.VOID, resTypeTag, null);
-  }
-
-  public static Builder<byte[], byte[]> ofRaw(Target target, byte[] request) {
+  /**
+   * Create a new {@link Builder} for the given {@link Target} and {@code request} byte array.
+   *
+   * <p>When using the annotation processor, you can rely on the generated {@code Client} class or
+   * the generated {@code Requests} class, instead of manually using this builder.
+   */
+  public static Builder<byte[], byte[]> of(Target target, byte[] request) {
     return new Builder<>(target, TypeTag.of(Serde.RAW), TypeTag.of(Serde.RAW), request);
   }
 
@@ -153,6 +163,9 @@ public sealed class Request<Req, Res> permits SendRequest {
       return idempotencyKey;
     }
 
+    /**
+     * @param idempotencyKey Idempotency key to attach in the request.
+     */
     public Builder<Req, Res> setIdempotencyKey(@Nullable String idempotencyKey) {
       return idempotencyKey(idempotencyKey);
     }
@@ -161,20 +174,32 @@ public sealed class Request<Req, Res> permits SendRequest {
       return headers;
     }
 
+    /**
+     * @param headers headers to send together with the request.
+     */
     public Builder<Req, Res> setHeaders(@Nullable Map<String, String> headers) {
       return headers(headers);
     }
 
+    /**
+     * @return build the request as send request.
+     */
     public SendRequest<Req, Res> asSend() {
       return new SendRequest<>(
           target, reqTypeTag, resTypeTag, request, idempotencyKey, headers, null);
     }
 
+    /**
+     * @return build the request as send request delayed by the given {@code delay}.
+     */
     public SendRequest<Req, Res> asSendDelayed(Duration delay) {
       return new SendRequest<>(
           target, reqTypeTag, resTypeTag, request, idempotencyKey, headers, delay);
     }
 
+    /**
+     * @return build the request as send request.
+     */
     public Request<Req, Res> build() {
       return new Request<>(
           this.target,
@@ -196,11 +221,17 @@ public sealed class Request<Req, Res> permits SendRequest {
         this.headers);
   }
 
+  /**
+   * @return copy this request as send.
+   */
   public SendRequest<Req, Res> asSend() {
     return new SendRequest<>(
         target, reqTypeTag, resTypeTag, request, idempotencyKey, headers, null);
   }
 
+  /**
+   * @return copy this request as send request delayed by the given {@code delay}.
+   */
   public SendRequest<Req, Res> asSendDelayed(Duration delay) {
     return new SendRequest<>(
         target, reqTypeTag, resTypeTag, request, idempotencyKey, headers, delay);

@@ -11,6 +11,7 @@ package dev.restate.common;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
+/** Wrapper type for byte slices. */
 public interface Slice {
 
   int readableBytes();
@@ -27,6 +28,7 @@ public interface Slice {
 
   byte[] toByteArray();
 
+  /** Wrap a {@link ByteBuffer}. This will not copy the buffer. */
   static Slice wrap(ByteBuffer byteBuffer) {
     return new Slice() {
       @Override

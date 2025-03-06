@@ -14,8 +14,6 @@ import java.lang.reflect.Type;
 /**
  * This generic abstract class is used for obtaining full generics type information by sub-classing.
  * Similar to Jackson's TypeReference.
- *
- * @param <T>
  */
 public abstract class TypeRef<T> implements TypeTag<T> {
   private final Type type;

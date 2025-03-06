@@ -44,8 +44,9 @@ public abstract class Awaitable<T> {
    * Wait for the current awaitable to complete. Executing this method may trigger the suspension of
    * the function.
    *
-   * <p><b>NOTE</b>: You should never wrap this invocation in a try-catch catching {@link
-   * RuntimeException}, as it will catch {@link AbortedExecutionException} as well.
+   * <p><b>NOTE</b>: You should never wrap this function in a try-catch catching {@link Throwable},
+   * as it will catch {@link AbortedExecutionException} as well, which will prevent the service
+   * invocation to orderly suspend.
    *
    * @throws TerminalException if the awaitable is ready and contains a failure
    */
@@ -62,7 +63,7 @@ public abstract class Awaitable<T> {
   }
 
   /**
-   * @return an Awaitable that throws a {@link TerminalException} if this awaitable doesn't complete
+   * @return an Awaitable that throws a {@link TimeoutException} if this awaitable doesn't complete
    *     before the provided {@code timeout}.
    */
   public final Awaitable<T> withTimeout(Duration timeout) {
@@ -80,7 +81,13 @@ public abstract class Awaitable<T> {
             });
   }
 
-  /** Map the result of this {@link Awaitable}. */
+  /**
+   * Map the success result of this {@link Awaitable}.
+   *
+   * @param mapper the mapper to execute if this {@link Awaitable} completes with success. The
+   *     mapper can throw a {@link TerminalException}, thus failing the resulting operation.
+   * @return a new {@link Awaitable} with the mapped result, when completed
+   */
   public final <U> Awaitable<U> map(ThrowingFunction<T, U> mapper) {
     return fromAsyncResult(
         asyncResult()
@@ -100,6 +107,15 @@ public abstract class Awaitable<T> {
         this.serviceExecutor());
   }
 
+  /**
+   * Map both the success and the failure result of this {@link Awaitable}.
+   *
+   * @param successMapper the mapper to execute if this {@link Awaitable} completes with success.
+   *     The mapper can throw a {@link TerminalException}, thus failing the resulting operation.
+   * @param failureMapper the mapper to execute if this {@link Awaitable} completes with failure.
+   *     The mapper can throw a {@link TerminalException}, thus failing the resulting operation.
+   * @return a new {@link Awaitable} with the mapped result, when completed
+   */
   public final <U> Awaitable<U> map(
       ThrowingFunction<T, U> successMapper, ThrowingFunction<TerminalException, U> failureMapper) {
     return fromAsyncResult(
@@ -130,6 +146,13 @@ public abstract class Awaitable<T> {
         this.serviceExecutor());
   }
 
+  /**
+   * Map both the failure result of this {@link Awaitable}.
+   *
+   * @param failureMapper the mapper to execute if this {@link Awaitable} completes with failure.
+   *     The mapper can throw a {@link TerminalException}, thus failing the resulting operation.
+   * @return a new {@link Awaitable} with the mapped result, when completed
+   */
   public final Awaitable<T> mapFailure(ThrowingFunction<TerminalException, T> failureMapper) {
     return fromAsyncResult(
         asyncResult()
@@ -163,10 +186,8 @@ public abstract class Awaitable<T> {
   }
 
   /**
-   * Create an {@link Awaitable} that awaits any of the given awaitables.
-   *
-   * <p>The behavior is the same as {@link
-   * java.util.concurrent.CompletableFuture#anyOf(CompletableFuture[])}.
+   * Create an {@link Awaitable} that awaits any of the given awaitables. The resulting {@link
+   * Awaitable} returns the index of the completed awaitable in the provided list.
    */
   public static Awaitable<Integer> any(
       Awaitable<?> first, Awaitable<?> second, Awaitable<?>... others) {
@@ -178,12 +199,10 @@ public abstract class Awaitable<T> {
   }
 
   /**
-   * Create an {@link Awaitable} that awaits any of the given awaitables.
+   * Create an {@link Awaitable} that awaits any of the given awaitables. The resulting {@link
+   * Awaitable} returns the index of the completed awaitable in the provided list.
    *
    * <p>An empty list is not supported and will throw {@link IllegalArgumentException}.
-   *
-   * <p>The behavior is the same as {@link
-   * java.util.concurrent.CompletableFuture#anyOf(CompletableFuture[])}.
    */
   public static Awaitable<Integer> any(List<Awaitable<?>> awaitables) {
     if (awaitables.isEmpty()) {

@@ -10,6 +10,11 @@ package dev.restate.sdk;
 
 import dev.restate.common.Output;
 
+/**
+ * Handle to interact with an invocation.
+ *
+ * @param <Res> Response type
+ */
 public interface InvocationHandle<Res> {
   /**
    * @return the invocation id of this invocation
