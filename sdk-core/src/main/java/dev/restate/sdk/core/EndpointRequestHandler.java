@@ -105,22 +105,22 @@ public final class EndpointRequestHandler {
       LoggingContextSetter loggingContextSetter,
       Executor coreExecutor)
       throws ProtocolException {
+    if (path.endsWith(HEALTH_PATH)) {
+      return new StaticResponseRequestProcessor(200, "text/plain", Slice.wrap("OK"));
+    }
+
+    // Verify request
+    if (endpoint.getRequestIdentityVerifier() != null) {
+      try {
+        endpoint.getRequestIdentityVerifier().verifyRequest(headersAccessor);
+      } catch (Exception e) {
+        throw ProtocolException.unauthorized(e);
+      }
+    }
+
     // Discovery request
     if (path.endsWith(DISCOVER_PATH)) {
       return this.handleDiscoveryRequest(headersAccessor);
-    }
-
-    if (path.endsWith(HEALTH_PATH)) {
-      return new StaticResponseRequestProcessor(
-          200,
-          "text/plain",
-          Slice.wrap(
-              "Serving services ["
-                  + this.endpoint
-                      .getServiceDefinitions()
-                      .map(ServiceDefinition::getServiceName)
-                      .collect(Collectors.joining(", "))
-                  + "]"));
     }
 
     // Parse request
@@ -150,15 +150,6 @@ public final class EndpointRequestHandler {
     HandlerDefinition<?, ?> handler = svc.getHandler(handlerName);
     if (handler == null) {
       throw ProtocolException.methodNotFound(serviceName, handlerName);
-    }
-
-    // Verify request
-    if (endpoint.getRequestIdentityVerifier() != null) {
-      try {
-        endpoint.getRequestIdentityVerifier().verifyRequest(headersAccessor);
-      } catch (Exception e) {
-        throw ProtocolException.unauthorized(e);
-      }
     }
 
     // Parse OTEL context and generate span
