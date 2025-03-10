@@ -15,6 +15,7 @@ import dev.restate.serde.Serde
 import dev.restate.serde.SerdeFactory
 import io.opentelemetry.extension.kotlin.asContextElement
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -98,6 +99,7 @@ internal constructor(
       handlerContext: HandlerContext,
       requestSerde: Serde<REQ>,
       responseSerde: Serde<RES>,
+      onClosedInvocationStreamHook: AtomicReference<Runnable>
   ): CompletableFuture<Slice> {
     val ctx: Context = ContextImpl(handlerContext, contextSerdeFactory)
 
@@ -109,42 +111,44 @@ internal constructor(
                 handlerContext.request().otelContext()!!.asContextElement())
 
     val completableFuture = CompletableFuture<Slice>()
+    val job =
+        scope.launch {
+          val serializedResult: Slice
 
-    scope.launch {
-      val serializedResult: Slice
+          try {
+            // Parse input
+            val req: REQ
+            try {
+              req = requestSerde.deserialize(handlerContext.request().body)
+            } catch (e: Throwable) {
+              LOG.warn("Error deserializing request", e)
+              completableFuture.completeExceptionally(
+                  throw TerminalException(
+                      TerminalException.BAD_REQUEST_CODE,
+                      "Cannot deserialize request: " + e.message))
+              return@launch
+            }
 
-      try {
-        // Parse input
-        val req: REQ
-        try {
-          req = requestSerde.deserialize(handlerContext.request().body)
-        } catch (e: Throwable) {
-          LOG.warn("Error deserializing request", e)
-          completableFuture.completeExceptionally(
-              throw TerminalException(
-                  TerminalException.BAD_REQUEST_CODE, "Cannot deserialize request: " + e.message))
-          return@launch
+            // Execute user code
+            @Suppress("UNCHECKED_CAST") val res: RES = runner(ctx as CTX, req)
+
+            // Serialize output
+            try {
+              serializedResult = responseSerde.serialize(res)
+            } catch (e: Throwable) {
+              LOG.warn("Error when serializing response", e)
+              completableFuture.completeExceptionally(e)
+              return@launch
+            }
+          } catch (e: Throwable) {
+            completableFuture.completeExceptionally(e)
+            return@launch
+          }
+
+          // Complete callback
+          completableFuture.complete(serializedResult)
         }
-
-        // Execute user code
-        @Suppress("UNCHECKED_CAST") val res: RES = runner(ctx as CTX, req)
-
-        // Serialize output
-        try {
-          serializedResult = responseSerde.serialize(res)
-        } catch (e: Throwable) {
-          LOG.warn("Error when serializing response", e)
-          completableFuture.completeExceptionally(e)
-          return@launch
-        }
-      } catch (e: Throwable) {
-        completableFuture.completeExceptionally(e)
-        return@launch
-      }
-
-      // Complete callback
-      completableFuture.complete(serializedResult)
-    }
+    onClosedInvocationStreamHook.set { job.cancel() }
 
     return completableFuture
   }

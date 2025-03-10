@@ -21,6 +21,7 @@ import io.opentelemetry.context.Scope;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
@@ -48,7 +49,10 @@ public class HandlerRunner<REQ, RES>
 
   @Override
   public CompletableFuture<Slice> run(
-      HandlerContext handlerContext, Serde<REQ> requestSerde, Serde<RES> responseSerde) {
+      HandlerContext handlerContext,
+      Serde<REQ> requestSerde,
+      Serde<RES> responseSerde,
+      AtomicReference<Runnable> onClosedInvocationStreamHook) {
     CompletableFuture<Slice> returnFuture = new CompletableFuture<>();
 
     // Wrap the executor for setting/unsetting the thread local

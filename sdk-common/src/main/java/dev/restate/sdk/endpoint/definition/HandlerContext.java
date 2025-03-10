@@ -48,8 +48,6 @@ public interface HandlerContext {
 
   CompletableFuture<Void> set(String name, Slice value);
 
-  // ----- Syscalls
-
   CompletableFuture<AsyncResult<Void>> timer(Duration duration, @Nullable String name);
 
   record CallResult(
