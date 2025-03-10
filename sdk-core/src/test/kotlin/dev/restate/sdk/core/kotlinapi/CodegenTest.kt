@@ -8,6 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core.kotlinapi
 
+import dev.restate.common.Slice
 import dev.restate.common.Target
 import dev.restate.sdk.annotation.*
 import dev.restate.sdk.core.TestDefinitions
@@ -124,6 +125,13 @@ class CodegenTest : TestDefinitions.TestSuite {
       return CodegenTestCornerCasesClient.fromContext(context, context.key())
           .returnNull(request) {}
           .await()
+    }
+
+    @Exclusive
+    suspend fun badReturnTypeInferred(context: ObjectContext): Unit {
+      CodegenTestCornerCasesClient.fromContext(context, context.key())
+          .send()
+          .badReturnTypeInferred()
     }
   }
 
@@ -336,6 +344,19 @@ class CodegenTest : TestDefinitions.TestSuite {
                     jsonSerde<String?>(),
                     null),
                 outputCmd(jsonSerde<String?>(), null),
+                END_MESSAGE),
+        testInvocation({ CornerCases() }, "badReturnTypeInferred")
+            .withInput(startMessage(1, "mykey"), inputCmd())
+            .onlyBidiStream()
+            .expectingOutput(
+                oneWayCallCmd(
+                    1,
+                    Target.virtualObject(
+                        "CodegenTestCornerCases", "mykey", "badReturnTypeInferred"),
+                    null,
+                    null,
+                    Slice.EMPTY),
+                outputCmd(),
                 END_MESSAGE),
     )
   }

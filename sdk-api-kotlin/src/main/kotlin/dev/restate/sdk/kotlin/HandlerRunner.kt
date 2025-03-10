@@ -33,7 +33,10 @@ internal constructor(
   companion object {
     private val LOG = LogManager.getLogger(HandlerRunner::class.java)
 
-    /** Factory method for [dev.restate.sdk.kotlin.HandlerRunner], used by codegen. */
+    /**
+     * Factory method for [dev.restate.sdk.kotlin.HandlerRunner], used by codegen. Please note this
+     * may be subject to breaking changes.
+     */
     fun <REQ, RES, CTX : Context> of(
         contextSerdeFactory: SerdeFactory,
         options: Options = Options.DEFAULT,
@@ -42,13 +45,52 @@ internal constructor(
       return HandlerRunner(runner, contextSerdeFactory, options)
     }
 
-    /** Factory method for [dev.restate.sdk.kotlin.HandlerRunner], used by codegen. */
+    /**
+     * Factory method for [dev.restate.sdk.kotlin.HandlerRunner], used by codegen. Please note this
+     * may be subject to breaking changes.
+     */
     fun <RES, CTX : Context> of(
         contextSerdeFactory: SerdeFactory,
         options: Options = Options.DEFAULT,
         runner: suspend (CTX) -> RES,
     ): HandlerRunner<Unit, RES, CTX> {
       return HandlerRunner({ ctx: CTX, _: Unit -> runner(ctx) }, contextSerdeFactory, options)
+    }
+
+    /**
+     * Factory method for [dev.restate.sdk.kotlin.HandlerRunner], used by codegen. Please note this
+     * may be subject to breaking changes.
+     */
+    fun <REQ, CTX : Context> ofEmptyReturn(
+        contextSerdeFactory: SerdeFactory,
+        options: Options = Options.DEFAULT,
+        runner: suspend (CTX, REQ) -> Unit,
+    ): HandlerRunner<REQ, Unit, CTX> {
+      return HandlerRunner(
+          { ctx: CTX, req: REQ ->
+            runner(ctx, req)
+            Unit
+          },
+          contextSerdeFactory,
+          options)
+    }
+
+    /**
+     * Factory method for [dev.restate.sdk.kotlin.HandlerRunner], used by codegen. Please note this
+     * may be subject to breaking changes.
+     */
+    fun <CTX : Context> ofEmptyReturn(
+        contextSerdeFactory: SerdeFactory,
+        options: Options = Options.DEFAULT,
+        runner: suspend (CTX) -> Unit,
+    ): HandlerRunner<Unit, Unit, CTX> {
+      return HandlerRunner(
+          { ctx: CTX, _: Unit ->
+            runner(ctx)
+            Unit
+          },
+          contextSerdeFactory,
+          options)
     }
   }
 
