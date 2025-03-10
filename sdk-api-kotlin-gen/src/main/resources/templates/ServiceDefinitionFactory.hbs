@@ -20,7 +20,7 @@ class {{generatedClassSimpleName}}: dev.restate.sdk.endpoint.definition.ServiceD
                 {{#if isExclusive}}dev.restate.sdk.endpoint.definition.HandlerType.EXCLUSIVE{{else if isWorkflow}}dev.restate.sdk.endpoint.definition.HandlerType.WORKFLOW{{else}}dev.restate.sdk.endpoint.definition.HandlerType.SHARED{{/if}},
                 {{inputSerdeRef}},
                 {{outputSerdeRef}},
-                dev.restate.sdk.kotlin.HandlerRunner.of({{serdeFactoryRef}}, handlerRunnerOptions, bindableService::{{name}})
+                dev.restate.sdk.kotlin.HandlerRunner.{{#if outputEmpty}}ofEmptyReturn{{else}}of{{/if}}({{serdeFactoryRef}}, handlerRunnerOptions, bindableService::{{name}})
                 ){{#if inputAcceptContentType}}.withAcceptContentType("{{inputAcceptContentType}}"){{/if}}{{#unless @last}},{{/unless}}
             {{/handlers}}
             )
