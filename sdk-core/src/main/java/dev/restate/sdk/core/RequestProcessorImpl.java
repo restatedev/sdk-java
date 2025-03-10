@@ -16,6 +16,7 @@ import io.opentelemetry.context.Context;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Flow;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
@@ -30,6 +31,7 @@ final class RequestProcessorImpl implements RequestProcessor {
   private final Context otelContext;
   private final EndpointRequestHandler.LoggingContextSetter loggingContextSetter;
   private final Executor syscallsExecutor;
+  private final AtomicReference<Runnable> onHandlerTaskCancellation;
 
   @SuppressWarnings("unchecked")
   public RequestProcessorImpl(
@@ -45,6 +47,7 @@ final class RequestProcessorImpl implements RequestProcessor {
     this.loggingContextSetter = loggingContextSetter;
     this.handlerDefinition = (HandlerDefinition<Object, Object>) handlerDefinition;
     this.syscallsExecutor = syscallExecutor;
+    this.onHandlerTaskCancellation = new AtomicReference<>();
   }
 
   // Flow methods implementation
@@ -52,7 +55,36 @@ final class RequestProcessorImpl implements RequestProcessor {
   @Override
   public void subscribe(Flow.Subscriber<? super Slice> subscriber) {
     LOG.trace("Start processing invocation");
-    this.stateMachine.subscribe(subscriber);
+    this.stateMachine.subscribe(
+        new Flow.Subscriber<>() {
+          @Override
+          public void onSubscribe(Flow.Subscription subscription) {
+            subscriber.onSubscribe(subscription);
+          }
+
+          @Override
+          public void onNext(Slice slice) {
+            subscriber.onNext(slice);
+          }
+
+          @Override
+          public void onError(Throwable throwable) {
+            Runnable cancelTask = onHandlerTaskCancellation.get();
+            if (cancelTask != null) {
+              cancelTask.run();
+            }
+            subscriber.onError(throwable);
+          }
+
+          @Override
+          public void onComplete() {
+            Runnable cancelTask = onHandlerTaskCancellation.get();
+            if (cancelTask != null) {
+              cancelTask.run();
+            }
+            subscriber.onComplete();
+          }
+        });
     stateMachine
         .waitForReady()
         .thenCompose(v -> this.onReady())
@@ -119,7 +151,8 @@ final class RequestProcessorImpl implements RequestProcessor {
             .run(
                 contextInternal,
                 handlerDefinition.getRequestSerde(),
-                handlerDefinition.getResponseSerde());
+                handlerDefinition.getResponseSerde(),
+                onHandlerTaskCancellation);
 
     return userCodeFuture.handle(
         (slice, t) -> {

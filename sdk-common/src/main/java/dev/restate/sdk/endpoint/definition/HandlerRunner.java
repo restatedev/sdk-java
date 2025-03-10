@@ -11,6 +11,7 @@ package dev.restate.sdk.endpoint.definition;
 import dev.restate.common.Slice;
 import dev.restate.serde.Serde;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 
 public interface HandlerRunner<REQ, RES> {
   /**
@@ -27,5 +28,8 @@ public interface HandlerRunner<REQ, RES> {
   interface Options {}
 
   CompletableFuture<Slice> run(
-      HandlerContext handlerContext, Serde<REQ> requestSerde, Serde<RES> responseSerde);
+      HandlerContext handlerContext,
+      Serde<REQ> requestSerde,
+      Serde<RES> responseSerde,
+      AtomicReference<Runnable> onClosedInvocationStreamHook);
 }
