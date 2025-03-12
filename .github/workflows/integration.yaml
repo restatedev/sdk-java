@@ -103,7 +103,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      - name: Build restatedev/java-test-services image
+      - name: Build restatedev/test-services-java image
         run: ./gradlew -Djib.console=plain :test-services:jibDockerBuild
 
       - name: Run test tool 3.0
@@ -112,4 +112,4 @@ jobs:
           envVars: ${{ inputs.envVars }}
           testArtifactOutput: ${{ inputs.testArtifactOutput != '' && inputs.testArtifactOutput || 'sdk-java-integration-test-report' }}
           restateContainerImage: ${{ inputs.restateCommit != '' && 'localhost/restatedev/restate-commit-download:latest' || (inputs.restateImage != '' && inputs.restateImage || 'ghcr.io/restatedev/restate:main') }}
-          serviceContainerImage: 'restatedev/java-test-services'
+          serviceContainerImage: 'restatedev/test-services-java'

@@ -58,7 +58,7 @@ fun testBaseImage(): String {
 }
 
 jib {
-  to.image = "restatedev/java-test-services"
+  to.image = "restatedev/test-services-java"
   from.image = testBaseImage()
 
   from {

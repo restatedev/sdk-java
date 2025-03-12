@@ -39,10 +39,10 @@ jobs:
           username: ${{ env.GHCR_REGISTRY_USERNAME }}
           password: ${{ env.GHCR_REGISTRY_TOKEN }}
 
-      - name: Build restatedev/java-test-services image
+      - name: Build restatedev/test-services-java image
         run: ./gradlew -Djib.console=plain :test-services:jibDockerBuild
 
       - name: Push restatedev/test-services-java:main image
         run: |
-          docker tag restatedev/java-test-services ghcr.io/restatedev/test-services-java:main
+          docker tag restatedev/test-services-java ghcr.io/restatedev/test-services-java:main
           docker push ghcr.io/restatedev/test-services-java:main
