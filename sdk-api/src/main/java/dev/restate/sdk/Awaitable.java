@@ -85,7 +85,7 @@ public abstract class Awaitable<T> {
    * Map the success result of this {@link Awaitable}.
    *
    * @param mapper the mapper to execute if this {@link Awaitable} completes with success. The
-   *     mapper can throw a {@link TerminalException}, thus failing the resulting operation.
+   *     mapper can throw a {@link TerminalException}, thus failing the resulting {@link Awaitable}.
    * @return a new {@link Awaitable} with the mapped result, when completed
    */
   public final <U> Awaitable<U> map(ThrowingFunction<T, U> mapper) {
@@ -111,9 +111,11 @@ public abstract class Awaitable<T> {
    * Map both the success and the failure result of this {@link Awaitable}.
    *
    * @param successMapper the mapper to execute if this {@link Awaitable} completes with success.
-   *     The mapper can throw a {@link TerminalException}, thus failing the resulting operation.
+   *     The mapper can throw a {@link TerminalException}, thus failing the resulting {@link
+   *     Awaitable}.
    * @param failureMapper the mapper to execute if this {@link Awaitable} completes with failure.
-   *     The mapper can throw a {@link TerminalException}, thus failing the resulting operation.
+   *     The mapper can throw a {@link TerminalException}, thus failing the resulting {@link
+   *     Awaitable}.
    * @return a new {@link Awaitable} with the mapped result, when completed
    */
   public final <U> Awaitable<U> map(
@@ -147,10 +149,11 @@ public abstract class Awaitable<T> {
   }
 
   /**
-   * Map both the failure result of this {@link Awaitable}.
+   * Map the failure result of this {@link Awaitable}.
    *
    * @param failureMapper the mapper to execute if this {@link Awaitable} completes with failure.
-   *     The mapper can throw a {@link TerminalException}, thus failing the resulting operation.
+   *     The mapper can throw a {@link TerminalException}, thus failing the resulting {@link
+   *     Awaitable}.
    * @return a new {@link Awaitable} with the mapped result, when completed
    */
   public final Awaitable<T> mapFailure(ThrowingFunction<TerminalException, T> failureMapper) {
