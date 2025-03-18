@@ -36,7 +36,7 @@ import kotlinx.serialization.modules.SerializersModule
  * this class, and then register it using the [dev.restate.sdk.annotation.CustomSerdeFactory]
  * annotation.
  */
-class KotlinSerializationSerdeFactory
+open class KotlinSerializationSerdeFactory
 @JvmOverloads
 constructor(private val json: Json = Json.Default) : SerdeFactory {
 
