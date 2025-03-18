@@ -106,7 +106,7 @@ public class JavaAPITests extends TestRunner {
         "run");
   }
 
-  public static Awaitable<String> callGreeterGreetService(Context ctx, String parameter) {
+  public static DurableFuture<String> callGreeterGreetService(Context ctx, String parameter) {
     return ctx.call(
         Request.of(GREETER_SERVICE_TARGET, TestSerdes.STRING, TestSerdes.STRING, parameter));
   }

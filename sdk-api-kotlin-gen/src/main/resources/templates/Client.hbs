@@ -1,7 +1,7 @@
 {{#if originalClassPkg}}package {{originalClassPkg}};{{/if}}
 
 {{#contextClientEnabled}}
-import dev.restate.sdk.kotlin.CallAwaitable
+import dev.restate.sdk.kotlin.CallDurableFuture
 import dev.restate.sdk.kotlin.InvocationHandle
 import dev.restate.sdk.kotlin.Context
 import dev.restate.sdk.kotlin.asSendDelayed
@@ -34,7 +34,7 @@ object {{generatedClassSimpleName}} {
     {{#contextClientEnabled}}
     class ContextClient(private val ctx: Context{{#isKeyed}}, private val key: String{{/isKeyed}}){
         {{#handlers}}
-        suspend fun {{methodName}}({{^inputEmpty}}req: {{{inputFqcn}}}, {{/inputEmpty}}init: dev.restate.common.Request.Builder<{{{boxedInputFqcn}}}, {{{boxedOutputFqcn}}}>.() -> Unit = {}): CallAwaitable<{{{boxedOutputFqcn}}}> {
+        suspend fun {{methodName}}({{^inputEmpty}}req: {{{inputFqcn}}}, {{/inputEmpty}}init: dev.restate.common.Request.Builder<{{{boxedInputFqcn}}}, {{{boxedOutputFqcn}}}>.() -> Unit = {}): CallDurableFuture<{{{boxedOutputFqcn}}}> {
             return this.ctx.call(
                 {{../requestsClass}}.{{methodName}}({{#if ../isKeyed}}this.key, {{/if}}{{^inputEmpty}}req, {{/inputEmpty}}init)
             )

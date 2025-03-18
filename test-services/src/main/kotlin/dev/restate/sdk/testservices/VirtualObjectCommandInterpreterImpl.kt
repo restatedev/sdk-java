@@ -49,7 +49,7 @@ class VirtualObjectCommandInterpreterImpl : VirtualObjectCommandInterpreter {
 
           while (true) {
             @Suppress("UNCHECKED_CAST")
-            val completed = Awaitable.any(cmds as List<Awaitable<*>>).await()
+            val completed = DurableFuture.any(cmds as List<DurableFuture<*>>).await()
 
             try {
               result = cmds[completed].await()
@@ -121,7 +121,7 @@ class VirtualObjectCommandInterpreterImpl : VirtualObjectCommandInterpreter {
 
   private suspend fun VirtualObjectCommandInterpreter.AwaitableCommand.toAwaitable(
       ctx: ObjectContext
-  ): Awaitable<String> {
+  ): DurableFuture<String> {
     return when (this) {
       is VirtualObjectCommandInterpreter.CreateAwakeable -> {
         val awk = ctx.awakeable<String>()

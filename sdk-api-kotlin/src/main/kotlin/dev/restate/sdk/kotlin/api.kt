@@ -48,12 +48,12 @@ sealed interface Context {
 
   /**
    * Causes the start of a timer for the given duration. You can await on the timer end by invoking
-   * [Awaitable.await].
+   * [DurableFuture.await].
    *
    * @param duration for which to sleep.
    * @param name name to be used for the timer
    */
-  suspend fun timer(duration: Duration, name: String? = null): Awaitable<Unit>
+  suspend fun timer(duration: Duration, name: String? = null): DurableFuture<Unit>
 
   /**
    * Invoke another Restate service method.
@@ -63,9 +63,9 @@ sealed interface Context {
    * @param outputSerde Output serde
    * @param parameter the invocation request parameter.
    * @param callOptions request options.
-   * @return a [CallAwaitable] that wraps the result.
+   * @return a [CallDurableFuture] that wraps the result.
    */
-  suspend fun <Req : Any?, Res : Any?> call(request: Request<Req, Res>): CallAwaitable<Res>
+  suspend fun <Req : Any?, Res : Any?> call(request: Request<Req, Res>): CallDurableFuture<Res>
 
   /**
    * Invoke another Restate service method.
@@ -75,11 +75,11 @@ sealed interface Context {
    * @param outputSerde Output serde
    * @param parameter the invocation request parameter.
    * @param callOptions request options.
-   * @return a [CallAwaitable] that wraps the result.
+   * @return a [CallDurableFuture] that wraps the result.
    */
   suspend fun <Req : Any?, Res : Any?> call(
       requestBuilder: Request.Builder<Req, Res>
-  ): CallAwaitable<Res> {
+  ): CallDurableFuture<Res> {
     return call(requestBuilder.build())
   }
 
@@ -182,7 +182,7 @@ sealed interface Context {
       name: String = "",
       retryPolicy: RetryPolicy? = null,
       block: suspend () -> T
-  ): Awaitable<T>
+  ): DurableFuture<T>
 
   /**
    * Create an [Awakeable], addressable through [Awakeable.id].
@@ -287,7 +287,7 @@ suspend inline fun <reified T : Any> Context.runAsync(
     name: String = "",
     retryPolicy: RetryPolicy? = null,
     noinline block: suspend () -> T
-): Awaitable<T> {
+): DurableFuture<T> {
   return this.runAsync(typeTag<T>(), name, retryPolicy, block)
 }
 
@@ -424,67 +424,107 @@ class RestateRandom(seed: Long) : Random() {
 }
 
 /**
- * An [Awaitable] allows to await an asynchronous result. Once [await] is called, the execution
+ * A [DurableFuture] allows to await an asynchronous result. Once [await] is called, the execution
  * waits until the asynchronous result is available.
  *
  * The result can be either a success or a failure. In case of a failure, [await] will throw a
- * [dev.restate.sdk.core.TerminalException].
+ * [dev.restate.sdk.types.TerminalException].
  *
- * @param T type o1f the awaitable result
+ * @param T type of this future's result
  */
-sealed interface Awaitable<T> {
+sealed interface DurableFuture<T> {
+
+  /**
+   * Wait for this [DurableFuture] to complete.
+   *
+   * @throws TerminalException if this future was completed with a failure
+   */
   suspend fun await(): T
 
+  /**
+   * Same as [await] but throws a [dev.restate.sdk.types.TimeoutException] if this [DurableFuture]
+   * doesn't complete before the provided `timeout`.
+   */
   suspend fun await(duration: Duration): T
 
-  suspend fun withTimeout(duration: Duration): Awaitable<T>
+  /**
+   * Creates a [DurableFuture] that throws a [dev.restate.sdk.types.TimeoutException] if this future
+   * doesn't complete before the provided `timeout`.
+   */
+  suspend fun withTimeout(duration: Duration): DurableFuture<T>
 
   /** Clause for [select] operator. */
   val onAwait: SelectClause<T>
 
-  suspend fun <R> map(transform: suspend (value: T) -> R): Awaitable<R>
+  /**
+   * Map the success result of this [DurableFuture].
+   *
+   * @param transform the mapper to execute if this [DurableFuture] completes with success. The
+   *   mapper can throw a [dev.restate.sdk.types.TerminalException], thus failing the returned
+   *   [DurableFuture].
+   * @return a new [DurableFuture] with the mapped result, when completed
+   */
+  suspend fun <R> map(transform: suspend (value: T) -> R): DurableFuture<R>
 
+  /**
+   * Map both the success and the failure result of this [DurableFuture].
+   *
+   * @param transformSuccess the mapper to execute if this [DurableFuture] completes with success.
+   *   The mapper can throw a [dev.restate.sdk.types.TerminalException], thus failing the returned
+   *   [DurableFuture].
+   * @param transformFailure the mapper to execute if this [DurableFuture] completes with failure.
+   *   The mapper can throw a [dev.restate.sdk.types.TerminalException], thus failing the returned
+   *   [DurableFuture].
+   * @return a new [DurableFuture] with the mapped result, when completed
+   */
   suspend fun <R> map(
       transformSuccess: suspend (value: T) -> R,
       transformFailure: suspend (exception: TerminalException) -> R
-  ): Awaitable<R>
+  ): DurableFuture<R>
 
-  suspend fun mapFailure(transform: suspend (exception: TerminalException) -> T): Awaitable<T>
+  /**
+   * Map the failure result of this [DurableFuture].
+   *
+   * @param transform the mapper to execute if this [DurableFuture] completes with failure. The
+   *   mapper can throw a [dev.restate.sdk.types.TerminalException], thus failing the returned
+   *   [DurableFuture].
+   * @return a new [DurableFuture] with the mapped result, when completed
+   */
+  suspend fun mapFailure(transform: suspend (exception: TerminalException) -> T): DurableFuture<T>
 
   companion object {
+    /** @see awaitAll */
     fun all(
-        first: Awaitable<*>,
-        second: Awaitable<*>,
-        vararg others: Awaitable<*>
-    ): Awaitable<Unit> {
-      return wrapAllAwaitable(listOf(first) + listOf(second) + others.asList())
+        first: DurableFuture<*>,
+        second: DurableFuture<*>,
+        vararg others: DurableFuture<*>
+    ): DurableFuture<Unit> {
+      return wrapAllDurableFuture(listOf(first) + listOf(second) + others.asList())
     }
 
-    fun all(awaitables: List<Awaitable<*>>): Awaitable<Unit> {
-      return wrapAllAwaitable(awaitables)
+    /** @see awaitAll */
+    fun all(durableFutures: List<DurableFuture<*>>): DurableFuture<Unit> {
+      return wrapAllDurableFuture(durableFutures)
     }
 
+    /** @see select */
     fun any(
-        first: Awaitable<*>,
-        second: Awaitable<*>,
-        vararg others: Awaitable<*>
-    ): Awaitable<Int> {
-      return wrapAnyAwaitable(listOf(first) + listOf(second) + others.asList())
+        first: DurableFuture<*>,
+        second: DurableFuture<*>,
+        vararg others: DurableFuture<*>
+    ): DurableFuture<Int> {
+      return wrapAnyDurableFuture(listOf(first) + listOf(second) + others.asList())
     }
 
-    fun any(awaitables: List<Awaitable<*>>): Awaitable<Int> {
-      return wrapAnyAwaitable(awaitables)
+    /** @see select */
+    fun any(durableFutures: List<DurableFuture<*>>): DurableFuture<Int> {
+      return wrapAnyDurableFuture(durableFutures)
     }
   }
 }
 
-/** Like [kotlinx.coroutines.awaitAll], but for [Awaitable]. */
-suspend fun <T> Collection<Awaitable<T>>.awaitAll(): List<T> {
-  return awaitAll(*toTypedArray())
-}
-
 /**
- * Like [kotlinx.coroutines.awaitAll], but for [Awaitable].
+ * Like [kotlinx.coroutines.awaitAll], but for [DurableFuture].
  *
  * ```
  *  val ctx = restateContext()
@@ -496,31 +536,40 @@ suspend fun <T> Collection<Awaitable<T>>.awaitAll(): List<T> {
  *    .joinToString(separator = "-", transform = GreetingResponse::getMessage)
  * ```
  */
-suspend fun <T> awaitAll(vararg awaitables: Awaitable<T>): List<T> {
-  if (awaitables.isEmpty()) {
-    return emptyList()
-  }
-  if (awaitables.size == 1) {
-    return listOf(awaitables[0].await())
-  }
-  wrapAllAwaitable(awaitables.asList()).await()
-  return awaitables.map { it.await() }.toList()
+suspend fun <T> Collection<DurableFuture<T>>.awaitAll(): List<T> {
+  return awaitAll(*toTypedArray())
 }
 
 /**
- * Like [kotlinx.coroutines.selects.select], but for [Awaitable]
+ * Like [kotlinx.coroutines.awaitAll], but for [DurableFuture].
+ *
+ * ```
+ */
+suspend fun <T> awaitAll(vararg durableFutures: DurableFuture<T>): List<T> {
+  if (durableFutures.isEmpty()) {
+    return emptyList()
+  }
+  if (durableFutures.size == 1) {
+    return listOf(durableFutures[0].await())
+  }
+  wrapAllDurableFuture(durableFutures.asList()).await()
+  return durableFutures.map { it.await() }.toList()
+}
+
+/**
+ * Like [kotlinx.coroutines.selects.select], but for [DurableFuture]
  *
  * ```
  * val ctx = restateContext()
- * val callAwaitable = ctx.callAsync(GreeterGrpcKt.greetMethod, greetingRequest { name = "Francesco" })
+ * val callFuture = ctx.callAsync(GreeterGrpcKt.greetMethod, greetingRequest { name = "Francesco" })
  * val timeout = ctx.timer(10.seconds)
  * val result = select {
- *   callAwaitable.onAwait { it.message }
+ *   callFuture.onAwait { it.message }
  *   timeout.onAwait { throw TimeoutException() }
  * }.await()
  * ```
  */
-suspend inline fun <R> select(crossinline builder: SelectBuilder<R>.() -> Unit): Awaitable<R> {
+suspend inline fun <R> select(crossinline builder: SelectBuilder<R>.() -> Unit): DurableFuture<R> {
   val selectImpl = SelectImplementation<R>()
   builder.invoke(selectImpl)
   return selectImpl.build()
@@ -532,11 +581,12 @@ sealed interface SelectBuilder<in R> {
 }
 
 sealed interface SelectClause<T> {
-  val awaitable: Awaitable<T>
+  val durableFuture: DurableFuture<T>
 }
 
-/** The [Awaitable] returned by a [Context.call]. */
-sealed interface CallAwaitable<T> : Awaitable<T> {
+/** The [DurableFuture] returned by a [Context.call]. */
+sealed interface CallDurableFuture<T> : DurableFuture<T> {
+  /** Get the invocation id of this call. */
   suspend fun invocationId(): String
 }
 
@@ -549,14 +599,14 @@ sealed interface InvocationHandle<Res : Any?> {
   suspend fun cancel()
 
   /** Attach to this invocation. This will wait for the invocation to complete */
-  suspend fun attach(): Awaitable<Res>
+  suspend fun attach(): DurableFuture<Res>
 
   /** @return the output of this invocation, if present. */
   suspend fun output(): Output<Res>
 }
 
 /**
- * An [Awakeable] is a special type of [Awaitable] which can be arbitrarily completed by another
+ * An [Awakeable] is a special type of [DurableFuture] which can be arbitrarily completed by another
  * service, by addressing it with its [id].
  *
  * It can be used to let a service wait on a specific condition/result, which is fulfilled by
@@ -566,7 +616,7 @@ sealed interface InvocationHandle<Res : Any?> {
  * service consume from Kafka the responses of given external system interaction by using
  * [RestateContext.awakeableHandle].
  */
-sealed interface Awakeable<T> : Awaitable<T> {
+sealed interface Awakeable<T> : DurableFuture<T> {
   /** The unique identifier of this [Awakeable] instance. */
   val id: String
 }
@@ -619,8 +669,8 @@ suspend inline fun <reified T : Any> AwakeableHandle.resolve(payload: T) {
  * of user actions, corrupting the execution of the invocation.
  */
 sealed interface DurablePromise<T> {
-  /** @return the awaitable to await the promise on. */
-  suspend fun awaitable(): Awaitable<T>
+  /** @return the future to await the promise result on. */
+  suspend fun future(): DurableFuture<T>
 
   /** @return the value, if already present, otherwise returns an empty optional. */
   suspend fun peek(): Output<T>

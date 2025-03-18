@@ -22,8 +22,8 @@ import kotlin.time.Duration.Companion.days
 class AsyncResultTest : AsyncResultTestSuite() {
   override fun reverseAwaitOrder(): TestInvocationBuilder =
       testDefinitionForVirtualObject("ReverseAwaitOrder") { ctx, _: Unit ->
-        val a1: Awaitable<String> = callGreeterGreetService(ctx, "Francesco")
-        val a2: Awaitable<String> = callGreeterGreetService(ctx, "Till")
+        val a1: DurableFuture<String> = callGreeterGreetService(ctx, "Francesco")
+        val a2: DurableFuture<String> = callGreeterGreetService(ctx, "Till")
 
         val a2Res: String = a2.await()
         ctx.set(StateKey.of("A2", TestSerdes.STRING), a2Res)
@@ -53,7 +53,7 @@ class AsyncResultTest : AsyncResultTestSuite() {
         val a1 = callGreeterGreetService(ctx, "Francesco")
         val a2 = callGreeterGreetService(ctx, "Till")
 
-        return@testDefinitionForVirtualObject Awaitable.any(a1, a2)
+        return@testDefinitionForVirtualObject DurableFuture.any(a1, a2)
             .map { it -> if (it == 0) a1.await() else a2.await() }
             .await()
       }
@@ -76,10 +76,10 @@ class AsyncResultTest : AsyncResultTestSuite() {
         val a3 = ctx.awakeable(TestSerdes.STRING)
         val a4 = ctx.awakeable(TestSerdes.STRING)
 
-        val a12 = Awaitable.any(a1, a2).map { if (it == 0) a1.await() else a2.await() }
-        val a23 = Awaitable.any(a2, a3).map { if (it == 0) a2.await() else a3.await() }
-        val a34 = Awaitable.any(a3, a4).map { if (it == 0) a3.await() else a4.await() }
-        Awaitable.all(a12, a23, a34).await()
+        val a12 = DurableFuture.any(a1, a2).map { if (it == 0) a1.await() else a2.await() }
+        val a23 = DurableFuture.any(a2, a3).map { if (it == 0) a2.await() else a3.await() }
+        val a34 = DurableFuture.any(a3, a4).map { if (it == 0) a3.await() else a4.await() }
+        DurableFuture.all(a12, a23, a34).await()
 
         return@testDefinitionForVirtualObject a12.await() + a23.await() + a34.await()
       }
@@ -91,7 +91,7 @@ class AsyncResultTest : AsyncResultTestSuite() {
         val a3 = ctx.awakeable(TestSerdes.STRING)
         val a4 = ctx.awakeable(TestSerdes.STRING)
 
-        return@testDefinitionForVirtualObject Awaitable.any(a1, Awaitable.all(a2, a3), a4)
+        return@testDefinitionForVirtualObject DurableFuture.any(a1, DurableFuture.all(a2, a3), a4)
             .await()
             .toString()
       }
@@ -100,9 +100,9 @@ class AsyncResultTest : AsyncResultTestSuite() {
       testDefinitionForVirtualObject("AwaitOnAlreadyResolvedAwaitables") { ctx, _: Unit ->
         val a1 = ctx.awakeable(TestSerdes.STRING)
         val a2 = ctx.awakeable(TestSerdes.STRING)
-        val a12 = Awaitable.all(a1, a2)
-        val a12and1 = Awaitable.all(a12, a1)
-        val a121and12 = Awaitable.all(a12and1, a12)
+        val a12 = DurableFuture.all(a1, a2)
+        val a12and1 = DurableFuture.all(a12, a1)
+        val a121and12 = DurableFuture.all(a12and1, a12)
         a12and1.await()
         a121and12.await()
 

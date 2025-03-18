@@ -32,9 +32,9 @@ import dev.restate.sdk.types.DurablePromiseKey;
  */
 public interface DurablePromise<T> {
   /**
-   * @return the awaitable to await the promise on.
+   * @return the future to await the promise result on.
    */
-  Awaitable<T> awaitable();
+  DurableFuture<T> future();
 
   /**
    * @return the value, if already present, otherwise returns an empty optional.

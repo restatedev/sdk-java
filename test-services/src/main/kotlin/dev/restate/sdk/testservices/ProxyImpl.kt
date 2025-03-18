@@ -52,7 +52,7 @@ class ProxyImpl : Proxy {
           .invocationId()
 
   override suspend fun manyCalls(context: Context, requests: List<ManyCallRequest>) {
-    val toAwait = mutableListOf<Awaitable<ByteArray>>()
+    val toAwait = mutableListOf<DurableFuture<ByteArray>>()
 
     for (request in requests) {
       if (request.oneWayCall) {

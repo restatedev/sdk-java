@@ -25,7 +25,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.launch
 
-internal abstract class BaseAwaitableImpl<T : Any?> : Awaitable<T> {
+internal abstract class BaseDurableFutureImpl<T : Any?> : DurableFuture<T> {
   abstract fun asyncResult(): AsyncResult<T>
 
   override val onAwait: SelectClause<T>
@@ -39,14 +39,15 @@ internal abstract class BaseAwaitableImpl<T : Any?> : Awaitable<T> {
     return withTimeout(duration).await()
   }
 
-  override suspend fun withTimeout(duration: Duration): Awaitable<T> {
-    return (Awaitable.any(
+  override suspend fun withTimeout(duration: Duration): DurableFuture<T> {
+    return (DurableFuture.any(
             this,
-            SingleAwaitableImpl(asyncResult().ctx().timer(duration.toJavaDuration(), null).await()))
-            as BaseAwaitableImpl<*>)
+            SingleDurableFutureImpl(
+                asyncResult().ctx().timer(duration.toJavaDuration(), null).await()))
+            as BaseDurableFutureImpl<*>)
         .simpleMap {
           if (it == 1) {
-            throw TimeoutException("Timed out waiting for awaitable after $duration")
+            throw TimeoutException("Timed out waiting for durable future after $duration")
           }
 
           try {
@@ -57,14 +58,14 @@ internal abstract class BaseAwaitableImpl<T : Any?> : Awaitable<T> {
         }
   }
 
-  fun <R> simpleMap(transform: (T) -> R): Awaitable<R> {
-    return SingleAwaitableImpl(
+  fun <R> simpleMap(transform: (T) -> R): DurableFuture<R> {
+    return SingleDurableFutureImpl(
         this.asyncResult().map { CompletableFuture.completedFuture(transform(it)) })
   }
 
-  override suspend fun <R> map(transform: suspend (T) -> R): Awaitable<R> {
+  override suspend fun <R> map(transform: suspend (T) -> R): DurableFuture<R> {
     var ctx = currentCoroutineContext()
-    return SingleAwaitableImpl(
+    return SingleDurableFutureImpl(
         this.asyncResult().map { t ->
           val completableFuture = CompletableFuture<R>()
           CoroutineScope(ctx).launch {
@@ -84,9 +85,9 @@ internal abstract class BaseAwaitableImpl<T : Any?> : Awaitable<T> {
   override suspend fun <R> map(
       transformSuccess: suspend (T) -> R,
       transformFailure: suspend (TerminalException) -> R
-  ): Awaitable<R> {
+  ): DurableFuture<R> {
     var ctx = currentCoroutineContext()
-    return SingleAwaitableImpl(
+    return SingleDurableFutureImpl(
         this.asyncResult()
             .map(
                 { t ->
@@ -119,9 +120,9 @@ internal abstract class BaseAwaitableImpl<T : Any?> : Awaitable<T> {
                 }))
   }
 
-  override suspend fun mapFailure(transform: suspend (TerminalException) -> T): Awaitable<T> {
+  override suspend fun mapFailure(transform: suspend (TerminalException) -> T): DurableFuture<T> {
     var ctx = currentCoroutineContext()
-    return SingleAwaitableImpl(
+    return SingleDurableFutureImpl(
         this.asyncResult().mapFailure { t ->
           val completableFuture = CompletableFuture<T>()
           CoroutineScope(ctx).launch {
@@ -139,33 +140,37 @@ internal abstract class BaseAwaitableImpl<T : Any?> : Awaitable<T> {
   }
 }
 
-internal open class SingleAwaitableImpl<T : Any?>(private val asyncResult: AsyncResult<T>) :
-    BaseAwaitableImpl<T>() {
+internal open class SingleDurableFutureImpl<T : Any?>(private val asyncResult: AsyncResult<T>) :
+    BaseDurableFutureImpl<T>() {
   override fun asyncResult(): AsyncResult<T> {
     return asyncResult
   }
 }
 
-internal fun wrapAllAwaitable(awaitables: List<Awaitable<*>>): Awaitable<Unit> {
-  check(awaitables.isNotEmpty()) { "The awaitables list should be non empty" }
-  val ctx = (awaitables.get(0) as BaseAwaitableImpl<*>).asyncResult().ctx()
-  return SingleAwaitableImpl(
-          ctx.createAllAsyncResult(awaitables.map { (it as BaseAwaitableImpl<*>).asyncResult() }))
+internal fun wrapAllDurableFuture(durableFutures: List<DurableFuture<*>>): DurableFuture<Unit> {
+  check(durableFutures.isNotEmpty()) { "The durable futures list should be non empty" }
+  val ctx = (durableFutures.get(0) as BaseDurableFutureImpl<*>).asyncResult().ctx()
+  return SingleDurableFutureImpl(
+          ctx.createAllAsyncResult(
+              durableFutures.map { (it as BaseDurableFutureImpl<*>).asyncResult() }))
       .simpleMap {}
 }
 
-internal fun wrapAnyAwaitable(awaitables: List<Awaitable<*>>): BaseAwaitableImpl<Int> {
-  check(awaitables.isNotEmpty()) { "The awaitables list should be non empty" }
-  val ctx = (awaitables.get(0) as BaseAwaitableImpl<*>).asyncResult().ctx()
-  return SingleAwaitableImpl(
-      ctx.createAnyAsyncResult(awaitables.map { (it as BaseAwaitableImpl<*>).asyncResult() }))
+internal fun wrapAnyDurableFuture(
+    durableFutures: List<DurableFuture<*>>
+): BaseDurableFutureImpl<Int> {
+  check(durableFutures.isNotEmpty()) { "The durable futures list should be non empty" }
+  val ctx = (durableFutures.get(0) as BaseDurableFutureImpl<*>).asyncResult().ctx()
+  return SingleDurableFutureImpl(
+      ctx.createAnyAsyncResult(
+          durableFutures.map { (it as BaseDurableFutureImpl<*>).asyncResult() }))
 }
 
-internal class CallAwaitableImpl<T : Any?>
+internal class CallDurableFutureImpl<T : Any?>
 internal constructor(
     callAsyncResult: AsyncResult<T>,
     private val invocationIdAsyncResult: AsyncResult<String>
-) : SingleAwaitableImpl<T>(callAsyncResult), CallAwaitable<T> {
+) : SingleDurableFutureImpl<T>(callAsyncResult), CallDurableFuture<T> {
   override suspend fun invocationId(): String {
     return invocationIdAsyncResult.poll().await()
   }
@@ -180,21 +185,21 @@ internal constructor(
     val ignored = handlerContext.cancelInvocation(invocationId()).await()
   }
 
-  override suspend fun attach(): Awaitable<Res> =
-      SingleAwaitableImpl(
+  override suspend fun attach(): DurableFuture<Res> =
+      SingleDurableFutureImpl(
           handlerContext.attachInvocation(invocationId()).await().map {
             CompletableFuture.completedFuture<Res>(responseSerde.deserialize(it))
           })
 
   override suspend fun output(): Output<Res> =
-      SingleAwaitableImpl(handlerContext.getInvocationOutput(invocationId()).await())
+      SingleDurableFutureImpl(handlerContext.getInvocationOutput(invocationId()).await())
           .simpleMap { it.map { responseSerde.deserialize(it) } }
           .await()
 }
 
 internal class AwakeableImpl<T : Any?>
 internal constructor(asyncResult: AsyncResult<Slice>, serde: Serde<T>, override val id: String) :
-    SingleAwaitableImpl<T>(
+    SingleDurableFutureImpl<T>(
         asyncResult.map { CompletableFuture.completedFuture(serde.deserialize(it)) }),
     Awakeable<T>
 
@@ -211,21 +216,21 @@ internal class AwakeableHandleImpl(val contextImpl: ContextImpl, val id: String)
   }
 }
 
-internal class SelectClauseImpl<T>(override val awaitable: Awaitable<T>) : SelectClause<T>
+internal class SelectClauseImpl<T>(override val durableFuture: DurableFuture<T>) : SelectClause<T>
 
 @PublishedApi
 internal class SelectImplementation<R> : SelectBuilder<R> {
 
-  private val clauses: MutableList<Pair<BaseAwaitableImpl<*>, suspend (Any?) -> R>> =
+  private val clauses: MutableList<Pair<BaseDurableFutureImpl<*>, suspend (Any?) -> R>> =
       mutableListOf()
 
   @Suppress("UNCHECKED_CAST")
   override fun <T> SelectClause<T>.invoke(block: suspend (T) -> R) {
-    clauses.add(this.awaitable as BaseAwaitableImpl<*> to block as suspend (Any?) -> R)
+    clauses.add(this.durableFuture as BaseDurableFutureImpl<*> to block as suspend (Any?) -> R)
   }
 
-  suspend fun build(): Awaitable<R> {
-    return wrapAnyAwaitable(clauses.map { it.first }).map { index ->
+  suspend fun build(): DurableFuture<R> {
+    return wrapAnyDurableFuture(clauses.map { it.first }).map { index ->
       clauses[index].let { resolved -> resolved.first.await().let { resolved.second(it) } }
     }
   }

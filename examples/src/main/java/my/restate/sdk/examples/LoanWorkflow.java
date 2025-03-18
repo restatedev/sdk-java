@@ -69,7 +69,7 @@ public class LoanWorkflow {
     ctx.set(STATUS, Status.WAITING_HUMAN_APPROVAL);
 
     // 3. Wait human approval
-    boolean approved = ctx.promise(HUMAN_APPROVAL).awaitable().await();
+    boolean approved = ctx.promise(HUMAN_APPROVAL).future().await();
     if (!approved) {
       LOG.info("Not approved");
       ctx.set(STATUS, Status.NOT_APPROVED);

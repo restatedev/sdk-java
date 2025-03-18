@@ -15,8 +15,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
- * An {@link Awakeable} is a special type of {@link Awaitable} which can be arbitrarily completed by
- * another service, by addressing it with its {@link #id()}.
+ * An {@link Awakeable} is a special type of {@link DurableFuture} which can be arbitrarily
+ * completed by another service, by addressing it with its {@link #id()}.
  *
  * <p>It can be used to let a service wait on a specific condition/result, which is fulfilled by
  * another service or by an external system at a later point in time.
@@ -28,7 +28,7 @@ import java.util.concurrent.Executor;
  * <p>NOTE: This interface MUST NOT be accessed concurrently since it can lead to different
  * orderings of user actions, corrupting the execution of the invocation.
  */
-public final class Awakeable<T> extends Awaitable<T> {
+public final class Awakeable<T> extends DurableFuture<T> {
 
   private final String identifier;
   private final AsyncResult<T> asyncResult;

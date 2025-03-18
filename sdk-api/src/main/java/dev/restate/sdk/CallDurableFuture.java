@@ -13,31 +13,31 @@ import dev.restate.sdk.endpoint.definition.HandlerContext;
 import java.util.concurrent.Executor;
 
 /**
- * {@link Awaitable} returned by a call to another service.
+ * {@link DurableFuture} returned by a call to another service.
  *
  * <p>You can retrieve the call invocation id using {@link #invocationId()}, and you can cancel the
  * invocation using {@link #cancel()}.
  */
-public final class CallAwaitable<T> extends Awaitable<T> {
+public final class CallDurableFuture<T> extends DurableFuture<T> {
 
   private final HandlerContext context;
   private final AsyncResult<T> asyncResult;
-  private final Awaitable<String> invocationIdAwaitable;
+  private final DurableFuture<String> invocationIdDurableFuture;
 
-  CallAwaitable(
+  CallDurableFuture(
       HandlerContext context,
       AsyncResult<T> callAsyncResult,
-      Awaitable<String> invocationIdAwaitable) {
+      DurableFuture<String> invocationIdDurableFuture) {
     this.context = context;
     this.asyncResult = callAsyncResult;
-    this.invocationIdAwaitable = invocationIdAwaitable;
+    this.invocationIdDurableFuture = invocationIdDurableFuture;
   }
 
   /**
-   * @return the unique identifier of this {@link CallAwaitable} instance.
+   * @return the invocation id of this call.
    */
   public String invocationId() {
-    return this.invocationIdAwaitable.await();
+    return this.invocationIdDurableFuture.await();
   }
 
   /** Cancel this invocation */
@@ -52,6 +52,6 @@ public final class CallAwaitable<T> extends Awaitable<T> {
 
   @Override
   protected Executor serviceExecutor() {
-    return invocationIdAwaitable.serviceExecutor();
+    return invocationIdDurableFuture.serviceExecutor();
   }
 }
