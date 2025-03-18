@@ -8,6 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin.gen
 
+import com.google.devtools.ksp.KSTypeNotPresentException
 import com.google.devtools.ksp.KspExperimental
 import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.getVisibility
@@ -104,7 +105,7 @@ class KElementConverter(
     val customSerdeFactory: CustomSerdeFactory? =
         classDeclaration.getAnnotationsByType(CustomSerdeFactory::class).firstOrNull()
     if (customSerdeFactory != null) {
-      serdeFactoryDecl = "new " + customSerdeFactory.value + "()"
+      serdeFactoryDecl = parseAnnotationClassParameter { customSerdeFactory.value } + "()"
     }
     data.withSerdeFactoryDecl(serdeFactoryDecl)
   }
@@ -334,5 +335,19 @@ class KElementConverter(
     }
 
     return typeName
+  }
+
+  @OptIn(KspExperimental::class)
+  private fun parseAnnotationClassParameter(block: () -> KClass<*>): String? {
+    return try { // KSTypeNotPresentException will be thrown
+      block.invoke().qualifiedName
+    } catch (e: KSTypeNotPresentException) {
+      var res: String? = null
+      val declaration = e.ksType.declaration
+      if (declaration is KSClassDeclaration) {
+        declaration.qualifiedName?.asString()?.let { res = it }
+      }
+      res
+    }
   }
 }

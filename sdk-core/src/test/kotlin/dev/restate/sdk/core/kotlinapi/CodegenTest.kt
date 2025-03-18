@@ -19,6 +19,9 @@ import dev.restate.sdk.core.statemachine.ProtoUtils.*
 import dev.restate.sdk.kotlin.*
 import dev.restate.sdk.kotlin.serialization.*
 import dev.restate.serde.Serde
+import dev.restate.serde.SerdeFactory
+import dev.restate.serde.TypeRef
+import dev.restate.serde.TypeTag
 import java.util.stream.Stream
 import kotlinx.serialization.Serializable
 
@@ -212,6 +215,33 @@ class CodegenTest : TestDefinitions.TestSuite {
     }
   }
 
+  class MyCustomSerdeFactory : SerdeFactory {
+    override fun <T : Any?> create(typeTag: TypeTag<T?>): Serde<T?> {
+      check(typeTag is KotlinSerializationSerdeFactory.KtTypeTag)
+      check(typeTag.type == Byte::class)
+      return Serde.using<Byte>({ b -> byteArrayOf(b) }, { it[0] }) as Serde<T?>
+    }
+
+    override fun <T : Any?> create(typeRef: TypeRef<T?>): Serde<T?> {
+      check(typeRef.type == Byte::class)
+      return Serde.using<Byte>({ b -> byteArrayOf(b) }, { it[0] }) as Serde<T?>
+    }
+
+    override fun <T : Any?> create(clazz: Class<T?>?): Serde<T?> {
+      check(clazz == Byte::class.java)
+      return Serde.using<Byte>({ b -> byteArrayOf(b) }, { it[0] }) as Serde<T?>
+    }
+  }
+
+  @CustomSerdeFactory(MyCustomSerdeFactory::class)
+  @Service(name = "CustomSerdeService")
+  class CustomSerdeService {
+    @Handler
+    suspend fun echo(context: Context, input: Byte): Byte {
+      return input
+    }
+  }
+
   override fun definitions(): Stream<TestDefinition> {
     return Stream.of(
         testInvocation({ ServiceGreeter() }, "greet")
@@ -358,6 +388,10 @@ class CodegenTest : TestDefinitions.TestSuite {
                     Slice.EMPTY),
                 outputCmd(),
                 END_MESSAGE),
+        testInvocation({ CustomSerdeService() }, "echo")
+            .withInput(startMessage(1), inputCmd(byteArrayOf(1)))
+            .onlyBidiStream()
+            .expectingOutput(outputCmd(byteArrayOf(1)), END_MESSAGE),
     )
   }
 }
