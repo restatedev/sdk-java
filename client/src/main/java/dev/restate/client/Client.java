@@ -146,6 +146,10 @@ public interface Client {
 
   <Res> InvocationHandle<Res> invocationHandle(String invocationId, TypeTag<Res> resSerde);
 
+  default <Res> InvocationHandle<Res> invocationHandle(String invocationId, Class<Res> clazz) {
+    return invocationHandle(invocationId, TypeTag.of(clazz));
+  }
+
   interface InvocationHandle<Res> {
 
     String invocationId();
@@ -197,6 +201,11 @@ public interface Client {
   <Res> IdempotentInvocationHandle<Res> idempotentInvocationHandle(
       Target target, String idempotencyKey, TypeTag<Res> resSerde);
 
+  default <Res> IdempotentInvocationHandle<Res> idempotentInvocationHandle(
+      Target target, String idempotencyKey, Class<Res> clazz) {
+    return idempotentInvocationHandle(target, idempotencyKey, TypeTag.of(clazz));
+  }
+
   interface IdempotentInvocationHandle<Res> {
 
     CompletableFuture<ClientResponse<Res>> attachAsync(ClientRequestOptions options);
@@ -245,6 +254,11 @@ public interface Client {
 
   <Res> WorkflowHandle<Res> workflowHandle(
       String workflowName, String workflowId, TypeTag<Res> resSerde);
+
+  default <Res> WorkflowHandle<Res> workflowHandle(
+      String workflowName, String workflowId, Class<Res> clazz) {
+    return workflowHandle(workflowName, workflowId, TypeTag.of(clazz));
+  }
 
   interface WorkflowHandle<Res> {
     CompletableFuture<ClientResponse<Res>> attachAsync(ClientRequestOptions options);
