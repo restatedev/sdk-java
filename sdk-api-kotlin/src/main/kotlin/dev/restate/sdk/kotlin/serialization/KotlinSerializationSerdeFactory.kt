@@ -42,9 +42,9 @@ constructor(private val json: Json = Json.Default) : SerdeFactory {
 
   @PublishedApi
   internal class KtTypeTag<T>(
-      internal val type: KClass<*>,
+      val type: KClass<*>,
       /** Reified type */
-      internal val kotlinType: KType?
+      val kotlinType: KType?
   ) : TypeTag<T>
 
   override fun <T : Any?> create(typeTag: TypeTag<T>): Serde<T> {
