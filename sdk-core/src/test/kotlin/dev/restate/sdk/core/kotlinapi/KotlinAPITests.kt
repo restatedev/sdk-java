@@ -109,7 +109,7 @@ class KotlinAPITests : TestRunner() {
           "run")
     }
 
-    suspend fun callGreeterGreetService(ctx: Context, parameter: String): Awaitable<String> {
+    suspend fun callGreeterGreetService(ctx: Context, parameter: String): DurableFuture<String> {
       return ctx.call(
           Request.of<String, String>(
               ProtoUtils.GREETER_SERVICE_TARGET, TestSerdes.STRING, TestSerdes.STRING, parameter))

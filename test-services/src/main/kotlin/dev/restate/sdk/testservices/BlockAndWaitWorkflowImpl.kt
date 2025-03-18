@@ -24,7 +24,7 @@ class BlockAndWaitWorkflowImpl : BlockAndWaitWorkflow {
     context.set(MY_STATE, input)
 
     // Wait on unblock
-    val output: String = context.promise(MY_DURABLE_PROMISE).awaitable().await()
+    val output: String = context.promise(MY_DURABLE_PROMISE).future().await()
 
     if (!context.promise(MY_DURABLE_PROMISE).peek().isReady) {
       throw TerminalException("Durable promise should be completed")

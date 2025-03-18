@@ -25,7 +25,7 @@ public interface InvocationHandle<Res> {
   void cancel();
 
   /** Attach to this invocation. This will wait for the invocation to complete */
-  Awaitable<Res> attach();
+  DurableFuture<Res> attach();
 
   /**
    * @return the output of this invocation, if present.

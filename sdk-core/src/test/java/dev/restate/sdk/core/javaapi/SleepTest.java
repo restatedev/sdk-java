@@ -10,7 +10,7 @@ package dev.restate.sdk.core.javaapi;
 
 import static dev.restate.sdk.core.javaapi.JavaAPITests.testDefinitionForService;
 
-import dev.restate.sdk.Awaitable;
+import dev.restate.sdk.DurableFuture;
 import dev.restate.sdk.core.SleepTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import dev.restate.sdk.core.TestSerdes;
@@ -40,18 +40,18 @@ public class SleepTest extends SleepTestSuite {
         Serde.VOID,
         Serde.VOID,
         (ctx, unused) -> {
-          List<Awaitable<?>> collectedAwaitables = new ArrayList<>();
+          List<DurableFuture<?>> collectedDurableFutures = new ArrayList<>();
 
           for (int i = 0; i < 10; i++) {
-            collectedAwaitables.add(ctx.timer(Duration.ofSeconds(1)));
+            collectedDurableFutures.add(ctx.timer(Duration.ofSeconds(1)));
           }
 
-          Awaitable.all(
-                  collectedAwaitables.get(0),
-                  collectedAwaitables.get(1),
-                  collectedAwaitables
-                      .subList(2, collectedAwaitables.size())
-                      .toArray(Awaitable[]::new))
+          DurableFuture.all(
+                  collectedDurableFutures.get(0),
+                  collectedDurableFutures.get(1),
+                  collectedDurableFutures
+                      .subList(2, collectedDurableFutures.size())
+                      .toArray(DurableFuture[]::new))
               .await();
 
           return null;

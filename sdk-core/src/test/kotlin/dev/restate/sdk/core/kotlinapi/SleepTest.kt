@@ -24,10 +24,10 @@ class SleepTest : SleepTestSuite() {
 
   override fun manySleeps(): TestDefinitions.TestInvocationBuilder =
       testDefinitionForService<Unit, Unit>("ManySleeps") { ctx, _: Unit ->
-        val awaitables = mutableListOf<Awaitable<Unit>>()
+        val durableFutures = mutableListOf<DurableFuture<Unit>>()
         for (i in 0..9) {
-          awaitables.add(ctx.timer(1000.milliseconds))
+          durableFutures.add(ctx.timer(1000.milliseconds))
         }
-        awaitables.awaitAll()
+        durableFutures.awaitAll()
       }
 }

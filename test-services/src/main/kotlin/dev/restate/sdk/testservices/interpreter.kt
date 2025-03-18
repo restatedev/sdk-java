@@ -30,7 +30,7 @@ fun interpretTarget(layer: Int, key: String): Target {
 }
 
 suspend fun <T> checkAwaitable(
-    actual: Awaitable<T>,
+    actual: DurableFuture<T>,
     expected: T,
     cmdIndex: Int,
     interpreterCommand: InterpreterCommand
@@ -43,7 +43,7 @@ suspend fun <T> checkAwaitable(
 }
 
 suspend fun <T> checkAwaitableFails(
-    actual: Awaitable<T>,
+    actual: DurableFuture<T>,
     cmdIndex: Int,
     interpreterCommand: InterpreterCommand
 ) {

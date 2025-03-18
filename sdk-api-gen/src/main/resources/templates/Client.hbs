@@ -1,7 +1,6 @@
 {{#if originalClassPkg}}package {{originalClassPkg}};{{/if}}
 
-import dev.restate.sdk.Awaitable;
-import dev.restate.sdk.CallAwaitable;
+import dev.restate.sdk.CallDurableFuture;
 import dev.restate.sdk.Context;
 import dev.restate.sdk.types.StateKey;
 import dev.restate.serde.Serde;
@@ -43,7 +42,7 @@ public class {{generatedClassSimpleName}} {
         }
 
         {{#handlers}}
-        public CallAwaitable<{{{boxedOutputFqcn}}}> {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
+        public CallDurableFuture<{{{boxedOutputFqcn}}}> {{methodName}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
             return this.ctx.call(
                 {{../requestsClass}}.{{methodName}}({{#if ../isKeyed}}this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}})
             );

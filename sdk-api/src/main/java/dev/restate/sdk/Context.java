@@ -40,12 +40,12 @@ public interface Context {
    * Invoke another Restate service method.
    *
    * @param request request
-   * @return an {@link Awaitable} that wraps the Restate service method result.
+   * @return an {@link DurableFuture} that wraps the Restate service method result.
    */
-  <T, R> CallAwaitable<R> call(Request<T, R> request);
+  <T, R> CallDurableFuture<R> call(Request<T, R> request);
 
   /** Like {@link #call(Request)} */
-  default <T, R> CallAwaitable<R> call(Request.Builder<T, R> requestBuilder) {
+  default <T, R> CallDurableFuture<R> call(Request.Builder<T, R> requestBuilder) {
     return call(requestBuilder.build());
   }
 
@@ -93,22 +93,22 @@ public interface Context {
 
   /**
    * Causes the start of a timer for the given duration. You can await on the timer end by invoking
-   * {@link Awaitable#await()}.
+   * {@link DurableFuture#await()}.
    *
    * @param duration for which to sleep.
    */
-  default Awaitable<Void> timer(Duration duration) {
+  default DurableFuture<Void> timer(Duration duration) {
     return timer(null, duration);
   }
 
   /**
    * Causes the start of a timer for the given duration. You can await on the timer end by invoking
-   * {@link Awaitable#await()}.
+   * {@link DurableFuture#await()}.
    *
    * @param name name used for observability
    * @param duration for which to sleep.
    */
-  Awaitable<Void> timer(String name, Duration duration);
+  DurableFuture<Void> timer(String name, Duration duration);
 
   /**
    * Like {@link #run(String, TypeTag, ThrowingSupplier)}, but using a custom retry policy.
@@ -292,7 +292,7 @@ public interface Context {
    *
    * @see RetryPolicy
    */
-  <T> Awaitable<T> runAsync(
+  <T> DurableFuture<T> runAsync(
       String name, TypeTag<T> typeTag, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
       throws TerminalException;
 
@@ -305,7 +305,7 @@ public interface Context {
    *
    * @see RetryPolicy
    */
-  default <T> Awaitable<T> runAsync(
+  default <T> DurableFuture<T> runAsync(
       String name, Class<T> clazz, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
       throws TerminalException {
     return runAsync(name, TypeTag.of(clazz), retryPolicy, action);
@@ -358,7 +358,7 @@ public interface Context {
    * @param <T> type of the return value.
    * @return value of the run operation.
    */
-  default <T> Awaitable<T> runAsync(String name, TypeTag<T> typeTag, ThrowingSupplier<T> action)
+  default <T> DurableFuture<T> runAsync(String name, TypeTag<T> typeTag, ThrowingSupplier<T> action)
       throws TerminalException {
     return runAsync(name, typeTag, null, action);
   }
@@ -410,17 +410,17 @@ public interface Context {
    * @param <T> type of the return value.
    * @return value of the run operation.
    */
-  default <T> Awaitable<T> runAsync(String name, Class<T> clazz, ThrowingSupplier<T> action)
+  default <T> DurableFuture<T> runAsync(String name, Class<T> clazz, ThrowingSupplier<T> action)
       throws TerminalException {
     return runAsync(name, TypeTag.of(clazz), action);
   }
 
-  default <T> Awaitable<T> runAsync(TypeTag<T> typeTag, ThrowingSupplier<T> action)
+  default <T> DurableFuture<T> runAsync(TypeTag<T> typeTag, ThrowingSupplier<T> action)
       throws TerminalException {
     return runAsync(null, typeTag, null, action);
   }
 
-  default <T> Awaitable<T> runAsync(Class<T> clazz, ThrowingSupplier<T> action)
+  default <T> DurableFuture<T> runAsync(Class<T> clazz, ThrowingSupplier<T> action)
       throws TerminalException {
     return runAsync(TypeTag.of(clazz), action);
   }
@@ -434,8 +434,8 @@ public interface Context {
    *
    * @see RetryPolicy
    */
-  default Awaitable<Void> runAsync(String name, RetryPolicy retryPolicy, ThrowingRunnable runnable)
-      throws TerminalException {
+  default DurableFuture<Void> runAsync(
+      String name, RetryPolicy retryPolicy, ThrowingRunnable runnable) throws TerminalException {
     return runAsync(
         name,
         Serde.VOID,
@@ -447,13 +447,13 @@ public interface Context {
   }
 
   /** Like {@link #runAsync(String, Class, ThrowingSupplier)} without output. */
-  default Awaitable<Void> runAsync(String name, ThrowingRunnable runnable)
+  default DurableFuture<Void> runAsync(String name, ThrowingRunnable runnable)
       throws TerminalException {
     return runAsync(name, null, runnable);
   }
 
   /** Like {@link #runAsync(Class, ThrowingSupplier)} without output. */
-  default Awaitable<Void> runAsync(ThrowingRunnable runnable) throws TerminalException {
+  default DurableFuture<Void> runAsync(ThrowingRunnable runnable) throws TerminalException {
     return runAsync(null, runnable);
   }
 

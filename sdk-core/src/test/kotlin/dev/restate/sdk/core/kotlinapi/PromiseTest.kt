@@ -17,7 +17,7 @@ import dev.restate.sdk.types.TerminalException
 class PromiseTest : PromiseTestSuite() {
   override fun awaitPromise(promiseKey: String): TestDefinitions.TestInvocationBuilder =
       testDefinitionForWorkflow("AwaitPromise") { ctx, _: Unit ->
-        ctx.promise(durablePromiseKey<String>(promiseKey)).awaitable().await()
+        ctx.promise(durablePromiseKey<String>(promiseKey)).future().await()
       }
 
   override fun awaitPeekPromise(

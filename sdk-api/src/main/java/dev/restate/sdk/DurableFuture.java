@@ -23,39 +23,40 @@ import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 /**
- * An {@code Awaitable} allows to await an asynchronous result. Once {@code await()} is called, the
- * execution stops until the asynchronous result is available.
+ * A {@link DurableFuture} allows to await an asynchronous result. Once {@link #await()} is called,
+ * the execution stops until the asynchronous result is available.
  *
- * <p>The result can be either a success or a failure. In case of a failure, {@code await()} will
+ * <p>The result can be either a success or a failure. In case of a failure, {@link #await()} will
  * throw a {@link TerminalException}.
  *
  * <p>NOTE: This interface MUST NOT be accessed concurrently since it can lead to different
  * orderings of user actions, corrupting the execution of the invocation.
  *
- * @param <T> type of the awaitable result
+ * @param <T> type of the future result
  */
-public abstract class Awaitable<T> {
+public abstract class DurableFuture<T> {
 
   protected abstract AsyncResult<T> asyncResult();
 
   protected abstract Executor serviceExecutor();
 
   /**
-   * Wait for the current awaitable to complete. Executing this method may trigger the suspension of
-   * the function.
+   * Wait for this {@link DurableFuture} to complete.
+   *
+   * <p>Executing this method may trigger the suspension of the function.
    *
    * <p><b>NOTE</b>: You should never wrap this function in a try-catch catching {@link Throwable},
    * as it will catch {@link AbortedExecutionException} as well, which will prevent the service
    * invocation to orderly suspend.
    *
-   * @throws TerminalException if the awaitable is ready and contains a failure
+   * @throws TerminalException if this future was completed with a failure
    */
   public final T await() throws TerminalException {
     return Util.awaitCompletableFuture(asyncResult().poll());
   }
 
   /**
-   * Same as {@link #await()}, but throws a {@link TimeoutException} if this {@link Awaitable}
+   * Same as {@link #await()}, but throws a {@link TimeoutException} if this {@link DurableFuture}
    * doesn't complete before the provided {@code timeout}.
    */
   public final T await(Duration timeout) throws TerminalException {
@@ -63,10 +64,10 @@ public abstract class Awaitable<T> {
   }
 
   /**
-   * @return an Awaitable that throws a {@link TimeoutException} if this awaitable doesn't complete
-   *     before the provided {@code timeout}.
+   * @return a {@link DurableFuture} that throws a {@link TimeoutException} if this future doesn't
+   *     complete before the provided {@code timeout}.
    */
-  public final Awaitable<T> withTimeout(Duration timeout) {
+  public final DurableFuture<T> withTimeout(Duration timeout) {
     return any(
             this,
             fromAsyncResult(
@@ -75,20 +76,21 @@ public abstract class Awaitable<T> {
         .mapWithoutExecutor(
             i -> {
               if (i == 1) {
-                throw new TimeoutException("Timed out waiting for awaitable after " + timeout);
+                throw new TimeoutException("Timed out waiting for durable future after " + timeout);
               }
               return this.await();
             });
   }
 
   /**
-   * Map the success result of this {@link Awaitable}.
+   * Map the success result of this {@link DurableFuture}.
    *
-   * @param mapper the mapper to execute if this {@link Awaitable} completes with success. The
-   *     mapper can throw a {@link TerminalException}, thus failing the resulting {@link Awaitable}.
-   * @return a new {@link Awaitable} with the mapped result, when completed
+   * @param mapper the mapper to execute if this {@link DurableFuture} completes with success. The
+   *     mapper can throw a {@link TerminalException}, thus failing the resulting {@link
+   *     DurableFuture}.
+   * @return a new {@link DurableFuture} with the mapped result, when completed
    */
-  public final <U> Awaitable<U> map(ThrowingFunction<T, U> mapper) {
+  public final <U> DurableFuture<U> map(ThrowingFunction<T, U> mapper) {
     return fromAsyncResult(
         asyncResult()
             .map(
@@ -108,17 +110,17 @@ public abstract class Awaitable<T> {
   }
 
   /**
-   * Map both the success and the failure result of this {@link Awaitable}.
+   * Map both the success and the failure result of this {@link DurableFuture}.
    *
-   * @param successMapper the mapper to execute if this {@link Awaitable} completes with success.
-   *     The mapper can throw a {@link TerminalException}, thus failing the resulting {@link
-   *     Awaitable}.
-   * @param failureMapper the mapper to execute if this {@link Awaitable} completes with failure.
-   *     The mapper can throw a {@link TerminalException}, thus failing the resulting {@link
-   *     Awaitable}.
-   * @return a new {@link Awaitable} with the mapped result, when completed
+   * @param successMapper the mapper to execute if this {@link DurableFuture} completes with
+   *     success. The mapper can throw a {@link TerminalException}, thus failing the resulting
+   *     {@link DurableFuture}.
+   * @param failureMapper the mapper to execute if this {@link DurableFuture} completes with
+   *     failure. The mapper can throw a {@link TerminalException}, thus failing the resulting
+   *     {@link DurableFuture}.
+   * @return a new {@link DurableFuture} with the mapped result, when completed
    */
-  public final <U> Awaitable<U> map(
+  public final <U> DurableFuture<U> map(
       ThrowingFunction<T, U> successMapper, ThrowingFunction<TerminalException, U> failureMapper) {
     return fromAsyncResult(
         asyncResult()
@@ -149,14 +151,14 @@ public abstract class Awaitable<T> {
   }
 
   /**
-   * Map the failure result of this {@link Awaitable}.
+   * Map the failure result of this {@link DurableFuture}.
    *
-   * @param failureMapper the mapper to execute if this {@link Awaitable} completes with failure.
-   *     The mapper can throw a {@link TerminalException}, thus failing the resulting {@link
-   *     Awaitable}.
-   * @return a new {@link Awaitable} with the mapped result, when completed
+   * @param failureMapper the mapper to execute if this {@link DurableFuture} completes with
+   *     failure. The mapper can throw a {@link TerminalException}, thus failing the resulting
+   *     {@link DurableFuture}.
+   * @return a new {@link DurableFuture} with the mapped result, when completed
    */
-  public final Awaitable<T> mapFailure(ThrowingFunction<TerminalException, T> failureMapper) {
+  public final DurableFuture<T> mapFailure(ThrowingFunction<TerminalException, T> failureMapper) {
     return fromAsyncResult(
         asyncResult()
             .mapFailure(
@@ -178,89 +180,95 @@ public abstract class Awaitable<T> {
    * Map without executor switching. This is an optimization used only internally for operations
    * safe to perform without switching executor.
    */
-  final <U> Awaitable<U> mapWithoutExecutor(ThrowingFunction<T, U> mapper) {
+  final <U> DurableFuture<U> mapWithoutExecutor(ThrowingFunction<T, U> mapper) {
     return fromAsyncResult(
         asyncResult().map(i -> CompletableFuture.completedFuture(mapper.apply(i)), null),
         this.serviceExecutor());
   }
 
-  static <T> Awaitable<T> fromAsyncResult(AsyncResult<T> asyncResult, Executor serviceExecutor) {
-    return new SingleAwaitable<>(asyncResult, serviceExecutor);
+  static <T> DurableFuture<T> fromAsyncResult(
+      AsyncResult<T> asyncResult, Executor serviceExecutor) {
+    return new SingleDurableFuture<>(asyncResult, serviceExecutor);
   }
 
   /**
-   * Create an {@link Awaitable} that awaits any of the given awaitables. The resulting {@link
-   * Awaitable} returns the index of the completed awaitable in the provided list.
+   * Create an {@link DurableFuture} that awaits any of the given futures. The resulting {@link
+   * DurableFuture} returns the index of the completed future in the provided list.
+   *
+   * @see Select
    */
-  public static Awaitable<Integer> any(
-      Awaitable<?> first, Awaitable<?> second, Awaitable<?>... others) {
-    List<Awaitable<?>> awaitables = new ArrayList<>(2 + others.length);
-    awaitables.add(first);
-    awaitables.add(second);
-    awaitables.addAll(Arrays.asList(others));
-    return any(awaitables);
+  public static DurableFuture<Integer> any(
+      DurableFuture<?> first, DurableFuture<?> second, DurableFuture<?>... others) {
+    List<DurableFuture<?>> durableFutures = new ArrayList<>(2 + others.length);
+    durableFutures.add(first);
+    durableFutures.add(second);
+    durableFutures.addAll(Arrays.asList(others));
+    return any(durableFutures);
   }
 
   /**
-   * Create an {@link Awaitable} that awaits any of the given awaitables. The resulting {@link
-   * Awaitable} returns the index of the completed awaitable in the provided list.
+   * Create an {@link DurableFuture} that awaits any of the given futures. The resulting {@link
+   * DurableFuture} returns the index of the completed future in the provided list.
    *
    * <p>An empty list is not supported and will throw {@link IllegalArgumentException}.
+   *
+   * @see Select
    */
-  public static Awaitable<Integer> any(List<Awaitable<?>> awaitables) {
-    if (awaitables.isEmpty()) {
-      throw new IllegalArgumentException("Awaitable any doesn't support an empty list");
+  public static DurableFuture<Integer> any(List<DurableFuture<?>> durableFutures) {
+    if (durableFutures.isEmpty()) {
+      throw new IllegalArgumentException("DurableFuture.any doesn't support an empty list");
     }
     List<AsyncResult<?>> ars =
-        awaitables.stream().map(Awaitable::asyncResult).collect(Collectors.toList());
+        durableFutures.stream().map(DurableFuture::asyncResult).collect(Collectors.toList());
     HandlerContext ctx = ars.get(0).ctx();
-    return fromAsyncResult(ctx.createAnyAsyncResult(ars), awaitables.get(0).serviceExecutor());
+    return fromAsyncResult(ctx.createAnyAsyncResult(ars), durableFutures.get(0).serviceExecutor());
   }
 
   /**
-   * Create an {@link Awaitable} that awaits all the given awaitables.
+   * Create an {@link DurableFuture} that awaits all the given futures.
    *
    * <p>The behavior is the same as {@link
    * java.util.concurrent.CompletableFuture#allOf(CompletableFuture[])}.
    */
-  public static Awaitable<Void> all(
-      Awaitable<?> first, Awaitable<?> second, Awaitable<?>... others) {
-    List<Awaitable<?>> awaitables = new ArrayList<>(2 + others.length);
-    awaitables.add(first);
-    awaitables.add(second);
-    awaitables.addAll(Arrays.asList(others));
+  public static DurableFuture<Void> all(
+      DurableFuture<?> first, DurableFuture<?> second, DurableFuture<?>... others) {
+    List<DurableFuture<?>> durableFutures = new ArrayList<>(2 + others.length);
+    durableFutures.add(first);
+    durableFutures.add(second);
+    durableFutures.addAll(Arrays.asList(others));
 
-    return all(awaitables);
+    return all(durableFutures);
   }
 
   /**
-   * Create an {@link Awaitable} that awaits all the given awaitables.
+   * Create an {@link DurableFuture} that awaits all the given futures.
    *
    * <p>An empty list is not supported and will throw {@link IllegalArgumentException}.
    *
    * <p>The behavior is the same as {@link
    * java.util.concurrent.CompletableFuture#allOf(CompletableFuture[])}.
    */
-  public static Awaitable<Void> all(List<Awaitable<?>> awaitables) {
-    if (awaitables.isEmpty()) {
-      throw new IllegalArgumentException("Awaitable all doesn't support an empty list");
+  public static DurableFuture<Void> all(List<DurableFuture<?>> durableFutures) {
+    if (durableFutures.isEmpty()) {
+      throw new IllegalArgumentException("DurableFuture.all doesn't support an empty list");
     }
-    if (awaitables.size() == 1) {
-      return awaitables.get(0).mapWithoutExecutor(unused -> null);
+    if (durableFutures.size() == 1) {
+      return durableFutures.get(0).mapWithoutExecutor(unused -> null);
     } else {
       List<AsyncResult<?>> ars =
-          awaitables.stream().map(Awaitable::asyncResult).collect(Collectors.toList());
+          durableFutures.stream().map(DurableFuture::asyncResult).collect(Collectors.toList());
       HandlerContext ctx = ars.get(0).ctx();
-      return fromAsyncResult(ctx.createAllAsyncResult(ars), awaitables.get(0).serviceExecutor());
+      return fromAsyncResult(
+          ctx.createAllAsyncResult(ars), durableFutures.get(0).serviceExecutor());
     }
   }
 
-  static final class SingleAwaitable<T> extends Awaitable<T> {
+  static final class SingleDurableFuture<T> extends DurableFuture<T> {
 
     private final AsyncResult<T> asyncResult;
     private final Executor serviceExecutor;
 
-    SingleAwaitable(AsyncResult<T> asyncResult, Executor serviceExecutor) {
+    SingleDurableFuture(AsyncResult<T> asyncResult, Executor serviceExecutor) {
       this.asyncResult = asyncResult;
       this.serviceExecutor = serviceExecutor;
     }

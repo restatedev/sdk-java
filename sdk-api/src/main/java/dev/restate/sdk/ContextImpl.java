@@ -51,7 +51,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
 
   @Override
   public <T> Optional<T> get(StateKey<T> key) {
-    return Awaitable.fromAsyncResult(
+    return DurableFuture.fromAsyncResult(
             Util.awaitCompletableFuture(handlerContext.get(key.name())), serviceExecutor)
         .mapWithoutExecutor(opt -> opt.map(serdeFactory.create(key.serdeInfo())::deserialize))
         .await();
@@ -83,13 +83,13 @@ class ContextImpl implements ObjectContext, WorkflowContext {
   }
 
   @Override
-  public Awaitable<Void> timer(String name, Duration duration) {
-    return Awaitable.fromAsyncResult(
+  public DurableFuture<Void> timer(String name, Duration duration) {
+    return DurableFuture.fromAsyncResult(
         Util.awaitCompletableFuture(handlerContext.timer(duration, name)), serviceExecutor);
   }
 
   @Override
-  public <T, R> CallAwaitable<R> call(Request<T, R> request) {
+  public <T, R> CallDurableFuture<R> call(Request<T, R> request) {
     Slice input =
         Util.executeOrFail(
             handlerContext,
@@ -100,7 +100,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
             handlerContext.call(
                 request.target(), input, request.idempotencyKey(), request.headers().entrySet()));
 
-    return new CallAwaitable<>(
+    return new CallDurableFuture<>(
         handlerContext,
         result
             .callAsyncResult()
@@ -108,7 +108,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
                 s ->
                     CompletableFuture.completedFuture(
                         serdeFactory.create(request.responseTypeTag()).deserialize(s))),
-        Awaitable.fromAsyncResult(result.invocationIdAsyncResult(), serviceExecutor));
+        DurableFuture.fromAsyncResult(result.invocationIdAsyncResult(), serviceExecutor));
   }
 
   @Override
@@ -120,7 +120,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
             request.request());
 
     var invocationIdAwaitable =
-        Awaitable.fromAsyncResult(
+        DurableFuture.fromAsyncResult(
             Util.awaitCompletableFuture(
                 handlerContext.send(
                     request.target(),
@@ -165,8 +165,8 @@ class ContextImpl implements ObjectContext, WorkflowContext {
     }
 
     @Override
-    public Awaitable<R> attach() {
-      return Awaitable.fromAsyncResult(
+    public DurableFuture<R> attach() {
+      return DurableFuture.fromAsyncResult(
           Util.awaitCompletableFuture(handlerContext.attachInvocation(invocationId()))
               .map(s -> CompletableFuture.completedFuture(responseSerde.deserialize(s))),
           serviceExecutor);
@@ -174,7 +174,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
 
     @Override
     public Output<R> getOutput() {
-      return Awaitable.fromAsyncResult(
+      return DurableFuture.fromAsyncResult(
               Util.awaitCompletableFuture(handlerContext.getInvocationOutput(invocationId()))
                   .map(o -> CompletableFuture.completedFuture(o.map(responseSerde::deserialize))),
               serviceExecutor)
@@ -183,10 +183,10 @@ class ContextImpl implements ObjectContext, WorkflowContext {
   }
 
   @Override
-  public <T> Awaitable<T> runAsync(
+  public <T> DurableFuture<T> runAsync(
       String name, TypeTag<T> typeTag, RetryPolicy retryPolicy, ThrowingSupplier<T> action) {
     Serde<T> serde = serdeFactory.create(typeTag);
-    return Awaitable.fromAsyncResult(
+    return DurableFuture.fromAsyncResult(
             Util.awaitCompletableFuture(
                 handlerContext.submitRun(
                     name,
@@ -243,9 +243,9 @@ class ContextImpl implements ObjectContext, WorkflowContext {
   public <T> DurablePromise<T> promise(DurablePromiseKey<T> key) {
     return new DurablePromise<>() {
       @Override
-      public Awaitable<T> awaitable() {
+      public DurableFuture<T> future() {
         AsyncResult<Slice> result = Util.awaitCompletableFuture(handlerContext.promise(key.name()));
-        return Awaitable.fromAsyncResult(result, serviceExecutor)
+        return DurableFuture.fromAsyncResult(result, serviceExecutor)
             .mapWithoutExecutor(serdeFactory.create(key.serdeInfo())::deserialize);
       }
 

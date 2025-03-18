@@ -25,7 +25,7 @@ public class PromiseTest extends PromiseTestSuite {
         Serde.VOID,
         TestSerdes.STRING,
         (context, unused) ->
-            context.promise(DurablePromiseKey.of(promiseKey, String.class)).awaitable().await());
+            context.promise(DurablePromiseKey.of(promiseKey, String.class)).future().await());
   }
 
   @Override

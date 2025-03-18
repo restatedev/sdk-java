@@ -43,14 +43,14 @@ internal constructor(
   override suspend fun <T : Any> get(key: StateKey<T>): T? =
       resolveSerde<T?>(key.serdeInfo())
           .let { serde ->
-            SingleAwaitableImpl(handlerContext.get(key.name()).await()).simpleMap {
+            SingleDurableFutureImpl(handlerContext.get(key.name()).await()).simpleMap {
               it.getOrNull()?.let { serde.deserialize(it) }
             }
           }
           .await()
 
   override suspend fun stateKeys(): Collection<String> =
-      SingleAwaitableImpl(handlerContext.getKeys().await()).await()
+      SingleDurableFutureImpl(handlerContext.getKeys().await()).await()
 
   override suspend fun <T : Any> set(key: StateKey<T>, value: T) {
     handlerContext.set(key.name(), resolveAndSerialize(key.serdeInfo(), value)).await()
@@ -64,12 +64,12 @@ internal constructor(
     handlerContext.clearAll().await()
   }
 
-  override suspend fun timer(duration: Duration, name: String?): Awaitable<Unit> =
-      SingleAwaitableImpl(handlerContext.timer(duration.toJavaDuration(), name).await()).map {}
+  override suspend fun timer(duration: Duration, name: String?): DurableFuture<Unit> =
+      SingleDurableFutureImpl(handlerContext.timer(duration.toJavaDuration(), name).await()).map {}
 
   override suspend fun <Req : Any?, Res : Any?> call(
       request: Request<Req, Res>
-  ): CallAwaitable<Res> =
+  ): CallDurableFuture<Res> =
       resolveSerde<Res>(request.responseTypeTag()).let { responseSerde ->
         val callHandle =
             handlerContext
@@ -85,7 +85,7 @@ internal constructor(
               CompletableFuture.completedFuture<Res>(responseSerde.deserialize(it))
             }
 
-        return@let CallAwaitableImpl(callAsyncResult, callHandle.invocationIdAsyncResult)
+        return@let CallDurableFutureImpl(callAsyncResult, callHandle.invocationIdAsyncResult)
       }
 
   override suspend fun <Req : Any?, Res : Any?> send(
@@ -122,7 +122,7 @@ internal constructor(
       name: String,
       retryPolicy: RetryPolicy?,
       block: suspend () -> T
-  ): Awaitable<T> {
+  ): DurableFuture<T> {
     var serde: Serde<T> = resolveSerde(typeTag)
     var coroutineCtx = currentCoroutineContext()
     val javaRetryPolicy =
@@ -151,7 +151,7 @@ internal constructor(
               }
             }
             .await()
-    return SingleAwaitableImpl(asyncResult).map { serde.deserialize(it) }
+    return SingleDurableFutureImpl(asyncResult).map { serde.deserialize(it) }
   }
 
   override suspend fun <T : Any> awakeable(typeTag: TypeTag<T>): Awakeable<T> {
@@ -180,13 +180,13 @@ internal constructor(
       DurablePromise<T> {
     val serde: Serde<T> = resolveSerde(key.serdeInfo())
 
-    override suspend fun awaitable(): Awaitable<T> =
-        SingleAwaitableImpl(handlerContext.promise(key.name()).await()).simpleMap {
+    override suspend fun future(): DurableFuture<T> =
+        SingleDurableFutureImpl(handlerContext.promise(key.name()).await()).simpleMap {
           serde.deserialize(it)
         }
 
     override suspend fun peek(): Output<T> =
-        SingleAwaitableImpl(handlerContext.peekPromise(key.name()).await())
+        SingleDurableFutureImpl(handlerContext.peekPromise(key.name()).await())
             .simpleMap { it.map { serde.deserialize(it) } }
             .await()
   }
@@ -196,7 +196,7 @@ internal constructor(
     val serde: Serde<T> = resolveSerde(key.serdeInfo())
 
     override suspend fun resolve(payload: T) {
-      SingleAwaitableImpl(
+      SingleDurableFutureImpl(
               handlerContext
                   .resolvePromise(
                       key.name(), serde.serializeWrappingException(handlerContext, payload))
@@ -205,7 +205,7 @@ internal constructor(
     }
 
     override suspend fun reject(reason: String) {
-      SingleAwaitableImpl(
+      SingleDurableFutureImpl(
               handlerContext.rejectPromise(key.name(), TerminalException(reason)).await())
           .await()
     }

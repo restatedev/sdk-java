@@ -12,7 +12,7 @@ import static dev.restate.sdk.core.javaapi.JavaAPITests.*;
 import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.restate.sdk.Awaitable;
+import dev.restate.sdk.DurableFuture;
 import dev.restate.sdk.Select;
 import dev.restate.sdk.core.AsyncResultTestSuite;
 import dev.restate.sdk.core.TestDefinitions;
@@ -33,8 +33,8 @@ public class AsyncResultTest extends AsyncResultTestSuite {
         Serde.VOID,
         TestSerdes.STRING,
         (context, unused) -> {
-          Awaitable<String> a1 = callGreeterGreetService(context, "Francesco");
-          Awaitable<String> a2 = callGreeterGreetService(context, "Till");
+          DurableFuture<String> a1 = callGreeterGreetService(context, "Francesco");
+          DurableFuture<String> a2 = callGreeterGreetService(context, "Till");
 
           String a2Res = a2.await();
           context.set(StateKey.of("A2", TestSerdes.STRING), a2Res);
@@ -52,7 +52,7 @@ public class AsyncResultTest extends AsyncResultTestSuite {
         Serde.VOID,
         TestSerdes.STRING,
         (context, unused) -> {
-          Awaitable<String> a = callGreeterGreetService(context, "Francesco");
+          DurableFuture<String> a = callGreeterGreetService(context, "Francesco");
 
           return a.await() + "-" + a.await();
         });
@@ -65,10 +65,10 @@ public class AsyncResultTest extends AsyncResultTestSuite {
         Serde.VOID,
         TestSerdes.STRING,
         (context, unused) -> {
-          Awaitable<String> a1 = callGreeterGreetService(context, "Francesco");
-          Awaitable<String> a2 = callGreeterGreetService(context, "Till");
+          DurableFuture<String> a1 = callGreeterGreetService(context, "Francesco");
+          DurableFuture<String> a2 = callGreeterGreetService(context, "Till");
 
-          Awaitable.all(a1, a2).await();
+          DurableFuture.all(a1, a2).await();
 
           return a1.await() + "-" + a2.await();
         });
@@ -81,8 +81,8 @@ public class AsyncResultTest extends AsyncResultTestSuite {
         Serde.VOID,
         TestSerdes.STRING,
         (context, unused) -> {
-          Awaitable<String> a1 = callGreeterGreetService(context, "Francesco");
-          Awaitable<String> a2 = callGreeterGreetService(context, "Till");
+          DurableFuture<String> a1 = callGreeterGreetService(context, "Francesco");
+          DurableFuture<String> a2 = callGreeterGreetService(context, "Till");
 
           return Select.<String>select().or(a1).or(a2).await();
         });
@@ -95,16 +95,16 @@ public class AsyncResultTest extends AsyncResultTestSuite {
         Serde.VOID,
         TestSerdes.STRING,
         (ctx, unused) -> {
-          Awaitable<String> a1 = ctx.awakeable(String.class);
-          Awaitable<String> a2 = ctx.awakeable(String.class);
-          Awaitable<String> a3 = ctx.awakeable(String.class);
-          Awaitable<String> a4 = ctx.awakeable(String.class);
+          DurableFuture<String> a1 = ctx.awakeable(String.class);
+          DurableFuture<String> a2 = ctx.awakeable(String.class);
+          DurableFuture<String> a3 = ctx.awakeable(String.class);
+          DurableFuture<String> a4 = ctx.awakeable(String.class);
 
-          Awaitable<String> a12 = Select.<String>select().or(a1).or(a2);
-          Awaitable<String> a23 = Select.<String>select().or(a2).or(a3);
-          Awaitable<String> a34 = Select.<String>select().or(a3).or(a4);
-          Awaitable<String> result =
-              Awaitable.all(a12, a23, a34).map(v -> a12.await() + a23.await() + a34.await());
+          DurableFuture<String> a12 = Select.<String>select().or(a1).or(a2);
+          DurableFuture<String> a23 = Select.<String>select().or(a2).or(a3);
+          DurableFuture<String> a34 = Select.<String>select().or(a3).or(a4);
+          DurableFuture<String> result =
+              DurableFuture.all(a12, a23, a34).map(v -> a12.await() + a23.await() + a34.await());
 
           return result.await();
         });
@@ -117,12 +117,12 @@ public class AsyncResultTest extends AsyncResultTestSuite {
         Serde.VOID,
         TestSerdes.STRING,
         (ctx, unused) -> {
-          Awaitable<String> a1 = ctx.awakeable(String.class);
-          Awaitable<String> a2 = ctx.awakeable(String.class);
-          Awaitable<String> a3 = ctx.awakeable(String.class);
-          Awaitable<String> a4 = ctx.awakeable(String.class);
+          DurableFuture<String> a1 = ctx.awakeable(String.class);
+          DurableFuture<String> a2 = ctx.awakeable(String.class);
+          DurableFuture<String> a3 = ctx.awakeable(String.class);
+          DurableFuture<String> a4 = ctx.awakeable(String.class);
 
-          return String.valueOf(Awaitable.any(a1, Awaitable.all(a2, a3), a4).await());
+          return String.valueOf(DurableFuture.any(a1, DurableFuture.all(a2, a3), a4).await());
         });
   }
 
@@ -133,12 +133,12 @@ public class AsyncResultTest extends AsyncResultTestSuite {
         Serde.VOID,
         TestSerdes.STRING,
         (ctx, unused) -> {
-          Awaitable<String> a1 = ctx.awakeable(String.class);
-          Awaitable<String> a2 = ctx.awakeable(String.class);
+          DurableFuture<String> a1 = ctx.awakeable(String.class);
+          DurableFuture<String> a2 = ctx.awakeable(String.class);
 
-          Awaitable<Void> a12 = Awaitable.all(a1, a2);
-          Awaitable<Void> a12and1 = Awaitable.all(a12, a1);
-          Awaitable<Void> a121and12 = Awaitable.all(a12and1, a12);
+          DurableFuture<Void> a12 = DurableFuture.all(a1, a2);
+          DurableFuture<Void> a12and1 = DurableFuture.all(a12, a1);
+          DurableFuture<Void> a121and12 = DurableFuture.all(a12and1, a12);
 
           a12and1.await();
           a121and12.await();
@@ -154,7 +154,7 @@ public class AsyncResultTest extends AsyncResultTestSuite {
         Serde.VOID,
         TestSerdes.STRING,
         (ctx, unused) -> {
-          Awaitable<String> call = callGreeterGreetService(ctx, "Francesco");
+          DurableFuture<String> call = callGreeterGreetService(ctx, "Francesco");
 
           String result;
           try {

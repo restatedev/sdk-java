@@ -19,8 +19,8 @@ import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 /**
- * Select lets you await concurrently for multiple {@link Awaitable}s to complete, and for the first
- * one to complete, either return its value directly or map it.
+ * Select lets you await concurrently for multiple {@link DurableFuture}s to complete, and for the
+ * first one to complete, either return its value directly or map it.
  *
  * <p>Example:
  *
@@ -45,13 +45,13 @@ import java.util.stream.Collectors;
  *
  * @param <T> the output value
  */
-public final class Select<T> extends Awaitable<T> {
+public final class Select<T> extends DurableFuture<T> {
 
-  private final List<Awaitable<?>> awaitables;
+  private final List<DurableFuture<?>> durableFutures;
   private AsyncResult<T> asyncResult;
 
   Select() {
-    this.awaitables = new ArrayList<>();
+    this.durableFutures = new ArrayList<>();
   }
 
   /**
@@ -64,52 +64,52 @@ public final class Select<T> extends Awaitable<T> {
   }
 
   /**
-   * Add the given {@link Awaitable} to this select.
+   * Add the given {@link DurableFuture} to this select.
    *
    * @return this, so it can be used fluently.
    */
-  public Select<T> or(Awaitable<T> awaitable) {
-    this.awaitables.add(awaitable);
+  public Select<T> or(DurableFuture<T> durableFuture) {
+    this.durableFutures.add(durableFuture);
     this.asyncResult = null;
     return this;
   }
 
   /**
-   * Add the given {@link Awaitable} to this select. If it completes first, the success result will
-   * be mapped using {@code successMapper}, otherwise in case of {@link TerminalException}, the
+   * Add the given {@link DurableFuture} to this select. If it completes first, the success result
+   * will be mapped using {@code successMapper}, otherwise in case of {@link TerminalException}, the
    * exception will be thrown as is.
    *
-   * @param awaitable the {@link Awaitable} to add to this select
-   * @param successMapper the mapper to execute if the given {@link Awaitable} completes with
+   * @param durableFuture the {@link DurableFuture} to add to this select
+   * @param successMapper the mapper to execute if the given {@link DurableFuture} completes with
    *     success. The mapper can throw a {@link TerminalException}, thus failing the resulting
    *     operation.
    * @return this, so it can be used fluently.
    */
-  public <U> Select<T> when(Awaitable<U> awaitable, ThrowingFunction<U, T> successMapper) {
-    this.awaitables.add(awaitable.map(successMapper));
+  public <U> Select<T> when(DurableFuture<U> durableFuture, ThrowingFunction<U, T> successMapper) {
+    this.durableFutures.add(durableFuture.map(successMapper));
     this.asyncResult = null;
     return this;
   }
 
   /**
-   * Add the given {@link Awaitable} to this select. If it completes first, the success result will
-   * be mapped using {@code successMapper}, otherwise in case of {@link TerminalException}, the
+   * Add the given {@link DurableFuture} to this select. If it completes first, the success result
+   * will be mapped using {@code successMapper}, otherwise in case of {@link TerminalException}, the
    * exception will be mapped using {@code failureMapper}.
    *
-   * @param awaitable the {@link Awaitable} to add to this select
-   * @param successMapper the mapper to execute if the given {@link Awaitable} completes with
+   * @param durableFuture the {@link DurableFuture} to add to this select
+   * @param successMapper the mapper to execute if the given {@link DurableFuture} completes with
    *     success. The mapper can throw a {@link TerminalException}, thus failing the resulting
    *     operation.
-   * @param failureMapper the mapper to execute if the given {@link Awaitable} completes with
+   * @param failureMapper the mapper to execute if the given {@link DurableFuture} completes with
    *     failure. The mapper can throw a {@link TerminalException}, thus failing the resulting
    *     operation.
    * @return this, so it can be used fluently.
    */
   public <U> Select<T> when(
-      Awaitable<U> awaitable,
+      DurableFuture<U> durableFuture,
       ThrowingFunction<U, T> successMapper,
       ThrowingFunction<TerminalException, T> failureMapper) {
-    this.awaitables.add(awaitable.map(successMapper, failureMapper));
+    this.durableFutures.add(durableFuture.map(successMapper, failureMapper));
     this.asyncResult = null;
     return this;
   }
@@ -125,20 +125,20 @@ public final class Select<T> extends Awaitable<T> {
   @Override
   protected Executor serviceExecutor() {
     checkNonEmpty();
-    return awaitables.get(0).serviceExecutor();
+    return durableFutures.get(0).serviceExecutor();
   }
 
   private void checkNonEmpty() {
-    if (awaitables.isEmpty()) {
+    if (durableFutures.isEmpty()) {
       throw new IllegalArgumentException("Select is empty");
     }
   }
 
   private void recreateAsyncResult() {
     checkNonEmpty();
-    List<Awaitable<?>> awaitables = List.copyOf(this.awaitables);
+    List<DurableFuture<?>> durableFutures = List.copyOf(this.durableFutures);
     List<AsyncResult<?>> ars =
-        awaitables.stream().map(Awaitable::asyncResult).collect(Collectors.toList());
+        durableFutures.stream().map(DurableFuture::asyncResult).collect(Collectors.toList());
     HandlerContext ctx = ars.get(0).ctx();
     //noinspection unchecked
     this.asyncResult =
