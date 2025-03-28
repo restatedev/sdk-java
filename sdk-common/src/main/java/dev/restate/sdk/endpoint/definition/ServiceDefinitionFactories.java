@@ -82,6 +82,16 @@ public final class ServiceDefinitionFactories {
   }
 
   private @Nullable ServiceDefinitionFactory discoverFactory(Object service) {
-    return this.factories.stream().filter(sa -> sa.supports(service)).findFirst().orElse(null);
+    return this.factories.stream()
+        .filter(
+            sa -> {
+              try {
+                return sa.supports(service);
+              } catch (Throwable e) {
+                return false;
+              }
+            })
+        .findFirst()
+        .orElse(null);
   }
 }
