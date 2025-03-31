@@ -8,14 +8,14 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testservices.contracts
 
-import dev.restate.sdk.annotation.Handler
-import dev.restate.sdk.annotation.VirtualObject
-import dev.restate.sdk.kotlin.ObjectContext
+import dev.restate.sdk.annotation.*
+import dev.restate.sdk.kotlin.*
 import kotlinx.serialization.Serializable
 
 @Serializable data class Entry(val key: String, val value: String)
 
-@VirtualObject(name = "MapObject")
+@VirtualObject
+@Name( "MapObject")
 interface MapObject {
   /**
    * Set value in map.

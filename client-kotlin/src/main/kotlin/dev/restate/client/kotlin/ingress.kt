@@ -14,7 +14,10 @@ import dev.restate.client.ClientResponse
 import dev.restate.client.SendResponse
 import dev.restate.common.Output
 import dev.restate.common.Request
+import dev.restate.common.WorkflowRequest
 import dev.restate.serde.Serde
+import kotlin.time.Duration
+import kotlin.time.toJavaDuration
 import kotlinx.coroutines.future.await
 
 // Extension methods for the Client
@@ -25,26 +28,46 @@ fun clientRequestOptions(init: ClientRequestOptions.Builder.() -> Unit): ClientR
   return builder.build()
 }
 
+/** Shorthand for [callSuspend] */
+suspend fun <Req, Res> Request<Req, Res>.call(client: Client): ClientResponse<Res> {
+  return client.callSuspend(this)
+}
+
+/** Suspend version of [Client.callAsync] */
 suspend fun <Req, Res> Client.callSuspend(request: Request<Req, Res>): ClientResponse<Res> {
   return this.callAsync(request).await()
 }
 
-suspend fun <Req, Res> Client.callSuspend(
-    requestBuilder: Request.Builder<Req, Res>
-): ClientResponse<Res> {
-  return this.callAsync(requestBuilder).await()
+/** Shorthand for [sendSuspend] */
+suspend fun <Req, Res> Request<Req, Res>.send(
+    client: Client,
+    delay: Duration? = null
+): ClientResponse<SendResponse<Res>> {
+  return client.sendSuspend(this, delay)
 }
 
+/** Suspend version of [Client.sendAsync] */
 suspend fun <Req, Res> Client.sendSuspend(
-    request: Request<Req, Res>
+    request: Request<Req, Res>,
+    delay: Duration? = null
 ): ClientResponse<SendResponse<Res>> {
-  return this.sendAsync(request).await()
+  return this.sendAsync(request, delay?.toJavaDuration()).await()
 }
 
-suspend fun <Req, Res> Client.sendSuspend(
-    request: Request.Builder<Req, Res>
+/** Shorthand for [submitSuspend] */
+suspend fun <Req, Res> WorkflowRequest<Req, Res>.submit(
+    client: Client,
+    delay: Duration? = null
 ): ClientResponse<SendResponse<Res>> {
-  return this.sendSuspend(request.build())
+  return client.submitSuspend(this, delay)
+}
+
+/** Suspend version of [Client.submitAsync] */
+suspend fun <Req, Res> Client.submitSuspend(
+    request: WorkflowRequest<Req, Res>,
+    delay: Duration? = null
+): ClientResponse<SendResponse<Res>> {
+  return this.submitAsync(request, delay?.toJavaDuration()).await()
 }
 
 suspend fun <T : Any> Client.AwakeableHandle.resolveSuspend(

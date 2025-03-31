@@ -54,24 +54,27 @@ public abstract class BaseClient implements Client {
 
   @Override
   public <Req, Res> CompletableFuture<ClientResponse<Res>> callAsync(Request<Req, Res> request) {
-    Serde<Req> reqSerde = this.serdeFactory.create(request.requestTypeTag());
-    Serde<Res> resSerde = this.serdeFactory.create(request.responseTypeTag());
+    Serde<Req> reqSerde = this.serdeFactory.create(request.getRequestTypeTag());
+    Serde<Res> resSerde = this.serdeFactory.create(request.getResponseTypeTag());
 
-    URI requestUri = toRequestURI(request.target(), false, null);
+    URI requestUri = toRequestURI(request.getTarget(), false, null);
     Stream<Map.Entry<String, String>> headersStream =
         Stream.concat(
-            baseOptions.headers().entrySet().stream(), request.headers().entrySet().stream());
+            baseOptions.headers().entrySet().stream(),
+            request.getHeaders() == null
+                ? Stream.empty()
+                : request.getHeaders().entrySet().stream());
     if (reqSerde.contentType() != null) {
       headersStream =
           Stream.concat(
               headersStream, Stream.of(Map.entry("content-type", reqSerde.contentType())));
     }
-    if (request.idempotencyKey() != null) {
+    if (request.getIdempotencyKey() != null) {
       headersStream =
           Stream.concat(
-              headersStream, Stream.of(Map.entry("idempotency-key", request.idempotencyKey())));
+              headersStream, Stream.of(Map.entry("idempotency-key", request.getIdempotencyKey())));
     }
-    Slice requestBody = reqSerde.serialize(request.request());
+    Slice requestBody = reqSerde.serialize(request.getRequest());
 
     return doPostRequest(
         requestUri, headersStream, requestBody, callResponseMapper("POST", requestUri, resSerde));
@@ -79,28 +82,27 @@ public abstract class BaseClient implements Client {
 
   @Override
   public <Req, Res> CompletableFuture<ClientResponse<SendResponse<Res>>> sendAsync(
-      Request<Req, Res> request) {
-    Serde<Req> reqSerde = this.serdeFactory.create(request.requestTypeTag());
+      Request<Req, Res> request, @Nullable Duration delay) {
+    Serde<Req> reqSerde = this.serdeFactory.create(request.getRequestTypeTag());
 
-    URI requestUri =
-        toRequestURI(
-            request.target(),
-            true,
-            (request instanceof SendRequest<Req, Res> sendRequest) ? sendRequest.delay() : null);
+    URI requestUri = toRequestURI(request.getTarget(), true, delay);
     Stream<Map.Entry<String, String>> headersStream =
         Stream.concat(
-            baseOptions.headers().entrySet().stream(), request.headers().entrySet().stream());
+            baseOptions.headers().entrySet().stream(),
+            request.getHeaders() == null
+                ? Stream.empty()
+                : request.getHeaders().entrySet().stream());
     if (reqSerde.contentType() != null) {
       headersStream =
           Stream.concat(
               headersStream, Stream.of(Map.entry("content-type", reqSerde.contentType())));
     }
-    if (request.idempotencyKey() != null) {
+    if (request.getIdempotencyKey() != null) {
       headersStream =
           Stream.concat(
-              headersStream, Stream.of(Map.entry("idempotency-key", request.idempotencyKey())));
+              headersStream, Stream.of(Map.entry("idempotency-key", request.getIdempotencyKey())));
     }
-    Slice requestBody = reqSerde.serialize(request.request());
+    Slice requestBody = reqSerde.serialize(request.getRequest());
 
     return doPostRequest(
         requestUri,
@@ -157,7 +159,8 @@ public abstract class BaseClient implements Client {
               statusCode,
               responseHeaders,
               new SendResponse<>(
-                  status, invocationHandle(fields.get("invocationId"), request.responseTypeTag())));
+                  status,
+                  invocationHandle(fields.get("invocationId"), request.getResponseTypeTag())));
         });
   }
 
@@ -427,7 +430,7 @@ public abstract class BaseClient implements Client {
     return builder.toString();
   }
 
-  private URI toRequestURI(Target target, boolean isSend, Duration delay) {
+  private URI toRequestURI(Target target, boolean isSend, @Nullable Duration delay) {
     StringBuilder builder = new StringBuilder(targetToURI(target));
     if (isSend) {
       builder.append("/send");

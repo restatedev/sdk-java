@@ -9,9 +9,10 @@
 package dev.restate.sdk.testservices.contracts
 
 import dev.restate.sdk.annotation.*
-import dev.restate.sdk.kotlin.ObjectContext
+import dev.restate.sdk.kotlin.*
 
-@VirtualObject(name = "NonDeterministic")
+@VirtualObject
+@Name( "NonDeterministic")
 interface NonDeterministic {
   /** On first invocation sleeps, on second invocation calls */
   @Handler suspend fun eitherSleepOrCall(context: ObjectContext)

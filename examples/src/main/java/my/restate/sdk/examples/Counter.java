@@ -10,6 +10,7 @@ package my.restate.sdk.examples;
 
 import dev.restate.sdk.*;
 import dev.restate.sdk.annotation.Handler;
+import dev.restate.sdk.annotation.Name;
 import dev.restate.sdk.annotation.Shared;
 import dev.restate.sdk.annotation.VirtualObject;
 import dev.restate.sdk.endpoint.Endpoint;
@@ -20,7 +21,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 /** Counter virtual object */
-@VirtualObject(name = "Counter")
+@VirtualObject
+@Name("Counter")
 public class Counter {
 
   private static final Logger LOG = LogManager.getLogger(Counter.class);
@@ -36,6 +38,7 @@ public class Counter {
   /** Add the given value to the count. */
   @Handler
   public void add(ObjectContext ctx, long request) {
+
     long currentValue = ctx.get(TOTAL).orElse(0L);
     long newValue = currentValue + request;
     ctx.sleep(Duration.ofSeconds(120));

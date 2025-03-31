@@ -6,17 +6,15 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-package dev.restate.sdk.core.javaapi;
+package dev.restate.sdk.core.kotlinapi
 
-import dev.restate.sdk.Context;
-import dev.restate.sdk.annotation.Handler;
-import dev.restate.sdk.annotation.Name;
-import dev.restate.sdk.annotation.Service;
+import dev.restate.sdk.kotlin.*
+import dev.restate.sdk.annotation.*
 
 @Service
 @Name("MyExplicitName")
-public interface GreeterWithExplicitName {
+interface GreeterWithExplicitName {
   @Handler
   @Name("my_greeter")
-  String greet(Context context, String request);
+  fun greet(context: Context, request: String): String
 }

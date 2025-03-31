@@ -39,29 +39,34 @@ public interface Context {
   /**
    * Invoke another Restate service method.
    *
-   * @param request request
+   * @param request Request object. For each service, a class called {@code
+   *     <your_class_name>Handlers} is generated containing the request builders.
    * @return an {@link DurableFuture} that wraps the Restate service method result.
    */
   <T, R> CallDurableFuture<R> call(Request<T, R> request);
 
-  /** Like {@link #call(Request)} */
-  default <T, R> CallDurableFuture<R> call(Request.Builder<T, R> requestBuilder) {
-    return call(requestBuilder.build());
+  /**
+   * Invoke another Restate service without waiting for the response.
+   *
+   * @param request Request object. For each service, a class called {@code
+   *     <your_class_name>Handlers} is generated containing the request builders.
+   * @return an {@link InvocationHandle} that can be used to retrieve the invocation id, cancel the
+   *     invocation, attach to its result.
+   */
+  default <T, R> InvocationHandle<R> send(Request<T, R> request) {
+    return send(request, null);
   }
 
   /**
    * Invoke another Restate service without waiting for the response.
    *
-   * @param request request
+   * @param request Request object. For each service, a class called {@code
+   *     <your_class_name>Handlers} is generated containing the request builders.
+   * @param delay the delay to send the request
    * @return an {@link InvocationHandle} that can be used to retrieve the invocation id, cancel the
    *     invocation, attach to its result.
    */
-  <T, R> InvocationHandle<R> send(Request<T, R> request);
-
-  /** Like {@link #send(Request)} */
-  default <T, R> InvocationHandle<R> send(Request.Builder<T, R> requestBuilder) {
-    return send(requestBuilder.asSend());
-  }
+  <T, R> InvocationHandle<R> send(Request<T, R> request, Duration delay);
 
   /** Like {@link #invocationHandle(String, Class)} */
   <R> InvocationHandle<R> invocationHandle(String invocationId, TypeTag<R> responseTypeTag);

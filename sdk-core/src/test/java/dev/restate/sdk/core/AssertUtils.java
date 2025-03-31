@@ -116,7 +116,7 @@ public class AssertUtils {
 
       if (svc.isEmpty()) {
         fail(
-            "Expecting deployment manifest to contain service {}. Available services: {}",
+            "Expecting deployment manifest to contain service %s. Available services: %s",
             service,
             this.actual.getServices().stream().map(Service::getName).collect(Collectors.toList()));
       }
@@ -138,7 +138,7 @@ public class AssertUtils {
 
       if (handler.isEmpty()) {
         fail(
-            "Expecting service {} manifest to contain handler {}. Available handler: {}",
+            "Expecting service %s manifest to contain handler %s. Available handler: %s",
             this.actual.getName(),
             handlerName,
             this.actual.getHandlers().stream().map(Handler::getName).collect(Collectors.toList()));

@@ -9,7 +9,6 @@
 package dev.restate.sdk.testservices
 
 import dev.restate.common.Request
-import dev.restate.common.SendRequest
 import dev.restate.common.Target
 import dev.restate.sdk.endpoint.definition.ServiceDefinition
 import dev.restate.sdk.kotlin.*
@@ -22,7 +21,7 @@ import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
 
 fun interpreterName(layer: Int): String {
-  return "${ObjectInterpreterMetadata.SERVICE_NAME}L$layer"
+  return "${ObjectInterpreterHandlers.Metadata.SERVICE_NAME}L$layer"
 }
 
 fun interpretTarget(layer: Int, key: String): Target {
@@ -97,21 +96,21 @@ class ObjectInterpreterImpl(private val layer: Int) : ObjectInterpreter {
               ctx.call(
                   Request.of(
                       interpretTarget(layer + 1, cmd.key.toString()),
-                      ObjectInterpreterMetadata.Serde.INTERPRET_INPUT,
-                      ObjectInterpreterMetadata.Serde.INTERPRET_OUTPUT,
+                      ObjectInterpreterHandlers.Metadata.Serde.INTERPRET_INPUT,
+                    ObjectInterpreterHandlers.Metadata.Serde.INTERPRET_OUTPUT,
                       cmd.program))
           promises[i] = { awaitable.await() }
         }
         is CallService -> {
           val expected = "hello-$i"
-          val awaitable = ServiceInterpreterHelperClient.fromContext(ctx).echo(expected)
+          val awaitable = ServiceInterpreterHelperHandlers.echo(expected).call(ctx)
           promises[i] = { checkAwaitable(awaitable, expected, i, cmd) }
         }
         is CallSlowService -> {
           val expected = "hello-$i"
           val awaitable =
-              ServiceInterpreterHelperClient.fromContext(ctx)
-                  .echoLater(EchoLaterRequest(cmd.sleep, expected))
+              ServiceInterpreterHelperHandlers
+                  .echoLater(EchoLaterRequest(cmd.sleep, expected)).call(ctx)
           promises[i] = { checkAwaitable(awaitable, expected, i, cmd) }
         }
         is ClearState -> {
@@ -124,29 +123,22 @@ class ObjectInterpreterImpl(private val layer: Int) : ObjectInterpreter {
           ctx.set(COUNTER, (ctx.get(COUNTER) ?: 0) + 1)
         }
         is IncrementStateCounterIndirectly -> {
-          ServiceInterpreterHelperClient.fromContext(ctx)
-              .send()
-              .incrementIndirectly(interpreterId(ctx))
+          ServiceInterpreterHelperHandlers .incrementIndirectly(interpreterId(ctx)).send(ctx)
         }
         is IncrementStateCounterViaAwakeable -> {
           // Dancing in the mooonlight!
           val awakeable = ctx.awakeable<String>()
-          ServiceInterpreterHelperClient.fromContext(ctx)
-              .send()
-              .incrementViaAwakeableDance(
-                  IncrementViaAwakeableDanceRequest(interpreterId(ctx), awakeable.id))
+          ServiceInterpreterHelperHandlers.incrementViaAwakeableDance( IncrementViaAwakeableDanceRequest(interpreterId(ctx), awakeable.id)).send(ctx)
           val theirPromiseIdForUsToResolve = awakeable.await()
           ctx.awakeableHandle(theirPromiseIdForUsToResolve).resolve("ok")
         }
         is IncrementViaDelayedCall -> {
-          ServiceInterpreterHelperClient.fromContext(ctx)
-              .send()
-              .incrementIndirectly(interpreterId(ctx), delay = cmd.duration.milliseconds)
+          ServiceInterpreterHelperHandlers .incrementIndirectly(interpreterId(ctx)).send(ctx, delay = cmd.duration.milliseconds)
         }
         is RecoverTerminalCall -> {
           var caught = false
           try {
-            ServiceInterpreterHelperClient.fromContext(ctx).terminalFailure().await()
+            ServiceInterpreterHelperHandlers.terminalFailure().call(ctx).await()
           } catch (e: TerminalException) {
             caught = true
           }
@@ -156,18 +148,18 @@ class ObjectInterpreterImpl(private val layer: Int) : ObjectInterpreter {
           }
         }
         is RecoverTerminalCallMaybeUnAwaited -> {
-          val awaitable = ServiceInterpreterHelperClient.fromContext(ctx).terminalFailure()
+          val awaitable =  ServiceInterpreterHelperHandlers.terminalFailure().call(ctx)
           promises[i] = { checkAwaitableFails(awaitable, i, cmd) }
         }
         is RejectAwakeable -> {
           val awakeable = ctx.awakeable<String>()
           promises[i] = { checkAwaitableFails(awakeable, i, cmd) }
-          ServiceInterpreterHelperClient.fromContext(ctx).send().rejectAwakeable(awakeable.id)
+          ServiceInterpreterHelperHandlers.rejectAwakeable(awakeable.id).send(ctx)
         }
         is ResolveAwakeable -> {
           val awakeable = ctx.awakeable<String>()
           promises[i] = { checkAwaitable(awakeable, "ok", i, cmd) }
-          ServiceInterpreterHelperClient.fromContext(ctx).send().resolveAwakeable(awakeable.id)
+          ServiceInterpreterHelperHandlers.resolveAwakeable(awakeable.id).send(ctx)
         }
         is SetState -> {
           ctx.set(cmdStateKey(cmd.key), "value-${cmd.key}")
@@ -214,9 +206,9 @@ class ServiceInterpreterHelperImpl : ServiceInterpreterHelper {
   override suspend fun incrementIndirectly(ctx: Context, id: InterpreterId) {
     val ignored =
         ctx.send(
-            SendRequest.of(
+            Request.of(
                 interpretTarget(id.layer, id.key),
-                ObjectInterpreterMetadata.Serde.INTERPRET_INPUT,
+                ObjectInterpreterHandlers.Metadata.Serde.INTERPRET_INPUT,
                 Serde.SLICE,
                 Program(listOf(IncrementStateCounter()))))
   }
@@ -250,9 +242,9 @@ class ServiceInterpreterHelperImpl : ServiceInterpreterHelper {
     //
     val ignored =
         ctx.send(
-            SendRequest.of(
+            Request.of(
                 interpretTarget(req.interpreter.layer, req.interpreter.key),
-                ObjectInterpreterMetadata.Serde.INTERPRET_INPUT,
+                ObjectInterpreterHandlers.Metadata.Serde.INTERPRET_INPUT,
                 Serde.SLICE,
                 Program(listOf(IncrementStateCounter()))))
   }

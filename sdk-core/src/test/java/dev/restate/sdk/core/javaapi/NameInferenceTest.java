@@ -16,10 +16,10 @@ public class NameInferenceTest {
 
   @Test
   void expectedName() {
-    assertThat(CodegenTestServiceGreeterMetadata.SERVICE_NAME)
+    assertThat(CodegenTestServiceGreeterHandlers.Metadata.SERVICE_NAME)
         .isEqualTo("CodegenTestServiceGreeter");
-    assertThat(GreeterWithoutExplicitNameMetadata.SERVICE_NAME)
+    assertThat(GreeterWithoutExplicitNameHandlers.Metadata.SERVICE_NAME)
         .isEqualTo("GreeterWithoutExplicitName");
-    assertThat(MyExplicitNameMetadata.SERVICE_NAME).isEqualTo("MyExplicitName");
+    assertThat(GreeterWithExplicitNameHandlers.Metadata.SERVICE_NAME).isEqualTo("MyExplicitName");
   }
 }

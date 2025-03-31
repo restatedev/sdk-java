@@ -12,31 +12,30 @@ import dev.restate.sdk.auth.signing.RestateRequestIdentityVerifier
 import dev.restate.sdk.http.vertx.RestateHttpServer
 import dev.restate.sdk.kotlin.endpoint.endpoint
 import dev.restate.sdk.testservices.contracts.*
-import dev.restate.sdktesting.contracts.VirtualObjectCommandInterpreterMetadata
 
 val KNOWN_SERVICES_FACTORIES: Map<String, () -> Any> =
     mapOf(
-        AwakeableHolderMetadata.SERVICE_NAME to { AwakeableHolderImpl() },
-        BlockAndWaitWorkflowMetadata.SERVICE_NAME to { BlockAndWaitWorkflowImpl() },
-        CancelTestBlockingServiceMetadata.SERVICE_NAME to { CancelTestImpl.BlockingService() },
-        CancelTestRunnerMetadata.SERVICE_NAME to { CancelTestImpl.RunnerImpl() },
-        CounterMetadata.SERVICE_NAME to { CounterImpl() },
-        FailingMetadata.SERVICE_NAME to { FailingImpl() },
-        KillTestRunnerMetadata.SERVICE_NAME to { KillTestImpl.RunnerImpl() },
-        KillTestSingletonMetadata.SERVICE_NAME to { KillTestImpl.SingletonImpl() },
-        ListObjectMetadata.SERVICE_NAME to { ListObjectImpl() },
-        MapObjectMetadata.SERVICE_NAME to { MapObjectImpl() },
-        NonDeterministicMetadata.SERVICE_NAME to { NonDeterministicImpl() },
-        ProxyMetadata.SERVICE_NAME to { ProxyImpl() },
-        TestUtilsServiceMetadata.SERVICE_NAME to { TestUtilsServiceImpl() },
-        VirtualObjectCommandInterpreterMetadata.SERVICE_NAME to
+        AwakeableHolderHandlers.Metadata.SERVICE_NAME to { AwakeableHolderImpl() },
+        BlockAndWaitWorkflowHandlers.Metadata.SERVICE_NAME to { BlockAndWaitWorkflowImpl() },
+        CancelTestBlockingServiceHandlers.Metadata.SERVICE_NAME to { CancelTestImpl.BlockingService() },
+        CancelTestRunnerHandlers.Metadata.SERVICE_NAME to { CancelTestImpl.RunnerImpl() },
+        CounterHandlers.Metadata.SERVICE_NAME to { CounterImpl() },
+        FailingHandlers.Metadata.SERVICE_NAME to { FailingImpl() },
+        KillTestRunnerHandlers.Metadata.SERVICE_NAME to { KillTestImpl.RunnerImpl() },
+        KillTestSingletonHandlers.Metadata.SERVICE_NAME to { KillTestImpl.SingletonImpl() },
+        ListObjectHandlers.Metadata.SERVICE_NAME to { ListObjectImpl() },
+        MapObjectHandlers.Metadata.SERVICE_NAME to { MapObjectImpl() },
+        NonDeterministicHandlers.Metadata.SERVICE_NAME to { NonDeterministicImpl() },
+        ProxyHandlers.Metadata.SERVICE_NAME to { ProxyImpl() },
+        TestUtilsServiceHandlers.Metadata.SERVICE_NAME to { TestUtilsServiceImpl() },
+        VirtualObjectCommandInterpreterHandlers.Metadata.SERVICE_NAME to
             {
               VirtualObjectCommandInterpreterImpl()
             },
         interpreterName(0) to { ObjectInterpreterImpl.getInterpreterDefinition(0) },
         interpreterName(1) to { ObjectInterpreterImpl.getInterpreterDefinition(1) },
         interpreterName(2) to { ObjectInterpreterImpl.getInterpreterDefinition(2) },
-        ServiceInterpreterHelperMetadata.SERVICE_NAME to { ServiceInterpreterHelperImpl() })
+        ServiceInterpreterHelperHandlers.Metadata.SERVICE_NAME to { ServiceInterpreterHelperImpl() })
 
 val NEEDS_EXPERIMENTAL_CONTEXT: Set<String> = setOf()
 

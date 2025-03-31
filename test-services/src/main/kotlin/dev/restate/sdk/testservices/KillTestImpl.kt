@@ -8,10 +8,10 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testservices
 
-import dev.restate.sdk.kotlin.ObjectContext
-import dev.restate.sdk.testservices.contracts.AwakeableHolderClient
+import dev.restate.sdk.kotlin.*
+import dev.restate.sdk.testservices.contracts.AwakeableHolderHandlers
 import dev.restate.sdk.testservices.contracts.KillTest
-import dev.restate.sdk.testservices.contracts.KillTestSingletonClient
+import dev.restate.sdk.testservices.contracts.KillTestSingletonHandlers
 import dev.restate.serde.Serde
 
 class KillTestImpl {
@@ -22,18 +22,18 @@ class KillTestImpl {
     // in the inbox:
     // startCallTree --> recursiveCall --> recursiveCall:inboxed
     override suspend fun startCallTree(context: ObjectContext) {
-      KillTestSingletonClient.fromContext(context, context.key()).recursiveCall().await()
+      KillTestSingletonHandlers.recursiveCall(context.key()).call(context).await()
     }
   }
 
   class SingletonImpl : KillTest.Singleton {
     override suspend fun recursiveCall(context: ObjectContext) {
       val awakeable = context.awakeable(Serde.RAW)
-      AwakeableHolderClient.fromContext(context, context.key()).send().hold(awakeable.id)
+      AwakeableHolderHandlers.hold(context.key(), awakeable.id).send(context)
 
       awakeable.await()
 
-      KillTestSingletonClient.fromContext(context, context.key()).recursiveCall().await()
+      KillTestSingletonHandlers.recursiveCall(context.key()).call(context).await()
     }
 
     override suspend fun isUnlocked(context: ObjectContext) {

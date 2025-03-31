@@ -28,8 +28,7 @@ public class SdkTestingIntegrationTest {
   @Test
   @Timeout(value = 10)
   void greet(@RestateClient Client ingressClient) {
-    var client = greeterClient.fromClient(ingressClient);
-
-    assertThat(client.greet("Francesco")).isEqualTo("Something something Francesco");
+    assertThat(ingressClient.call(GreeterHandlers.greet("Francesco")).response())
+        .isEqualTo("Something something Francesco");
   }
 }

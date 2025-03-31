@@ -24,10 +24,4 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @VirtualObject
 @RestateComponent
-public @interface RestateVirtualObject {
-  /**
-   * Name of the VirtualObject for Restate. If not provided, it will be the simple class name of the
-   * annotated element.
-   */
-  String name() default "";
-}
+public @interface RestateVirtualObject {}

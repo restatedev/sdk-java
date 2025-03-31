@@ -11,21 +11,19 @@ package dev.restate.client;
 import dev.restate.common.Output;
 import dev.restate.common.Request;
 import dev.restate.common.Target;
+import dev.restate.common.WorkflowRequest;
 import dev.restate.serde.Serde;
 import dev.restate.serde.SerdeFactory;
 import dev.restate.serde.TypeTag;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 public interface Client {
 
   <Req, Res> CompletableFuture<ClientResponse<Res>> callAsync(Request<Req, Res> request);
-
-  default <Req, Res> CompletableFuture<ClientResponse<Res>> callAsync(
-      Request.Builder<Req, Res> request) {
-    return callAsync(request.build());
-  }
 
   default <Req, Res> ClientResponse<Res> call(Request<Req, Res> request) throws IngressException {
     try {
@@ -38,18 +36,23 @@ public interface Client {
     }
   }
 
-  default <Req, Res> ClientResponse<Res> call(Request.Builder<Req, Res> request)
-      throws IngressException {
-    return call(request.build());
+  default <Req, Res> CompletableFuture<ClientResponse<SendResponse<Res>>> sendAsync(
+      Request<Req, Res> request) {
+    return sendAsync(request, null);
   }
-
-  <Req, Res> CompletableFuture<ClientResponse<SendResponse<Res>>> sendAsync(
-      Request<Req, Res> request);
 
   default <Req, Res> ClientResponse<SendResponse<Res>> send(Request<Req, Res> request)
       throws IngressException {
+    return send(request, null);
+  }
+
+  <Req, Res> CompletableFuture<ClientResponse<SendResponse<Res>>> sendAsync(
+      Request<Req, Res> request, @Nullable Duration delay);
+
+  default <Req, Res> ClientResponse<SendResponse<Res>> send(
+      Request<Req, Res> request, @Nullable Duration delay) throws IngressException {
     try {
-      return sendAsync(request).join();
+      return sendAsync(request, delay).join();
     } catch (CompletionException e) {
       if (e.getCause() instanceof RuntimeException) {
         throw (RuntimeException) e.getCause();
@@ -58,14 +61,31 @@ public interface Client {
     }
   }
 
-  default <Req, Res> CompletableFuture<ClientResponse<SendResponse<Res>>> sendAsync(
-      Request.Builder<Req, Res> request) {
-    return sendAsync(request.build());
+  default <Req, Res> CompletableFuture<ClientResponse<SendResponse<Res>>> submitAsync(
+      WorkflowRequest<Req, Res> request) {
+    return submitAsync(request, null);
   }
 
-  default <Req, Res> ClientResponse<SendResponse<Res>> send(Request.Builder<Req, Res> request)
+  default <Req, Res> ClientResponse<SendResponse<Res>> submit(WorkflowRequest<Req, Res> request)
       throws IngressException {
-    return send(request.build());
+    return submit(request, null);
+  }
+
+  default <Req, Res> CompletableFuture<ClientResponse<SendResponse<Res>>> submitAsync(
+      WorkflowRequest<Req, Res> request, @Nullable Duration delay) {
+    return sendAsync(request, delay);
+  }
+
+  default <Req, Res> ClientResponse<SendResponse<Res>> submit(
+      WorkflowRequest<Req, Res> request, @Nullable Duration delay) throws IngressException {
+    try {
+      return submitAsync(request, delay).join();
+    } catch (CompletionException e) {
+      if (e.getCause() instanceof RuntimeException) {
+        throw (RuntimeException) e.getCause();
+      }
+      throw new RuntimeException(e.getCause());
+    }
   }
 
   /**

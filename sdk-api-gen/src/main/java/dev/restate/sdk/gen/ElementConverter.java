@@ -14,12 +14,14 @@ import dev.restate.sdk.SharedObjectContext;
 import dev.restate.sdk.SharedWorkflowContext;
 import dev.restate.sdk.WorkflowContext;
 import dev.restate.sdk.annotation.*;
+import dev.restate.sdk.annotation.Name;
 import dev.restate.sdk.endpoint.definition.ServiceType;
 import dev.restate.sdk.gen.model.*;
 import dev.restate.sdk.gen.model.Handler;
 import dev.restate.sdk.gen.model.Service;
 import dev.restate.sdk.gen.utils.AnnotationUtils;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.processing.Messager;
@@ -51,30 +53,16 @@ class ElementConverter {
   Service fromTypeElement(MetaRestateAnnotation metaAnnotation, TypeElement element) {
     validateType(element);
 
-    // Find annotation mirror
-    AnnotationMirror metaAnnotationMirror =
-        element.getAnnotationMirrors().stream()
-            .filter(
-                a ->
-                    a.getAnnotationType()
-                        .asElement()
-                        .equals(metaAnnotation.getAnnotationTypeElement()))
-            .findFirst()
-            .orElseThrow(
-                () ->
-                    new IllegalStateException(
-                        "Cannot find the annotation mirror for meta annotation "
-                            + metaAnnotation.getAnnotationTypeElement().getQualifiedName()));
-
     // Infer names
     CharSequence targetPkg = elements.getPackageOf(element).getQualifiedName();
     CharSequence targetFqcn = element.getQualifiedName();
-    String serviceName = metaAnnotation.resolveName(metaAnnotationMirror);
-    if (serviceName == null || serviceName.isEmpty()) {
-      // Use simple class name, flattening subclasses names
-      serviceName =
-          targetFqcn.toString().substring(targetPkg.length()).replaceAll(Pattern.quote("."), "");
-    }
+    // Use simple class name, flattening subclasses names
+    String generatedClassesNamePrefix =
+        targetFqcn.toString().substring(targetPkg.length()).replaceAll(Pattern.quote("."), "");
+    String serviceName =
+        Optional.ofNullable(element.getAnnotation(dev.restate.sdk.annotation.Name.class))
+            .map(Name::value)
+            .orElse(null);
 
     // Compute handlers
     List<Handler> handlers =
@@ -104,9 +92,10 @@ class ElementConverter {
 
     try {
       return new Service.Builder()
-          .withTargetPkg(targetPkg)
-          .withTargetFqcn(targetFqcn)
-          .withServiceName(serviceName)
+          .withTargetClassPkg(targetPkg)
+          .withTargetClassFqcn(targetFqcn)
+          .withGeneratedClassesNamePrefix(generatedClassesNamePrefix)
+          .withRestateName(serviceName)
           .withDocumentation(sanitizeJavadoc(elements.getDocComment(element)))
           .withServiceType(metaAnnotation.getServiceType())
           .withHandlers(handlers)
@@ -188,7 +177,11 @@ class ElementConverter {
 
     try {
       return new Handler.Builder()
-          .withName(element.getSimpleName())
+          .withName(element.getSimpleName().toString())
+          .withRestateName(
+              Optional.ofNullable(element.getAnnotation(dev.restate.sdk.annotation.Name.class))
+                  .map(Name::value)
+                  .orElse(null))
           .withHandlerType(handlerType)
           .withDocumentation(sanitizeJavadoc(elements.getDocComment(element)))
           .withInputAccept(inputAcceptFromParameterList(element.getParameters()))

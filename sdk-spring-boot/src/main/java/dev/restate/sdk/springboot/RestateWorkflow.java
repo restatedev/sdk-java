@@ -24,10 +24,4 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Workflow
 @RestateComponent
-public @interface RestateWorkflow {
-  /**
-   * Name of the Workflow for Restate. If not provided, it will be the simple class name of the
-   * annotated element.
-   */
-  String name() default "";
-}
+public @interface RestateWorkflow {}

@@ -9,11 +9,13 @@
 package dev.restate.sdk.springboot.kotlin
 
 import dev.restate.sdk.annotation.Handler
+import dev.restate.sdk.annotation.Name
 import dev.restate.sdk.kotlin.Context
 import dev.restate.sdk.springboot.RestateService
 import org.springframework.beans.factory.annotation.Value
 
-@RestateService(name = "greeter")
+@RestateService
+@Name("greeter")
 class Greeter {
   @Value("\${greetingPrefix}") lateinit var greetingPrefix: String
 

@@ -6,17 +6,15 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-package dev.restate.sdktesting.contracts
+package dev.restate.sdk.testservices.contracts
 
-import dev.restate.sdk.annotation.Handler
-import dev.restate.sdk.annotation.Shared
-import dev.restate.sdk.annotation.VirtualObject
-import dev.restate.sdk.kotlin.ObjectContext
-import dev.restate.sdk.kotlin.SharedObjectContext
+import dev.restate.sdk.annotation.*
+import dev.restate.sdk.kotlin.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-@VirtualObject(name = "VirtualObjectCommandInterpreter")
+@VirtualObject
+  @Name( "VirtualObjectCommandInterpreter")
 interface VirtualObjectCommandInterpreter {
 
   @Serializable sealed interface AwaitableCommand

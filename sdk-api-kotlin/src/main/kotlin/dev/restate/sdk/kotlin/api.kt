@@ -10,7 +10,6 @@ package dev.restate.sdk.kotlin
 
 import dev.restate.common.Output
 import dev.restate.common.Request
-import dev.restate.common.SendRequest
 import dev.restate.sdk.kotlin.serialization.typeTag
 import dev.restate.sdk.types.DurablePromiseKey
 import dev.restate.sdk.types.HandlerRequest
@@ -20,7 +19,6 @@ import dev.restate.serde.TypeTag
 import java.util.*
 import kotlin.random.Random
 import kotlin.time.Duration
-import kotlin.time.toJavaDuration
 
 /**
  * This interface exposes the Restate functionalities to Restate services. It can be used to
@@ -56,58 +54,26 @@ sealed interface Context {
   suspend fun timer(duration: Duration, name: String? = null): DurableFuture<Unit>
 
   /**
-   * Invoke another Restate service method.
+   * Invoke another Restate handler.
    *
-   * @param target the address of the callee
-   * @param inputSerde Input serde
-   * @param outputSerde Output serde
-   * @param parameter the invocation request parameter.
-   * @param callOptions request options.
+   * @param request Request object. For each service, a class called `<your_class_name>Handlers` is
+   *   generated containing the request builders.
    * @return a [CallDurableFuture] that wraps the result.
    */
   suspend fun <Req : Any?, Res : Any?> call(request: Request<Req, Res>): CallDurableFuture<Res>
 
   /**
-   * Invoke another Restate service method.
+   * Invoke another Restate handler without waiting for the response.
    *
-   * @param target the address of the callee
-   * @param inputSerde Input serde
-   * @param outputSerde Output serde
-   * @param parameter the invocation request parameter.
-   * @param callOptions request options.
-   * @return a [CallDurableFuture] that wraps the result.
-   */
-  suspend fun <Req : Any?, Res : Any?> call(
-      requestBuilder: Request.Builder<Req, Res>
-  ): CallDurableFuture<Res> {
-    return call(requestBuilder.build())
-  }
-
-  /**
-   * Invoke another Restate service without waiting for the response.
-   *
-   * @param target the address of the callee
-   * @param inputSerde Input serde
-   * @param parameter the invocation request parameter.
-   * @param sendOptions request options.
-   * @return a [SendHandle] to interact with the sent request.
-   */
-  suspend fun <Req : Any?, Res : Any?> send(request: Request<Req, Res>): InvocationHandle<Res>
-
-  /**
-   * Invoke another Restate service without waiting for the response.
-   *
-   * @param target the address of the callee
-   * @param inputSerde Input serde
-   * @param parameter the invocation request parameter.
-   * @param sendOptions request options.
-   * @return a [SendHandle] to interact with the sent request.
+   * @param request Request object. For each service, a class called `<your_class_name>Handlers` is
+   *   generated containing the request builders.
+   * @param delay The delay to send the request, if any.
+   * @return an [InvocationHandle] to interact with the sent request.
    */
   suspend fun <Req : Any?, Res : Any?> send(
-      sendRequestBuilder: Request.Builder<Req, Res>
-  ): InvocationHandle<Res> {
-    return send(sendRequestBuilder.build())
-  }
+      request: Request<Req, Res>,
+      delay: Duration? = null
+  ): InvocationHandle<Res>
 
   /**
    * Get an [InvocationHandle] for an already existing invocation. This will let you interact with a
@@ -699,14 +665,17 @@ inline fun <reified T> durablePromiseKey(name: String): DurablePromiseKey<T> {
   return DurablePromiseKey.of(name, typeTag<T>())
 }
 
-fun <Req : Any?, Res : Any?> Request.Builder<Req, Res>.asSendDelayed(
-    duration: Duration
-): SendRequest<Req, Res> {
-  return this.asSendDelayed(duration.toJavaDuration())
+/** Shorthand for [Context.call] */
+suspend fun <Req : Any?, Res : Any?> Request<Req, Res>.call(
+    context: Context
+): CallDurableFuture<Res> {
+  return context.call(this)
 }
 
-fun <Req : Any?, Res : Any?> Request<Req, Res>.asSendDelayed(
-    duration: Duration
-): SendRequest<Req, Res> {
-  return this.asSendDelayed(duration.toJavaDuration())
+/** Shorthand for [Context.send] */
+suspend fun <Req : Any?, Res : Any?> Request<Req, Res>.send(
+    context: Context,
+    delay: Duration? = null
+): InvocationHandle<Res> {
+  return context.send(this, delay)
 }

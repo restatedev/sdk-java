@@ -10,7 +10,6 @@ package dev.restate.sdk.kotlin
 
 import dev.restate.common.Output
 import dev.restate.common.Request
-import dev.restate.common.SendRequest
 import dev.restate.common.Slice
 import dev.restate.sdk.endpoint.definition.HandlerContext
 import dev.restate.sdk.types.DurablePromiseKey
@@ -70,14 +69,14 @@ internal constructor(
   override suspend fun <Req : Any?, Res : Any?> call(
       request: Request<Req, Res>
   ): CallDurableFuture<Res> =
-      resolveSerde<Res>(request.responseTypeTag()).let { responseSerde ->
+      resolveSerde<Res>(request.getResponseTypeTag()).let { responseSerde ->
         val callHandle =
             handlerContext
                 .call(
-                    request.target(),
-                    resolveAndSerialize<Req>(request.requestTypeTag(), request.request()),
-                    request.idempotencyKey(),
-                    request.headers().entries)
+                    request.getTarget(),
+                    resolveAndSerialize<Req>(request.getRequestTypeTag(), request.getRequest()),
+                    request.getIdempotencyKey(),
+                    request.getHeaders()?.entries)
                 .await()
 
         val callAsyncResult =
@@ -89,17 +88,18 @@ internal constructor(
       }
 
   override suspend fun <Req : Any?, Res : Any?> send(
-      request: Request<Req, Res>
+      request: Request<Req, Res>,
+      delay: Duration?
   ): InvocationHandle<Res> =
-      resolveSerde<Res>(request.responseTypeTag()).let { responseSerde ->
+      resolveSerde<Res>(request.getResponseTypeTag()).let { responseSerde ->
         val invocationIdAsyncResult =
             handlerContext
                 .send(
-                    request.target(),
-                    resolveAndSerialize<Req>(request.requestTypeTag(), request.request()),
-                    request.idempotencyKey(),
-                    request.headers().entries,
-                    (request as? SendRequest)?.delay())
+                    request.getTarget(),
+                    resolveAndSerialize<Req>(request.getRequestTypeTag(), request.getRequest()),
+                    request.getIdempotencyKey(),
+                    request.getHeaders()?.entries,
+                    delay?.toJavaDuration())
                 .await()
 
         object : BaseInvocationHandle<Res>(handlerContext, responseSerde) {

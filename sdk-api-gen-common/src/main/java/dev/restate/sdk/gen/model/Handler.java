@@ -12,7 +12,8 @@ import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
 public record Handler(
-    CharSequence name,
+    String name,
+    String restateName,
     HandlerType handlerType,
     @Nullable String inputAccept,
     PayloadType inputType,
@@ -24,15 +25,21 @@ public record Handler(
   }
 
   public static class Builder {
-    private CharSequence name;
+    private String name;
+    private String restateName;
     private HandlerType handlerType;
     private String inputAccept;
     private PayloadType inputType;
     private PayloadType outputType;
     private String documentation;
 
-    public Builder withName(CharSequence name) {
+    public Builder withName(String name) {
       this.name = name;
+      return this;
+    }
+
+    public Builder withRestateName(String name) {
+      this.restateName = name;
       return this;
     }
 
@@ -78,15 +85,18 @@ public record Handler(
     }
 
     public Handler validateAndBuild() {
-      String handlerNameLowercase = name.toString().toLowerCase();
-      if (handlerNameLowercase.startsWith("restate")
-          || handlerNameLowercase.startsWith("openapi")) {
+      String restateName =
+          this.restateName != null ? this.restateName : Objects.requireNonNull(name);
+
+      String handlerNameLowercase = restateName.toLowerCase();
+      if (restateName.startsWith("restate") || handlerNameLowercase.startsWith("openapi")) {
         throw new IllegalArgumentException(
             "A service name cannot start with `restate` or `openapi`");
       }
 
       return new Handler(
           Objects.requireNonNull(name),
+          restateName,
           Objects.requireNonNull(handlerType),
           inputAccept,
           inputType,

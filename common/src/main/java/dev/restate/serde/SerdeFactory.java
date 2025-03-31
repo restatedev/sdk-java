@@ -52,13 +52,13 @@ public interface SerdeFactory {
         @Override
         public <T> Serde<T> create(TypeRef<T> typeRef) {
           throw new UnsupportedOperationException(
-              "No SerdeFactory class was configured. Please configure one.");
+              "No SerdeFactory class was configured. Please configure one. If you're using a Client class together with a generated *Handlers class, the corresponding serde factory will be available in *Handlers.Metadata.SERDE_FACTORY");
         }
 
         @Override
         public <T> Serde<T> create(Class<T> clazz) {
           throw new UnsupportedOperationException(
-              "No SerdeFactory class was configured. Please configure one.");
+              "No SerdeFactory class was configured. Please configure one. If you're using a Client class together with a generated *Handlers class, the corresponding serde factory will be available in *Handlers.Metadata.SERDE_FACTORY");
         }
       };
 }

@@ -8,6 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core.kotlinapi
 
+import dev.restate.client.Client
+import dev.restate.client.kotlin.*
 import dev.restate.common.Slice
 import dev.restate.common.Target
 import dev.restate.sdk.annotation.*
@@ -79,39 +81,36 @@ class CodegenTest : TestDefinitions.TestSuite {
     }
   }
 
-  @Service(name = "Empty")
+  @Service
+  @Name("Empty")
   class Empty {
     @Handler
     suspend fun emptyInput(context: Context): String {
-      val client = EmptyClient.fromContext(context)
-      return client.emptyInput().await()
+      return CodegenTestEmptyHandlers.emptyInput().call(context).await()
     }
 
     @Handler
     suspend fun emptyOutput(context: Context, request: String) {
-      val client = EmptyClient.fromContext(context)
-      client.emptyOutput(request).await()
+      CodegenTestEmptyHandlers.emptyOutput(request).call(context).await()
     }
 
     @Handler
     suspend fun emptyInputOutput(context: Context) {
-      val client = EmptyClient.fromContext(context)
-      client.emptyInputOutput().await()
+      CodegenTestEmptyHandlers.emptyInputOutput().call(context).await()
     }
   }
 
-  @Service(name = "PrimitiveTypes")
+  @Service
+  @Name("PrimitiveTypes")
   class PrimitiveTypes {
     @Handler
     suspend fun primitiveOutput(context: Context): Int {
-      val client = PrimitiveTypesClient.fromContext(context)
-      return client.primitiveOutput().await()
+      return CodegenTestPrimitiveTypesHandlers.primitiveOutput().call(context).await()
     }
 
     @Handler
     suspend fun primitiveInput(context: Context, input: Int) {
-      val client = PrimitiveTypesClient.fromContext(context)
-      client.primitiveInput(input).await()
+      CodegenTestPrimitiveTypesHandlers.primitiveInput(input).call(context).await()
     }
   }
 
@@ -120,21 +119,19 @@ class CodegenTest : TestDefinitions.TestSuite {
     @Exclusive
     suspend fun send(context: ObjectContext, request: String): String {
       // Just needs to compile
-      return CodegenTestCornerCasesClient.fromContext(context, request)._send("my_send").await()
+      return CodegenTestCornerCasesHandlers._send(request, "my_send").call(context).await()
     }
 
     @Exclusive
     suspend fun returnNull(context: ObjectContext, request: String?): String? {
-      return CodegenTestCornerCasesClient.fromContext(context, context.key())
-          .returnNull(request) {}
+      return CodegenTestCornerCasesHandlers.returnNull(context.key(), request) {}
+          .call(context)
           .await()
     }
 
     @Exclusive
     suspend fun badReturnTypeInferred(context: ObjectContext): Unit {
-      CodegenTestCornerCasesClient.fromContext(context, context.key())
-          .send()
-          .badReturnTypeInferred()
+      CodegenTestCornerCasesHandlers.badReturnTypeInferred(context.key()).send(context)
     }
   }
 
@@ -147,38 +144,36 @@ class CodegenTest : TestDefinitions.TestSuite {
 
     @Shared
     suspend fun submit(context: SharedWorkflowContext, request: String): String {
+      val client = Client.connect("invalid")
+
       // Just needs to compile
-      val ignored: String =
-          CodegenTestWorkflowCornerCasesClient.connect("invalid", request)._submit("my_send")
-      CodegenTestWorkflowCornerCasesClient.connect("invalid", request).submit("my_send")
-      return CodegenTestWorkflowCornerCasesClient.connect("invalid", request)
-          .workflowHandle()
-          .output
-          .response()
-          .value
+      CodegenTestWorkflowCornerCasesHandlers.process(request, "my_send").submit(client)
+      client.submitSuspend(CodegenTestWorkflowCornerCasesHandlers.process(request, "my_send"))
+
+      CodegenTestWorkflowCornerCasesHandlers._submit(request, "my_send").send(client)
+      client.sendSuspend(CodegenTestWorkflowCornerCasesHandlers._submit(request, "my_send"))
+      return ""
     }
   }
 
-  @Service(name = "RawInputOutput")
+  @Service
+  @Name("RawInputOutput")
   class RawInputOutput {
     @Handler
     @Raw
     suspend fun rawOutput(context: Context): ByteArray {
-      val client: RawInputOutputClient.ContextClient = RawInputOutputClient.fromContext(context)
-      return client.rawOutput().await()
+      return CodegenTestRawInputOutputHandlers.rawOutput().call(context).await()
     }
 
     @Handler
     @Raw(contentType = "application/vnd.my.custom")
     suspend fun rawOutputWithCustomCT(context: Context): ByteArray {
-      val client: RawInputOutputClient.ContextClient = RawInputOutputClient.fromContext(context)
-      return client.rawOutputWithCustomCT().await()
+      return CodegenTestRawInputOutputHandlers.rawOutputWithCustomCT().call(context).await()
     }
 
     @Handler
     suspend fun rawInput(context: Context, @Raw input: ByteArray) {
-      val client: RawInputOutputClient.ContextClient = RawInputOutputClient.fromContext(context)
-      client.rawInput(input).await()
+      CodegenTestRawInputOutputHandlers.rawInput(input).call(context).await()
     }
 
     @Handler
@@ -186,8 +181,7 @@ class CodegenTest : TestDefinitions.TestSuite {
         context: Context,
         @Raw(contentType = "application/vnd.my.custom") input: ByteArray
     ) {
-      val client: RawInputOutputClient.ContextClient = RawInputOutputClient.fromContext(context)
-      client.rawInputWithCustomCt(input).await()
+      CodegenTestRawInputOutputHandlers.rawInputWithCustomCt(input).call(context).await()
     }
 
     @Handler
@@ -195,23 +189,23 @@ class CodegenTest : TestDefinitions.TestSuite {
         context: Context,
         @Accept("application/*") @Raw(contentType = "application/vnd.my.custom") input: ByteArray
     ) {
-      val client: RawInputOutputClient.ContextClient = RawInputOutputClient.fromContext(context)
-      client.rawInputWithCustomCt(input).await()
+      CodegenTestRawInputOutputHandlers.rawInputWithCustomAccept(input).call(context).await()
     }
   }
 
-  @Workflow(name = "MyWorkflow")
+  @Workflow
+  @Name("MyWorkflow")
   class MyWorkflow {
     @Workflow
     suspend fun run(context: WorkflowContext, myInput: String) {
-      val client = MyWorkflowClient.fromContext(context, context.key())
-      client.send().sharedHandler(myInput)
+      CodegenTestMyWorkflowHandlers.sharedHandler(context.key(), myInput).send(context)
     }
 
     @Handler
     suspend fun sharedHandler(context: SharedWorkflowContext, myInput: String): String {
-      val client = MyWorkflowClient.fromContext(context, context.key())
-      return client.sharedHandler(myInput).await()
+      return CodegenTestMyWorkflowHandlers.sharedHandler(context.key(), myInput)
+          .call(context)
+          .await()
     }
   }
 
@@ -234,7 +228,8 @@ class CodegenTest : TestDefinitions.TestSuite {
   }
 
   @CustomSerdeFactory(MyCustomSerdeFactory::class)
-  @Service(name = "CustomSerdeService")
+  @Service
+  @Name("CustomSerdeService")
   class CustomSerdeService {
     @Handler
     suspend fun echo(context: Context, input: Byte): Byte {

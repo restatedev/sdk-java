@@ -8,13 +8,13 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testservices.contracts
 
-import dev.restate.sdk.annotation.Exclusive
-import dev.restate.sdk.annotation.VirtualObject
-import dev.restate.sdk.kotlin.ObjectContext
+import dev.restate.sdk.annotation.*
+import dev.restate.sdk.kotlin.*
 
 // This is a generic utility service that can be used in various situations where
 // we need to synchronize the services with the test runner using an awakeable.
-@VirtualObject(name = "AwakeableHolder")
+@VirtualObject
+@Name( "AwakeableHolder")
 interface AwakeableHolder {
   @Exclusive suspend fun hold(context: ObjectContext, id: String)
 

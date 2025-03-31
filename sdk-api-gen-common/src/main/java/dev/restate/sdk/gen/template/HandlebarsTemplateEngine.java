@@ -50,15 +50,15 @@ public class HandlebarsTemplateEngine {
             case SERVICE ->
                 String.format(
                     "dev.restate.common.Target.service(%s.SERVICE_NAME, \"%s\")",
-                    h.metadataClass, h.name);
+                    h.metadataClass, h.restateName);
             case VIRTUAL_OBJECT ->
                 String.format(
                     "dev.restate.common.Target.virtualObject(%s.SERVICE_NAME, %s, \"%s\")",
-                    h.metadataClass, options.param(0), h.name);
+                    h.metadataClass, options.param(0), h.restateName);
             case WORKFLOW ->
                 String.format(
                     "dev.restate.common.Target.workflow(%s.SERVICE_NAME, %s, \"%s\")",
-                    h.metadataClass, options.param(0), h.name);
+                    h.metadataClass, options.param(0), h.restateName);
           };
         });
     handlebars.registerHelpers(StringEscapeUtils.class);
@@ -84,7 +84,7 @@ public class HandlebarsTemplateEngine {
 
   public void generate(ThrowingFunction<String, Writer> createFile, Service service)
       throws Throwable {
-    String fileName = service.getGeneratedClassFqcnPrefix() + this.baseTemplateName;
+    String fileName = service.getFqcnGeneratedNamePrefix() + this.baseTemplateName;
     try (Writer out = createFile.apply(fileName)) {
       this.templates
           .get(service.getServiceType())
@@ -105,14 +105,11 @@ public class HandlebarsTemplateEngine {
     public final String originalClassFqcn;
     public final String generatedClassSimpleNamePrefix;
     public final String generatedClassSimpleName;
-    public final String serviceName;
+    public final String restateServiceName;
     public final String documentation;
 
     public final String metadataClass;
-    public final String requestsClass;
 
-    public final boolean contextClientEnabled;
-    public final boolean ingressClientEnabled;
     public final String serdeFactoryDecl;
     public final String serdeFactoryRef;
 
@@ -127,15 +124,12 @@ public class HandlebarsTemplateEngine {
         Service inner, String baseTemplateName, Set<String> handlerNamesToPrefix) {
       this.originalClassPkg = inner.getTargetPkg().toString();
       this.originalClassFqcn = inner.getTargetFqcn().toString();
-      this.generatedClassSimpleNamePrefix = inner.getSimpleServiceName();
+      this.generatedClassSimpleNamePrefix = inner.getSimpleClassGeneratedNamePrefix();
       this.generatedClassSimpleName = this.generatedClassSimpleNamePrefix + baseTemplateName;
-      this.serviceName = inner.getFullyQualifiedServiceName();
+      this.restateServiceName = inner.getRestateServiceName();
 
-      this.metadataClass = this.generatedClassSimpleNamePrefix + "Metadata";
-      this.requestsClass = this.generatedClassSimpleNamePrefix + "Requests";
+      this.metadataClass = this.generatedClassSimpleNamePrefix + "Handlers.Metadata";
 
-      this.contextClientEnabled = inner.isContextClientEnabled();
-      this.ingressClientEnabled = inner.isIngressClientEnabled();
       this.serdeFactoryDecl = inner.getSerdeFactoryDecl();
       this.serdeFactoryRef = metadataClass + ".SERDE_FACTORY";
 
@@ -159,7 +153,8 @@ public class HandlebarsTemplateEngine {
 
   static class HandlerTemplateModel {
     public final String name;
-    public final String methodName;
+    public final String handlersClassMethodName;
+    public final String restateName;
     public final String handlerType;
     public final boolean isWorkflow;
     public final boolean isShared;
@@ -191,7 +186,9 @@ public class HandlebarsTemplateEngine {
         String metadataClass,
         Set<String> handlerNamesToPrefix) {
       this.name = inner.name().toString();
-      this.methodName = (handlerNamesToPrefix.contains(this.name) ? "_" : "") + this.name;
+      this.handlersClassMethodName =
+          (handlerNamesToPrefix.contains(this.name) ? "_" : "") + this.name;
+      this.restateName = inner.restateName();
       this.handlerType = inner.handlerType().toString();
       this.isWorkflow = inner.handlerType() == HandlerType.WORKFLOW;
       this.isShared = inner.handlerType() == HandlerType.SHARED;

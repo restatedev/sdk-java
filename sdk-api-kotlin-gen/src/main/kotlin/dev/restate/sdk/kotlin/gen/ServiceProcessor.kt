@@ -43,32 +43,14 @@ class ServiceProcessor(private val logger: KSPLogger, private val codeGenerator:
               ServiceType.WORKFLOW to "templates/ServiceDefinitionFactory",
               ServiceType.VIRTUAL_OBJECT to "templates/ServiceDefinitionFactory"),
           RESERVED_METHOD_NAMES)
-  private val clientCodegen: HandlebarsTemplateEngine =
+  private val handlersCodegen: HandlebarsTemplateEngine =
       HandlebarsTemplateEngine(
-          "Client",
+          "Handlers",
           ClassPathTemplateLoader(),
           mapOf(
-              ServiceType.SERVICE to "templates/Client",
-              ServiceType.WORKFLOW to "templates/Client",
-              ServiceType.VIRTUAL_OBJECT to "templates/Client"),
-          RESERVED_METHOD_NAMES)
-  private val metadataCodegen: HandlebarsTemplateEngine =
-      HandlebarsTemplateEngine(
-          "Metadata",
-          ClassPathTemplateLoader(),
-          mapOf(
-              ServiceType.SERVICE to "templates/Metadata",
-              ServiceType.WORKFLOW to "templates/Metadata",
-              ServiceType.VIRTUAL_OBJECT to "templates/Metadata"),
-          RESERVED_METHOD_NAMES)
-  private val requestsCodegen: HandlebarsTemplateEngine =
-      HandlebarsTemplateEngine(
-          "Requests",
-          ClassPathTemplateLoader(),
-          mapOf(
-              ServiceType.SERVICE to "templates/Requests",
-              ServiceType.WORKFLOW to "templates/Requests",
-              ServiceType.VIRTUAL_OBJECT to "templates/Requests"),
+              ServiceType.SERVICE to "templates/Handlers",
+              ServiceType.WORKFLOW to "templates/Handlers",
+              ServiceType.VIRTUAL_OBJECT to "templates/Handlers"),
           RESERVED_METHOD_NAMES)
 
   @OptIn(KspExperimental::class)
@@ -86,7 +68,7 @@ class ServiceProcessor(private val logger: KSPLogger, private val codeGenerator:
             .map {
               val serviceBuilder = Service.builder()
               serviceBuilder.withServiceType(it.first.serviceType)
-              serviceBuilder.withServiceName(it.first.resolveName(it.second))
+              serviceBuilder.withRestateName(it.first.resolveName(it.second))
 
               converter.visitAnnotated(it.second, serviceBuilder)
 
@@ -112,11 +94,7 @@ class ServiceProcessor(private val logger: KSPLogger, private val codeGenerator:
               .writer(Charset.defaultCharset())
         }
         this.bindableServiceFactoryCodegen.generate(fileCreator, service.second)
-        this.metadataCodegen.generate(fileCreator, service.second)
-        this.requestsCodegen.generate(fileCreator, service.second)
-        if (service.second.isContextClientEnabled || service.second.isIngressClientEnabled) {
-          this.clientCodegen.generate(fileCreator, service.second)
-        }
+        this.handlersCodegen.generate(fileCreator, service.second)
       } catch (ex: Throwable) {
         throw RuntimeException(ex)
       }
@@ -236,7 +214,7 @@ class ServiceProcessor(private val logger: KSPLogger, private val codeGenerator:
     try {
       writer.use {
         for (service in services) {
-          it.write("${service.second.generatedClassFqcnPrefix}ServiceDefinitionFactory")
+          it.write("${service.second.fqcnGeneratedNamePrefix}ServiceDefinitionFactory")
           it.newLine()
         }
       }

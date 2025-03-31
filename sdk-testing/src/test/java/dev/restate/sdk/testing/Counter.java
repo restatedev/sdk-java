@@ -10,12 +10,14 @@ package dev.restate.sdk.testing;
 
 import dev.restate.sdk.ObjectContext;
 import dev.restate.sdk.annotation.Handler;
+import dev.restate.sdk.annotation.Name;
 import dev.restate.sdk.annotation.VirtualObject;
 import dev.restate.sdk.types.StateKey;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-@VirtualObject(name = "Counter")
+@VirtualObject
+@Name("Counter")
 public class Counter {
 
   private static final Logger LOG = LogManager.getLogger(Counter.class);

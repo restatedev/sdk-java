@@ -9,7 +9,7 @@
 package dev.restate.sdk.testservices.contracts
 
 import dev.restate.sdk.annotation.*
-import dev.restate.sdk.kotlin.ObjectContext
+import dev.restate.sdk.kotlin.*
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -21,14 +21,16 @@ enum class BlockingOperation {
 
 interface CancelTest {
 
-  @VirtualObject(name = "CancelTestRunner")
+  @VirtualObject
+@Name( "CancelTestRunner")
   interface Runner {
     @Exclusive suspend fun startTest(context: ObjectContext, operation: BlockingOperation)
 
     @Exclusive suspend fun verifyTest(context: ObjectContext): Boolean
   }
 
-  @VirtualObject(name = "CancelTestBlockingService")
+  @VirtualObject
+@Name( "CancelTestBlockingService")
   interface BlockingService {
     @Exclusive suspend fun block(context: ObjectContext, operation: BlockingOperation)
 

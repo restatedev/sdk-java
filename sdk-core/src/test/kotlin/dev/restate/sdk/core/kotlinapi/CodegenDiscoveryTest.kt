@@ -8,11 +8,13 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core.kotlinapi
 
+import dev.restate.sdk.Context
 import dev.restate.sdk.core.AssertUtils.assertThatDiscovery
 import dev.restate.sdk.core.generated.manifest.Handler
 import dev.restate.sdk.core.generated.manifest.Input
 import dev.restate.sdk.core.generated.manifest.Output
 import dev.restate.sdk.core.generated.manifest.Service
+import org.assertj.core.api.Assertions
 import org.assertj.core.api.InstanceOfAssertFactories.type
 import org.junit.jupiter.api.Test
 
@@ -46,6 +48,19 @@ class CodegenDiscoveryTest {
         .extracting({ it.output }, type(Output::class.java))
         .extracting { it.contentType }
         .isEqualTo("application/vnd.my.custom")
+  }
+
+  @Test
+  fun explicitNames() {
+    assertThatDiscovery(object : GreeterWithExplicitName {
+      override fun greet(context: dev.restate.sdk.kotlin.Context, request: String): String {
+        TODO("Not yet implemented")
+      }
+    })
+        .extractingService("MyExplicitName")
+        .extractingHandler("my_greeter")
+    Assertions.assertThat(GreeterWithExplicitNameHandlers.Metadata.SERVICE_NAME)
+        .isEqualTo("MyExplicitName")
   }
 
   @Test
