@@ -95,7 +95,7 @@ public sealed class Request<Req, Res> permits SendRequest {
     return new Builder<>(target, TypeTag.of(Serde.RAW), TypeTag.of(Serde.RAW), request);
   }
 
-  public static final class Builder<Req, Res> {
+  public static final class Builder<Req, Res> implements RequestOptionsBuilder {
     private final Target target;
     private final TypeTag<Req> reqTypeTag;
     private final TypeTag<Res> resTypeTag;
@@ -125,20 +125,15 @@ public sealed class Request<Req, Res> permits SendRequest {
       this.request = request;
     }
 
-    /**
-     * @param idempotencyKey Idempotency key to attach in the request.
-     * @return this instance, so the builder can be used fluently.
-     */
+    /** {@inheritDoc} */
+    @Override
     public Builder<Req, Res> idempotencyKey(String idempotencyKey) {
       this.idempotencyKey = idempotencyKey;
       return this;
     }
 
-    /**
-     * @param key header key
-     * @param value header value
-     * @return this instance, so the builder can be used fluently.
-     */
+    /** {@inheritDoc} */
+    @Override
     public Builder<Req, Res> header(String key, String value) {
       if (this.headers == null) {
         this.headers = new LinkedHashMap<>();
@@ -147,10 +142,8 @@ public sealed class Request<Req, Res> permits SendRequest {
       return this;
     }
 
-    /**
-     * @param newHeaders headers to send together with the request.
-     * @return this instance, so the builder can be used fluently.
-     */
+    /** {@inheritDoc} */
+    @Override
     public Builder<Req, Res> headers(Map<String, String> newHeaders) {
       if (this.headers == null) {
         this.headers = new LinkedHashMap<>();
@@ -159,24 +152,26 @@ public sealed class Request<Req, Res> permits SendRequest {
       return this;
     }
 
+    /** {@inheritDoc} */
+    @Override
     public @Nullable String getIdempotencyKey() {
       return idempotencyKey;
     }
 
-    /**
-     * @param idempotencyKey Idempotency key to attach in the request.
-     */
+    /** {@inheritDoc} */
+    @Override
     public Builder<Req, Res> setIdempotencyKey(@Nullable String idempotencyKey) {
       return idempotencyKey(idempotencyKey);
     }
 
+    /** {@inheritDoc} */
+    @Override
     public @Nullable Map<String, String> getHeaders() {
       return headers;
     }
 
-    /**
-     * @param headers headers to send together with the request.
-     */
+    /** {@inheritDoc} */
+    @Override
     public Builder<Req, Res> setHeaders(@Nullable Map<String, String> headers) {
       return headers(headers);
     }
