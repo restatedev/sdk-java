@@ -20,9 +20,8 @@ import dev.restate.sdk.http.vertx.RestateHttpServer
 import dev.restate.sdk.kotlin.HandlerRunner
 import dev.restate.sdk.kotlin.ObjectContext
 import dev.restate.sdk.kotlin.endpoint.endpoint
-import dev.restate.sdk.kotlin.serialization.KotlinSerializationSerdeFactory
-import dev.restate.sdk.kotlin.serialization.jsonSerde
 import dev.restate.sdk.kotlin.stateKey
+import dev.restate.serde.kotlinx.*
 import io.netty.buffer.Unpooled
 import io.netty.handler.codec.http.HttpResponseStatus
 import io.vertx.core.Vertx

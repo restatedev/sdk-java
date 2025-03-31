@@ -17,8 +17,8 @@ import dev.restate.sdk.endpoint.definition.HandlerType
 import dev.restate.sdk.endpoint.definition.ServiceDefinition
 import dev.restate.sdk.endpoint.definition.ServiceType
 import dev.restate.sdk.kotlin.*
-import dev.restate.sdk.kotlin.serialization.*
 import dev.restate.sdk.types.RetryPolicy
+import dev.restate.serde.kotlinx.*
 import java.util.*
 import kotlin.coroutines.coroutineContext
 import kotlin.time.toKotlinDuration

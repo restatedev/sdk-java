@@ -41,12 +41,12 @@ class ProxyImpl : Proxy {
   override suspend fun oneWayCall(context: Context, request: ProxyRequest): String =
       context
           .send(
-            Request.of(request.toTarget(), Serde.RAW, Serde.SLICE, request.message)
-                  .also {
-                    if (request.idempotencyKey != null) {
-                      it.idempotencyKey = request.idempotencyKey
-                    }
-                  }, request.delayMillis?.milliseconds ?: Duration.ZERO)
+              Request.of(request.toTarget(), Serde.RAW, Serde.SLICE, request.message).also {
+                if (request.idempotencyKey != null) {
+                  it.idempotencyKey = request.idempotencyKey
+                }
+              },
+              request.delayMillis?.milliseconds ?: Duration.ZERO)
           .invocationId()
 
   override suspend fun manyCalls(context: Context, requests: List<ManyCallRequest>) {
@@ -64,7 +64,8 @@ class ProxyImpl : Proxy {
                   if (request.proxyRequest.idempotencyKey != null) {
                     it.idempotencyKey = request.proxyRequest.idempotencyKey
                   }
-                }, (request.proxyRequest.delayMillis?.milliseconds ?: Duration.ZERO))
+                },
+            (request.proxyRequest.delayMillis?.milliseconds ?: Duration.ZERO))
       } else {
         val awaitable =
             context.call(

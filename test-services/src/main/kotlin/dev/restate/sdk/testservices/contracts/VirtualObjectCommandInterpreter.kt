@@ -14,7 +14,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @VirtualObject
-  @Name( "VirtualObjectCommandInterpreter")
+@Name("VirtualObjectCommandInterpreter")
 interface VirtualObjectCommandInterpreter {
 
   @Serializable sealed interface AwaitableCommand

@@ -17,7 +17,10 @@ val KNOWN_SERVICES_FACTORIES: Map<String, () -> Any> =
     mapOf(
         AwakeableHolderHandlers.Metadata.SERVICE_NAME to { AwakeableHolderImpl() },
         BlockAndWaitWorkflowHandlers.Metadata.SERVICE_NAME to { BlockAndWaitWorkflowImpl() },
-        CancelTestBlockingServiceHandlers.Metadata.SERVICE_NAME to { CancelTestImpl.BlockingService() },
+        CancelTestBlockingServiceHandlers.Metadata.SERVICE_NAME to
+            {
+              CancelTestImpl.BlockingService()
+            },
         CancelTestRunnerHandlers.Metadata.SERVICE_NAME to { CancelTestImpl.RunnerImpl() },
         CounterHandlers.Metadata.SERVICE_NAME to { CounterImpl() },
         FailingHandlers.Metadata.SERVICE_NAME to { FailingImpl() },
@@ -35,7 +38,10 @@ val KNOWN_SERVICES_FACTORIES: Map<String, () -> Any> =
         interpreterName(0) to { ObjectInterpreterImpl.getInterpreterDefinition(0) },
         interpreterName(1) to { ObjectInterpreterImpl.getInterpreterDefinition(1) },
         interpreterName(2) to { ObjectInterpreterImpl.getInterpreterDefinition(2) },
-        ServiceInterpreterHelperHandlers.Metadata.SERVICE_NAME to { ServiceInterpreterHelperImpl() })
+        ServiceInterpreterHelperHandlers.Metadata.SERVICE_NAME to
+            {
+              ServiceInterpreterHelperImpl()
+            })
 
 val NEEDS_EXPERIMENTAL_CONTEXT: Set<String> = setOf()
 

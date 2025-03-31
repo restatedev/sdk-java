@@ -12,7 +12,7 @@ import dev.restate.sdk.annotation.*
 import dev.restate.sdk.kotlin.*
 
 @Workflow
-@Name( "BlockAndWaitWorkflow")
+@Name("BlockAndWaitWorkflow")
 interface BlockAndWaitWorkflow {
   @Workflow suspend fun run(context: WorkflowContext, input: String): String
 

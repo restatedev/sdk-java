@@ -13,7 +13,7 @@ import dev.restate.sdk.kotlin.*
 
 /** Collection of various utilities/corner cases scenarios used by tests */
 @Service
-@Name( "TestUtilsService")
+@Name("TestUtilsService")
 interface TestUtilsService {
   /** Just echo */
   @Handler suspend fun echo(context: Context, input: String): String

@@ -8,4 +8,6 @@ description = "Restate Client to interact with services from within other Kotlin
 dependencies {
   api(project(":client"))
   implementation(libs.kotlinx.coroutines.core)
+
+  runtimeOnly(project(":sdk-serde-kotlinx"))
 }

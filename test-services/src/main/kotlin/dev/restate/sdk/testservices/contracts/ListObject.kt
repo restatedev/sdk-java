@@ -12,7 +12,7 @@ import dev.restate.sdk.annotation.*
 import dev.restate.sdk.kotlin.*
 
 @VirtualObject
-@Name( "ListObject")
+@Name("ListObject")
 interface ListObject {
   /** Append a value to the list object */
   @Handler suspend fun append(context: ObjectContext, value: String)

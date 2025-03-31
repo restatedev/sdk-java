@@ -97,7 +97,7 @@ class ObjectInterpreterImpl(private val layer: Int) : ObjectInterpreter {
                   Request.of(
                       interpretTarget(layer + 1, cmd.key.toString()),
                       ObjectInterpreterHandlers.Metadata.Serde.INTERPRET_INPUT,
-                    ObjectInterpreterHandlers.Metadata.Serde.INTERPRET_OUTPUT,
+                      ObjectInterpreterHandlers.Metadata.Serde.INTERPRET_OUTPUT,
                       cmd.program))
           promises[i] = { awaitable.await() }
         }
@@ -109,8 +109,8 @@ class ObjectInterpreterImpl(private val layer: Int) : ObjectInterpreter {
         is CallSlowService -> {
           val expected = "hello-$i"
           val awaitable =
-              ServiceInterpreterHelperHandlers
-                  .echoLater(EchoLaterRequest(cmd.sleep, expected)).call(ctx)
+              ServiceInterpreterHelperHandlers.echoLater(EchoLaterRequest(cmd.sleep, expected))
+                  .call(ctx)
           promises[i] = { checkAwaitable(awaitable, expected, i, cmd) }
         }
         is ClearState -> {
@@ -123,17 +123,20 @@ class ObjectInterpreterImpl(private val layer: Int) : ObjectInterpreter {
           ctx.set(COUNTER, (ctx.get(COUNTER) ?: 0) + 1)
         }
         is IncrementStateCounterIndirectly -> {
-          ServiceInterpreterHelperHandlers .incrementIndirectly(interpreterId(ctx)).send(ctx)
+          ServiceInterpreterHelperHandlers.incrementIndirectly(interpreterId(ctx)).send(ctx)
         }
         is IncrementStateCounterViaAwakeable -> {
           // Dancing in the mooonlight!
           val awakeable = ctx.awakeable<String>()
-          ServiceInterpreterHelperHandlers.incrementViaAwakeableDance( IncrementViaAwakeableDanceRequest(interpreterId(ctx), awakeable.id)).send(ctx)
+          ServiceInterpreterHelperHandlers.incrementViaAwakeableDance(
+                  IncrementViaAwakeableDanceRequest(interpreterId(ctx), awakeable.id))
+              .send(ctx)
           val theirPromiseIdForUsToResolve = awakeable.await()
           ctx.awakeableHandle(theirPromiseIdForUsToResolve).resolve("ok")
         }
         is IncrementViaDelayedCall -> {
-          ServiceInterpreterHelperHandlers .incrementIndirectly(interpreterId(ctx)).send(ctx, delay = cmd.duration.milliseconds)
+          ServiceInterpreterHelperHandlers.incrementIndirectly(interpreterId(ctx))
+              .send(ctx, delay = cmd.duration.milliseconds)
         }
         is RecoverTerminalCall -> {
           var caught = false
@@ -148,7 +151,7 @@ class ObjectInterpreterImpl(private val layer: Int) : ObjectInterpreter {
           }
         }
         is RecoverTerminalCallMaybeUnAwaited -> {
-          val awaitable =  ServiceInterpreterHelperHandlers.terminalFailure().call(ctx)
+          val awaitable = ServiceInterpreterHelperHandlers.terminalFailure().call(ctx)
           promises[i] = { checkAwaitableFails(awaitable, i, cmd) }
         }
         is RejectAwakeable -> {

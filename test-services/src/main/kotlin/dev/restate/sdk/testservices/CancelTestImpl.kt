@@ -47,7 +47,8 @@ class CancelTestImpl {
       awakeable.await()
 
       when (operation) {
-        BlockingOperation.CALL -> CancelTestBlockingServiceHandlers.block(context.key(), operation).call(context).await()
+        BlockingOperation.CALL ->
+            CancelTestBlockingServiceHandlers.block(context.key(), operation).call(context).await()
         BlockingOperation.SLEEP -> context.sleep(1024.days)
         BlockingOperation.AWAKEABLE -> {
           val uncompletable: Awakeable<String> = context.awakeable<String>()

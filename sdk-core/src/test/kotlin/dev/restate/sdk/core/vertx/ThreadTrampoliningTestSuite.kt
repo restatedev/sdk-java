@@ -18,9 +18,9 @@ import dev.restate.sdk.endpoint.definition.ServiceType
 import dev.restate.sdk.kotlin.Context
 import dev.restate.sdk.kotlin.HandlerRunner
 import dev.restate.sdk.kotlin.runBlock
-import dev.restate.sdk.kotlin.serialization.KotlinSerializationSerdeFactory
-import dev.restate.sdk.serde.jackson.JacksonSerdeFactory
 import dev.restate.serde.Serde
+import dev.restate.serde.jackson.JacksonSerdeFactory
+import dev.restate.serde.kotlinx.*
 import io.vertx.core.Vertx
 import java.util.stream.Stream
 import kotlin.coroutines.coroutineContext

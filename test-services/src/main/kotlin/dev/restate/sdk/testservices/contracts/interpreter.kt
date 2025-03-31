@@ -228,7 +228,7 @@ object CommandSerializer :
 @Serializable data class Program(val commands: List<InterpreterCommand>)
 
 @VirtualObject
-@Name( "ObjectInterpreter")
+@Name("ObjectInterpreter")
 interface ObjectInterpreter {
 
   @Shared suspend fun counter(ctx: SharedObjectContext): Int
@@ -247,7 +247,7 @@ data class IncrementViaAwakeableDanceRequest(
 )
 
 @Service
-@Name( "ServiceInterpreterHelper")
+@Name("ServiceInterpreterHelper")
 interface ServiceInterpreterHelper {
   @Handler suspend fun ping(ctx: Context)
 

@@ -8,13 +8,11 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core.kotlinapi
 
-import dev.restate.sdk.kotlin.*
 import dev.restate.sdk.annotation.*
+import dev.restate.sdk.kotlin.*
 
 @Service
 @Name("MyExplicitName")
 interface GreeterWithExplicitName {
-  @Handler
-  @Name("my_greeter")
-  fun greet(context: Context, request: String): String
+  @Handler @Name("my_greeter") fun greet(context: Context, request: String): String
 }

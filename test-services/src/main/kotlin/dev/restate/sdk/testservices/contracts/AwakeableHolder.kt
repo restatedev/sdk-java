@@ -14,7 +14,7 @@ import dev.restate.sdk.kotlin.*
 // This is a generic utility service that can be used in various situations where
 // we need to synchronize the services with the test runner using an awakeable.
 @VirtualObject
-@Name( "AwakeableHolder")
+@Name("AwakeableHolder")
 interface AwakeableHolder {
   @Exclusive suspend fun hold(context: ObjectContext, id: String)
 

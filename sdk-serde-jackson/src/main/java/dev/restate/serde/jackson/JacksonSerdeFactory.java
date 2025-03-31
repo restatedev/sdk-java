@@ -6,9 +6,9 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-package dev.restate.sdk.serde.jackson;
+package dev.restate.serde.jackson;
 
-import static dev.restate.sdk.serde.jackson.JacksonSerdes.sneakyThrow;
+import static dev.restate.serde.jackson.JacksonSerdes.sneakyThrow;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JavaType;

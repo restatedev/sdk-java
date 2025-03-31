@@ -9,8 +9,8 @@
 package dev.restate.sdk.testservices
 
 import dev.restate.sdk.kotlin.*
-import dev.restate.sdk.testservices.contracts.NonDeterministic
 import dev.restate.sdk.testservices.contracts.CounterHandlers
+import dev.restate.sdk.testservices.contracts.NonDeterministic
 import dev.restate.sdk.types.StateKey
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.milliseconds
@@ -65,7 +65,7 @@ class NonDeterministicImpl : NonDeterministic {
   }
 
   private suspend fun incrementCounter(context: ObjectContext) {
-    CounterHandlers.add( context.key(), 1).call(context).await()
+    CounterHandlers.add(context.key(), 1).call(context).await()
   }
 
   private fun doLeftAction(context: ObjectContext): Boolean {

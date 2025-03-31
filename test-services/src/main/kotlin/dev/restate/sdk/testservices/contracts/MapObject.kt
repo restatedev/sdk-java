@@ -15,7 +15,7 @@ import kotlinx.serialization.Serializable
 @Serializable data class Entry(val key: String, val value: String)
 
 @VirtualObject
-@Name( "MapObject")
+@Name("MapObject")
 interface MapObject {
   /**
    * Set value in map.

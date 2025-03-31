@@ -22,7 +22,7 @@ enum class BlockingOperation {
 interface CancelTest {
 
   @VirtualObject
-@Name( "CancelTestRunner")
+  @Name("CancelTestRunner")
   interface Runner {
     @Exclusive suspend fun startTest(context: ObjectContext, operation: BlockingOperation)
 
@@ -30,7 +30,7 @@ interface CancelTest {
   }
 
   @VirtualObject
-@Name( "CancelTestBlockingService")
+  @Name("CancelTestBlockingService")
   interface BlockingService {
     @Exclusive suspend fun block(context: ObjectContext, operation: BlockingOperation)
 

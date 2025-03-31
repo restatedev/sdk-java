@@ -10,12 +10,12 @@ package dev.restate.sdk.kotlin
 
 import dev.restate.common.Output
 import dev.restate.common.Request
-import dev.restate.sdk.kotlin.serialization.typeTag
 import dev.restate.sdk.types.DurablePromiseKey
 import dev.restate.sdk.types.HandlerRequest
 import dev.restate.sdk.types.StateKey
 import dev.restate.sdk.types.TerminalException
 import dev.restate.serde.TypeTag
+import dev.restate.serde.kotlinx.*
 import java.util.*
 import kotlin.random.Random
 import kotlin.time.Duration

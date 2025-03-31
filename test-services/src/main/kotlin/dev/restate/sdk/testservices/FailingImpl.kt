@@ -41,7 +41,8 @@ class FailingImpl : Failing {
   ): String {
     LOG.info("Invoked failAndHandle")
 
-    FailingHandlers.terminallyFailingCall( context.random().nextUUID().toString(), errorMessage).call(context)
+    FailingHandlers.terminallyFailingCall(context.random().nextUUID().toString(), errorMessage)
+        .call(context)
         .await()
 
     throw IllegalStateException("This should be unreachable")

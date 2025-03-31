@@ -17,11 +17,11 @@ package dev.restate.serde;
  * </ul>
  *
  * When using the Java APIs, a Jackson based implementation is used by default, see {@link
- * dev.restate.sdk.serde.jackson.JacksonSerdeFactory} in {@code sdk-serde-jackson} module.
+ * dev.restate.serde.jackson.JacksonSerdeFactory} in {@code sdk-serde-jackson} module.
  *
  * <p>When using the Kotlin APIs, a Kotlin Serialization implementation is used by default, see
- * {@link dev.restate.sdk.kotlin.serialization.KotlinSerializationSerdeFactory} in {@code
- * sdk-api-kotlin} module.
+ * {@link dev.restate.serde.kotlinx.KotlinSerializationSerdeFactory} in {@code sdk-api-kotlin}
+ * module.
  *
  * <p>You can override the default factory used for a given service by adding the annotation {@link
  * dev.restate.sdk.annotation.CustomSerdeFactory} on the interface/class annotated with {@link

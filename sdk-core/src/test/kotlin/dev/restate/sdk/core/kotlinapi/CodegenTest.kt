@@ -19,11 +19,11 @@ import dev.restate.sdk.core.TestDefinitions.testInvocation
 import dev.restate.sdk.core.TestSerdes
 import dev.restate.sdk.core.statemachine.ProtoUtils.*
 import dev.restate.sdk.kotlin.*
-import dev.restate.sdk.kotlin.serialization.*
 import dev.restate.serde.Serde
 import dev.restate.serde.SerdeFactory
 import dev.restate.serde.TypeRef
 import dev.restate.serde.TypeTag
+import dev.restate.serde.kotlinx.*
 import java.util.stream.Stream
 import kotlinx.serialization.Serializable
 

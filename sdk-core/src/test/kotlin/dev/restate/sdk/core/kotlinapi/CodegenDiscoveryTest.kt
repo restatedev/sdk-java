@@ -52,11 +52,12 @@ class CodegenDiscoveryTest {
 
   @Test
   fun explicitNames() {
-    assertThatDiscovery(object : GreeterWithExplicitName {
-      override fun greet(context: dev.restate.sdk.kotlin.Context, request: String): String {
-        TODO("Not yet implemented")
-      }
-    })
+    assertThatDiscovery(
+            object : GreeterWithExplicitName {
+              override fun greet(context: dev.restate.sdk.kotlin.Context, request: String): String {
+                TODO("Not yet implemented")
+              }
+            })
         .extractingService("MyExplicitName")
         .extractingHandler("my_greeter")
     Assertions.assertThat(GreeterWithExplicitNameHandlers.Metadata.SERVICE_NAME)

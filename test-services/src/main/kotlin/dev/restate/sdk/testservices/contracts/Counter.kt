@@ -15,7 +15,7 @@ import kotlinx.serialization.Serializable
 @Serializable data class CounterUpdateResponse(val oldValue: Long, val newValue: Long)
 
 @VirtualObject
-@Name( "Counter")
+@Name("Counter")
 interface Counter {
   /** Add value to counter */
   @Handler suspend fun add(context: ObjectContext, value: Long): CounterUpdateResponse

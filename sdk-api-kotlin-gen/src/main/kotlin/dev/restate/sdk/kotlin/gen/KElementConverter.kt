@@ -33,10 +33,7 @@ class KElementConverter(
     private val SUPPORTED_CLASS_KIND: Set<ClassKind> = setOf(ClassKind.CLASS, ClassKind.INTERFACE)
     private val EMPTY_PAYLOAD: PayloadType =
         PayloadType(
-            true,
-            "",
-            "Unit",
-            "dev.restate.sdk.kotlin.serialization.KotlinSerializationSerdeFactory.UNIT")
+            true, "", "Unit", "dev.restate.serde.kotlinx.KotlinSerializationSerdeFactory.UNIT")
     private const val RAW_SERDE: String = "dev.restate.serde.Serde.RAW"
   }
 
@@ -94,7 +91,7 @@ class KElementConverter(
           classDeclaration)
     }
 
-    var serdeFactoryDecl = "dev.restate.sdk.kotlin.serialization.KotlinSerializationSerdeFactory()"
+    var serdeFactoryDecl = "dev.restate.serde.kotlinx.KotlinSerializationSerdeFactory()"
     val customSerdeFactory: CustomSerdeFactory? =
         classDeclaration.getAnnotationsByType(CustomSerdeFactory::class).firstOrNull()
     if (customSerdeFactory != null) {
@@ -297,7 +294,7 @@ class KElementConverter(
     return when (ty) {
       builtIns.unitType -> EMPTY_PAYLOAD.serdeDecl
       else ->
-          "SERDE_FACTORY.create(dev.restate.sdk.kotlin.serialization.typeTag<${boxedType(ty, qualifiedTypeName)}>())"
+          "SERDE_FACTORY.create(dev.restate.serde.kotlinx.typeTag<${boxedType(ty, qualifiedTypeName)}>())"
     }
   }
 

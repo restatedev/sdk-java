@@ -84,7 +84,7 @@ class ElementConverter {
           Diagnostic.Kind.WARNING, "The service " + serviceName + " has no handlers", element);
     }
 
-    String serdeFactoryDecl = "new dev.restate.sdk.serde.jackson.JacksonSerdeFactory()";
+    String serdeFactoryDecl = "new dev.restate.serde.jackson.JacksonSerdeFactory()";
     CustomSerdeFactory customSerdeFactory = element.getAnnotation(CustomSerdeFactory.class);
     if (customSerdeFactory != null) {
       serdeFactoryDecl = "new " + getCustomSerdeClassCanonicalName(customSerdeFactory) + "()";

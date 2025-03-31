@@ -12,7 +12,7 @@ import dev.restate.sdk.annotation.*
 import dev.restate.sdk.kotlin.*
 
 @VirtualObject
-@Name( "NonDeterministic")
+@Name("NonDeterministic")
 interface NonDeterministic {
   /** On first invocation sleeps, on second invocation calls */
   @Handler suspend fun eitherSleepOrCall(context: ObjectContext)

@@ -13,13 +13,13 @@ import dev.restate.sdk.kotlin.*
 
 interface KillTest {
   @VirtualObject
-@Name( "KillTestRunner")
+  @Name("KillTestRunner")
   interface Runner {
     @Handler suspend fun startCallTree(context: ObjectContext)
   }
 
   @VirtualObject
-@Name( "KillTestSingleton")
+  @Name("KillTestSingleton")
   interface Singleton {
     @Handler suspend fun recursiveCall(context: ObjectContext)
 

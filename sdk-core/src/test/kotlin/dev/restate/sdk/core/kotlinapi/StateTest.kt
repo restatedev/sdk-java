@@ -14,8 +14,8 @@ import dev.restate.sdk.core.TestSerdes
 import dev.restate.sdk.core.kotlinapi.KotlinAPITests.Companion.testDefinitionForVirtualObject
 import dev.restate.sdk.core.statemachine.ProtoUtils.*
 import dev.restate.sdk.kotlin.*
-import dev.restate.sdk.kotlin.serialization.jsonSerde
 import dev.restate.sdk.types.StateKey
+import dev.restate.serde.kotlinx.*
 import java.util.stream.Stream
 import kotlinx.serialization.Serializable
 
