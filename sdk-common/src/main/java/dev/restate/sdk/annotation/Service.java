@@ -18,10 +18,4 @@ import java.lang.annotation.*;
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-public @interface Service {
-  /**
-   * Name of the Service for Restate. If not provided, it will be the simple class name of the
-   * annotated element.
-   */
-  String name() default "";
-}
+public @interface Service {}

@@ -17,11 +17,11 @@ package dev.restate.serde;
  * </ul>
  *
  * When using the Java APIs, a Jackson based implementation is used by default, see {@link
- * dev.restate.sdk.serde.jackson.JacksonSerdeFactory} in {@code sdk-serde-jackson} module.
+ * dev.restate.serde.jackson.JacksonSerdeFactory} in {@code sdk-serde-jackson} module.
  *
  * <p>When using the Kotlin APIs, a Kotlin Serialization implementation is used by default, see
- * {@link dev.restate.sdk.kotlin.serialization.KotlinSerializationSerdeFactory} in {@code
- * sdk-api-kotlin} module.
+ * {@link dev.restate.serde.kotlinx.KotlinSerializationSerdeFactory} in {@code sdk-api-kotlin}
+ * module.
  *
  * <p>You can override the default factory used for a given service by adding the annotation {@link
  * dev.restate.sdk.annotation.CustomSerdeFactory} on the interface/class annotated with {@link
@@ -52,13 +52,13 @@ public interface SerdeFactory {
         @Override
         public <T> Serde<T> create(TypeRef<T> typeRef) {
           throw new UnsupportedOperationException(
-              "No SerdeFactory class was configured. Please configure one.");
+              "No SerdeFactory class was configured. Please configure one. If you're using a Client class together with a generated *Handlers class, the corresponding serde factory will be available in *Handlers.Metadata.SERDE_FACTORY");
         }
 
         @Override
         public <T> Serde<T> create(Class<T> clazz) {
           throw new UnsupportedOperationException(
-              "No SerdeFactory class was configured. Please configure one.");
+              "No SerdeFactory class was configured. Please configure one. If you're using a Client class together with a generated *Handlers class, the corresponding serde factory will be available in *Handlers.Metadata.SERDE_FACTORY");
         }
       };
 }

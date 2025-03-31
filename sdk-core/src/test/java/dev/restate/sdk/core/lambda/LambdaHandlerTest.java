@@ -23,7 +23,7 @@ import com.google.protobuf.MessageLite;
 import dev.restate.sdk.core.generated.manifest.EndpointManifestSchema;
 import dev.restate.sdk.core.generated.manifest.Service;
 import dev.restate.sdk.core.generated.protocol.Protocol;
-import dev.restate.sdk.core.lambda.testservices.JavaCounterMetadata;
+import dev.restate.sdk.core.lambda.testservices.JavaCounterServiceHandlers;
 import dev.restate.sdk.core.lambda.testservices.MyServicesHandler;
 import dev.restate.sdk.core.statemachine.MessageHeader;
 import dev.restate.sdk.core.statemachine.ProtoUtils;
@@ -44,7 +44,8 @@ class LambdaHandlerTest {
     // Mock request
     APIGatewayProxyRequestEvent request = new APIGatewayProxyRequestEvent();
     request.setHeaders(Map.of("content-type", ProtoUtils.serviceProtocolContentTypeHeader()));
-    request.setPath("/a/path/prefix/invoke/" + JavaCounterMetadata.SERVICE_NAME + "/get");
+    request.setPath(
+        "/a/path/prefix/invoke/" + JavaCounterServiceHandlers.Metadata.SERVICE_NAME + "/get");
     request.setHttpMethod("POST");
     request.setIsBase64Encoded(true);
     request.setBody(
@@ -96,7 +97,7 @@ class LambdaHandlerTest {
 
     assertThat(discoveryResponse.getServices())
         .map(Service::getName)
-        .containsOnly(JavaCounterMetadata.SERVICE_NAME);
+        .containsOnly(JavaCounterServiceHandlers.Metadata.SERVICE_NAME);
   }
 
   private static byte[] serializeEntries(MessageLite... msgs) throws IOException {

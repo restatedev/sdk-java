@@ -10,10 +10,12 @@ package dev.restate.sdk.springboot.java;
 
 import dev.restate.sdk.Context;
 import dev.restate.sdk.annotation.Handler;
+import dev.restate.sdk.annotation.Name;
 import dev.restate.sdk.springboot.RestateService;
 import org.springframework.beans.factory.annotation.Value;
 
-@RestateService(name = "greeter")
+@RestateService
+@Name("greeter")
 public class Greeter {
 
   @Value("${greetingPrefix}")

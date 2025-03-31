@@ -18,7 +18,7 @@ public class {{generatedClassSimpleName}} implements dev.restate.sdk.endpoint.de
             java.util.List.of(
             {{#handlers}}
                 dev.restate.sdk.endpoint.definition.HandlerDefinition.of(
-                "{{name}}",
+                "{{restateName}}",
                 {{#if isExclusive}}dev.restate.sdk.endpoint.definition.HandlerType.EXCLUSIVE{{else if isWorkflow}}dev.restate.sdk.endpoint.definition.HandlerType.WORKFLOW{{else}}dev.restate.sdk.endpoint.definition.HandlerType.SHARED{{/if}},
                 {{inputSerdeRef}},
                 {{outputSerdeRef}},

@@ -9,7 +9,7 @@
 package dev.restate.sdk.testservices
 
 import dev.restate.sdk.kotlin.*
-import dev.restate.sdk.testservices.contracts.CounterClient
+import dev.restate.sdk.testservices.contracts.CounterHandlers
 import dev.restate.sdk.testservices.contracts.NonDeterministic
 import dev.restate.sdk.types.StateKey
 import java.util.concurrent.ConcurrentHashMap
@@ -24,7 +24,7 @@ class NonDeterministicImpl : NonDeterministic {
     if (doLeftAction(context)) {
       context.sleep(100.milliseconds)
     } else {
-      CounterClient.fromContext(context, "abc").get().await()
+      CounterHandlers.get("abc").call(context).await()
     }
     // This is required to cause a suspension after the non-deterministic operation
     context.sleep(100.milliseconds)
@@ -33,9 +33,9 @@ class NonDeterministicImpl : NonDeterministic {
 
   override suspend fun callDifferentMethod(context: ObjectContext) {
     if (doLeftAction(context)) {
-      CounterClient.fromContext(context, "abc").get().await()
+      CounterHandlers.get("abc").call(context).await()
     } else {
-      CounterClient.fromContext(context, "abc").reset().await()
+      CounterHandlers.reset("abc").call(context).await()
     }
     // This is required to cause a suspension after the non-deterministic operation
     context.sleep(100.milliseconds)
@@ -44,9 +44,9 @@ class NonDeterministicImpl : NonDeterministic {
 
   override suspend fun backgroundInvokeWithDifferentTargets(context: ObjectContext) {
     if (doLeftAction(context)) {
-      CounterClient.fromContext(context, "abc").send().get()
+      CounterHandlers.get("abc").call(context).await()
     } else {
-      CounterClient.fromContext(context, "abc").send().reset()
+      CounterHandlers.reset("abc").call(context).await()
     }
     // This is required to cause a suspension after the non-deterministic operation
     context.sleep(100.milliseconds)
@@ -65,7 +65,7 @@ class NonDeterministicImpl : NonDeterministic {
   }
 
   private suspend fun incrementCounter(context: ObjectContext) {
-    CounterClient.fromContext(context, context.key()).send().add(1)
+    CounterHandlers.add(context.key(), 1).call(context).await()
   }
 
   private fun doLeftAction(context: ObjectContext): Boolean {

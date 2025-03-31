@@ -11,7 +11,6 @@ package dev.restate.sdk.core.javaapi;
 import static dev.restate.sdk.core.javaapi.JavaAPITests.testDefinitionForService;
 
 import dev.restate.common.Request;
-import dev.restate.common.SendRequest;
 import dev.restate.common.Slice;
 import dev.restate.common.Target;
 import dev.restate.sdk.core.CallTestSuite;
@@ -30,7 +29,7 @@ public class CallTest extends CallTestSuite {
         Serde.VOID,
         (context, unused) -> {
           context.send(
-              SendRequest.of(target, body.toByteArray())
+              Request.of(target, body.toByteArray())
                   .headers(headers)
                   .idempotencyKey(idempotencyKey));
           return null;

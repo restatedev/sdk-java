@@ -11,9 +11,7 @@
 package dev.restate.sdk.testservices.contracts
 
 import dev.restate.sdk.annotation.*
-import dev.restate.sdk.kotlin.Context
-import dev.restate.sdk.kotlin.ObjectContext
-import dev.restate.sdk.kotlin.SharedObjectContext
+import dev.restate.sdk.kotlin.*
 import kotlinx.serialization.*
 import kotlinx.serialization.json.*
 import kotlinx.serialization.json.intOrNull
@@ -229,7 +227,8 @@ object CommandSerializer :
 
 @Serializable data class Program(val commands: List<InterpreterCommand>)
 
-@VirtualObject(name = "ObjectInterpreter")
+@VirtualObject
+@Name("ObjectInterpreter")
 interface ObjectInterpreter {
 
   @Shared suspend fun counter(ctx: SharedObjectContext): Int
@@ -247,7 +246,8 @@ data class IncrementViaAwakeableDanceRequest(
     val txPromiseId: String
 )
 
-@Service(name = "ServiceInterpreterHelper")
+@Service
+@Name("ServiceInterpreterHelper")
 interface ServiceInterpreterHelper {
   @Handler suspend fun ping(ctx: Context)
 

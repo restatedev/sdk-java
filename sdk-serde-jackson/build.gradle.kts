@@ -10,6 +10,8 @@ description = "Restate SDK Jackson integration"
 dependencies {
   compileOnly(libs.jspecify)
 
+  implementation(project(":common"))
+
   api(libs.jackson.databind)
   implementation(libs.jackson.core)
 
@@ -18,6 +20,6 @@ dependencies {
 
   testImplementation(libs.junit.jupiter)
   testImplementation(libs.assertj)
-
-  implementation(project(":sdk-common"))
 }
+
+tasks.withType<Javadoc> { isFailOnError = false }

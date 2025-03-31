@@ -31,10 +31,8 @@ import javax.tools.StandardLocation;
 @SupportedSourceVersion(SourceVersion.RELEASE_17)
 public class ServiceProcessor extends AbstractProcessor {
 
-  private HandlebarsTemplateEngine metadataCodegen;
   private HandlebarsTemplateEngine serviceDefinitionFactoryCodegen;
-  private HandlebarsTemplateEngine clientCodegen;
-  private HandlebarsTemplateEngine requestsCodegen;
+  private HandlebarsTemplateEngine handlersCodegen;
 
   private static final Set<String> RESERVED_METHOD_NAMES =
       Set.of("send", "submit", "workflowHandle");
@@ -45,18 +43,6 @@ public class ServiceProcessor extends AbstractProcessor {
 
     FilerTemplateLoader filerTemplateLoader = new FilerTemplateLoader(processingEnv.getFiler());
 
-    this.metadataCodegen =
-        new HandlebarsTemplateEngine(
-            "Metadata",
-            filerTemplateLoader,
-            Map.of(
-                ServiceType.WORKFLOW,
-                "templates/Metadata.hbs",
-                ServiceType.SERVICE,
-                "templates/Metadata.hbs",
-                ServiceType.VIRTUAL_OBJECT,
-                "templates/Metadata.hbs"),
-            RESERVED_METHOD_NAMES);
     this.serviceDefinitionFactoryCodegen =
         new HandlebarsTemplateEngine(
             "ServiceDefinitionFactory",
@@ -69,29 +55,17 @@ public class ServiceProcessor extends AbstractProcessor {
                 ServiceType.VIRTUAL_OBJECT,
                 "templates/ServiceDefinitionFactory.hbs"),
             RESERVED_METHOD_NAMES);
-    this.clientCodegen =
+    this.handlersCodegen =
         new HandlebarsTemplateEngine(
-            "Client",
+            "Handlers",
             filerTemplateLoader,
             Map.of(
                 ServiceType.WORKFLOW,
-                "templates/Client.hbs",
+                "templates/Handlers.hbs",
                 ServiceType.SERVICE,
-                "templates/Client.hbs",
+                "templates/Handlers.hbs",
                 ServiceType.VIRTUAL_OBJECT,
-                "templates/Client.hbs"),
-            RESERVED_METHOD_NAMES);
-    this.requestsCodegen =
-        new HandlebarsTemplateEngine(
-            "Requests",
-            filerTemplateLoader,
-            Map.of(
-                ServiceType.WORKFLOW,
-                "templates/Requests.hbs",
-                ServiceType.SERVICE,
-                "templates/Requests.hbs",
-                ServiceType.VIRTUAL_OBJECT,
-                "templates/Requests.hbs"),
+                "templates/Handlers.hbs"),
             RESERVED_METHOD_NAMES);
   }
 
@@ -128,12 +102,8 @@ public class ServiceProcessor extends AbstractProcessor {
       try {
         ThrowingFunction<String, Writer> fileCreator =
             name -> filer.createSourceFile(name, e.getKey()).openWriter();
-        this.metadataCodegen.generate(fileCreator, e.getValue());
         this.serviceDefinitionFactoryCodegen.generate(fileCreator, e.getValue());
-        this.requestsCodegen.generate(fileCreator, e.getValue());
-        if (e.getValue().isContextClientEnabled() || e.getValue().isIngressClientEnabled()) {
-          this.clientCodegen.generate(fileCreator, e.getValue());
-        }
+        this.handlersCodegen.generate(fileCreator, e.getValue());
       } catch (Throwable ex) {
         throw new RuntimeException(ex);
       }
@@ -159,7 +129,7 @@ public class ServiceProcessor extends AbstractProcessor {
             StandardOpenOption.CREATE,
             StandardOpenOption.APPEND)) {
       for (Map.Entry<Element, Service> e : parsedServices) {
-        writer.write(e.getValue().getGeneratedClassFqcnPrefix() + "ServiceDefinitionFactory");
+        writer.write(e.getValue().getFqcnGeneratedNamePrefix() + "ServiceDefinitionFactory");
         writer.write('\n');
       }
     } catch (IOException e) {

@@ -23,10 +23,4 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Service
 @RestateComponent
-public @interface RestateService {
-  /**
-   * Name of the Service for Restate. If not provided, it will be the simple class name of the
-   * annotated element.
-   */
-  String name() default "";
-}
+public @interface RestateService {}

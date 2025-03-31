@@ -133,6 +133,8 @@ public final class Endpoint {
     }
   }
 
+  // --- Factory methods
+
   public static Builder builder() {
     return new Builder();
   }
@@ -143,6 +145,22 @@ public final class Endpoint {
   public static Builder bind(Object object) {
     return new Builder().bind(object);
   }
+
+  /**
+   * @see Builder#bind(Object, HandlerRunner.Options)
+   */
+  public static Builder bind(Object service, HandlerRunner.Options options) {
+    return new Builder().bind(service, options);
+  }
+
+  /**
+   * @see Builder#bind(ServiceDefinition)
+   */
+  public static Builder bind(ServiceDefinition serviceDefinition) {
+    return new Builder().bind(serviceDefinition);
+  }
+
+  // --- Implementation
 
   public ServiceDefinition resolveService(String serviceName) {
     return services.get(serviceName);

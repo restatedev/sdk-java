@@ -55,8 +55,7 @@ public final class ServiceDefinitionFactories {
       return new ServiceDefinitionFactory<>() {
         @Override
         public ServiceDefinition create(
-            Object serviceObject,
-            @org.jetbrains.annotations.Nullable HandlerRunner.Options overrideHandlerOptions) {
+            Object serviceObject, HandlerRunner.@Nullable Options overrideHandlerOptions) {
           return (ServiceDefinition) serviceObject;
         }
 

@@ -8,16 +8,14 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testservices.contracts
 
-import dev.restate.sdk.annotation.Handler
-import dev.restate.sdk.annotation.Shared
-import dev.restate.sdk.annotation.VirtualObject
-import dev.restate.sdk.kotlin.ObjectContext
-import dev.restate.sdk.kotlin.SharedObjectContext
+import dev.restate.sdk.annotation.*
+import dev.restate.sdk.kotlin.*
 import kotlinx.serialization.Serializable
 
 @Serializable data class CounterUpdateResponse(val oldValue: Long, val newValue: Long)
 
-@VirtualObject(name = "Counter")
+@VirtualObject
+@Name("Counter")
 interface Counter {
   /** Add value to counter */
   @Handler suspend fun add(context: ObjectContext, value: Long): CounterUpdateResponse

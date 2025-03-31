@@ -10,265 +10,71 @@ package dev.restate.common;
 
 import dev.restate.serde.Serde;
 import dev.restate.serde.TypeTag;
-import java.time.Duration;
-import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Object encapsulating request parameters.
+ * Interface encapsulating request parameters.
  *
  * @param <Req> the request type
  * @param <Res> the response type
  */
-public sealed class Request<Req, Res> permits SendRequest {
-
-  private final Target target;
-  private final TypeTag<Req> reqTypeTag;
-  private final TypeTag<Res> resTypeTag;
-  private final Req request;
-  @Nullable private final String idempotencyKey;
-  @Nullable private final LinkedHashMap<String, String> headers;
-
-  Request(
-      Target target,
-      TypeTag<Req> reqTypeTag,
-      TypeTag<Res> resTypeTag,
-      Req request,
-      @Nullable String idempotencyKey,
-      @Nullable LinkedHashMap<String, String> headers) {
-    this.target = target;
-    this.reqTypeTag = reqTypeTag;
-    this.resTypeTag = resTypeTag;
-    this.request = request;
-    this.idempotencyKey = idempotencyKey;
-    this.headers = headers;
-  }
-
-  public Target target() {
-    return target;
-  }
-
-  public TypeTag<Req> requestTypeTag() {
-    return reqTypeTag;
-  }
-
-  public TypeTag<Res> responseTypeTag() {
-    return resTypeTag;
-  }
-
-  public Req request() {
-    return request;
-  }
-
-  public @Nullable String idempotencyKey() {
-    return idempotencyKey;
-  }
-
-  public Map<String, String> headers() {
-    if (headers == null) {
-      return Map.of();
-    }
-    return headers;
-  }
+public interface Request<Req, Res> {
 
   /**
-   * Create a new {@link Builder} for the given {@link Target}, request and response {@link TypeTag}
-   * and {@code request} object.
+   * Create a new {@link RequestBuilder} for the given {@link Target}, request and response {@link
+   * TypeTag} and {@code request} object.
    *
-   * <p>When using the annotation processor, you can rely on the generated {@code Client} class or
-   * the generated {@code Requests} class, instead of manually using this builder.
+   * <p>When using the annotation processor, you can rely on the generated {@code Handlers} class,
+   * instead of manually using this builder. For example, for a service class name {@code Greeter},
+   * the corresponding class where all the requests builders are available is named {@code
+   * GreeterHandlers}
    */
-  public static <Req, Res> Builder<Req, Res> of(
+  static <Req, Res> RequestBuilder<Req, Res> of(
       Target target, TypeTag<Req> reqTypeTag, TypeTag<Res> resTypeTag, Req request) {
-    return new Builder<>(target, reqTypeTag, resTypeTag, request);
+    return new RequestImpl.Builder<>(target, reqTypeTag, resTypeTag, request);
   }
 
   /**
-   * Create a new {@link Builder} for the given {@link Target} and {@code request} byte array.
+   * Create a new {@link RequestBuilder} for the given {@link Target} and {@code request} byte
+   * array.
    *
-   * <p>When using the annotation processor, you can rely on the generated {@code Client} class or
-   * the generated {@code Requests} class, instead of manually using this builder.
+   * <p>When using the annotation processor, you can rely on the generated {@code Handlers} class,
+   * instead of manually using this builder. For example, for a service class name {@code Greeter},
+   * the corresponding class where all the requests builders are available is named {@code
+   * GreeterHandlers}
    */
-  public static Builder<byte[], byte[]> of(Target target, byte[] request) {
-    return new Builder<>(target, TypeTag.of(Serde.RAW), TypeTag.of(Serde.RAW), request);
-  }
-
-  public static final class Builder<Req, Res> {
-    private final Target target;
-    private final TypeTag<Req> reqTypeTag;
-    private final TypeTag<Res> resTypeTag;
-    private final Req request;
-    @Nullable private String idempotencyKey;
-    @Nullable private LinkedHashMap<String, String> headers;
-
-    public Builder(
-        Target target,
-        TypeTag<Req> reqTypeTag,
-        TypeTag<Res> resTypeTag,
-        Req request,
-        @Nullable String idempotencyKey,
-        @Nullable LinkedHashMap<String, String> headers) {
-      this.target = target;
-      this.reqTypeTag = reqTypeTag;
-      this.resTypeTag = resTypeTag;
-      this.request = request;
-      this.idempotencyKey = idempotencyKey;
-      this.headers = headers;
-    }
-
-    private Builder(Target target, TypeTag<Req> reqTypeTag, TypeTag<Res> resTypeTag, Req request) {
-      this.target = target;
-      this.reqTypeTag = reqTypeTag;
-      this.resTypeTag = resTypeTag;
-      this.request = request;
-    }
-
-    /**
-     * @param idempotencyKey Idempotency key to attach in the request.
-     * @return this instance, so the builder can be used fluently.
-     */
-    public Builder<Req, Res> idempotencyKey(String idempotencyKey) {
-      this.idempotencyKey = idempotencyKey;
-      return this;
-    }
-
-    /**
-     * @param key header key
-     * @param value header value
-     * @return this instance, so the builder can be used fluently.
-     */
-    public Builder<Req, Res> header(String key, String value) {
-      if (this.headers == null) {
-        this.headers = new LinkedHashMap<>();
-      }
-      this.headers.put(key, value);
-      return this;
-    }
-
-    /**
-     * @param newHeaders headers to send together with the request.
-     * @return this instance, so the builder can be used fluently.
-     */
-    public Builder<Req, Res> headers(Map<String, String> newHeaders) {
-      if (this.headers == null) {
-        this.headers = new LinkedHashMap<>();
-      }
-      this.headers.putAll(newHeaders);
-      return this;
-    }
-
-    public @Nullable String getIdempotencyKey() {
-      return idempotencyKey;
-    }
-
-    /**
-     * @param idempotencyKey Idempotency key to attach in the request.
-     */
-    public Builder<Req, Res> setIdempotencyKey(@Nullable String idempotencyKey) {
-      return idempotencyKey(idempotencyKey);
-    }
-
-    public @Nullable Map<String, String> getHeaders() {
-      return headers;
-    }
-
-    /**
-     * @param headers headers to send together with the request.
-     */
-    public Builder<Req, Res> setHeaders(@Nullable Map<String, String> headers) {
-      return headers(headers);
-    }
-
-    /**
-     * @return build the request as send request.
-     */
-    public SendRequest<Req, Res> asSend() {
-      return new SendRequest<>(
-          target, reqTypeTag, resTypeTag, request, idempotencyKey, headers, null);
-    }
-
-    /**
-     * @return build the request as send request delayed by the given {@code delay}.
-     */
-    public SendRequest<Req, Res> asSendDelayed(Duration delay) {
-      return new SendRequest<>(
-          target, reqTypeTag, resTypeTag, request, idempotencyKey, headers, delay);
-    }
-
-    /**
-     * @return build the request as send request.
-     */
-    public Request<Req, Res> build() {
-      return new Request<>(
-          this.target,
-          this.reqTypeTag,
-          this.resTypeTag,
-          this.request,
-          this.idempotencyKey,
-          this.headers);
-    }
-  }
-
-  public Builder<Req, Res> toBuilder() {
-    return new Builder<>(
-        this.target,
-        this.reqTypeTag,
-        this.resTypeTag,
-        this.request,
-        this.idempotencyKey,
-        this.headers);
+  static RequestBuilder<byte[], byte[]> of(Target target, byte[] request) {
+    return new RequestImpl.Builder<>(target, TypeTag.of(Serde.RAW), TypeTag.of(Serde.RAW), request);
   }
 
   /**
-   * @return copy this request as send.
+   * @return the request target
    */
-  public SendRequest<Req, Res> asSend() {
-    return new SendRequest<>(
-        target, reqTypeTag, resTypeTag, request, idempotencyKey, headers, null);
-  }
+  Target getTarget();
 
   /**
-   * @return copy this request as send request delayed by the given {@code delay}.
+   * @return the request type tag
    */
-  public SendRequest<Req, Res> asSendDelayed(Duration delay) {
-    return new SendRequest<>(
-        target, reqTypeTag, resTypeTag, request, idempotencyKey, headers, delay);
-  }
+  TypeTag<Req> getRequestTypeTag();
 
-  @Override
-  public boolean equals(Object o) {
-    if (!(o instanceof Request<?, ?> that)) return false;
-    return Objects.equals(target, that.target)
-        && Objects.equals(reqTypeTag, that.reqTypeTag)
-        && Objects.equals(resTypeTag, that.resTypeTag)
-        && Objects.equals(request, that.request)
-        && Objects.equals(idempotencyKey, that.idempotencyKey)
-        && Objects.equals(headers, that.headers);
-  }
+  /**
+   * @return the response type tag
+   */
+  TypeTag<Res> getResponseTypeTag();
 
-  @Override
-  public int hashCode() {
-    return Objects.hash(target, reqTypeTag, resTypeTag, request, idempotencyKey, headers);
-  }
+  /**
+   * @return the request object
+   */
+  Req getRequest();
 
-  @Override
-  public String toString() {
-    return "CallRequest{"
-        + "target="
-        + target
-        + ", reqSerdeInfo="
-        + reqTypeTag
-        + ", resSerdeInfo="
-        + resTypeTag
-        + ", request="
-        + request
-        + ", idempotencyKey='"
-        + idempotencyKey
-        + '\''
-        + ", headers="
-        + headers
-        + '}';
-  }
+  /**
+   * @return the idempotency key
+   */
+  @Nullable String getIdempotencyKey();
+
+  /**
+   * @return the request headers
+   */
+  @Nullable Map<String, String> getHeaders();
 }

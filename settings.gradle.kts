@@ -21,6 +21,7 @@ include(
     "sdk-api-kotlin",
     "sdk-core",
     "sdk-serde-jackson",
+    "sdk-serde-kotlinx",
     "sdk-request-identity",
     "sdk-http-vertx",
     "sdk-lambda",

@@ -9,10 +9,11 @@
 package dev.restate.sdk.testservices.contracts
 
 import dev.restate.sdk.annotation.*
-import dev.restate.sdk.kotlin.Context
+import dev.restate.sdk.kotlin.*
 
 /** Collection of various utilities/corner cases scenarios used by tests */
-@Service(name = "TestUtilsService")
+@Service
+@Name("TestUtilsService")
 interface TestUtilsService {
   /** Just echo */
   @Handler suspend fun echo(context: Context, input: String): String

@@ -18,7 +18,7 @@ import dev.restate.sdk.endpoint.definition.HandlerType
 import dev.restate.sdk.endpoint.definition.ServiceDefinition
 import dev.restate.sdk.endpoint.definition.ServiceType
 import dev.restate.sdk.kotlin.*
-import dev.restate.sdk.kotlin.serialization.*
+import dev.restate.serde.kotlinx.*
 import java.util.stream.Stream
 import kotlinx.coroutines.Dispatchers
 

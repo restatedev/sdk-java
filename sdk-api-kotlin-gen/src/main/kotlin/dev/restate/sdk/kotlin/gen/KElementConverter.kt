@@ -8,19 +8,12 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin.gen
 
-import com.google.devtools.ksp.KSTypeNotPresentException
-import com.google.devtools.ksp.KspExperimental
-import com.google.devtools.ksp.getAnnotationsByType
-import com.google.devtools.ksp.getVisibility
-import com.google.devtools.ksp.isAnnotationPresent
+import com.google.devtools.ksp.*
 import com.google.devtools.ksp.processing.KSBuiltIns
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.*
 import com.google.devtools.ksp.visitor.KSDefaultVisitor
-import dev.restate.sdk.annotation.Accept
-import dev.restate.sdk.annotation.CustomSerdeFactory
-import dev.restate.sdk.annotation.Json
-import dev.restate.sdk.annotation.Raw
+import dev.restate.sdk.annotation.*
 import dev.restate.sdk.endpoint.definition.ServiceType
 import dev.restate.sdk.gen.model.Handler
 import dev.restate.sdk.gen.model.HandlerType
@@ -40,10 +33,7 @@ class KElementConverter(
     private val SUPPORTED_CLASS_KIND: Set<ClassKind> = setOf(ClassKind.CLASS, ClassKind.INTERFACE)
     private val EMPTY_PAYLOAD: PayloadType =
         PayloadType(
-            true,
-            "",
-            "Unit",
-            "dev.restate.sdk.kotlin.serialization.KotlinSerializationSerdeFactory.UNIT")
+            true, "", "Unit", "dev.restate.serde.kotlinx.KotlinSerializationSerdeFactory.UNIT")
     private const val RAW_SERDE: String = "dev.restate.serde.Serde.RAW"
   }
 
@@ -75,16 +65,16 @@ class KElementConverter(
     // Infer names
     val targetPkg = classDeclaration.packageName.asString()
     val targetFqcn = classDeclaration.qualifiedName!!.asString()
-    data.withTargetPkg(targetPkg).withTargetFqcn(targetFqcn)
+    // Use simple class name, flattening subclasses names
+    val inCodeServiceName =
+        targetFqcn.substring(targetPkg.length).replace(Pattern.quote(".").toRegex(), "")
+    data
+        .withTargetClassPkg(targetPkg)
+        .withTargetClassFqcn(targetFqcn)
+        .withGeneratedClassesNamePrefix(inCodeServiceName)
+        .withRestateName(classDeclaration.getAnnotationsByType(Name::class).firstOrNull()?.value)
 
-    if (data.serviceName.isNullOrEmpty()) {
-      // Use Simple class name
-      // With this logic we make sure we flatten subclasses names
-      data.withServiceName(
-          targetFqcn.substring(targetPkg.length).replace(Pattern.quote(".").toRegex(), ""))
-    }
-
-    // Compute handlers
+    // Compute handlersMetadata
     classDeclaration
         .getAllFunctions()
         .filter {
@@ -101,7 +91,7 @@ class KElementConverter(
           classDeclaration)
     }
 
-    var serdeFactoryDecl = "dev.restate.sdk.kotlin.serialization.KotlinSerializationSerdeFactory()"
+    var serdeFactoryDecl = "dev.restate.serde.kotlinx.KotlinSerializationSerdeFactory()"
     val customSerdeFactory: CustomSerdeFactory? =
         classDeclaration.getAnnotationsByType(CustomSerdeFactory::class).firstOrNull()
     if (customSerdeFactory != null) {
@@ -157,6 +147,7 @@ class KElementConverter(
       data.withHandler(
           handlerBuilder
               .withName(function.simpleName.asString())
+              .withRestateName(function.getAnnotationsByType(Name::class).firstOrNull()?.value)
               .withHandlerType(handlerType)
               .withInputAccept(inputAcceptFromParameterList(function.parameters))
               .withInputType(inputPayloadFromParameterList(function.parameters))
@@ -303,7 +294,7 @@ class KElementConverter(
     return when (ty) {
       builtIns.unitType -> EMPTY_PAYLOAD.serdeDecl
       else ->
-          "SERDE_FACTORY.create(dev.restate.sdk.kotlin.serialization.typeTag<${boxedType(ty, qualifiedTypeName)}>())"
+          "SERDE_FACTORY.create(dev.restate.serde.kotlinx.typeTag<${boxedType(ty, qualifiedTypeName)}>())"
     }
   }
 

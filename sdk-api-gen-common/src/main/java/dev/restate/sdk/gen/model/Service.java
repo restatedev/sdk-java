@@ -20,32 +20,29 @@ public class Service {
 
   private final CharSequence targetPkg;
   private final CharSequence targetFqcn;
-  private final String serviceName;
+  private final String simpleClassGeneratedNamePrefix;
+  private final String restateName;
   private final ServiceType serviceType;
   private final List<Handler> handlers;
   private final @Nullable String documentation;
-  private final boolean contextClientEnabled;
-  private final boolean ingressClientEnabled;
   private final String serdeFactoryDecl;
 
   public Service(
       CharSequence targetPkg,
       CharSequence targetFqcn,
-      String serviceName,
+      String simpleClassGeneratedNamePrefix,
+      String restateName,
       ServiceType serviceType,
       List<Handler> handlers,
       @Nullable String documentation,
-      boolean contextClientEnabled,
-      boolean ingressClientEnabled,
       String serdeFactoryDecl) {
     this.targetPkg = targetPkg;
     this.targetFqcn = targetFqcn;
-    this.serviceName = serviceName;
+    this.simpleClassGeneratedNamePrefix = simpleClassGeneratedNamePrefix;
+    this.restateName = restateName;
     this.serviceType = serviceType;
     this.handlers = handlers;
     this.documentation = documentation;
-    this.contextClientEnabled = contextClientEnabled;
-    this.ingressClientEnabled = ingressClientEnabled;
     this.serdeFactoryDecl = serdeFactoryDecl;
   }
 
@@ -57,19 +54,19 @@ public class Service {
     return this.targetFqcn;
   }
 
-  public String getFullyQualifiedServiceName() {
-    return this.serviceName;
+  public String getSimpleClassGeneratedNamePrefix() {
+    return simpleClassGeneratedNamePrefix;
   }
 
-  public String getSimpleServiceName() {
-    return this.serviceName.substring(this.serviceName.lastIndexOf('.') + 1);
-  }
-
-  public CharSequence getGeneratedClassFqcnPrefix() {
+  public String getFqcnGeneratedNamePrefix() {
     if (this.targetPkg == null || this.targetPkg.isEmpty()) {
-      return getSimpleServiceName();
+      return getSimpleClassGeneratedNamePrefix();
     }
-    return this.targetPkg + "." + getSimpleServiceName();
+    return this.targetPkg + "." + getSimpleClassGeneratedNamePrefix();
+  }
+
+  public String getRestateServiceName() {
+    return restateName;
   }
 
   public ServiceType getServiceType() {
@@ -84,14 +81,6 @@ public class Service {
     return documentation;
   }
 
-  public boolean isContextClientEnabled() {
-    return contextClientEnabled;
-  }
-
-  public boolean isIngressClientEnabled() {
-    return ingressClientEnabled;
-  }
-
   public String getSerdeFactoryDecl() {
     return serdeFactoryDecl;
   }
@@ -103,26 +92,30 @@ public class Service {
   public static class Builder {
     private CharSequence targetPkg;
     private CharSequence targetFqcn;
-    private String serviceName;
+    private String simpleClassGeneratedNamePrefix;
+    private String restateName;
     private ServiceType serviceType;
     private final List<Handler> handlers = new ArrayList<>();
     private String documentation;
-    private boolean contextClientEnabled = true;
-    private boolean ingressClientEnabled = true;
     private String serdeFactoryDecl;
 
-    public Builder withTargetPkg(CharSequence targetPkg) {
+    public Builder withTargetClassPkg(CharSequence targetPkg) {
       this.targetPkg = targetPkg;
       return this;
     }
 
-    public Builder withTargetFqcn(CharSequence targetFqcn) {
+    public Builder withTargetClassFqcn(CharSequence targetFqcn) {
       this.targetFqcn = targetFqcn;
       return this;
     }
 
-    public Builder withServiceName(String serviceName) {
-      this.serviceName = serviceName;
+    public Builder withGeneratedClassesNamePrefix(String simpleClassGeneratedNamePrefix) {
+      this.simpleClassGeneratedNamePrefix = simpleClassGeneratedNamePrefix;
+      return this;
+    }
+
+    public Builder withRestateName(String serviceName) {
+      this.restateName = serviceName;
       return this;
     }
 
@@ -146,16 +139,6 @@ public class Service {
       return this;
     }
 
-    public Builder withContextClientEnabled(boolean contextClientEnabled) {
-      this.contextClientEnabled = contextClientEnabled;
-      return this;
-    }
-
-    public Builder withIngressClientEnabled(boolean ingressClientEnabled) {
-      this.ingressClientEnabled = ingressClientEnabled;
-      return this;
-    }
-
     public Builder withSerdeFactoryDecl(String serdeFactoryDecl) {
       this.serdeFactoryDecl = serdeFactoryDecl;
       return this;
@@ -169,8 +152,8 @@ public class Service {
       return targetFqcn;
     }
 
-    public String getServiceName() {
-      return serviceName;
+    public String getRestateName() {
+      return restateName;
     }
 
     public ServiceType getServiceType() {
@@ -182,7 +165,11 @@ public class Service {
     }
 
     public Service validateAndBuild() {
-      String serviceNameLowercase = serviceName.toLowerCase();
+      String restateName =
+          this.restateName != null
+              ? this.restateName
+              : Objects.requireNonNull(simpleClassGeneratedNamePrefix);
+      String serviceNameLowercase = restateName.toLowerCase();
       if (serviceNameLowercase.startsWith("restate")
           || serviceNameLowercase.startsWith("openapi")) {
         throw new IllegalArgumentException(
@@ -207,12 +194,11 @@ public class Service {
       return new Service(
           Objects.requireNonNull(targetPkg),
           Objects.requireNonNull(targetFqcn),
-          Objects.requireNonNull(serviceName),
+          Objects.requireNonNull(simpleClassGeneratedNamePrefix),
+          restateName,
           Objects.requireNonNull(serviceType),
           handlers,
           documentation,
-          contextClientEnabled,
-          ingressClientEnabled,
           serdeFactoryDecl);
     }
   }

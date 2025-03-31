@@ -9,6 +9,7 @@
 package dev.restate.sdk.core.javaapi;
 
 import static dev.restate.sdk.core.AssertUtils.assertThatDiscovery;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 import dev.restate.sdk.core.generated.manifest.Handler;
@@ -47,6 +48,14 @@ public class CodegenDiscoveryTest {
         .extracting(Handler::getOutput, type(Output.class))
         .extracting(Output::getContentType)
         .isEqualTo("application/vnd.my.custom");
+  }
+
+  @Test
+  void explicitNames() {
+    assertThatDiscovery((GreeterWithExplicitName) (context, request) -> "")
+        .extractingService("MyExplicitName")
+        .extractingHandler("my_greeter");
+    assertThat(GreeterWithExplicitNameHandlers.Metadata.SERVICE_NAME).isEqualTo("MyExplicitName");
   }
 
   @Test

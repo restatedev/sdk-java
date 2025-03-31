@@ -9,7 +9,6 @@
 package dev.restate.sdk.testservices
 
 import dev.restate.common.Request
-import dev.restate.common.SendRequest
 import dev.restate.common.Target
 import dev.restate.sdk.kotlin.*
 import dev.restate.sdk.testservices.contracts.ManyCallRequest
@@ -42,13 +41,12 @@ class ProxyImpl : Proxy {
   override suspend fun oneWayCall(context: Context, request: ProxyRequest): String =
       context
           .send(
-              SendRequest.of(request.toTarget(), Serde.RAW, Serde.SLICE, request.message)
-                  .also {
-                    if (request.idempotencyKey != null) {
-                      it.idempotencyKey = request.idempotencyKey
-                    }
-                  }
-                  .asSendDelayed((request.delayMillis?.milliseconds ?: Duration.ZERO)))
+              Request.of(request.toTarget(), Serde.RAW, Serde.SLICE, request.message).also {
+                if (request.idempotencyKey != null) {
+                  it.idempotencyKey = request.idempotencyKey
+                }
+              },
+              request.delayMillis?.milliseconds ?: Duration.ZERO)
           .invocationId()
 
   override suspend fun manyCalls(context: Context, requests: List<ManyCallRequest>) {
@@ -57,7 +55,7 @@ class ProxyImpl : Proxy {
     for (request in requests) {
       if (request.oneWayCall) {
         context.send(
-            SendRequest.of(
+            Request.of(
                     request.proxyRequest.toTarget(),
                     Serde.RAW,
                     Serde.SLICE,
@@ -66,8 +64,8 @@ class ProxyImpl : Proxy {
                   if (request.proxyRequest.idempotencyKey != null) {
                     it.idempotencyKey = request.proxyRequest.idempotencyKey
                   }
-                }
-                .asSendDelayed((request.proxyRequest.delayMillis?.milliseconds ?: Duration.ZERO)))
+                },
+            (request.proxyRequest.delayMillis?.milliseconds ?: Duration.ZERO))
       } else {
         val awaitable =
             context.call(

@@ -22,10 +22,12 @@ import dev.restate.serde.SerdeFactory;
 import dev.restate.serde.TypeTag;
 import java.time.Duration;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 class ContextImpl implements ObjectContext, WorkflowContext {
 
@@ -93,12 +95,17 @@ class ContextImpl implements ObjectContext, WorkflowContext {
     Slice input =
         Util.executeOrFail(
             handlerContext,
-            serdeFactory.create(request.requestTypeTag())::serialize,
-            request.request());
+            serdeFactory.create(request.getRequestTypeTag())::serialize,
+            request.getRequest());
     HandlerContext.CallResult result =
         Util.awaitCompletableFuture(
             handlerContext.call(
-                request.target(), input, request.idempotencyKey(), request.headers().entrySet()));
+                request.getTarget(),
+                input,
+                request.getIdempotencyKey(),
+                request.getHeaders() == null
+                    ? Collections.emptyList()
+                    : request.getHeaders().entrySet()));
 
     return new CallDurableFuture<>(
         handlerContext,
@@ -107,33 +114,35 @@ class ContextImpl implements ObjectContext, WorkflowContext {
             .map(
                 s ->
                     CompletableFuture.completedFuture(
-                        serdeFactory.create(request.responseTypeTag()).deserialize(s))),
+                        serdeFactory.create(request.getResponseTypeTag()).deserialize(s))),
         DurableFuture.fromAsyncResult(result.invocationIdAsyncResult(), serviceExecutor));
   }
 
   @Override
-  public <Req, Res> InvocationHandle<Res> send(Request<Req, Res> request) {
+  public <Req, Res> InvocationHandle<Res> send(
+      Request<Req, Res> request, @Nullable Duration delay) {
     Slice input =
         Util.executeOrFail(
             handlerContext,
-            serdeFactory.create(request.requestTypeTag())::serialize,
-            request.request());
+            serdeFactory.create(request.getRequestTypeTag())::serialize,
+            request.getRequest());
 
     var invocationIdAwaitable =
         DurableFuture.fromAsyncResult(
             Util.awaitCompletableFuture(
                 handlerContext.send(
-                    request.target(),
+                    request.getTarget(),
                     input,
-                    request.idempotencyKey(),
-                    request.headers().entrySet(),
-                    (request instanceof SendRequest<Req, Res> sendRequest)
-                        ? sendRequest.delay()
-                        : null)),
+                    request.getIdempotencyKey(),
+                    request.getHeaders() == null
+                        ? Collections.emptyList()
+                        : request.getHeaders().entrySet(),
+                    delay)),
             serviceExecutor);
 
     return new BaseInvocationHandle<>(
-        Util.executeOrFail(handlerContext, () -> serdeFactory.create(request.responseTypeTag()))) {
+        Util.executeOrFail(
+            handlerContext, () -> serdeFactory.create(request.getResponseTypeTag()))) {
       @Override
       public String invocationId() {
         return invocationIdAwaitable.await();

@@ -21,8 +21,8 @@ import dev.restate.sdk.endpoint.definition.HandlerDefinition;
 import dev.restate.sdk.endpoint.definition.HandlerType;
 import dev.restate.sdk.endpoint.definition.ServiceDefinition;
 import dev.restate.sdk.endpoint.definition.ServiceType;
-import dev.restate.sdk.serde.jackson.JacksonSerdeFactory;
 import dev.restate.serde.Serde;
+import dev.restate.serde.jackson.JacksonSerdeFactory;
 import java.util.List;
 import java.util.stream.Stream;
 

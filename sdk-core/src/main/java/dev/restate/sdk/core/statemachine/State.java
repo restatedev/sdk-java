@@ -122,7 +122,8 @@ sealed interface State
   }
 
   default void hitSuspended(Collection<NotificationId> awaitingOn, StateContext stateContext) {
-    LOG.info("Invocation suspended awaiting on {}", awaitingOn);
+    LOG.info("Invocation suspended");
+    LOG.debug("Awaiting on {}", awaitingOn);
 
     var suspensionMessageBuilder = Protocol.SuspensionMessage.newBuilder();
     for (var notificationId : awaitingOn) {

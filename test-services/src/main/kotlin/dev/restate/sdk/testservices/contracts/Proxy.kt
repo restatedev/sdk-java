@@ -8,9 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testservices.contracts
 
-import dev.restate.sdk.annotation.Handler
-import dev.restate.sdk.annotation.Service
-import dev.restate.sdk.kotlin.Context
+import dev.restate.sdk.annotation.*
+import dev.restate.sdk.kotlin.*
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -36,7 +35,8 @@ data class ManyCallRequest(
     val awaitAtTheEnd: Boolean
 )
 
-@Service(name = "Proxy")
+@Service
+@Name("Proxy")
 interface Proxy {
   // Bytes are encoded as array of numbers
   @Handler suspend fun call(context: Context, request: ProxyRequest): ByteArray

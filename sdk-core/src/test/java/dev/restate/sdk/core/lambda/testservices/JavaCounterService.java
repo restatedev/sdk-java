@@ -10,12 +10,14 @@ package dev.restate.sdk.core.lambda.testservices;
 
 import dev.restate.sdk.ObjectContext;
 import dev.restate.sdk.annotation.Handler;
+import dev.restate.sdk.annotation.Name;
 import dev.restate.sdk.annotation.VirtualObject;
 import dev.restate.sdk.types.StateKey;
 import dev.restate.serde.Serde;
 import java.nio.charset.StandardCharsets;
 
-@VirtualObject(name = "JavaCounter")
+@VirtualObject
+@Name("JavaCounter")
 public class JavaCounterService {
 
   public static final StateKey<Long> COUNTER =

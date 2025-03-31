@@ -10,10 +10,13 @@ package dev.restate.sdk.core.javaapi;
 
 import dev.restate.sdk.Context;
 import dev.restate.sdk.annotation.Handler;
+import dev.restate.sdk.annotation.Name;
 import dev.restate.sdk.annotation.Service;
 
-@Service(name = "MyExplicitName")
+@Service
+@Name("MyExplicitName")
 public interface GreeterWithExplicitName {
   @Handler
+  @Name("my_greeter")
   String greet(Context context, String request);
 }
