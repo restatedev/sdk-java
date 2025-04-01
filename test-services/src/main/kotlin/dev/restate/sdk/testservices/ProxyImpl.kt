@@ -28,25 +28,24 @@ class ProxyImpl : Proxy {
   }
 
   override suspend fun call(context: Context, request: ProxyRequest): ByteArray {
-    return context
-        .call(
-            Request.of(request.toTarget(), Serde.RAW, Serde.RAW, request.message).also {
-              if (request.idempotencyKey != null) {
-                it.idempotencyKey = request.idempotencyKey
-              }
-            })
+    return Request.of(request.toTarget(), Serde.RAW, Serde.RAW, request.message)
+        .also {
+          if (request.idempotencyKey != null) {
+            it.idempotencyKey = request.idempotencyKey
+          }
+        }
+        .call(context)
         .await()
   }
 
   override suspend fun oneWayCall(context: Context, request: ProxyRequest): String =
-      context
-          .send(
-              Request.of(request.toTarget(), Serde.RAW, Serde.SLICE, request.message).also {
-                if (request.idempotencyKey != null) {
-                  it.idempotencyKey = request.idempotencyKey
-                }
-              },
-              request.delayMillis?.milliseconds ?: Duration.ZERO)
+      Request.of(request.toTarget(), Serde.RAW, Serde.SLICE, request.message)
+          .also {
+            if (request.idempotencyKey != null) {
+              it.idempotencyKey = request.idempotencyKey
+            }
+          }
+          .send(context, request.delayMillis?.milliseconds ?: Duration.ZERO)
           .invocationId()
 
   override suspend fun manyCalls(context: Context, requests: List<ManyCallRequest>) {
@@ -54,33 +53,32 @@ class ProxyImpl : Proxy {
 
     for (request in requests) {
       if (request.oneWayCall) {
-        context.send(
+        Request.of(
+                request.proxyRequest.toTarget(),
+                Serde.RAW,
+                Serde.SLICE,
+                request.proxyRequest.message)
+            .also {
+              if (request.proxyRequest.idempotencyKey != null) {
+                it.idempotencyKey = request.proxyRequest.idempotencyKey
+              }
+            }
+            .send(context, request.proxyRequest.delayMillis?.milliseconds ?: Duration.ZERO)
+      } else {
+        val fut =
             Request.of(
                     request.proxyRequest.toTarget(),
                     Serde.RAW,
-                    Serde.SLICE,
+                    Serde.RAW,
                     request.proxyRequest.message)
                 .also {
                   if (request.proxyRequest.idempotencyKey != null) {
                     it.idempotencyKey = request.proxyRequest.idempotencyKey
                   }
-                },
-            (request.proxyRequest.delayMillis?.milliseconds ?: Duration.ZERO))
-      } else {
-        val awaitable =
-            context.call(
-                Request.of(
-                        request.proxyRequest.toTarget(),
-                        Serde.RAW,
-                        Serde.RAW,
-                        request.proxyRequest.message)
-                    .also {
-                      if (request.proxyRequest.idempotencyKey != null) {
-                        it.idempotencyKey = request.proxyRequest.idempotencyKey
-                      }
-                    })
+                }
+                .call(context)
         if (request.awaitAtTheEnd) {
-          toAwait.add(awaitable)
+          toAwait.add(fut)
         }
       }
     }

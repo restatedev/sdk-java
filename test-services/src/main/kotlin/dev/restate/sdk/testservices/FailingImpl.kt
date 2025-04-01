@@ -9,11 +9,10 @@
 package dev.restate.sdk.testservices
 
 import dev.restate.sdk.kotlin.ObjectContext
-import dev.restate.sdk.kotlin.call
 import dev.restate.sdk.kotlin.retryPolicy
 import dev.restate.sdk.kotlin.runBlock
 import dev.restate.sdk.testservices.contracts.Failing
-import dev.restate.sdk.testservices.contracts.FailingHandlers
+import dev.restate.sdk.testservices.contracts.FailingClient
 import dev.restate.sdk.types.TerminalException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
@@ -41,8 +40,8 @@ class FailingImpl : Failing {
   ): String {
     LOG.info("Invoked failAndHandle")
 
-    FailingHandlers.terminallyFailingCall(context.random().nextUUID().toString(), errorMessage)
-        .call(context)
+    FailingClient.fromContext(context, context.random().nextUUID().toString())
+        .terminallyFailingCall(errorMessage)
         .await()
 
     throw IllegalStateException("This should be unreachable")

@@ -22,7 +22,9 @@ class CounterTest {
   @Test
   @Timeout(value = 10)
   void testGreet(@RestateClient Client ingressClient) {
-    long response = ingressClient.call(CounterHandlers.get("my-counter")).response();
+    var client = CounterClient.fromClient(ingressClient, "my-counter");
+
+    long response = client.get();
     assertThat(response).isEqualTo(0L);
   }
 }

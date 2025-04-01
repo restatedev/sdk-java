@@ -12,7 +12,6 @@ import static dev.restate.sdk.core.TestDefinitions.testInvocation;
 import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.restate.client.Client;
 import dev.restate.common.Target;
 import dev.restate.sdk.*;
 import dev.restate.sdk.annotation.*;
@@ -68,17 +67,20 @@ public class CodegenTest implements TestSuite {
 
     @Handler
     public String emptyInput(Context context) {
-      return context.call(CodegenTestEmptyHandlers.emptyInput()).await();
+      var client = CodegenTestEmptyClient.fromContext(context);
+      return client.emptyInput().await();
     }
 
     @Handler
     public void emptyOutput(Context context, String request) {
-      context.call(CodegenTestEmptyHandlers.emptyOutput(request)).await();
+      var client = CodegenTestEmptyClient.fromContext(context);
+      client.emptyOutput(request).await();
     }
 
     @Handler
     public void emptyInputOutput(Context context) {
-      context.call(CodegenTestEmptyHandlers.emptyInputOutput()).await();
+      var client = CodegenTestEmptyClient.fromContext(context);
+      client.emptyInputOutput().await();
     }
   }
 
@@ -88,12 +90,14 @@ public class CodegenTest implements TestSuite {
 
     @Handler
     public int primitiveOutput(Context context) {
-      return context.call(CodegenTestPrimitiveTypesHandlers.primitiveOutput()).await();
+      var client = CodegenTestPrimitiveTypesClient.fromContext(context);
+      return client.primitiveOutput().await();
     }
 
     @Handler
     public void primitiveInput(Context context, int input) {
-      context.call(CodegenTestPrimitiveTypesHandlers.primitiveInput(input)).await();
+      var client = CodegenTestPrimitiveTypesClient.fromContext(context);
+      client.primitiveInput(input).await();
     }
   }
 
@@ -102,7 +106,7 @@ public class CodegenTest implements TestSuite {
     @Exclusive
     public String send(ObjectContext context, String request) {
       // Just needs to compile
-      return context.call(CodegenTestCornerCasesHandlers._send(request, "my_send")).await();
+      return CodegenTestCornerCasesClient.fromContext(context, request)._send("my_send").await();
     }
   }
 
@@ -115,11 +119,15 @@ public class CodegenTest implements TestSuite {
 
     @Shared
     public String submit(SharedWorkflowContext context, String request) {
-      Client client = Client.connect("invalid");
-
       // Just needs to compile
-      client.call(CodegenTestWorkflowCornerCasesHandlers._submit(request, "my_send"));
-      return "";
+      String ignored =
+          CodegenTestWorkflowCornerCasesClient.connect("invalid", request)._submit("my_send");
+      CodegenTestWorkflowCornerCasesClient.connect("invalid", request).submit("my_send");
+      return CodegenTestWorkflowCornerCasesClient.connect("invalid", request)
+          .workflowHandle()
+          .getOutput()
+          .response()
+          .getValue();
     }
   }
 
@@ -130,31 +138,36 @@ public class CodegenTest implements TestSuite {
     @Handler
     @Raw
     public byte[] rawOutput(Context context) {
-      return context.call(CodegenTestRawInputOutputHandlers.rawOutput()).await();
+      var client = CodegenTestRawInputOutputClient.fromContext(context);
+      return client.rawOutput().await();
     }
 
     @Handler
     @Raw(contentType = "application/vnd.my.custom")
     public byte[] rawOutputWithCustomCT(Context context) {
-      return context.call(CodegenTestRawInputOutputHandlers.rawOutputWithCustomCT()).await();
+      var client = CodegenTestRawInputOutputClient.fromContext(context);
+      return client.rawOutputWithCustomCT().await();
     }
 
     @Handler
     public void rawInput(Context context, @Raw byte[] input) {
-      context.call(CodegenTestRawInputOutputHandlers.rawInput(input)).await();
+      var client = CodegenTestRawInputOutputClient.fromContext(context);
+      client.rawInput(input).await();
     }
 
     @Handler
     public void rawInputWithCustomCt(
         Context context, @Raw(contentType = "application/vnd.my.custom") byte[] input) {
-      context.call(CodegenTestRawInputOutputHandlers.rawInputWithCustomCt(input)).await();
+      var client = CodegenTestRawInputOutputClient.fromContext(context);
+      client.rawInputWithCustomCt(input).await();
     }
 
     @Handler
     public void rawInputWithCustomAccept(
         Context context,
         @Accept("application/*") @Raw(contentType = "application/vnd.my.custom") byte[] input) {
-      context.call(CodegenTestRawInputOutputHandlers.rawInputWithCustomCt(input)).await();
+      var client = CodegenTestRawInputOutputClient.fromContext(context);
+      client.rawInputWithCustomCt(input).await();
     }
   }
 
@@ -164,14 +177,14 @@ public class CodegenTest implements TestSuite {
 
     @Workflow
     public void run(WorkflowContext context, String myInput) {
-      context.send(CodegenTestMyWorkflowHandlers.sharedHandler(context.key(), myInput));
+      var client = CodegenTestMyWorkflowClient.fromContext(context, context.key());
+      client.send().sharedHandler(myInput);
     }
 
     @Handler
     public String sharedHandler(SharedWorkflowContext context, String myInput) {
-      return context
-          .call(CodegenTestMyWorkflowHandlers.sharedHandler(context.key(), myInput))
-          .await();
+      var client = CodegenTestMyWorkflowClient.fromContext(context, context.key());
+      return client.sharedHandler(myInput).await();
     }
   }
 

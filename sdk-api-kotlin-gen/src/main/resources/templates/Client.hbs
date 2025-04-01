@@ -1,0 +1,83 @@
+{{#if originalClassPkg}}package {{originalClassPkg}};{{/if}}
+
+import dev.restate.sdk.kotlin.CallDurableFuture
+import dev.restate.sdk.kotlin.InvocationHandle
+import dev.restate.sdk.kotlin.Context
+import dev.restate.serde.Serde
+import dev.restate.common.Target
+import kotlin.time.Duration
+import dev.restate.client.kotlin.*
+
+object {{generatedClassSimpleName}} {
+
+    fun fromContext(ctx: Context{{#isKeyed}}, key: String{{/isKeyed}}): ContextClient {
+        return ContextClient(ctx{{#isKeyed}}, key{{/isKeyed}})
+    }
+
+    fun fromClient(client: dev.restate.client.Client{{#isKeyed}}, key: String{{/isKeyed}}): IngressClient {
+        return IngressClient(client{{#isKeyed}}, key{{/isKeyed}});
+    }
+
+    fun connect(baseUri: String, {{#isKeyed}}key: String, {{/isKeyed}}requestOptions: dev.restate.client.ClientRequestOptions = dev.restate.client.ClientRequestOptions.DEFAULT): IngressClient {
+        return IngressClient(dev.restate.client.Client.connect(baseUri, {{metadataClass}}.SERDE_FACTORY, requestOptions){{#isKeyed}}, key{{/isKeyed}});
+    }
+
+    class ContextClient(private val ctx: Context{{#isKeyed}}, private val key: String{{/isKeyed}}){
+        {{#handlers}}
+        suspend fun {{handlersClassMethodName}}({{^inputEmpty}}req: {{{inputFqcn}}}, {{/inputEmpty}}init: dev.restate.common.RequestBuilder<{{{boxedInputFqcn}}}, {{{boxedOutputFqcn}}}>.() -> Unit = {}): CallDurableFuture<{{{boxedOutputFqcn}}}> {
+            return this.ctx.call(
+                {{../handlersClass}}.{{handlersClassMethodName}}({{#if ../isKeyed}}this.key, {{/if}}{{^inputEmpty}}req, {{/inputEmpty}}init)
+            )
+        }{{/handlers}}
+
+        fun send(): Send {
+            return Send()
+        }
+
+        inner class Send internal constructor() {
+            {{#handlers}}
+            suspend fun {{handlersClassMethodName}}({{^inputEmpty}}req: {{{inputFqcn}}}, {{/inputEmpty}}delay: Duration? = null, init: dev.restate.common.RequestBuilder<{{{boxedInputFqcn}}}, {{{boxedOutputFqcn}}}>.() -> Unit = {}): InvocationHandle<{{{boxedOutputFqcn}}}> {
+                return this@ContextClient.ctx.send(
+                    {{../handlersClass}}.{{handlersClassMethodName}}({{#if ../isKeyed}}this@ContextClient.key, {{/if}}{{^inputEmpty}}req, {{/inputEmpty}}init), delay
+                );
+            }{{/handlers}}
+        }
+    }
+
+    class IngressClient(private val client: dev.restate.client.Client{{#isKeyed}}, private val key: String{{/isKeyed}}) {
+
+        {{#handlers}}{{#if isWorkflow}}
+        fun workflowHandle(): dev.restate.client.Client.WorkflowHandle<{{{boxedOutputFqcn}}}> {
+            return this@IngressClient.client.workflowHandle(
+                {{metadataClass}}.SERVICE_NAME,
+                this.key,
+                {{outputSerdeRef}});
+        }
+
+        suspend fun submit({{^inputEmpty}}req: {{{inputFqcn}}}, {{/inputEmpty}}init: dev.restate.common.RequestBuilder<{{{boxedInputFqcn}}}, {{{boxedOutputFqcn}}}>.() -> Unit = {}): dev.restate.client.SendResponse<{{{boxedOutputFqcn}}}> {
+            return this@IngressClient.client.sendSuspend(
+                {{../handlersClass}}.{{handlersClassMethodName}}({{#if ../isKeyed}}this.key, {{/if}}{{^inputEmpty}}req, {{/inputEmpty}}init)
+            ).response();
+        }
+        {{else}}
+        suspend fun {{handlersClassMethodName}}({{^inputEmpty}}req: {{{inputFqcn}}}, {{/inputEmpty}}init: dev.restate.common.RequestBuilder<{{{boxedInputFqcn}}}, {{{boxedOutputFqcn}}}>.() -> Unit = {}): {{{boxedOutputFqcn}}} {
+            return this@IngressClient.client.callSuspend(
+                {{../handlersClass}}.{{handlersClassMethodName}}({{#if ../isKeyed}}this.key, {{/if}}{{^inputEmpty}}req, {{/inputEmpty}}init)
+            ).response();
+        }
+        {{/if}}{{/handlers}}
+
+        fun send(): Send {
+            return Send()
+        }
+
+        inner class Send() {
+            {{#handlers}}{{^isWorkflow}}
+            suspend fun {{handlersClassMethodName}}({{^inputEmpty}}req: {{{inputFqcn}}}, {{/inputEmpty}}delay: Duration? = null, init: dev.restate.common.RequestBuilder<{{{boxedInputFqcn}}}, {{{boxedOutputFqcn}}}>.() -> Unit = {}): dev.restate.client.SendResponse<{{{boxedOutputFqcn}}}> {
+                return this@IngressClient.client.sendSuspend(
+                    {{../handlersClass}}.{{handlersClassMethodName}}({{#if ../isKeyed}}this@IngressClient.key, {{/if}}{{^inputEmpty}}req, {{/inputEmpty}}init), delay
+                ).response();
+            }{{/isWorkflow}}{{/handlers}}
+        }
+    }
+}

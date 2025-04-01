@@ -43,6 +43,15 @@ class ServiceProcessor(private val logger: KSPLogger, private val codeGenerator:
               ServiceType.WORKFLOW to "templates/ServiceDefinitionFactory",
               ServiceType.VIRTUAL_OBJECT to "templates/ServiceDefinitionFactory"),
           RESERVED_METHOD_NAMES)
+  private val clientCodegen: HandlebarsTemplateEngine =
+      HandlebarsTemplateEngine(
+          "Client",
+          ClassPathTemplateLoader(),
+          mapOf(
+              ServiceType.SERVICE to "templates/Client",
+              ServiceType.WORKFLOW to "templates/Client",
+              ServiceType.VIRTUAL_OBJECT to "templates/Client"),
+          RESERVED_METHOD_NAMES)
   private val handlersCodegen: HandlebarsTemplateEngine =
       HandlebarsTemplateEngine(
           "Handlers",
@@ -68,7 +77,6 @@ class ServiceProcessor(private val logger: KSPLogger, private val codeGenerator:
             .map {
               val serviceBuilder = Service.builder()
               serviceBuilder.withServiceType(it.first.serviceType)
-              serviceBuilder.withRestateName(it.first.resolveName(it.second))
 
               converter.visitAnnotated(it.second, serviceBuilder)
 
@@ -95,6 +103,7 @@ class ServiceProcessor(private val logger: KSPLogger, private val codeGenerator:
         }
         this.bindableServiceFactoryCodegen.generate(fileCreator, service.second)
         this.handlersCodegen.generate(fileCreator, service.second)
+        this.clientCodegen.generate(fileCreator, service.second)
       } catch (ex: Throwable) {
         throw RuntimeException(ex)
       }
