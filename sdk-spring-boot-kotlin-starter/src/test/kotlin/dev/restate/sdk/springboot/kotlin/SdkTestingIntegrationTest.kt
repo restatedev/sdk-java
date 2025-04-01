@@ -27,7 +27,8 @@ class SdkTestingIntegrationTest {
   @Test
   @Timeout(value = 10)
   fun greet(@RestateClient ingressClient: Client) = runTest {
-    Assertions.assertThat(ingressClient.call(GreeterHandlers.greet("Francesco")).response)
-        .isEqualTo("Something something Francesco")
+    val client = GreeterClient.fromClient(ingressClient)
+
+    Assertions.assertThat(client.greet("Francesco")).isEqualTo("Something something Francesco")
   }
 }

@@ -9,10 +9,10 @@
 package dev.restate.sdk.testservices
 
 import dev.restate.sdk.kotlin.*
-import dev.restate.sdk.testservices.contracts.AwakeableHolderHandlers
+import dev.restate.sdk.testservices.contracts.AwakeableHolderClient
 import dev.restate.sdk.testservices.contracts.BlockingOperation
 import dev.restate.sdk.testservices.contracts.CancelTest
-import dev.restate.sdk.testservices.contracts.CancelTestBlockingServiceHandlers
+import dev.restate.sdk.testservices.contracts.CancelTestBlockingServiceClient
 import dev.restate.sdk.types.StateKey
 import dev.restate.sdk.types.TerminalException
 import kotlin.time.Duration.Companion.days
@@ -24,8 +24,10 @@ class CancelTestImpl {
     }
 
     override suspend fun startTest(context: ObjectContext, operation: BlockingOperation) {
+      val client = CancelTestBlockingServiceClient.fromContext(context, context.key())
+
       try {
-        CancelTestBlockingServiceHandlers.block(context.key(), operation).call(context).await()
+        client.block(operation).await()
       } catch (e: TerminalException) {
         if (e.code == TerminalException.CANCELLED_CODE) {
           context.set(CANCELED_STATE, true)
@@ -42,13 +44,15 @@ class CancelTestImpl {
 
   class BlockingService : CancelTest.BlockingService {
     override suspend fun block(context: ObjectContext, operation: BlockingOperation) {
+      val self = CancelTestBlockingServiceClient.fromContext(context, context.key())
+      val client = AwakeableHolderClient.fromContext(context, context.key())
+
       val awakeable = context.awakeable<String>()
-      AwakeableHolderHandlers.hold(context.key(), awakeable.id).call(context).await()
+      client.hold(awakeable.id).await()
       awakeable.await()
 
       when (operation) {
-        BlockingOperation.CALL ->
-            CancelTestBlockingServiceHandlers.block(context.key(), operation).call(context).await()
+        BlockingOperation.CALL -> self.block(operation).await()
         BlockingOperation.SLEEP -> context.sleep(1024.days)
         BlockingOperation.AWAKEABLE -> {
           val uncompletable: Awakeable<String> = context.awakeable<String>()

@@ -20,6 +20,7 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.Origin
 import dev.restate.sdk.endpoint.definition.ServiceDefinitionFactory
 import dev.restate.sdk.endpoint.definition.ServiceType
+import dev.restate.sdk.gen.model.AnnotationProcessingOptions
 import dev.restate.sdk.gen.model.Service
 import dev.restate.sdk.gen.template.HandlebarsTemplateEngine
 import java.io.BufferedWriter
@@ -27,8 +28,11 @@ import java.io.IOException
 import java.io.Writer
 import java.nio.charset.Charset
 
-class ServiceProcessor(private val logger: KSPLogger, private val codeGenerator: CodeGenerator) :
-    SymbolProcessor {
+class ServiceProcessor(
+    private val logger: KSPLogger,
+    private val codeGenerator: CodeGenerator,
+    private val options: AnnotationProcessingOptions
+) : SymbolProcessor {
 
   companion object {
     private val RESERVED_METHOD_NAMES: Set<String> = setOf("send", "submit", "workflowHandle")
@@ -42,6 +46,15 @@ class ServiceProcessor(private val logger: KSPLogger, private val codeGenerator:
               ServiceType.SERVICE to "templates/ServiceDefinitionFactory",
               ServiceType.WORKFLOW to "templates/ServiceDefinitionFactory",
               ServiceType.VIRTUAL_OBJECT to "templates/ServiceDefinitionFactory"),
+          RESERVED_METHOD_NAMES)
+  private val clientCodegen: HandlebarsTemplateEngine =
+      HandlebarsTemplateEngine(
+          "Client",
+          ClassPathTemplateLoader(),
+          mapOf(
+              ServiceType.SERVICE to "templates/Client",
+              ServiceType.WORKFLOW to "templates/Client",
+              ServiceType.VIRTUAL_OBJECT to "templates/Client"),
           RESERVED_METHOD_NAMES)
   private val handlersCodegen: HandlebarsTemplateEngine =
       HandlebarsTemplateEngine(
@@ -68,7 +81,6 @@ class ServiceProcessor(private val logger: KSPLogger, private val codeGenerator:
             .map {
               val serviceBuilder = Service.builder()
               serviceBuilder.withServiceType(it.first.serviceType)
-              serviceBuilder.withRestateName(it.first.resolveName(it.second))
 
               converter.visitAnnotated(it.second, serviceBuilder)
 
@@ -95,6 +107,9 @@ class ServiceProcessor(private val logger: KSPLogger, private val codeGenerator:
         }
         this.bindableServiceFactoryCodegen.generate(fileCreator, service.second)
         this.handlersCodegen.generate(fileCreator, service.second)
+        if (!options.isClientGenDisabled(service.second.targetFqcn.toString())) {
+          this.clientCodegen.generate(fileCreator, service.second)
+        }
       } catch (ex: Throwable) {
         throw RuntimeException(ex)
       }

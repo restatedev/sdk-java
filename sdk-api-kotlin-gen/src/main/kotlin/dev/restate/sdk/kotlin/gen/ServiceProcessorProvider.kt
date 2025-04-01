@@ -11,10 +11,14 @@ package dev.restate.sdk.kotlin.gen
 import com.google.devtools.ksp.processing.SymbolProcessor
 import com.google.devtools.ksp.processing.SymbolProcessorEnvironment
 import com.google.devtools.ksp.processing.SymbolProcessorProvider
+import dev.restate.sdk.gen.model.AnnotationProcessingOptions
 
 class ServiceProcessorProvider : SymbolProcessorProvider {
 
   override fun create(environment: SymbolProcessorEnvironment): SymbolProcessor {
-    return ServiceProcessor(logger = environment.logger, codeGenerator = environment.codeGenerator)
+    return ServiceProcessor(
+        logger = environment.logger,
+        codeGenerator = environment.codeGenerator,
+        options = AnnotationProcessingOptions(environment.options))
   }
 }

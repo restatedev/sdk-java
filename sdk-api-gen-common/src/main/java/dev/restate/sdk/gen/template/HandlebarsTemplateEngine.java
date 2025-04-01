@@ -109,6 +109,7 @@ public class HandlebarsTemplateEngine {
     public final String documentation;
 
     public final String metadataClass;
+    public final String handlersClass;
 
     public final String serdeFactoryDecl;
     public final String serdeFactoryRef;
@@ -128,7 +129,8 @@ public class HandlebarsTemplateEngine {
       this.generatedClassSimpleName = this.generatedClassSimpleNamePrefix + baseTemplateName;
       this.restateServiceName = inner.getRestateServiceName();
 
-      this.metadataClass = this.generatedClassSimpleNamePrefix + "Handlers.Metadata";
+      this.handlersClass = this.generatedClassSimpleNamePrefix + "Handlers";
+      this.metadataClass = this.handlersClass + ".Metadata";
 
       this.serdeFactoryDecl = inner.getSerdeFactoryDecl();
       this.serdeFactoryRef = metadataClass + ".SERDE_FACTORY";

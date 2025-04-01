@@ -11,6 +11,7 @@ package dev.restate.sdk.gen;
 import dev.restate.common.function.ThrowingFunction;
 import dev.restate.sdk.endpoint.definition.ServiceDefinitionFactory;
 import dev.restate.sdk.endpoint.definition.ServiceType;
+import dev.restate.sdk.gen.model.AnnotationProcessingOptions;
 import dev.restate.sdk.gen.model.Service;
 import dev.restate.sdk.gen.template.HandlebarsTemplateEngine;
 import java.io.*;
@@ -32,7 +33,9 @@ import javax.tools.StandardLocation;
 public class ServiceProcessor extends AbstractProcessor {
 
   private HandlebarsTemplateEngine serviceDefinitionFactoryCodegen;
+  private HandlebarsTemplateEngine clientCodegen;
   private HandlebarsTemplateEngine handlersCodegen;
+  private AnnotationProcessingOptions options;
 
   private static final Set<String> RESERVED_METHOD_NAMES =
       Set.of("send", "submit", "workflowHandle");
@@ -55,6 +58,18 @@ public class ServiceProcessor extends AbstractProcessor {
                 ServiceType.VIRTUAL_OBJECT,
                 "templates/ServiceDefinitionFactory.hbs"),
             RESERVED_METHOD_NAMES);
+    this.clientCodegen =
+        new HandlebarsTemplateEngine(
+            "Client",
+            filerTemplateLoader,
+            Map.of(
+                ServiceType.WORKFLOW,
+                "templates/Client.hbs",
+                ServiceType.SERVICE,
+                "templates/Client.hbs",
+                ServiceType.VIRTUAL_OBJECT,
+                "templates/Client.hbs"),
+            RESERVED_METHOD_NAMES);
     this.handlersCodegen =
         new HandlebarsTemplateEngine(
             "Handlers",
@@ -67,6 +82,7 @@ public class ServiceProcessor extends AbstractProcessor {
                 ServiceType.VIRTUAL_OBJECT,
                 "templates/Handlers.hbs"),
             RESERVED_METHOD_NAMES);
+    this.options = new AnnotationProcessingOptions(processingEnv.getOptions());
   }
 
   @Override
@@ -104,6 +120,9 @@ public class ServiceProcessor extends AbstractProcessor {
             name -> filer.createSourceFile(name, e.getKey()).openWriter();
         this.serviceDefinitionFactoryCodegen.generate(fileCreator, e.getValue());
         this.handlersCodegen.generate(fileCreator, e.getValue());
+        if (!this.options.isClientGenDisabled(e.getValue().getTargetFqcn().toString())) {
+          this.clientCodegen.generate(fileCreator, e.getValue());
+        }
       } catch (Throwable ex) {
         throw new RuntimeException(ex);
       }

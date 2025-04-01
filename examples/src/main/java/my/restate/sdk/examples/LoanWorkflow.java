@@ -8,7 +8,6 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package my.restate.sdk.examples;
 
-import dev.restate.client.Client;
 import dev.restate.sdk.Context;
 import dev.restate.sdk.SharedWorkflowContext;
 import dev.restate.sdk.WorkflowContext;
@@ -80,12 +79,13 @@ public class LoanWorkflow {
     ctx.set(STATUS, Status.APPROVED);
 
     // 4. Request money transaction to the bank
+    var bankClient = LoanWorkflowMockBankClient.fromContext(ctx);
     Instant executionTime;
     try {
       executionTime =
-          ctx.call(
-                  LoanWorkflowMockBankHandlers.transfer(
-                      new TransferRequest(loanRequest.customerBankAccount(), loanRequest.amount())))
+          bankClient
+              .transfer(
+                  new TransferRequest(loanRequest.customerBankAccount(), loanRequest.amount()))
               .await(Duration.ofDays(7));
     } catch (TerminalException e) {
       LOG.warn("Transaction failed", e);
@@ -135,14 +135,13 @@ public class LoanWorkflow {
     }
 
     // To invoke the workflow:
-    Client client = Client.connect("http://127.0.0.1:8080");
+    LoanWorkflowClient.IngressClient client =
+        LoanWorkflowClient.connect("http://127.0.0.1:8080", "my-loan");
 
     var state =
         client.submit(
-            LoanWorkflowHandlers.run(
-                "my-loan",
-                new LoanRequest(
-                    "Francesco", "slinkydeveloper", "DE1234", new BigDecimal("1000000000"))));
+            new LoanRequest(
+                "Francesco", "slinkydeveloper", "DE1234", new BigDecimal("1000000000")));
 
     LOG.info("Started loan workflow");
 
@@ -156,14 +155,12 @@ public class LoanWorkflow {
     LOG.info("We took the decision to approve your loan! You can now achieve your dreams!");
 
     // Now approve it
-    client.call(LoanWorkflowHandlers.approveLoan("my-loan"));
+    client.approveLoan();
 
     // Wait for output
-    state.response().invocationHandle().attach();
+    client.workflowHandle().attach();
 
-    LOG.info(
-        "Loan workflow completed, now in status {}",
-        client.call(LoanWorkflowHandlers.getStatus("my-loan")));
+    LOG.info("Loan workflow completed, now in status {}", client.getStatus());
   }
 
   // -- Some mocks
