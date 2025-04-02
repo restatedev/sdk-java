@@ -10,27 +10,19 @@ description = "Restate SDK Spring Boot integration"
 dependencies {
   compileOnly(libs.jspecify)
 
-  api(project(":sdk-common")) {
-    // Let spring bring jackson in
-    exclude(group = "com.fasterxml.jackson")
-    exclude(group = "com.fasterxml.jackson.core")
-    exclude(group = "com.fasterxml.jackson.datatype")
-  }
+  val excludeJackson =
+      fun ProjectDependency.() {
+        // Let spring bring jackson in
+        exclude(group = "com.fasterxml.jackson")
+        exclude(group = "com.fasterxml.jackson.core")
+        exclude(group = "com.fasterxml.jackson.datatype")
+      }
 
-  api(project(":client")) {
-    // Let spring bring jackson in
-    exclude(group = "com.fasterxml.jackson")
-    exclude(group = "com.fasterxml.jackson.core")
-    exclude(group = "com.fasterxml.jackson.datatype")
-  }
-
-  implementation(project(":sdk-http-vertx")) {
-    // Let spring bring jackson in
-    exclude(group = "com.fasterxml.jackson")
-    exclude(group = "com.fasterxml.jackson.core")
-    exclude(group = "com.fasterxml.jackson.datatype")
-  }
-  implementation(project(":sdk-request-identity"))
+  // SDK deps
+  implementation(project(":sdk-common"), excludeJackson)
+  implementation(project(":client"), excludeJackson)
+  implementation(project(":sdk-http-vertx"), excludeJackson)
+  implementation(project(":sdk-request-identity"), excludeJackson)
   implementation(libs.vertx.core) {
     // Let spring bring jackson in
     exclude(group = "com.fasterxml.jackson")
@@ -38,12 +30,17 @@ dependencies {
     exclude(group = "com.fasterxml.jackson.datatype")
   }
 
-  implementation(libs.spring.boot.starter)
-
-  // Spring is going to bring jackson in with this
+  implementation(libs.spring.boot)
+  implementation(libs.spring.boot.starter.logging)
+  // In principle kotlin won't need this, but it's needed by the SDK core anyway, so we just import
+  // this in.
   implementation(libs.spring.boot.starter.json)
 
+  testImplementation(libs.spring.boot.starter)
+  testImplementation(libs.spring.boot.starter.json)
   testImplementation(libs.spring.boot.starter.test)
 }
 
 tasks.withType<JavaCompile> { options.compilerArgs.add("-parameters") }
+
+tasks.withType<Javadoc> { isFailOnError = false }
