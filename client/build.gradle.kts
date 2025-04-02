@@ -11,9 +11,8 @@ dependencies {
   compileOnly(libs.jspecify)
 
   api(project(":common"))
+  api(project(":sdk-serde-jackson"))
 
   implementation(libs.jackson.core)
   implementation(libs.log4j.api)
-
-  runtimeOnly(project(":sdk-serde-jackson"))
 }
