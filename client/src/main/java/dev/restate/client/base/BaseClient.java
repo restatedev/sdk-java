@@ -15,7 +15,9 @@ import dev.restate.client.*;
 import dev.restate.common.*;
 import dev.restate.serde.Serde;
 import dev.restate.serde.SerdeFactory;
+import dev.restate.serde.TypeRef;
 import dev.restate.serde.TypeTag;
+import dev.restate.serde.provider.DefaultSerdeFactoryProvider;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,6 +28,8 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -42,13 +46,19 @@ public abstract class BaseClient implements Client {
   private final SerdeFactory serdeFactory;
   private final ClientRequestOptions baseOptions;
 
-  protected BaseClient(URI baseUri, SerdeFactory serdeFactory, ClientRequestOptions baseOptions) {
+  protected BaseClient(
+      URI baseUri,
+      @Nullable SerdeFactory serdeFactory,
+      @Nullable ClientRequestOptions baseOptions) {
     this.baseUri = Objects.requireNonNull(baseUri, "Base uri cannot be null");
     if (!this.baseUri.isAbsolute()) {
       throw new IllegalArgumentException(
           "The base uri " + baseUri + " is not absolute. This is not supported.");
     }
-    this.serdeFactory = serdeFactory == null ? SerdeFactory.NOOP : serdeFactory;
+    this.serdeFactory =
+        serdeFactory == null
+            ? DefaultSerdeFactorySingleton.INSTANCE.getLoadedFactory()
+            : serdeFactory;
     this.baseOptions = baseOptions == null ? ClientRequestOptions.DEFAULT : baseOptions;
   }
 
@@ -538,5 +548,51 @@ public abstract class BaseClient implements Client {
     }
 
     return resultMap;
+  }
+
+  // Machinery to load default serde factory
+
+  private static class DefaultSerdeFactorySingleton {
+    private static final DefaultSerdeFactory INSTANCE = new DefaultSerdeFactory();
+  }
+
+  public static final class DefaultSerdeFactory {
+
+    private static final Logger LOG = LogManager.getLogger(DefaultSerdeFactory.class);
+
+    private final SerdeFactory loadedFactory;
+
+    public DefaultSerdeFactory() {
+      var loadedFactories = ServiceLoader.load(DefaultSerdeFactoryProvider.class).stream().toList();
+      if (loadedFactories.size() == 1) {
+        this.loadedFactory = loadedFactories.get(0).get().create();
+      } else {
+        this.loadedFactory =
+            new SerdeFactory() {
+              @Override
+              public <T> Serde<T> create(TypeRef<T> typeRef) {
+                throw new UnsupportedOperationException(
+                    "No SerdeFactory class was configured. Please configure one, this is required when using TypeTag and Class in client methods.");
+              }
+
+              @Override
+              public <T> Serde<T> create(Class<T> clazz) {
+                throw new UnsupportedOperationException(
+                    "No SerdeFactory class was configured. Please configure one, this is required when using TypeTag and Class in client methods.");
+              }
+            };
+      }
+
+      if (loadedFactories.size() > 1) {
+        LOG.warn(
+            "When creating the Client, more than one SerdeFactory was found.\n"
+                + "To prevent unexpected behavior, the client was configured without SerdeFactory. "
+                + "Please manually provide the SerdeFactory (e.g. JacksonSerdeFactory or KotlinxSerializationSerdeFactory) of your choice in the Client.connect() factory methods.");
+      }
+    }
+
+    public SerdeFactory getLoadedFactory() {
+      return loadedFactory;
+    }
   }
 }
