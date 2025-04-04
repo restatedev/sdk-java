@@ -116,14 +116,14 @@ public class JdkClient extends BaseClient {
   public static JdkClient of(
       HttpClient httpClient,
       String baseUri,
-      SerdeFactory serdeFactory,
-      ClientRequestOptions options) {
+      @Nullable SerdeFactory serdeFactory,
+      @Nullable ClientRequestOptions options) {
     return new JdkClient(URI.create(baseUri), serdeFactory, options, httpClient);
   }
 
   /** Create a new JDK Client */
   public static JdkClient of(
-      String baseUri, SerdeFactory serdeFactory, ClientRequestOptions options) {
+      String baseUri, @Nullable SerdeFactory serdeFactory, @Nullable ClientRequestOptions options) {
     return new JdkClient(URI.create(baseUri), serdeFactory, options, HttpClient.newHttpClient());
   }
 }

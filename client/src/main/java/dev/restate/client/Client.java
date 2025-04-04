@@ -126,6 +126,34 @@ public interface Client {
     /**
      * Complete with success the Awakeable.
      *
+     * @param clazz used to serialize the Awakeable result payload.
+     * @param payload the result payload. MUST NOT be null.
+     */
+    default <T> ClientResponse<Void> resolve(Class<T> clazz, @NonNull T payload) {
+      return this.resolve(TypeTag.of(clazz), payload, ClientRequestOptions.DEFAULT);
+    }
+
+    /** Same as {@link #resolve(Class, Object)} but async with options. */
+    default <T> CompletableFuture<ClientResponse<Void>> resolveAsync(
+            Class<T> clazz, @NonNull T payload, ClientRequestOptions options) {
+      return this.resolveAsync(TypeTag.of(clazz), payload, options);
+    }
+
+    /** Same as {@link #resolve(TypeTag, Object)} but async. */
+    default <T> CompletableFuture<ClientResponse<Void>> resolveAsync(
+            Class<T> clazz, @NonNull T payload) {
+      return resolveAsync(TypeTag.of(clazz), payload, ClientRequestOptions.DEFAULT);
+    }
+
+    /** Same as {@link #resolve(TypeTag, Object)} with options. */
+    default <T> ClientResponse<Void> resolve(
+            Class<T> clazz, @NonNull T payload, ClientRequestOptions options) {
+      return resolve(TypeTag.of(clazz), payload, options);
+    }
+
+    /**
+     * Complete with success the Awakeable.
+     *
      * @param serde used to serialize the Awakeable result payload.
      * @param payload the result payload. MUST NOT be null.
      */
@@ -331,7 +359,7 @@ public interface Client {
    * @param baseUri uri to connect to.
    */
   static Client connect(String baseUri) {
-    return connect(baseUri, SerdeFactory.NOOP, ClientRequestOptions.DEFAULT);
+    return connect(baseUri, null, null);
   }
 
   /**
@@ -341,15 +369,14 @@ public interface Client {
    * @param options default options to use in all the requests.
    */
   static Client connect(String baseUri, ClientRequestOptions options) {
-    return connect(baseUri, SerdeFactory.NOOP, options);
+    return connect(baseUri, null, options);
   }
 
   /**
    * Create a default JDK client.
    *
    * @param baseUri uri to connect to
-   * @param serdeFactory Serde factory to use. You must provide this when the provided {@link
-   *     TypeTag} are not {@link Serde} instances. If you're just wrapping this client in a
+   * @param serdeFactory Serde factory to use. If you're just wrapping this client in a
    *     code-generated client, you don't need to provide this parameter.
    */
   static Client connect(String baseUri, SerdeFactory serdeFactory) {
@@ -360,8 +387,7 @@ public interface Client {
    * Create a default JDK client.
    *
    * @param baseUri uri to connect to
-   * @param serdeFactory Serde factory to use. You must provide this when the provided {@link
-   *     TypeTag} are not {@link Serde} instances. If you're just wrapping this client in a
+   * @param serdeFactory Serde factory to use. If you're just wrapping this client in a
    *     code-generated client, you don't need to provide this parameter.
    * @param options default options to use in all the requests.
    */
