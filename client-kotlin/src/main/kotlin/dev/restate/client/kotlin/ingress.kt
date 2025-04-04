@@ -15,7 +15,8 @@ import dev.restate.client.SendResponse
 import dev.restate.common.Output
 import dev.restate.common.Request
 import dev.restate.common.WorkflowRequest
-import dev.restate.serde.Serde
+import dev.restate.serde.TypeTag
+import dev.restate.serde.kotlinx.typeTag
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
 import kotlinx.coroutines.future.await
@@ -71,11 +72,18 @@ suspend fun <Req, Res> Client.submitSuspend(
 }
 
 suspend fun <T : Any> Client.AwakeableHandle.resolveSuspend(
-    serde: Serde<T>,
+    typeTag: TypeTag<T>,
     payload: T,
     options: ClientRequestOptions = ClientRequestOptions.DEFAULT
 ): ClientResponse<Void> {
-  return this.resolveAsync(serde, payload, options).await()
+  return this.resolveAsync(typeTag, payload, options).await()
+}
+
+suspend inline fun <reified T : Any> Client.AwakeableHandle.resolveSuspend(
+    payload: T,
+    options: ClientRequestOptions = ClientRequestOptions.DEFAULT
+): ClientResponse<Void> {
+  return this.resolveSuspend(typeTag<T>(), payload, options)
 }
 
 suspend fun Client.AwakeableHandle.rejectSuspend(

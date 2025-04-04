@@ -12,7 +12,6 @@ import dev.restate.common.Output;
 import dev.restate.common.Request;
 import dev.restate.common.Target;
 import dev.restate.common.WorkflowRequest;
-import dev.restate.serde.Serde;
 import dev.restate.serde.SerdeFactory;
 import dev.restate.serde.TypeTag;
 import java.time.Duration;
@@ -135,19 +134,19 @@ public interface Client {
 
     /** Same as {@link #resolve(Class, Object)} but async with options. */
     default <T> CompletableFuture<ClientResponse<Void>> resolveAsync(
-            Class<T> clazz, @NonNull T payload, ClientRequestOptions options) {
+        Class<T> clazz, @NonNull T payload, ClientRequestOptions options) {
       return this.resolveAsync(TypeTag.of(clazz), payload, options);
     }
 
     /** Same as {@link #resolve(TypeTag, Object)} but async. */
     default <T> CompletableFuture<ClientResponse<Void>> resolveAsync(
-            Class<T> clazz, @NonNull T payload) {
+        Class<T> clazz, @NonNull T payload) {
       return resolveAsync(TypeTag.of(clazz), payload, ClientRequestOptions.DEFAULT);
     }
 
     /** Same as {@link #resolve(TypeTag, Object)} with options. */
     default <T> ClientResponse<Void> resolve(
-            Class<T> clazz, @NonNull T payload, ClientRequestOptions options) {
+        Class<T> clazz, @NonNull T payload, ClientRequestOptions options) {
       return resolve(TypeTag.of(clazz), payload, options);
     }
 
