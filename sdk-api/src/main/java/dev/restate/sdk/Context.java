@@ -56,8 +56,8 @@ import java.time.Duration;
  *
  * <h2>Thread safety</h2>
  *
- * This interface MUST NOT be accessed concurrently since it can lead to different orderings of user
- * actions, corrupting the execution of the invocation.
+ * This interface <b>MUST NOT</b> be accessed concurrently since it can lead to different orderings
+ * of user actions, corrupting the execution of the invocation.
  */
 public interface Context {
 
@@ -143,21 +143,6 @@ public interface Context {
   DurableFuture<Void> timer(String name, Duration duration);
 
   /**
-   * Like {@link #run(String, TypeTag, ThrowingSupplier)}, but using a custom retry policy.
-   *
-   * <p>When a retry policy is not specified, the {@code run} will be retried using the <a
-   * href="https://docs.restate.dev/operate/configuration/server">Restate invoker retry policy</a>,
-   * which by default retries indefinitely.
-   *
-   * @see RetryPolicy
-   */
-  default <T> T run(
-      String name, TypeTag<T> typeTag, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
-      throws TerminalException {
-    return runAsync(name, typeTag, retryPolicy, action).await();
-  }
-
-  /**
    * Execute a non-deterministic closure, recording the result value in the journal. The result
    * value will be re-played in case of re-invocation (e.g. because of failure recovery or
    * suspension point) without re-executing the closure. Use this feature if you want to perform
@@ -219,6 +204,22 @@ public interface Context {
   default <T> T run(String name, Class<T> clazz, ThrowingSupplier<T> action)
       throws TerminalException {
     return run(name, TypeTag.of(clazz), action);
+  }
+
+  /**
+   * Like {@link #run(String, TypeTag, ThrowingSupplier)}, but using a custom retry policy.
+   *
+   * <p>When a retry policy is not specified, the {@code run} will be retried using the <a
+   * href="https://docs.restate.dev/operate/configuration/server">Restate invoker retry policy</a>,
+   * which by default retries indefinitely.
+   *
+   * @see #run(String, Class, ThrowingSupplier)
+   * @see RetryPolicy
+   */
+  default <T> T run(
+      String name, TypeTag<T> typeTag, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
+      throws TerminalException {
+    return runAsync(name, typeTag, retryPolicy, action).await();
   }
 
   /**
@@ -325,7 +326,7 @@ public interface Context {
    *         .toList();
    *
    * // Await all of them
-   * Awaitable.all(resultFutures).await();
+   * DurableFuture.all(resultFutures).await();
    *
    * // Fan in - Aggregate the results
    * var results = resultFutures.stream()
@@ -477,6 +478,8 @@ public interface Context {
   AwakeableHandle awakeableHandle(String id);
 
   /**
+   * Returns a deterministic random.
+   *
    * @see RestateRandom
    */
   RestateRandom random();
