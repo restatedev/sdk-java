@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.types.StateKey;
+import dev.restate.sdk.common.StateKey;
 import dev.restate.serde.Serde;
 import java.util.Collection;
 import java.util.Optional;

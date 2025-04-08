@@ -12,8 +12,8 @@ import static dev.restate.sdk.core.TestDefinitions.*;
 import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
-import dev.restate.sdk.types.TerminalException;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 

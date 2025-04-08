@@ -10,13 +10,13 @@ package dev.restate.sdk;
 
 import dev.restate.common.*;
 import dev.restate.common.function.ThrowingSupplier;
+import dev.restate.sdk.common.DurablePromiseKey;
+import dev.restate.sdk.common.HandlerRequest;
+import dev.restate.sdk.common.RetryPolicy;
+import dev.restate.sdk.common.StateKey;
+import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
-import dev.restate.sdk.types.DurablePromiseKey;
-import dev.restate.sdk.types.HandlerRequest;
-import dev.restate.sdk.types.RetryPolicy;
-import dev.restate.sdk.types.StateKey;
-import dev.restate.sdk.types.TerminalException;
 import dev.restate.serde.Serde;
 import dev.restate.serde.SerdeFactory;
 import dev.restate.serde.TypeTag;
@@ -245,7 +245,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
 
   @Override
   public RestateRandom random() {
-    return new RestateRandom(this.request().invocationId().toRandomSeed());
+    return new RestateRandom(this.request().getInvocationId().toRandomSeed());
   }
 
   @Override

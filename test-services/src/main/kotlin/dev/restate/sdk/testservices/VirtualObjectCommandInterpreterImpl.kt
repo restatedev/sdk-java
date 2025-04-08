@@ -8,11 +8,11 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testservices
 
+import dev.restate.sdk.common.TerminalException
+import dev.restate.sdk.common.TimeoutException
 import dev.restate.sdk.kotlin.*
 import dev.restate.sdk.kotlin.get
 import dev.restate.sdk.testservices.contracts.VirtualObjectCommandInterpreter
-import dev.restate.sdk.types.TerminalException
-import dev.restate.sdk.types.TimeoutException
 import kotlin.time.Duration.Companion.milliseconds
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger

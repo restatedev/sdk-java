@@ -8,13 +8,13 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testservices
 
+import dev.restate.sdk.common.StateKey
+import dev.restate.sdk.common.TerminalException
 import dev.restate.sdk.kotlin.*
 import dev.restate.sdk.testservices.contracts.AwakeableHolderClient
 import dev.restate.sdk.testservices.contracts.BlockingOperation
 import dev.restate.sdk.testservices.contracts.CancelTest
 import dev.restate.sdk.testservices.contracts.CancelTestBlockingServiceClient
-import dev.restate.sdk.types.StateKey
-import dev.restate.sdk.types.TerminalException
 import kotlin.time.Duration.Companion.days
 
 class CancelTestImpl {

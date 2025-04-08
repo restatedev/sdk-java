@@ -12,10 +12,10 @@ import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 
 import dev.restate.common.Slice;
 import dev.restate.common.Target;
+import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.TestDefinitions.TestDefinition;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
 import dev.restate.sdk.core.generated.protocol.Protocol;
-import dev.restate.sdk.types.TerminalException;
 import java.util.Map;
 import java.util.stream.Stream;
 

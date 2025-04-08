@@ -10,8 +10,8 @@ package dev.restate.sdk;
 
 import dev.restate.common.function.ThrowingFunction;
 import dev.restate.common.function.ThrowingSupplier;
+import dev.restate.sdk.common.AbortedExecutionException;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
-import dev.restate.sdk.types.AbortedExecutionException;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;

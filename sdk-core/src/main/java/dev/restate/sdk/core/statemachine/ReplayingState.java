@@ -12,11 +12,11 @@ import static dev.restate.sdk.core.statemachine.Util.byteStringToSlice;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
+import dev.restate.sdk.common.AbortedExecutionException;
 import dev.restate.sdk.core.ExceptionUtils;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.core.statemachine.StateMachine.DoProgressResponse;
-import dev.restate.sdk.types.AbortedExecutionException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import org.apache.logging.log4j.LogManager;

@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.types.DurablePromiseKey;
+import dev.restate.sdk.common.DurablePromiseKey;
 
 /**
  * This interface can be used only within shared handlers of workflow. It extends {@link Context}

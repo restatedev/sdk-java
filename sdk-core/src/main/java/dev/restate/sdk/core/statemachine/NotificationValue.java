@@ -9,7 +9,7 @@
 package dev.restate.sdk.core.statemachine;
 
 import dev.restate.common.Slice;
-import dev.restate.sdk.types.TerminalException;
+import dev.restate.sdk.common.TerminalException;
 import java.util.List;
 
 public sealed interface NotificationValue {

@@ -8,12 +8,12 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testservices
 
+import dev.restate.sdk.common.TerminalException
 import dev.restate.sdk.kotlin.ObjectContext
 import dev.restate.sdk.kotlin.retryPolicy
 import dev.restate.sdk.kotlin.runBlock
 import dev.restate.sdk.testservices.contracts.Failing
 import dev.restate.sdk.testservices.contracts.FailingClient
-import dev.restate.sdk.types.TerminalException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 import org.apache.logging.log4j.LogManager

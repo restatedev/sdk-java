@@ -10,10 +10,10 @@ package dev.restate.sdk.kotlin
 
 import dev.restate.common.Output
 import dev.restate.common.Request
-import dev.restate.sdk.types.DurablePromiseKey
-import dev.restate.sdk.types.HandlerRequest
-import dev.restate.sdk.types.StateKey
-import dev.restate.sdk.types.TerminalException
+import dev.restate.sdk.common.DurablePromiseKey
+import dev.restate.sdk.common.HandlerRequest
+import dev.restate.sdk.common.StateKey
+import dev.restate.sdk.common.TerminalException
 import dev.restate.serde.TypeTag
 import dev.restate.serde.kotlinx.*
 import java.util.*
@@ -173,7 +173,7 @@ sealed interface Context {
 
   /**
    * Create a [RestateRandom] instance inherently predictable, seeded on the
-   * [dev.restate.sdk.types.InvocationId], which is not secret.
+   * [dev.restate.sdk.common.InvocationId], which is not secret.
    *
    * This instance is useful to generate identifiers, idempotency keys, and for uniform sampling
    * from a set of options. If a cryptographically secure value is needed, please generate that
@@ -394,7 +394,7 @@ class RestateRandom(seed: Long) : Random() {
  * waits until the asynchronous result is available.
  *
  * The result can be either a success or a failure. In case of a failure, [await] will throw a
- * [dev.restate.sdk.types.TerminalException].
+ * [dev.restate.sdk.common.TerminalException].
  *
  * @param T type of this future's result
  */
@@ -408,14 +408,14 @@ sealed interface DurableFuture<T> {
   suspend fun await(): T
 
   /**
-   * Same as [await] but throws a [dev.restate.sdk.types.TimeoutException] if this [DurableFuture]
+   * Same as [await] but throws a [dev.restate.sdk.common.TimeoutException] if this [DurableFuture]
    * doesn't complete before the provided `timeout`.
    */
   suspend fun await(duration: Duration): T
 
   /**
-   * Creates a [DurableFuture] that throws a [dev.restate.sdk.types.TimeoutException] if this future
-   * doesn't complete before the provided `timeout`.
+   * Creates a [DurableFuture] that throws a [dev.restate.sdk.common.TimeoutException] if this
+   * future doesn't complete before the provided `timeout`.
    */
   suspend fun withTimeout(duration: Duration): DurableFuture<T>
 
@@ -426,7 +426,7 @@ sealed interface DurableFuture<T> {
    * Map the success result of this [DurableFuture].
    *
    * @param transform the mapper to execute if this [DurableFuture] completes with success. The
-   *   mapper can throw a [dev.restate.sdk.types.TerminalException], thus failing the returned
+   *   mapper can throw a [dev.restate.sdk.common.TerminalException], thus failing the returned
    *   [DurableFuture].
    * @return a new [DurableFuture] with the mapped result, when completed
    */
@@ -436,10 +436,10 @@ sealed interface DurableFuture<T> {
    * Map both the success and the failure result of this [DurableFuture].
    *
    * @param transformSuccess the mapper to execute if this [DurableFuture] completes with success.
-   *   The mapper can throw a [dev.restate.sdk.types.TerminalException], thus failing the returned
+   *   The mapper can throw a [dev.restate.sdk.common.TerminalException], thus failing the returned
    *   [DurableFuture].
    * @param transformFailure the mapper to execute if this [DurableFuture] completes with failure.
-   *   The mapper can throw a [dev.restate.sdk.types.TerminalException], thus failing the returned
+   *   The mapper can throw a [dev.restate.sdk.common.TerminalException], thus failing the returned
    *   [DurableFuture].
    * @return a new [DurableFuture] with the mapped result, when completed
    */
@@ -452,7 +452,7 @@ sealed interface DurableFuture<T> {
    * Map the failure result of this [DurableFuture].
    *
    * @param transform the mapper to execute if this [DurableFuture] completes with failure. The
-   *   mapper can throw a [dev.restate.sdk.types.TerminalException], thus failing the returned
+   *   mapper can throw a [dev.restate.sdk.common.TerminalException], thus failing the returned
    *   [DurableFuture].
    * @return a new [DurableFuture] with the mapped result, when completed
    */

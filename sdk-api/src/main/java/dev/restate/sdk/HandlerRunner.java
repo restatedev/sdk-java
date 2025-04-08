@@ -13,8 +13,8 @@ import dev.restate.common.function.ThrowingBiConsumer;
 import dev.restate.common.function.ThrowingBiFunction;
 import dev.restate.common.function.ThrowingConsumer;
 import dev.restate.common.function.ThrowingFunction;
+import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
-import dev.restate.sdk.types.TerminalException;
 import dev.restate.serde.Serde;
 import dev.restate.serde.SerdeFactory;
 import io.opentelemetry.context.Scope;
@@ -61,7 +61,8 @@ public class HandlerRunner<REQ, RES>
             options.executor.execute(
                 () -> {
                   HANDLER_CONTEXT_THREAD_LOCAL.set(handlerContext);
-                  try (Scope ignored = handlerContext.request().otelContext().makeCurrent()) {
+                  try (Scope ignored =
+                      handlerContext.request().getOpenTelemetryContext().makeCurrent()) {
                     runnable.run();
                   } finally {
                     HANDLER_CONTEXT_THREAD_LOCAL.remove();
@@ -75,7 +76,7 @@ public class HandlerRunner<REQ, RES>
           // Parse input
           REQ req;
           try {
-            req = requestSerde.deserialize(handlerContext.request().body());
+            req = requestSerde.deserialize(handlerContext.request().getBody());
           } catch (Throwable e) {
             LOG.warn("Cannot deserialize input", e);
             returnFuture.completeExceptionally(

@@ -9,9 +9,9 @@
 package dev.restate.sdk;
 
 import dev.restate.common.function.ThrowingFunction;
+import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
-import dev.restate.sdk.types.TerminalException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;

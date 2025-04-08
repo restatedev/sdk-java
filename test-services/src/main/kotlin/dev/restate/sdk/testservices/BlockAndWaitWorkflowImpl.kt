@@ -8,11 +8,11 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testservices
 
+import dev.restate.sdk.common.DurablePromiseKey
+import dev.restate.sdk.common.StateKey
+import dev.restate.sdk.common.TerminalException
 import dev.restate.sdk.kotlin.*
 import dev.restate.sdk.testservices.contracts.BlockAndWaitWorkflow
-import dev.restate.sdk.types.DurablePromiseKey
-import dev.restate.sdk.types.StateKey
-import dev.restate.sdk.types.TerminalException
 
 class BlockAndWaitWorkflowImpl : BlockAndWaitWorkflow {
   companion object {

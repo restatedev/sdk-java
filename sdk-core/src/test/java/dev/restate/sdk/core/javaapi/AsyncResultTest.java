@@ -14,12 +14,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.restate.sdk.DurableFuture;
 import dev.restate.sdk.Select;
+import dev.restate.sdk.common.StateKey;
+import dev.restate.sdk.common.TimeoutException;
 import dev.restate.sdk.core.AsyncResultTestSuite;
 import dev.restate.sdk.core.TestDefinitions;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import dev.restate.sdk.core.TestSerdes;
-import dev.restate.sdk.types.StateKey;
-import dev.restate.sdk.types.TimeoutException;
 import dev.restate.serde.Serde;
 import java.time.Duration;
 import java.util.stream.Stream;

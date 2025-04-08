@@ -14,10 +14,10 @@ import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
 
+import dev.restate.sdk.common.RetryPolicy;
+import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.core.statemachine.MessageType;
-import dev.restate.sdk.types.RetryPolicy;
-import dev.restate.sdk.types.TerminalException;
 import java.time.Duration;
 import java.util.stream.Stream;
 

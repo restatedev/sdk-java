@@ -12,10 +12,10 @@ import static dev.restate.sdk.core.TestDefinitions.*;
 import static dev.restate.sdk.core.generated.protocol.Protocol.*;
 import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 
+import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.core.generated.protocol.Protocol.GetPromiseCompletionNotificationMessage;
 import dev.restate.sdk.core.statemachine.ProtoUtils;
-import dev.restate.sdk.types.TerminalException;
 import java.util.stream.Stream;
 
 public abstract class PromiseTestSuite implements TestSuite {

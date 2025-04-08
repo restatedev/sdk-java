@@ -10,9 +10,9 @@ package dev.restate.sdk.core.statemachine;
 
 import com.google.protobuf.MessageLite;
 import dev.restate.common.Slice;
+import dev.restate.sdk.common.RetryPolicy;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
-import dev.restate.sdk.types.RetryPolicy;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.List;

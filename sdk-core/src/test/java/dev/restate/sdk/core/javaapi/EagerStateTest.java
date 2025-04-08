@@ -11,10 +11,10 @@ package dev.restate.sdk.core.javaapi;
 import static dev.restate.sdk.core.javaapi.JavaAPITests.testDefinitionForVirtualObject;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.restate.sdk.common.StateKey;
 import dev.restate.sdk.core.EagerStateTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import dev.restate.sdk.core.TestSerdes;
-import dev.restate.sdk.types.StateKey;
 import dev.restate.serde.Serde;
 
 public class EagerStateTest extends EagerStateTestSuite {

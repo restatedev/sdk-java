@@ -9,7 +9,7 @@
 package dev.restate.sdk.endpoint.definition;
 
 import dev.restate.common.function.ThrowingFunction;
-import dev.restate.sdk.types.TerminalException;
+import dev.restate.sdk.common.TerminalException;
 import java.util.concurrent.CompletableFuture;
 
 /**

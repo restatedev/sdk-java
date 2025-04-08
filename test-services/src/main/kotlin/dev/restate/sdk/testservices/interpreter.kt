@@ -10,12 +10,12 @@ package dev.restate.sdk.testservices
 
 import dev.restate.common.Request
 import dev.restate.common.Target
+import dev.restate.sdk.common.StateKey
+import dev.restate.sdk.common.TerminalException
 import dev.restate.sdk.endpoint.definition.ServiceDefinition
 import dev.restate.sdk.kotlin.*
 import dev.restate.sdk.testservices.contracts.*
 import dev.restate.sdk.testservices.contracts.Program
-import dev.restate.sdk.types.StateKey
-import dev.restate.sdk.types.TerminalException
 import dev.restate.serde.Serde
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds

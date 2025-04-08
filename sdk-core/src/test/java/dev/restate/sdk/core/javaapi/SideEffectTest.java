@@ -10,10 +10,10 @@ package dev.restate.sdk.core.javaapi;
 
 import static dev.restate.sdk.core.javaapi.JavaAPITests.testDefinitionForService;
 
+import dev.restate.sdk.common.RetryPolicy;
 import dev.restate.sdk.core.SideEffectTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import dev.restate.sdk.core.TestSerdes;
-import dev.restate.sdk.types.RetryPolicy;
 import dev.restate.serde.Serde;
 import java.util.Objects;
 

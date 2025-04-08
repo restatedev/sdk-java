@@ -8,14 +8,14 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core.kotlinapi
 
+import dev.restate.sdk.common.StateKey
+import dev.restate.sdk.common.TimeoutException
 import dev.restate.sdk.core.AsyncResultTestSuite
 import dev.restate.sdk.core.TestDefinitions.*
 import dev.restate.sdk.core.TestSerdes
 import dev.restate.sdk.core.kotlinapi.KotlinAPITests.Companion.callGreeterGreetService
 import dev.restate.sdk.core.kotlinapi.KotlinAPITests.Companion.testDefinitionForVirtualObject
 import dev.restate.sdk.kotlin.*
-import dev.restate.sdk.types.StateKey
-import dev.restate.sdk.types.TimeoutException
 import java.util.stream.Stream
 import kotlin.time.Duration.Companion.days
 
