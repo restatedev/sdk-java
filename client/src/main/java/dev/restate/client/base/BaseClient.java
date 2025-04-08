@@ -44,12 +44,10 @@ public abstract class BaseClient implements Client {
 
   private final URI baseUri;
   private final SerdeFactory serdeFactory;
-  private final ClientRequestOptions baseOptions;
+  private final RequestOptions baseOptions;
 
   protected BaseClient(
-      URI baseUri,
-      @Nullable SerdeFactory serdeFactory,
-      @Nullable ClientRequestOptions baseOptions) {
+      URI baseUri, @Nullable SerdeFactory serdeFactory, @Nullable RequestOptions baseOptions) {
     this.baseUri = Objects.requireNonNull(baseUri, "Base uri cannot be null");
     if (!this.baseUri.isAbsolute()) {
       throw new IllegalArgumentException(
@@ -59,11 +57,11 @@ public abstract class BaseClient implements Client {
         serdeFactory == null
             ? DefaultSerdeFactorySingleton.INSTANCE.getLoadedFactory()
             : serdeFactory;
-    this.baseOptions = baseOptions == null ? ClientRequestOptions.DEFAULT : baseOptions;
+    this.baseOptions = baseOptions == null ? RequestOptions.DEFAULT : baseOptions;
   }
 
   @Override
-  public <Req, Res> CompletableFuture<ClientResponse<Res>> callAsync(Request<Req, Res> request) {
+  public <Req, Res> CompletableFuture<Response<Res>> callAsync(Request<Req, Res> request) {
     Serde<Req> reqSerde = this.serdeFactory.create(request.getRequestTypeTag());
     Serde<Res> resSerde = this.serdeFactory.create(request.getResponseTypeTag());
 
@@ -91,7 +89,7 @@ public abstract class BaseClient implements Client {
   }
 
   @Override
-  public <Req, Res> CompletableFuture<ClientResponse<SendResponse<Res>>> sendAsync(
+  public <Req, Res> CompletableFuture<SendResponse<Res>> sendAsync(
       Request<Req, Res> request, @Nullable Duration delay) {
     Serde<Req> reqSerde = this.serdeFactory.create(request.getRequestTypeTag());
 
@@ -165,12 +163,11 @@ public abstract class BaseClient implements Client {
                 null);
           }
 
-          return new ClientResponse<>(
+          return new SendResponse<>(
               statusCode,
               responseHeaders,
-              new SendResponse<>(
-                  status,
-                  invocationHandle(fields.get("invocationId"), request.getResponseTypeTag())));
+              status,
+              invocationHandle(fields.get("invocationId"), request.getResponseTypeTag()));
         });
   }
 
@@ -178,8 +175,8 @@ public abstract class BaseClient implements Client {
   public AwakeableHandle awakeableHandle(String id) {
     return new AwakeableHandle() {
       @Override
-      public <T> CompletableFuture<ClientResponse<Void>> resolveAsync(
-          TypeTag<T> serde, @NonNull T payload, ClientRequestOptions options) {
+      public <T> CompletableFuture<Response<Void>> resolveAsync(
+          TypeTag<T> serde, @NonNull T payload, RequestOptions options) {
         Serde<T> reqSerde = serdeFactory.create(serde);
         Slice requestBody = reqSerde.serialize(payload);
 
@@ -201,8 +198,7 @@ public abstract class BaseClient implements Client {
       }
 
       @Override
-      public CompletableFuture<ClientResponse<Void>> rejectAsync(
-          String reason, ClientRequestOptions options) {
+      public CompletableFuture<Response<Void>> rejectAsync(String reason, RequestOptions options) {
         URI requestUri = baseUri.resolve("/restate/awakeables/" + id + "/reject");
         Stream<Map.Entry<String, String>> headersStream =
             Stream.concat(
@@ -232,7 +228,7 @@ public abstract class BaseClient implements Client {
       }
 
       @Override
-      public CompletableFuture<ClientResponse<Res>> attachAsync(ClientRequestOptions options) {
+      public CompletableFuture<Response<Res>> attachAsync(RequestOptions options) {
         URI requestUri = baseUri.resolve("/restate/invocation/" + invocationId + "/attach");
         Stream<Map.Entry<String, String>> headersStream =
             Stream.concat(
@@ -243,8 +239,7 @@ public abstract class BaseClient implements Client {
       }
 
       @Override
-      public CompletableFuture<ClientResponse<Output<Res>>> getOutputAsync(
-          ClientRequestOptions options) {
+      public CompletableFuture<Response<Output<Res>>> getOutputAsync(RequestOptions options) {
         URI requestUri = baseUri.resolve("/restate/invocation/" + invocationId + "/output");
         Stream<Map.Entry<String, String>> headersStream =
             Stream.concat(
@@ -252,6 +247,11 @@ public abstract class BaseClient implements Client {
 
         return doGetRequest(
             requestUri, headersStream, getOutputResponseMapper("GET", requestUri, resSerde));
+      }
+
+      @Override
+      public String toString() {
+        return "InvocationHandle{" + invocationId + "}";
       }
     };
   }
@@ -261,7 +261,7 @@ public abstract class BaseClient implements Client {
       Target target, String idempotencyKey, TypeTag<Res> resTypeTag) {
     return new IdempotentInvocationHandle<>() {
       @Override
-      public CompletableFuture<ClientResponse<Res>> attachAsync(ClientRequestOptions options) {
+      public CompletableFuture<Response<Res>> attachAsync(RequestOptions options) {
         Serde<Res> resSerde = serdeFactory.create(resTypeTag);
 
         URI requestUri =
@@ -280,8 +280,7 @@ public abstract class BaseClient implements Client {
       }
 
       @Override
-      public CompletableFuture<ClientResponse<Output<Res>>> getOutputAsync(
-          ClientRequestOptions options) {
+      public CompletableFuture<Response<Output<Res>>> getOutputAsync(RequestOptions options) {
         Serde<Res> resSerde = serdeFactory.create(resTypeTag);
 
         URI requestUri =
@@ -306,7 +305,7 @@ public abstract class BaseClient implements Client {
       String workflowName, String workflowId, TypeTag<Res> resTypeTag) {
     return new WorkflowHandle<>() {
       @Override
-      public CompletableFuture<ClientResponse<Res>> attachAsync(ClientRequestOptions options) {
+      public CompletableFuture<Response<Res>> attachAsync(RequestOptions options) {
         Serde<Res> resSerde = serdeFactory.create(resTypeTag);
 
         URI requestUri =
@@ -325,8 +324,7 @@ public abstract class BaseClient implements Client {
       }
 
       @Override
-      public CompletableFuture<ClientResponse<Output<Res>>> getOutputAsync(
-          ClientRequestOptions options) {
+      public CompletableFuture<Response<Output<Res>>> getOutputAsync(RequestOptions options) {
         Serde<Res> resSerde = serdeFactory.create(resTypeTag);
 
         URI requestUri =
@@ -348,20 +346,19 @@ public abstract class BaseClient implements Client {
 
   @FunctionalInterface
   protected interface ResponseMapper<R> {
-    ClientResponse<R> mapResponse(
-        int statusCode, ClientResponse.Headers responseHeaders, @Nullable Slice responseBody);
+    R mapResponse(int statusCode, Response.Headers responseHeaders, @Nullable Slice responseBody);
   }
 
-  protected abstract <R> CompletableFuture<ClientResponse<R>> doPostRequest(
+  protected abstract <Res> CompletableFuture<Res> doPostRequest(
       URI target,
       Stream<Map.Entry<String, String>> headers,
       Slice payload,
-      ResponseMapper<R> responseMapper);
+      ResponseMapper<Res> responseMapper);
 
-  protected abstract <R> CompletableFuture<ClientResponse<R>> doGetRequest(
-      URI target, Stream<Map.Entry<String, String>> headers, ResponseMapper<R> responseMapper);
+  protected abstract <Res> CompletableFuture<Res> doGetRequest(
+      URI target, Stream<Map.Entry<String, String>> headers, ResponseMapper<Res> responseMapper);
 
-  private <Res> @NotNull ResponseMapper<Res> callResponseMapper(
+  private <Res> @NotNull ResponseMapper<Response<Res>> callResponseMapper(
       String requestMethod, URI requestUri, Serde<Res> resSerde) {
     return (statusCode, responseHeaders, responseBody) -> {
       if (statusCode >= 300) {
@@ -379,8 +376,7 @@ public abstract class BaseClient implements Client {
             null);
       }
       try {
-        return new ClientResponse<>(
-            statusCode, responseHeaders, resSerde.deserialize(responseBody));
+        return new Response<>(statusCode, responseHeaders, resSerde.deserialize(responseBody));
       } catch (Exception e) {
         throw new IngressException(
             "Cannot deserialize the response",
@@ -393,11 +389,11 @@ public abstract class BaseClient implements Client {
     };
   }
 
-  private <Res> @NotNull ResponseMapper<Output<Res>> getOutputResponseMapper(
+  private <Res> @NotNull ResponseMapper<Response<Output<Res>>> getOutputResponseMapper(
       String requestMethod, URI requestUri, Serde<Res> resSerde) {
     return (statusCode, responseHeaders, responseBody) -> {
       if (statusCode == 470) {
-        return new ClientResponse<>(statusCode, responseHeaders, Output.notReady());
+        return new Response<>(statusCode, responseHeaders, Output.notReady());
       }
 
       if (statusCode >= 300) {
@@ -415,7 +411,7 @@ public abstract class BaseClient implements Client {
             null);
       }
       try {
-        return new ClientResponse<>(
+        return new Response<>(
             statusCode, responseHeaders, Output.ready(resSerde.deserialize(responseBody)));
       } catch (Exception e) {
         throw new IngressException(
@@ -452,14 +448,15 @@ public abstract class BaseClient implements Client {
     return this.baseUri.resolve(builder.toString());
   }
 
-  private ResponseMapper<Void> handleVoidResponse(String requestMethod, String requestURI) {
+  private ResponseMapper<Response<Void>> handleVoidResponse(
+      String requestMethod, String requestURI) {
     return (statusCode, responseHeaders, responseBody) -> {
       if (statusCode >= 300) {
         handleNonSuccessResponse(
             requestMethod, requestURI, statusCode, responseHeaders, responseBody);
       }
 
-      return new ClientResponse<>(statusCode, responseHeaders, null);
+      return new Response<>(statusCode, responseHeaders, null);
     };
   }
 
@@ -467,7 +464,7 @@ public abstract class BaseClient implements Client {
       String requestMethod,
       String requestURI,
       int statusCode,
-      ClientResponse.Headers headers,
+      Response.Headers headers,
       @Nullable Slice responseBody) {
     String ct = headers.get("content-type");
     if (ct != null && ct.contains("application/json") && responseBody != null) {

@@ -62,7 +62,7 @@ public class HandlerRunner<REQ, RES>
                 () -> {
                   HANDLER_CONTEXT_THREAD_LOCAL.set(handlerContext);
                   try (Scope ignored =
-                      handlerContext.request().getOpenTelemetryContext().makeCurrent()) {
+                      handlerContext.request().openTelemetryContext().makeCurrent()) {
                     runnable.run();
                   } finally {
                     HANDLER_CONTEXT_THREAD_LOCAL.remove();
@@ -76,7 +76,7 @@ public class HandlerRunner<REQ, RES>
           // Parse input
           REQ req;
           try {
-            req = requestSerde.deserialize(handlerContext.request().getBody());
+            req = requestSerde.deserialize(handlerContext.request().body());
           } catch (Throwable e) {
             LOG.warn("Cannot deserialize input", e);
             returnFuture.completeExceptionally(

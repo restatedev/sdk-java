@@ -23,7 +23,7 @@ public class IngressException extends RuntimeException {
       String requestMethod,
       String requestURI,
       int statusCode,
-      @Nullable byte[] responseBody,
+      byte @Nullable [] responseBody,
       Throwable cause) {
     super(message, cause);
     this.statusCode = statusCode;
@@ -59,6 +59,6 @@ public class IngressException extends RuntimeException {
         + "] "
         + super.getMessage()
         + ". Got response body: "
-        + new String(responseBody, StandardCharsets.UTF_8);
+        + (responseBody == null ? "null" : new String(responseBody, StandardCharsets.UTF_8));
   }
 }

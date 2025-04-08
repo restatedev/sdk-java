@@ -9,7 +9,7 @@
 package dev.restate.sdk.springboot;
 
 import dev.restate.client.Client;
-import dev.restate.client.ClientRequestOptions;
+import dev.restate.client.RequestOptions;
 import java.util.Collections;
 import java.util.Map;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -32,6 +32,6 @@ public class RestateClientAutoConfiguration {
       headers = Collections.emptyMap();
     }
     return Client.connect(
-        restateClientProperties.getBaseUri(), ClientRequestOptions.withHeaders(headers).build());
+        restateClientProperties.getBaseUri(), RequestOptions.withHeaders(headers).build());
   }
 }

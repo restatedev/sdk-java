@@ -24,10 +24,11 @@ class TestUtilsServiceImpl : TestUtilsService {
   }
 
   override suspend fun echoHeaders(context: Context): Map<String, String> {
-    return context.request().getHeaders()
+    return context.request().headers
   }
 
   override suspend fun rawEcho(context: Context, input: ByteArray): ByteArray {
+    check(input.contentEquals(context.request().bodyAsByteArray))
     return input
   }
 

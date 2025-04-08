@@ -11,13 +11,13 @@ package dev.restate.client;
 import java.util.*;
 import org.jspecify.annotations.Nullable;
 
-public final class ClientRequestOptions {
+public final class RequestOptions {
 
-  public static final ClientRequestOptions DEFAULT = new ClientRequestOptions(null);
+  public static final RequestOptions DEFAULT = new RequestOptions(null);
 
   @Nullable private final Map<String, String> headers;
 
-  private ClientRequestOptions(@Nullable Map<String, String> headers) {
+  private RequestOptions(@Nullable Map<String, String> headers) {
     this.headers = headers;
   }
 
@@ -77,14 +77,14 @@ public final class ClientRequestOptions {
       return headers(newHeaders);
     }
 
-    public ClientRequestOptions build() {
-      return new ClientRequestOptions(this.headers);
+    public RequestOptions build() {
+      return new RequestOptions(this.headers);
     }
   }
 
   @Override
   public boolean equals(Object o) {
-    if (!(o instanceof ClientRequestOptions that)) return false;
+    if (!(o instanceof RequestOptions that)) return false;
     return Objects.equals(headers, that.headers);
   }
 

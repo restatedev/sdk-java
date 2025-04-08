@@ -165,7 +165,7 @@ internal constructor(
   }
 
   override fun random(): RestateRandom {
-    return RestateRandom(handlerContext.request().getInvocationId().toRandomSeed())
+    return RestateRandom(handlerContext.request().invocationId().toRandomSeed())
   }
 
   override fun <T : Any> promise(key: DurablePromiseKey<T>): DurablePromise<T> {

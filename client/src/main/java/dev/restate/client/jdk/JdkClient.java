@@ -28,16 +28,13 @@ public class JdkClient extends BaseClient {
   private final HttpClient httpClient;
 
   private JdkClient(
-      URI baseUri,
-      SerdeFactory serdeFactory,
-      ClientRequestOptions baseOptions,
-      HttpClient httpClient) {
+      URI baseUri, SerdeFactory serdeFactory, RequestOptions baseOptions, HttpClient httpClient) {
     super(baseUri, serdeFactory, baseOptions);
     this.httpClient = httpClient;
   }
 
   @Override
-  protected <R> CompletableFuture<ClientResponse<R>> doPostRequest(
+  protected <R> CompletableFuture<R> doPostRequest(
       URI target,
       Stream<Map.Entry<String, String>> headers,
       Slice payload,
@@ -66,7 +63,7 @@ public class JdkClient extends BaseClient {
   }
 
   @Override
-  protected <R> CompletableFuture<ClientResponse<R>> doGetRequest(
+  protected <R> CompletableFuture<R> doGetRequest(
       URI target, Stream<Map.Entry<String, String>> headers, ResponseMapper<R> responseMapper) {
     var reqBuilder = HttpRequest.newBuilder().uri(target);
     headers.forEach(h -> reqBuilder.header(h.getKey(), h.getValue()));
@@ -91,8 +88,8 @@ public class JdkClient extends BaseClient {
             });
   }
 
-  private ClientResponse.Headers toHeaders(HttpHeaders httpHeaders) {
-    return new ClientResponse.Headers() {
+  private Response.Headers toHeaders(HttpHeaders httpHeaders) {
+    return new Response.Headers() {
       @Override
       public @Nullable String get(String key) {
         return httpHeaders.firstValue(key).orElse(null);
@@ -117,13 +114,13 @@ public class JdkClient extends BaseClient {
       HttpClient httpClient,
       String baseUri,
       @Nullable SerdeFactory serdeFactory,
-      @Nullable ClientRequestOptions options) {
+      @Nullable RequestOptions options) {
     return new JdkClient(URI.create(baseUri), serdeFactory, options, httpClient);
   }
 
   /** Create a new JDK Client */
   public static JdkClient of(
-      String baseUri, @Nullable SerdeFactory serdeFactory, @Nullable ClientRequestOptions options) {
+      String baseUri, @Nullable SerdeFactory serdeFactory, @Nullable RequestOptions options) {
     return new JdkClient(URI.create(baseUri), serdeFactory, options, HttpClient.newHttpClient());
   }
 }

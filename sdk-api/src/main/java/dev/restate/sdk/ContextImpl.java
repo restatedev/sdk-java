@@ -245,7 +245,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
 
   @Override
   public RestateRandom random() {
-    return new RestateRandom(this.request().getInvocationId().toRandomSeed());
+    return new RestateRandom(this.request().invocationId().toRandomSeed());
   }
 
   @Override

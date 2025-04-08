@@ -29,27 +29,27 @@ public final class HandlerRequest {
     this.headers = headers;
   }
 
-  public InvocationId getInvocationId() {
+  public InvocationId invocationId() {
     return invocationId;
   }
 
-  public Context getOpenTelemetryContext() {
+  public Context openTelemetryContext() {
     return otelContext;
   }
 
-  public Slice getBody() {
+  public Slice body() {
     return body;
   }
 
-  public byte[] getBodyAsByteArray() {
+  public byte[] bodyAsByteArray() {
     return body.toByteArray();
   }
 
-  public ByteBuffer getBodyAsBodyBuffer() {
+  public ByteBuffer bodyAsBodyBuffer() {
     return body.asReadOnlyByteBuffer();
   }
 
-  public Map<String, String> getHeaders() {
+  public Map<String, String> headers() {
     return headers;
   }
 

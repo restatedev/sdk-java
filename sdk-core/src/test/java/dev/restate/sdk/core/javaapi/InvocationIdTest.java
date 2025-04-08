@@ -23,6 +23,6 @@ public class InvocationIdTest extends InvocationIdTestSuite {
         "ReturnInvocationId",
         Serde.VOID,
         TestSerdes.STRING,
-        (ctx, unused) -> ctx.request().getInvocationId().toString());
+        (ctx, unused) -> ctx.request().invocationId().toString());
   }
 }

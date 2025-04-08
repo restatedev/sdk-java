@@ -108,7 +108,7 @@ internal constructor(
             options.coroutineContext +
                 dev.restate.sdk.endpoint.definition.HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL
                     .asContextElement(handlerContext) +
-                handlerContext.request().getOpenTelemetryContext()!!.asContextElement())
+                handlerContext.request().openTelemetryContext()!!.asContextElement())
 
     val completableFuture = CompletableFuture<Slice>()
     val job =
@@ -119,7 +119,7 @@ internal constructor(
             // Parse input
             val req: REQ
             try {
-              req = requestSerde.deserialize(handlerContext.request().body)
+              req = requestSerde.deserialize(handlerContext.request().body())
             } catch (e: Throwable) {
               LOG.warn("Error deserializing request", e)
               completableFuture.completeExceptionally(
