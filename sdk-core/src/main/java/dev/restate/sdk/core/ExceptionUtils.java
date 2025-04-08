@@ -8,8 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import dev.restate.sdk.types.AbortedExecutionException;
-import dev.restate.sdk.types.TerminalException;
+import dev.restate.sdk.common.AbortedExecutionException;
+import dev.restate.sdk.common.TerminalException;
 import java.util.Optional;
 import java.util.function.Predicate;
 

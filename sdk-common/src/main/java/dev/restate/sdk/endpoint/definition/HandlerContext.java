@@ -11,7 +11,7 @@ package dev.restate.sdk.endpoint.definition;
 import dev.restate.common.Output;
 import dev.restate.common.Slice;
 import dev.restate.common.Target;
-import dev.restate.sdk.types.*;
+import dev.restate.sdk.common.*;
 import java.time.Duration;
 import java.util.*;
 import java.util.List;

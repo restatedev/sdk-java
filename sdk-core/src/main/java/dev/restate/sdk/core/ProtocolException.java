@@ -9,8 +9,8 @@
 package dev.restate.sdk.core;
 
 import com.google.protobuf.MessageLite;
+import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.statemachine.NotificationId;
-import dev.restate.sdk.types.TerminalException;
 
 public class ProtocolException extends RuntimeException {
 

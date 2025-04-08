@@ -9,8 +9,8 @@
 package dev.restate.sdk.kotlin
 
 import dev.restate.common.Slice
+import dev.restate.sdk.common.TerminalException
 import dev.restate.sdk.endpoint.definition.HandlerContext
-import dev.restate.sdk.types.TerminalException
 import dev.restate.serde.Serde
 import dev.restate.serde.SerdeFactory
 import io.opentelemetry.extension.kotlin.asContextElement
@@ -108,7 +108,7 @@ internal constructor(
             options.coroutineContext +
                 dev.restate.sdk.endpoint.definition.HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL
                     .asContextElement(handlerContext) +
-                handlerContext.request().otelContext()!!.asContextElement())
+                handlerContext.request().getOpenTelemetryContext()!!.asContextElement())
 
     val completableFuture = CompletableFuture<Slice>()
     val job =

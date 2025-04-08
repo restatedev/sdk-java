@@ -11,11 +11,11 @@ package dev.restate.sdk.kotlin
 import dev.restate.common.Output
 import dev.restate.common.Request
 import dev.restate.common.Slice
+import dev.restate.sdk.common.DurablePromiseKey
+import dev.restate.sdk.common.HandlerRequest
+import dev.restate.sdk.common.StateKey
+import dev.restate.sdk.common.TerminalException
 import dev.restate.sdk.endpoint.definition.HandlerContext
-import dev.restate.sdk.types.DurablePromiseKey
-import dev.restate.sdk.types.HandlerRequest
-import dev.restate.sdk.types.StateKey
-import dev.restate.sdk.types.TerminalException
 import dev.restate.serde.Serde
 import dev.restate.serde.SerdeFactory
 import dev.restate.serde.TypeTag
@@ -127,7 +127,7 @@ internal constructor(
     var coroutineCtx = currentCoroutineContext()
     val javaRetryPolicy =
         retryPolicy?.let {
-          dev.restate.sdk.types.RetryPolicy.exponential(
+          dev.restate.sdk.common.RetryPolicy.exponential(
                   it.initialDelay.toJavaDuration(), it.exponentiationFactor)
               .setMaxAttempts(it.maxAttempts)
               .setMaxDelay(it.maxDelay?.toJavaDuration())
@@ -165,7 +165,7 @@ internal constructor(
   }
 
   override fun random(): RestateRandom {
-    return RestateRandom(handlerContext.request().invocationId().toRandomSeed())
+    return RestateRandom(handlerContext.request().getInvocationId().toRandomSeed())
   }
 
   override fun <T : Any> promise(key: DurablePromiseKey<T>): DurablePromise<T> {

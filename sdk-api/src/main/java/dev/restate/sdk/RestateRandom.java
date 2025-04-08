@@ -9,7 +9,7 @@
 package dev.restate.sdk;
 
 import dev.restate.common.function.ThrowingSupplier;
-import dev.restate.sdk.types.InvocationId;
+import dev.restate.sdk.common.InvocationId;
 import java.util.Random;
 import java.util.UUID;
 

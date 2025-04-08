@@ -8,6 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core.kotlinapi
 
+import dev.restate.sdk.common.RetryPolicy
 import dev.restate.sdk.core.SideEffectTestSuite
 import dev.restate.sdk.core.TestDefinitions
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder
@@ -17,7 +18,6 @@ import dev.restate.sdk.endpoint.definition.HandlerType
 import dev.restate.sdk.endpoint.definition.ServiceDefinition
 import dev.restate.sdk.endpoint.definition.ServiceType
 import dev.restate.sdk.kotlin.*
-import dev.restate.sdk.types.RetryPolicy
 import dev.restate.serde.kotlinx.*
 import java.util.*
 import kotlin.coroutines.coroutineContext

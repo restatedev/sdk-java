@@ -8,9 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core.statemachine;
 
+import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
-import dev.restate.sdk.types.TerminalException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 

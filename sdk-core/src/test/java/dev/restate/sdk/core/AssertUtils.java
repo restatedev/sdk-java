@@ -15,6 +15,7 @@ import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 import com.google.protobuf.MessageLite;
 import dev.restate.common.Slice;
+import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.generated.manifest.EndpointManifestSchema;
 import dev.restate.sdk.core.generated.manifest.Handler;
 import dev.restate.sdk.core.generated.manifest.Service;
@@ -22,7 +23,6 @@ import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.core.statemachine.InvocationInput;
 import dev.restate.sdk.core.statemachine.MessageDecoder;
 import dev.restate.sdk.endpoint.Endpoint;
-import dev.restate.sdk.types.TerminalException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;

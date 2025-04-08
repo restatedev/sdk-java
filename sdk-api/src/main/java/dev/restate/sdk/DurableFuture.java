@@ -9,11 +9,11 @@
 package dev.restate.sdk;
 
 import dev.restate.common.function.ThrowingFunction;
+import dev.restate.sdk.common.AbortedExecutionException;
+import dev.restate.sdk.common.TerminalException;
+import dev.restate.sdk.common.TimeoutException;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
-import dev.restate.sdk.types.AbortedExecutionException;
-import dev.restate.sdk.types.TerminalException;
-import dev.restate.sdk.types.TimeoutException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;

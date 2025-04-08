@@ -10,10 +10,10 @@ package dev.restate.sdk.core.javaapi;
 
 import static dev.restate.sdk.core.javaapi.JavaAPITests.testDefinitionForService;
 
+import dev.restate.sdk.common.AbortedExecutionException;
+import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import dev.restate.sdk.core.UserFailuresTestSuite;
-import dev.restate.sdk.types.AbortedExecutionException;
-import dev.restate.sdk.types.TerminalException;
 import dev.restate.serde.Serde;
 import java.util.concurrent.atomic.AtomicInteger;
 

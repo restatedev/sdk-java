@@ -9,11 +9,11 @@
 package dev.restate.sdk.core;
 
 import dev.restate.common.function.ThrowingFunction;
+import dev.restate.sdk.common.AbortedExecutionException;
+import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.statemachine.NotificationValue;
 import dev.restate.sdk.core.statemachine.StateMachine;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
-import dev.restate.sdk.types.AbortedExecutionException;
-import dev.restate.sdk.types.TerminalException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;

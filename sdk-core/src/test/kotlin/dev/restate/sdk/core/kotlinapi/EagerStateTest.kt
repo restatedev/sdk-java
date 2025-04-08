@@ -8,11 +8,11 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core.kotlinapi
 
+import dev.restate.sdk.common.StateKey
 import dev.restate.sdk.core.EagerStateTestSuite
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder
 import dev.restate.sdk.core.TestSerdes
 import dev.restate.sdk.core.kotlinapi.KotlinAPITests.Companion.testDefinitionForVirtualObject
-import dev.restate.sdk.types.StateKey
 import org.assertj.core.api.AssertionsForClassTypes.assertThat
 
 class EagerStateTest : EagerStateTestSuite() {

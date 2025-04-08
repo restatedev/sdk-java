@@ -10,11 +10,11 @@ package dev.restate.sdk.core.javaapi;
 
 import static dev.restate.sdk.core.javaapi.JavaAPITests.*;
 
+import dev.restate.sdk.common.DurablePromiseKey;
+import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.PromiseTestSuite;
 import dev.restate.sdk.core.TestDefinitions;
 import dev.restate.sdk.core.TestSerdes;
-import dev.restate.sdk.types.DurablePromiseKey;
-import dev.restate.sdk.types.TerminalException;
 import dev.restate.serde.Serde;
 
 public class PromiseTest extends PromiseTestSuite {

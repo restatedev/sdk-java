@@ -12,7 +12,7 @@ import dev.restate.sdk.ObjectContext;
 import dev.restate.sdk.annotation.Handler;
 import dev.restate.sdk.annotation.Name;
 import dev.restate.sdk.annotation.VirtualObject;
-import dev.restate.sdk.types.StateKey;
+import dev.restate.sdk.common.StateKey;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 

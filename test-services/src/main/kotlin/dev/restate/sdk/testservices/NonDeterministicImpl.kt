@@ -8,10 +8,10 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testservices
 
+import dev.restate.sdk.common.StateKey
 import dev.restate.sdk.kotlin.*
 import dev.restate.sdk.testservices.contracts.CounterClient
 import dev.restate.sdk.testservices.contracts.NonDeterministic
-import dev.restate.sdk.types.StateKey
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.milliseconds
 

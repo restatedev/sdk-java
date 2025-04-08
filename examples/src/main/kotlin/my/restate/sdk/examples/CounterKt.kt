@@ -18,8 +18,6 @@ import kotlinx.serialization.Serializable
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 
-@Serializable data class CounterUpdate(var oldValue: Long, val newValue: Long)
-
 @VirtualObject
 class CounterKt {
 
@@ -27,6 +25,8 @@ class CounterKt {
     private val TOTAL = stateKey<Long>("total")
     private val LOG: Logger = LogManager.getLogger(CounterKt::class.java)
   }
+
+  @Serializable data class CounterUpdate(var oldValue: Long, val newValue: Long)
 
   @Handler
   suspend fun reset(ctx: ObjectContext) {
