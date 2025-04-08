@@ -23,7 +23,7 @@ public class {{generatedClassSimpleName}} {
         return new IngressClient(dev.restate.client.Client.connect(baseUri, {{metadataClass}}.SERDE_FACTORY){{#isKeyed}}, key{{/isKeyed}});
     }
 
-    public static IngressClient connect(String baseUri, dev.restate.client.ClientRequestOptions requestOptions{{#isKeyed}}, String key{{/isKeyed}}) {
+    public static IngressClient connect(String baseUri, dev.restate.client.RequestOptions requestOptions{{#isKeyed}}, String key{{/isKeyed}}) {
         return new IngressClient(dev.restate.client.Client.connect(baseUri, {{metadataClass}}.SERDE_FACTORY, requestOptions){{#isKeyed}}, key{{/isKeyed}});
     }
 
@@ -109,7 +109,7 @@ public class {{generatedClassSimpleName}} {
         public dev.restate.client.SendResponse<{{{boxedOutputFqcn}}}> submit({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
             return IngressClient.this.client.send(
                 {{../handlersClass}}.{{handlersClassMethodName}}({{#if ../isKeyed}}this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}})
-            ).response();
+            );
         }
 
         public dev.restate.client.SendResponse<{{{boxedOutputFqcn}}}> submit({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}Consumer<dev.restate.common.RequestBuilder<{{{boxedInputFqcn}}}, {{{boxedOutputFqcn}}}>> requestBuilderApplier) {
@@ -117,13 +117,13 @@ public class {{generatedClassSimpleName}} {
             if (requestBuilderApplier != null) {
                 requestBuilderApplier.accept(reqBuilder);
             }
-            return IngressClient.this.client.send(reqBuilder).response();
+            return IngressClient.this.client.send(reqBuilder);
         }
 
         public java.util.concurrent.CompletableFuture<dev.restate.client.SendResponse<{{{boxedOutputFqcn}}}>> submitAsync({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
             return IngressClient.this.client.sendAsync(
                 {{../handlersClass}}.{{handlersClassMethodName}}({{#if ../isKeyed}}this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}})
-            ).thenApply(dev.restate.client.ClientResponse::response);
+            );
         }
 
         public java.util.concurrent.CompletableFuture<dev.restate.client.SendResponse<{{{boxedOutputFqcn}}}>> submitAsync({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}Consumer<dev.restate.common.RequestBuilder<{{{boxedInputFqcn}}}, {{{boxedOutputFqcn}}}>> requestBuilderApplier) {
@@ -131,7 +131,7 @@ public class {{generatedClassSimpleName}} {
             if (requestBuilderApplier != null) {
                 requestBuilderApplier.accept(reqBuilder);
             }
-            return IngressClient.this.client.sendAsync(reqBuilder).thenApply(dev.restate.client.ClientResponse::response);
+            return IngressClient.this.client.sendAsync(reqBuilder);
         }
         {{else}}
         public {{#if outputEmpty}}void{{else}}{{{outputFqcn}}}{{/if}} {{handlersClassMethodName}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
@@ -150,14 +150,14 @@ public class {{generatedClassSimpleName}} {
         public {{#if outputEmpty}}java.util.concurrent.CompletableFuture<Void>{{else}}java.util.concurrent.CompletableFuture<{{{boxedOutputFqcn}}}>{{/if}} {{handlersClassMethodName}}Async({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
             return this.client.callAsync(
                 {{../handlersClass}}.{{handlersClassMethodName}}({{#if ../isKeyed}}this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}})
-            ).thenApply(dev.restate.client.ClientResponse::response);
+            ).thenApply(dev.restate.client.Response::response);
         }
         public {{#if outputEmpty}}java.util.concurrent.CompletableFuture<Void>{{else}}java.util.concurrent.CompletableFuture<{{{boxedOutputFqcn}}}>{{/if}} {{handlersClassMethodName}}Async({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}Consumer<dev.restate.common.RequestBuilder<{{{boxedInputFqcn}}}, {{{boxedOutputFqcn}}}>> requestBuilderApplier) {
             var reqBuilder = {{../handlersClass}}.{{handlersClassMethodName}}({{#if ../isKeyed}}this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}});
             if (requestBuilderApplier != null) {
                 requestBuilderApplier.accept(reqBuilder);
             }
-            return this.client.callAsync(reqBuilder.build()).thenApply(dev.restate.client.ClientResponse::response);
+            return this.client.callAsync(reqBuilder.build()).thenApply(dev.restate.client.Response::response);
         }
         {{/if}}{{/handlers}}
 
@@ -171,51 +171,51 @@ public class {{generatedClassSimpleName}} {
             public dev.restate.client.SendResponse<{{{boxedOutputFqcn}}}> {{handlersClassMethodName}}({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
                 return IngressClient.this.client.send(
                     {{../handlersClass}}.{{handlersClassMethodName}}({{#if ../isKeyed}}IngressClient.this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}})
-                ).response();
+                );
             }
             public dev.restate.client.SendResponse<{{{boxedOutputFqcn}}}> {{handlersClassMethodName}}({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}Consumer<dev.restate.common.RequestBuilder<{{{boxedInputFqcn}}}, {{{boxedOutputFqcn}}}>> requestBuilderApplier) {
                 var reqBuilder = {{../handlersClass}}.{{handlersClassMethodName}}({{#if ../isKeyed}}IngressClient.this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}});
                 if (requestBuilderApplier != null) {
                     requestBuilderApplier.accept(reqBuilder);
                 }
-                return IngressClient.this.client.send(reqBuilder).response();
+                return IngressClient.this.client.send(reqBuilder);
             }
             public dev.restate.client.SendResponse<{{{boxedOutputFqcn}}}> {{handlersClassMethodName}}({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}Duration delay) {
                 return IngressClient.this.client.send(
                     {{../handlersClass}}.{{handlersClassMethodName}}({{#if ../isKeyed}}IngressClient.this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}}), delay
-                ).response();
+                );
             }
             public dev.restate.client.SendResponse<{{{boxedOutputFqcn}}}> {{handlersClassMethodName}}({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}Duration delay, Consumer<dev.restate.common.RequestBuilder<{{{boxedInputFqcn}}}, {{{boxedOutputFqcn}}}>> requestBuilderApplier) {
                 var reqBuilder = {{../handlersClass}}.{{handlersClassMethodName}}({{#if ../isKeyed}}IngressClient.this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}});
                 if (requestBuilderApplier != null) {
                     requestBuilderApplier.accept(reqBuilder);
                 }
-                return IngressClient.this.client.send(reqBuilder, delay).response();
+                return IngressClient.this.client.send(reqBuilder, delay);
             }
 
             public java.util.concurrent.CompletableFuture<dev.restate.client.SendResponse<{{{boxedOutputFqcn}}}>> {{handlersClassMethodName}}Async({{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
                 return IngressClient.this.client.sendAsync(
                     {{../handlersClass}}.{{handlersClassMethodName}}({{#if ../isKeyed}}IngressClient.this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}})
-                ).thenApply(dev.restate.client.ClientResponse::response);
+                );
             }
             public java.util.concurrent.CompletableFuture<dev.restate.client.SendResponse<{{{boxedOutputFqcn}}}>> {{handlersClassMethodName}}Async({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}Consumer<dev.restate.common.RequestBuilder<{{{boxedInputFqcn}}}, {{{boxedOutputFqcn}}}>> requestBuilderApplier) {
                 var reqBuilder = {{../handlersClass}}.{{handlersClassMethodName}}({{#if ../isKeyed}}IngressClient.this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}});
                 if (requestBuilderApplier != null) {
                     requestBuilderApplier.accept(reqBuilder);
                 }
-                return IngressClient.this.client.sendAsync(reqBuilder).thenApply(dev.restate.client.ClientResponse::response);
+                return IngressClient.this.client.sendAsync(reqBuilder);
             }
             public java.util.concurrent.CompletableFuture<dev.restate.client.SendResponse<{{{boxedOutputFqcn}}}>> {{handlersClassMethodName}}Async({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}Duration delay) {
                 return IngressClient.this.client.sendAsync(
                     {{../handlersClass}}.{{handlersClassMethodName}}({{#if ../isKeyed}}IngressClient.this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}}), delay
-                ).thenApply(dev.restate.client.ClientResponse::response);
+                );
             }
             public java.util.concurrent.CompletableFuture<dev.restate.client.SendResponse<{{{boxedOutputFqcn}}}>> {{handlersClassMethodName}}Async({{^inputEmpty}}{{{inputFqcn}}} req, {{/inputEmpty}}Duration delay, Consumer<dev.restate.common.RequestBuilder<{{{boxedInputFqcn}}}, {{{boxedOutputFqcn}}}>> requestBuilderApplier) {
                 var reqBuilder = {{../handlersClass}}.{{handlersClassMethodName}}({{#if ../isKeyed}}IngressClient.this.key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}req{{/inputEmpty}});
                 if (requestBuilderApplier != null) {
                     requestBuilderApplier.accept(reqBuilder);
                 }
-                return IngressClient.this.client.sendAsync(reqBuilder, delay).thenApply(dev.restate.client.ClientResponse::response);
+                return IngressClient.this.client.sendAsync(reqBuilder, delay);
             }{{/isWorkflow}}{{/handlers}}
         }
     }

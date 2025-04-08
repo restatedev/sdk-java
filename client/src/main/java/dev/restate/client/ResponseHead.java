@@ -12,8 +12,12 @@ import java.util.Map;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
 
-public record ClientResponse<R>(int statusCode, Headers headers, R response) {
-  public interface Headers {
+public interface ResponseHead {
+  int statusCode();
+
+  Headers headers();
+
+  interface Headers {
     @Nullable String get(String key);
 
     Set<String> keys();

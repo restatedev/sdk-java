@@ -35,7 +35,7 @@ public class RestateContextDataProvider implements ContextDataProvider {
     HashMap<String, String> m = new HashMap<>(3);
     m.put(
         EndpointRequestHandler.LoggingContextSetter.INVOCATION_ID_KEY,
-        handlerContextInternal.request().getInvocationId().toString());
+        handlerContextInternal.request().invocationId().toString());
     m.put(
         EndpointRequestHandler.LoggingContextSetter.INVOCATION_TARGET_KEY,
         handlerContextInternal.getFullyQualifiedMethodName());

@@ -10,12 +10,15 @@ package dev.restate.sdk.kotlin
 
 import dev.restate.common.Output
 import dev.restate.common.Request
+import dev.restate.common.Slice
 import dev.restate.sdk.common.DurablePromiseKey
 import dev.restate.sdk.common.HandlerRequest
+import dev.restate.sdk.common.InvocationId
 import dev.restate.sdk.common.StateKey
 import dev.restate.sdk.common.TerminalException
 import dev.restate.serde.TypeTag
 import dev.restate.serde.kotlinx.*
+import java.nio.ByteBuffer
 import java.util.*
 import kotlin.random.Random
 import kotlin.time.Duration
@@ -679,3 +682,16 @@ suspend fun <Req : Any?, Res : Any?> Request<Req, Res>.send(
 ): InvocationHandle<Res> {
   return context.send(this, delay)
 }
+
+val HandlerRequest.invocationId: InvocationId
+  get() = this.invocationId()
+val HandlerRequest.openTelemetryContext: io.opentelemetry.context.Context
+  get() = this.openTelemetryContext()
+val HandlerRequest.body: Slice
+  get() = this.body()
+val HandlerRequest.bodyAsByteArray: ByteArray
+  get() = this.bodyAsByteArray()
+val HandlerRequest.bodyAsByteBuffer: ByteBuffer
+  get() = this.bodyAsBodyBuffer()
+val HandlerRequest.headers: Map<String, String>
+  get() = this.headers()
