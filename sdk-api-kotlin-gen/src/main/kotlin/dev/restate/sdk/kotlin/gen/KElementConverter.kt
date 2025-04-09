@@ -68,11 +68,17 @@ class KElementConverter(
     // Use simple class name, flattening subclasses names
     val inCodeServiceName =
         targetFqcn.substring(targetPkg.length).replace(Pattern.quote(".").toRegex(), "")
+
+    classDeclaration.getAnnotationsByType(Name::class).firstOrNull().let {
+      if (it != null) {
+        data.withRestateName(it.value)
+      }
+    }
+
     data
         .withTargetClassPkg(targetPkg)
         .withTargetClassFqcn(targetFqcn)
         .withGeneratedClassesNamePrefix(inCodeServiceName)
-        .withRestateName(classDeclaration.getAnnotationsByType(Name::class).firstOrNull()?.value)
 
     // Compute handlersMetadata
     classDeclaration

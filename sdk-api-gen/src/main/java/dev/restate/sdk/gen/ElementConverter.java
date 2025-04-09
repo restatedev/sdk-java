@@ -62,7 +62,32 @@ class ElementConverter {
     String serviceName =
         Optional.ofNullable(element.getAnnotation(dev.restate.sdk.annotation.Name.class))
             .map(Name::value)
-            .orElse(null);
+            .orElseGet(
+                () -> {
+                  // Find annotation mirror
+                  AnnotationMirror metaAnnotationMirror =
+                      element.getAnnotationMirrors().stream()
+                          .filter(
+                              a ->
+                                  a.getAnnotationType()
+                                      .asElement()
+                                      .equals(metaAnnotation.getAnnotationTypeElement()))
+                          .findFirst()
+                          .orElseThrow(
+                              () ->
+                                  new IllegalStateException(
+                                      "Cannot find the annotation mirror for meta annotation "
+                                          + metaAnnotation
+                                              .getAnnotationTypeElement()
+                                              .getQualifiedName()));
+
+                  String name = metaAnnotation.resolveName(metaAnnotationMirror);
+
+                  if (name != null && !name.isBlank()) {
+                    return name;
+                  }
+                  return null;
+                });
 
     // Compute handlers
     List<Handler> handlers =
