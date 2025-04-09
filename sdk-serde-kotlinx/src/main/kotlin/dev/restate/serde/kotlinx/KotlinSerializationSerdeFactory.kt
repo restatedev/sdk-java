@@ -87,6 +87,8 @@ constructor(private val json: Json = Json.Default) : SerdeFactory {
   companion object {
     val UNIT: Serde<Unit> =
         object : Serde<Unit> {
+          // This is fine, it's less strict
+          @Suppress("WRONG_NULLABILITY_FOR_JAVA_OVERRIDE")
           override fun serialize(value: Unit?): Slice {
             return Slice.EMPTY
           }

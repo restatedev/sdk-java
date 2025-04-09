@@ -19,4 +19,12 @@ import java.lang.annotation.*;
 @Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-public @interface Workflow {}
+public @interface Workflow {
+
+  /**
+   * @deprecated use the {@link Name} annotation instead. Note: if you were using a name override,
+   *     this won't influence anymore the prefix of the generated class.
+   */
+  @Deprecated(since = "2.0", forRemoval = true)
+  String name() default "";
+}

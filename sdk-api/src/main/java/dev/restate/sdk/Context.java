@@ -143,10 +143,9 @@ public interface Context {
   DurableFuture<Void> timer(String name, Duration duration);
 
   /**
-   * Execute a non-deterministic closure, recording the result value in the journal. The result
-   * value will be re-played in case of re-invocation (e.g. because of failure recovery or
-   * suspension point) without re-executing the closure. Use this feature if you want to perform
-   * <b>non-deterministic operations</b>.
+   * Execute a closure, recording the result value in the journal. The result value will be
+   * re-played in case of re-invocation (e.g. because of failure recovery or suspension point)
+   * without re-executing the closure.
    *
    * <pre>{@code
    * String result = ctx.run(
@@ -310,8 +309,8 @@ public interface Context {
   }
 
   /**
-   * Execute a non-deterministic action asynchronously. This is like {@link #run(String, Class,
-   * ThrowingSupplier)}, but it returns a {@link DurableFuture} that you can combine and select.
+   * Execute a closure asynchronously. This is like {@link #run(String, Class, ThrowingSupplier)},
+   * but it returns a {@link DurableFuture} that you can combine and select.
    *
    * <pre>{@code
    * // Fan-out

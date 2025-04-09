@@ -166,7 +166,7 @@ public class Service {
 
     public Service validateAndBuild() {
       String restateName =
-          this.restateName != null
+          (this.restateName != null && !this.restateName.isBlank())
               ? this.restateName
               : Objects.requireNonNull(simpleClassGeneratedNamePrefix);
       String serviceNameLowercase = restateName.toLowerCase();

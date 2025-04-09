@@ -81,6 +81,7 @@ class ServiceProcessor(
             .map {
               val serviceBuilder = Service.builder()
               serviceBuilder.withServiceType(it.first.serviceType)
+              serviceBuilder.withRestateName(it.first.resolveName(it.second))
 
               converter.visitAnnotated(it.second, serviceBuilder)
 

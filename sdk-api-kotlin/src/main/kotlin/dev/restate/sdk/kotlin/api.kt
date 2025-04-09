@@ -91,10 +91,9 @@ sealed interface Context {
   ): InvocationHandle<Res>
 
   /**
-   * Execute a non-deterministic closure, recording the result value in the journal. The result
-   * value will be re-played in case of re-invocation (e.g. because of failure recovery or
-   * suspension point) without re-executing the closure. Use this feature if you want to perform
-   * <b>non-deterministic operations</b>.
+   * Execute a closure, recording the result value in the journal. The result value will be
+   * re-played in case of re-invocation (e.g. because of failure recovery or suspension point)
+   * without re-executing the closure.
    *
    * You can name this closure using the `name` parameter. This name will be available in the
    * observability tools.
@@ -146,6 +145,22 @@ sealed interface Context {
     return runAsync(typeTag, name, retryPolicy, block).await()
   }
 
+  /**
+   * Execute a closure asynchronously. This is like [runBlock], but it returns a [DurableFuture]
+   * that you can combine and select.
+   *
+   * ```
+   * // Fan out the subtasks - run them in parallel
+   * val futures = subTasks.map { subTask ->
+   *    ctx.runAsync { subTask.execute() }
+   * }
+   *
+   * // Fan in - Await all results and aggregate
+   * val results = futures.awaitAll()
+   * ```
+   *
+   * @see runBlock
+   */
   suspend fun <T : Any?> runAsync(
       typeTag: TypeTag<T>,
       name: String = "",
@@ -203,10 +218,12 @@ inline fun <reified Res : Any?> Context.invocationHandle(
 }
 
 /**
- * Execute a non-deterministic closure, recording the result value in the journal. The result value
- * will be re-played in case of re-invocation (e.g. because of failure recovery or suspension point)
- * without re-executing the closure. Use this feature if you want to perform <b>non-deterministic
- * operations</b>.
+ * Execute a closure, recording the result value in the journal. The result value will be re-played
+ * in case of re-invocation (e.g. because of failure recovery or suspension point) without
+ * re-executing the closure.
+ *
+ * You can name this closure using the `name` parameter. This name will be available in the
+ * observability tools.
  *
  * <p>The closure should tolerate retries, that is Restate might re-execute the closure multiple
  * times until it records a result. To control and limit the amount of retries, pass a [RetryPolicy]
@@ -240,6 +257,7 @@ inline fun <reified Res : Any?> Context.invocationHandle(
  *
  * To propagate failures to the run call-site, make sure to wrap them in [TerminalException].
  *
+ * @param name the name of the side effect.
  * @param block closure to execute.
  * @param T type of the return value.
  * @return value of the runBlock operation.
@@ -252,6 +270,22 @@ suspend inline fun <reified T : Any> Context.runBlock(
   return this.runBlock(typeTag<T>(), name, retryPolicy, block)
 }
 
+/**
+ * Execute a closure asynchronously. This is like [runBlock], but it returns a [DurableFuture] that
+ * you can combine and select.
+ *
+ * ```
+ * // Fan out the subtasks - run them in parallel
+ * val futures = subTasks.map { subTask ->
+ *    ctx.runAsync { subTask.execute() }
+ * }
+ *
+ * // Fan in - Await all results and aggregate
+ * val results = futures.awaitAll()
+ * ```
+ *
+ * @see runBlock
+ */
 suspend inline fun <reified T : Any> Context.runAsync(
     name: String = "",
     retryPolicy: RetryPolicy? = null,
@@ -640,6 +674,14 @@ suspend inline fun <reified T : Any> AwakeableHandle.resolve(payload: T) {
 sealed interface DurablePromise<T> {
   /** @return the future to await the promise result on. */
   suspend fun future(): DurableFuture<T>
+
+  @Deprecated(
+      message = "Use future() instead",
+      level = DeprecationLevel.WARNING,
+      replaceWith = ReplaceWith(expression = "future()"))
+  suspend fun awaitable(): DurableFuture<T> {
+    return future()
+  }
 
   /** @return the value, if already present, otherwise returns an empty optional. */
   suspend fun peek(): Output<T>
