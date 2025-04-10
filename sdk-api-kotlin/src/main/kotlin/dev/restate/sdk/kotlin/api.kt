@@ -530,13 +530,12 @@ sealed interface DurableFuture<T> {
  * Like [kotlinx.coroutines.awaitAll], but for [DurableFuture].
  *
  * ```
- *  val ctx = restateContext()
- *  val a1 = ctx.callAsync(GreeterGrpcKt.greetMethod, greetingRequest { name = "Francesco" })
- *  val a2 = ctx.callAsync(GreeterGrpcKt.greetMethod, greetingRequest { name = "Till" })
+ *  val a1 = ctx.awakeable<String>()
+ *  val a2 = ctx.awakeable<String>()
  *
  *  val result = listOf(a1, a2)
  *    .awaitAll()
- *    .joinToString(separator = "-", transform = GreetingResponse::getMessage)
+ *    .joinToString(separator = "-")
  * ```
  */
 suspend fun <T> Collection<DurableFuture<T>>.awaitAll(): List<T> {
@@ -544,9 +543,7 @@ suspend fun <T> Collection<DurableFuture<T>>.awaitAll(): List<T> {
 }
 
 /**
- * Like [kotlinx.coroutines.awaitAll], but for [DurableFuture].
- *
- * ```
+ * @see Collection.awaitAll
  */
 suspend fun <T> awaitAll(vararg durableFutures: DurableFuture<T>): List<T> {
   if (durableFutures.isEmpty()) {
@@ -563,9 +560,9 @@ suspend fun <T> awaitAll(vararg durableFutures: DurableFuture<T>): List<T> {
  * Like [kotlinx.coroutines.selects.select], but for [DurableFuture]
  *
  * ```
- * val ctx = restateContext()
- * val callFuture = ctx.callAsync(GreeterGrpcKt.greetMethod, greetingRequest { name = "Francesco" })
+ * val callFuture = ctx.awakeable()
  * val timeout = ctx.timer(10.seconds)
+ *
  * val result = select {
  *   callFuture.onAwait { it.message }
  *   timeout.onAwait { throw TimeoutException() }
