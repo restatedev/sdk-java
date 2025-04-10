@@ -23,9 +23,10 @@ import java.util.Map;
 import org.jspecify.annotations.NonNull;
 
 /**
- * @deprecated For primitive types, simply use the overloads of the {@link Context} methods
+ * @deprecated For primitive types, simply use the overloads of the {@link Context}/{@link
+ *     dev.restate.sdk.common.StateKey}/{@link dev.restate.sdk.common.DurablePromiseKey} methods
  *     accepting {@link Class}, for example {@code ctx.run(String.class, myClosure)} or {@code
- *     ctx.awakeable(Integer.TYPE)}
+ *     ctx.awakeable(Integer.TYPE)} or {@code StateKey.of("key", String.class)}
  */
 @Deprecated(since = "2.0", forRemoval = true)
 public abstract class JsonSerdes {
@@ -33,9 +34,10 @@ public abstract class JsonSerdes {
   private JsonSerdes() {}
 
   /**
-   * @deprecated For primitive types, simply use the overloads of the {@link Context} methods
+   * @deprecated For primitive types, simply use the overloads of the {@link Context}/{@link
+   *     dev.restate.sdk.common.StateKey}/{@link dev.restate.sdk.common.DurablePromiseKey} methods
    *     accepting {@link Class}, for example {@code ctx.run(String.class, myClosure)} or {@code
-   *     ctx.awakeable(Integer.TYPE)}
+   *     ctx.awakeable(Integer.TYPE)} or {@code StateKey.of("key", String.class)}
    */
   @Deprecated(since = "2.0", forRemoval = true)
   public static final Serde<@NonNull String> STRING =
@@ -51,9 +53,10 @@ public abstract class JsonSerdes {
           });
 
   /**
-   * @deprecated For primitive types, simply use the overloads of the {@link Context} methods
+   * @deprecated For primitive types, simply use the overloads of the {@link Context}/{@link
+   *     dev.restate.sdk.common.StateKey}/{@link dev.restate.sdk.common.DurablePromiseKey} methods
    *     accepting {@link Class}, for example {@code ctx.run(String.class, myClosure)} or {@code
-   *     ctx.awakeable(Integer.TYPE)}
+   *     ctx.awakeable(Integer.TYPE)} or {@code StateKey.of("key", String.class)}
    */
   @Deprecated(since = "2.0", forRemoval = true)
   public static final Serde<@NonNull Boolean> BOOLEAN =
@@ -66,9 +69,10 @@ public abstract class JsonSerdes {
           });
 
   /**
-   * @deprecated For primitive types, simply use the overloads of the {@link Context} methods
+   * @deprecated For primitive types, simply use the overloads of the {@link Context}/{@link
+   *     dev.restate.sdk.common.StateKey}/{@link dev.restate.sdk.common.DurablePromiseKey} methods
    *     accepting {@link Class}, for example {@code ctx.run(String.class, myClosure)} or {@code
-   *     ctx.awakeable(Integer.TYPE)}
+   *     ctx.awakeable(Integer.TYPE)} or {@code StateKey.of("key", String.class)}
    */
   @Deprecated(since = "2.0", forRemoval = true)
   public static final Serde<@NonNull Byte> BYTE =
@@ -81,9 +85,10 @@ public abstract class JsonSerdes {
           });
 
   /**
-   * @deprecated For primitive types, simply use the overloads of the {@link Context} methods
+   * @deprecated For primitive types, simply use the overloads of the {@link Context}/{@link
+   *     dev.restate.sdk.common.StateKey}/{@link dev.restate.sdk.common.DurablePromiseKey} methods
    *     accepting {@link Class}, for example {@code ctx.run(String.class, myClosure)} or {@code
-   *     ctx.awakeable(Integer.TYPE)}
+   *     ctx.awakeable(Integer.TYPE)} or {@code StateKey.of("key", String.class)}
    */
   @Deprecated(since = "2.0", forRemoval = true)
   public static final Serde<@NonNull Short> SHORT =
@@ -96,9 +101,10 @@ public abstract class JsonSerdes {
           });
 
   /**
-   * @deprecated For primitive types, simply use the overloads of the {@link Context} methods
+   * @deprecated For primitive types, simply use the overloads of the {@link Context}/{@link
+   *     dev.restate.sdk.common.StateKey}/{@link dev.restate.sdk.common.DurablePromiseKey} methods
    *     accepting {@link Class}, for example {@code ctx.run(String.class, myClosure)} or {@code
-   *     ctx.awakeable(Integer.TYPE)}
+   *     ctx.awakeable(Integer.TYPE)} or {@code StateKey.of("key", String.class)}
    */
   @Deprecated(since = "2.0", forRemoval = true)
   public static final Serde<@NonNull Integer> INT =
@@ -111,9 +117,10 @@ public abstract class JsonSerdes {
           });
 
   /**
-   * @deprecated For primitive types, simply use the overloads of the {@link Context} methods
+   * @deprecated For primitive types, simply use the overloads of the {@link Context}/{@link
+   *     dev.restate.sdk.common.StateKey}/{@link dev.restate.sdk.common.DurablePromiseKey} methods
    *     accepting {@link Class}, for example {@code ctx.run(String.class, myClosure)} or {@code
-   *     ctx.awakeable(Integer.TYPE)}
+   *     ctx.awakeable(Integer.TYPE)} or {@code StateKey.of("key", String.class)}
    */
   @Deprecated(since = "2.0", forRemoval = true)
   public static final Serde<@NonNull Long> LONG =
@@ -126,9 +133,10 @@ public abstract class JsonSerdes {
           });
 
   /**
-   * @deprecated For primitive types, simply use the overloads of the {@link Context} methods
+   * @deprecated For primitive types, simply use the overloads of the {@link Context}/{@link
+   *     dev.restate.sdk.common.StateKey}/{@link dev.restate.sdk.common.DurablePromiseKey} methods
    *     accepting {@link Class}, for example {@code ctx.run(String.class, myClosure)} or {@code
-   *     ctx.awakeable(Integer.TYPE)}
+   *     ctx.awakeable(Integer.TYPE)} or {@code StateKey.of("key", String.class)}
    */
   @Deprecated(since = "2.0", forRemoval = true)
   public static final Serde<@NonNull Float> FLOAT =
@@ -141,9 +149,10 @@ public abstract class JsonSerdes {
           });
 
   /**
-   * @deprecated For primitive types, simply use the overloads of the {@link Context} methods
+   * @deprecated For primitive types, simply use the overloads of the {@link Context}/{@link
+   *     dev.restate.sdk.common.StateKey}/{@link dev.restate.sdk.common.DurablePromiseKey} methods
    *     accepting {@link Class}, for example {@code ctx.run(String.class, myClosure)} or {@code
-   *     ctx.awakeable(Integer.TYPE)}
+   *     ctx.awakeable(Integer.TYPE)} or {@code StateKey.of("key", String.class)}
    */
   @Deprecated(since = "2.0", forRemoval = true)
   public static final Serde<@NonNull Double> DOUBLE =
