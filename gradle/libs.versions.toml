@@ -1,70 +1,215 @@
-[versions]
-jackson = "2.18.1"
-victools-json-schema = "4.37.0"
-ksp = "2.0.21-1.0.28"
-protobuf = "4.29.3"
-opentelemetry = "1.47.0"
-vertx = "4.5.11"
-kotlinx-serialization = "1.7.3"
-kotlinx-coroutines = "1.9.0"
-junit = "5.10.2"
-spring-boot = "3.4.4"
-log4j = "2.24.2"
-restate = "2.0.0-SNAPSHOT"
-
 [libraries]
-aws-lambda-core = "com.amazonaws:aws-lambda-java-core:1.2.3"
-aws-lambda-events = "com.amazonaws:aws-lambda-java-events:3.11.5"
-jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson" }
-jackson-core = { module = "com.fasterxml.jackson.core:jackson-core", version.ref = "jackson" }
-jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
-jackson-jsr310 = { module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310", version.ref = "jackson" }
-jackson-parameter-names = { module = "com.fasterxml.jackson.module:jackson-module-parameter-names", version.ref = "jackson" }
-handlebars = "com.github.jknack:handlebars:4.3.1"
-victools-jsonschema-generator = { module = "com.github.victools:jsonschema-generator", version.ref = "victools-json-schema" }
-victools-jsonschema-module-jackson = { module = "com.github.victools:jsonschema-module-jackson", version.ref = "victools-json-schema" }
-google-findbugs-jsr305 = "com.google.code.findbugs:jsr305:3.0.2"
-tink = "com.google.crypto.tink:tink:1.15.0"
-ksp-api = { module = "com.google.devtools.ksp:symbol-processing-api", version.ref = "ksp" }
-protobuf-java = { module = "com.google.protobuf:protobuf-java", version.ref = "protobuf" }
-protobuf-kotlin = { module = "com.google.protobuf:protobuf-kotlin", version.ref = "protobuf" }
-jwt = "com.nimbusds:nimbus-jose-jwt:9.47"
-opentelemetry-api = { module = "io.opentelemetry:opentelemetry-api", version.ref = "opentelemetry" }
-opentelemetry-kotlin = { module = "io.opentelemetry:opentelemetry-extension-kotlin", version.ref = "opentelemetry" }
-reactiverse-contextual-logging = "io.reactiverse:reactiverse-contextual-logging:1.2.1"
-mutiny = "io.smallrye.reactive:mutiny:2.7.0"
-vertx-core = { module = "io.vertx:vertx-core", version.ref = "vertx" }
-vertx-junit5 = { module = "io.vertx:vertx-junit5", version.ref = "vertx" }
-vertx-kotlin-coroutines = { module = "io.vertx:vertx-lang-kotlin-coroutines", version.ref = "vertx" }
-log4j-api = { module = "org.apache.logging.log4j:log4j-api", version.ref = "log4j" }
-log4j-core = { module = "org.apache.logging.log4j:log4j-core", version.ref = "log4j" }
-tomcat-annotations = "org.apache.tomcat:annotations-api:6.0.53"
-assertj = "org.assertj:assertj-core:3.26.0"
-kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
-kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
-kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinx-serialization" }
-kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
-jspecify = "org.jspecify:jspecify:1.0.0"
-junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
-junit-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit" }
-slf4j-nop = "org.slf4j:slf4j-nop:2.0.16"
-spring-boot = { module = "org.springframework.boot:spring-boot", version.ref = "spring-boot" }
-spring-boot-starter = { module = "org.springframework.boot:spring-boot-starter", version.ref = "spring-boot" }
-spring-boot-starter-logging = { module = "org.springframework.boot:spring-boot-starter-logging", version.ref = "spring-boot" }
-spring-boot-starter-json = { module = "org.springframework.boot:spring-boot-starter-json", version.ref = "spring-boot" }
-spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test", version.ref = "spring-boot" }
-testcontainers = "org.testcontainers:testcontainers:1.20.4"
+  assertj = 'org.assertj:assertj-core:3.26.0'
+  aws-lambda-core = 'com.amazonaws:aws-lambda-java-core:1.2.3'
+  aws-lambda-events = 'com.amazonaws:aws-lambda-java-events:3.11.5'
+  google-findbugs-jsr305 = 'com.google.code.findbugs:jsr305:3.0.2'
+  handlebars = 'com.github.jknack:handlebars:4.3.1'
+  jspecify = 'org.jspecify:jspecify:1.0.0'
+  jwt = 'com.nimbusds:nimbus-jose-jwt:9.47'
+  mutiny = 'io.smallrye.reactive:mutiny:2.7.0'
+  reactiverse-contextual-logging = 'io.reactiverse:reactiverse-contextual-logging:1.2.1'
+  slf4j-nop = 'org.slf4j:slf4j-nop:2.0.16'
+  testcontainers = 'org.testcontainers:testcontainers:1.20.4'
+  tink = 'com.google.crypto.tink:tink:1.15.0'
+  tomcat-annotations = 'org.apache.tomcat:annotations-api:6.0.53'
+
+  [libraries.jackson-annotations]
+    module = 'com.fasterxml.jackson.core:jackson-annotations'
+
+    [libraries.jackson-annotations.version]
+      ref = 'jackson'
+
+  [libraries.jackson-core]
+    module = 'com.fasterxml.jackson.core:jackson-core'
+
+    [libraries.jackson-core.version]
+      ref = 'jackson'
+
+  [libraries.jackson-databind]
+    module = 'com.fasterxml.jackson.core:jackson-databind'
+
+    [libraries.jackson-databind.version]
+      ref = 'jackson'
+
+  [libraries.jackson-jsr310]
+    module = 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+
+    [libraries.jackson-jsr310.version]
+      ref = 'jackson'
+
+  [libraries.jackson-parameter-names]
+    module = 'com.fasterxml.jackson.module:jackson-module-parameter-names'
+
+    [libraries.jackson-parameter-names.version]
+      ref = 'jackson'
+
+  [libraries.junit-api]
+    module = 'org.junit.jupiter:junit-jupiter-api'
+
+    [libraries.junit-api.version]
+      ref = 'junit'
+
+  [libraries.junit-jupiter]
+    module = 'org.junit.jupiter:junit-jupiter'
+
+    [libraries.junit-jupiter.version]
+      ref = 'junit'
+
+  [libraries.kotlinx-coroutines-core]
+    module = 'org.jetbrains.kotlinx:kotlinx-coroutines-core'
+
+    [libraries.kotlinx-coroutines-core.version]
+      ref = 'kotlinx-coroutines'
+
+  [libraries.kotlinx-coroutines-test]
+    module = 'org.jetbrains.kotlinx:kotlinx-coroutines-test'
+
+    [libraries.kotlinx-coroutines-test.version]
+      ref = 'kotlinx-coroutines'
+
+  [libraries.kotlinx-serialization-core]
+    module = 'org.jetbrains.kotlinx:kotlinx-serialization-core'
+
+    [libraries.kotlinx-serialization-core.version]
+      ref = 'kotlinx-serialization'
+
+  [libraries.kotlinx-serialization-json]
+    module = 'org.jetbrains.kotlinx:kotlinx-serialization-json'
+
+    [libraries.kotlinx-serialization-json.version]
+      ref = 'kotlinx-serialization'
+
+  [libraries.ksp-api]
+    module = 'com.google.devtools.ksp:symbol-processing-api'
+
+    [libraries.ksp-api.version]
+      ref = 'ksp'
+
+  [libraries.log4j-api]
+    module = 'org.apache.logging.log4j:log4j-api'
+
+    [libraries.log4j-api.version]
+      ref = 'log4j'
+
+  [libraries.log4j-core]
+    module = 'org.apache.logging.log4j:log4j-core'
+
+    [libraries.log4j-core.version]
+      ref = 'log4j'
+
+  [libraries.opentelemetry-api]
+    module = 'io.opentelemetry:opentelemetry-api'
+
+    [libraries.opentelemetry-api.version]
+      ref = 'opentelemetry'
+
+  [libraries.opentelemetry-kotlin]
+    module = 'io.opentelemetry:opentelemetry-extension-kotlin'
+
+    [libraries.opentelemetry-kotlin.version]
+      ref = 'opentelemetry'
+
+  [libraries.protobuf-java]
+    module = 'com.google.protobuf:protobuf-java'
+
+    [libraries.protobuf-java.version]
+      ref = 'protobuf'
+
+  [libraries.protobuf-kotlin]
+    module = 'com.google.protobuf:protobuf-kotlin'
+
+    [libraries.protobuf-kotlin.version]
+      ref = 'protobuf'
+
+  [libraries.spring-boot]
+    module = 'org.springframework.boot:spring-boot'
+
+    [libraries.spring-boot.version]
+      ref = 'spring-boot'
+
+  [libraries.spring-boot-starter]
+    module = 'org.springframework.boot:spring-boot-starter'
+
+    [libraries.spring-boot-starter.version]
+      ref = 'spring-boot'
+
+  [libraries.spring-boot-starter-json]
+    module = 'org.springframework.boot:spring-boot-starter-json'
+
+    [libraries.spring-boot-starter-json.version]
+      ref = 'spring-boot'
+
+  [libraries.spring-boot-starter-logging]
+    module = 'org.springframework.boot:spring-boot-starter-logging'
+
+    [libraries.spring-boot-starter-logging.version]
+      ref = 'spring-boot'
+
+  [libraries.spring-boot-starter-test]
+    module = 'org.springframework.boot:spring-boot-starter-test'
+
+    [libraries.spring-boot-starter-test.version]
+      ref = 'spring-boot'
+
+  [libraries.vertx-core]
+    module = 'io.vertx:vertx-core'
+
+    [libraries.vertx-core.version]
+      ref = 'vertx'
+
+  [libraries.vertx-junit5]
+    module = 'io.vertx:vertx-junit5'
+
+    [libraries.vertx-junit5.version]
+      ref = 'vertx'
+
+  [libraries.vertx-kotlin-coroutines]
+    module = 'io.vertx:vertx-lang-kotlin-coroutines'
+
+    [libraries.vertx-kotlin-coroutines.version]
+      ref = 'vertx'
+
+  [libraries.victools-jsonschema-generator]
+    module = 'com.github.victools:jsonschema-generator'
+
+    [libraries.victools-jsonschema-generator.version]
+      ref = 'victools-json-schema'
+
+  [libraries.victools-jsonschema-module-jackson]
+    module = 'com.github.victools:jsonschema-module-jackson'
+
+    [libraries.victools-jsonschema-module-jackson.version]
+      ref = 'victools-json-schema'
 
 [plugins]
-dependency-license-report = "com.github.jk1.dependency-license-report:2.0"
-shadow = "com.gradleup.shadow:9.0.0-beta8"
-jib = "com.google.cloud.tools.jib:3.4.4"
-ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
-protobuf = "com.google.protobuf:0.9.4"
-aggregate-javadoc = "io.freefair.aggregate-javadoc:8.6"
-nexus-publish = "io.github.gradle-nexus.publish-plugin:1.3.0"
-spring-dependency-management = "io.spring.dependency-management:1.1.6"
-dokka = "org.jetbrains.dokka:1.9.20"
-jsonschema2pojo = "org.jsonschema2pojo:1.2.1"
-openapi-generator = "org.openapi.generator:7.5.0"
-spotless = "com.diffplug.spotless:6.25.0"
+  aggregate-javadoc = 'io.freefair.aggregate-javadoc:8.6'
+  dependency-license-report = 'com.github.jk1.dependency-license-report:2.0'
+  dokka = 'org.jetbrains.dokka:1.9.20'
+  jib = 'com.google.cloud.tools.jib:3.4.4'
+  jsonschema2pojo = 'org.jsonschema2pojo:1.2.1'
+  nexus-publish = 'io.github.gradle-nexus.publish-plugin:1.3.0'
+  openapi-generator = 'org.openapi.generator:7.5.0'
+  protobuf = 'com.google.protobuf:0.9.4'
+  shadow = 'com.gradleup.shadow:9.0.0-beta8'
+  spotless = 'com.diffplug.spotless:6.25.0'
+  spring-dependency-management = 'io.spring.dependency-management:1.1.6'
+
+  [plugins.ksp]
+    id = 'com.google.devtools.ksp'
+
+    [plugins.ksp.version]
+      ref = 'ksp'
+
+[versions]
+  jackson = '2.18.1'
+  junit = '5.10.2'
+  kotlinx-coroutines = '1.9.0'
+  kotlinx-serialization = '1.7.3'
+  ksp = '2.0.21-1.0.28'
+  log4j = '2.24.2'
+  opentelemetry = '1.47.0'
+  protobuf = '4.29.3'
+  restate = '2.0.0'
+  spring-boot = '3.4.4'
+  vertx = '4.5.11'
+  victools-json-schema = '4.37.0'
