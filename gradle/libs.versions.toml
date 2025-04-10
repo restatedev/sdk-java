@@ -209,7 +209,7 @@
   log4j = '2.24.2'
   opentelemetry = '1.47.0'
   protobuf = '4.29.3'
-  restate = '2.0.0'
+  restate = '2.1.0-SNAPSHOT'
   spring-boot = '3.4.4'
   vertx = '4.5.11'
   victools-json-schema = '4.37.0'
