@@ -10,6 +10,7 @@ package dev.restate.serde.kotlinx
 
 import dev.restate.common.Slice
 import dev.restate.serde.Serde
+import dev.restate.serde.Serde.Schema
 import dev.restate.serde.SerdeFactory
 import dev.restate.serde.TypeRef
 import dev.restate.serde.TypeTag
@@ -17,16 +18,9 @@ import java.nio.charset.StandardCharsets
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
 import kotlinx.serialization.*
-import kotlinx.serialization.builtins.*
-import kotlinx.serialization.descriptors.PrimitiveKind
-import kotlinx.serialization.descriptors.SerialDescriptor
-import kotlinx.serialization.descriptors.StructureKind
-import kotlinx.serialization.encodeToString
+import kotlinx.serialization.builtins.nullable
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonTransformingSerializer
 import kotlinx.serialization.modules.SerializersModule
 
 /**
@@ -38,7 +32,22 @@ import kotlinx.serialization.modules.SerializersModule
  */
 open class KotlinSerializationSerdeFactory
 @JvmOverloads
-constructor(private val json: Json = Json.Default) : SerdeFactory {
+constructor(
+    private val json: Json = Json.Default,
+    private val jsonSchemaFactory: JsonSchemaFactory = DefaultJsonSchemaFactory
+) : SerdeFactory {
+
+  /** Factory to generate json schemas. */
+  interface JsonSchemaFactory {
+    fun generateSchema(json: Json, serializer: KSerializer<*>): Schema?
+
+    companion object {
+      val NOOP =
+          object : JsonSchemaFactory {
+            override fun generateSchema(json: Json, serializer: KSerializer<*>): Schema? = null
+          }
+    }
+  }
 
   @PublishedApi
   internal class KtTypeTag<T>(
@@ -61,7 +70,7 @@ constructor(private val json: Json = Json.Default) : SerdeFactory {
     }
     val serializer: KSerializer<T> =
         json.serializersModule.serializer(typeRef.type) as KSerializer<T>
-    return jsonSerde(json, serializer)
+    return jsonSerde(json, jsonSchemaFactory, serializer)
   }
 
   @Suppress("UNCHECKED_CAST")
@@ -70,7 +79,7 @@ constructor(private val json: Json = Json.Default) : SerdeFactory {
       return UNIT as Serde<T>
     }
     val serializer: KSerializer<T> = json.serializersModule.serializer(clazz) as KSerializer<T>
-    return jsonSerde(json, serializer)
+    return jsonSerde(json, jsonSchemaFactory, serializer)
   }
 
   @Suppress("UNCHECKED_CAST")
@@ -81,7 +90,7 @@ constructor(private val json: Json = Json.Default) : SerdeFactory {
     }
     val serializer: KSerializer<T> =
         json.serializersModule.serializerForKtTypeInfo(ktSerdeInfo) as KSerializer<T>
-    return jsonSerde(json, serializer)
+    return jsonSerde(json, jsonSchemaFactory, serializer)
   }
 
   companion object {
@@ -103,7 +112,13 @@ constructor(private val json: Json = Json.Default) : SerdeFactory {
         }
 
     /** Creates a [Serde] implementation using the `kotlinx.serialization` json module. */
-    fun <T : Any?> jsonSerde(json: Json = Json.Default, serializer: KSerializer<T>): Serde<T> {
+    fun <T : Any?> jsonSerde(
+        json: Json = Json.Default,
+        jsonSchemaFactory: JsonSchemaFactory = DefaultJsonSchemaFactory,
+        serializer: KSerializer<T>
+    ): Serde<T> {
+      val schema = jsonSchemaFactory.generateSchema(json, serializer)
+
       return object : Serde<T> {
         @Suppress("WRONG_NULLABILITY_FOR_JAVA_OVERRIDE")
         override fun serialize(value: T?): Slice {
@@ -123,76 +138,10 @@ constructor(private val json: Json = Json.Default) : SerdeFactory {
           return "application/json"
         }
 
-        override fun jsonSchema(): Serde.Schema {
-          val schema: JsonSchema = serializer.descriptor.jsonSchema()
-          return Serde.StringifiedJsonSchema(Json.encodeToString(schema))
+        override fun jsonSchema(): Schema? {
+          return schema
         }
       }
-    }
-
-    @Serializable
-    @PublishedApi
-    internal data class JsonSchema(
-        @Serializable(with = StringListSerializer::class) val type: List<String>? = null,
-        val format: String? = null,
-    ) {
-      companion object {
-        val INT = JsonSchema(type = listOf("number"), format = "int32")
-
-        val LONG = JsonSchema(type = listOf("number"), format = "int64")
-
-        val DOUBLE = JsonSchema(type = listOf("number"), format = "double")
-
-        val FLOAT = JsonSchema(type = listOf("number"), format = "float")
-
-        val STRING = JsonSchema(type = listOf("string"))
-
-        val BOOLEAN = JsonSchema(type = listOf("boolean"))
-
-        val OBJECT = JsonSchema(type = listOf("object"))
-
-        val LIST = JsonSchema(type = listOf("array"))
-
-        val ANY = JsonSchema()
-      }
-    }
-
-    object StringListSerializer :
-        JsonTransformingSerializer<List<String>>(ListSerializer(String.Companion.serializer())) {
-      override fun transformSerialize(element: JsonElement): JsonElement {
-        require(element is JsonArray)
-        return element.singleOrNull() ?: element
-      }
-    }
-
-    /**
-     * Super simplistic json schema generation. We should replace this with an appropriate library.
-     */
-    @OptIn(ExperimentalSerializationApi::class)
-    @PublishedApi
-    internal fun SerialDescriptor.jsonSchema(): JsonSchema {
-      var schema =
-          when (this.kind) {
-            PrimitiveKind.BOOLEAN -> JsonSchema.BOOLEAN
-            PrimitiveKind.BYTE -> JsonSchema.INT
-            PrimitiveKind.CHAR -> JsonSchema.STRING
-            PrimitiveKind.DOUBLE -> JsonSchema.DOUBLE
-            PrimitiveKind.FLOAT -> JsonSchema.FLOAT
-            PrimitiveKind.INT -> JsonSchema.INT
-            PrimitiveKind.LONG -> JsonSchema.LONG
-            PrimitiveKind.SHORT -> JsonSchema.INT
-            PrimitiveKind.STRING -> JsonSchema.STRING
-            StructureKind.LIST -> JsonSchema.LIST
-            StructureKind.MAP -> JsonSchema.OBJECT
-            else -> JsonSchema.ANY
-          }
-
-      // Add nullability constraint
-      if (this.isNullable && schema.type != null) {
-        schema = schema.copy(type = schema.type.plus("null"))
-      }
-
-      return schema
     }
   }
 

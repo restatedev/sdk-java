@@ -13,16 +13,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import dev.restate.serde.Serde;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class JacksonSerdesTest {
+
+  record Recursive(String value, Recursive rec) {}
 
   public static class Person {
 
@@ -74,5 +78,12 @@ class JacksonSerdesTest {
   @MethodSource("roundtripTestCases")
   <T> void roundtrip(T value, Serde<T> serde) {
     assertThat(serde.deserialize(serde.serialize(value))).isEqualTo(value);
+  }
+
+  @Test
+  void schemaGenWorksWithRecursion() {
+    ObjectNode node =
+        (ObjectNode) ((Serde.JsonSchema) JacksonSerdes.of(Recursive.class).jsonSchema()).schema();
+    assertThat(node.at("/properties/rec/$ref").textValue()).isEqualTo("#");
   }
 }

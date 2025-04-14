@@ -15,11 +15,15 @@ import kotlinx.serialization.json.*
 import kotlinx.serialization.serializer
 
 /** Creates a [Serde] implementation using the `kotlinx.serialization` json module. */
-inline fun <reified T : Any?> jsonSerde(json: Json = Json.Default): Serde<T> {
+inline fun <reified T : Any?> jsonSerde(
+    json: Json = Json.Default,
+    jsonSchemaFactory: KotlinSerializationSerdeFactory.JsonSchemaFactory =
+        KotlinSerializationSerdeFactory.JsonSchemaFactory.NOOP
+): Serde<T> {
   @Suppress("UNCHECKED_CAST")
   return when (typeOf<T>()) {
     typeOf<Unit>() -> KotlinSerializationSerdeFactory.UNIT as Serde<T>
-    else -> KotlinSerializationSerdeFactory.jsonSerde(json, serializer())
+    else -> KotlinSerializationSerdeFactory.jsonSerde(json, jsonSchemaFactory, serializer())
   }
 }
 
