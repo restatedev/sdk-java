@@ -42,8 +42,8 @@ class CounterKt {
 
   @Handler
   @Shared
-  suspend fun get(ctx: SharedObjectContext): Long {
-    return ctx.get(TOTAL) ?: 0L
+  suspend fun get(ctx: SharedObjectContext): Long? {
+    return ctx.get(TOTAL)
   }
 
   @Handler

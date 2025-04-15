@@ -181,6 +181,24 @@
     [libraries.victools-jsonschema-module-jackson.version]
       ref = 'victools-json-schema'
 
+  [libraries.schema-kenerator-core]
+    module = 'io.github.smiley4:schema-kenerator-core'
+
+    [libraries.schema-kenerator-core.version]
+      ref = 'schema-kenerator'
+
+  [libraries.schema-kenerator-serialization]
+    module = 'io.github.smiley4:schema-kenerator-serialization'
+
+    [libraries.schema-kenerator-serialization.version]
+      ref = 'schema-kenerator'
+
+  [libraries.schema-kenerator-jsonschema]
+    module = 'io.github.smiley4:schema-kenerator-jsonschema'
+
+    [libraries.schema-kenerator-jsonschema.version]
+      ref = 'schema-kenerator'
+
 [plugins]
   aggregate-javadoc = 'io.freefair.aggregate-javadoc:8.6'
   dependency-license-report = 'com.github.jk1.dependency-license-report:2.0'
@@ -213,3 +231,4 @@
   spring-boot = '3.4.4'
   vertx = '4.5.11'
   victools-json-schema = '4.37.0'
+  schema-kenerator = '2.1.2'
