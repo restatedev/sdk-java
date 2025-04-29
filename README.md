@@ -287,12 +287,12 @@ This library follows [Semantic Versioning](https://semver.org/).
 
 The compatibility with Restate is described in the following table:
 
-| Restate Server\sdk-java | 1.0 | 1.1 | 1.2 | 2.0 |
-|-------------------------|-----|-----|-----|-----|
-| 1.0                     | ✅   | ✅   | ❌   | ❌   |
-| 1.1                     | ✅   | ✅   | ✅   | ❌   |
-| 1.2                     | ✅   | ✅   | ✅   | ❌   |
-| 1.3                     | ✅   | ✅   | ✅   | ✅   |
+| Restate Server\sdk-java | 1.0 - 1.1 | 1.2 | 2.0 - 2.1 |
+|-------------------------|-----------|-----|-----------|
+| 1.0                     | ✅         | ❌   | ❌         |
+| 1.1                     | ✅         | ✅   | ❌         |
+| 1.2                     | ✅         | ✅   | ❌         |
+| 1.3                     | ✅         | ✅   | ✅         |
 
 ## Contributing
 
