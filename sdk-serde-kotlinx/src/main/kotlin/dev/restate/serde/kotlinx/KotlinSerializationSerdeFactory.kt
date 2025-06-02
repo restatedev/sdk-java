@@ -49,8 +49,7 @@ constructor(
     }
   }
 
-  @PublishedApi
-  internal class KtTypeTag<T>(
+  class KtTypeTag<T>(
       val type: KClass<*>,
       /** Reified type */
       val kotlinType: KType?

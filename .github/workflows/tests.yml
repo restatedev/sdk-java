@@ -25,10 +25,10 @@ jobs:
           distribution: 'adopt'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
 
-      - name: Validate Gradle wrapper
-        uses: gradle/actions/wrapper-validation@v3
+      - name: Pull Restate docker image
+        run: docker pull ghcr.io/restatedev/restate:main
 
       - name: Build with Gradle
         run: ./gradlew build
@@ -53,7 +53,7 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Build Javadocs
         run: gradle :sdk-aggregated-javadocs:javadoc

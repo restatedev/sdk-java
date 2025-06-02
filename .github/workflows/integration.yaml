@@ -101,7 +101,7 @@ jobs:
           java-version: '21'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Build restatedev/test-services-java image
         run: ./gradlew -Djib.console=plain :test-services:jibDockerBuild
