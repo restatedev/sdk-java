@@ -30,6 +30,9 @@ jobs:
       - name: Validate Gradle wrapper
         uses: gradle/actions/wrapper-validation@v3
 
+      - name: Pull Restate docker image
+        run: docker pull ghcr.io/restatedev/restate:main
+
       - name: Build with Gradle
         run: ./gradlew build
 
