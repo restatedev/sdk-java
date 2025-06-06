@@ -66,6 +66,18 @@ public final class ServiceDefinition {
     return new ServiceDefinition(serviceName, serviceType, handlers, documentation, metadata);
   }
 
+  public ServiceDefinition transformHandler(
+      String handlerName, Function<HandlerDefinition<?, ?>, HandlerDefinition<?, ?>> transformer) {
+    if (!this.handlers.containsKey(handlerName)) {
+      throw new IllegalArgumentException("Handler " + handlerName + " not found");
+    }
+
+    HashMap<String, HandlerDefinition<?, ?>> handlers = new HashMap<>(this.handlers);
+    handlers.put(handlerName, transformer.apply(handlers.get(handlerName)));
+
+    return new ServiceDefinition(serviceName, serviceType, handlers, documentation, metadata);
+  }
+
   @Override
   public boolean equals(Object object) {
     if (this == object) return true;
