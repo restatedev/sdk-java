@@ -9,6 +9,7 @@
 package dev.restate.sdk.endpoint.definition;
 
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
@@ -64,6 +65,74 @@ public final class ServiceDefinition {
 
   public ServiceDefinition withMetadata(Map<String, String> metadata) {
     return new ServiceDefinition(serviceName, serviceType, handlers, documentation, metadata);
+  }
+
+  public ServiceDefinition configure(Consumer<Configurator> configurator) {
+    Configurator configuratorObj = new Configurator(handlers, documentation, metadata);
+    configurator.accept(configuratorObj);
+
+    return new ServiceDefinition(
+        serviceName,
+        serviceType,
+        configuratorObj.handlers,
+        configuratorObj.documentation,
+        configuratorObj.metadata);
+  }
+
+  public static final class Configurator {
+
+    private Map<String, HandlerDefinition<?, ?>> handlers;
+    private @Nullable String documentation;
+    private Map<String, String> metadata;
+
+    private Configurator(
+        Map<String, HandlerDefinition<?, ?>> handlers,
+        @Nullable String documentation,
+        Map<String, String> metadata) {
+      this.handlers = new HashMap<>(handlers);
+      this.documentation = documentation;
+      this.metadata = new HashMap<>(metadata);
+    }
+
+    public @Nullable String getDocumentation() {
+      return documentation;
+    }
+
+    public void setDocumentation(@Nullable String documentation) {
+      this.documentation = documentation;
+    }
+
+    public Configurator documentation(@Nullable String documentation) {
+      this.setDocumentation(documentation);
+      return this;
+    }
+
+    public Map<String, String> getMetadata() {
+      return metadata;
+    }
+
+    public void setMetadata(Map<String, String> metadata) {
+      this.metadata = metadata;
+    }
+
+    public Configurator addMetadata(String key, String value) {
+      this.metadata.put(key, value);
+      return this;
+    }
+
+    public Configurator metadata(Map<String, String> metadata) {
+      this.setMetadata(metadata);
+      return this;
+    }
+
+    public Configurator configureHandler(
+        String handlerName, Consumer<HandlerDefinition.Configurator> configurator) {
+      if (!handlers.containsKey(handlerName)) {
+        throw new IllegalArgumentException("Handler " + handlerName + " not found");
+      }
+      handlers.computeIfPresent(handlerName, (k, v) -> v.configure(configurator));
+      return this;
+    }
   }
 
   @Override
