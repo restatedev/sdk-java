@@ -46,11 +46,14 @@ public final class Endpoint {
      * Add a Restate service to the endpoint. This will automatically discover the generated factory
      * based on the class name.
      *
+     * <p>If you want to modify some of the service definition options, such as documentation,
+     * inactivity timeout, and so on, use {@link #bind(Object, Function)} instead.
+     *
      * <p>You can also manually instantiate the {@link ServiceDefinition} using {@link
      * #bind(ServiceDefinition)}.
      */
     public Builder bind(Object service) {
-      return this.bind(ServiceDefinitionFactories.discover(service).create(service, null));
+      return this.bind(service, Function.identity());
     }
 
     /**
@@ -61,10 +64,40 @@ public final class Endpoint {
      * <p>Look at the respective documentations of the HandlerRunner class in the Java or in the
      * Kotlin module.
      *
+     * <p>If you want to modify some of the service definition options, such as documentation,
+     * inactivity timeout, and so on, use {@link #bind(Object, HandlerRunner.Options, Function)}
+     * instead.
+     *
      * @see #bind(Object)
      */
     public Builder bind(Object service, HandlerRunner.Options options) {
-      return this.bind(ServiceDefinitionFactories.discover(service).create(service, options));
+      return this.bind(service, options, Function.identity());
+    }
+
+    /**
+     * Same as {@link #bind(Object)} but allows to modify the {@link ServiceDefinition} before
+     * binding it.
+     *
+     * @see #bind(Object)
+     */
+    public Builder bind(
+        Object service, Function<ServiceDefinition, ServiceDefinition> transformer) {
+      return this.bind(
+          transformer.apply(ServiceDefinitionFactories.discover(service).create(service, null)));
+    }
+
+    /**
+     * Same as {@link #bind(Object, HandlerRunner.Options)} but allows to modify the {@link
+     * ServiceDefinition} before binding it.
+     *
+     * @see #bind(Object, HandlerRunner.Options)
+     */
+    public Builder bind(
+        Object service,
+        HandlerRunner.Options options,
+        Function<ServiceDefinition, ServiceDefinition> transformer) {
+      return this.bind(
+          transformer.apply(ServiceDefinitionFactories.discover(service).create(service, options)));
     }
 
     /** Add a manual {@link ServiceDefinition} to the endpoint. */
@@ -151,6 +184,24 @@ public final class Endpoint {
    */
   public static Builder bind(Object service, HandlerRunner.Options options) {
     return new Builder().bind(service, options);
+  }
+
+  /**
+   * @see Builder#bind(Object, Function)
+   */
+  public static Builder bind(
+      Object object, Function<ServiceDefinition, ServiceDefinition> transformer) {
+    return new Builder().bind(object, transformer);
+  }
+
+  /**
+   * @see Builder#bind(Object, HandlerRunner.Options, Function)
+   */
+  public static Builder bind(
+      Object service,
+      HandlerRunner.Options options,
+      Function<ServiceDefinition, ServiceDefinition> transformer) {
+    return new Builder().bind(service, options, transformer);
   }
 
   /**
