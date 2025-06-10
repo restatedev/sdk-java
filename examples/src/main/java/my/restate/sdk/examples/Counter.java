@@ -38,7 +38,6 @@ public class Counter {
   /** Add the given value to the count. */
   @Handler
   public void add(ObjectContext ctx, long request) {
-
     long currentValue = ctx.get(TOTAL).orElse(0L);
     long newValue = currentValue + request;
     ctx.sleep(Duration.ofSeconds(120));

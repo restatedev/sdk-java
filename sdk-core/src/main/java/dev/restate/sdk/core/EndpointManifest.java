@@ -35,8 +35,8 @@ final class EndpointManifest {
       boolean experimentalContextEnabled) {
     this.manifest =
         new EndpointManifestSchema()
-            .withMinProtocolVersion(MIN_SERVICE_PROTOCOL_VERSION.getNumber())
-            .withMaxProtocolVersion(MAX_SERVICE_PROTOCOL_VERSION.getNumber())
+            .withMinProtocolVersion((long) MIN_SERVICE_PROTOCOL_VERSION.getNumber())
+            .withMaxProtocolVersion((long) MAX_SERVICE_PROTOCOL_VERSION.getNumber())
             .withProtocolMode(protocolMode)
             .withServices(
                 components
@@ -46,6 +46,24 @@ final class EndpointManifest {
                                 .withName(svc.getServiceName())
                                 .withTy(convertServiceType(svc.getServiceType()))
                                 .withDocumentation(svc.getDocumentation())
+                                .withIdempotencyRetention(
+                                    svc.getIdempotencyRetention() != null
+                                        ? svc.getIdempotencyRetention().toMillis()
+                                        : null)
+                                .withJournalRetention(
+                                    svc.getJournalRetention() != null
+                                        ? svc.getJournalRetention().toMillis()
+                                        : null)
+                                .withInactivityTimeout(
+                                    svc.getInactivityTimeout() != null
+                                        ? svc.getInactivityTimeout().toMillis()
+                                        : null)
+                                .withAbortTimeout(
+                                    svc.getAbortTimeout() != null
+                                        ? svc.getAbortTimeout().toMillis()
+                                        : null)
+                                .withEnableLazyState(svc.getEnableLazyState())
+                                .withIngressPrivate(svc.getIngressPrivate())
                                 .withMetadata(
                                     svc.getMetadata().entrySet().stream()
                                         .reduce(
@@ -84,6 +102,24 @@ final class EndpointManifest {
         .withInput(convertHandlerInput(handler))
         .withOutput(convertHandlerOutput(handler))
         .withDocumentation(handler.getDocumentation())
+        .withIdempotencyRetention(
+            handler.getIdempotencyRetention() != null
+                ? handler.getIdempotencyRetention().toMillis()
+                : null)
+        .withWorkflowCompletionRetention(
+            handler.getWorkflowRetention() != null
+                ? handler.getWorkflowRetention().toMillis()
+                : null)
+        .withJournalRetention(
+            handler.getJournalRetention() != null ? handler.getJournalRetention().toMillis() : null)
+        .withInactivityTimeout(
+            handler.getInactivityTimeout() != null
+                ? handler.getInactivityTimeout().toMillis()
+                : null)
+        .withAbortTimeout(
+            handler.getAbortTimeout() != null ? handler.getAbortTimeout().toMillis() : null)
+        .withEnableLazyState(handler.getEnableLazyState())
+        .withIngressPrivate(handler.getIngressPrivate())
         .withMetadata(
             handler.getMetadata().entrySet().stream()
                 .reduce(
