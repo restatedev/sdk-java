@@ -79,6 +79,17 @@ public final class Endpoint {
      * Same as {@link #bind(Object)} but allows to configure the {@link ServiceDefinition} before
      * binding it.
      *
+     * <pre>{@code
+     * Endpoint endpoint = Endpoint
+     *   .builder()
+     *   .bind(
+     *     new Counter(),
+     *     // Configure the service
+     *     s -> s.journalRetention(Duration.ofDays(1))
+     *   )
+     *   .build();
+     * }</pre>
+     *
      * @see #bind(Object)
      * @see ServiceDefinition.Configurator
      */

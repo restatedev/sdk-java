@@ -17,6 +17,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import org.jspecify.annotations.Nullable;
 
+/** This class represents a Restate handler. */
 public final class HandlerDefinition<REQ, RES> {
 
   private final String name;
@@ -68,30 +69,53 @@ public final class HandlerDefinition<REQ, RES> {
     this.enableLazyState = enableLazyState;
   }
 
+  /**
+   * @return handler name.
+   */
   public String getName() {
     return name;
   }
 
+  /**
+   * @return handler type.
+   */
   public HandlerType getHandlerType() {
     return handlerType;
   }
 
+  /**
+   * @return the acceptable content type when ingesting HTTP requests. Wildcards can be used, e.g.
+   *     {@code application / *} or {@code * / *}.
+   */
   public @Nullable String getAcceptContentType() {
     return acceptContentType;
   }
 
+  /**
+   * @return request {@link Serde}
+   */
   public Serde<REQ> getRequestSerde() {
     return requestSerde;
   }
 
+  /**
+   * @return response {@link Serde}
+   */
   public Serde<RES> getResponseSerde() {
     return responseSerde;
   }
 
+  /**
+   * @return handler documentation. When using the annotation processor, this will contain the
+   *     javadoc of the annotated methods.
+   */
   public @Nullable String getDocumentation() {
     return documentation;
   }
 
+  /**
+   * @return metadata, as shown in the Admin REST API.
+   */
   public Map<String, String> getMetadata() {
     return metadata;
   }
@@ -100,30 +124,59 @@ public final class HandlerDefinition<REQ, RES> {
     return runner;
   }
 
+  /**
+   * @return the inactivity timeout applied to this handler.
+   * @see Configurator#inactivityTimeout(Duration)
+   */
   public @Nullable Duration getInactivityTimeout() {
     return inactivityTimeout;
   }
 
+  /**
+   * @return the abort timeout applied to this handler.
+   * @see Configurator#abortTimeout(Duration)
+   */
   public @Nullable Duration getAbortTimeout() {
     return abortTimeout;
   }
 
+  /**
+   * @return the idempotency retention applied to this handler.
+   * @see Configurator#idempotencyRetention(Duration)
+   */
   public @Nullable Duration getIdempotencyRetention() {
     return idempotencyRetention;
   }
 
+  /**
+   * @return the workflow retention applied to this handler.
+   * @see Configurator#workflowRetention(Duration)
+   */
   public @Nullable Duration getWorkflowRetention() {
     return workflowRetention;
   }
 
+  /**
+   * @return the journal retention applied to this handler.
+   * @see Configurator#journalRetention(Duration)
+   */
   public @Nullable Duration getJournalRetention() {
     return journalRetention;
   }
 
+  /**
+   * @return true if this handler cannot be invoked from the restate-server HTTP and Kafka ingress,
+   *     but only from other services.
+   * @see Configurator#ingressPrivate(Boolean)
+   */
   public @Nullable Boolean getIngressPrivate() {
     return ingressPrivate;
   }
 
+  /**
+   * @return true if this handler will use lazy state.
+   * @see Configurator#enableLazyState(Boolean)
+   */
   public @Nullable Boolean getEnableLazyState() {
     return enableLazyState;
   }
@@ -185,10 +238,14 @@ public final class HandlerDefinition<REQ, RES> {
         enableLazyState);
   }
 
+  /**
+   * @return a copy of this {@link HandlerDefinition}, configured with the {@link Configurator}.
+   */
   public HandlerDefinition<REQ, RES> configure(
       Consumer<HandlerDefinition.Configurator> configurator) {
     HandlerDefinition.Configurator configuratorObj =
         new HandlerDefinition.Configurator(
+            handlerType,
             acceptContentType,
             documentation,
             metadata,
@@ -219,8 +276,10 @@ public final class HandlerDefinition<REQ, RES> {
         configuratorObj.enableLazyState);
   }
 
+  /** Configurator for a {@link HandlerDefinition}. */
   public static final class Configurator {
 
+    private final HandlerType handlerType;
     private @Nullable String acceptContentType;
     private @Nullable String documentation;
     private Map<String, String> metadata;
@@ -232,7 +291,8 @@ public final class HandlerDefinition<REQ, RES> {
     private @Nullable Boolean ingressPrivate;
     private @Nullable Boolean enableLazyState;
 
-    public Configurator(
+    private Configurator(
+        HandlerType handlerType,
         @Nullable String acceptContentType,
         @Nullable String documentation,
         Map<String, String> metadata,
@@ -243,6 +303,7 @@ public final class HandlerDefinition<REQ, RES> {
         @Nullable Duration journalRetention,
         @Nullable Boolean ingressPrivate,
         @Nullable Boolean enableLazyState) {
+      this.handlerType = handlerType;
       this.acceptContentType = acceptContentType;
       this.documentation = documentation;
       this.metadata = new HashMap<>(metadata);
@@ -255,136 +316,301 @@ public final class HandlerDefinition<REQ, RES> {
       this.enableLazyState = enableLazyState;
     }
 
+    /**
+     * @see #acceptContentType(String)
+     */
     public @Nullable String getAcceptContentType() {
       return acceptContentType;
     }
 
+    /**
+     * @see #acceptContentType(String)
+     */
     public void setAcceptContentType(@Nullable String acceptContentType) {
       this.acceptContentType = acceptContentType;
     }
 
+    /**
+     * Set the acceptable content type when ingesting HTTP requests. Wildcards can be used, e.g.
+     * {@code application / *} or {@code * / *}.
+     *
+     * @return this
+     */
     public Configurator acceptContentType(@Nullable String acceptContentType) {
       this.setAcceptContentType(acceptContentType);
       return this;
     }
 
+    /**
+     * @see #documentation(String)
+     */
     public @Nullable String getDocumentation() {
       return documentation;
     }
 
+    /**
+     * @see #documentation(String)
+     */
     public void setDocumentation(@Nullable String documentation) {
       this.documentation = documentation;
     }
 
+    /**
+     * Documentation as shown in the UI, Admin REST API, and the generated OpenAPI documentation of
+     * this handler.
+     *
+     * @return this
+     */
     public Configurator documentation(@Nullable String documentation) {
       this.setDocumentation(documentation);
       return this;
     }
 
+    /**
+     * @see #metadata(Map)
+     */
     public Map<String, String> getMetadata() {
       return metadata;
     }
 
+    /**
+     * @see #metadata(Map)
+     */
     public void setMetadata(Map<String, String> metadata) {
       this.metadata = metadata;
     }
 
+    /**
+     * @see #metadata(Map)
+     */
     public Configurator addMetadata(String key, String value) {
       this.metadata.put(key, value);
       return this;
     }
 
+    /**
+     * Handler metadata, as propagated in the Admin REST API.
+     *
+     * @return this
+     */
     public Configurator metadata(Map<String, String> metadata) {
       this.setMetadata(metadata);
       return this;
     }
 
+    /**
+     * @see #inactivityTimeout(Duration)
+     */
     public @Nullable Duration getInactivityTimeout() {
       return inactivityTimeout;
     }
 
+    /**
+     * @see #inactivityTimeout(Duration)
+     */
     public void setInactivityTimeout(@Nullable Duration inactivityTimeout) {
       this.inactivityTimeout = inactivityTimeout;
     }
 
+    /**
+     * This timer guards against stalled invocations. Once it expires, Restate triggers a graceful
+     * termination by asking the invocation to suspend (which preserves intermediate progress).
+     *
+     * <p>The {@link #abortTimeout(Duration)} is used to abort the invocation, in case it doesn't
+     * react to the request to suspend.
+     *
+     * <p>This overrides the inactivity timeout set for the service and the default set in
+     * restate-server.
+     *
+     * <p><b>NOTE:</b> You can set this field only if you register this service against
+     * restate-server >= 1.4, otherwise the service discovery will fail.
+     *
+     * @return this
+     */
     public Configurator inactivityTimeout(@Nullable Duration inactivityTimeout) {
       setInactivityTimeout(inactivityTimeout);
       return this;
     }
 
+    /**
+     * @see #abortTimeout(Duration)
+     */
     public @Nullable Duration getAbortTimeout() {
       return abortTimeout;
     }
 
+    /**
+     * @see #abortTimeout(Duration)
+     */
     public void setAbortTimeout(@Nullable Duration abortTimeout) {
       this.abortTimeout = abortTimeout;
     }
 
+    /**
+     * This timer guards against stalled invocations that are supposed to terminate. The abort
+     * timeout is started after the {@link #inactivityTimeout(Duration)} has expired and the
+     * invocation has been asked to gracefully terminate. Once the timer expires, it will abort the
+     * invocation.
+     *
+     * <p>This timer potentially <b>interrupts</b> user code. If the user code needs longer to
+     * gracefully terminate, then this value needs to be set accordingly.
+     *
+     * <p>This overrides the abort timeout set for the service and the default set in
+     * restate-server.
+     *
+     * <p><b>NOTE:</b> You can set this field only if you register this service against
+     * restate-server >= 1.4, otherwise the service discovery will fail.
+     *
+     * @return this
+     */
     public Configurator abortTimeout(@Nullable Duration abortTimeout) {
       setAbortTimeout(abortTimeout);
       return this;
     }
 
+    /**
+     * @see #idempotencyRetention(Duration)
+     */
     public @Nullable Duration getIdempotencyRetention() {
       return idempotencyRetention;
     }
 
+    /**
+     * @see #idempotencyRetention(Duration)
+     */
     public void setIdempotencyRetention(@Nullable Duration idempotencyRetention) {
+      if (handlerType == HandlerType.WORKFLOW) {
+        throw new IllegalArgumentException(
+            "The idempotency retention cannot be set for workflow handlers. Use workflowRetention(Duration) instead");
+      }
       this.idempotencyRetention = idempotencyRetention;
     }
 
+    /**
+     * The retention duration of idempotent requests to this service.
+     *
+     * <p><b>NOTE:</b> You can set this field only if you register this service against
+     * restate-server >= 1.4, otherwise the service discovery will fail.
+     *
+     * @return this
+     */
     public Configurator idempotencyRetention(@Nullable Duration idempotencyRetention) {
       setIdempotencyRetention(idempotencyRetention);
       return this;
     }
 
+    /**
+     * @see #workflowRetention(Duration)
+     */
     public @Nullable Duration getWorkflowRetention() {
       return workflowRetention;
     }
 
+    /**
+     * @see #workflowRetention(Duration)
+     */
     public void setWorkflowRetention(@Nullable Duration workflowRetention) {
+      if (handlerType != HandlerType.WORKFLOW) {
+        throw new IllegalArgumentException(
+            "Workflow retention can be set only for workflow handlers");
+      }
       this.workflowRetention = workflowRetention;
     }
 
+    /**
+     * The retention duration for this workflow handler.
+     *
+     * <p><b>NOTE:</b> You can set this field only if you register this service against
+     * restate-server >= 1.4, otherwise the service discovery will fail.
+     *
+     * @return this
+     */
     public Configurator workflowRetention(@Nullable Duration workflowRetention) {
       setWorkflowRetention(workflowRetention);
       return this;
     }
 
+    /**
+     * @see #journalRetention(Duration)
+     */
     public @Nullable Duration getJournalRetention() {
       return journalRetention;
     }
 
+    /**
+     * @see #journalRetention(Duration)
+     */
     public void setJournalRetention(@Nullable Duration journalRetention) {
       this.journalRetention = journalRetention;
     }
 
+    /**
+     * The journal retention for invocations to this handler.
+     *
+     * <p>In case the request has an idempotency key, the {@link #idempotencyRetention(Duration)}
+     * caps the journal retention time.
+     *
+     * <p><b>NOTE:</b> You can set this field only if you register this service against
+     * restate-server >= 1.4, otherwise the service discovery will fail.
+     *
+     * @return this
+     */
     public Configurator journalRetention(@Nullable Duration journalRetention) {
       setJournalRetention(journalRetention);
       return this;
     }
 
+    /**
+     * @see #ingressPrivate(Boolean)
+     */
     public @Nullable Boolean getIngressPrivate() {
       return ingressPrivate;
     }
 
+    /**
+     * @see #ingressPrivate(Boolean)
+     */
     public void setIngressPrivate(@Nullable Boolean ingressPrivate) {
       this.ingressPrivate = ingressPrivate;
     }
 
+    /**
+     * When set to {@code true} this handler cannot be invoked from the restate-server HTTP and
+     * Kafka ingress, but only from other services.
+     *
+     * <p><b>NOTE:</b> You can set this field only if you register this service against
+     * restate-server >= 1.4, otherwise the service discovery will fail.
+     *
+     * @return this
+     */
     public Configurator ingressPrivate(@Nullable Boolean ingressPrivate) {
       setIngressPrivate(ingressPrivate);
       return this;
     }
 
+    /**
+     * @see #enableLazyState(Boolean)
+     */
     public @Nullable Boolean getEnableLazyState() {
       return enableLazyState;
     }
 
+    /**
+     * @see #enableLazyState(Boolean)
+     */
     public void setEnableLazyState(@Nullable Boolean enableLazyState) {
       this.enableLazyState = enableLazyState;
     }
 
+    /**
+     * When set to {@code true}, lazy state will be enabled for all invocations to this handler.
+     * This is relevant only for workflows and virtual objects.
+     *
+     * <p><b>NOTE:</b> You can set this field only if you register this service against
+     * restate-server >= 1.4, otherwise the service discovery will fail.
+     *
+     * @return this
+     */
     public Configurator enableLazyState(@Nullable Boolean enableLazyState) {
       setEnableLazyState(enableLazyState);
       return this;
