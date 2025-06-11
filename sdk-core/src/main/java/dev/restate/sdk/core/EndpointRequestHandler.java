@@ -195,7 +195,7 @@ public final class EndpointRequestHandler {
           ProtocolException.UNSUPPORTED_MEDIA_TYPE_CODE);
     }
 
-    EndpointManifestSchema response = this.deploymentManifest.manifest();
+    EndpointManifestSchema response = this.deploymentManifest.manifest(version);
     LOG.info(
         "Replying to discovery request with services [{}]",
         response.getServices().stream().map(Service::getName).collect(Collectors.joining(",")));

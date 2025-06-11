@@ -96,7 +96,7 @@ public class AssertUtils {
                 EndpointManifestSchema.ProtocolMode.BIDI_STREAM,
                 endpoint.getServiceDefinitions(),
                 true)
-            .manifest(),
+            .manifest(DiscoveryProtocol.MAX_SERVICE_DISCOVERY_PROTOCOL_VERSION),
         EndpointManifestSchemaAssert.class);
   }
 
