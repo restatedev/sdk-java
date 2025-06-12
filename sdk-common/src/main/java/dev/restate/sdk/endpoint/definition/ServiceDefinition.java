@@ -242,17 +242,11 @@ public final class ServiceDefinition {
     }
 
     /**
+     * @return configured documentation.
      * @see #documentation(String)
      */
-    public @Nullable String getDocumentation() {
+    public @Nullable String documentation() {
       return documentation;
-    }
-
-    /**
-     * @see #documentation(String)
-     */
-    public void setDocumentation(@Nullable String documentation) {
-      this.documentation = documentation;
     }
 
     /**
@@ -262,22 +256,16 @@ public final class ServiceDefinition {
      * @return this
      */
     public Configurator documentation(@Nullable String documentation) {
-      this.setDocumentation(documentation);
+      this.documentation = documentation;
       return this;
     }
 
     /**
+     * @return configured metadata.
      * @see #metadata(Map)
      */
-    public Map<String, String> getMetadata() {
+    public Map<String, String> metadata() {
       return metadata;
-    }
-
-    /**
-     * @see #metadata(Map)
-     */
-    public void setMetadata(Map<String, String> metadata) {
-      this.metadata = metadata;
     }
 
     /**
@@ -294,22 +282,16 @@ public final class ServiceDefinition {
      * @return this
      */
     public Configurator metadata(Map<String, String> metadata) {
-      this.setMetadata(metadata);
+      this.metadata = metadata;
       return this;
     }
 
     /**
+     * @return configured inactivity timeout.
      * @see #inactivityTimeout(Duration)
      */
-    public @Nullable Duration getInactivityTimeout() {
+    public @Nullable Duration inactivityTimeout() {
       return inactivityTimeout;
-    }
-
-    /**
-     * @see #inactivityTimeout(Duration)
-     */
-    public void setInactivityTimeout(@Nullable Duration inactivityTimeout) {
-      this.inactivityTimeout = inactivityTimeout;
     }
 
     /**
@@ -328,22 +310,16 @@ public final class ServiceDefinition {
      * @return this
      */
     public Configurator inactivityTimeout(@Nullable Duration inactivityTimeout) {
-      setInactivityTimeout(inactivityTimeout);
+      this.inactivityTimeout = inactivityTimeout;
       return this;
     }
 
     /**
+     * @return configured abort timeout.
      * @see #abortTimeout(Duration)
      */
-    public @Nullable Duration getAbortTimeout() {
+    public @Nullable Duration abortTimeout() {
       return abortTimeout;
-    }
-
-    /**
-     * @see #abortTimeout(Duration)
-     */
-    public void setAbortTimeout(@Nullable Duration abortTimeout) {
-      this.abortTimeout = abortTimeout;
     }
 
     /**
@@ -364,22 +340,16 @@ public final class ServiceDefinition {
      * @return this
      */
     public Configurator abortTimeout(@Nullable Duration abortTimeout) {
-      setAbortTimeout(abortTimeout);
+      this.abortTimeout = abortTimeout;
       return this;
     }
 
     /**
+     * @return configured idempotency retention.
      * @see #idempotencyRetention(Duration)
      */
-    public @Nullable Duration getIdempotencyRetention() {
+    public @Nullable Duration idempotencyRetention() {
       return idempotencyRetention;
-    }
-
-    /**
-     * @see #idempotencyRetention(Duration)
-     */
-    public void setIdempotencyRetention(@Nullable Duration idempotencyRetention) {
-      this.idempotencyRetention = idempotencyRetention;
     }
 
     /**
@@ -391,22 +361,16 @@ public final class ServiceDefinition {
      * @return this
      */
     public Configurator idempotencyRetention(@Nullable Duration idempotencyRetention) {
-      setIdempotencyRetention(idempotencyRetention);
+      this.idempotencyRetention = idempotencyRetention;
       return this;
     }
 
     /**
+     * @return configured journal retention.
      * @see #journalRetention(Duration)
      */
-    public @Nullable Duration getJournalRetention() {
+    public @Nullable Duration journalRetention() {
       return journalRetention;
-    }
-
-    /**
-     * @see #journalRetention(Duration)
-     */
-    public void setJournalRetention(@Nullable Duration journalRetention) {
-      this.journalRetention = journalRetention;
     }
 
     /**
@@ -422,22 +386,16 @@ public final class ServiceDefinition {
      * @return this
      */
     public Configurator journalRetention(@Nullable Duration journalRetention) {
-      setJournalRetention(journalRetention);
+      this.journalRetention = journalRetention;
       return this;
     }
 
     /**
+     * @return configured ingress private.
      * @see #ingressPrivate(Boolean)
      */
-    public @Nullable Boolean getIngressPrivate() {
+    public @Nullable Boolean ingressPrivate() {
       return ingressPrivate;
-    }
-
-    /**
-     * @see #ingressPrivate(Boolean)
-     */
-    public void setIngressPrivate(@Nullable Boolean ingressPrivate) {
-      this.ingressPrivate = ingressPrivate;
     }
 
     /**
@@ -450,22 +408,16 @@ public final class ServiceDefinition {
      * @return this
      */
     public Configurator ingressPrivate(@Nullable Boolean ingressPrivate) {
-      setIngressPrivate(ingressPrivate);
+      this.ingressPrivate = ingressPrivate;
       return this;
     }
 
     /**
+     * @return configured enable lazy state.
      * @see #enableLazyState(Boolean)
      */
-    public @Nullable Boolean getEnableLazyState() {
+    public @Nullable Boolean enableLazyState() {
       return enableLazyState;
-    }
-
-    /**
-     * @see #enableLazyState(Boolean)
-     */
-    public void setEnableLazyState(@Nullable Boolean enableLazyState) {
-      this.enableLazyState = enableLazyState;
     }
 
     /**
@@ -478,7 +430,7 @@ public final class ServiceDefinition {
      * @return this
      */
     public Configurator enableLazyState(@Nullable Boolean enableLazyState) {
-      setEnableLazyState(enableLazyState);
+      this.enableLazyState = enableLazyState;
       return this;
     }
 
