@@ -17,7 +17,6 @@ import dev.restate.sdk.kotlin.endpoint.*
 import kotlinx.serialization.Serializable
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
-import kotlin.time.Duration.Companion.seconds
 
 @VirtualObject
 class CounterKt {
@@ -58,10 +57,6 @@ class CounterKt {
 }
 
 fun main() {
-  val endpoint = endpoint {
-    bind(CounterKt()) {
-      it.abortTimeout = 30.seconds
-    }
-  }
+  val endpoint = endpoint { bind(CounterKt()) }
   RestateHttpServer.listen(endpoint)
 }

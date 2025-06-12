@@ -457,7 +457,7 @@ public final class HandlerDefinition<REQ, RES> {
     public Configurator idempotencyRetention(@Nullable Duration idempotencyRetention) {
       if (handlerType == HandlerType.WORKFLOW) {
         throw new IllegalArgumentException(
-                "The idempotency retention cannot be set for workflow handlers. Use workflowRetention(Duration) instead");
+            "The idempotency retention cannot be set for workflow handlers. Use workflowRetention(Duration) instead");
       }
       this.idempotencyRetention = idempotencyRetention;
       return this;
@@ -482,7 +482,7 @@ public final class HandlerDefinition<REQ, RES> {
     public Configurator workflowRetention(@Nullable Duration workflowRetention) {
       if (handlerType != HandlerType.WORKFLOW) {
         throw new IllegalArgumentException(
-                "Workflow retention can be set only for workflow handlers");
+            "Workflow retention can be set only for workflow handlers");
       }
       this.workflowRetention = workflowRetention;
       return this;
