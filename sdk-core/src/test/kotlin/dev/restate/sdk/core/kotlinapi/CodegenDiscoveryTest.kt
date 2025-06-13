@@ -8,12 +8,12 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core.kotlinapi
 
-import dev.restate.sdk.Context
 import dev.restate.sdk.core.AssertUtils.assertThatDiscovery
 import dev.restate.sdk.core.generated.manifest.Handler
 import dev.restate.sdk.core.generated.manifest.Input
 import dev.restate.sdk.core.generated.manifest.Output
 import dev.restate.sdk.core.generated.manifest.Service
+import dev.restate.sdk.kotlin.endpoint.*
 import org.assertj.core.api.Assertions
 import org.assertj.core.api.InstanceOfAssertFactories.type
 import org.junit.jupiter.api.Test
@@ -71,5 +71,22 @@ class CodegenDiscoveryTest {
         .returns(Service.Ty.WORKFLOW) { obj -> obj.ty }
         .extractingHandler("run")
         .returns(Handler.Ty.WORKFLOW) { obj -> obj.ty }
+  }
+
+  @Test
+  fun usingTransformer() {
+    assertThatDiscovery(
+            endpoint {
+              bind(CodegenTest.RawInputOutput()) {
+                it.documentation = "My service documentation"
+                it.configureHandler("rawInputWithCustomCt") {
+                  it.documentation = "My handler documentation"
+                }
+              }
+            })
+        .extractingService("RawInputOutput")
+        .returns("My service documentation", Service::getDocumentation)
+        .extractingHandler("rawInputWithCustomCt")
+        .returns("My handler documentation", Handler::getDocumentation)
   }
 }

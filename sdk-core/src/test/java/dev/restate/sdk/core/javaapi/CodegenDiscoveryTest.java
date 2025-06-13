@@ -16,6 +16,7 @@ import dev.restate.sdk.core.generated.manifest.Handler;
 import dev.restate.sdk.core.generated.manifest.Input;
 import dev.restate.sdk.core.generated.manifest.Output;
 import dev.restate.sdk.core.generated.manifest.Service;
+import dev.restate.sdk.endpoint.Endpoint;
 import org.junit.jupiter.api.Test;
 
 public class CodegenDiscoveryTest {
@@ -65,5 +66,21 @@ public class CodegenDiscoveryTest {
         .returns(Service.Ty.WORKFLOW, Service::getTy)
         .extractingHandler("run")
         .returns(Handler.Ty.WORKFLOW, Handler::getTy);
+  }
+
+  @Test
+  void usingTransformer() {
+    assertThatDiscovery(
+            Endpoint.bind(
+                new CodegenTest.RawInputOutput(),
+                sd ->
+                    sd.documentation("My service documentation")
+                        .configureHandler(
+                            "rawInputWithCustomCt",
+                            hd -> hd.documentation("My handler documentation"))))
+        .extractingService("RawInputOutput")
+        .returns("My service documentation", Service::getDocumentation)
+        .extractingHandler("rawInputWithCustomCt")
+        .returns("My handler documentation", Handler::getDocumentation);
   }
 }

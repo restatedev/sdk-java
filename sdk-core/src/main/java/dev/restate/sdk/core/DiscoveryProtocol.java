@@ -19,12 +19,15 @@ import dev.restate.sdk.core.generated.manifest.Handler;
 import dev.restate.sdk.core.generated.manifest.Service;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 class DiscoveryProtocol {
   static final Discovery.ServiceDiscoveryProtocolVersion MIN_SERVICE_DISCOVERY_PROTOCOL_VERSION =
       Discovery.ServiceDiscoveryProtocolVersion.V1;
   static final Discovery.ServiceDiscoveryProtocolVersion MAX_SERVICE_DISCOVERY_PROTOCOL_VERSION =
-      Discovery.ServiceDiscoveryProtocolVersion.V2;
+      Discovery.ServiceDiscoveryProtocolVersion.V3;
 
   static boolean isSupported(
       Discovery.ServiceDiscoveryProtocolVersion serviceDiscoveryProtocolVersion) {
@@ -78,6 +81,9 @@ class DiscoveryProtocol {
     if (versionString.equals("application/vnd.restate.endpointmanifest.v2+json")) {
       return Optional.of(Discovery.ServiceDiscoveryProtocolVersion.V2);
     }
+    if (versionString.equals("application/vnd.restate.endpointmanifest.v3+json")) {
+      return Optional.of(Discovery.ServiceDiscoveryProtocolVersion.V3);
+    }
     return Optional.empty();
   }
 
@@ -89,6 +95,9 @@ class DiscoveryProtocol {
     if (Objects.requireNonNull(version) == Discovery.ServiceDiscoveryProtocolVersion.V2) {
       return "application/vnd.restate.endpointmanifest.v2+json";
     }
+    if (Objects.requireNonNull(version) == Discovery.ServiceDiscoveryProtocolVersion.V3) {
+      return "application/vnd.restate.endpointmanifest.v3+json";
+    }
     throw new IllegalArgumentException(
         String.format(
             "Service discovery protocol version '%s' has no header value", version.getNumber()));
@@ -96,13 +105,24 @@ class DiscoveryProtocol {
 
   static final ObjectMapper MANIFEST_OBJECT_MAPPER = new ObjectMapper();
 
-  @JsonFilter("V2FieldsFilter")
-  interface V2Mixin {}
+  static final Set<String> DISCOVERY_FIELDS_ADDED_IN_V2 = Set.of("documentation", "metadata");
+  static final Set<String> DISCOVERY_FIELDS_ADDED_IN_V3 =
+      Set.of(
+          "inactivityTimeout",
+          "abortTimeout",
+          "journalRetention",
+          "idempotencyRetention",
+          "workflowCompletionRetention",
+          "enableLazyState",
+          "ingressPrivate");
+
+  @JsonFilter("DiscoveryFieldsFilter")
+  interface FieldsMixin {}
 
   static {
     // Mixin to add fields filter, used to filter v2 fields
-    MANIFEST_OBJECT_MAPPER.addMixIn(Service.class, V2Mixin.class);
-    MANIFEST_OBJECT_MAPPER.addMixIn(Handler.class, V2Mixin.class);
+    MANIFEST_OBJECT_MAPPER.addMixIn(Service.class, FieldsMixin.class);
+    MANIFEST_OBJECT_MAPPER.addMixIn(Handler.class, FieldsMixin.class);
   }
 
   static byte[] serializeManifest(
@@ -110,13 +130,22 @@ class DiscoveryProtocol {
       EndpointManifestSchema response)
       throws ProtocolException {
     try {
-      // Don't serialize the documentation and metadata fields for V1!
-      SimpleBeanPropertyFilter filter =
-          serviceDiscoveryProtocolVersion == Discovery.ServiceDiscoveryProtocolVersion.V1
-              ? SimpleBeanPropertyFilter.serializeAllExcept("documentation", "metadata")
-              : SimpleBeanPropertyFilter.serializeAll();
+      SimpleBeanPropertyFilter filter;
+      if (serviceDiscoveryProtocolVersion == Discovery.ServiceDiscoveryProtocolVersion.V1) {
+        filter =
+            SimpleBeanPropertyFilter.serializeAllExcept(
+                Stream.concat(
+                        DISCOVERY_FIELDS_ADDED_IN_V2.stream(),
+                        DISCOVERY_FIELDS_ADDED_IN_V3.stream())
+                    .collect(Collectors.toSet()));
+      } else if (serviceDiscoveryProtocolVersion == Discovery.ServiceDiscoveryProtocolVersion.V2) {
+        filter = SimpleBeanPropertyFilter.serializeAllExcept(DISCOVERY_FIELDS_ADDED_IN_V3);
+      } else {
+        filter = SimpleBeanPropertyFilter.serializeAll();
+      }
+
       return MANIFEST_OBJECT_MAPPER
-          .writer(new SimpleFilterProvider().addFilter("V2FieldsFilter", filter))
+          .writer(new SimpleFilterProvider().addFilter("DiscoveryFieldsFilter", filter))
           .writeValueAsBytes(response);
     } catch (JsonProcessingException e) {
       throw new ProtocolException(

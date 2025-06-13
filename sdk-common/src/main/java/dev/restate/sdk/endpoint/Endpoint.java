@@ -13,6 +13,7 @@ import dev.restate.sdk.endpoint.definition.ServiceDefinition;
 import dev.restate.sdk.endpoint.definition.ServiceDefinitionFactories;
 import io.opentelemetry.api.OpenTelemetry;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -46,11 +47,14 @@ public final class Endpoint {
      * Add a Restate service to the endpoint. This will automatically discover the generated factory
      * based on the class name.
      *
+     * <p>If you want to modify some of the service definition options, such as documentation,
+     * inactivity timeout, and so on, use {@link #bind(Object, Consumer)} instead.
+     *
      * <p>You can also manually instantiate the {@link ServiceDefinition} using {@link
      * #bind(ServiceDefinition)}.
      */
     public Builder bind(Object service) {
-      return this.bind(ServiceDefinitionFactories.discover(service).create(service, null));
+      return this.bind(service, ignored -> {});
     }
 
     /**
@@ -61,10 +65,56 @@ public final class Endpoint {
      * <p>Look at the respective documentations of the HandlerRunner class in the Java or in the
      * Kotlin module.
      *
+     * <p>If you want to modify some of the service definition options, such as documentation,
+     * inactivity timeout, and so on, use {@link #bind(Object, HandlerRunner.Options, Consumer)}
+     * instead.
+     *
      * @see #bind(Object)
      */
     public Builder bind(Object service, HandlerRunner.Options options) {
-      return this.bind(ServiceDefinitionFactories.discover(service).create(service, options));
+      return this.bind(service, options, ignored -> {});
+    }
+
+    /**
+     * Same as {@link #bind(Object)} but allows to configure the {@link ServiceDefinition} before
+     * binding it.
+     *
+     * <pre>{@code
+     * Endpoint endpoint = Endpoint
+     *   .builder()
+     *   .bind(
+     *     new Counter(),
+     *     // Configure the service
+     *     s -> s.journalRetention(Duration.ofDays(1))
+     *   )
+     *   .build();
+     * }</pre>
+     *
+     * @see #bind(Object)
+     * @see ServiceDefinition.Configurator
+     */
+    public Builder bind(Object service, Consumer<ServiceDefinition.Configurator> configurator) {
+      return this.bind(
+          ServiceDefinitionFactories.discover(service)
+              .create(service, null)
+              .configure(configurator));
+    }
+
+    /**
+     * Same as {@link #bind(Object, HandlerRunner.Options)} but allows to configure the {@link
+     * ServiceDefinition} before binding it.
+     *
+     * @see #bind(Object, HandlerRunner.Options)
+     * @see ServiceDefinition.Configurator
+     */
+    public Builder bind(
+        Object service,
+        HandlerRunner.Options options,
+        Consumer<ServiceDefinition.Configurator> configurator) {
+      return this.bind(
+          ServiceDefinitionFactories.discover(service)
+              .create(service, options)
+              .configure(configurator));
     }
 
     /** Add a manual {@link ServiceDefinition} to the endpoint. */
@@ -151,6 +201,23 @@ public final class Endpoint {
    */
   public static Builder bind(Object service, HandlerRunner.Options options) {
     return new Builder().bind(service, options);
+  }
+
+  /**
+   * @see Builder#bind(Object, Consumer)
+   */
+  public static Builder bind(Object object, Consumer<ServiceDefinition.Configurator> configurator) {
+    return new Builder().bind(object, configurator);
+  }
+
+  /**
+   * @see Builder#bind(Object, HandlerRunner.Options, Consumer)
+   */
+  public static Builder bind(
+      Object service,
+      HandlerRunner.Options options,
+      Consumer<ServiceDefinition.Configurator> configurator) {
+    return new Builder().bind(service, options, configurator);
   }
 
   /**

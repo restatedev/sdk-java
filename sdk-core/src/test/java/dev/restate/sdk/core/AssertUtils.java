@@ -83,12 +83,20 @@ public class AssertUtils {
       builder.bind(svc);
     }
 
+    return assertThatDiscovery(builder);
+  }
+
+  public static EndpointManifestSchemaAssert assertThatDiscovery(Endpoint.Builder builder) {
+    return assertThatDiscovery(builder.build());
+  }
+
+  public static EndpointManifestSchemaAssert assertThatDiscovery(Endpoint endpoint) {
     return new EndpointManifestSchemaAssert(
         new EndpointManifest(
                 EndpointManifestSchema.ProtocolMode.BIDI_STREAM,
-                builder.build().getServiceDefinitions(),
+                endpoint.getServiceDefinitions(),
                 true)
-            .manifest(),
+            .manifest(DiscoveryProtocol.MAX_SERVICE_DISCOVERY_PROTOCOL_VERSION),
         EndpointManifestSchemaAssert.class);
   }
 

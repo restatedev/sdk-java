@@ -84,7 +84,7 @@ jsonSchema2Pojo {
   targetPackage = "dev.restate.sdk.core.generated.manifest"
   targetDirectory = generatedJ2SPDir.get().asFile
 
-  useLongIntegers = false
+  useLongIntegers = true
   includeSetters = true
   includeGetters = true
   generateBuilders = true
