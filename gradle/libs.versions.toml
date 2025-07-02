@@ -10,7 +10,7 @@
   reactiverse-contextual-logging = 'io.reactiverse:reactiverse-contextual-logging:1.2.1'
   slf4j-nop = 'org.slf4j:slf4j-nop:2.0.16'
   testcontainers = 'org.testcontainers:testcontainers:1.20.4'
-  tink = 'com.google.crypto.tink:tink:1.15.0'
+  tink = 'com.google.crypto.tink:tink:1.18.0'
   tomcat-annotations = 'org.apache.tomcat:annotations-api:6.0.53'
 
   [libraries.jackson-annotations]
@@ -229,6 +229,6 @@
   protobuf = '4.29.3'
   restate = '2.2.0-SNAPSHOT'
   schema-kenerator = '2.1.2'
-  spring-boot = '3.4.4'
-  vertx = '4.5.11'
-  victools-json-schema = '4.37.0'
+  spring-boot = '3.4.5'
+  vertx = '4.5.16'
+  victools-json-schema = '4.38.0'
