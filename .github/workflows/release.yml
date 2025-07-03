@@ -8,7 +8,7 @@ jobs:
     if: github.repository == 'restatedev/sdk-java'
     name: Publish
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - name: Set up JDK ${{ matrix.java }}
