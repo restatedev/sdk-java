@@ -287,12 +287,15 @@ This library follows [Semantic Versioning](https://semver.org/).
 
 The compatibility with Restate is described in the following table:
 
-| Restate Server\sdk-java | 1.0 - 1.1 | 1.2 | 2.0 - 2.1 |
-|-------------------------|-----------|-----|-----------|
-| 1.0                     | ✅         | ❌   | ❌         |
-| 1.1                     | ✅         | ✅   | ❌         |
-| 1.2                     | ✅         | ✅   | ❌         |
-| 1.3                     | ✅         | ✅   | ✅         |
+| Restate Server\sdk-java | 1.0 - 1.1 | 1.2 | 2.0 - 2.1 | 2.2              |
+|-------------------------|-----------|-----|-----------|------------------|
+| 1.0                     | ✅         | ❌   | ❌         | ❌                |
+| 1.1                     | ✅         | ✅   | ❌         | ❌                |
+| 1.2                     | ✅         | ✅   | ❌         | ❌                |
+| 1.3                     | ✅         | ✅   | ✅         | ✅ <sup>(1)</sup> |
+| 1.4                     | ✅         | ✅   | ✅         | ✅                |
+
+<sup>(1)</sup> **Note** The new service/handler configuration options `inactivityTimeout`, `abortTimeout`, `idempotencyRetention`, `journalRetention`, `ingressPrivate`, `enableLazyState` work only from Restate 1.4 onward.
 
 ## Contributing
 
