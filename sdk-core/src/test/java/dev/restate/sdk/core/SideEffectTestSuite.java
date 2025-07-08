@@ -20,6 +20,7 @@ import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.core.statemachine.MessageType;
 import java.time.Duration;
 import java.util.stream.Stream;
+import org.assertj.core.data.Index;
 
 public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
 
@@ -32,6 +33,12 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
   protected abstract TestInvocationBuilder checkContextSwitching();
 
   protected abstract TestInvocationBuilder failingSideEffect(String name, String reason);
+
+  protected abstract TestInvocationBuilder awaitAllSideEffectWithFirstFailing(
+      String firstSideEffect, String secondSideEffect, String successValue, String failureReason);
+
+  protected abstract TestInvocationBuilder awaitAllSideEffectWithSecondFailing(
+      String firstSideEffect, String secondSideEffect, String successValue, String failureReason);
 
   protected abstract TestInvocationBuilder failingSideEffectWithRetryPolicy(
       String reason, RetryPolicy retryPolicy);
@@ -110,6 +117,152 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
                                 .extracting(Protocol.ErrorMessage::getMessage, STRING)
                                 .contains("some failure"))))
             .named("Fail on second attempt"),
+        this.awaitAllSideEffectWithFirstFailing(
+                "first-side-effect", "second-side-effect", "Francesco", "some failure")
+            .withInput(startMessage(1), inputCmd())
+            .assertingOutput(
+                msgs -> {
+                  // The thing here is, it depends on timing. Sometimes we might get the proposal
+                  // for the succeeded one, sometimes not.
+                  //
+                  // So we need to take that in account in the assertions.
+                  assertThat(msgs).size().isBetween(3, 4);
+                  assertThat(msgs)
+                      .satisfies(
+                          msg -> assertThat(msg).isEqualTo(runCmd(1, "first-side-effect")),
+                          Index.atIndex(0));
+                  assertThat(msgs)
+                      .satisfies(
+                          msg -> assertThat(msg).isEqualTo(runCmd(2, "second-side-effect")),
+                          Index.atIndex(1));
+
+                  if (msgs.size() == 4) {
+                    // If there's four messages, the third one must be the run completion proposal
+                    assertThat(msgs)
+                        .satisfies(
+                            msg ->
+                                assertThat(msg)
+                                    .isEqualTo(proposeRunCompletion(2, "Francesco").build()),
+                            Index.atIndex(2));
+                  }
+
+                  // Last message must be the error
+                  assertThat(msgs)
+                      .satisfies(
+                          errorMessage(
+                              errorMessage ->
+                                  assertThat(errorMessage)
+                                      .returns(
+                                          TerminalException.INTERNAL_SERVER_ERROR_CODE,
+                                          Protocol.ErrorMessage::getCode)
+                                      .returns(1, Protocol.ErrorMessage::getRelatedCommandIndex)
+                                      .returns(
+                                          (int) MessageType.RunCommandMessage.encode(),
+                                          Protocol.ErrorMessage::getRelatedCommandType)
+                                      .returns(
+                                          "first-side-effect",
+                                          Protocol.ErrorMessage::getRelatedCommandName)
+                                      .extracting(Protocol.ErrorMessage::getMessage, STRING)
+                                      .contains("some failure")),
+                          Index.atIndex(msgs.size() - 1));
+                })
+            .named("Fail the first side effect"),
+        this.awaitAllSideEffectWithFirstFailing(
+                "first-side-effect", "second-side-effect", "Francesco", "some failure")
+            .withInput(
+                startMessage(3),
+                inputCmd(),
+                runCmd(1, "first-side-effect"),
+                runCmd(2, "second-side-effect"))
+            .assertingOutput(
+                msgs -> {
+                  // The thing here is, it depends on timing. Sometimes we might get the proposal
+                  // for the succeeded one, sometimes not.
+                  //
+                  // So we need to take that in account in the assertions.
+                  assertThat(msgs).size().isBetween(1, 2);
+
+                  if (msgs.size() == 2) {
+                    // If there's four messages, the third one must be the run completion proposal
+                    assertThat(msgs)
+                        .satisfies(
+                            msg ->
+                                assertThat(msg)
+                                    .isEqualTo(proposeRunCompletion(2, "Francesco").build()),
+                            Index.atIndex(0));
+                  }
+
+                  // Last message must be the error
+                  assertThat(msgs)
+                      .satisfies(
+                          errorMessage(
+                              errorMessage ->
+                                  assertThat(errorMessage)
+                                      .returns(
+                                          TerminalException.INTERNAL_SERVER_ERROR_CODE,
+                                          Protocol.ErrorMessage::getCode)
+                                      .returns(1, Protocol.ErrorMessage::getRelatedCommandIndex)
+                                      .returns(
+                                          (int) MessageType.RunCommandMessage.encode(),
+                                          Protocol.ErrorMessage::getRelatedCommandType)
+                                      .returns(
+                                          "first-side-effect",
+                                          Protocol.ErrorMessage::getRelatedCommandName)
+                                      .extracting(Protocol.ErrorMessage::getMessage, STRING)
+                                      .contains("some failure")),
+                          Index.atIndex(msgs.size() - 1));
+                })
+            .named("Fail the first side effect during replay"),
+        this.awaitAllSideEffectWithSecondFailing(
+                "first-side-effect", "second-side-effect", "Francesco", "some failure")
+            .withInput(startMessage(1), inputCmd())
+            .assertingOutput(
+                msgs -> {
+                  // The thing here is, it depends on timing. Sometimes we might get the proposal
+                  // for the succeeded one, sometimes not.
+                  //
+                  // So we need to take that in account in the assertions.
+                  assertThat(msgs).size().isBetween(3, 4);
+                  assertThat(msgs)
+                      .satisfies(
+                          msg -> assertThat(msg).isEqualTo(runCmd(1, "first-side-effect")),
+                          Index.atIndex(0));
+                  assertThat(msgs)
+                      .satisfies(
+                          msg -> assertThat(msg).isEqualTo(runCmd(2, "second-side-effect")),
+                          Index.atIndex(1));
+
+                  if (msgs.size() == 4) {
+                    // If there's four messages, the third one must be the run completion proposal
+                    assertThat(msgs)
+                        .satisfies(
+                            msg ->
+                                assertThat(msg)
+                                    .isEqualTo(proposeRunCompletion(1, "Francesco").build()),
+                            Index.atIndex(2));
+                  }
+
+                  // Last message must be the error
+                  assertThat(msgs)
+                      .satisfies(
+                          errorMessage(
+                              errorMessage ->
+                                  assertThat(errorMessage)
+                                      .returns(
+                                          TerminalException.INTERNAL_SERVER_ERROR_CODE,
+                                          Protocol.ErrorMessage::getCode)
+                                      .returns(2, Protocol.ErrorMessage::getRelatedCommandIndex)
+                                      .returns(
+                                          (int) MessageType.RunCommandMessage.encode(),
+                                          Protocol.ErrorMessage::getRelatedCommandType)
+                                      .returns(
+                                          "second-side-effect",
+                                          Protocol.ErrorMessage::getRelatedCommandName)
+                                      .extracting(Protocol.ErrorMessage::getMessage, STRING)
+                                      .contains("some failure")),
+                          Index.atIndex(msgs.size() - 1));
+                })
+            .named("Fail the second side effect"),
         this.failingSideEffectWithRetryPolicy(
                 "some failure",
                 RetryPolicy.exponential(Duration.ofMillis(100), 1.0f).setMaxAttempts(2))

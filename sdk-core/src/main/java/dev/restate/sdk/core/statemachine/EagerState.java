@@ -17,18 +17,6 @@ import org.jspecify.annotations.Nullable;
 
 final class EagerState {
 
-  sealed interface State {}
-
-  record Unknown() implements State {
-    private static final Unknown INSTANCE = new Unknown();
-  }
-
-  record Empty() implements State {
-    private static final Empty INSTANCE = new Empty();
-  }
-
-  record Value(Slice value) implements State {}
-
   private boolean isPartial;
   private final HashMap<ByteString, NotificationValue> map;
 

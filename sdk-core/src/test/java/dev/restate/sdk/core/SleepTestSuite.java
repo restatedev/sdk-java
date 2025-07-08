@@ -65,6 +65,7 @@ public abstract class SleepTestSuite implements TestDefinitions.TestSuite {
                 startMessage(2),
                 inputCmd("Till"),
                 Protocol.SleepCommandMessage.newBuilder()
+                    .setResultCompletionId(1)
                     .setWakeUpTime(Instant.now().toEpochMilli())
                     .build())
             .expectingOutput(suspensionMessage(1))

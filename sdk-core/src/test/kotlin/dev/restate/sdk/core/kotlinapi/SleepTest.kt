@@ -12,13 +12,13 @@ import dev.restate.sdk.core.SleepTestSuite
 import dev.restate.sdk.core.TestDefinitions
 import dev.restate.sdk.core.kotlinapi.KotlinAPITests.Companion.testDefinitionForService
 import dev.restate.sdk.kotlin.*
-import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class SleepTest : SleepTestSuite() {
 
   override fun sleepGreeter(): TestDefinitions.TestInvocationBuilder =
       testDefinitionForService("SleepGreeter") { ctx, _: Unit ->
-        ctx.sleep(1000.milliseconds)
+        ctx.sleep(1.seconds)
         "Hello"
       }
 
@@ -26,7 +26,7 @@ class SleepTest : SleepTestSuite() {
       testDefinitionForService<Unit, Unit>("ManySleeps") { ctx, _: Unit ->
         val durableFutures = mutableListOf<DurableFuture<Unit>>()
         for (i in 0..9) {
-          durableFutures.add(ctx.timer(1000.milliseconds))
+          durableFutures.add(ctx.timer(1.seconds))
         }
         durableFutures.awaitAll()
       }

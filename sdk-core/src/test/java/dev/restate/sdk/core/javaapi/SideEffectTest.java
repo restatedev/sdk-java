@@ -10,11 +10,13 @@ package dev.restate.sdk.core.javaapi;
 
 import static dev.restate.sdk.core.javaapi.JavaAPITests.testDefinitionForService;
 
+import dev.restate.sdk.DurableFuture;
 import dev.restate.sdk.common.RetryPolicy;
 import dev.restate.sdk.core.SideEffectTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import dev.restate.sdk.core.TestSerdes;
 import dev.restate.serde.Serde;
+import java.util.List;
 import java.util.Objects;
 
 public class SideEffectTest extends SideEffectTestSuite {
@@ -92,6 +94,50 @@ public class SideEffectTest extends SideEffectTestSuite {
               () -> {
                 throw new IllegalStateException(reason);
               });
+          return null;
+        });
+  }
+
+  @Override
+  protected TestInvocationBuilder awaitAllSideEffectWithFirstFailing(
+      String firstSideEffect, String secondSideEffect, String successValue, String failureReason) {
+    return testDefinitionForService(
+        "AwaitAllSideEffectWithFirstFailing",
+        Serde.VOID,
+        TestSerdes.STRING,
+        (ctx, unused) -> {
+          DurableFuture<String> fut1 =
+              ctx.runAsync(
+                  firstSideEffect,
+                  String.class,
+                  () -> {
+                    throw new IllegalStateException(failureReason);
+                  });
+          DurableFuture<String> fut2 =
+              ctx.runAsync(secondSideEffect, String.class, () -> successValue);
+          DurableFuture.all(List.of(fut1, fut2)).await();
+          return null;
+        });
+  }
+
+  @Override
+  protected TestInvocationBuilder awaitAllSideEffectWithSecondFailing(
+      String firstSideEffect, String secondSideEffect, String successValue, String failureReason) {
+    return testDefinitionForService(
+        "AwaitAllSideEffectWithFirstFailing",
+        Serde.VOID,
+        TestSerdes.STRING,
+        (ctx, unused) -> {
+          DurableFuture<String> fut1 =
+              ctx.runAsync(firstSideEffect, String.class, () -> successValue);
+          DurableFuture<String> fut2 =
+              ctx.runAsync(
+                  secondSideEffect,
+                  String.class,
+                  () -> {
+                    throw new IllegalStateException(failureReason);
+                  });
+          DurableFuture.all(List.of(fut1, fut2)).await();
           return null;
         });
   }

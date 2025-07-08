@@ -36,3 +36,5 @@ build
 .factorypath
 kls_database.db
 .kotlin
+
+.restate

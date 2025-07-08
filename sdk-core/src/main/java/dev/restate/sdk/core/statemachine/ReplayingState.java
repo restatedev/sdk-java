@@ -88,9 +88,16 @@ final class ReplayingState implements State {
 
   @Override
   public StateMachine.Input processInputCommand(StateContext stateContext) {
-    Protocol.InputCommandMessage inputCommandMessage =
-        processNonCompletableCommandInner(
-            Protocol.InputCommandMessage.getDefaultInstance(), CommandAccessor.INPUT, stateContext);
+    stateContext
+        .getJournal()
+        .commandTransition("", Protocol.InputCommandMessage.getDefaultInstance());
+
+    MessageLite actual = takeNextCommandToProcess();
+    if (!(actual instanceof Protocol.InputCommandMessage inputCommandMessage)) {
+      throw ProtocolException.unexpectedMessage(Protocol.InputCommandMessage.class, actual);
+    }
+
+    afterProcessingCommand(stateContext);
 
     //noinspection unchecked
     return new StateMachine.Input(
@@ -127,7 +134,10 @@ final class ReplayingState implements State {
           "Run notification for {} with id {} not found while replaying, so we enqueue the run to be executed later.",
           notificationHandle,
           notificationId);
-      runState.insertRunToExecute(notificationHandle);
+      runState.insertRunToExecute(
+          notificationHandle,
+          stateContext.getJournal().lastCommandMetadata().index(),
+          name != null ? name : "");
     }
 
     return notificationHandle;
@@ -136,22 +146,19 @@ final class ReplayingState implements State {
   @Override
   public <E extends MessageLite> void processNonCompletableCommand(
       E commandMessage, CommandAccessor<E> commandAccessor, StateContext stateContext) {
-    processNonCompletableCommandInner(commandMessage, commandAccessor, stateContext);
-  }
-
-  private <E extends MessageLite> E processNonCompletableCommandInner(
-      E commandMessage, CommandAccessor<E> commandAccessor, StateContext stateContext) {
     stateContext
         .getJournal()
         .commandTransition(commandAccessor.getName(commandMessage), commandMessage);
 
     MessageLite actual = takeNextCommandToProcess();
-    commandAccessor.checkEntryHeader(commandMessage, actual);
+    try {
+      commandAccessor.checkEntryHeader(commandMessage, actual);
+    } catch (ProtocolException e) {
+      this.hitError(e, CommandRelationship.Last.INSTANCE, null, stateContext);
+      AbortedExecutionException.sneakyThrow();
+    }
 
     afterProcessingCommand(stateContext);
-
-    // CheckEntryHeader checks that the class type
-    return (E) actual;
   }
 
   @Override
@@ -164,7 +171,12 @@ final class ReplayingState implements State {
         .getJournal()
         .commandTransition(commandAccessor.getName(commandMessage), commandMessage);
     MessageLite actual = takeNextCommandToProcess();
-    commandAccessor.checkEntryHeader(commandMessage, actual);
+    try {
+      commandAccessor.checkEntryHeader(commandMessage, actual);
+    } catch (ProtocolException e) {
+      this.hitError(e, CommandRelationship.Last.INSTANCE, null, stateContext);
+      AbortedExecutionException.sneakyThrow();
+    }
 
     int[] handles = new int[completionIds.length];
     for (int i = 0; i < handles.length; i++) {

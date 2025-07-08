@@ -112,12 +112,16 @@ final class ProcessingState implements State {
       runCmdBuilder.setName(name);
     }
 
+    var runCmd = runCmdBuilder.build();
     var notificationHandle =
         this.processCompletableCommand(
-            runCmdBuilder.build(), CommandAccessor.RUN, new int[] {completionId}, stateContext)[0];
+            runCmd, CommandAccessor.RUN, new int[] {completionId}, stateContext)[0];
 
     LOG.trace("Enqueued run notification for {} with id {}.", notificationHandle, notificationId);
-    runState.insertRunToExecute(notificationHandle);
+    runState.insertRunToExecute(
+        notificationHandle,
+        stateContext.getJournal().lastCommandMetadata().index(),
+        name != null ? name : "");
 
     return notificationHandle;
   }
@@ -255,7 +259,7 @@ final class ProcessingState implements State {
       throw ProtocolException.badRunNotificationId(notificationId);
     }
 
-    runState.notifyExecuted(handle);
+    runState.notifyExecutionCompleted(handle);
 
     proposeRunCompletion(
         handle,
@@ -277,23 +281,56 @@ final class ProcessingState implements State {
       throw ProtocolException.badRunNotificationId(notificationId);
     }
 
-    runState.notifyExecuted(handle);
+    RunState.CommandInfo commandInfo = runState.notifyExecutionCompleted(handle);
 
-    TerminalException toWrite;
+    Duration retryLoopDuration =
+        this.getDurationSinceLastStoredEntry(stateContext).plus(attemptDuration);
+    int retryCount = this.getRetryCountSinceLastStoredEntry(stateContext) + 1;
+
+    TerminalException terminalExceptionToWrite = null;
     if (runException instanceof TerminalException) {
       LOG.trace("The run completed with a terminal exception");
-      toWrite = (TerminalException) runException;
+      terminalExceptionToWrite = (TerminalException) runException;
+    } else if (retryPolicy != null
+        && ((retryPolicy.getMaxAttempts() != null && retryPolicy.getMaxAttempts() <= retryCount)
+            || (retryPolicy.getMaxDuration() != null
+                && retryPolicy.getMaxDuration().compareTo(retryLoopDuration) <= 0))) {
+      LOG.trace("The run completed with a retryable exception and attempts were exhausted");
+      // We need to convert it to TerminalException
+      terminalExceptionToWrite = new TerminalException(runException.toString());
     } else {
-      toWrite =
-          this.rethrowOrConvertToTerminal(runException, attemptDuration, retryPolicy, stateContext);
+      // In the other cases, it's a retryable error!
     }
 
-    proposeRunCompletion(
-        handle,
-        Protocol.ProposeRunCompletionMessage.newBuilder()
-            .setResultCompletionId(((NotificationId.CompletionId) notificationId).id())
-            .setFailure(Util.toProtocolFailure(toWrite)),
-        stateContext);
+    if (terminalExceptionToWrite != null) {
+      // Terminal exception case
+      this.proposeRunCompletion(
+          handle,
+          Protocol.ProposeRunCompletionMessage.newBuilder()
+              .setResultCompletionId(((NotificationId.CompletionId) notificationId).id())
+              .setFailure(Util.toProtocolFailure(terminalExceptionToWrite)),
+          stateContext);
+    } else {
+      // Compute retry delay
+      Duration nextRetryDelay = null;
+      if (retryPolicy != null) {
+        Duration nextComputedDelay =
+            retryPolicy
+                .getInitialDelay()
+                .multipliedBy((long) Math.pow(retryPolicy.getExponentiationFactor(), retryCount));
+        nextRetryDelay =
+            retryPolicy.getMaxDelay() != null
+                ? durationMin(retryPolicy.getMaxDelay(), nextComputedDelay)
+                : nextComputedDelay;
+      }
+
+      this.hitError(
+          runException,
+          new CommandRelationship.Specific(
+              commandInfo.commandIndex(), CommandType.RUN, commandInfo.commandName()),
+          nextRetryDelay,
+          stateContext);
+    }
   }
 
   private void proposeRunCompletion(
@@ -328,45 +365,6 @@ final class ProcessingState implements State {
     return this.processingFirstEntry
         ? stateContext.getStartInfo().retryCountSinceLastStoredEntry()
         : 0;
-  }
-
-  // This function rethrows the exception if a retry needs to happen.
-  private TerminalException rethrowOrConvertToTerminal(
-      Throwable runException,
-      Duration attemptDuration,
-      @Nullable RetryPolicy retryPolicy,
-      StateContext stateContext) {
-    if (retryPolicy == null) {
-      LOG.trace("The run completed with an exception and no retry policy was provided");
-      // Default behavior is always retry
-      ExceptionUtils.sneakyThrow(runException);
-    }
-
-    Duration retryLoopDuration =
-        this.getDurationSinceLastStoredEntry(stateContext).plus(attemptDuration);
-    int retryCount = this.getRetryCountSinceLastStoredEntry(stateContext) + 1;
-
-    if ((retryPolicy.getMaxAttempts() != null && retryPolicy.getMaxAttempts() <= retryCount)
-        || (retryPolicy.getMaxDuration() != null
-            && retryPolicy.getMaxDuration().compareTo(retryLoopDuration) <= 0)) {
-      LOG.trace("The run completed with a retryable exception, but all attempts were exhausted");
-      // We need to convert it to TerminalException
-      return new TerminalException(runException.toString());
-    }
-
-    // Compute next retry delay and throw it!
-    Duration nextComputedDelay =
-        retryPolicy
-            .getInitialDelay()
-            .multipliedBy((long) Math.pow(retryPolicy.getExponentiationFactor(), retryCount));
-    Duration nextRetryDelay =
-        retryPolicy.getMaxDelay() != null
-            ? durationMin(retryPolicy.getMaxDelay(), nextComputedDelay)
-            : nextComputedDelay;
-
-    this.hitError(runException, nextRetryDelay, stateContext);
-    ExceptionUtils.sneakyThrow(runException);
-    return null;
   }
 
   private void flipFirstProcessingEntry() {

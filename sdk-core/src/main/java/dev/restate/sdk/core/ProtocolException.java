@@ -18,11 +18,12 @@ public class ProtocolException extends RuntimeException {
   static final int NOT_FOUND_CODE = 404;
   public static final int UNSUPPORTED_MEDIA_TYPE_CODE = 415;
   public static final int INTERNAL_CODE = 500;
-  static final int JOURNAL_MISMATCH_CODE = 570;
+  public static final int JOURNAL_MISMATCH_CODE = 570;
   static final int PROTOCOL_VIOLATION_CODE = 571;
+  static final int CLOSED_CODE = 598;
 
   @SuppressWarnings("StaticAssignmentOfThrowable")
-  static final ProtocolException CLOSED = new ProtocolException("Invocation closed");
+  static final ProtocolException CLOSED = new ProtocolException("Invocation closed", CLOSED_CODE);
 
   private final int code;
 
@@ -54,10 +55,10 @@ public class ProtocolException extends RuntimeException {
         PROTOCOL_VIOLATION_CODE);
   }
 
-  public static ProtocolException unexpectedMessage(String type, MessageLite actual) {
+  public static ProtocolException unexpectedMessage(String expected, MessageLite actual) {
     return new ProtocolException(
         "Unexpected message type received from the runtime. Expected: '"
-            + type
+            + expected
             + "', Actual: '"
             + actual.getClass().getCanonicalName()
             + "'",
@@ -67,25 +68,6 @@ public class ProtocolException extends RuntimeException {
   static ProtocolException unexpectedNotificationVariant(Class<?> clazz) {
     return new ProtocolException(
         "Unexpected notification variant " + clazz.getName(), PROTOCOL_VIOLATION_CODE);
-  }
-
-  public static ProtocolException commandDoesNotMatch(MessageLite expected, MessageLite actual) {
-    return new ProtocolException(
-        "Replayed journal doesn't match the handler code.\nThe handler code generated: "
-            + expected
-            + "\nwhile the replayed entry is: "
-            + actual,
-        JOURNAL_MISMATCH_CODE);
-  }
-
-  public static ProtocolException commandClassDoesNotMatch(
-      Class<? extends MessageLite> expectedClazz, MessageLite actual) {
-    return new ProtocolException(
-        "Replayed journal doesn't match the handler code.\nThe handler code generated: "
-            + expectedClazz.getName()
-            + "\nwhile the replayed entry is: "
-            + actual,
-        JOURNAL_MISMATCH_CODE);
   }
 
   public static ProtocolException commandsToProcessIsEmpty() {
