@@ -15,7 +15,10 @@ final class ClosedState implements State {
 
   @Override
   public void hitError(
-      Throwable throwable, @Nullable Duration nextRetryDelay, StateContext stateContext) {
+      Throwable throwable,
+      @Nullable CommandRelationship relatedCommand,
+      @Nullable Duration nextRetryDelay,
+      StateContext stateContext) {
     // Ignore, as we closed already
   }
 

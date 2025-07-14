@@ -18,6 +18,9 @@ import dev.restate.sdk.endpoint.definition.HandlerType
 import dev.restate.sdk.endpoint.definition.ServiceDefinition
 import dev.restate.sdk.endpoint.definition.ServiceType
 import dev.restate.sdk.kotlin.*
+import dev.restate.sdk.kotlin.awaitAll
+import dev.restate.sdk.kotlin.runAsync
+import dev.restate.sdk.kotlin.runBlock
 import dev.restate.serde.kotlinx.*
 import java.util.*
 import kotlin.coroutines.coroutineContext
@@ -73,9 +76,35 @@ class SideEffectTest : SideEffectTestSuite() {
                           }))),
           "run")
 
-  override fun failingSideEffect(name: String, reason: String): TestInvocationBuilder =
+  override fun failingSideEffect(name: String, reason: String) =
       testDefinitionForService<Unit, String>("FailingSideEffect") { ctx, _: Unit ->
         ctx.runBlock(name) { throw IllegalStateException(reason) }
+      }
+
+  override fun awaitAllSideEffectWithFirstFailing(
+      firstSideEffect: String,
+      secondSideEffect: String,
+      successValue: String,
+      failureReason: String
+  ) =
+      testDefinitionForService<Unit, Unit>("AwaitAllSideEffectWithFirstFailing") { ctx, _: Unit ->
+        val fut1 =
+            ctx.runAsync<String>(firstSideEffect) { throw IllegalStateException(failureReason) }
+        val fut2 = ctx.runAsync(secondSideEffect) { successValue }
+        listOf(fut1, fut2).awaitAll()
+      }
+
+  override fun awaitAllSideEffectWithSecondFailing(
+      firstSideEffect: String,
+      secondSideEffect: String,
+      successValue: String,
+      failureReason: String
+  ) =
+      testDefinitionForService<Unit, Unit>("AwaitAllSideEffectWithSecondFailing") { ctx, _: Unit ->
+        val fut1 = ctx.runAsync(firstSideEffect) { successValue }
+        val fut2 =
+            ctx.runAsync<String>(secondSideEffect) { throw IllegalStateException(failureReason) }
+        listOf(fut1, fut2).awaitAll()
       }
 
   override fun failingSideEffectWithRetryPolicy(reason: String, retryPolicy: RetryPolicy?) =

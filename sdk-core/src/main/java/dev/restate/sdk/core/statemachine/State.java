@@ -11,8 +11,11 @@ package dev.restate.sdk.core.statemachine;
 import com.google.protobuf.MessageLite;
 import dev.restate.common.Slice;
 import dev.restate.sdk.common.RetryPolicy;
+import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
@@ -102,20 +105,58 @@ sealed interface State
   }
 
   default void hitError(
-      Throwable throwable, @Nullable Duration nextRetryDelay, StateContext stateContext) {
+      Throwable throwable,
+      @Nullable CommandRelationship relatedCommand,
+      @Nullable Duration nextRetryDelay,
+      StateContext stateContext) {
     LOG.warn("Invocation failed", throwable);
 
-    var errorMessage =
-        Util.toErrorMessage(
-            throwable,
-            stateContext.getJournal().getCommandIndex(),
-            stateContext.getJournal().getCurrentEntryName(),
-            stateContext.getJournal().getCurrentEntryTy());
-    if (nextRetryDelay != null) {
-      errorMessage = errorMessage.toBuilder().setNextRetryDelay(nextRetryDelay.toMillis()).build();
+    var errorMessageBuilder = Protocol.ErrorMessage.newBuilder();
+
+    // Figure out message
+    if (throwable.getMessage() == null) {
+      // This happens only with few common exceptions, but anyway
+      errorMessageBuilder.setMessage(throwable.toString());
+    } else {
+      errorMessageBuilder.setMessage(throwable.getMessage());
     }
 
-    stateContext.maybeWriteMessageOut(errorMessage);
+    // Figure out code
+    if (throwable instanceof ProtocolException) {
+      errorMessageBuilder.setCode(((ProtocolException) throwable).getCode());
+    } else {
+      errorMessageBuilder.setCode(TerminalException.INTERNAL_SERVER_ERROR_CODE);
+    }
+
+    // Convert stacktrace to string
+    StringWriter sw = new StringWriter();
+    PrintWriter pw = new PrintWriter(sw);
+    throwable.printStackTrace(pw);
+    errorMessageBuilder.setStacktrace(sw.toString());
+
+    // Add command metadata, if any
+    CommandMetadata commandMetadata =
+        (relatedCommand != null)
+            ? stateContext.getJournal().resolveRelatedCommand(relatedCommand)
+            : null;
+    if (commandMetadata != null) {
+      if (commandMetadata.index() >= 0) {
+        errorMessageBuilder.setRelatedCommandIndex(commandMetadata.index());
+      }
+      if (commandMetadata.name() != null) {
+        errorMessageBuilder.setRelatedCommandName(commandMetadata.name());
+      }
+      if (commandMetadata.type() != null) {
+        errorMessageBuilder.setRelatedCommandType(commandMetadata.type().encode());
+      }
+    }
+
+    // Add next retry delay, if any
+    if (nextRetryDelay != null) {
+      errorMessageBuilder.setNextRetryDelay(nextRetryDelay.toMillis());
+    }
+
+    stateContext.maybeWriteMessageOut(errorMessageBuilder.build());
     stateContext.getStateHolder().transition(new ClosedState());
 
     stateContext.closeOutputSubscriber();

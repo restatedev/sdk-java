@@ -9,7 +9,6 @@
 package dev.restate.sdk.core.statemachine;
 
 import com.google.protobuf.ByteString;
-import com.google.protobuf.MessageLite;
 import com.google.protobuf.UnsafeByteOperations;
 import dev.restate.common.Slice;
 import dev.restate.sdk.common.TerminalException;
@@ -81,18 +80,6 @@ public class Util {
 
   static TerminalException toRestateException(Protocol.Failure failure) {
     return new TerminalException(failure.getCode(), failure.getMessage());
-  }
-
-  static void assertEntryEquals(MessageLite expected, MessageLite actual) {
-    if (!Objects.equals(expected, actual)) {
-      throw ProtocolException.commandDoesNotMatch(expected, actual);
-    }
-  }
-
-  static void assertEntryClass(Class<? extends MessageLite> clazz, MessageLite actual) {
-    if (!clazz.equals(actual.getClass())) {
-      throw ProtocolException.commandClassDoesNotMatch(clazz, actual);
-    }
   }
 
   /** NOTE! This method rewinds the buffer!!! */

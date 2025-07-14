@@ -68,4 +68,26 @@ class Journal {
     this.signalIndex++;
     return next;
   }
+
+  /** Resolve a command relationship to a command metadata. */
+  public CommandMetadata resolveRelatedCommand(CommandRelationship relationship) {
+    if (relationship instanceof CommandRelationship.Last) {
+      return lastCommandMetadata();
+    } else if (relationship instanceof CommandRelationship.Next next) {
+      return new CommandMetadata(this.commandIndex + 1, next.type().toMessageType(), next.name());
+    } else if (relationship instanceof CommandRelationship.Specific specific) {
+      return new CommandMetadata(
+          specific.commandIndex(), specific.type().toMessageType(), specific.name());
+    } else {
+      throw new IllegalArgumentException("Unknown command relationship type: " + relationship);
+    }
+  }
+
+  /** Get the metadata for the last command. */
+  public CommandMetadata lastCommandMetadata() {
+    return new CommandMetadata(
+        this.commandIndex,
+        this.currentEntryTy,
+        this.currentEntryName.isEmpty() ? null : this.currentEntryName);
+  }
 }
