@@ -32,46 +32,25 @@ enum CommandType {
 
   /** Convert a CommandType to a MessageType. */
   public MessageType toMessageType() {
-    switch (this) {
-      case INPUT:
-        return MessageType.InputCommandMessage;
-      case OUTPUT:
-        return MessageType.OutputCommandMessage;
-      case GET_STATE:
-        return MessageType.GetLazyStateCommandMessage;
-      case GET_STATE_KEYS:
-        return MessageType.GetLazyStateKeysCommandMessage;
-      case SET_STATE:
-        return MessageType.SetStateCommandMessage;
-      case CLEAR_STATE:
-        return MessageType.ClearStateCommandMessage;
-      case CLEAR_ALL_STATE:
-        return MessageType.ClearAllStateCommandMessage;
-      case GET_PROMISE:
-        return MessageType.GetPromiseCommandMessage;
-      case PEEK_PROMISE:
-        return MessageType.PeekPromiseCommandMessage;
-      case COMPLETE_PROMISE:
-        return MessageType.CompletePromiseCommandMessage;
-      case SLEEP:
-        return MessageType.SleepCommandMessage;
-      case CALL:
-        return MessageType.CallCommandMessage;
-      case ONE_WAY_CALL:
-        return MessageType.OneWayCallCommandMessage;
-      case SEND_SIGNAL:
-      case CANCEL_INVOCATION:
-        return MessageType.SendSignalCommandMessage;
-      case RUN:
-        return MessageType.RunCommandMessage;
-      case ATTACH_INVOCATION:
-        return MessageType.AttachInvocationCommandMessage;
-      case GET_INVOCATION_OUTPUT:
-        return MessageType.GetInvocationOutputCommandMessage;
-      case COMPLETE_AWAKEABLE:
-        return MessageType.CompleteAwakeableCommandMessage;
-      default:
-        throw new IllegalStateException("Unexpected command type: " + this);
-    }
+    return switch (this) {
+      case INPUT -> MessageType.InputCommandMessage;
+      case OUTPUT -> MessageType.OutputCommandMessage;
+      case GET_STATE -> MessageType.GetLazyStateCommandMessage;
+      case GET_STATE_KEYS -> MessageType.GetLazyStateKeysCommandMessage;
+      case SET_STATE -> MessageType.SetStateCommandMessage;
+      case CLEAR_STATE -> MessageType.ClearStateCommandMessage;
+      case CLEAR_ALL_STATE -> MessageType.ClearAllStateCommandMessage;
+      case GET_PROMISE -> MessageType.GetPromiseCommandMessage;
+      case PEEK_PROMISE -> MessageType.PeekPromiseCommandMessage;
+      case COMPLETE_PROMISE -> MessageType.CompletePromiseCommandMessage;
+      case SLEEP -> MessageType.SleepCommandMessage;
+      case CALL -> MessageType.CallCommandMessage;
+      case ONE_WAY_CALL -> MessageType.OneWayCallCommandMessage;
+      case SEND_SIGNAL, CANCEL_INVOCATION -> MessageType.SendSignalCommandMessage;
+      case RUN -> MessageType.RunCommandMessage;
+      case ATTACH_INVOCATION -> MessageType.AttachInvocationCommandMessage;
+      case GET_INVOCATION_OUTPUT -> MessageType.GetInvocationOutputCommandMessage;
+      case COMPLETE_AWAKEABLE -> MessageType.CompleteAwakeableCommandMessage;
+    };
   }
 }
