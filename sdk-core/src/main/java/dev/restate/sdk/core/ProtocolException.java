@@ -20,16 +20,8 @@ public class ProtocolException extends RuntimeException {
   public static final int INTERNAL_CODE = 500;
   public static final int JOURNAL_MISMATCH_CODE = 570;
   static final int PROTOCOL_VIOLATION_CODE = 571;
-  static final int CLOSED_CODE = 598;
-
-  @SuppressWarnings("StaticAssignmentOfThrowable")
-  static final ProtocolException CLOSED = new ProtocolException("Invocation closed", CLOSED_CODE);
 
   private final int code;
-
-  private ProtocolException(String message) {
-    this(message, TerminalException.INTERNAL_SERVER_ERROR_CODE);
-  }
 
   public ProtocolException(String message, int code) {
     this(message, code, null);

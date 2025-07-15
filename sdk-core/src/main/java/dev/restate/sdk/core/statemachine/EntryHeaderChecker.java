@@ -47,13 +47,11 @@ final class EntryHeaderChecker<E extends MessageLite> {
       throw new ProtocolException(
           "Found a mismatch between the code paths taken during the previous execution and the paths taken during this execution.\n"
               + "This typically happens when some parts of the code are non-deterministic.\n"
-              + "- The mismatch happened with message types not matching\n"
-              + "- Difference:\n"
-              + "   Message types don't match: expected "
-              + expectedClass.getSimpleName()
-              + ", actual "
-              + actual.getClass().getSimpleName()
-              + "\n",
+              + "- Expecting command '"
+              + Util.commandMessageToString(expected)
+              + "' but was '"
+              + Util.commandMessageToString(actual)
+              + "'",
           JOURNAL_MISMATCH_CODE);
     }
     return new EntryHeaderChecker<>(expected, (E) actual);
@@ -98,18 +96,18 @@ final class EntryHeaderChecker<E extends MessageLite> {
             "Found a mismatch between the code paths taken during the previous execution and the paths taken during this execution.\n"
                 + "This typically happens when some parts of the code are non-deterministic.\n"
                 + "- The mismatch happened while executing '"
-                + expected.getClass().getSimpleName()
+                + Util.commandMessageToString(expected)
                 + "'\n"
-                + "- Difference:\n");
+                + "- Difference:");
     for (FieldMismatch mismatch : mismatches) {
       customMessage
-          .append("   ")
+          .append("\n   ")
           .append(mismatch.fieldName)
           .append(": '")
           .append(mismatch.expectedValue)
           .append("' != '")
           .append(mismatch.actualValue)
-          .append("'\n");
+          .append("'");
     }
 
     return new ProtocolException(customMessage.toString(), JOURNAL_MISMATCH_CODE);

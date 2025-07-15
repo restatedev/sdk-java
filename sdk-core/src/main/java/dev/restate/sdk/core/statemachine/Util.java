@@ -9,17 +9,14 @@
 package dev.restate.sdk.core.statemachine;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.MessageLite;
 import com.google.protobuf.UnsafeByteOperations;
 import dev.restate.common.Slice;
 import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.Objects;
-import org.jspecify.annotations.Nullable;
 
 public class Util {
 
@@ -36,46 +33,6 @@ public class Util {
       return toProtocolFailure(((TerminalException) throwable).getCode(), throwable.getMessage());
     }
     return toProtocolFailure(TerminalException.INTERNAL_SERVER_ERROR_CODE, throwable.toString());
-  }
-
-  static Protocol.ErrorMessage toErrorMessage(
-      Throwable throwable,
-      int currentCommandIndex,
-      @Nullable String currentCommandName,
-      @Nullable MessageType currentCommandType) {
-    Protocol.ErrorMessage.Builder msg = Protocol.ErrorMessage.newBuilder();
-
-    if (throwable.getMessage() == null) {
-      // This happens only with few common exceptions, but anyway
-      msg.setMessage(throwable.toString());
-    } else {
-      msg.setMessage(throwable.getMessage());
-    }
-
-    if (throwable instanceof ProtocolException) {
-      msg.setCode(((ProtocolException) throwable).getCode());
-    } else {
-      msg.setCode(TerminalException.INTERNAL_SERVER_ERROR_CODE);
-    }
-
-    // Convert stacktrace to string
-    StringWriter sw = new StringWriter();
-    PrintWriter pw = new PrintWriter(sw);
-    throwable.printStackTrace(pw);
-    msg.setStacktrace(sw.toString());
-
-    // Add journal entry info
-    if (currentCommandIndex >= 0) {
-      msg.setRelatedCommandIndex(currentCommandIndex);
-    }
-    if (currentCommandName != null) {
-      msg.setRelatedCommandName(currentCommandName);
-    }
-    if (currentCommandType != null) {
-      msg.setRelatedCommandType(currentCommandType.encode());
-    }
-
-    return msg.build();
   }
 
   static TerminalException toRestateException(Protocol.Failure failure) {
@@ -98,6 +55,54 @@ public class Util {
 
   static Duration durationMin(Duration a, Duration b) {
     return (a.compareTo(b) <= 0) ? a : b;
+  }
+
+  /**
+   * Returns a string representation of a command message.
+   *
+   * @param message The command message
+   * @return A string representation of the command message
+   */
+  static String commandMessageToString(MessageLite message) {
+    if (message instanceof Protocol.InputCommandMessage) {
+      return "handler input";
+    } else if (message instanceof Protocol.OutputCommandMessage) {
+      return "handler return";
+    } else if (message instanceof Protocol.GetLazyStateCommandMessage) {
+      return "get state";
+    } else if (message instanceof Protocol.GetLazyStateKeysCommandMessage) {
+      return "get state keys";
+    } else if (message instanceof Protocol.SetStateCommandMessage) {
+      return "set state";
+    } else if (message instanceof Protocol.ClearStateCommandMessage) {
+      return "clear state";
+    } else if (message instanceof Protocol.ClearAllStateCommandMessage) {
+      return "clear all state";
+    } else if (message instanceof Protocol.GetPromiseCommandMessage) {
+      return "get promise";
+    } else if (message instanceof Protocol.PeekPromiseCommandMessage) {
+      return "peek promise";
+    } else if (message instanceof Protocol.CompletePromiseCommandMessage) {
+      return "complete promise";
+    } else if (message instanceof Protocol.SleepCommandMessage) {
+      return "sleep";
+    } else if (message instanceof Protocol.CallCommandMessage) {
+      return "call";
+    } else if (message instanceof Protocol.OneWayCallCommandMessage) {
+      return "one way call/send";
+    } else if (message instanceof Protocol.SendSignalCommandMessage) {
+      return "send signal";
+    } else if (message instanceof Protocol.RunCommandMessage) {
+      return "run";
+    } else if (message instanceof Protocol.AttachInvocationCommandMessage) {
+      return "attach invocation";
+    } else if (message instanceof Protocol.GetInvocationOutputCommandMessage) {
+      return "get invocation output";
+    } else if (message instanceof Protocol.CompleteAwakeableCommandMessage) {
+      return "complete awakeable";
+    }
+
+    return message.getClass().getSimpleName();
   }
 
   private static final class ByteStringSlice implements Slice {
