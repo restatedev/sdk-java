@@ -34,13 +34,26 @@ class FilerTemplateLoader extends AbstractTemplateLoader {
     return new TemplateSource() {
       @Override
       public String content(Charset charset) throws IOException {
-        return filer
-            .getResource(
-                StandardLocation.ANNOTATION_PROCESSOR_PATH,
-                path.getParent().toString().replace('/', '.'),
-                path.getFileName().toString())
-            .getCharContent(true)
-            .toString();
+        try {
+          return filer
+              .getResource(
+                  StandardLocation.ANNOTATION_PROCESSOR_PATH,
+                  path.getParent().toString().replace('/', '.'),
+                  path.getFileName().toString())
+              .getCharContent(true)
+              .toString();
+        } catch (java.lang.IllegalArgumentException | IOException filerException) {
+          // in vscode/cursor this happens https://github.com/restatedev/sdk-java/issues/516
+          // so fallback to using the classloader
+          try (var stream = getClass().getResourceAsStream("/" + location)) {
+            if (stream == null) {
+              throw filerException;
+            }
+            return new String(stream.readAllBytes(), charset);
+          } catch (Exception classLoaderException) {
+            throw filerException; // throw the original exception to retain the original behaviour
+          }
+        }
       }
 
       @Override
