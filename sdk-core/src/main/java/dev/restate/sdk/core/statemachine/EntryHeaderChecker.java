@@ -23,11 +23,13 @@ import java.util.function.Function;
  * exceptions when mismatches are found.
  */
 final class EntryHeaderChecker<E extends MessageLite> {
+  private final int commandIndex;
   private final E expected;
   private final E actual;
   private List<FieldMismatch> mismatches;
 
-  private EntryHeaderChecker(E expected, E actual) {
+  private EntryHeaderChecker(int commandIndex, E expected, E actual) {
+    this.commandIndex = commandIndex;
     this.expected = expected;
     this.actual = actual;
   }
@@ -35,26 +37,29 @@ final class EntryHeaderChecker<E extends MessageLite> {
   /**
    * Creates a new EntryHeaderChecker for the given expected and actual messages.
    *
+   * @param <E> The type of the expected message
+   * @param commandIndex The index of this command
    * @param expected The expected message
    * @param actual The actual message
-   * @param <E> The type of the expected message
    * @return A new EntryHeaderChecker
    */
   @SuppressWarnings("unchecked")
   public static <E extends MessageLite> EntryHeaderChecker<E> check(
-      Class<E> expectedClass, E expected, MessageLite actual) {
+      int commandIndex, Class<E> expectedClass, E expected, MessageLite actual) {
     if (!expectedClass.isInstance(actual)) {
       throw new ProtocolException(
           "Found a mismatch between the code paths taken during the previous execution and the paths taken during this execution.\n"
               + "This typically happens when some parts of the code are non-deterministic.\n"
               + "- Expecting command '"
               + Util.commandMessageToString(expected)
-              + "' but was '"
+              + "' (index "
+              + commandIndex
+              + ") but was '"
               + Util.commandMessageToString(actual)
               + "'",
           JOURNAL_MISMATCH_CODE);
     }
-    return new EntryHeaderChecker<>(expected, (E) actual);
+    return new EntryHeaderChecker<>(commandIndex, expected, (E) actual);
   }
 
   /**
@@ -97,7 +102,9 @@ final class EntryHeaderChecker<E extends MessageLite> {
                 + "This typically happens when some parts of the code are non-deterministic.\n"
                 + "- The mismatch happened while executing '"
                 + Util.commandMessageToString(expected)
-                + "'\n"
+                + " (index "
+                + commandIndex
+                + ")'\n"
                 + "- Difference:");
     for (FieldMismatch mismatch : mismatches) {
       customMessage
