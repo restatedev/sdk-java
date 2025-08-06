@@ -16,7 +16,7 @@ interface CommandAccessor<E extends MessageLite> {
 
   String getName(E expected);
 
-  void checkEntryHeader(E expected, MessageLite actual) throws ProtocolException;
+  void checkEntryHeader(int commandIndex, E expected, MessageLite actual) throws ProtocolException;
 
   CommandAccessor<Protocol.InputCommandMessage> INPUT =
       new CommandAccessor<>() {
@@ -26,7 +26,8 @@ interface CommandAccessor<E extends MessageLite> {
         }
 
         @Override
-        public void checkEntryHeader(Protocol.InputCommandMessage expected, MessageLite actual)
+        public void checkEntryHeader(
+            int commandIndex, Protocol.InputCommandMessage expected, MessageLite actual)
             throws ProtocolException {
           // Nothing to check
         }
@@ -39,9 +40,11 @@ interface CommandAccessor<E extends MessageLite> {
         }
 
         @Override
-        public void checkEntryHeader(Protocol.OutputCommandMessage expected, MessageLite actual)
+        public void checkEntryHeader(
+            int commandIndex, Protocol.OutputCommandMessage expected, MessageLite actual)
             throws ProtocolException {
-          EntryHeaderChecker.check(Protocol.OutputCommandMessage.class, expected, actual)
+          EntryHeaderChecker.check(
+                  commandIndex, Protocol.OutputCommandMessage.class, expected, actual)
               .checkField("name", Protocol.OutputCommandMessage::getName)
               .checkField("result", Protocol.OutputCommandMessage::getResultCase)
               .checkField("value", Protocol.OutputCommandMessage::getValue)
@@ -53,9 +56,10 @@ interface CommandAccessor<E extends MessageLite> {
       new CommandAccessor<>() {
         @Override
         public void checkEntryHeader(
-            Protocol.GetEagerStateCommandMessage expected, MessageLite actual)
+            int commandIndex, Protocol.GetEagerStateCommandMessage expected, MessageLite actual)
             throws ProtocolException {
-          EntryHeaderChecker.check(Protocol.GetEagerStateCommandMessage.class, expected, actual)
+          EntryHeaderChecker.check(
+                  commandIndex, Protocol.GetEagerStateCommandMessage.class, expected, actual)
               .checkField("name", Protocol.GetEagerStateCommandMessage::getName)
               .checkField("key", Protocol.GetEagerStateCommandMessage::getKey)
               .verify();
@@ -75,9 +79,10 @@ interface CommandAccessor<E extends MessageLite> {
 
         @Override
         public void checkEntryHeader(
-            Protocol.GetLazyStateCommandMessage expected, MessageLite actual)
+            int commandIndex, Protocol.GetLazyStateCommandMessage expected, MessageLite actual)
             throws ProtocolException {
-          EntryHeaderChecker.check(Protocol.GetLazyStateCommandMessage.class, expected, actual)
+          EntryHeaderChecker.check(
+                  commandIndex, Protocol.GetLazyStateCommandMessage.class, expected, actual)
               .checkField("name", Protocol.GetLazyStateCommandMessage::getName)
               .checkField("key", Protocol.GetLazyStateCommandMessage::getKey)
               .checkField(
@@ -95,9 +100,10 @@ interface CommandAccessor<E extends MessageLite> {
 
         @Override
         public void checkEntryHeader(
-            Protocol.GetEagerStateKeysCommandMessage expected, MessageLite actual)
+            int commandIndex, Protocol.GetEagerStateKeysCommandMessage expected, MessageLite actual)
             throws ProtocolException {
-          EntryHeaderChecker.check(Protocol.GetEagerStateKeysCommandMessage.class, expected, actual)
+          EntryHeaderChecker.check(
+                  commandIndex, Protocol.GetEagerStateKeysCommandMessage.class, expected, actual)
               .checkField("name", Protocol.GetEagerStateKeysCommandMessage::getName)
               .verify();
         }
@@ -111,9 +117,10 @@ interface CommandAccessor<E extends MessageLite> {
 
         @Override
         public void checkEntryHeader(
-            Protocol.GetLazyStateKeysCommandMessage expected, MessageLite actual)
+            int commandIndex, Protocol.GetLazyStateKeysCommandMessage expected, MessageLite actual)
             throws ProtocolException {
-          EntryHeaderChecker.check(Protocol.GetLazyStateKeysCommandMessage.class, expected, actual)
+          EntryHeaderChecker.check(
+                  commandIndex, Protocol.GetLazyStateKeysCommandMessage.class, expected, actual)
               .checkField("name", Protocol.GetLazyStateKeysCommandMessage::getName)
               .verify();
         }
@@ -126,9 +133,11 @@ interface CommandAccessor<E extends MessageLite> {
         }
 
         @Override
-        public void checkEntryHeader(Protocol.ClearStateCommandMessage expected, MessageLite actual)
+        public void checkEntryHeader(
+            int commandIndex, Protocol.ClearStateCommandMessage expected, MessageLite actual)
             throws ProtocolException {
-          EntryHeaderChecker.check(Protocol.ClearStateCommandMessage.class, expected, actual)
+          EntryHeaderChecker.check(
+                  commandIndex, Protocol.ClearStateCommandMessage.class, expected, actual)
               .checkField("name", Protocol.ClearStateCommandMessage::getName)
               .checkField("key", Protocol.ClearStateCommandMessage::getKey)
               .verify();
@@ -143,9 +152,10 @@ interface CommandAccessor<E extends MessageLite> {
 
         @Override
         public void checkEntryHeader(
-            Protocol.ClearAllStateCommandMessage expected, MessageLite actual)
+            int commandIndex, Protocol.ClearAllStateCommandMessage expected, MessageLite actual)
             throws ProtocolException {
-          EntryHeaderChecker.check(Protocol.ClearAllStateCommandMessage.class, expected, actual)
+          EntryHeaderChecker.check(
+                  commandIndex, Protocol.ClearAllStateCommandMessage.class, expected, actual)
               .checkField("name", Protocol.ClearAllStateCommandMessage::getName)
               .verify();
         }
@@ -158,9 +168,11 @@ interface CommandAccessor<E extends MessageLite> {
         }
 
         @Override
-        public void checkEntryHeader(Protocol.SetStateCommandMessage expected, MessageLite actual)
+        public void checkEntryHeader(
+            int commandIndex, Protocol.SetStateCommandMessage expected, MessageLite actual)
             throws ProtocolException {
-          EntryHeaderChecker.check(Protocol.SetStateCommandMessage.class, expected, actual)
+          EntryHeaderChecker.check(
+                  commandIndex, Protocol.SetStateCommandMessage.class, expected, actual)
               .checkField("name", Protocol.SetStateCommandMessage::getName)
               .checkField("key", Protocol.SetStateCommandMessage::getKey)
               .checkField("value", Protocol.SetStateCommandMessage::getValue)
@@ -176,9 +188,11 @@ interface CommandAccessor<E extends MessageLite> {
         }
 
         @Override
-        public void checkEntryHeader(Protocol.SleepCommandMessage expected, MessageLite actual)
+        public void checkEntryHeader(
+            int commandIndex, Protocol.SleepCommandMessage expected, MessageLite actual)
             throws ProtocolException {
-          EntryHeaderChecker.check(Protocol.SleepCommandMessage.class, expected, actual)
+          EntryHeaderChecker.check(
+                  commandIndex, Protocol.SleepCommandMessage.class, expected, actual)
               .checkField("name", Protocol.SleepCommandMessage::getName)
               .checkField(
                   "result_completion_id", Protocol.SleepCommandMessage::getResultCompletionId)
@@ -194,9 +208,11 @@ interface CommandAccessor<E extends MessageLite> {
         }
 
         @Override
-        public void checkEntryHeader(Protocol.CallCommandMessage expected, MessageLite actual)
+        public void checkEntryHeader(
+            int commandIndex, Protocol.CallCommandMessage expected, MessageLite actual)
             throws ProtocolException {
-          EntryHeaderChecker.check(Protocol.CallCommandMessage.class, expected, actual)
+          EntryHeaderChecker.check(
+                  commandIndex, Protocol.CallCommandMessage.class, expected, actual)
               .checkField("name", Protocol.CallCommandMessage::getName)
               .checkField("service_name", Protocol.CallCommandMessage::getServiceName)
               .checkField("handler_name", Protocol.CallCommandMessage::getHandlerName)
@@ -220,9 +236,11 @@ interface CommandAccessor<E extends MessageLite> {
         }
 
         @Override
-        public void checkEntryHeader(Protocol.OneWayCallCommandMessage expected, MessageLite actual)
+        public void checkEntryHeader(
+            int commandIndex, Protocol.OneWayCallCommandMessage expected, MessageLite actual)
             throws ProtocolException {
-          EntryHeaderChecker.check(Protocol.OneWayCallCommandMessage.class, expected, actual)
+          EntryHeaderChecker.check(
+                  commandIndex, Protocol.OneWayCallCommandMessage.class, expected, actual)
               .checkField("name", Protocol.OneWayCallCommandMessage::getName)
               .checkField("service_name", Protocol.OneWayCallCommandMessage::getServiceName)
               .checkField("handler_name", Protocol.OneWayCallCommandMessage::getHandlerName)
@@ -246,9 +264,10 @@ interface CommandAccessor<E extends MessageLite> {
 
         @Override
         public void checkEntryHeader(
-            Protocol.CompleteAwakeableCommandMessage expected, MessageLite actual)
+            int commandIndex, Protocol.CompleteAwakeableCommandMessage expected, MessageLite actual)
             throws ProtocolException {
-          EntryHeaderChecker.check(Protocol.CompleteAwakeableCommandMessage.class, expected, actual)
+          EntryHeaderChecker.check(
+                  commandIndex, Protocol.CompleteAwakeableCommandMessage.class, expected, actual)
               .checkField("name", Protocol.CompleteAwakeableCommandMessage::getName)
               .checkField("awakeable_id", Protocol.CompleteAwakeableCommandMessage::getAwakeableId)
               .checkField("result", Protocol.CompleteAwakeableCommandMessage::getResultCase)
@@ -265,9 +284,10 @@ interface CommandAccessor<E extends MessageLite> {
         }
 
         @Override
-        public void checkEntryHeader(Protocol.RunCommandMessage expected, MessageLite actual)
+        public void checkEntryHeader(
+            int commandIndex, Protocol.RunCommandMessage expected, MessageLite actual)
             throws ProtocolException {
-          EntryHeaderChecker.check(Protocol.RunCommandMessage.class, expected, actual)
+          EntryHeaderChecker.check(commandIndex, Protocol.RunCommandMessage.class, expected, actual)
               .checkField("name", Protocol.RunCommandMessage::getName)
               .verify();
         }
@@ -281,9 +301,11 @@ interface CommandAccessor<E extends MessageLite> {
         }
 
         @Override
-        public void checkEntryHeader(Protocol.GetPromiseCommandMessage expected, MessageLite actual)
+        public void checkEntryHeader(
+            int commandIndex, Protocol.GetPromiseCommandMessage expected, MessageLite actual)
             throws ProtocolException {
-          EntryHeaderChecker.check(Protocol.GetPromiseCommandMessage.class, expected, actual)
+          EntryHeaderChecker.check(
+                  commandIndex, Protocol.GetPromiseCommandMessage.class, expected, actual)
               .checkField("name", Protocol.GetPromiseCommandMessage::getName)
               .checkField("key", Protocol.GetPromiseCommandMessage::getKey)
               .checkField(
@@ -300,9 +322,10 @@ interface CommandAccessor<E extends MessageLite> {
 
         @Override
         public void checkEntryHeader(
-            Protocol.PeekPromiseCommandMessage expected, MessageLite actual)
+            int commandIndex, Protocol.PeekPromiseCommandMessage expected, MessageLite actual)
             throws ProtocolException {
-          EntryHeaderChecker.check(Protocol.PeekPromiseCommandMessage.class, expected, actual)
+          EntryHeaderChecker.check(
+                  commandIndex, Protocol.PeekPromiseCommandMessage.class, expected, actual)
               .checkField("name", Protocol.PeekPromiseCommandMessage::getName)
               .checkField("key", Protocol.PeekPromiseCommandMessage::getKey)
               .checkField(
@@ -319,9 +342,10 @@ interface CommandAccessor<E extends MessageLite> {
 
         @Override
         public void checkEntryHeader(
-            Protocol.CompletePromiseCommandMessage expected, MessageLite actual)
+            int commandIndex, Protocol.CompletePromiseCommandMessage expected, MessageLite actual)
             throws ProtocolException {
-          EntryHeaderChecker.check(Protocol.CompletePromiseCommandMessage.class, expected, actual)
+          EntryHeaderChecker.check(
+                  commandIndex, Protocol.CompletePromiseCommandMessage.class, expected, actual)
               .checkField("name", Protocol.CompletePromiseCommandMessage::getName)
               .checkField("key", Protocol.CompletePromiseCommandMessage::getKey)
               .checkField(
@@ -344,9 +368,11 @@ interface CommandAccessor<E extends MessageLite> {
         }
 
         @Override
-        public void checkEntryHeader(Protocol.SendSignalCommandMessage expected, MessageLite actual)
+        public void checkEntryHeader(
+            int commandIndex, Protocol.SendSignalCommandMessage expected, MessageLite actual)
             throws ProtocolException {
-          EntryHeaderChecker.check(Protocol.SendSignalCommandMessage.class, expected, actual)
+          EntryHeaderChecker.check(
+                  commandIndex, Protocol.SendSignalCommandMessage.class, expected, actual)
               .checkField("entry_name", Protocol.SendSignalCommandMessage::getEntryName)
               .checkField(
                   "target_invocation_id", Protocol.SendSignalCommandMessage::getTargetInvocationId)
@@ -368,9 +394,10 @@ interface CommandAccessor<E extends MessageLite> {
 
         @Override
         public void checkEntryHeader(
-            Protocol.AttachInvocationCommandMessage expected, MessageLite actual)
+            int commandIndex, Protocol.AttachInvocationCommandMessage expected, MessageLite actual)
             throws ProtocolException {
-          EntryHeaderChecker.check(Protocol.AttachInvocationCommandMessage.class, expected, actual)
+          EntryHeaderChecker.check(
+                  commandIndex, Protocol.AttachInvocationCommandMessage.class, expected, actual)
               .checkField("name", Protocol.AttachInvocationCommandMessage::getName)
               .checkField("invocation_id", Protocol.AttachInvocationCommandMessage::getInvocationId)
               .checkField(
@@ -389,10 +416,12 @@ interface CommandAccessor<E extends MessageLite> {
 
         @Override
         public void checkEntryHeader(
-            Protocol.GetInvocationOutputCommandMessage expected, MessageLite actual)
+            int commandIndex,
+            Protocol.GetInvocationOutputCommandMessage expected,
+            MessageLite actual)
             throws ProtocolException {
           EntryHeaderChecker.check(
-                  Protocol.GetInvocationOutputCommandMessage.class, expected, actual)
+                  commandIndex, Protocol.GetInvocationOutputCommandMessage.class, expected, actual)
               .checkField("name", Protocol.GetInvocationOutputCommandMessage::getName)
               .checkField(
                   "invocation_id", Protocol.GetInvocationOutputCommandMessage::getInvocationId)

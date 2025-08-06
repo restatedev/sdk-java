@@ -152,7 +152,8 @@ final class ReplayingState implements State {
 
     MessageLite actual = takeNextCommandToProcess();
     try {
-      commandAccessor.checkEntryHeader(commandMessage, actual);
+      commandAccessor.checkEntryHeader(
+          stateContext.getJournal().getCommandIndex(), commandMessage, actual);
     } catch (ProtocolException e) {
       this.hitError(e, CommandRelationship.Last.INSTANCE, null, stateContext);
       AbortedExecutionException.sneakyThrow();
@@ -172,7 +173,8 @@ final class ReplayingState implements State {
         .commandTransition(commandAccessor.getName(commandMessage), commandMessage);
     MessageLite actual = takeNextCommandToProcess();
     try {
-      commandAccessor.checkEntryHeader(commandMessage, actual);
+      commandAccessor.checkEntryHeader(
+          stateContext.getJournal().getCommandIndex(), commandMessage, actual);
     } catch (ProtocolException e) {
       this.hitError(e, CommandRelationship.Last.INSTANCE, null, stateContext);
       AbortedExecutionException.sneakyThrow();
@@ -202,6 +204,7 @@ final class ReplayingState implements State {
 
     if (actual instanceof Protocol.GetEagerStateCommandMessage eagerStateCommandMessage) {
       CommandAccessor.GET_EAGER_STATE.checkEntryHeader(
+          stateContext.getJournal().getCommandIndex(),
           Protocol.GetEagerStateCommandMessage.newBuilder()
               .setKey(ByteString.copyFromUtf8(key))
               .build(),
@@ -221,6 +224,7 @@ final class ReplayingState implements State {
 
     } else if (actual instanceof Protocol.GetLazyStateCommandMessage) {
       CommandAccessor.GET_LAZY_STATE.checkEntryHeader(
+          stateContext.getJournal().getCommandIndex(),
           Protocol.GetLazyStateCommandMessage.newBuilder()
               .setKey(ByteString.copyFromUtf8(key))
               .setResultCompletionId(completionId)
@@ -248,7 +252,9 @@ final class ReplayingState implements State {
 
     if (actual instanceof Protocol.GetEagerStateKeysCommandMessage eagerStateCommandMessage) {
       CommandAccessor.GET_EAGER_STATE_KEYS.checkEntryHeader(
-          Protocol.GetEagerStateKeysCommandMessage.getDefaultInstance(), actual);
+          stateContext.getJournal().getCommandIndex(),
+          Protocol.GetEagerStateKeysCommandMessage.getDefaultInstance(),
+          actual);
 
       asyncResultsState.insertReady(
           new NotificationId.CompletionId(completionId),
@@ -258,6 +264,7 @@ final class ReplayingState implements State {
                   .toList()));
     } else if (actual instanceof Protocol.GetLazyStateKeysCommandMessage) {
       CommandAccessor.GET_LAZY_STATE_KEYS.checkEntryHeader(
+          stateContext.getJournal().getCommandIndex(),
           Protocol.GetLazyStateKeysCommandMessage.newBuilder()
               .setResultCompletionId(completionId)
               .build(),
