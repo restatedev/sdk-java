@@ -53,7 +53,7 @@ public final class MockBidiStream implements TestDefinitions.TestExecutor {
     if (definition.isEnablePreviewContext()) {
       builder.enablePreviewContext();
     }
-    EndpointRequestHandler server = EndpointRequestHandler.forBidiStream(builder.build());
+    EndpointRequestHandler server = EndpointRequestHandler.create(builder.build());
 
     // Start invocation
     RequestProcessor handler =
@@ -62,7 +62,8 @@ public final class MockBidiStream implements TestDefinitions.TestExecutor {
             HeadersAccessor.wrap(
                 Map.of("content-type", ProtoUtils.serviceProtocolContentTypeHeader())),
             EndpointRequestHandler.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
-            coreExecutor);
+            coreExecutor,
+            true);
 
     // Wire invocation
     AssertSubscriber<Slice> assertSubscriber = AssertSubscriber.create(Long.MAX_VALUE);

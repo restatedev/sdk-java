@@ -20,6 +20,7 @@ import dev.restate.sdk.endpoint.definition.HandlerType;
 import dev.restate.sdk.endpoint.definition.ServiceDefinition;
 import dev.restate.sdk.endpoint.definition.ServiceType;
 import dev.restate.serde.Serde;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -30,65 +31,63 @@ final class EndpointManifest {
   private static final Input EMPTY_INPUT = new Input();
   private static final Output EMPTY_OUTPUT = new Output().withSetContentTypeIfEmpty(false);
 
-  private final EndpointManifestSchema manifest;
+  private final List<Service> services;
 
-  EndpointManifest(
-      EndpointManifestSchema.ProtocolMode protocolMode,
-      Stream<ServiceDefinition> components,
-      boolean experimentalContextEnabled) {
-    this.manifest =
-        new EndpointManifestSchema()
-            .withMinProtocolVersion((long) MIN_SERVICE_PROTOCOL_VERSION.getNumber())
-            .withMaxProtocolVersion((long) MAX_SERVICE_PROTOCOL_VERSION.getNumber())
-            .withProtocolMode(protocolMode)
-            .withServices(
-                components
-                    .map(
-                        svc ->
-                            new Service()
-                                .withName(svc.getServiceName())
-                                .withTy(convertServiceType(svc.getServiceType()))
-                                .withDocumentation(svc.getDocumentation())
-                                .withIdempotencyRetention(
-                                    svc.getIdempotencyRetention() != null
-                                        ? svc.getIdempotencyRetention().toMillis()
-                                        : null)
-                                .withJournalRetention(
-                                    svc.getJournalRetention() != null
-                                        ? svc.getJournalRetention().toMillis()
-                                        : null)
-                                .withInactivityTimeout(
-                                    svc.getInactivityTimeout() != null
-                                        ? svc.getInactivityTimeout().toMillis()
-                                        : null)
-                                .withAbortTimeout(
-                                    svc.getAbortTimeout() != null
-                                        ? svc.getAbortTimeout().toMillis()
-                                        : null)
-                                .withEnableLazyState(svc.getEnableLazyState())
-                                .withIngressPrivate(svc.getIngressPrivate())
-                                .withMetadata(
-                                    svc.getMetadata().entrySet().stream()
-                                        .reduce(
-                                            new Metadata__1(),
-                                            (meta, entry) ->
-                                                meta.withAdditionalProperty(
-                                                    entry.getKey(), entry.getValue()),
-                                            (m1, m2) -> {
-                                              m2.getAdditionalProperties()
-                                                  .forEach(m1::setAdditionalProperty);
-                                              return m1;
-                                            }))
-                                .withHandlers(
-                                    svc.getHandlers().stream()
-                                        .map(EndpointManifest::convertHandler)
-                                        .collect(Collectors.toList())))
-                    .collect(Collectors.toList()));
+  EndpointManifest(Stream<ServiceDefinition> components, boolean experimentalContextEnabled) {
+    this.services =
+        components
+            .map(
+                svc ->
+                    new Service()
+                        .withName(svc.getServiceName())
+                        .withTy(convertServiceType(svc.getServiceType()))
+                        .withDocumentation(svc.getDocumentation())
+                        .withIdempotencyRetention(
+                            svc.getIdempotencyRetention() != null
+                                ? svc.getIdempotencyRetention().toMillis()
+                                : null)
+                        .withJournalRetention(
+                            svc.getJournalRetention() != null
+                                ? svc.getJournalRetention().toMillis()
+                                : null)
+                        .withInactivityTimeout(
+                            svc.getInactivityTimeout() != null
+                                ? svc.getInactivityTimeout().toMillis()
+                                : null)
+                        .withAbortTimeout(
+                            svc.getAbortTimeout() != null ? svc.getAbortTimeout().toMillis() : null)
+                        .withEnableLazyState(svc.getEnableLazyState())
+                        .withIngressPrivate(svc.getIngressPrivate())
+                        .withMetadata(
+                            svc.getMetadata().entrySet().stream()
+                                .reduce(
+                                    new Metadata__1(),
+                                    (meta, entry) ->
+                                        meta.withAdditionalProperty(
+                                            entry.getKey(), entry.getValue()),
+                                    (m1, m2) -> {
+                                      m2.getAdditionalProperties()
+                                          .forEach(m1::setAdditionalProperty);
+                                      return m1;
+                                    }))
+                        .withHandlers(
+                            svc.getHandlers().stream()
+                                .map(EndpointManifest::convertHandler)
+                                .collect(Collectors.toList())))
+            .collect(Collectors.toList());
   }
 
-  EndpointManifestSchema manifest(Discovery.ServiceDiscoveryProtocolVersion version) {
+  EndpointManifestSchema manifest(
+      Discovery.ServiceDiscoveryProtocolVersion version,
+      EndpointManifestSchema.ProtocolMode protocolMode) {
+    EndpointManifestSchema manifest =
+        new EndpointManifestSchema()
+            .withProtocolMode(protocolMode)
+            .withMinProtocolVersion((long) MIN_SERVICE_PROTOCOL_VERSION.getNumber())
+            .withMaxProtocolVersion((long) MAX_SERVICE_PROTOCOL_VERSION.getNumber())
+            .withServices(this.services);
     // Verify that the user didn't set fields that we don't support in the discovery version we set
-    for (var service : this.manifest.getServices()) {
+    for (var service : manifest.getServices()) {
       if (version.getNumber() < Discovery.ServiceDiscoveryProtocolVersion.V2.getNumber()) {
         verifyFieldNotSet(
             "metadata",
@@ -121,7 +120,7 @@ final class EndpointManifest {
       }
     }
 
-    return this.manifest;
+    return manifest;
   }
 
   private static Service.Ty convertServiceType(ServiceType serviceType) {

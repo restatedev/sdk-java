@@ -92,11 +92,10 @@ public class AssertUtils {
 
   public static EndpointManifestSchemaAssert assertThatDiscovery(Endpoint endpoint) {
     return new EndpointManifestSchemaAssert(
-        new EndpointManifest(
-                EndpointManifestSchema.ProtocolMode.BIDI_STREAM,
-                endpoint.getServiceDefinitions(),
-                true)
-            .manifest(DiscoveryProtocol.MAX_SERVICE_DISCOVERY_PROTOCOL_VERSION),
+        new EndpointManifest(endpoint.getServiceDefinitions(), true)
+            .manifest(
+                DiscoveryProtocol.MAX_SERVICE_DISCOVERY_PROTOCOL_VERSION,
+                EndpointManifestSchema.ProtocolMode.BIDI_STREAM),
         EndpointManifestSchemaAssert.class);
   }
 

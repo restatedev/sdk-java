@@ -23,6 +23,7 @@ import io.vertx.core.Context;
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.http.HttpVersion;
 import io.vertx.core.http.impl.HttpServerRequestInternal;
 import java.net.URI;
 import java.util.concurrent.Executor;
@@ -41,7 +42,7 @@ public class HttpEndpointRequestHandler implements Handler<HttpServerRequest> {
   private final EndpointRequestHandler endpoint;
 
   private HttpEndpointRequestHandler(Endpoint endpoint) {
-    this.endpoint = EndpointRequestHandler.forBidiStream(endpoint);
+    this.endpoint = EndpointRequestHandler.create(endpoint);
   }
 
   @Override
@@ -66,7 +67,8 @@ public class HttpEndpointRequestHandler implements Handler<HttpServerRequest> {
                 }
               },
               ContextualData::put,
-              currentContextExecutor(vertxCurrentContext));
+              currentContextExecutor(vertxCurrentContext),
+              request.version() == HttpVersion.HTTP_2);
     } catch (ProtocolException e) {
       LOG.warn("Error when handling the request", e);
       request

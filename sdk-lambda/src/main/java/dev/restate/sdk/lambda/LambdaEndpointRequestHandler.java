@@ -58,7 +58,8 @@ public final class LambdaEndpointRequestHandler {
               path,
               HeadersAccessor.wrap(input.getHeaders()),
               EndpointRequestHandler.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
-              coreExecutor);
+              coreExecutor,
+              false);
     } catch (ProtocolException e) {
       // We can handle protocol exceptions by returning back the correct response
       LOG.warn("Error when handling the request", e);
