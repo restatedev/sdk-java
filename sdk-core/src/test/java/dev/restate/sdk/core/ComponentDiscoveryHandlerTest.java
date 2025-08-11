@@ -27,7 +27,6 @@ class ComponentDiscoveryHandlerTest {
   void handleWithMultipleServices() {
     EndpointManifest deploymentManifest =
         new EndpointManifest(
-            EndpointManifestSchema.ProtocolMode.REQUEST_RESPONSE,
             Stream.of(
                 ServiceDefinition.of(
                     "MyGreeter",
@@ -38,7 +37,9 @@ class ComponentDiscoveryHandlerTest {
             false);
 
     EndpointManifestSchema manifest =
-        deploymentManifest.manifest(DiscoveryProtocol.MAX_SERVICE_DISCOVERY_PROTOCOL_VERSION);
+        deploymentManifest.manifest(
+            DiscoveryProtocol.MAX_SERVICE_DISCOVERY_PROTOCOL_VERSION,
+            EndpointManifestSchema.ProtocolMode.REQUEST_RESPONSE);
 
     assertThat(manifest.getServices()).extracting(Service::getName).containsOnly("MyGreeter");
     assertThat(manifest.getProtocolMode())

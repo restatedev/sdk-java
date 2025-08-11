@@ -13,7 +13,6 @@ import dev.restate.sdk.annotation.Handler;
 import dev.restate.sdk.annotation.Service;
 import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.http.vertx.RestateHttpServer;
-import java.time.Duration;
 
 @Service
 public class Greeter {
@@ -29,8 +28,6 @@ public class Greeter {
   }
 
   public static void main(String[] args) {
-    RestateHttpServer.listen(
-        Endpoint.bind(
-            new Greeter(), configurator -> configurator.inactivityTimeout(Duration.ofSeconds(1))));
+    RestateHttpServer.listen(Endpoint.bind(new Greeter()));
   }
 }

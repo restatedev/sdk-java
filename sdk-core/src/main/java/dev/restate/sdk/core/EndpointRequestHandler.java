@@ -54,21 +54,36 @@ public final class EndpointRequestHandler {
 
   private final Endpoint endpoint;
   private final EndpointManifest deploymentManifest;
+  private final boolean deprecatedSupportsBidirectionalStreaming;
 
   private EndpointRequestHandler(
-      EndpointManifestSchema.ProtocolMode protocolMode, Endpoint endpoint) {
+      EndpointManifestSchema.@Nullable ProtocolMode protocolMode, Endpoint endpoint) {
     this.endpoint = endpoint;
     this.deploymentManifest =
         new EndpointManifest(
-            protocolMode,
-            this.endpoint.getServiceDefinitions(),
-            this.endpoint.isExperimentalContextEnabled());
+            this.endpoint.getServiceDefinitions(), this.endpoint.isExperimentalContextEnabled());
+    this.deprecatedSupportsBidirectionalStreaming =
+        protocolMode != EndpointManifestSchema.ProtocolMode.REQUEST_RESPONSE;
   }
 
+  public static EndpointRequestHandler create(Endpoint endpoint) {
+    return new EndpointRequestHandler(null, endpoint);
+  }
+
+  /**
+   * @deprecated The protocol mode is now established on request basis, use {@link
+   *     #create(Endpoint)} instead.
+   */
+  @Deprecated
   public static EndpointRequestHandler forBidiStream(Endpoint endpoint) {
     return new EndpointRequestHandler(EndpointManifestSchema.ProtocolMode.BIDI_STREAM, endpoint);
   }
 
+  /**
+   * @deprecated The protocol mode is now established on request basis, use {@link
+   *     #create(Endpoint)} instead.
+   */
+  @Deprecated
   public static EndpointRequestHandler forRequestResponse(Endpoint endpoint) {
     return new EndpointRequestHandler(
         EndpointManifestSchema.ProtocolMode.REQUEST_RESPONSE, endpoint);
@@ -94,16 +109,36 @@ public final class EndpointRequestHandler {
   }
 
   /**
-   * @param coreExecutor This executor MUST serialize the execution of all scheduled tasks. For
-   *     example {@link Executors#newSingleThreadExecutor()} can be used.
-   * @return The request processor
-   * @throws ProtocolException in
+   * @deprecated Use {@link #processorForRequest(String, HeadersAccessor, LoggingContextSetter,
+   *     Executor, boolean)} instead.
    */
+  @Deprecated
   public RequestProcessor processorForRequest(
       String path,
       HeadersAccessor headersAccessor,
       LoggingContextSetter loggingContextSetter,
       Executor coreExecutor)
+      throws ProtocolException {
+    return processorForRequest(
+        path,
+        headersAccessor,
+        loggingContextSetter,
+        coreExecutor,
+        this.deprecatedSupportsBidirectionalStreaming);
+  }
+
+  /**
+   * @param coreExecutor This executor MUST serialize the execution of all scheduled tasks. For
+   *     example {@link Executors#newSingleThreadExecutor()} can be used.
+   * @param supportsBidirectionalStreaming true if the server supports bidirectional streaming.
+   * @return The request processor
+   */
+  public RequestProcessor processorForRequest(
+      String path,
+      HeadersAccessor headersAccessor,
+      LoggingContextSetter loggingContextSetter,
+      Executor coreExecutor,
+      boolean supportsBidirectionalStreaming)
       throws ProtocolException {
     if (path.endsWith(HEALTH_PATH)) {
       return new StaticResponseRequestProcessor(200, "text/plain", Slice.wrap("OK"));
@@ -120,7 +155,7 @@ public final class EndpointRequestHandler {
 
     // Discovery request
     if (path.endsWith(DISCOVER_PATH)) {
-      return this.handleDiscoveryRequest(headersAccessor);
+      return this.handleDiscoveryRequest(supportsBidirectionalStreaming, headersAccessor);
     }
 
     // Parse request
@@ -142,7 +177,6 @@ public final class EndpointRequestHandler {
     StateMachine stateMachine = StateMachine.init(headersAccessor, loggingContextSetter);
 
     // Resolve the service method definition
-    @SuppressWarnings("unchecked")
     ServiceDefinition svc = this.endpoint.resolveService(serviceName);
     if (svc == null) {
       throw ProtocolException.methodNotFound(serviceName, handlerName);
@@ -182,7 +216,8 @@ public final class EndpointRequestHandler {
         coreExecutor);
   }
 
-  StaticResponseRequestProcessor handleDiscoveryRequest(HeadersAccessor headersAccessor)
+  StaticResponseRequestProcessor handleDiscoveryRequest(
+      boolean supportsBidirectionalStreaming, HeadersAccessor headersAccessor)
       throws ProtocolException {
     String acceptContentType = headersAccessor.get(ACCEPT);
 
@@ -195,7 +230,12 @@ public final class EndpointRequestHandler {
           ProtocolException.UNSUPPORTED_MEDIA_TYPE_CODE);
     }
 
-    EndpointManifestSchema response = this.deploymentManifest.manifest(version);
+    EndpointManifestSchema response =
+        this.deploymentManifest.manifest(
+            version,
+            supportsBidirectionalStreaming
+                ? EndpointManifestSchema.ProtocolMode.BIDI_STREAM
+                : EndpointManifestSchema.ProtocolMode.REQUEST_RESPONSE);
     LOG.info(
         "Replying to discovery request with services [{}]",
         response.getServices().stream().map(Service::getName).collect(Collectors.joining(",")));
