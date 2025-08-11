@@ -1,4 +1,6 @@
+import org.gradle.kotlin.dsl.withType
 import org.jetbrains.dokka.gradle.AbstractDokkaTask
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
   `java-library`
@@ -100,6 +102,7 @@ protobuf { protoc { artifact = "com.google.protobuf:protoc:$protobufVersion" } }
 
 tasks {
   withType<JavaCompile> { dependsOn(generateJsonSchema2Pojo, generateProto) }
+  withType<KotlinCompile>().configureEach { dependsOn(generateJsonSchema2Pojo, generateProto) }
   withType<org.gradle.jvm.tasks.Jar>().configureEach {
     dependsOn(generateJsonSchema2Pojo, generateProto)
   }
