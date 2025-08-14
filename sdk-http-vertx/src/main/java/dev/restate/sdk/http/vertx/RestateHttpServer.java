@@ -83,6 +83,18 @@ public class RestateHttpServer {
     return listen(endpointBuilder.build(), port);
   }
 
+  /** Like {@link #listen(Endpoint)}, with an already built request handler */
+  public static int listen(HttpEndpointRequestHandler requestHandler) {
+    return listen(requestHandler, DEFAULT_PORT);
+  }
+
+  /** Like {@link #listen(Endpoint, int)}, with an already built request handler */
+  public static int listen(HttpEndpointRequestHandler requestHandler, int port) {
+    HttpServer server = Vertx.vertx().createHttpServer(DEFAULT_OPTIONS);
+    server.requestHandler(requestHandler);
+    return handleStart(server.listen(port));
+  }
+
   /** Create a Vert.x {@link HttpServer} from the provided endpoint. */
   public static HttpServer fromEndpoint(Endpoint endpoint) {
     return fromEndpoint(endpoint, DEFAULT_OPTIONS);
