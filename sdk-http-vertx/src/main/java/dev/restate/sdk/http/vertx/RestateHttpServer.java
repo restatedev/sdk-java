@@ -90,9 +90,7 @@ public class RestateHttpServer {
 
   /** Like {@link #listen(Endpoint, int)}, with an already built request handler */
   public static int listen(HttpEndpointRequestHandler requestHandler, int port) {
-    HttpServer server = Vertx.vertx().createHttpServer(DEFAULT_OPTIONS);
-    server.requestHandler(requestHandler);
-    return handleStart(server.listen(port));
+    return handleStart(fromHandler(requestHandler).listen(port));
   }
 
   /** Create a Vert.x {@link HttpServer} from the provided endpoint. */
@@ -134,15 +132,43 @@ public class RestateHttpServer {
    * HttpServerOptions}.
    */
   public static HttpServer fromEndpoint(Vertx vertx, Endpoint endpoint, HttpServerOptions options) {
-    HttpServer server = vertx.createHttpServer(options);
-    server.requestHandler(HttpEndpointRequestHandler.fromEndpoint(endpoint));
-    return server;
+    return fromHandler(vertx, HttpEndpointRequestHandler.fromEndpoint(endpoint), options);
   }
 
   /** Like {@link #fromEndpoint(Vertx, Endpoint, HttpServerOptions)} */
   public static HttpServer fromEndpoint(
       Vertx vertx, Endpoint.Builder endpointBuilder, HttpServerOptions options) {
     return fromEndpoint(vertx, endpointBuilder.build(), options);
+  }
+
+  /** Create a Vert.x {@link HttpServer} from the provided {@link HttpEndpointRequestHandler}. */
+  public static HttpServer fromHandler(HttpEndpointRequestHandler handler) {
+    return fromHandler(handler, DEFAULT_OPTIONS);
+  }
+
+  /**
+   * Create a Vert.x {@link HttpServer} from the provided {@link HttpEndpointRequestHandler}, with
+   * the given {@link HttpServerOptions}.
+   */
+  public static HttpServer fromHandler(
+      HttpEndpointRequestHandler handler, HttpServerOptions options) {
+    return fromHandler(Vertx.vertx(), handler, options);
+  }
+
+  /** Create a Vert.x {@link HttpServer} from the provided {@link HttpEndpointRequestHandler}. */
+  public static HttpServer fromHandler(Vertx vertx, HttpEndpointRequestHandler handler) {
+    return fromHandler(vertx, handler, DEFAULT_OPTIONS);
+  }
+
+  /**
+   * Create a Vert.x {@link HttpServer} from the provided {@link HttpEndpointRequestHandler}, with
+   * the given {@link HttpServerOptions}.
+   */
+  public static HttpServer fromHandler(
+      Vertx vertx, HttpEndpointRequestHandler handler, HttpServerOptions options) {
+    HttpServer server = vertx.createHttpServer(options);
+    server.requestHandler(handler);
+    return server;
   }
 
   private static int handleStart(Future<HttpServer> fut) {

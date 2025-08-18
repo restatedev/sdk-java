@@ -10,6 +10,7 @@ package dev.restate.sdk.springboot;
 
 import dev.restate.sdk.auth.signing.RestateRequestIdentityVerifier;
 import dev.restate.sdk.endpoint.Endpoint;
+import dev.restate.sdk.http.vertx.HttpEndpointRequestHandler;
 import dev.restate.sdk.http.vertx.RestateHttpServer;
 import io.vertx.core.http.HttpServer;
 import java.util.Map;
@@ -74,7 +75,11 @@ public class RestateHttpEndpointBean implements InitializingBean, SmartLifecycle
           RestateRequestIdentityVerifier.fromKey(restateEndpointProperties.getIdentityKey()));
     }
 
-    this.server = RestateHttpServer.fromEndpoint(builder.build());
+    this.server =
+        RestateHttpServer.fromHandler(
+            HttpEndpointRequestHandler.fromEndpoint(
+                builder.build(),
+                this.restateHttpServerProperties.isDisableBidirectionalStreaming()));
   }
 
   @Override
