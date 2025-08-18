@@ -11,7 +11,6 @@ package dev.restate.serde;
 import dev.restate.common.Slice;
 import dev.restate.common.function.ThrowingFunction;
 import java.util.Objects;
-import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.*;
 
 /**
@@ -72,7 +71,7 @@ public interface Serde<T extends @Nullable Object> extends TypeTag<T> {
       }
 
       @Override
-      public T deserialize(@NotNull Slice value) {
+      public T deserialize(@NonNull Slice value) {
         return deserializer.asFunction().apply(value.toByteArray());
       }
     };
@@ -93,7 +92,7 @@ public interface Serde<T extends @Nullable Object> extends TypeTag<T> {
       }
 
       @Override
-      public T deserialize(@NotNull Slice value) {
+      public T deserialize(@NonNull Slice value) {
         return deserializer.asFunction().apply(value.toByteArray());
       }
 
@@ -112,7 +111,7 @@ public interface Serde<T extends @Nullable Object> extends TypeTag<T> {
       }
 
       @Override
-      public T deserialize(@NotNull Slice value) {
+      public T deserialize(@NonNull Slice value) {
         return inner.deserialize(value);
       }
 
@@ -132,7 +131,7 @@ public interface Serde<T extends @Nullable Object> extends TypeTag<T> {
         }
 
         @Override
-        public Void deserialize(@NotNull Slice value) {
+        public Void deserialize(@NonNull Slice value) {
           return null;
         }
 
@@ -151,7 +150,7 @@ public interface Serde<T extends @Nullable Object> extends TypeTag<T> {
         }
 
         @Override
-        public byte[] deserialize(@NotNull Slice value) {
+        public byte[] deserialize(@NonNull Slice value) {
           return value.toByteArray();
         }
       };
@@ -165,7 +164,7 @@ public interface Serde<T extends @Nullable Object> extends TypeTag<T> {
         }
 
         @Override
-        public Slice deserialize(@NotNull Slice value) {
+        public Slice deserialize(@NonNull Slice value) {
           return value;
         }
       };

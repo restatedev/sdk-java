@@ -20,7 +20,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Map;
-import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -192,7 +191,7 @@ public abstract class JsonSerdes {
       }
 
       @Override
-      public T deserialize(@NotNull Slice value) {
+      public T deserialize(@NonNull Slice value) {
         ByteArrayInputStream inputStream = new ByteArrayInputStream(value.toByteArray());
         try (JsonParser parser = JSON_FACTORY.createParser(inputStream)) {
           return deserializer.asFunction().apply(parser);
