@@ -96,7 +96,6 @@ constructor(
     val UNIT: Serde<Unit> =
         object : Serde<Unit> {
           // This is fine, it's less strict
-          @Suppress("WRONG_NULLABILITY_FOR_JAVA_OVERRIDE")
           override fun serialize(value: Unit?): Slice {
             return Slice.EMPTY
           }
@@ -119,7 +118,6 @@ constructor(
       val schema = jsonSchemaFactory.generateSchema(json, serializer)
 
       return object : Serde<T> {
-        @Suppress("WRONG_NULLABILITY_FOR_JAVA_OVERRIDE")
         override fun serialize(value: T?): Slice {
           if (value == null) {
             return Slice.wrap(json.encodeToString(JsonNull.serializer(), JsonNull))

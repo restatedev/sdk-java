@@ -51,7 +51,7 @@ class ThreadTrampoliningTestSuite : TestDefinitions.TestSuite {
 
   private fun checkBlockingComponentTrampolineExecutor(
       ctx: dev.restate.sdk.Context,
-      _unused: Any
+      _unused: Any?
   ): Void? {
     val id = Thread.currentThread().id
     check(Vertx.currentContext() == null)
