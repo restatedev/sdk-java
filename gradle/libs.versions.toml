@@ -200,8 +200,8 @@
       ref = 'victools-json-schema'
 
 [plugins]
-  aggregate-javadoc = 'io.freefair.aggregate-javadoc:8.6'
-  dependency-license-report = 'com.github.jk1.dependency-license-report:2.0'
+  aggregate-javadoc = 'io.freefair.aggregate-javadoc:8.14'
+  dependency-license-report = 'com.github.jk1.dependency-license-report:2.9'
   dokka = 'org.jetbrains.dokka:1.9.20'
   jib = 'com.google.cloud.tools.jib:3.4.4'
   jsonschema2pojo = 'org.jsonschema2pojo:1.2.1'
@@ -209,7 +209,7 @@
   openapi-generator = 'org.openapi.generator:7.5.0'
   protobuf = 'com.google.protobuf:0.9.4'
   shadow = 'com.gradleup.shadow:9.0.0-beta8'
-  spotless = 'com.diffplug.spotless:6.25.0'
+  spotless = 'com.diffplug.spotless:7.2.1'
   spring-dependency-management = 'io.spring.dependency-management:1.1.6'
 
   [plugins.ksp]
@@ -221,14 +221,14 @@
 [versions]
   jackson = '2.18.1'
   junit = '5.10.2'
-  kotlinx-coroutines = '1.9.0'
-  kotlinx-serialization = '1.7.3'
-  ksp = '2.0.21-1.0.28'
+  kotlinx-coroutines = '1.10.2'
+  kotlinx-serialization = '1.9.0'
+  ksp = '2.2.10-2.0.2'
   log4j = '2.24.2'
   opentelemetry = '1.47.0'
   protobuf = '4.29.3'
   restate = '2.3.0-SNAPSHOT'
   schema-kenerator = '2.1.2'
   spring-boot = '3.4.5'
-  vertx = '4.5.16'
+  vertx = '4.5.18'
   victools-json-schema = '4.38.0'

@@ -19,6 +19,7 @@ import dev.restate.serde.Serde;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -124,7 +125,7 @@ public abstract class TestSerdes {
       }
 
       @Override
-      public T deserialize(Slice value) {
+      public T deserialize(@NonNull Slice value) {
         ByteArrayInputStream inputStream = new ByteArrayInputStream(value.toByteArray());
         try (JsonParser parser = JSON_FACTORY.createParser(inputStream)) {
           return deserializer.asFunction().apply(parser);

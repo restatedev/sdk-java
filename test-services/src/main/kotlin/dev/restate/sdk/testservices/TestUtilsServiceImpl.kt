@@ -41,7 +41,7 @@ class TestUtilsServiceImpl : TestUtilsService {
   override suspend fun countExecutedSideEffects(context: Context, increments: Int): Int {
     val invokedSideEffects = AtomicInteger(0)
 
-    for (i in 0 ..< increments) {
+    for (i in 0..<increments) {
       context.runBlock { invokedSideEffects.incrementAndGet() }
     }
 

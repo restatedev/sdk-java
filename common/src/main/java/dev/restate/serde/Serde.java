@@ -24,12 +24,11 @@ import org.jspecify.annotations.*;
  *
  * @see SerdeFactory
  */
-@NullMarked
 public interface Serde<T extends @Nullable Object> extends TypeTag<T> {
 
   Slice serialize(T value);
 
-  T deserialize(Slice value);
+  T deserialize(@NonNull Slice value);
 
   // --- Metadata about the serialized/deserialized content
 
@@ -72,7 +71,7 @@ public interface Serde<T extends @Nullable Object> extends TypeTag<T> {
       }
 
       @Override
-      public T deserialize(Slice value) {
+      public T deserialize(@NonNull Slice value) {
         return deserializer.asFunction().apply(value.toByteArray());
       }
     };
@@ -93,7 +92,7 @@ public interface Serde<T extends @Nullable Object> extends TypeTag<T> {
       }
 
       @Override
-      public T deserialize(Slice value) {
+      public T deserialize(@NonNull Slice value) {
         return deserializer.asFunction().apply(value.toByteArray());
       }
 
@@ -112,7 +111,7 @@ public interface Serde<T extends @Nullable Object> extends TypeTag<T> {
       }
 
       @Override
-      public T deserialize(Slice value) {
+      public T deserialize(@NonNull Slice value) {
         return inner.deserialize(value);
       }
 
@@ -132,7 +131,7 @@ public interface Serde<T extends @Nullable Object> extends TypeTag<T> {
         }
 
         @Override
-        public Void deserialize(Slice value) {
+        public Void deserialize(@NonNull Slice value) {
           return null;
         }
 
@@ -151,7 +150,7 @@ public interface Serde<T extends @Nullable Object> extends TypeTag<T> {
         }
 
         @Override
-        public byte[] deserialize(Slice value) {
+        public byte[] deserialize(@NonNull Slice value) {
           return value.toByteArray();
         }
       };
@@ -165,7 +164,7 @@ public interface Serde<T extends @Nullable Object> extends TypeTag<T> {
         }
 
         @Override
-        public Slice deserialize(Slice value) {
+        public Slice deserialize(@NonNull Slice value) {
           return value;
         }
       };

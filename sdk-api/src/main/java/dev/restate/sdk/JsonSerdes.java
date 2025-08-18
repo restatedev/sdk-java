@@ -191,7 +191,7 @@ public abstract class JsonSerdes {
       }
 
       @Override
-      public T deserialize(Slice value) {
+      public T deserialize(@NonNull Slice value) {
         ByteArrayInputStream inputStream = new ByteArrayInputStream(value.toByteArray());
         try (JsonParser parser = JSON_FACTORY.createParser(inputStream)) {
           return deserializer.asFunction().apply(parser);

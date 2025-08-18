@@ -30,7 +30,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -358,7 +357,7 @@ public abstract class BaseClient implements Client {
   protected abstract <Res> CompletableFuture<Res> doGetRequest(
       URI target, Stream<Map.Entry<String, String>> headers, ResponseMapper<Res> responseMapper);
 
-  private <Res> @NotNull ResponseMapper<Response<Res>> callResponseMapper(
+  private <Res> @NonNull ResponseMapper<Response<Res>> callResponseMapper(
       String requestMethod, URI requestUri, Serde<Res> resSerde) {
     return (statusCode, responseHeaders, responseBody) -> {
       if (statusCode >= 300) {
@@ -389,7 +388,7 @@ public abstract class BaseClient implements Client {
     };
   }
 
-  private <Res> @NotNull ResponseMapper<Response<Output<Res>>> getOutputResponseMapper(
+  private <Res> @NonNull ResponseMapper<Response<Output<Res>>> getOutputResponseMapper(
       String requestMethod, URI requestUri, Serde<Res> resSerde) {
     return (statusCode, responseHeaders, responseBody) -> {
       if (statusCode == 470) {

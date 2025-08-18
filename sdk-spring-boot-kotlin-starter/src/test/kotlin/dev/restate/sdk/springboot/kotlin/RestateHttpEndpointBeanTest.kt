@@ -55,7 +55,7 @@ class RestateHttpEndpointBeanTest {
             .readValue<EndpointManifestSchema>(response.body(), EndpointManifestSchema::class.java)
 
     Assertions.assertThat<Service?>(endpointManifest.services)
-        .map<String>({ it.name })
+        .map<String> { it?.name }
         .containsOnly("greeter")
   }
 }

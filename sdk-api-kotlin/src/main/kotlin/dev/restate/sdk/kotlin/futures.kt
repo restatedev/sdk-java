@@ -51,7 +51,8 @@ internal abstract class BaseDurableFutureImpl<T : Any?> : DurableFuture<T> {
           }
 
           try {
-            @Suppress("UNCHECKED_CAST") return@simpleMap this.asyncResult().poll().getNow(null) as T
+            @Suppress("UNCHECKED_CAST")
+            return@simpleMap this.asyncResult().poll().getNow(null) as T
           } catch (e: ExecutionException) {
             throw e.cause ?: e // unwrap original cause from ExecutionException
           }
