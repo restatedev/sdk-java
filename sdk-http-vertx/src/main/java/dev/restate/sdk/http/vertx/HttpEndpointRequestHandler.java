@@ -30,6 +30,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
 
+/** Vert.x HttpServer handler adapter for {@link Endpoint}. See {@link #fromEndpoint(Endpoint)}. */
 public class HttpEndpointRequestHandler implements Handler<HttpServerRequest> {
 
   private static final Logger LOG = LogManager.getLogger(HttpEndpointRequestHandler.class);
