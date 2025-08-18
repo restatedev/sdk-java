@@ -74,7 +74,7 @@ public final class EndpointRequestHandler {
    * @deprecated The protocol mode is now established on request basis, use {@link
    *     #create(Endpoint)} instead.
    */
-  @Deprecated
+  @Deprecated(since = "2.3", forRemoval = true)
   public static EndpointRequestHandler forBidiStream(Endpoint endpoint) {
     return new EndpointRequestHandler(EndpointManifestSchema.ProtocolMode.BIDI_STREAM, endpoint);
   }
@@ -83,7 +83,7 @@ public final class EndpointRequestHandler {
    * @deprecated The protocol mode is now established on request basis, use {@link
    *     #create(Endpoint)} instead.
    */
-  @Deprecated
+  @Deprecated(since = "2.3", forRemoval = true)
   public static EndpointRequestHandler forRequestResponse(Endpoint endpoint) {
     return new EndpointRequestHandler(
         EndpointManifestSchema.ProtocolMode.REQUEST_RESPONSE, endpoint);
@@ -112,7 +112,7 @@ public final class EndpointRequestHandler {
    * @deprecated Use {@link #processorForRequest(String, HeadersAccessor, LoggingContextSetter,
    *     Executor, boolean)} instead.
    */
-  @Deprecated
+  @Deprecated(since = "2.3", forRemoval = true)
   public RequestProcessor processorForRequest(
       String path,
       HeadersAccessor headersAccessor,

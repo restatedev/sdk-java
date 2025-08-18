@@ -670,14 +670,6 @@ sealed interface DurablePromise<T> {
   /** @return the future to await the promise result on. */
   suspend fun future(): DurableFuture<T>
 
-  @Deprecated(
-      message = "Use future() instead",
-      level = DeprecationLevel.WARNING,
-      replaceWith = ReplaceWith(expression = "future()"))
-  suspend fun awaitable(): DurableFuture<T> {
-    return future()
-  }
-
   /** @return the value, if already present, otherwise returns an empty optional. */
   suspend fun peek(): Output<T>
 }

@@ -37,14 +37,6 @@ public interface DurablePromise<T> {
   DurableFuture<T> future();
 
   /**
-   * @deprecated Use {@link #future()} instead.
-   */
-  @Deprecated(forRemoval = true, since = "2.0")
-  default DurableFuture<T> awaitable() {
-    return future();
-  }
-
-  /**
    * @return the value, if already present, otherwise returns an empty optional.
    */
   Output<T> peek();
