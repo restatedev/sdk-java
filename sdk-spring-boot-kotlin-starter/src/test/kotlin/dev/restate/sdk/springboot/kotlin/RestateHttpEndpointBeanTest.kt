@@ -10,14 +10,12 @@ package dev.restate.sdk.springboot.kotlin
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import dev.restate.sdk.core.generated.manifest.EndpointManifestSchema
-import dev.restate.sdk.core.generated.manifest.Service
 import dev.restate.sdk.springboot.RestateHttpEndpointBean
 import java.io.IOException
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
-import org.assertj.core.api.Assertions
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -36,26 +34,23 @@ class RestateHttpEndpointBeanTest {
     assertThat(restateHttpEndpointBean.actualPort()).isPositive()
 
     // Check if discovery replies containing the Greeter service
-    val client = HttpClient.newHttpClient()
+    val client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_2).build()
     val response =
-        client.send<String?>(
+        client.send(
             HttpRequest.newBuilder()
                 .GET()
+                .version(HttpClient.Version.HTTP_2)
                 .uri(
-                    URI.create(
-                        ("http://localhost:" + restateHttpEndpointBean.actualPort()).toString() +
-                            "/discover"))
+                    URI.create("http://localhost:${restateHttpEndpointBean.actualPort()}/discover"))
                 .header("Accept", "application/vnd.restate.endpointmanifest.v1+json")
                 .build(),
             HttpResponse.BodyHandlers.ofString())
-    Assertions.assertThat(response.statusCode()).isEqualTo(200)
+    assertThat(response.version()).isEqualTo(HttpClient.Version.HTTP_2)
+    assertThat(response.statusCode()).isEqualTo(200)
 
     val endpointManifest =
-        ObjectMapper()
-            .readValue<EndpointManifestSchema>(response.body(), EndpointManifestSchema::class.java)
+        ObjectMapper().readValue(response.body(), EndpointManifestSchema::class.java)
 
-    Assertions.assertThat<Service?>(endpointManifest.services)
-        .map<String> { it?.name }
-        .containsOnly("greeter")
+    assertThat(endpointManifest.services).map<String> { it?.name }.containsOnly("greeter")
   }
 }
