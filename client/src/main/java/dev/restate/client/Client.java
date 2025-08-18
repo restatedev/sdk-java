@@ -22,8 +22,14 @@ import org.jspecify.annotations.Nullable;
 
 public interface Client {
 
+  /**
+   * Future version of {@link #call(Request)}
+   *
+   * @see #call(Request)
+   */
   <Req, Res> CompletableFuture<Response<Res>> callAsync(Request<Req, Res> request);
 
+  /** Call a service and wait for the response. */
   default <Req, Res> Response<Res> call(Request<Req, Res> request) throws IngressException {
     try {
       return callAsync(request).join();
@@ -35,17 +41,32 @@ public interface Client {
     }
   }
 
+  /**
+   * Future version of {@link #send(Request)}
+   *
+   * @see #send(Request)
+   */
   default <Req, Res> CompletableFuture<SendResponse<Res>> sendAsync(Request<Req, Res> request) {
     return sendAsync(request, null);
   }
 
+  /** Send a request to a service without waiting for the response. */
   default <Req, Res> SendResponse<Res> send(Request<Req, Res> request) throws IngressException {
     return send(request, null);
   }
 
+  /**
+   * Future version of {@link #send(Request, Duration)}
+   *
+   * @see #send(Request, Duration)
+   */
   <Req, Res> CompletableFuture<SendResponse<Res>> sendAsync(
       Request<Req, Res> request, @Nullable Duration delay);
 
+  /**
+   * Send a request to a service without waiting for the response, optionally providing an execution
+   * delay to wait for.
+   */
   default <Req, Res> SendResponse<Res> send(Request<Req, Res> request, @Nullable Duration delay)
       throws IngressException {
     try {
@@ -58,21 +79,33 @@ public interface Client {
     }
   }
 
+  /**
+   * Future version of {@link #submit(WorkflowRequest)}
+   *
+   * @see #submit(WorkflowRequest)
+   */
   default <Req, Res> CompletableFuture<SendResponse<Res>> submitAsync(
       WorkflowRequest<Req, Res> request) {
     return submitAsync(request, null);
   }
 
+  /** Submit a workflow. */
   default <Req, Res> SendResponse<Res> submit(WorkflowRequest<Req, Res> request)
       throws IngressException {
     return submit(request, null);
   }
 
+  /**
+   * Future version of {@link #submit(WorkflowRequest, Duration)}
+   *
+   * @see #submit(WorkflowRequest, Duration)
+   */
   default <Req, Res> CompletableFuture<SendResponse<Res>> submitAsync(
       WorkflowRequest<Req, Res> request, @Nullable Duration delay) {
     return sendAsync(request, delay);
   }
 
+  /** Submit a workflow, optionally providing an execution delay to wait for. */
   default <Req, Res> SendResponse<Res> submit(
       WorkflowRequest<Req, Res> request, @Nullable Duration delay) throws IngressException {
     try {
@@ -186,22 +219,54 @@ public interface Client {
     }
   }
 
-  <Res> InvocationHandle<Res> invocationHandle(String invocationId, TypeTag<Res> resSerde);
+  /**
+   * Create a new {@link InvocationHandle} for the provided invocation identifier.
+   *
+   * @param invocationId the invocation identifier
+   * @param resTypeTag type tag used to deserialize the invocation result
+   * @return the invocation handle
+   */
+  <Res> InvocationHandle<Res> invocationHandle(String invocationId, TypeTag<Res> resTypeTag);
 
+  /**
+   * Create a new {@link InvocationHandle} for the provided invocation identifier.
+   *
+   * @param invocationId the invocation identifier
+   * @param clazz used to deserialize the invocation result
+   * @return the invocation handle
+   */
   default <Res> InvocationHandle<Res> invocationHandle(String invocationId, Class<Res> clazz) {
     return invocationHandle(invocationId, TypeTag.of(clazz));
   }
 
   interface InvocationHandle<Res> {
 
+    /**
+     * @return the invocation identifier
+     */
     String invocationId();
 
+    /**
+     * Future version of {@link #attach()}, with options.
+     *
+     * @see #attach()
+     */
     CompletableFuture<Response<Res>> attachAsync(RequestOptions options);
 
+    /**
+     * Future version of {@link #attach()}
+     *
+     * @see #attach()
+     */
     default CompletableFuture<Response<Res>> attachAsync() {
       return attachAsync(RequestOptions.DEFAULT);
     }
 
+    /**
+     * Like {@link #attach()}, with request options.
+     *
+     * @see #attach()
+     */
     default Response<Res> attach(RequestOptions options) throws IngressException {
       try {
         return attachAsync(options).join();
@@ -213,16 +278,32 @@ public interface Client {
       }
     }
 
+    /** Attach to a running invocation, waiting for its output. */
     default Response<Res> attach() throws IngressException {
       return attach(RequestOptions.DEFAULT);
     }
 
+    /**
+     * Future version of {@link #getOutput()}, with options.
+     *
+     * @see #getOutput()
+     */
     CompletableFuture<Response<Output<Res>>> getOutputAsync(RequestOptions options);
 
+    /**
+     * Future version of {@link #getOutput()}
+     *
+     * @see #getOutput()
+     */
     default CompletableFuture<Response<Output<Res>>> getOutputAsync() {
       return getOutputAsync(RequestOptions.DEFAULT);
     }
 
+    /**
+     * Like {@link #getOutput()}, with request options.
+     *
+     * @see #getOutput()
+     */
     default Response<Output<Res>> getOutput(RequestOptions options) throws IngressException {
       try {
         return getOutputAsync(options).join();
@@ -234,14 +315,31 @@ public interface Client {
       }
     }
 
+    /** Get the output of an invocation. If running, {@link Output#isReady()} will be false. */
     default Response<Output<Res>> getOutput() throws IngressException {
       return getOutput(RequestOptions.DEFAULT);
     }
   }
 
+  /**
+   * Create a new {@link IdempotentInvocationHandle} for the provided target and idempotency key.
+   *
+   * @param target the target service/method
+   * @param idempotencyKey the idempotency key
+   * @param resTypeTag type tag used to deserialize the invocation result
+   * @return the idempotent invocation handle
+   */
   <Res> IdempotentInvocationHandle<Res> idempotentInvocationHandle(
-      Target target, String idempotencyKey, TypeTag<Res> resSerde);
+      Target target, String idempotencyKey, TypeTag<Res> resTypeTag);
 
+  /**
+   * Create a new {@link IdempotentInvocationHandle} for the provided target and idempotency key.
+   *
+   * @param target the target service/method
+   * @param idempotencyKey the idempotency key
+   * @param clazz used to deserialize the invocation result
+   * @return the idempotent invocation handle
+   */
   default <Res> IdempotentInvocationHandle<Res> idempotentInvocationHandle(
       Target target, String idempotencyKey, Class<Res> clazz) {
     return idempotentInvocationHandle(target, idempotencyKey, TypeTag.of(clazz));
@@ -249,12 +347,27 @@ public interface Client {
 
   interface IdempotentInvocationHandle<Res> {
 
+    /**
+     * Future version of {@link #attach()}, with options.
+     *
+     * @see #attach()
+     */
     CompletableFuture<Response<Res>> attachAsync(RequestOptions options);
 
+    /**
+     * Future version of {@link #attach()}
+     *
+     * @see #attach()
+     */
     default CompletableFuture<Response<Res>> attachAsync() {
       return attachAsync(RequestOptions.DEFAULT);
     }
 
+    /**
+     * Like {@link #attach()}, with request options.
+     *
+     * @see #attach()
+     */
     default Response<Res> attach(RequestOptions options) throws IngressException {
       try {
         return attachAsync(options).join();
@@ -266,16 +379,32 @@ public interface Client {
       }
     }
 
+    /** Attach to a running idempotent invocation, waiting for its output. */
     default Response<Res> attach() throws IngressException {
       return attach(RequestOptions.DEFAULT);
     }
 
+    /**
+     * Future version of {@link #getOutput()}, with options.
+     *
+     * @see #getOutput()
+     */
     CompletableFuture<Response<Output<Res>>> getOutputAsync(RequestOptions options);
 
+    /**
+     * Future version of {@link #getOutput()}
+     *
+     * @see #getOutput()
+     */
     default CompletableFuture<Response<Output<Res>>> getOutputAsync() {
       return getOutputAsync(RequestOptions.DEFAULT);
     }
 
+    /**
+     * Like {@link #getOutput()}, with request options.
+     *
+     * @see #getOutput()
+     */
     default Response<Output<Res>> getOutput(RequestOptions options) throws IngressException {
       try {
         return getOutputAsync(options).join();
@@ -287,26 +416,61 @@ public interface Client {
       }
     }
 
+    /**
+     * Get the output of an idempotent invocation. If running, {@link Output#isReady()} will be
+     * false.
+     */
     default Response<Output<Res>> getOutput() throws IngressException {
       return getOutput(RequestOptions.DEFAULT);
     }
   }
 
+  /**
+   * Create a new {@link WorkflowHandle} for the provided workflow name and identifier.
+   *
+   * @param workflowName the workflow name
+   * @param workflowId the workflow identifier
+   * @param resTypeTag type tag used to deserialize the invocation result
+   * @return the workflow handle
+   */
   <Res> WorkflowHandle<Res> workflowHandle(
-      String workflowName, String workflowId, TypeTag<Res> resSerde);
+      String workflowName, String workflowId, TypeTag<Res> resTypeTag);
 
+  /**
+   * Create a new {@link WorkflowHandle} for the provided workflow name and identifier.
+   *
+   * @param workflowName the workflow name
+   * @param workflowId the workflow identifier
+   * @param clazz used to deserialize the workflow result
+   * @return the workflow handle
+   */
   default <Res> WorkflowHandle<Res> workflowHandle(
       String workflowName, String workflowId, Class<Res> clazz) {
     return workflowHandle(workflowName, workflowId, TypeTag.of(clazz));
   }
 
   interface WorkflowHandle<Res> {
+    /**
+     * Future version of {@link #attach()}, with options.
+     *
+     * @see #attach()
+     */
     CompletableFuture<Response<Res>> attachAsync(RequestOptions options);
 
+    /**
+     * Future version of {@link #attach()}
+     *
+     * @see #attach()
+     */
     default CompletableFuture<Response<Res>> attachAsync() {
       return attachAsync(RequestOptions.DEFAULT);
     }
 
+    /**
+     * Like {@link #attach()}, with request options.
+     *
+     * @see #attach()
+     */
     default Response<Res> attach(RequestOptions options) throws IngressException {
       try {
         return attachAsync(options).join();
@@ -318,16 +482,32 @@ public interface Client {
       }
     }
 
+    /** Attach to a running workflow, waiting for its output. */
     default Response<Res> attach() throws IngressException {
       return attach(RequestOptions.DEFAULT);
     }
 
+    /**
+     * Future version of {@link #getOutput()}, with options.
+     *
+     * @see #getOutput()
+     */
     CompletableFuture<Response<Output<Res>>> getOutputAsync(RequestOptions options);
 
+    /**
+     * Future version of {@link #getOutput()}
+     *
+     * @see #getOutput()
+     */
     default CompletableFuture<Response<Output<Res>>> getOutputAsync() {
       return getOutputAsync(RequestOptions.DEFAULT);
     }
 
+    /**
+     * Like {@link #getOutput()}, with request options.
+     *
+     * @see #getOutput()
+     */
     default Response<Output<Res>> getOutput(RequestOptions options) throws IngressException {
       try {
         return getOutputAsync(options).join();
@@ -339,6 +519,7 @@ public interface Client {
       }
     }
 
+    /** Get the output of a workflow. If running, {@link Output#isReady()} will be false. */
     default Response<Output<Res>> getOutput() throws IngressException {
       return getOutput(RequestOptions.DEFAULT);
     }

@@ -13,8 +13,14 @@ import java.util.Set;
 import org.jspecify.annotations.Nullable;
 
 public interface ResponseHead {
+  /**
+   * @return the response status code returned from the HTTP client
+   */
   int statusCode();
 
+  /**
+   * @return the response headers returned from the HTTP client
+   */
   Headers headers();
 
   interface Headers {
