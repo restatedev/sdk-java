@@ -54,9 +54,9 @@ object {{generatedClassSimpleName}} {
                 {{outputSerdeRef}});
         }
 
-        suspend fun submit({{^inputEmpty}}req: {{{inputFqcn}}}, {{/inputEmpty}}init: dev.restate.common.RequestBuilder<{{{boxedInputFqcn}}}, {{{boxedOutputFqcn}}}>.() -> Unit = {}): dev.restate.client.SendResponse<{{{boxedOutputFqcn}}}> {
+        suspend fun submit({{^inputEmpty}}req: {{{inputFqcn}}}, {{/inputEmpty}}delay: Duration? = null, init: dev.restate.common.RequestBuilder<{{{boxedInputFqcn}}}, {{{boxedOutputFqcn}}}>.() -> Unit = {}): dev.restate.client.SendResponse<{{{boxedOutputFqcn}}}> {
             return this@IngressClient.client.sendSuspend(
-                {{../handlersClass}}.{{handlersClassMethodName}}({{#if ../isKeyed}}this.key, {{/if}}{{^inputEmpty}}req, {{/inputEmpty}}init)
+                {{../handlersClass}}.{{handlersClassMethodName}}({{#if ../isKeyed}}this.key, {{/if}}{{^inputEmpty}}req, {{/inputEmpty}}init), delay
             )
         }
         {{else}}
