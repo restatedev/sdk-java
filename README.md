@@ -45,12 +45,12 @@ gradle init --type java-application
 Add the annotation processor dependency [sdk-api-gen](sdk-api-gen), and then, depending on whether you want to deploy using HTTP or Lambda, use the appropriate dependency:
 
 ```kotlin
-annotationProcessor("dev.restate:sdk-api-gen:2.0.0")
+annotationProcessor("dev.restate:sdk-api-gen:2.3.0")
 
 // For HTTP services
-implementation("dev.restate:sdk-java-http:2.0.0")
+implementation("dev.restate:sdk-java-http:2.3.0")
 // For Lambda services
-// implementation("dev.restate:sdk-java-lambda:2.0.0")
+// implementation("dev.restate:sdk-java-lambda:2.3.0")
 ```
 
 ### Setup a project (Kotlin)
@@ -65,19 +65,19 @@ Add the [Kotlin symbol processing](https://kotlinlang.org/docs/ksp-quickstart.ht
 
 ```
 plugins {
-    id("com.google.devtools.ksp") version "2.0.0-1.0.21"
+    id("com.google.devtools.ksp") version "2.2.10-2.0.2"
 }
 ```
 
 Add the ksp dependency [sdk-api-gen](sdk-api-kotlin-gen), and then, depending on whether you want to deploy using HTTP or Lambda, use the appropriate dependency:
 
 ```kotlin
-ksp("dev.restate:sdk-api-kotlin-gen:2.0.0")
+ksp("dev.restate:sdk-api-kotlin-gen:2.3.0")
 
 // For HTTP services
-implementation("dev.restate:sdk-kotlin-http:2.0.0")
+implementation("dev.restate:sdk-kotlin-http:2.3.0")
 // For Lambda services
-// implementation("dev.restate:sdk-kotlin-lambda:2.0.0")
+// implementation("dev.restate:sdk-kotlin-lambda:2.3.0")
 ```
 
 ### Implement your first Restate component (Java)
@@ -287,7 +287,7 @@ This library follows [Semantic Versioning](https://semver.org/).
 
 The compatibility with Restate is described in the following table:
 
-| Restate Server\sdk-java | 1.0 - 1.1 | 1.2 | 2.0 - 2.1 | 2.2              |
+| Restate Server\sdk-java | 1.0 - 1.1 | 1.2 | 2.0 - 2.1 | 2.2 - 2.3        |
 |-------------------------|-----------|-----|-----------|------------------|
 | 1.0                     | ✅         | ❌   | ❌         | ❌                |
 | 1.1                     | ✅         | ✅   | ❌         | ❌                |
