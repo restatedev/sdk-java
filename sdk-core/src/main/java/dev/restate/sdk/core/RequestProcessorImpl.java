@@ -10,6 +10,7 @@ package dev.restate.sdk.core;
 
 import dev.restate.common.Slice;
 import dev.restate.sdk.common.TerminalException;
+import dev.restate.sdk.core.statemachine.InvocationState;
 import dev.restate.sdk.core.statemachine.StateMachine;
 import dev.restate.sdk.endpoint.definition.HandlerDefinition;
 import io.opentelemetry.context.Context;
@@ -174,19 +175,19 @@ final class RequestProcessorImpl implements RequestProcessor {
       HandlerContextInternal contextInternal, @Nullable Throwable exception) {
     if (exception == null || ExceptionUtils.containsSuspendedException(exception)) {
       contextInternal.close();
-    } else {
-      LOG.warn("Error when processing the invocation", exception);
+    } else if (contextInternal.getInvocationState() != InvocationState.CLOSED) {
       if (ExceptionUtils.isTerminalException(exception)) {
+        LOG.info("Invocation completed with terminal error", exception);
         return contextInternal
             .writeOutput((TerminalException) exception)
-            .thenAccept(
-                v -> {
-                  LOG.trace("Closed correctly with non ok exception", exception);
-                  contextInternal.close();
-                });
+            .thenAccept(v -> contextInternal.close());
       } else {
+        // No need to log here, fail inside will log
         contextInternal.fail(exception);
       }
+    } else if (!"kotlinx.coroutines.JobCancellationException"
+        .equals(exception.getClass().getCanonicalName())) {
+      LOG.warn("Suppressed error after the invocation was closed:", exception);
     }
     return CompletableFuture.completedFuture(null);
   }
