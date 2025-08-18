@@ -35,17 +35,19 @@ public class RestateHttpEndpointBeanTest {
     assertThat(restateHttpEndpointBean.actualPort()).isPositive();
 
     // Check if discovery replies containing the Greeter service
-    var client = HttpClient.newHttpClient();
+    var client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_2).build();
     var response =
         client.send(
             HttpRequest.newBuilder()
                 .GET()
+                .version(HttpClient.Version.HTTP_2)
                 .uri(
                     URI.create(
                         "http://localhost:" + restateHttpEndpointBean.actualPort() + "/discover"))
                 .header("Accept", "application/vnd.restate.endpointmanifest.v1+json")
                 .build(),
             HttpResponse.BodyHandlers.ofString());
+    assertThat(response.version()).isEqualTo(HttpClient.Version.HTTP_2);
     assertThat(response.statusCode()).isEqualTo(200);
 
     var endpointManifest =
