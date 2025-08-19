@@ -1,5 +1,5 @@
 [libraries]
-  assertj = 'org.assertj:assertj-core:3.26.0'
+  assertj = 'org.assertj:assertj-core:3.27.4'
   aws-lambda-core = 'com.amazonaws:aws-lambda-java-core:1.2.3'
   aws-lambda-events = 'com.amazonaws:aws-lambda-java-events:3.11.5'
   google-findbugs-jsr305 = 'com.google.code.findbugs:jsr305:3.0.2'
