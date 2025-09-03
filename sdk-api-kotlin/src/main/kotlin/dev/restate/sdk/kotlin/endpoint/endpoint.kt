@@ -10,6 +10,7 @@ package dev.restate.sdk.kotlin.endpoint
 
 import dev.restate.sdk.endpoint.Endpoint
 import dev.restate.sdk.endpoint.definition.HandlerDefinition
+import dev.restate.sdk.endpoint.definition.InvocationRetryPolicy
 import dev.restate.sdk.endpoint.definition.ServiceDefinition
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
@@ -148,6 +149,22 @@ var ServiceDefinition.Configurator.ingressPrivate: Boolean?
   }
   set(value) {
     this.ingressPrivate(value)
+  }
+
+/**
+ * Retry policy used by Restate when invoking this service.
+ *
+ * <p><b>NOTE:</b> You can set this field only if you register this service against
+ * restate-server >= 1.5, otherwise the service discovery will fail.
+ *
+ * @see InvocationRetryPolicy
+ */
+var ServiceDefinition.Configurator.invocationRetryPolicy: InvocationRetryPolicy?
+  get() {
+    return this.invocationRetryPolicy()
+  }
+  set(value) {
+    this.invocationRetryPolicy(value)
   }
 
 /**
@@ -298,3 +315,82 @@ var HandlerDefinition.Configurator.enableLazyState: Boolean?
   set(value) {
     this.enableLazyState(value)
   }
+
+/**
+ * Retry policy used by Restate when invoking this handler.
+ *
+ * <p><b>NOTE:</b> You can set this field only if you register this service against
+ * restate-server >= 1.5, otherwise the service discovery will fail.
+ *
+ * @see InvocationRetryPolicy
+ */
+var HandlerDefinition.Configurator.invocationRetryPolicy: InvocationRetryPolicy?
+  get() {
+    return this.invocationRetryPolicy()
+  }
+  set(value) {
+    this.invocationRetryPolicy(value)
+  }
+
+/** Initial delay before the first retry attempt. If unset, server defaults apply. */
+var InvocationRetryPolicy.Builder.initialInterval: Duration?
+  get() {
+    return this.initialInterval()?.toKotlinDuration()
+  }
+  set(value) {
+    this.initialInterval(value?.toJavaDuration())
+  }
+
+/** Exponential backoff multiplier used to compute the next retry delay. */
+var InvocationRetryPolicy.Builder.exponentiationFactor: Double?
+  get() {
+    return this.exponentiationFactor()
+  }
+  set(value) {
+    this.exponentiationFactor(value)
+  }
+
+/** Upper bound for any computed retry delay. */
+var InvocationRetryPolicy.Builder.maxInterval: Duration?
+  get() {
+    return this.maxInterval()?.toKotlinDuration()
+  }
+  set(value) {
+    this.maxInterval(value?.toJavaDuration())
+  }
+
+/**
+ * Maximum number of attempts before giving up retrying.
+ *
+ * The initial call counts as the first attempt; retries increment the count by 1. When giving up,
+ * the behavior defined with [onMaxAttempts] will be applied.
+ *
+ * @see InvocationRetryPolicy.OnMaxAttempts
+ */
+var InvocationRetryPolicy.Builder.maxAttempts: Int?
+  get() {
+    return this.maxAttempts()
+  }
+  set(value) {
+    this.maxAttempts(value)
+  }
+
+/**
+ * Behavior when reaching max attempts.
+ *
+ * @see InvocationRetryPolicy.OnMaxAttempts
+ */
+var InvocationRetryPolicy.Builder.onMaxAttempts: InvocationRetryPolicy.OnMaxAttempts?
+  get() {
+    return this.onMaxAttempts()
+  }
+  set(value) {
+    this.onMaxAttempts(value)
+  }
+
+/** [InvocationRetryPolicy] builder function. */
+fun invocationRetryPolicy(init: InvocationRetryPolicy.Builder.() -> Unit): InvocationRetryPolicy {
+  val builder = InvocationRetryPolicy.builder()
+  builder.init()
+  return builder.build()
+}

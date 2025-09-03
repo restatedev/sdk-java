@@ -27,7 +27,7 @@ class DiscoveryProtocol {
   static final Discovery.ServiceDiscoveryProtocolVersion MIN_SERVICE_DISCOVERY_PROTOCOL_VERSION =
       Discovery.ServiceDiscoveryProtocolVersion.V1;
   static final Discovery.ServiceDiscoveryProtocolVersion MAX_SERVICE_DISCOVERY_PROTOCOL_VERSION =
-      Discovery.ServiceDiscoveryProtocolVersion.V3;
+      Discovery.ServiceDiscoveryProtocolVersion.V4;
 
   static boolean isSupported(
       Discovery.ServiceDiscoveryProtocolVersion serviceDiscoveryProtocolVersion) {
@@ -84,6 +84,9 @@ class DiscoveryProtocol {
     if (versionString.equals("application/vnd.restate.endpointmanifest.v3+json")) {
       return Optional.of(Discovery.ServiceDiscoveryProtocolVersion.V3);
     }
+    if (versionString.equals("application/vnd.restate.endpointmanifest.v4+json")) {
+      return Optional.of(Discovery.ServiceDiscoveryProtocolVersion.V4);
+    }
     return Optional.empty();
   }
 
@@ -97,6 +100,9 @@ class DiscoveryProtocol {
     }
     if (Objects.requireNonNull(version) == Discovery.ServiceDiscoveryProtocolVersion.V3) {
       return "application/vnd.restate.endpointmanifest.v3+json";
+    }
+    if (Objects.requireNonNull(version) == Discovery.ServiceDiscoveryProtocolVersion.V4) {
+      return "application/vnd.restate.endpointmanifest.v4+json";
     }
     throw new IllegalArgumentException(
         String.format(
@@ -115,6 +121,13 @@ class DiscoveryProtocol {
           "workflowCompletionRetention",
           "enableLazyState",
           "ingressPrivate");
+  static final Set<String> DISCOVERY_FIELDS_ADDED_IN_V4 =
+      Set.of(
+          "retryPolicyInitialInterval",
+          "retryPolicyMaxInterval",
+          "retryPolicyMaxAttempts",
+          "retryPolicyExponentiationFactor",
+          "retryPolicyOnMaxAttempts");
 
   @JsonFilter("DiscoveryFieldsFilter")
   interface FieldsMixin {}
@@ -135,11 +148,20 @@ class DiscoveryProtocol {
         filter =
             SimpleBeanPropertyFilter.serializeAllExcept(
                 Stream.concat(
-                        DISCOVERY_FIELDS_ADDED_IN_V2.stream(),
-                        DISCOVERY_FIELDS_ADDED_IN_V3.stream())
+                        Stream.concat(
+                            DISCOVERY_FIELDS_ADDED_IN_V2.stream(),
+                            DISCOVERY_FIELDS_ADDED_IN_V3.stream()),
+                        DISCOVERY_FIELDS_ADDED_IN_V4.stream())
                     .collect(Collectors.toSet()));
       } else if (serviceDiscoveryProtocolVersion == Discovery.ServiceDiscoveryProtocolVersion.V2) {
-        filter = SimpleBeanPropertyFilter.serializeAllExcept(DISCOVERY_FIELDS_ADDED_IN_V3);
+        filter =
+            SimpleBeanPropertyFilter.serializeAllExcept(
+                Stream.concat(
+                        DISCOVERY_FIELDS_ADDED_IN_V3.stream(),
+                        DISCOVERY_FIELDS_ADDED_IN_V4.stream())
+                    .collect(Collectors.toSet()));
+      } else if (serviceDiscoveryProtocolVersion == Discovery.ServiceDiscoveryProtocolVersion.V3) {
+        filter = SimpleBeanPropertyFilter.serializeAllExcept(DISCOVERY_FIELDS_ADDED_IN_V4);
       } else {
         filter = SimpleBeanPropertyFilter.serializeAll();
       }
