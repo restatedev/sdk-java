@@ -29,6 +29,7 @@ public final class ServiceDefinition {
   private final @Nullable Duration journalRetention;
   private final @Nullable Boolean ingressPrivate;
   private final @Nullable Boolean enableLazyState;
+  private final @Nullable InvocationRetryPolicy invocationRetryPolicy;
 
   private ServiceDefinition(
       String serviceName,
@@ -41,7 +42,8 @@ public final class ServiceDefinition {
       @Nullable Duration idempotencyRetention,
       @Nullable Duration journalRetention,
       @Nullable Boolean ingressPrivate,
-      @Nullable Boolean enableLazyState) {
+      @Nullable Boolean enableLazyState,
+      @Nullable InvocationRetryPolicy invocationRetryPolicy) {
     this.serviceName = serviceName;
     this.serviceType = serviceType;
     this.handlers = handlers;
@@ -53,6 +55,7 @@ public final class ServiceDefinition {
     this.journalRetention = journalRetention;
     this.ingressPrivate = ingressPrivate;
     this.enableLazyState = enableLazyState;
+    this.invocationRetryPolicy = invocationRetryPolicy;
   }
 
   /**
@@ -147,6 +150,14 @@ public final class ServiceDefinition {
     return enableLazyState;
   }
 
+  /**
+   * @return Retry policy for all requests to this service
+   * @see Configurator#invocationRetryPolicy(InvocationRetryPolicy)
+   */
+  public @Nullable InvocationRetryPolicy getInvocationRetryPolicy() {
+    return invocationRetryPolicy;
+  }
+
   public ServiceDefinition withDocumentation(@Nullable String documentation) {
     return new ServiceDefinition(
         serviceName,
@@ -159,7 +170,8 @@ public final class ServiceDefinition {
         idempotencyRetention,
         journalRetention,
         ingressPrivate,
-        enableLazyState);
+        enableLazyState,
+        invocationRetryPolicy);
   }
 
   public ServiceDefinition withMetadata(Map<String, String> metadata) {
@@ -174,7 +186,8 @@ public final class ServiceDefinition {
         idempotencyRetention,
         journalRetention,
         ingressPrivate,
-        enableLazyState);
+        enableLazyState,
+        invocationRetryPolicy);
   }
 
   /**
@@ -191,7 +204,8 @@ public final class ServiceDefinition {
             idempotencyRetention,
             journalRetention,
             ingressPrivate,
-            enableLazyState);
+            enableLazyState,
+            invocationRetryPolicy);
     configurator.accept(configuratorObj);
     return new ServiceDefinition(
         serviceName,
@@ -204,7 +218,8 @@ public final class ServiceDefinition {
         configuratorObj.idempotencyRetention,
         configuratorObj.journalRetention,
         configuratorObj.ingressPrivate,
-        configuratorObj.enableLazyState);
+        configuratorObj.enableLazyState,
+        configuratorObj.invocationRetryPolicy);
   }
 
   /** Configurator for a {@link ServiceDefinition}. */
@@ -219,6 +234,7 @@ public final class ServiceDefinition {
     private @Nullable Duration journalRetention;
     private @Nullable Boolean ingressPrivate;
     private @Nullable Boolean enableLazyState;
+    private @Nullable InvocationRetryPolicy invocationRetryPolicy;
 
     private Configurator(
         Map<String, HandlerDefinition<?, ?>> handlers,
@@ -229,7 +245,8 @@ public final class ServiceDefinition {
         @Nullable Duration idempotencyRetention,
         @Nullable Duration journalRetention,
         @Nullable Boolean ingressPrivate,
-        @Nullable Boolean enableLazyState) {
+        @Nullable Boolean enableLazyState,
+        @Nullable InvocationRetryPolicy invocationRetryPolicy) {
       this.handlers = new HashMap<>(handlers);
       this.documentation = documentation;
       this.metadata = new HashMap<>(metadata);
@@ -239,6 +256,7 @@ public final class ServiceDefinition {
       this.journalRetention = journalRetention;
       this.ingressPrivate = ingressPrivate;
       this.enableLazyState = enableLazyState;
+      this.invocationRetryPolicy = invocationRetryPolicy;
     }
 
     /**
@@ -435,6 +453,37 @@ public final class ServiceDefinition {
     }
 
     /**
+     * @return configured invocation retry policy
+     * @see #invocationRetryPolicy(InvocationRetryPolicy)
+     */
+    public @Nullable InvocationRetryPolicy invocationRetryPolicy() {
+      return invocationRetryPolicy;
+    }
+
+    /**
+     * Retry policy used by Restate when invoking this service.
+     *
+     * <p><b>NOTE:</b> You can set this field only if you register this service against
+     * restate-server >= 1.5, otherwise the service discovery will fail.
+     *
+     * @see InvocationRetryPolicy
+     * @return this
+     */
+    public Configurator invocationRetryPolicy(
+        @Nullable InvocationRetryPolicy invocationRetryPolicy) {
+      this.invocationRetryPolicy = invocationRetryPolicy;
+      return this;
+    }
+
+    /**
+     * @see #invocationRetryPolicy(InvocationRetryPolicy)
+     */
+    public Configurator invocationRetryPolicy(InvocationRetryPolicy.Builder invocationRetryPolicy) {
+      this.invocationRetryPolicy = invocationRetryPolicy.build();
+      return this;
+    }
+
+    /**
      * Configure a specific handler of this service.
      *
      * @return this
@@ -462,7 +511,8 @@ public final class ServiceDefinition {
         && Objects.equals(idempotencyRetention, that.idempotencyRetention)
         && Objects.equals(journalRetention, that.journalRetention)
         && Objects.equals(ingressPrivate, that.ingressPrivate)
-        && Objects.equals(enableLazyState, that.enableLazyState);
+        && Objects.equals(enableLazyState, that.enableLazyState)
+        && Objects.equals(invocationRetryPolicy, that.invocationRetryPolicy);
   }
 
   @Override
@@ -478,7 +528,8 @@ public final class ServiceDefinition {
         idempotencyRetention,
         journalRetention,
         ingressPrivate,
-        enableLazyState);
+        enableLazyState,
+        invocationRetryPolicy);
   }
 
   public static ServiceDefinition of(
@@ -490,6 +541,7 @@ public final class ServiceDefinition {
             .collect(Collectors.toMap(HandlerDefinition::getName, Function.identity())),
         null,
         Collections.emptyMap(),
+        null,
         null,
         null,
         null,

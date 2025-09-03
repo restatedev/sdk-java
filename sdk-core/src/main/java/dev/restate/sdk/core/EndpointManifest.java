@@ -15,10 +15,7 @@ import static dev.restate.sdk.core.statemachine.ServiceProtocol.MIN_SERVICE_PROT
 import com.fasterxml.jackson.core.JsonProcessingException;
 import dev.restate.sdk.core.generated.discovery.Discovery;
 import dev.restate.sdk.core.generated.manifest.*;
-import dev.restate.sdk.endpoint.definition.HandlerDefinition;
-import dev.restate.sdk.endpoint.definition.HandlerType;
-import dev.restate.sdk.endpoint.definition.ServiceDefinition;
-import dev.restate.sdk.endpoint.definition.ServiceType;
+import dev.restate.sdk.endpoint.definition.*;
 import dev.restate.serde.Serde;
 import java.util.List;
 import java.util.Objects;
@@ -34,47 +31,7 @@ final class EndpointManifest {
   private final List<Service> services;
 
   EndpointManifest(Stream<ServiceDefinition> components, boolean experimentalContextEnabled) {
-    this.services =
-        components
-            .map(
-                svc ->
-                    new Service()
-                        .withName(svc.getServiceName())
-                        .withTy(convertServiceType(svc.getServiceType()))
-                        .withDocumentation(svc.getDocumentation())
-                        .withIdempotencyRetention(
-                            svc.getIdempotencyRetention() != null
-                                ? svc.getIdempotencyRetention().toMillis()
-                                : null)
-                        .withJournalRetention(
-                            svc.getJournalRetention() != null
-                                ? svc.getJournalRetention().toMillis()
-                                : null)
-                        .withInactivityTimeout(
-                            svc.getInactivityTimeout() != null
-                                ? svc.getInactivityTimeout().toMillis()
-                                : null)
-                        .withAbortTimeout(
-                            svc.getAbortTimeout() != null ? svc.getAbortTimeout().toMillis() : null)
-                        .withEnableLazyState(svc.getEnableLazyState())
-                        .withIngressPrivate(svc.getIngressPrivate())
-                        .withMetadata(
-                            svc.getMetadata().entrySet().stream()
-                                .reduce(
-                                    new Metadata__1(),
-                                    (meta, entry) ->
-                                        meta.withAdditionalProperty(
-                                            entry.getKey(), entry.getValue()),
-                                    (m1, m2) -> {
-                                      m2.getAdditionalProperties()
-                                          .forEach(m1::setAdditionalProperty);
-                                      return m1;
-                                    }))
-                        .withHandlers(
-                            svc.getHandlers().stream()
-                                .map(EndpointManifest::convertHandler)
-                                .collect(Collectors.toList())))
-            .collect(Collectors.toList());
+    this.services = components.map(EndpointManifest::convertService).collect(Collectors.toList());
   }
 
   EndpointManifestSchema manifest(
@@ -102,6 +59,14 @@ final class EndpointManifest {
         verifyFieldNull("enable lazy state", service.getEnableLazyState());
         verifyFieldNull("ingress private", service.getIngressPrivate());
       }
+      if (version.getNumber() < Discovery.ServiceDiscoveryProtocolVersion.V4.getNumber()) {
+        verifyFieldNull("retry policy initial interval", service.getRetryPolicyInitialInterval());
+        verifyFieldNull("retry policy max interval", service.getRetryPolicyMaxInterval());
+        verifyFieldNull("retry policy max attempts", service.getRetryPolicyMaxAttempts());
+        verifyFieldNull("retry policy on max attempts", service.getRetryPolicyOnMaxAttempts());
+        verifyFieldNull(
+            "retry policy exponentiation factor", service.getRetryPolicyExponentiationFactor());
+      }
       for (var handler : service.getHandlers()) {
         if (version.getNumber() < Discovery.ServiceDiscoveryProtocolVersion.V2.getNumber()) {
           verifyFieldNotSet(
@@ -117,10 +82,77 @@ final class EndpointManifest {
           verifyFieldNull("enable lazy state", handler.getEnableLazyState());
           verifyFieldNull("ingress private", handler.getIngressPrivate());
         }
+        if (version.getNumber() < Discovery.ServiceDiscoveryProtocolVersion.V4.getNumber()) {
+          verifyFieldNull("retry policy initial interval", handler.getRetryPolicyInitialInterval());
+          verifyFieldNull("retry policy max interval", handler.getRetryPolicyMaxInterval());
+          verifyFieldNull("retry policy max attempts", handler.getRetryPolicyMaxAttempts());
+          verifyFieldNull("retry policy on max attempts", handler.getRetryPolicyOnMaxAttempts());
+          verifyFieldNull(
+              "retry policy exponentiation factor", handler.getRetryPolicyExponentiationFactor());
+        }
       }
     }
 
     return manifest;
+  }
+
+  private static Service convertService(ServiceDefinition svc) {
+    return new Service()
+        .withName(svc.getServiceName())
+        .withTy(convertServiceType(svc.getServiceType()))
+        .withDocumentation(svc.getDocumentation())
+        .withIdempotencyRetention(
+            svc.getIdempotencyRetention() != null ? svc.getIdempotencyRetention().toMillis() : null)
+        .withJournalRetention(
+            svc.getJournalRetention() != null ? svc.getJournalRetention().toMillis() : null)
+        .withInactivityTimeout(
+            svc.getInactivityTimeout() != null ? svc.getInactivityTimeout().toMillis() : null)
+        .withAbortTimeout(svc.getAbortTimeout() != null ? svc.getAbortTimeout().toMillis() : null)
+        .withEnableLazyState(svc.getEnableLazyState())
+        .withIngressPrivate(svc.getIngressPrivate())
+        .withRetryPolicyInitialInterval(
+            svc.getInvocationRetryPolicy() != null
+                    && svc.getInvocationRetryPolicy().initialInterval() != null
+                ? svc.getInvocationRetryPolicy().initialInterval().toMillis()
+                : null)
+        .withRetryPolicyMaxInterval(
+            svc.getInvocationRetryPolicy() != null
+                    && svc.getInvocationRetryPolicy().maxInterval() != null
+                ? svc.getInvocationRetryPolicy().maxInterval().toMillis()
+                : null)
+        .withRetryPolicyExponentiationFactor(
+            svc.getInvocationRetryPolicy() != null
+                    && svc.getInvocationRetryPolicy().exponentiationFactor() != null
+                ? svc.getInvocationRetryPolicy().exponentiationFactor()
+                : null)
+        .withRetryPolicyMaxAttempts(
+            svc.getInvocationRetryPolicy() != null
+                    && svc.getInvocationRetryPolicy().maxAttempts() != null
+                ? svc.getInvocationRetryPolicy().maxAttempts().longValue()
+                : null)
+        .withRetryPolicyOnMaxAttempts(
+            (svc.getInvocationRetryPolicy() == null)
+                ? null
+                : svc.getInvocationRetryPolicy().onMaxAttempts()
+                        == InvocationRetryPolicy.OnMaxAttempts.PAUSE
+                    ? Service.RetryPolicyOnMaxAttempts.PAUSE
+                    : svc.getInvocationRetryPolicy().onMaxAttempts()
+                            == InvocationRetryPolicy.OnMaxAttempts.KILL
+                        ? Service.RetryPolicyOnMaxAttempts.KILL
+                        : null)
+        .withMetadata(
+            svc.getMetadata().entrySet().stream()
+                .reduce(
+                    new Metadata__1(),
+                    (meta, entry) -> meta.withAdditionalProperty(entry.getKey(), entry.getValue()),
+                    (m1, m2) -> {
+                      m2.getAdditionalProperties().forEach(m1::setAdditionalProperty);
+                      return m1;
+                    }))
+        .withHandlers(
+            svc.getHandlers().stream()
+                .map(EndpointManifest::convertHandler)
+                .collect(Collectors.toList()));
   }
 
   private static Service.Ty convertServiceType(ServiceType serviceType) {
@@ -156,6 +188,36 @@ final class EndpointManifest {
             handler.getAbortTimeout() != null ? handler.getAbortTimeout().toMillis() : null)
         .withEnableLazyState(handler.getEnableLazyState())
         .withIngressPrivate(handler.getIngressPrivate())
+        .withRetryPolicyInitialInterval(
+            handler.getInvocationRetryPolicy() != null
+                    && handler.getInvocationRetryPolicy().initialInterval() != null
+                ? handler.getInvocationRetryPolicy().initialInterval().toMillis()
+                : null)
+        .withRetryPolicyMaxInterval(
+            handler.getInvocationRetryPolicy() != null
+                    && handler.getInvocationRetryPolicy().maxInterval() != null
+                ? handler.getInvocationRetryPolicy().maxInterval().toMillis()
+                : null)
+        .withRetryPolicyExponentiationFactor(
+            handler.getInvocationRetryPolicy() != null
+                    && handler.getInvocationRetryPolicy().exponentiationFactor() != null
+                ? handler.getInvocationRetryPolicy().exponentiationFactor()
+                : null)
+        .withRetryPolicyMaxAttempts(
+            handler.getInvocationRetryPolicy() != null
+                    && handler.getInvocationRetryPolicy().maxAttempts() != null
+                ? handler.getInvocationRetryPolicy().maxAttempts().longValue()
+                : null)
+        .withRetryPolicyOnMaxAttempts(
+            (handler.getInvocationRetryPolicy() == null)
+                ? null
+                : handler.getInvocationRetryPolicy().onMaxAttempts()
+                        == InvocationRetryPolicy.OnMaxAttempts.PAUSE
+                    ? Handler.RetryPolicyOnMaxAttempts.PAUSE
+                    : handler.getInvocationRetryPolicy().onMaxAttempts()
+                            == InvocationRetryPolicy.OnMaxAttempts.KILL
+                        ? Handler.RetryPolicyOnMaxAttempts.KILL
+                        : null)
         .withMetadata(
             handler.getMetadata().entrySet().stream()
                 .reduce(

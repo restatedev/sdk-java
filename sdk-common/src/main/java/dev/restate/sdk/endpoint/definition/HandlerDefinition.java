@@ -35,6 +35,7 @@ public final class HandlerDefinition<REQ, RES> {
   private final @Nullable Duration journalRetention;
   private final @Nullable Boolean ingressPrivate;
   private final @Nullable Boolean enableLazyState;
+  private final @Nullable InvocationRetryPolicy invocationRetryPolicy;
 
   HandlerDefinition(
       String name,
@@ -51,7 +52,8 @@ public final class HandlerDefinition<REQ, RES> {
       @Nullable Duration workflowRetention,
       @Nullable Duration journalRetention,
       @Nullable Boolean ingressPrivate,
-      @Nullable Boolean enableLazyState) {
+      @Nullable Boolean enableLazyState,
+      @Nullable InvocationRetryPolicy invocationRetryPolicy) {
     this.name = name;
     this.handlerType = handlerType;
     this.acceptContentType = acceptContentType;
@@ -67,6 +69,7 @@ public final class HandlerDefinition<REQ, RES> {
     this.journalRetention = journalRetention;
     this.ingressPrivate = ingressPrivate;
     this.enableLazyState = enableLazyState;
+    this.invocationRetryPolicy = invocationRetryPolicy;
   }
 
   /**
@@ -181,6 +184,14 @@ public final class HandlerDefinition<REQ, RES> {
     return enableLazyState;
   }
 
+  /**
+   * @return Retry policy for all requests to this handler
+   * @see Configurator#invocationRetryPolicy(InvocationRetryPolicy)
+   */
+  public @Nullable InvocationRetryPolicy getInvocationRetryPolicy() {
+    return invocationRetryPolicy;
+  }
+
   public HandlerDefinition<REQ, RES> withAcceptContentType(String acceptContentType) {
     return new HandlerDefinition<>(
         name,
@@ -197,7 +208,8 @@ public final class HandlerDefinition<REQ, RES> {
         workflowRetention,
         journalRetention,
         ingressPrivate,
-        enableLazyState);
+        enableLazyState,
+        invocationRetryPolicy);
   }
 
   public HandlerDefinition<REQ, RES> withDocumentation(@Nullable String documentation) {
@@ -216,7 +228,8 @@ public final class HandlerDefinition<REQ, RES> {
         journalRetention,
         workflowRetention,
         ingressPrivate,
-        enableLazyState);
+        enableLazyState,
+        invocationRetryPolicy);
   }
 
   public HandlerDefinition<REQ, RES> withMetadata(Map<String, String> metadata) {
@@ -235,7 +248,8 @@ public final class HandlerDefinition<REQ, RES> {
         workflowRetention,
         journalRetention,
         ingressPrivate,
-        enableLazyState);
+        enableLazyState,
+        invocationRetryPolicy);
   }
 
   /**
@@ -255,7 +269,8 @@ public final class HandlerDefinition<REQ, RES> {
             workflowRetention,
             journalRetention,
             ingressPrivate,
-            enableLazyState);
+            enableLazyState,
+            invocationRetryPolicy);
     configurator.accept(configuratorObj);
 
     return new HandlerDefinition<>(
@@ -273,7 +288,8 @@ public final class HandlerDefinition<REQ, RES> {
         configuratorObj.workflowRetention,
         configuratorObj.journalRetention,
         configuratorObj.ingressPrivate,
-        configuratorObj.enableLazyState);
+        configuratorObj.enableLazyState,
+        configuratorObj.invocationRetryPolicy);
   }
 
   /** Configurator for a {@link HandlerDefinition}. */
@@ -290,6 +306,7 @@ public final class HandlerDefinition<REQ, RES> {
     private @Nullable Duration journalRetention;
     private @Nullable Boolean ingressPrivate;
     private @Nullable Boolean enableLazyState;
+    private @Nullable InvocationRetryPolicy invocationRetryPolicy;
 
     private Configurator(
         HandlerType handlerType,
@@ -302,7 +319,8 @@ public final class HandlerDefinition<REQ, RES> {
         @Nullable Duration workflowRetention,
         @Nullable Duration journalRetention,
         @Nullable Boolean ingressPrivate,
-        @Nullable Boolean enableLazyState) {
+        @Nullable Boolean enableLazyState,
+        @Nullable InvocationRetryPolicy invocationRetryPolicy) {
       this.handlerType = handlerType;
       this.acceptContentType = acceptContentType;
       this.documentation = documentation;
@@ -314,6 +332,7 @@ public final class HandlerDefinition<REQ, RES> {
       this.journalRetention = journalRetention;
       this.ingressPrivate = ingressPrivate;
       this.enableLazyState = enableLazyState;
+      this.invocationRetryPolicy = invocationRetryPolicy;
     }
 
     /**
@@ -555,6 +574,37 @@ public final class HandlerDefinition<REQ, RES> {
       this.enableLazyState = enableLazyState;
       return this;
     }
+
+    /**
+     * @return configured invocation retry policy
+     * @see #invocationRetryPolicy(InvocationRetryPolicy)
+     */
+    public @Nullable InvocationRetryPolicy invocationRetryPolicy() {
+      return invocationRetryPolicy;
+    }
+
+    /**
+     * Retry policy used by Restate when invoking this handler.
+     *
+     * <p><b>NOTE:</b> You can set this field only if you register this service against
+     * restate-server >= 1.5, otherwise the service discovery will fail.
+     *
+     * @see InvocationRetryPolicy
+     * @return this
+     */
+    public Configurator invocationRetryPolicy(
+        @Nullable InvocationRetryPolicy invocationRetryPolicy) {
+      this.invocationRetryPolicy = invocationRetryPolicy;
+      return this;
+    }
+
+    /**
+     * @see #invocationRetryPolicy(InvocationRetryPolicy)
+     */
+    public Configurator invocationRetryPolicy(InvocationRetryPolicy.Builder invocationRetryPolicy) {
+      this.invocationRetryPolicy = invocationRetryPolicy.build();
+      return this;
+    }
   }
 
   public static <REQ, RES> HandlerDefinition<REQ, RES> of(
@@ -572,6 +622,7 @@ public final class HandlerDefinition<REQ, RES> {
         null,
         Collections.emptyMap(),
         runner,
+        null,
         null,
         null,
         null,
@@ -598,7 +649,8 @@ public final class HandlerDefinition<REQ, RES> {
         && Objects.equals(getWorkflowRetention(), that.getWorkflowRetention())
         && Objects.equals(getJournalRetention(), that.getJournalRetention())
         && Objects.equals(getIngressPrivate(), that.getIngressPrivate())
-        && Objects.equals(getEnableLazyState(), that.getEnableLazyState());
+        && Objects.equals(getEnableLazyState(), that.getEnableLazyState())
+        && Objects.equals(getInvocationRetryPolicy(), that.getInvocationRetryPolicy());
   }
 
   @Override
@@ -618,6 +670,7 @@ public final class HandlerDefinition<REQ, RES> {
         getWorkflowRetention(),
         getJournalRetention(),
         getIngressPrivate(),
-        getEnableLazyState());
+        getEnableLazyState(),
+        getInvocationRetryPolicy());
   }
 }
