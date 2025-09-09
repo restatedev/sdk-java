@@ -13,15 +13,17 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
 final class InvocationIdImpl implements InvocationId {
 
   private final String id;
   private Long seed;
 
-  InvocationIdImpl(String debugId) {
+  InvocationIdImpl(String debugId, @Nullable Long seed) {
     this.id = debugId;
-    this.seed = null;
+    // If random seed null, it will be computed
+    this.seed = seed;
   }
 
   @Override

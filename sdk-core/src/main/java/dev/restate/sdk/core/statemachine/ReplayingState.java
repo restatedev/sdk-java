@@ -101,7 +101,8 @@ final class ReplayingState implements State {
 
     //noinspection unchecked
     return new StateMachine.Input(
-        new InvocationIdImpl(stateContext.getStartInfo().debugId()),
+        new InvocationIdImpl(
+            stateContext.getStartInfo().debugId(), stateContext.getStartInfo().randomSeed()),
         byteStringToSlice(inputCommandMessage.getValue().getContent()),
         Map.ofEntries(
             inputCommandMessage.getHeadersList().stream()

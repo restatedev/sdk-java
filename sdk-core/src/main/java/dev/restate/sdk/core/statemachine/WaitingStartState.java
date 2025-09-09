@@ -41,7 +41,12 @@ final class WaitingStartState implements State {
             startMessage.getKey(),
             startMessage.getKnownEntries(),
             startMessage.getRetryCountSinceLastStoredEntry(),
-            Duration.ofMillis(startMessage.getDurationSinceLastStoredEntry())));
+            Duration.ofMillis(startMessage.getDurationSinceLastStoredEntry()),
+            // Random seed from start message will be set only if protocol >= 6
+            stateContext.getNegotiatedProtocolVersion().getNumber()
+                    >= Protocol.ServiceProtocolVersion.V6_VALUE
+                ? startMessage.getRandomSeed()
+                : null));
     stateContext.setEagerState(new EagerState(startMessage));
 
     // Tracing and logging setup

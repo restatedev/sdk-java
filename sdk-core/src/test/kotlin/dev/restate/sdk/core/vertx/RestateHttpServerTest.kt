@@ -102,8 +102,8 @@ internal class RestateHttpServerTest {
         // Prepare request header
         request
             .setChunked(true)
-            .putHeader(HttpHeaders.CONTENT_TYPE, serviceProtocolContentTypeHeader())
-            .putHeader(HttpHeaders.ACCEPT, serviceProtocolContentTypeHeader())
+            .putHeader(HttpHeaders.CONTENT_TYPE, serviceProtocolContentTypeHeader(false))
+            .putHeader(HttpHeaders.ACCEPT, serviceProtocolContentTypeHeader(false))
         request.write(encode(startMessage(0).build()))
 
         val response = request.response().coAwait()

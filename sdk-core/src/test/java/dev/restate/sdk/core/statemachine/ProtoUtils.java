@@ -29,17 +29,14 @@ import org.jspecify.annotations.Nullable;
 public class ProtoUtils {
 
   public static long invocationIdToRandomSeed(String invocationId) {
-    return new InvocationIdImpl(invocationId).toRandomSeed();
-  }
-
-  public static String serviceProtocolContentTypeHeader() {
-    return ServiceProtocol.serviceProtocolVersionToHeaderValue(
-        ServiceProtocol.MIN_SERVICE_PROTOCOL_VERSION);
+    return new InvocationIdImpl(invocationId, null).toRandomSeed();
   }
 
   public static String serviceProtocolContentTypeHeader(boolean enableContextPreview) {
     return ServiceProtocol.serviceProtocolVersionToHeaderValue(
-        ServiceProtocol.MAX_SERVICE_PROTOCOL_VERSION);
+        enableContextPreview
+            ? ServiceProtocol.MAX_SERVICE_PROTOCOL_VERSION
+            : ServiceProtocol.MIN_SERVICE_PROTOCOL_VERSION);
   }
 
   public static String serviceProtocolDiscoveryContentTypeHeader() {
