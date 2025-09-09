@@ -17,4 +17,5 @@ record StartInfo(
     String objectKey,
     int entriesToReplay,
     int retryCountSinceLastStoredEntry,
-    Duration durationSinceLastStoredEntry) {}
+    Duration durationSinceLastStoredEntry,
+    Long randomSeed) {}

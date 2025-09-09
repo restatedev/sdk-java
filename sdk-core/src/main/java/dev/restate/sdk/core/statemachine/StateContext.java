@@ -10,11 +10,13 @@ package dev.restate.sdk.core.statemachine;
 
 import com.google.protobuf.MessageLite;
 import dev.restate.sdk.core.EndpointRequestHandler;
+import dev.restate.sdk.core.generated.protocol.Protocol;
 import java.util.Objects;
 import java.util.concurrent.Flow;
 
 final class StateContext {
 
+  private final Protocol.ServiceProtocolVersion negotiatedProtocolVersion;
   private final StateHolder stateHolder;
   private final Journal journal;
   private EagerState eagerState;
@@ -22,10 +24,17 @@ final class StateContext {
   private boolean inputClosed;
   private Flow.Subscriber<MessageLite> outputSubscriber;
 
-  StateContext(EndpointRequestHandler.LoggingContextSetter loggingContextSetter) {
+  StateContext(
+      EndpointRequestHandler.LoggingContextSetter loggingContextSetter,
+      Protocol.ServiceProtocolVersion negotiatedProtocolVersion) {
     this.stateHolder = new StateHolder(loggingContextSetter);
+    this.negotiatedProtocolVersion = negotiatedProtocolVersion;
     this.journal = new Journal();
     this.inputClosed = false;
+  }
+
+  public Protocol.ServiceProtocolVersion getNegotiatedProtocolVersion() {
+    return negotiatedProtocolVersion;
   }
 
   public State getCurrentState() {

@@ -36,8 +36,6 @@ class StateMachineImpl implements StateMachine {
   private static final String AWAKEABLE_IDENTIFIER_PREFIX = "sign_1";
   private static final int CANCEL_SIGNAL_ID = 1;
 
-  private final Protocol.ServiceProtocolVersion serviceProtocolVersion;
-
   // Callbacks
   private final CompletableFuture<Void> waitForReadyFuture = new CompletableFuture<>();
   private CompletableFuture<Void> waitNextProcessedInput;
@@ -54,9 +52,8 @@ class StateMachineImpl implements StateMachine {
       EndpointRequestHandler.LoggingContextSetter loggingContextSetter) {
     String contentTypeHeader = headersAccessor.get(ServiceProtocol.CONTENT_TYPE);
 
-    this.serviceProtocolVersion = ServiceProtocol.parseServiceProtocolVersion(contentTypeHeader);
-
-    if (!ServiceProtocol.isSupported(this.serviceProtocolVersion)) {
+    var serviceProtocolVersion = ServiceProtocol.parseServiceProtocolVersion(contentTypeHeader);
+    if (!ServiceProtocol.isSupported(serviceProtocolVersion)) {
       throw new ProtocolException(
           String.format(
               "Service endpoint does not support the service protocol version '%s'.",
@@ -64,7 +61,7 @@ class StateMachineImpl implements StateMachine {
           ProtocolException.UNSUPPORTED_MEDIA_TYPE_CODE);
     }
 
-    this.stateContext = new StateContext(loggingContextSetter);
+    this.stateContext = new StateContext(loggingContextSetter, serviceProtocolVersion);
   }
 
   // -- Few callbacks
@@ -176,7 +173,8 @@ class StateMachineImpl implements StateMachine {
 
   @Override
   public String getResponseContentType() {
-    return ServiceProtocol.serviceProtocolVersionToHeaderValue(serviceProtocolVersion);
+    return ServiceProtocol.serviceProtocolVersionToHeaderValue(
+        stateContext.getNegotiatedProtocolVersion());
   }
 
   @Override

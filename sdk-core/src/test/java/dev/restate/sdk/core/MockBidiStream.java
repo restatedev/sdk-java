@@ -60,7 +60,10 @@ public final class MockBidiStream implements TestDefinitions.TestExecutor {
         server.processorForRequest(
             "/" + serviceDefinition.getServiceName() + "/" + definition.getMethod(),
             HeadersAccessor.wrap(
-                Map.of("content-type", ProtoUtils.serviceProtocolContentTypeHeader())),
+                Map.of(
+                    "content-type",
+                    ProtoUtils.serviceProtocolContentTypeHeader(
+                        definition.isEnablePreviewContext()))),
             EndpointRequestHandler.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
             coreExecutor,
             true);

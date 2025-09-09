@@ -58,7 +58,10 @@ public final class MockRequestResponse implements TestExecutor {
         server.processorForRequest(
             "/" + serviceDefinition.getServiceName() + "/" + definition.getMethod(),
             HeadersAccessor.wrap(
-                Map.of("content-type", ProtoUtils.serviceProtocolContentTypeHeader())),
+                Map.of(
+                    "content-type",
+                    ProtoUtils.serviceProtocolContentTypeHeader(
+                        definition.isEnablePreviewContext()))),
             EndpointRequestHandler.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
             syscallsExecutor,
             false);

@@ -43,7 +43,7 @@ class LambdaHandlerTest {
 
     // Mock request
     APIGatewayProxyRequestEvent request = new APIGatewayProxyRequestEvent();
-    request.setHeaders(Map.of("content-type", ProtoUtils.serviceProtocolContentTypeHeader()));
+    request.setHeaders(Map.of("content-type", ProtoUtils.serviceProtocolContentTypeHeader(false)));
     request.setPath(
         "/a/path/prefix/invoke/" + JavaCounterServiceHandlers.Metadata.SERVICE_NAME + "/get");
     request.setHttpMethod("POST");
@@ -66,7 +66,7 @@ class LambdaHandlerTest {
     // Assert response
     assertThat(response.getStatusCode()).isEqualTo(200);
     assertThat(response.getHeaders())
-        .containsEntry("content-type", ProtoUtils.serviceProtocolContentTypeHeader());
+        .containsEntry("content-type", ProtoUtils.serviceProtocolContentTypeHeader(false));
     assertThat(response.getIsBase64Encoded()).isTrue();
     assertThat(response.getBody())
         .asBase64Decoded()
