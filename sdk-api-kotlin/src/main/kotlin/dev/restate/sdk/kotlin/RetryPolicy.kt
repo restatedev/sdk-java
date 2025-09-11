@@ -20,7 +20,7 @@ data class RetryPolicy(
     /** Maximum delay between retries. */
     val maxDelay: Duration? = null,
     /**
-     * Maximum number of attempts before giving up retrying.
+     * Maximum number of attempts, including the initial, before giving up retrying.
      *
      * The policy gives up retrying when either at least the given number of attempts is reached, or
      * the [maxDuration] (if set) is reached first. If both [maxAttempts] and [maxDuration] are

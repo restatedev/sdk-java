@@ -45,7 +45,7 @@ public final class RetryPolicy {
   }
 
   /**
-   * Maximum number of attempts before giving up retrying.
+   * Maximum number of attempts, including the initial, before giving up retrying.
    *
    * <p>The policy gives up retrying when either at least the given number of attempts is reached,
    * or the {@code maxDuration} specified with {@link #setMaxDuration(Duration)} (if set) is reached
