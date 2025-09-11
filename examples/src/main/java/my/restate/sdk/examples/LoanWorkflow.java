@@ -121,7 +121,11 @@ public class LoanWorkflow {
   }
 
   public static void main(String[] args) {
-    Endpoint endpoint = Endpoint.builder().bind(new LoanWorkflow()).bind(new MockBank()).build();
+    Endpoint endpoint =
+        Endpoint.builder()
+            .bind(new LoanWorkflow(), c -> c.workflowRetention(Duration.ofDays(10)))
+            .bind(new MockBank())
+            .build();
 
     RestateHttpServer.listen(endpoint);
 
