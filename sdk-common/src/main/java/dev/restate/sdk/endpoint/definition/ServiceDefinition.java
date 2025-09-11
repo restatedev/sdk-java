@@ -363,6 +363,43 @@ public final class ServiceDefinition {
     }
 
     /**
+     * @return configured workflow retention.
+     * @see #workflowRetention(Duration)
+     */
+    public @Nullable Duration workflowRetention() {
+      return handlers.values().stream()
+          .filter(h -> h.getHandlerType() == HandlerType.WORKFLOW)
+          .findFirst()
+          .orElseThrow(
+              () ->
+                  new IllegalArgumentException(
+                      "Workflow retention cannot be set for non-workflow services"))
+          .getWorkflowRetention();
+    }
+
+    /**
+     * The retention duration of idempotent requests to this workflow service. This applies only to
+     * workflow services.
+     *
+     * <p><b>NOTE:</b> You can set this field only if you register this service against
+     * restate-server >= 1.4, otherwise the service discovery will fail.
+     *
+     * @return this
+     */
+    public Configurator workflowRetention(@Nullable Duration workflowRetention) {
+      String workflowHandlerName =
+          handlers.entrySet().stream()
+              .filter(e -> e.getValue().getHandlerType() == HandlerType.WORKFLOW)
+              .findFirst()
+              .orElseThrow(
+                  () ->
+                      new IllegalArgumentException(
+                          "Workflow retention cannot be set for non-workflow services"))
+              .getKey();
+      return configureHandler(workflowHandlerName, ch -> ch.workflowRetention(workflowRetention));
+    }
+
+    /**
      * @return configured idempotency retention.
      * @see #idempotencyRetention(Duration)
      */

@@ -89,6 +89,20 @@ var ServiceDefinition.Configurator.abortTimeout: Duration?
   }
 
 /**
+ * The retention duration for this workflow. This applies only to workflow services.
+ *
+ * *NOTE:* You can set this field only if you register this service against restate-server >= 1.4,
+ * otherwise the service discovery will fail.
+ */
+var ServiceDefinition.Configurator.workflowRetention: Duration?
+  get() {
+    return this.workflowRetention()?.toKotlinDuration()
+  }
+  set(value) {
+    this.workflowRetention(value?.toJavaDuration())
+  }
+
+/**
  * The retention duration of idempotent requests to this service.
  *
  * *NOTE:* You can set this field only if you register this service against restate-server >= 1.4,
