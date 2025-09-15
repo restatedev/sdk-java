@@ -224,7 +224,7 @@
   kotlinx-coroutines = '1.10.2'
   kotlinx-serialization = '1.9.0'
   ksp = '2.2.10-2.0.2'
-  log4j = '2.24.3'
+  log4j = '2.25.1'
   opentelemetry = '1.47.0'
   protobuf = '4.29.3'
   restate = '2.4.0-SNAPSHOT'
