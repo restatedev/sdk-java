@@ -23,4 +23,10 @@ import org.springframework.stereotype.Component;
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 @Component
-public @interface RestateComponent {}
+public @interface RestateComponent {
+  /**
+   * Bean name to use to configure this component. The bean MUST be an instance of {@link
+   * RestateServiceConfigurator}.
+   */
+  String configuration() default "";
+}

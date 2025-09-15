@@ -62,8 +62,17 @@ public class RestateHttpEndpointBean implements InitializingBean, SmartLifecycle
     }
 
     var builder = Endpoint.builder();
-    for (Object component : restateComponents.values()) {
-      builder = builder.bind(component);
+    for (var componentEntry : restateComponents.entrySet()) {
+      // Get configurator, if any
+      RestateComponent restateComponent =
+          applicationContext.findAnnotationOnBean(componentEntry.getKey(), RestateComponent.class);
+      RestateServiceConfigurator configurator = c -> {};
+      if (restateComponent != null && !restateComponent.configuration().isEmpty()) {
+        configurator =
+            applicationContext.getBean(
+                restateComponent.configuration(), RestateServiceConfigurator.class);
+      }
+      builder = builder.bind(componentEntry.getValue(), configurator);
     }
 
     if (restateEndpointProperties.isEnablePreviewContext()) {

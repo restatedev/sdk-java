@@ -13,6 +13,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import org.springframework.core.annotation.AliasFor;
 
 /**
  * Proxy annotation for {@link Service}, to avoid naming clashes with Spring's built in annotations
@@ -23,4 +24,12 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Service
 @RestateComponent
-public @interface RestateService {}
+public @interface RestateService {
+
+  /**
+   * Bean name to use to configure this service. The bean MUST be an instance of {@link
+   * RestateServiceConfigurator}.
+   */
+  @AliasFor(annotation = RestateComponent.class, attribute = "configuration")
+  String configuration() default "";
+}

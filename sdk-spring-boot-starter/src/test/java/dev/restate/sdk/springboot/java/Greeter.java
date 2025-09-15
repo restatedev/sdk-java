@@ -14,7 +14,7 @@ import dev.restate.sdk.annotation.Name;
 import dev.restate.sdk.springboot.RestateService;
 import org.springframework.beans.factory.annotation.Value;
 
-@RestateService
+@RestateService(configuration = "greeterConfiguration")
 @Name("greeter")
 public class Greeter {
 
