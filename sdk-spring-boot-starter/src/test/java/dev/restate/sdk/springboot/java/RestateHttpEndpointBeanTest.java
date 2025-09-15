@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.springboot.java;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.restate.sdk.core.generated.manifest.EndpointManifestSchema;
@@ -23,7 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest(
-    classes = {RestateHttpEndpointBean.class, Greeter.class},
+    classes = {RestateHttpEndpointBean.class, Greeter.class, Configuration.class},
     properties = {"restate.sdk.http.port=0"})
 public class RestateHttpEndpointBeanTest {
 
@@ -44,7 +44,7 @@ public class RestateHttpEndpointBeanTest {
                 .uri(
                     URI.create(
                         "http://localhost:" + restateHttpEndpointBean.actualPort() + "/discover"))
-                .header("Accept", "application/vnd.restate.endpointmanifest.v1+json")
+                .header("Accept", "application/vnd.restate.endpointmanifest.v4+json")
                 .build(),
             HttpResponse.BodyHandlers.ofString());
     assertThat(response.version()).isEqualTo(HttpClient.Version.HTTP_2);
@@ -54,7 +54,9 @@ public class RestateHttpEndpointBeanTest {
         new ObjectMapper().readValue(response.body(), EndpointManifestSchema.class);
 
     assertThat(endpointManifest.getServices())
-        .map(dev.restate.sdk.core.generated.manifest.Service::getName)
-        .containsOnly("greeter");
+        .extracting(
+            dev.restate.sdk.core.generated.manifest.Service::getName,
+            dev.restate.sdk.core.generated.manifest.Service::getDocumentation)
+        .containsOnly(tuple("greeter", "blabla"));
   }
 }

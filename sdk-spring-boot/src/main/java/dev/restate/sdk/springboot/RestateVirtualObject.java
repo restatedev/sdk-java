@@ -14,6 +14,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import org.springframework.core.annotation.AliasFor;
 
 /**
  * Proxy annotation for {@link VirtualObject}.
@@ -24,4 +25,12 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @VirtualObject
 @RestateComponent
-public @interface RestateVirtualObject {}
+public @interface RestateVirtualObject {
+
+  /**
+   * Bean name to use to configure this virtual object. The bean MUST be an instance of {@link
+   * RestateServiceConfigurator}.
+   */
+  @AliasFor(annotation = RestateComponent.class, attribute = "configuration")
+  String configuration() default "";
+}

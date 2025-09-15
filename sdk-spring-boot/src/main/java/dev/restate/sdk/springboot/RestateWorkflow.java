@@ -14,6 +14,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import org.springframework.core.annotation.AliasFor;
 
 /**
  * Proxy annotation for {@link Workflow}.
@@ -24,4 +25,12 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Workflow
 @RestateComponent
-public @interface RestateWorkflow {}
+public @interface RestateWorkflow {
+
+  /**
+   * Bean name to use to configure this workflow. The bean MUST be an instance of {@link
+   * RestateServiceConfigurator}.
+   */
+  @AliasFor(annotation = RestateComponent.class, attribute = "configuration")
+  String configuration() default "";
+}
