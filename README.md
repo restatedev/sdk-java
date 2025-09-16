@@ -45,12 +45,12 @@ gradle init --type java-application
 Add the annotation processor dependency [sdk-api-gen](sdk-api-gen), and then, depending on whether you want to deploy using HTTP or Lambda, use the appropriate dependency:
 
 ```kotlin
-annotationProcessor("dev.restate:sdk-api-gen:2.3.0")
+annotationProcessor("dev.restate:sdk-api-gen:2.4.0")
 
 // For HTTP services
-implementation("dev.restate:sdk-java-http:2.3.0")
+implementation("dev.restate:sdk-java-http:2.4.0")
 // For Lambda services
-// implementation("dev.restate:sdk-java-lambda:2.3.0")
+// implementation("dev.restate:sdk-java-lambda:2.4.0")
 ```
 
 ### Setup a project (Kotlin)
@@ -72,12 +72,12 @@ plugins {
 Add the ksp dependency [sdk-api-gen](sdk-api-kotlin-gen), and then, depending on whether you want to deploy using HTTP or Lambda, use the appropriate dependency:
 
 ```kotlin
-ksp("dev.restate:sdk-api-kotlin-gen:2.3.0")
+ksp("dev.restate:sdk-api-kotlin-gen:2.4.0")
 
 // For HTTP services
-implementation("dev.restate:sdk-kotlin-http:2.3.0")
+implementation("dev.restate:sdk-kotlin-http:2.4.0")
 // For Lambda services
-// implementation("dev.restate:sdk-kotlin-lambda:2.3.0")
+// implementation("dev.restate:sdk-kotlin-lambda:2.4.0")
 ```
 
 ### Implement your first Restate component (Java)
@@ -287,15 +287,18 @@ This library follows [Semantic Versioning](https://semver.org/).
 
 The compatibility with Restate is described in the following table:
 
-| Restate Server\sdk-java | 1.0 - 1.1 | 1.2 | 2.0 - 2.1 | 2.2 - 2.3        |
-|-------------------------|-----------|-----|-----------|------------------|
-| 1.0                     | ✅         | ❌   | ❌         | ❌                |
-| 1.1                     | ✅         | ✅   | ❌         | ❌                |
-| 1.2                     | ✅         | ✅   | ❌         | ❌                |
-| 1.3                     | ✅         | ✅   | ✅         | ✅ <sup>(1)</sup> |
-| 1.4                     | ✅         | ✅   | ✅         | ✅                |
+| Restate Server\sdk-java | < 2.0            | 2.0 - 2.1 | 2.2 - 2.3        | 2.4              |
+|-------------------------|------------------|-----------|------------------|------------------|
+| < 1.3                   | ✅                | ❌         | ❌                | ❌                |
+| 1.3                     | ✅                | ✅         | ✅ <sup>(1)</sup> | ✅ <sup>(2)</sup> |
+| 1.4                     | ✅                | ✅         | ✅                | ✅ <sup>(2)</sup> |
+| 1.5                     | ⚠ <sup>(3)</sup> | ✅         | ✅                | ✅                |
 
 <sup>(1)</sup> **Note** The new service/handler configuration options `inactivityTimeout`, `abortTimeout`, `idempotencyRetention`, `journalRetention`, `ingressPrivate`, `enableLazyState` work only from Restate 1.4 onward.
+
+<sup>(2)</sup> **Note** The new service/handler configuration option `invocationRetryPolicy` works only from Restate 1.5 onward.
+
+<sup>(3)</sup> **Warning** SDK versions < 2.0 are deprecated, and cannot be registered anymore. Check the [Restate 1.5 release notes](https://github.com/restatedev/restate/releases/tag/v1.5.0) for more info.
 
 ## Contributing
 
