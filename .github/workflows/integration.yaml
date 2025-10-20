@@ -20,6 +20,11 @@ on:
         required: false
         default: 'ghcr.io/restatedev/restate:main'
         type: string
+      serviceImage:
+        description: "service image, if provided it will skip building the image from sdk main branch"
+        required: false
+        default: ""
+        type: string
   workflow_call:
     inputs:
       restateCommit:
@@ -40,6 +45,11 @@ on:
         required: false
         type: string
         description: name of the test artifact output
+      serviceImage:
+        description: "service image, if provided it will skip building the image from sdk main branch"
+        required: false
+        default: ""
+        type: string
 
 jobs:
   sdk-test-suite:
@@ -95,16 +105,25 @@ jobs:
           docker image ls -a
 
       - name: Setup Java
+        if: ${{ inputs.serviceImage == '' }}
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
 
       - name: Setup Gradle
+        if: ${{ inputs.serviceImage == '' }}
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build restatedev/test-services-java image
+        if: ${{ inputs.serviceImage == '' }}
         run: ./gradlew -Djib.console=plain :test-services:jibDockerBuild
+
+      # Pre-emptively pull the test-services image to avoid affecting execution time
+      - name: Pull test services image
+        if: ${{ inputs.serviceImage != '' }}
+        shell: bash
+        run: docker pull ${{ inputs.serviceImage }}
 
       - name: Run test tool
         uses: restatedev/sdk-test-suite@v3.2
@@ -112,4 +131,4 @@ jobs:
           envVars: ${{ inputs.envVars }}
           testArtifactOutput: ${{ inputs.testArtifactOutput != '' && inputs.testArtifactOutput || 'sdk-java-integration-test-report' }}
           restateContainerImage: ${{ inputs.restateCommit != '' && 'localhost/restatedev/restate-commit-download:latest' || (inputs.restateImage != '' && inputs.restateImage || 'ghcr.io/restatedev/restate:main') }}
-          serviceContainerImage: 'restatedev/test-services-java'
+          serviceContainerImage: ${{ inputs.serviceImage != '' && inputs.serviceImage || 'restatedev/test-services-java' }}
