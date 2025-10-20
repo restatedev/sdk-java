@@ -8,6 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.springboot;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.ConstructorBinding;
 import org.springframework.boot.context.properties.bind.DefaultValue;
@@ -16,21 +17,35 @@ import org.springframework.boot.context.properties.bind.Name;
 @ConfigurationProperties(prefix = "restate.sdk.http")
 public class RestateHttpServerProperties {
 
-  private final int port;
+  private final @Nullable Integer port;
+  private final String path;
   private final boolean disableBidirectionalStreaming;
 
   @ConstructorBinding
   public RestateHttpServerProperties(
-      @Name("port") @DefaultValue(value = "9080") int port,
+      @Name("port") @Nullable Integer port,
+      @Name("path") @DefaultValue(value = "/restate") String path,
       @Name("disableBidirectionalStreaming") @DefaultValue(value = "false")
           boolean disableBidirectionalStreaming) {
     this.port = port;
+    this.path = path;
     this.disableBidirectionalStreaming = disableBidirectionalStreaming;
   }
 
-  /** Port to expose the HTTP server. */
-  public int getPort() {
+  /**
+   * Port to expose a separate HTTP server for the Restate endpoint. If not configured, the
+   * endpoint will be integrated with Spring Boot's embedded server.
+   */
+  public @Nullable Integer getPort() {
     return port;
+  }
+
+  /**
+   * Path to mount the Restate endpoint when using Spring Boot's embedded server. Only used when
+   * port is not configured. Default is "/restate".
+   */
+  public String getPath() {
+    return path;
   }
 
   /**

@@ -17,24 +17,28 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.SmartLifecycle;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 
 /**
  * Restate HTTP Endpoint serving {@link RestateComponent}.
  *
- * @see Component
+ * @see RestateComponent
  */
 @Component
+@ConditionalOnProperty(prefix = "restate.sdk.http", name = "port")
+@ConditionalOnClass(RestateHttpServer.class)
 @EnableConfigurationProperties({RestateHttpServerProperties.class, RestateEndpointProperties.class})
 public class RestateHttpEndpointBean implements InitializingBean, SmartLifecycle {
 
   private final Logger logger = LoggerFactory.getLogger(getClass());
 
-  private final ApplicationContext applicationContext;
-  private final RestateEndpointProperties restateEndpointProperties;
+  private final Endpoint endpoint;
   private final RestateHttpServerProperties restateHttpServerProperties;
 
   private volatile boolean running;
@@ -42,52 +46,18 @@ public class RestateHttpEndpointBean implements InitializingBean, SmartLifecycle
   private HttpServer server;
 
   public RestateHttpEndpointBean(
-      ApplicationContext applicationContext,
-      RestateEndpointProperties restateEndpointProperties,
+      @Nullable Endpoint endpoint,
       RestateHttpServerProperties restateHttpServerProperties) {
-    this.applicationContext = applicationContext;
-    this.restateEndpointProperties = restateEndpointProperties;
+    this.endpoint = endpoint;
     this.restateHttpServerProperties = restateHttpServerProperties;
   }
 
   @Override
   public void afterPropertiesSet() {
-    Map<String, Object> restateComponents =
-        applicationContext.getBeansWithAnnotation(RestateComponent.class);
-
-    if (restateComponents.isEmpty()) {
-      logger.info("No @RestateComponent discovered");
-      // Don't start anything, if no service is registered
-      return;
-    }
-
-    var builder = Endpoint.builder();
-    for (var componentEntry : restateComponents.entrySet()) {
-      // Get configurator, if any
-      RestateComponent restateComponent =
-          applicationContext.findAnnotationOnBean(componentEntry.getKey(), RestateComponent.class);
-      RestateServiceConfigurator configurator = c -> {};
-      if (restateComponent != null && !restateComponent.configuration().isEmpty()) {
-        configurator =
-            applicationContext.getBean(
-                restateComponent.configuration(), RestateServiceConfigurator.class);
-      }
-      builder = builder.bind(componentEntry.getValue(), configurator);
-    }
-
-    if (restateEndpointProperties.isEnablePreviewContext()) {
-      builder = builder.enablePreviewContext();
-    }
-
-    if (restateEndpointProperties.getIdentityKey() != null) {
-      builder.withRequestIdentityVerifier(
-          RestateRequestIdentityVerifier.fromKey(restateEndpointProperties.getIdentityKey()));
-    }
-
     this.server =
         RestateHttpServer.fromHandler(
             HttpEndpointRequestHandler.fromEndpoint(
-                builder.build(),
+               endpoint,
                 this.restateHttpServerProperties.isDisableBidirectionalStreaming()));
   }
 

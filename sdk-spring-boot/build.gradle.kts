@@ -20,10 +20,13 @@ dependencies {
 
   // SDK deps
   implementation(project(":sdk-common"), excludeJackson)
+  implementation(project(":sdk-core"), excludeJackson)
   implementation(project(":client"), excludeJackson)
-  implementation(project(":sdk-http-vertx"), excludeJackson)
   implementation(project(":sdk-request-identity"), excludeJackson)
-  implementation(libs.vertx.core) {
+
+  // Optional dependency - only needed if user configures a separate port for Restate endpoint
+  compileOnly(project(":sdk-http-vertx"), excludeJackson)
+  compileOnly(libs.vertx.core) {
     // Let spring bring jackson in
     exclude(group = "com.fasterxml.jackson")
     exclude(group = "com.fasterxml.jackson.core")
@@ -31,6 +34,7 @@ dependencies {
   }
 
   implementation(libs.spring.boot)
+  implementation(libs.spring.boot.starter.web)
   implementation(libs.spring.boot.starter.logging)
   // In principle kotlin won't need this, but it's needed by the SDK core anyway, so we just import
   // this in.

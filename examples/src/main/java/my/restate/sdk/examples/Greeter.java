@@ -11,8 +11,11 @@ package my.restate.sdk.examples;
 import dev.restate.sdk.Context;
 import dev.restate.sdk.annotation.Handler;
 import dev.restate.sdk.annotation.Service;
+import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.http.vertx.RestateHttpServer;
+
+import java.time.Duration;
 
 @Service
 public class Greeter {
@@ -23,11 +26,14 @@ public class Greeter {
 
   @Handler
   public GreetingResponse greet(Context ctx, Greeting req) {
+//      throw new IllegalArgumentException("Greeting not implemented");
+      ctx.sleep(Duration.ofMinutes(1));
+//      throw new TerminalException("bla");
     // Respond to caller
     return new GreetingResponse("You said hi to " + req.name + "!");
   }
 
   public static void main(String[] args) {
-    RestateHttpServer.listen(Endpoint.bind(new Greeter()));
+    RestateHttpServer.listen(Endpoint.bind(new Greeter(), conf -> conf.inactivityTimeout(Duration.ofMinutes(10))));
   }
 }
