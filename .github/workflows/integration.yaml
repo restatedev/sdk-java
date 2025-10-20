@@ -106,8 +106,8 @@ jobs:
       - name: Build restatedev/test-services-java image
         run: ./gradlew -Djib.console=plain :test-services:jibDockerBuild
 
-      - name: Run test tool 3.1
-        uses: restatedev/sdk-test-suite@v3.1
+      - name: Run test tool
+        uses: restatedev/sdk-test-suite@v3.2
         with:
           envVars: ${{ inputs.envVars }}
           testArtifactOutput: ${{ inputs.testArtifactOutput != '' && inputs.testArtifactOutput || 'sdk-java-integration-test-report' }}
