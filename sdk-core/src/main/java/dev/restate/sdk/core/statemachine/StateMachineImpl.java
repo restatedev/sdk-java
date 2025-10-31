@@ -152,7 +152,6 @@ class StateMachineImpl implements StateMachine {
 
   @Override
   public void onError(Throwable throwable) {
-    LOG.trace("Got failure", throwable);
     this.stateContext.getCurrentState().hitError(throwable, null, null, this.stateContext);
     cancelInputSubscription();
   }

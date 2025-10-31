@@ -399,7 +399,14 @@ class HandlerContextImpl implements HandlerContextInternal {
       }
 
       // Not ready yet, let's try to do some progress
-      StateMachine.DoProgressResponse response = this.stateMachine.doProgress(uncompletedLeaves);
+      StateMachine.DoProgressResponse response;
+      try {
+        response = this.stateMachine.doProgress(uncompletedLeaves);
+      } catch (Throwable e) {
+        this.failWithoutContextSwitch(e);
+        asyncResult.publicFuture().completeExceptionally(AbortedExecutionException.INSTANCE);
+        return;
+      }
 
       if (response instanceof StateMachine.DoProgressResponse.AnyCompleted) {
         // Let it loop now
