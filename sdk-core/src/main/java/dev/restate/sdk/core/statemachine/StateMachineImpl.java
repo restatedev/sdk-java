@@ -28,6 +28,7 @@ import java.util.concurrent.Flow;
 import java.util.function.Consumer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 class StateMachineImpl implements StateMachine {
@@ -38,7 +39,7 @@ class StateMachineImpl implements StateMachine {
 
   // Callbacks
   private final CompletableFuture<Void> waitForReadyFuture = new CompletableFuture<>();
-  private CompletableFuture<Void> waitNextProcessedInput;
+  private @NonNull Runnable nextEventListener = () -> {};
 
   // Java Flow and message handling
   private final MessageDecoder messageDecoder = new MessageDecoder();
@@ -72,22 +73,20 @@ class StateMachineImpl implements StateMachine {
   }
 
   @Override
-  public CompletableFuture<Void> waitNextInputSignal() {
-    if (this.stateContext.isInputClosed()) {
-      return CompletableFuture.completedFuture(null);
-    }
-    if (waitNextProcessedInput == null) {
-      this.waitNextProcessedInput = new CompletableFuture<>();
-    }
-    return this.waitNextProcessedInput;
+  public void onNextEvent(Runnable runnable) {
+//    LOG.info("Registering next event signal");
+    this.nextEventListener =
+        () -> {
+          this.nextEventListener.run();
+          runnable.run();
+        };
   }
 
-  private void triggerWaitNextInputSignal() {
-    if (this.waitNextProcessedInput != null) {
-      CompletableFuture<Void> fut = this.waitNextProcessedInput;
-      this.waitNextProcessedInput = null;
-      fut.complete(null);
-    }
+  private void triggerNextEventSignal() {
+//    LOG.info("Triggering next event signal");
+    Runnable listener = this.nextEventListener;
+    this.nextEventListener = () -> {};
+    listener.run();
   }
 
   // -- IO
@@ -142,7 +141,7 @@ class StateMachineImpl implements StateMachine {
       }
 
       if (shouldTriggerInputListener) {
-        this.triggerWaitNextInputSignal();
+        this.triggerNextEventSignal();
       }
 
     } catch (Throwable e) {
@@ -153,6 +152,7 @@ class StateMachineImpl implements StateMachine {
   @Override
   public void onError(Throwable throwable) {
     this.stateContext.getCurrentState().hitError(throwable, null, null, this.stateContext);
+    this.triggerNextEventSignal();
     cancelInputSubscription();
   }
 
@@ -164,7 +164,7 @@ class StateMachineImpl implements StateMachine {
     } catch (Throwable e) {
       this.onError(e);
     }
-    this.triggerWaitNextInputSignal();
+    this.triggerNextEventSignal();
     this.cancelInputSubscription();
   }
 
@@ -548,7 +548,11 @@ class StateMachineImpl implements StateMachine {
   @Override
   public void proposeRunCompletion(int handle, Slice value) {
     LOG.debug("Executing 'Run completed with success'");
-    this.stateContext.getCurrentState().proposeRunCompletion(handle, value, this.stateContext);
+    try {
+      this.stateContext.getCurrentState().proposeRunCompletion(handle, value, this.stateContext);
+    } finally {
+      this.triggerNextEventSignal();
+    }
   }
 
   @Override
@@ -558,9 +562,13 @@ class StateMachineImpl implements StateMachine {
       Duration attemptDuration,
       @Nullable RetryPolicy retryPolicy) {
     LOG.debug("Executing 'Run completed with failure'");
-    this.stateContext
-        .getCurrentState()
-        .proposeRunCompletion(handle, exception, attemptDuration, retryPolicy, this.stateContext);
+    try {
+      this.stateContext
+          .getCurrentState()
+          .proposeRunCompletion(handle, exception, attemptDuration, retryPolicy, this.stateContext);
+    } finally {
+      this.triggerNextEventSignal();
+    }
   }
 
   @Override

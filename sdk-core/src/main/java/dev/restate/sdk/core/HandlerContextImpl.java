@@ -349,6 +349,10 @@ class HandlerContextImpl implements HandlerContextInternal {
 
   private void pollAsyncResultInner(AsyncResultInternal<?> asyncResult) {
     while (true) {
+      if (this.stateMachine.state() == InvocationState.CLOSED) {
+        asyncResult.publicFuture().completeExceptionally(AbortedExecutionException.INSTANCE);
+        return;
+      }
       if (asyncResult.isDone()) {
         return;
       }
@@ -412,9 +416,12 @@ class HandlerContextImpl implements HandlerContextInternal {
         // Let it loop now
       } else if (response instanceof StateMachine.DoProgressResponse.ReadFromInput
           || response instanceof StateMachine.DoProgressResponse.WaitingPendingRun) {
-        CompletableFuture.anyOf(
-                this.waitNextProcessedRun(), this.stateMachine.waitNextInputSignal())
-            .thenAccept(v -> this.pollAsyncResultInner(asyncResult));
+//        LOG.info("Gonna need to wait here {}", response);
+        this.stateMachine.onNextEvent(
+            () -> {
+              LOG.info("Triggered after wait {}", response);
+              this.pollAsyncResultInner(asyncResult);
+            });
         return;
       } else if (response instanceof StateMachine.DoProgressResponse.ExecuteRun) {
         triggerScheduledRun(((StateMachine.DoProgressResponse.ExecuteRun) response).handle());
@@ -430,7 +437,6 @@ class HandlerContextImpl implements HandlerContextInternal {
     } catch (Exception e) {
       this.failWithoutContextSwitch(e);
     }
-    triggerNextProcessedRun();
   }
 
   @Override
@@ -443,15 +449,6 @@ class HandlerContextImpl implements HandlerContextInternal {
       this.stateMachine.proposeRunCompletion(runHandle, toWrite, attemptDuration, retryPolicy);
     } catch (Exception e) {
       this.failWithoutContextSwitch(e);
-    }
-    triggerNextProcessedRun();
-  }
-
-  private void triggerNextProcessedRun() {
-    if (this.nextProcessedRun != null) {
-      var fut = this.nextProcessedRun;
-      this.nextProcessedRun = null;
-      fut.complete(null);
     }
   }
 
@@ -473,13 +470,6 @@ class HandlerContextImpl implements HandlerContextInternal {
                 handle, toWrite, Duration.between(startTime, Instant.now()), retryPolicy);
           }
         });
-  }
-
-  private CompletableFuture<Void> waitNextProcessedRun() {
-    if (this.nextProcessedRun == null) {
-      this.nextProcessedRun = new CompletableFuture<>();
-    }
-    return this.nextProcessedRun;
   }
 
   @Override

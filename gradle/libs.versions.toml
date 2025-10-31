@@ -230,5 +230,5 @@
   restate = '2.5.0-SNAPSHOT'
   schema-kenerator = '2.1.2'
   spring-boot = '3.4.9'
-  vertx = '4.5.18'
+  vertx = '4.5.22'
   victools-json-schema = '4.38.0'

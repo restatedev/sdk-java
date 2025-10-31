@@ -42,9 +42,9 @@ public interface StateMachine extends Flow.Processor<Slice, Slice> {
 
   CompletableFuture<Void> waitForReady();
 
-  // --- Await next input
+  // --- Await next event
 
-  CompletableFuture<Void> waitNextInputSignal();
+  void onNextEvent(Runnable runnable);
 
   // --- Async results
 
