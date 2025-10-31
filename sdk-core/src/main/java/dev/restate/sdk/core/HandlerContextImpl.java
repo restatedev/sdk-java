@@ -410,17 +410,15 @@ class HandlerContextImpl implements HandlerContextInternal {
 
       if (response instanceof StateMachine.DoProgressResponse.AnyCompleted) {
         // Let it loop now
-      } else if (response instanceof StateMachine.DoProgressResponse.ReadFromInput) {
-        this.stateMachine
-            .waitNextInputSignal()
+      } else if (response instanceof StateMachine.DoProgressResponse.ReadFromInput
+          || response instanceof StateMachine.DoProgressResponse.WaitingPendingRun) {
+        CompletableFuture.anyOf(
+                this.waitNextProcessedRun(), this.stateMachine.waitNextInputSignal())
             .thenAccept(v -> this.pollAsyncResultInner(asyncResult));
         return;
       } else if (response instanceof StateMachine.DoProgressResponse.ExecuteRun) {
         triggerScheduledRun(((StateMachine.DoProgressResponse.ExecuteRun) response).handle());
         // Let it loop now
-      } else if (response instanceof StateMachine.DoProgressResponse.WaitingPendingRun) {
-        this.waitNextProcessedRun().thenAccept(v -> this.pollAsyncResultInner(asyncResult));
-        return;
       }
     }
   }
