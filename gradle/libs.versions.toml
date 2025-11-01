@@ -3,7 +3,7 @@
   aws-lambda-core = 'com.amazonaws:aws-lambda-java-core:1.2.3'
   aws-lambda-events = 'com.amazonaws:aws-lambda-java-events:3.11.5'
   google-findbugs-jsr305 = 'com.google.code.findbugs:jsr305:3.0.2'
-  handlebars = 'com.github.jknack:handlebars:4.3.1'
+  handlebars = 'com.github.jknack:handlebars:4.5.0'
   jspecify = 'org.jspecify:jspecify:1.0.0'
   jwt = 'com.nimbusds:nimbus-jose-jwt:9.47'
   mutiny = 'io.smallrye.reactive:mutiny:2.7.0'
