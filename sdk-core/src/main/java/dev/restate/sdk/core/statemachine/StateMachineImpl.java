@@ -73,14 +73,14 @@ class StateMachineImpl implements StateMachine {
   }
 
   @Override
-  public void onNextEvent(Runnable runnable) {
+  public void onNextEvent(Runnable runnable, boolean triggerNowIfInputClosed) {
     this.nextEventListener =
         () -> {
           this.nextEventListener.run();
           runnable.run();
         };
     // Trigger this now
-    if (this.stateContext.isInputClosed()) {
+    if (triggerNowIfInputClosed && this.stateContext.isInputClosed()) {
       this.triggerNextEventSignal();
     }
   }

@@ -44,7 +44,7 @@ public interface StateMachine extends Flow.Processor<Slice, Slice> {
 
   // --- Await next event
 
-  void onNextEvent(Runnable runnable);
+  void onNextEvent(Runnable runnable, boolean triggerNowIfInputClosed);
 
   // --- Async results
 
