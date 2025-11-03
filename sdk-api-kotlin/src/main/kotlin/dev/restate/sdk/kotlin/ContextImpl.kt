@@ -123,8 +123,8 @@ internal constructor(
       retryPolicy: RetryPolicy?,
       block: suspend () -> T
   ): DurableFuture<T> {
-    var serde: Serde<T> = resolveSerde(typeTag)
-    var coroutineCtx = currentCoroutineContext()
+    val serde: Serde<T> = resolveSerde(typeTag)
+    val coroutineCtx = currentCoroutineContext()
     val javaRetryPolicy =
         retryPolicy?.let {
           dev.restate.sdk.common.RetryPolicy.exponential(

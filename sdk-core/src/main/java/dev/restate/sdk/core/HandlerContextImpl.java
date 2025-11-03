@@ -42,7 +42,6 @@ class HandlerContextImpl implements HandlerContextInternal {
   private final @Nullable String objectKey;
   private final String fullyQualifiedHandlerName;
 
-  private CompletableFuture<Void> nextProcessedRun;
   private final List<AsyncResultInternal<String>> invocationIdsToCancel;
   private final HashMap<Integer, Consumer<RunCompleter>> scheduledRuns;
 
@@ -416,7 +415,6 @@ class HandlerContextImpl implements HandlerContextInternal {
         // Let it loop now
       } else if (response instanceof StateMachine.DoProgressResponse.ReadFromInput
           || response instanceof StateMachine.DoProgressResponse.WaitingPendingRun) {
-//        LOG.info("Gonna need to wait here {}", response);
         this.stateMachine.onNextEvent(
             () -> {
               LOG.info("Triggered after wait {}", response);

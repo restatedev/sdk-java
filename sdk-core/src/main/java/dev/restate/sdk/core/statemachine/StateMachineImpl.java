@@ -74,16 +74,18 @@ class StateMachineImpl implements StateMachine {
 
   @Override
   public void onNextEvent(Runnable runnable) {
-//    LOG.info("Registering next event signal");
     this.nextEventListener =
         () -> {
           this.nextEventListener.run();
           runnable.run();
         };
+    // Trigger this now
+    if (this.stateContext.isInputClosed()) {
+      this.triggerNextEventSignal();
+    }
   }
 
   private void triggerNextEventSignal() {
-//    LOG.info("Triggering next event signal");
     Runnable listener = this.nextEventListener;
     this.nextEventListener = () -> {};
     listener.run();
@@ -163,6 +165,7 @@ class StateMachineImpl implements StateMachine {
       this.stateContext.getCurrentState().onInputClosed(this.stateContext);
     } catch (Throwable e) {
       this.onError(e);
+      return;
     }
     this.triggerNextEventSignal();
     this.cancelInputSubscription();
@@ -550,9 +553,11 @@ class StateMachineImpl implements StateMachine {
     LOG.debug("Executing 'Run completed with success'");
     try {
       this.stateContext.getCurrentState().proposeRunCompletion(handle, value, this.stateContext);
-    } finally {
-      this.triggerNextEventSignal();
+    } catch (Throwable e) {
+      this.onError(e);
+      return;
     }
+    this.triggerNextEventSignal();
   }
 
   @Override
@@ -566,9 +571,11 @@ class StateMachineImpl implements StateMachine {
       this.stateContext
           .getCurrentState()
           .proposeRunCompletion(handle, exception, attemptDuration, retryPolicy, this.stateContext);
-    } finally {
-      this.triggerNextEventSignal();
+    } catch (Throwable e) {
+      this.onError(e);
+      return;
     }
+    this.triggerNextEventSignal();
   }
 
   @Override
