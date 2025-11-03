@@ -42,7 +42,6 @@ class HandlerContextImpl implements HandlerContextInternal {
   private final @Nullable String objectKey;
   private final String fullyQualifiedHandlerName;
 
-  private CompletableFuture<Void> nextProcessedRun;
   private final List<AsyncResultInternal<String>> invocationIdsToCancel;
   private final HashMap<Integer, Consumer<RunCompleter>> scheduledRuns;
 
@@ -349,6 +348,10 @@ class HandlerContextImpl implements HandlerContextInternal {
 
   private void pollAsyncResultInner(AsyncResultInternal<?> asyncResult) {
     while (true) {
+      if (this.stateMachine.state() == InvocationState.CLOSED) {
+        asyncResult.publicFuture().completeExceptionally(AbortedExecutionException.INSTANCE);
+        return;
+      }
       if (asyncResult.isDone()) {
         return;
       }
@@ -399,21 +402,26 @@ class HandlerContextImpl implements HandlerContextInternal {
       }
 
       // Not ready yet, let's try to do some progress
-      StateMachine.DoProgressResponse response = this.stateMachine.doProgress(uncompletedLeaves);
+      StateMachine.DoProgressResponse response;
+      try {
+        response = this.stateMachine.doProgress(uncompletedLeaves);
+      } catch (Throwable e) {
+        this.failWithoutContextSwitch(e);
+        asyncResult.publicFuture().completeExceptionally(AbortedExecutionException.INSTANCE);
+        return;
+      }
 
       if (response instanceof StateMachine.DoProgressResponse.AnyCompleted) {
         // Let it loop now
-      } else if (response instanceof StateMachine.DoProgressResponse.ReadFromInput) {
-        this.stateMachine
-            .waitNextInputSignal()
-            .thenAccept(v -> this.pollAsyncResultInner(asyncResult));
+      } else if (response instanceof StateMachine.DoProgressResponse.ReadFromInput
+          || response instanceof StateMachine.DoProgressResponse.WaitingPendingRun) {
+        this.stateMachine.onNextEvent(
+            () -> this.pollAsyncResultInner(asyncResult),
+            response instanceof StateMachine.DoProgressResponse.ReadFromInput);
         return;
       } else if (response instanceof StateMachine.DoProgressResponse.ExecuteRun) {
         triggerScheduledRun(((StateMachine.DoProgressResponse.ExecuteRun) response).handle());
         // Let it loop now
-      } else if (response instanceof StateMachine.DoProgressResponse.WaitingPendingRun) {
-        this.waitNextProcessedRun().thenAccept(v -> this.pollAsyncResultInner(asyncResult));
-        return;
       }
     }
   }
@@ -425,7 +433,6 @@ class HandlerContextImpl implements HandlerContextInternal {
     } catch (Exception e) {
       this.failWithoutContextSwitch(e);
     }
-    triggerNextProcessedRun();
   }
 
   @Override
@@ -438,15 +445,6 @@ class HandlerContextImpl implements HandlerContextInternal {
       this.stateMachine.proposeRunCompletion(runHandle, toWrite, attemptDuration, retryPolicy);
     } catch (Exception e) {
       this.failWithoutContextSwitch(e);
-    }
-    triggerNextProcessedRun();
-  }
-
-  private void triggerNextProcessedRun() {
-    if (this.nextProcessedRun != null) {
-      var fut = this.nextProcessedRun;
-      this.nextProcessedRun = null;
-      fut.complete(null);
     }
   }
 
@@ -468,13 +466,6 @@ class HandlerContextImpl implements HandlerContextInternal {
                 handle, toWrite, Duration.between(startTime, Instant.now()), retryPolicy);
           }
         });
-  }
-
-  private CompletableFuture<Void> waitNextProcessedRun() {
-    if (this.nextProcessedRun == null) {
-      this.nextProcessedRun = new CompletableFuture<>();
-    }
-    return this.nextProcessedRun;
   }
 
   @Override

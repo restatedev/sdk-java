@@ -173,6 +173,12 @@ public final class EndpointRequestHandler {
 
     String fullyQualifiedServiceMethod = serviceName + "/" + handlerName;
 
+    // If we got it, set it
+    String invocationIdHeader = headersAccessor.get("x-restate-invocation-id");
+    if (invocationIdHeader != null) {
+      loggingContextSetter.set(LoggingContextSetter.INVOCATION_ID_KEY, invocationIdHeader);
+    }
+
     // Instantiate state machine
     StateMachine stateMachine = StateMachine.init(headersAccessor, loggingContextSetter);
 
