@@ -33,8 +33,8 @@ public class RestateHttpServerProperties {
   }
 
   /**
-   * Port to expose a separate HTTP server for the Restate endpoint. If not configured, the
-   * endpoint will be integrated with Spring Boot's embedded server.
+   * Port to expose a separate HTTP server for the Restate endpoint. If not configured, the endpoint
+   * will be integrated with Spring Boot's embedded server.
    */
   public @Nullable Integer getPort() {
     return port;

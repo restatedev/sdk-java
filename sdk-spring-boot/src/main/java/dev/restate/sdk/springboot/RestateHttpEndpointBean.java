@@ -8,19 +8,13 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.springboot;
 
-import dev.restate.sdk.auth.signing.RestateRequestIdentityVerifier;
 import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.http.vertx.HttpEndpointRequestHandler;
 import dev.restate.sdk.http.vertx.RestateHttpServer;
 import io.vertx.core.http.HttpServer;
-import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.SmartLifecycle;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
@@ -31,9 +25,6 @@ import org.springframework.stereotype.Component;
  * @see RestateComponent
  */
 @Component
-@ConditionalOnProperty(prefix = "restate.sdk.http", name = "port")
-@ConditionalOnClass(RestateHttpServer.class)
-@EnableConfigurationProperties({RestateHttpServerProperties.class, RestateEndpointProperties.class})
 public class RestateHttpEndpointBean implements InitializingBean, SmartLifecycle {
 
   private final Logger logger = LoggerFactory.getLogger(getClass());
@@ -46,8 +37,7 @@ public class RestateHttpEndpointBean implements InitializingBean, SmartLifecycle
   private HttpServer server;
 
   public RestateHttpEndpointBean(
-      @Nullable Endpoint endpoint,
-      RestateHttpServerProperties restateHttpServerProperties) {
+      @Nullable Endpoint endpoint, RestateHttpServerProperties restateHttpServerProperties) {
     this.endpoint = endpoint;
     this.restateHttpServerProperties = restateHttpServerProperties;
   }
@@ -57,8 +47,7 @@ public class RestateHttpEndpointBean implements InitializingBean, SmartLifecycle
     this.server =
         RestateHttpServer.fromHandler(
             HttpEndpointRequestHandler.fromEndpoint(
-               endpoint,
-                this.restateHttpServerProperties.isDisableBidirectionalStreaming()));
+                endpoint, this.restateHttpServerProperties.isDisableBidirectionalStreaming()));
   }
 
   @Override

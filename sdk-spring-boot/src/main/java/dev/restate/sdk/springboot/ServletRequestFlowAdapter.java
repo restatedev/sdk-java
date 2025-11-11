@@ -27,16 +27,14 @@ class ServletRequestFlowAdapter implements Flow.Publisher<Slice> {
   private static final int BUFFER_SIZE = 8192;
 
   private final HttpServletRequest request;
-  private final AsyncContext asyncContext;
 
   private Flow.Subscriber<? super Slice> subscriber;
   private long subscriberDemand = 0;
   private final Queue<ByteBuffer> buffers;
   private boolean completed = false;
 
-  ServletRequestFlowAdapter(HttpServletRequest request, AsyncContext asyncContext) {
+  ServletRequestFlowAdapter(HttpServletRequest request) {
     this.request = request;
-    this.asyncContext = asyncContext;
     this.buffers = new ArrayDeque<>();
   }
 
