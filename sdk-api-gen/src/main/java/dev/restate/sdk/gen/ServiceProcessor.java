@@ -29,7 +29,6 @@ import javax.tools.FileObject;
 import javax.tools.StandardLocation;
 
 @SupportedAnnotationTypes("*")
-@SupportedSourceVersion(SourceVersion.RELEASE_17)
 public class ServiceProcessor extends AbstractProcessor {
 
   private HandlebarsTemplateEngine serviceDefinitionFactoryCodegen;
@@ -156,6 +155,11 @@ public class ServiceProcessor extends AbstractProcessor {
     }
 
     return false;
+  }
+
+  @Override
+  public SourceVersion getSupportedSourceVersion() {
+    return SourceVersion.latestSupported();
   }
 
   public static Path readOrCreateResource(Filer filer, String file) throws IOException {
