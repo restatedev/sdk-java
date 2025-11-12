@@ -28,4 +28,5 @@ dependencies {
   testImplementation(project(":sdk-core"))
   testImplementation(libs.jackson.annotations)
   testImplementation(libs.jackson.databind)
+  testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

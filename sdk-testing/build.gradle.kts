@@ -24,4 +24,5 @@ dependencies {
   testImplementation(libs.assertj)
   testImplementation(libs.junit.jupiter)
   testImplementation(libs.log4j.core)
+  testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
