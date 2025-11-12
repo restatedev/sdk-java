@@ -2,7 +2,6 @@ plugins {
   `kotlin-conventions`
   `library-publishing-conventions`
   alias(libs.plugins.ksp)
-  alias(libs.plugins.spring.dependency.management)
 }
 
 description = "Restate SDK Spring Boot Kotlin starter"

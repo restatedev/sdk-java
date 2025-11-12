@@ -19,7 +19,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.lang.Nullable;
-import org.springframework.web.servlet.handler.SimpleUrlHandlerMapping;
+import org.springframework.web.reactive.handler.SimpleUrlHandlerMapping;
 
 /** This class takes care of handling */
 @Configuration
@@ -46,20 +46,16 @@ public class RestateHttpConfiguration {
   @ConditionalOnProperty(prefix = "restate.sdk.http", name = "path", matchIfMissing = true)
   public SimpleUrlHandlerMapping restateRootMapping(
       @Nullable Endpoint endpoint, RestateHttpServerProperties restateHttpServerProperties) {
-    SimpleUrlHandlerMapping mapping = new SimpleUrlHandlerMapping();
-    mapping.setOrder(Ordered.LOWEST_PRECEDENCE - 1);
-
     String path = restateHttpServerProperties.getPath();
     if (!path.endsWith("/*")) {
       path = path.endsWith("/") ? path + "*" : path + "/*";
     }
 
-    mapping.setUrlMap(
+    return new SimpleUrlHandlerMapping(
         Collections.singletonMap(
             path,
-            new RestateHttpHandlerAdapter(
-                endpoint, !restateHttpServerProperties.isDisableBidirectionalStreaming())));
-
-    return mapping;
+            new RestateReactiveHttpHandlerAdapter(
+                endpoint, !restateHttpServerProperties.isDisableBidirectionalStreaming())),
+        Ordered.LOWEST_PRECEDENCE - 1);
   }
 }

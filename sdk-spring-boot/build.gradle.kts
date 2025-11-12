@@ -2,7 +2,6 @@ plugins {
   `java-conventions`
   `java-library`
   `library-publishing-conventions`
-  alias(libs.plugins.spring.dependency.management)
 }
 
 description = "Restate SDK Spring Boot integration"
@@ -34,7 +33,8 @@ dependencies {
   }
 
   implementation(libs.spring.boot)
-  implementation(libs.spring.boot.starter.web)
+  implementation(libs.spring.web)
+  implementation(libs.spring.webflux)
   implementation(libs.spring.boot.starter.logging)
   // In principle kotlin won't need this, but it's needed by the SDK core anyway, so we just import
   // this in.

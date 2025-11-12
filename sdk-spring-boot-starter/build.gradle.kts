@@ -2,7 +2,6 @@ plugins {
   `java-conventions`
   `java-library`
   `library-publishing-conventions`
-  alias(libs.plugins.spring.dependency.management)
 }
 
 description = "Restate SDK Spring Boot starter"
