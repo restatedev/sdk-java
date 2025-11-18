@@ -46,12 +46,12 @@ gradle init --type java-application
 Add the annotation processor dependency [sdk-api-gen](sdk-api-gen), and then, depending on whether you want to deploy using HTTP or Lambda, use the appropriate dependency:
 
 ```kotlin
-annotationProcessor("dev.restate:sdk-api-gen:2.4.0")
+annotationProcessor("dev.restate:sdk-api-gen:2.4.1")
 
 // For HTTP services
-implementation("dev.restate:sdk-java-http:2.4.0")
+implementation("dev.restate:sdk-java-http:2.4.1")
 // For Lambda services
-// implementation("dev.restate:sdk-java-lambda:2.4.0")
+// implementation("dev.restate:sdk-java-lambda:2.4.1")
 ```
 
 ### Setup a project (Kotlin)
@@ -73,12 +73,12 @@ plugins {
 Add the ksp dependency [sdk-api-gen](sdk-api-kotlin-gen), and then, depending on whether you want to deploy using HTTP or Lambda, use the appropriate dependency:
 
 ```kotlin
-ksp("dev.restate:sdk-api-kotlin-gen:2.4.0")
+ksp("dev.restate:sdk-api-kotlin-gen:2.4.1")
 
 // For HTTP services
-implementation("dev.restate:sdk-kotlin-http:2.4.0")
+implementation("dev.restate:sdk-kotlin-http:2.4.1")
 // For Lambda services
-// implementation("dev.restate:sdk-kotlin-lambda:2.4.0")
+// implementation("dev.restate:sdk-kotlin-lambda:2.4.1")
 ```
 
 ### Implement your first Restate component (Java)
