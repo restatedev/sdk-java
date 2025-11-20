@@ -1,11 +1,15 @@
 {{#if originalClassPkg}}package {{originalClassPkg}};{{/if}}
 
+/** Handler request factories for {@link {{originalClassFqcn}} } **/
 @SuppressWarnings("unchecked")
 public final class {{generatedClassSimpleName}} {
 
     private {{generatedClassSimpleName}}() {}
 
     {{#handlers}}
+    /**
+     * @see {{originalClassFqcn}}#{{name}}
+     **/
     public static {{#if isWorkflow}}dev.restate.common.WorkflowRequestBuilder{{else}}dev.restate.common.RequestBuilder{{/if}}<{{{boxedInputFqcn}}}, {{{boxedOutputFqcn}}}> {{handlersClassMethodName}}({{#if ../isKeyed}}String key{{^inputEmpty}}, {{/inputEmpty}}{{/if}}{{^inputEmpty}}{{{inputFqcn}}} req{{/inputEmpty}}) {
     return {{#if isWorkflow}}(dev.restate.common.WorkflowRequestBuilder){{/if}} dev.restate.common.Request.of(
             {{{targetExpr this "key"}}},
@@ -16,6 +20,7 @@ public final class {{generatedClassSimpleName}} {
 
     {{/handlers}}
 
+    /** Metadata for {@link {{originalClassFqcn}} } **/
     public final static class Metadata {
 
         public static final String SERVICE_NAME = "{{restateServiceName}}";
