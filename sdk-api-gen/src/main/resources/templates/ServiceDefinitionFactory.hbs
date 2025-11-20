@@ -1,5 +1,6 @@
 {{#if originalClassPkg}}package {{originalClassPkg}};{{/if}}
 
+/** Service definition factory to bind {@link {{originalClassFqcn}} } **/
 public class {{generatedClassSimpleName}} implements dev.restate.sdk.endpoint.definition.ServiceDefinitionFactory<{{originalClassFqcn}}> {
 
     @java.lang.Override
