@@ -55,8 +55,8 @@ on:
       continueOnError:
         description: "whether to continue on error"
         required: false
-        default: false
-        type: boolean
+        default: 'false'
+        type: string
 
 jobs:
   sdk-test-suite:
@@ -134,7 +134,7 @@ jobs:
         run: docker pull ${{ inputs.serviceImage }}
 
       - name: Run test tool
-        continue-on-error: ${{ inputs.continueOnError }}
+        continue-on-error: ${{ inputs.continueOnError == 'true' }}
         uses: restatedev/sdk-test-suite@v3.2
         with:
           envVars: ${{ inputs.envVars }}
