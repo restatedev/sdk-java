@@ -50,6 +50,13 @@ on:
         required: false
         default: ""
         type: string
+      # temporarily needed to allow running tests that we expect to fail because we cannot specify continue-on-error on
+      # reusable workflows. See https://github.com/orgs/community/discussions/77915.
+      continueOnError:
+        description: "whether to continue on error"
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   sdk-test-suite:
@@ -127,6 +134,7 @@ jobs:
         run: docker pull ${{ inputs.serviceImage }}
 
       - name: Run test tool
+        continue-on-error: ${{ inputs.continueOnError }}
         uses: restatedev/sdk-test-suite@v3.2
         with:
           envVars: ${{ inputs.envVars }}
