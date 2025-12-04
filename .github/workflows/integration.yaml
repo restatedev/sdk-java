@@ -135,7 +135,7 @@ jobs:
 
       - name: Run test tool
         continue-on-error: ${{ inputs.continueOnError == 'true' }}
-        uses: restatedev/sdk-test-suite@v3.2
+        uses: restatedev/sdk-test-suite@v3.3
         with:
           envVars: ${{ inputs.envVars }}
           testArtifactOutput: ${{ inputs.testArtifactOutput != '' && inputs.testArtifactOutput || 'sdk-java-integration-test-report' }}
