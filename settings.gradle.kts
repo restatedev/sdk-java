@@ -30,6 +30,7 @@ include(
     "sdk-api-gen",
     "sdk-api-kotlin-gen",
     "sdk-spring-boot",
+    "sdk-fake-api",
 
     // Other modules we don't publish
     "examples",
