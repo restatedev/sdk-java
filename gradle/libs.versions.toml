@@ -4,6 +4,7 @@
   aws-lambda-events = 'com.amazonaws:aws-lambda-java-events:3.11.5'
   google-findbugs-jsr305 = 'com.google.code.findbugs:jsr305:3.0.2'
   handlebars = 'com.github.jknack:handlebars:4.5.0'
+  jetbrains-annotations = 'org.jetbrains:annotations:26.0.2-1'
   jspecify = 'org.jspecify:jspecify:1.0.0'
   jwt = 'com.nimbusds:nimbus-jose-jwt:9.47'
   mutiny = 'io.smallrye.reactive:mutiny:2.7.0'
@@ -12,7 +13,6 @@
   testcontainers = 'org.testcontainers:testcontainers:1.20.4'
   tink = 'com.google.crypto.tink:tink:1.18.0'
   tomcat-annotations = 'org.apache.tomcat:annotations-api:6.0.53'
-  jetbrains-annotations = 'org.jetbrains:annotations:26.0.2-1'
 
   [libraries.jackson-annotations]
     module = 'com.fasterxml.jackson.core:jackson-annotations'
@@ -228,7 +228,7 @@
   log4j = '2.24.3'
   opentelemetry = '1.47.0'
   protobuf = '4.29.3'
-  restate = '2.5.0-SNAPSHOT'
+  restate = '2.4.2'
   schema-kenerator = '2.1.2'
   spring-boot = '3.4.9'
   vertx = '4.5.22'
