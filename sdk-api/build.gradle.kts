@@ -8,6 +8,7 @@ description = "Restate SDK APIs"
 
 dependencies {
   compileOnly(libs.jspecify)
+  compileOnly(libs.jetbrains.annotations)
 
   api(project(":sdk-common"))
   api(project(":sdk-serde-jackson"))

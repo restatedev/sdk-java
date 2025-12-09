@@ -75,10 +75,12 @@ subprojects
       !setOf(
               "sdk-api",
               "sdk-api-gen",
+              "sdk-fake-api",
               "examples",
               "sdk-aggregated-javadocs",
               "admin-client",
-              "test-services")
+              "test-services",
+          )
           .contains(it.name)
     }
     .forEach { p -> p.plugins.apply("org.jetbrains.dokka") }
