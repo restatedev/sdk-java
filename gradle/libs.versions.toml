@@ -228,7 +228,7 @@
   log4j = '2.24.3'
   opentelemetry = '1.47.0'
   protobuf = '4.29.3'
-  restate = '2.4.2'
+  restate = '2.5.0-SNAPSHOT'
   schema-kenerator = '2.1.2'
   spring-boot = '3.4.9'
   vertx = '4.5.22'
