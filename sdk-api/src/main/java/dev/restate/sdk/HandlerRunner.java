@@ -210,11 +210,17 @@ public class HandlerRunner<REQ, RES>
         "Restate methods must be invoked from within a Restate handler");
   }
 
-  static void setContext(Context context) {
+  static HandlerContext getHandlerContext() {
+    return Objects.requireNonNull(
+        HANDLER_CONTEXT_THREAD_LOCAL.get(),
+        "Restate methods must be invoked from within a Restate handler");
+  }
+
+  private static void setContext(Context context) {
     CONTEXT_THREAD_LOCAL.set(context);
   }
 
-  static void clearContext() {
+  private static void clearContext() {
     CONTEXT_THREAD_LOCAL.remove();
   }
 }

@@ -30,6 +30,62 @@ public final class Restate {
   }
 
   @org.jetbrains.annotations.ApiStatus.Experimental
+  public static ObjectContext objectContext() {
+    var handlerContext = HandlerRunner.getHandlerContext();
+
+    if (handlerContext.canReadState() && handlerContext.canWriteState()) {
+      return (ObjectContext) context();
+    }
+    if (handlerContext.canReadState()) {
+      throw new IllegalStateException(
+          "Calling objectContext() from a Virtual object shared handler. You must use Restate.sharedObjectContext() instead.");
+    }
+
+    throw new IllegalStateException(
+        "Calling objectContext() from a non Virtual object handler. You can use Restate.objectContext() only inside a Restate Virtual Object handler.");
+  }
+
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  public static SharedObjectContext sharedObjectContext() {
+    var handlerContext = HandlerRunner.getHandlerContext();
+
+    if (handlerContext.canReadState()) {
+      return (SharedObjectContext) context();
+    }
+
+    throw new IllegalStateException(
+        "Calling objectContext() from a non Virtual object handler. You can use Restate.objectContext() only inside a Restate Virtual Object handler.");
+  }
+
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  public static WorkflowContext workflowContext() {
+    var handlerContext = HandlerRunner.getHandlerContext();
+
+    if (handlerContext.canReadPromises() && handlerContext.canWritePromises()) {
+      return (WorkflowContext) context();
+    }
+    if (handlerContext.canReadPromises()) {
+      throw new IllegalStateException(
+          "Calling workflowContext() from a Workflow shared handler. You must use Restate.sharedWorkflowContext() instead.");
+    }
+
+    throw new IllegalStateException(
+        "Calling workflowContext() from a non Workflow handler. You can use Restate.workflowContext() only inside a Restate Workflow handler.");
+  }
+
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  public static SharedWorkflowContext sharedWorkflowContext() {
+    var handlerContext = HandlerRunner.getHandlerContext();
+
+    if (handlerContext.canReadPromises()) {
+      return (SharedWorkflowContext) context();
+    }
+
+    throw new IllegalStateException(
+        "Calling workflowContext() from a non Workflow handler. You can use Restate.workflowContext() only inside a Restate Workflow handler.");
+  }
+
+  @org.jetbrains.annotations.ApiStatus.Experimental
   public static boolean isInsideHandler() {
     return HandlerRunner.CONTEXT_THREAD_LOCAL.get() != null;
   }

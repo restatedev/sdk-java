@@ -29,6 +29,14 @@ public interface HandlerContext {
 
   HandlerRequest request();
 
+  boolean canReadState();
+
+  boolean canWriteState();
+
+  boolean canReadPromises();
+
+  boolean canWritePromises();
+
   // ----- IO
   // Note: These are not supposed to be exposed in the user's facing Context API.
 

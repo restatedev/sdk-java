@@ -132,11 +132,11 @@ public final class ReflectionServiceDefinitionFactory implements ServiceDefiniti
           serviceName, "@Shared is only supported on virtual objects and workflow handlers");
     }
     var handlerType =
-        serviceType == ServiceType.SERVICE || handlerInfo.shared()
+        handlerInfo.shared()
             ? HandlerType.SHARED
             : serviceType == ServiceType.VIRTUAL_OBJECT
                 ? HandlerType.EXCLUSIVE
-                : HandlerType.WORKFLOW;
+                : serviceType == ServiceType.WORKFLOW ? HandlerType.WORKFLOW : null;
 
     var parameterCount = method.getParameterCount();
 
