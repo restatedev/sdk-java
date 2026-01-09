@@ -8,7 +8,6 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package my.restate.sdk.examples;
 
-import dev.restate.sdk.Context;
 import dev.restate.sdk.annotation.Handler;
 import dev.restate.sdk.annotation.Service;
 import dev.restate.sdk.endpoint.Endpoint;
@@ -22,7 +21,7 @@ public class Greeter {
   public record GreetingResponse(String message) {}
 
   @Handler
-  public GreetingResponse greet(Context ctx, Greeting req) {
+  public GreetingResponse greet(Greeting req) {
     // Respond to caller
     return new GreetingResponse("You said hi to " + req.name + "!");
   }

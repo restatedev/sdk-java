@@ -18,6 +18,7 @@ import dev.restate.sdk.endpoint.definition.HandlerContext;
 import dev.restate.serde.Serde;
 import dev.restate.serde.SerdeFactory;
 import io.opentelemetry.context.Scope;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -87,11 +88,20 @@ public class HandlerRunner<REQ, RES>
           }
 
           // Execute user code
-          RES res;
+          RES res = null;
+          Throwable error = null;
           try {
+            setContext(ctx);
             res = this.runner.apply(ctx, req);
           } catch (Throwable e) {
-            returnFuture.completeExceptionally(e);
+            error = e;
+          } finally {
+            clearContext();
+          }
+
+          // If error, just return now
+          if (error != null) {
+            returnFuture.completeExceptionally(error);
             return;
           }
 
@@ -190,5 +200,21 @@ public class HandlerRunner<REQ, RES>
     public static Options withExecutor(Executor executor) {
       return new Options(executor);
     }
+  }
+
+  static final ThreadLocal<Context> CONTEXT_THREAD_LOCAL = new ThreadLocal<>();
+
+  static Context getContext() {
+    return Objects.requireNonNull(
+        CONTEXT_THREAD_LOCAL.get(),
+        "Restate methods must be invoked from within a Restate handler");
+  }
+
+  static void setContext(Context context) {
+    CONTEXT_THREAD_LOCAL.set(context);
+  }
+
+  static void clearContext() {
+    CONTEXT_THREAD_LOCAL.remove();
   }
 }

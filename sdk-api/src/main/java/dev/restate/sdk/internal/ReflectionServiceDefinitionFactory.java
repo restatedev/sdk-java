@@ -6,11 +6,14 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-package dev.restate.sdk;
+package dev.restate.sdk.internal;
 
 import dev.restate.common.function.ThrowingBiFunction;
 import dev.restate.common.reflections.ReflectionUtils;
 import dev.restate.common.reflections.RestateUtils;
+import dev.restate.sdk.Context;
+import dev.restate.sdk.HandlerRunner;
+import dev.restate.sdk.MalformedRestateServiceException;
 import dev.restate.sdk.annotation.*;
 import dev.restate.sdk.endpoint.definition.*;
 import dev.restate.serde.Serde;
@@ -24,7 +27,8 @@ import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 
 @org.jetbrains.annotations.ApiStatus.Experimental
-final class ReflectionServiceDefinitionFactory implements ServiceDefinitionFactory<Object> {
+@org.jetbrains.annotations.ApiStatus.Internal
+public final class ReflectionServiceDefinitionFactory implements ServiceDefinitionFactory<Object> {
 
   private volatile SerdeFactory cachedDefaultSerdeFactory;
 
@@ -137,27 +141,26 @@ final class ReflectionServiceDefinitionFactory implements ServiceDefinitionFacto
     var parameterCount = method.getParameterCount();
 
     // TODO here we should add some code to handle handling Context in method definition.
-    // This is because we want to make sure people declaring the handlers with the Context in the method works
+    // This is because we want to make sure people declaring the handlers with the Context in the
+    // method works
     // providing a smoother path to transition from code generation
-    // Plus plus plus important bit -> we need to validate the input paramters can be one and only one (OBV)!
+    // Plus plus plus important bit -> we need to validate the input paramters can be one and only
+    // one (OBV)!
 
     var runner =
         dev.restate.sdk.HandlerRunner.of(
             (ThrowingBiFunction<Context, Object, Object>)
-                (ctx, in) ->
-                    RestateThreadLocalContext.wrap(
-                        ctx,
-                        () -> {
-                          try {
-                            if (parameterCount == 0) {
-                              return method.invoke(serviceInstance);
-                            } else {
-                              return method.invoke(serviceInstance, in);
-                            }
-                          } catch (InvocationTargetException e) {
-                            throw e.getCause();
-                          }
-                        }),
+                (ctx, in) -> {
+                  try {
+                    if (parameterCount == 0) {
+                      return method.invoke(serviceInstance);
+                    } else {
+                      return method.invoke(serviceInstance, in);
+                    }
+                  } catch (InvocationTargetException e) {
+                    throw e.getCause();
+                  }
+                },
             serdeFactory,
             overrideHandlerOptions);
 

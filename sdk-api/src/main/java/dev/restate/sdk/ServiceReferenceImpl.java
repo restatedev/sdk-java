@@ -51,7 +51,7 @@ final class ServiceReferenceImpl<SVC> implements ServiceReference<SVC> {
                 var methodInfo = MethodInfo.fromMethod(invocation.getMethod());
 
                 //noinspection unchecked
-                return Restate.get()
+                return Restate.context()
                     .call(
                         Request.of(
                             Target.virtualObject(serviceName, key, methodInfo.getHandlerName()),
@@ -72,7 +72,7 @@ final class ServiceReferenceImpl<SVC> implements ServiceReference<SVC> {
   @Override
   public <I, O> DurableFuture<O> call(BiFunction<SVC, I, O> s, I input, InvocationOptions options) {
     MethodInfo methodInfo = getMethodInfoCollector().resolve(s, input);
-    return Restate.get()
+    return Restate.context()
         .call(
             toRequest(
                 serviceName,
@@ -88,7 +88,7 @@ final class ServiceReferenceImpl<SVC> implements ServiceReference<SVC> {
   @Override
   public <I> DurableFuture<Void> call(BiConsumer<SVC, I> s, I input, InvocationOptions options) {
     MethodInfo methodInfo = getMethodInfoCollector().resolve(s, input);
-    return Restate.get()
+    return Restate.context()
         .call(
             toRequest(
                 serviceName,
@@ -104,7 +104,7 @@ final class ServiceReferenceImpl<SVC> implements ServiceReference<SVC> {
   @Override
   public <O> DurableFuture<O> call(Function<SVC, O> s, InvocationOptions options) {
     MethodInfo methodInfo = getMethodInfoCollector().resolve(s);
-    return Restate.get()
+    return Restate.context()
         .call(
             toRequest(
                 serviceName,
@@ -119,7 +119,7 @@ final class ServiceReferenceImpl<SVC> implements ServiceReference<SVC> {
   @Override
   public DurableFuture<Void> call(Consumer<SVC> s, InvocationOptions options) {
     MethodInfo methodInfo = getMethodInfoCollector().resolve(s);
-    return Restate.get()
+    return Restate.context()
         .call(
             toRequest(
                 serviceName,
@@ -136,7 +136,7 @@ final class ServiceReferenceImpl<SVC> implements ServiceReference<SVC> {
   public <I, O> InvocationHandle<O> send(
       BiFunction<SVC, I, O> s, I input, Duration delay, InvocationOptions options) {
     MethodInfo methodInfo = getMethodInfoCollector().resolve(s, input);
-    return Restate.get()
+    return Restate.context()
         .send(
             toRequest(
                 serviceName,
@@ -154,7 +154,7 @@ final class ServiceReferenceImpl<SVC> implements ServiceReference<SVC> {
   public <I> InvocationHandle<Void> send(
       BiConsumer<SVC, I> s, I input, Duration delay, InvocationOptions options) {
     MethodInfo methodInfo = getMethodInfoCollector().resolve(s, input);
-    return Restate.get()
+    return Restate.context()
         .send(
             toRequest(
                 serviceName,
@@ -172,7 +172,7 @@ final class ServiceReferenceImpl<SVC> implements ServiceReference<SVC> {
   public <O> InvocationHandle<O> send(
       Function<SVC, O> s, Duration delay, InvocationOptions options) {
     MethodInfo methodInfo = getMethodInfoCollector().resolve(s);
-    return Restate.get()
+    return Restate.context()
         .send(
             toRequest(
                 serviceName,
@@ -188,7 +188,7 @@ final class ServiceReferenceImpl<SVC> implements ServiceReference<SVC> {
   @Override
   public InvocationHandle<Void> send(Consumer<SVC> s, Duration delay, InvocationOptions options) {
     MethodInfo methodInfo = getMethodInfoCollector().resolve(s);
-    return Restate.get()
+    return Restate.context()
         .send(
             toRequest(
                 serviceName,

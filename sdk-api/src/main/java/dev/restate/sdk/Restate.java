@@ -25,140 +25,140 @@ import java.time.Duration;
 @org.jetbrains.annotations.ApiStatus.Experimental
 public final class Restate {
   @org.jetbrains.annotations.ApiStatus.Experimental
-  public static Context get() {
-    return RestateThreadLocalContext.getContext();
+  public static Context context() {
+    return HandlerRunner.getContext();
   }
 
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static boolean isInsideHandler() {
-    return RestateThreadLocalContext.CONTEXT_THREAD_LOCAL.get() != null;
+    return HandlerRunner.CONTEXT_THREAD_LOCAL.get() != null;
   }
 
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static HandlerRequest request() {
-    return get().request();
+    return context().request();
   }
 
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static RestateRandom random() {
-    return get().random();
+    return context().random();
   }
 
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <R> InvocationHandle<R> invocationHandle(
       String invocationId, TypeTag<R> responseTypeTag) {
-    return get().invocationHandle(invocationId, responseTypeTag);
+    return context().invocationHandle(invocationId, responseTypeTag);
   }
 
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <R> InvocationHandle<R> invocationHandle(
       String invocationId, Class<R> responseClazz) {
-    return get().invocationHandle(invocationId, responseClazz);
+    return context().invocationHandle(invocationId, responseClazz);
   }
 
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static InvocationHandle<Slice> invocationHandle(String invocationId) {
-    return get().invocationHandle(invocationId);
+    return context().invocationHandle(invocationId);
   }
 
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static void sleep(Duration duration) {
-    get().sleep(duration);
+    context().sleep(duration);
   }
 
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static DurableFuture<Void> timer(String name, Duration duration) {
-    return get().timer(name, duration);
+    return context().timer(name, duration);
   }
 
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <T> T run(String name, Class<T> clazz, ThrowingSupplier<T> action)
       throws TerminalException {
-    return get().run(name, clazz, action);
+    return context().run(name, clazz, action);
   }
 
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <T> T run(
       String name, TypeTag<T> typeTag, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
       throws TerminalException {
-    return get().run(name, typeTag, retryPolicy, action);
+    return context().run(name, typeTag, retryPolicy, action);
   }
 
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <T> T run(
       String name, Class<T> clazz, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
       throws TerminalException {
-    return get().run(name, clazz, retryPolicy, action);
+    return context().run(name, clazz, retryPolicy, action);
   }
 
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <T> T run(String name, TypeTag<T> typeTag, ThrowingSupplier<T> action)
       throws TerminalException {
-    return get().run(name, typeTag, action);
+    return context().run(name, typeTag, action);
   }
 
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static void run(String name, RetryPolicy retryPolicy, ThrowingRunnable runnable)
       throws TerminalException {
-    get().run(name, retryPolicy, runnable);
+    context().run(name, retryPolicy, runnable);
   }
 
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static void run(String name, ThrowingRunnable runnable) throws TerminalException {
-    get().run(name, runnable);
+    context().run(name, runnable);
   }
 
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <T> DurableFuture<T> runAsync(
       String name, Class<T> clazz, ThrowingSupplier<T> action) throws TerminalException {
-    return get().runAsync(name, clazz, action);
+    return context().runAsync(name, clazz, action);
   }
 
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <T> DurableFuture<T> runAsync(
       String name, TypeTag<T> typeTag, ThrowingSupplier<T> action) throws TerminalException {
-    return get().runAsync(name, typeTag, action);
+    return context().runAsync(name, typeTag, action);
   }
 
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <T> DurableFuture<T> runAsync(
       String name, Class<T> clazz, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
       throws TerminalException {
-    return get().runAsync(name, clazz, retryPolicy, action);
+    return context().runAsync(name, clazz, retryPolicy, action);
   }
 
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <T> DurableFuture<T> runAsync(
       String name, TypeTag<T> typeTag, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
       throws TerminalException {
-    return get().runAsync(name, typeTag, retryPolicy, action);
+    return context().runAsync(name, typeTag, retryPolicy, action);
   }
 
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static DurableFuture<Void> runAsync(
       String name, RetryPolicy retryPolicy, ThrowingRunnable runnable) throws TerminalException {
-    return get().runAsync(name, retryPolicy, runnable);
+    return context().runAsync(name, retryPolicy, runnable);
   }
 
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static DurableFuture<Void> runAsync(String name, ThrowingRunnable runnable)
       throws TerminalException {
-    return get().runAsync(name, runnable);
+    return context().runAsync(name, runnable);
   }
 
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <T> Awakeable<T> awakeable(Class<T> clazz) {
-    return get().awakeable(clazz);
+    return context().awakeable(clazz);
   }
 
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <T> Awakeable<T> awakeable(TypeTag<T> typeTag) {
-    return get().awakeable(typeTag);
+    return context().awakeable(typeTag);
   }
 
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static AwakeableHandle awakeableHandle(String id) {
-    return get().awakeableHandle(id);
+    return context().awakeableHandle(id);
   }
 
   @org.jetbrains.annotations.ApiStatus.Experimental
