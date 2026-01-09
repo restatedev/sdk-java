@@ -14,6 +14,6 @@ import dev.restate.serde.provider.DefaultSerdeFactoryProvider;
 public class JacksonSerdeFactoryProvider implements DefaultSerdeFactoryProvider {
   @Override
   public SerdeFactory create() {
-    return new JacksonSerdeFactory();
+    return JacksonSerdeFactory.DEFAULT;
   }
 }

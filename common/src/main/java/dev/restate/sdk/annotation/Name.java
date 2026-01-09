@@ -14,9 +14,13 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Defines a method as an exclusive handler, as opposed to {@link Shared} handlers. It can be used
- * only on methods of {@link VirtualObject}. This implies the annotation {@link Handler}.
+ * Name of the service/handler for Restate.
+ *
+ * <p>When not provided for a service, it will be the simple class name of the annotated element.
+ * When not provided for a handler, it will be the annotated method name.
  */
-@Target(ElementType.METHOD)
-@Retention(RetentionPolicy.SOURCE)
-public @interface Exclusive {}
+@Target({ElementType.METHOD, ElementType.TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+public @interface Name {
+  String value() default "";
+}

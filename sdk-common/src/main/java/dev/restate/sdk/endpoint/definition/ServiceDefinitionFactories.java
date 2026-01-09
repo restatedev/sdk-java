@@ -40,6 +40,8 @@ public final class ServiceDefinitionFactories {
             e);
       }
     }
+
+    this.factories.sort(Comparator.comparingInt(ServiceDefinitionFactory::priority));
   }
 
   /** Resolve the code generated {@link ServiceDefinitionFactory} */

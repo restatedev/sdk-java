@@ -15,4 +15,20 @@ public interface ServiceDefinitionFactory<T> {
   ServiceDefinition create(T serviceObject, HandlerRunner.@Nullable Options overrideHandlerOptions);
 
   boolean supports(Object serviceObject);
+
+  /**
+   * Get the priority of this factory. Lower values are tried first. The default priority is
+   * HIGHEST_PRIORITY.
+   *
+   * <p>Code-generated factories should use the default priority so they are tried first.
+   *
+   * @return the priority value
+   */
+  default int priority() {
+    return HIGHEST_PRIORITY;
+  }
+
+  int HIGHEST_PRIORITY = Integer.MIN_VALUE;
+
+  int LOWEST_PRIORITY = Integer.MAX_VALUE;
 }

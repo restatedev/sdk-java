@@ -14,12 +14,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Skip serialization/deserialization of the annotated element. This requires the annotated
- * parameter/return type to be {@code byte[]}
+ * Defines a method as an exclusive handler, as opposed to {@link Shared} handlers. It can be used
+ * only on methods of {@link VirtualObject}. This implies the annotation {@link Handler}.
  */
-@Target({ElementType.METHOD, ElementType.PARAMETER})
-@Retention(RetentionPolicy.SOURCE)
-public @interface Raw {
-  /** Content-type to use in request/responses. */
-  String contentType() default "application/octet-stream";
-}
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface Exclusive {}

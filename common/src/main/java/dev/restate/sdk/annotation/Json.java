@@ -15,7 +15,7 @@ import java.lang.annotation.Target;
 
 /** Serialize/Deserialize the annotated element as Json */
 @Target({ElementType.METHOD, ElementType.PARAMETER})
-@Retention(RetentionPolicy.SOURCE)
+@Retention(RetentionPolicy.RUNTIME)
 public @interface Json {
   /** Content-type to use in request/responses. */
   String contentType() default "application/json";

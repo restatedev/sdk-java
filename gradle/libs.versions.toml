@@ -13,6 +13,8 @@
   testcontainers = 'org.testcontainers:testcontainers:1.20.4'
   tink = 'com.google.crypto.tink:tink:1.18.0'
   tomcat-annotations = 'org.apache.tomcat:annotations-api:6.0.53'
+  bytebuddy = "net.bytebuddy:byte-buddy:1.18.3"
+  objenesis = "org.objenesis:objenesis:3.4"
 
   [libraries.jackson-annotations]
     module = 'com.fasterxml.jackson.core:jackson-annotations'

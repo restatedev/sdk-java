@@ -9,6 +9,7 @@ description = "Restate Client to interact with services from within other Java a
 
 dependencies {
   compileOnly(libs.jspecify)
+  compileOnly(libs.jetbrains.annotations)
 
   api(project(":common"))
   api(project(":sdk-serde-jackson"))

@@ -8,10 +8,15 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.client;
 
+import static dev.restate.common.reflections.ReflectionUtils.mustHaveAnnotation;
+
 import dev.restate.common.Output;
 import dev.restate.common.Request;
 import dev.restate.common.Target;
 import dev.restate.common.WorkflowRequest;
+import dev.restate.sdk.annotation.Service;
+import dev.restate.sdk.annotation.VirtualObject;
+import dev.restate.sdk.annotation.Workflow;
 import dev.restate.serde.SerdeFactory;
 import dev.restate.serde.TypeTag;
 import java.time.Duration;
@@ -523,6 +528,24 @@ public interface Client {
     default Response<Output<Res>> getOutput() throws IngressException {
       return getOutput(RequestOptions.DEFAULT);
     }
+  }
+
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  default <SVC> ClientServiceReference<SVC> service(Class<SVC> clazz) {
+    mustHaveAnnotation(clazz, Service.class);
+    return new ClientServiceReferenceImpl<>(this, clazz, null);
+  }
+
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  default <SVC> ClientServiceReference<SVC> virtualObject(Class<SVC> clazz, String key) {
+    mustHaveAnnotation(clazz, VirtualObject.class);
+    return new ClientServiceReferenceImpl<>(this, clazz, key);
+  }
+
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  default <SVC> ClientServiceReference<SVC> workflow(Class<SVC> clazz, String key) {
+    mustHaveAnnotation(clazz, Workflow.class);
+    return new ClientServiceReferenceImpl<>(this, clazz, key);
   }
 
   /**
