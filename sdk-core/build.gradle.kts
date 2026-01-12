@@ -101,7 +101,28 @@ protobuf { protoc { artifact = "com.google.protobuf:protoc:$protobufVersion" } }
 // Make sure task dependencies are correct
 
 tasks {
-  withType<JavaCompile> { dependsOn(generateJsonSchema2Pojo, generateProto) }
+  withType<JavaCompile> {
+    dependsOn(generateJsonSchema2Pojo, generateProto)
+
+    val disabledClassesCodegen =
+        listOf(
+            "dev.restate.sdk.core.javaapi.reflections.CheckedException",
+            "dev.restate.sdk.core.javaapi.reflections.CustomSerde",
+            "dev.restate.sdk.core.javaapi.reflections.Empty",
+            "dev.restate.sdk.core.javaapi.reflections.GreeterInterface",
+            "dev.restate.sdk.core.javaapi.reflections.MyWorkflow",
+            "dev.restate.sdk.core.javaapi.reflections.ObjectGreeter",
+            "dev.restate.sdk.core.javaapi.reflections.ObjectGreeterImplementedFromInterface",
+            "dev.restate.sdk.core.javaapi.reflections.PrimitiveTypes",
+            "dev.restate.sdk.core.javaapi.reflections.RawInputOutput",
+            "dev.restate.sdk.core.javaapi.reflections.ServiceGreeter")
+
+    options.compilerArgs.addAll(
+        listOf(
+            "-parameters",
+            "-Adev.restate.codegen.disabledClasses=${disabledClassesCodegen.joinToString(",")}",
+        ))
+  }
   withType<KotlinCompile>().configureEach { dependsOn(generateJsonSchema2Pojo, generateProto) }
   withType<org.gradle.jvm.tasks.Jar>().configureEach {
     dependsOn(generateJsonSchema2Pojo, generateProto)

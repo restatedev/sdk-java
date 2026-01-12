@@ -31,37 +31,36 @@ public class Counter {
   /** Reset the counter. */
   @Handler
   public void reset() {
-    Restate.objectContext().clearAll();
+    Restate.state().clearAll();
   }
 
   /** Add the given value to the count. */
   @Handler
   public void add(long request) {
-    var ctx = Restate.objectContext();
+    var state = Restate.state();
 
-    long currentValue = ctx.get(TOTAL).orElse(0L);
+    long currentValue = state.get(TOTAL).orElse(0L);
     long newValue = currentValue + request;
-    ctx.set(TOTAL, newValue);
+    state.set(TOTAL, newValue);
   }
 
   /** Get the current counter value. */
   @Shared
   @Handler
   public long get() {
-    var ctx = Restate.sharedObjectContext();
-    return ctx.get(TOTAL).orElse(0L);
+    return Restate.state().get(TOTAL).orElse(0L);
   }
 
   /** Add a value, and get both the previous value and the new value. */
   @Handler
   public CounterUpdateResult getAndAdd(long request) {
-    var ctx = Restate.objectContext();
+    var state = Restate.state();
 
     LOG.info("Invoked get and add with {}", request);
 
-    long currentValue = ctx.get(TOTAL).orElse(0L);
+    long currentValue = state.get(TOTAL).orElse(0L);
     long newValue = currentValue + request;
-    ctx.set(TOTAL, newValue);
+    state.set(TOTAL, newValue);
 
     return new CounterUpdateResult(newValue, currentValue);
   }

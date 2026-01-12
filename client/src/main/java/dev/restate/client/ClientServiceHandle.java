@@ -21,50 +21,41 @@ import java.util.function.Function;
  * <b>EXPERIMENTAL API:</b> This interface is part of the new reflection-based API and may change in
  * future releases.
  *
- * <p>A reference to a Restate service, virtual object, or workflow that can be invoked from the
- * ingress (outside of a handler). Provides three ways to invoke methods:
+ * <p>Advanced API handle for invoking Restate services, virtual objects, or workflows from the
+ * ingress (outside of a handler). This handle provides advanced invocation capabilities including:
+ *
+ * <ul>
+ *   <li>Async request handling with {@link CompletableFuture}
+ *   <li>Invocation options such as idempotency keys
+ *   <li>Fire-and-forget requests via {@code send()}
+ *   <li>Access to full {@link Response} metadata
+ * </ul>
+ *
+ * <p>Use this handle to perform requests with method references:
  *
  * <pre>{@code
  * Client client = Client.connect("http://localhost:8080");
  *
- * // 1. Create a client proxy and call it directly (returns output directly)
- * var greeterProxy = client.service(Greeter.class).client();
- * GreetingResponse output = greeterProxy.greet(new Greeting("Alice"));
- *
- * // 2. Use call() with method reference and wait for the result
- * Response<GreetingResponse> response = client.service(Greeter.class)
+ * // 1. Use call() with method reference and wait for the result
+ * Response<GreetingResponse> response = client.serviceHandle(Greeter.class)
  *   .call(Greeter::greet, new Greeting("Alice"));
  *
- * // 3. Use send() for one-way invocation without waiting
- * SendResponse<GreetingResponse> sendResponse = client.service(Greeter.class)
+ * // 2. Use send() for one-way invocation without waiting
+ * SendResponse<GreetingResponse> sendResponse = client.serviceHandle(Greeter.class)
  *   .send(Greeter::greet, new Greeting("Alice"));
  * }</pre>
  *
- * <p>Create instances using {@link Client#service(Class)}, {@link Client#virtualObject(Class,
+ * <p>Create instances using {@link Client#serviceHandle(Class)}, {@link
+ * Client#virtualObjectHandle(Class, String)}, or {@link Client#workflowHandle(Class, String)}.
+ *
+ * <p>For simple synchronous request-response interactions returning just the output, consider using
+ * the simple proxy API instead: {@link Client#service(Class)}, {@link Client#virtualObject(Class,
  * String)}, or {@link Client#workflow(Class, String)}.
  *
  * @param <SVC> the service interface type
  */
 @org.jetbrains.annotations.ApiStatus.Experimental
-public interface ClientServiceReference<SVC> {
-  /**
-   * <b>EXPERIMENTAL API:</b> Get a client proxy to call methods directly (returns output directly,
-   * not wrapped in Response).
-   *
-   * <pre>{@code
-   * Client client = Client.connect("http://localhost:8080");
-   *
-   * // Get a proxy and call methods on it (returns output directly)
-   * var greeterProxy = client.service(Greeter.class).client();
-   * GreetingResponse output = greeterProxy.greet(new Greeting("Alice"));
-   * }</pre>
-   *
-   * @return a proxy instance of the service interface
-   */
-  @org.jetbrains.annotations.ApiStatus.Experimental
-  SVC client();
-
-  // call - BiFunction variants
+public interface ClientServiceHandle<SVC> {
   /**
    * <b>EXPERIMENTAL API:</b> Invoke a service method with input and wait for the response.
    *

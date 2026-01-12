@@ -37,7 +37,7 @@ public class SdkTestingIntegrationTest {
   @Test
   @Timeout(value = 10)
   void greetNewApi(@RestateClient Client ingressClient) {
-    var client = ingressClient.service(GreeterNewApi.class).client();
+    var client = ingressClient.service(GreeterNewApi.class);
 
     assertThat(client.greet("Francesco")).isEqualTo("Something something Francesco");
   }

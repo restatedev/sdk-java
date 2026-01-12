@@ -17,6 +17,7 @@ import dev.restate.sdk.core.*;
 import dev.restate.sdk.core.TestDefinitions.TestExecutor;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
+import dev.restate.sdk.core.javaapi.reflections.ReflectionTest;
 import dev.restate.sdk.endpoint.definition.HandlerDefinition;
 import dev.restate.sdk.endpoint.definition.HandlerType;
 import dev.restate.sdk.endpoint.definition.ServiceDefinition;
@@ -49,7 +50,8 @@ public class JavaAPITests extends TestRunner {
         new StateMachineFailuresTest(),
         new UserFailuresTest(),
         new RandomTest(),
-        new CodegenTest());
+        new CodegenTest(),
+        new ReflectionTest());
   }
 
   public static <T, R> TestInvocationBuilder testDefinitionForService(

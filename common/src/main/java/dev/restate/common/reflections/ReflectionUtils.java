@@ -217,15 +217,24 @@ public class ReflectionUtils {
     // Check for @Handler or @Shared annotation (Shared implies Handler)
     var handlerAnnotation = findAnnotation(method, Handler.class);
     var sharedAnnotation = findAnnotation(method, Shared.class);
+    var exclusiveAnnotation = findAnnotation(method, Exclusive.class);
+    var workflowAnnotation = findAnnotation(method, Workflow.class);
 
-    if (handlerAnnotation == null && sharedAnnotation == null) {
+    if (handlerAnnotation == null
+        && sharedAnnotation == null
+        && workflowAnnotation == null
+        && exclusiveAnnotation == null) {
       throw new IllegalArgumentException(
           "The invoked method '"
               + method.getName()
               + "' is not annotated with @"
               + Handler.class.getSimpleName()
               + " or @"
-              + Shared.class.getSimpleName());
+              + Shared.class.getSimpleName()
+              + " or @"
+              + Exclusive.class.getSimpleName()
+              + " or @"
+              + Workflow.class.getSimpleName());
     }
 
     // Extract the name from @Name annotation, or default to method name

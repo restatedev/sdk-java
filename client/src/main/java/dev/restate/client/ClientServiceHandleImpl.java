@@ -11,8 +11,6 @@ package dev.restate.client;
 import static dev.restate.common.reflections.RestateUtils.toRequest;
 
 import dev.restate.common.InvocationOptions;
-import dev.restate.common.Request;
-import dev.restate.common.Target;
 import dev.restate.common.reflections.*;
 import dev.restate.serde.Serde;
 import dev.restate.serde.TypeTag;
@@ -24,7 +22,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
 
-final class ClientServiceReferenceImpl<SVC> implements ClientServiceReference<SVC> {
+final class ClientServiceHandleImpl<SVC> implements ClientServiceHandle<SVC> {
 
   private final Client innerClient;
 
@@ -32,44 +30,13 @@ final class ClientServiceReferenceImpl<SVC> implements ClientServiceReference<SV
   private final String serviceName;
   private final @Nullable String key;
 
-  // The simple proxy for users
-  private SVC proxyClient;
-
-  // To use call/send
   private MethodInfoCollector<SVC> methodInfoCollector;
 
-  ClientServiceReferenceImpl(Client innerClient, Class<SVC> clazz, @Nullable String key) {
+  ClientServiceHandleImpl(Client innerClient, Class<SVC> clazz, @Nullable String key) {
     this.innerClient = innerClient;
     this.clazz = clazz;
     this.serviceName = ReflectionUtils.extractServiceName(clazz);
     this.key = key;
-  }
-
-  @Override
-  public SVC client() {
-    if (proxyClient == null) {
-      this.proxyClient =
-          ProxySupport.createProxy(
-              clazz,
-              invocation -> {
-                var methodInfo = MethodInfo.fromMethod(invocation.getMethod());
-
-                //noinspection unchecked
-                return innerClient
-                    .call(
-                        Request.of(
-                            Target.virtualObject(serviceName, key, methodInfo.getHandlerName()),
-                            (TypeTag<? super Object>)
-                                RestateUtils.typeTag(methodInfo.getInputType()),
-                            (TypeTag<? super Object>)
-                                RestateUtils.typeTag(methodInfo.getOutputType()),
-                            invocation.getArguments().length == 0
-                                ? null
-                                : invocation.getArguments()[0]))
-                    .response();
-              });
-    }
-    return this.proxyClient;
   }
 
   @SuppressWarnings("unchecked")
@@ -82,8 +49,8 @@ final class ClientServiceReferenceImpl<SVC> implements ClientServiceReference<SV
             serviceName,
             key,
             methodInfo.getHandlerName(),
-            (TypeTag<I>) RestateUtils.typeTag(methodInfo.getInputType()),
-            (TypeTag<O>) RestateUtils.typeTag(methodInfo.getOutputType()),
+            (TypeTag<I>) methodInfo.getInputType(),
+            (TypeTag<O>) methodInfo.getOutputType(),
             input,
             invocationOptions));
   }
@@ -98,7 +65,7 @@ final class ClientServiceReferenceImpl<SVC> implements ClientServiceReference<SV
             serviceName,
             key,
             methodInfo.getHandlerName(),
-            (TypeTag<I>) RestateUtils.typeTag(methodInfo.getInputType()),
+            (TypeTag<I>) methodInfo.getInputType(),
             Serde.VOID,
             input,
             invocationOptions));
@@ -115,7 +82,7 @@ final class ClientServiceReferenceImpl<SVC> implements ClientServiceReference<SV
             key,
             methodInfo.getHandlerName(),
             Serde.VOID,
-            (TypeTag<O>) RestateUtils.typeTag(methodInfo.getOutputType()),
+            (TypeTag<O>) methodInfo.getOutputType(),
             null,
             invocationOptions));
   }
@@ -145,8 +112,8 @@ final class ClientServiceReferenceImpl<SVC> implements ClientServiceReference<SV
             serviceName,
             key,
             methodInfo.getHandlerName(),
-            (TypeTag<I>) RestateUtils.typeTag(methodInfo.getInputType()),
-            (TypeTag<O>) RestateUtils.typeTag(methodInfo.getOutputType()),
+            (TypeTag<I>) methodInfo.getInputType(),
+            (TypeTag<O>) methodInfo.getOutputType(),
             input,
             invocationOptions),
         delay);
@@ -162,7 +129,7 @@ final class ClientServiceReferenceImpl<SVC> implements ClientServiceReference<SV
             serviceName,
             key,
             methodInfo.getHandlerName(),
-            (TypeTag<I>) RestateUtils.typeTag(methodInfo.getInputType()),
+            (TypeTag<I>) methodInfo.getInputType(),
             Serde.VOID,
             input,
             invocationOptions),
@@ -180,7 +147,7 @@ final class ClientServiceReferenceImpl<SVC> implements ClientServiceReference<SV
             key,
             methodInfo.getHandlerName(),
             Serde.VOID,
-            (TypeTag<O>) RestateUtils.typeTag(methodInfo.getOutputType()),
+            (TypeTag<O>) methodInfo.getOutputType(),
             null,
             invocationOptions),
         delay);
