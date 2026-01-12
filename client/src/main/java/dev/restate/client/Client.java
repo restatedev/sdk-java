@@ -14,6 +14,10 @@ import dev.restate.common.Output;
 import dev.restate.common.Request;
 import dev.restate.common.Target;
 import dev.restate.common.WorkflowRequest;
+import dev.restate.common.reflections.MethodInfo;
+import dev.restate.common.reflections.ProxySupport;
+import dev.restate.common.reflections.ReflectionUtils;
+import dev.restate.common.reflections.RestateUtils;
 import dev.restate.sdk.annotation.Service;
 import dev.restate.sdk.annotation.VirtualObject;
 import dev.restate.sdk.annotation.Workflow;
@@ -531,98 +535,241 @@ public interface Client {
   }
 
   /**
-   * <b>EXPERIMENTAL API:</b> Create a reference to invoke a Restate service from the ingress. This
-   * API may change in future releases.
+   * <b>EXPERIMENTAL API:</b> Simple API to invoke a Restate service from the ingress.
    *
-   * <p>You can invoke the service in three ways:
+   * <p>Create a proxy client that allows calling service methods directly and synchronously,
+   * returning just the output (not wrapped in {@link Response}). This is the recommended approach
+   * for straightforward request-response interactions.
    *
    * <pre>{@code
    * Client client = Client.connect("http://localhost:8080");
    *
-   * // 1. Create a client proxy and call it directly (returns output directly)
-   * var greeterProxy = client.service(Greeter.class).client();
+   * var greeterProxy = client.service(Greeter.class);
    * GreetingResponse output = greeterProxy.greet(new Greeting("Alice"));
+   * }</pre>
    *
-   * // 2. Use call() with method reference and wait for the result
-   * Response<GreetingResponse> response = client.service(Greeter.class)
+   * <p>For advanced use cases requiring asynchronous request handling, access to {@link Response}
+   * metadata, or invocation options (such as idempotency keys), use {@link #serviceHandle(Class)}
+   * instead.
+   *
+   * @param clazz the service class annotated with {@link Service}
+   * @return a proxy client to invoke the service
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  default <SVC> SVC service(Class<SVC> clazz) {
+    mustHaveAnnotation(clazz, Service.class);
+    var serviceName = ReflectionUtils.extractServiceName(clazz);
+    return ProxySupport.createProxy(
+        clazz,
+        invocation -> {
+          var methodInfo = MethodInfo.fromMethod(invocation.getMethod());
+
+          //noinspection unchecked
+          return this.call(
+                  Request.of(
+                      Target.virtualObject(serviceName, null, methodInfo.getHandlerName()),
+                      (TypeTag<? super Object>) RestateUtils.typeTag(methodInfo.getInputType()),
+                      (TypeTag<? super Object>) RestateUtils.typeTag(methodInfo.getOutputType()),
+                      invocation.getArguments().length == 0 ? null : invocation.getArguments()[0]))
+              .response();
+        });
+  }
+
+  /**
+   * <b>EXPERIMENTAL API:</b> Advanced API to invoke a Restate service from the ingress with full
+   * control.
+   *
+   * <p>Create a handle that provides advanced invocation capabilities including:
+   *
+   * <ul>
+   *   <li>Async request handling with {@link CompletableFuture}
+   *   <li>Invocation options such as idempotency keys
+   *   <li>Fire-and-forget requests via {@code send()}
+   *   <li>Access to full {@link Response} metadata
+   * </ul>
+   *
+   * <pre>{@code
+   * Client client = Client.connect("http://localhost:8080");
+   *
+   * // Use call() with method reference and wait for the result
+   * Response<GreetingResponse> response = client.serviceHandle(Greeter.class)
    *   .call(Greeter::greet, new Greeting("Alice"));
    *
-   * // 3. Use send() for one-way invocation without waiting
-   * SendResponse<GreetingResponse> sendResponse = client.service(Greeter.class)
+   * // Use send() for one-way invocation without waiting
+   * SendResponse<GreetingResponse> sendResponse = client.serviceHandle(Greeter.class)
    *   .send(Greeter::greet, new Greeting("Alice"));
    * }</pre>
    *
+   * <p>For simple synchronous request-response interactions, consider using {@link #service(Class)}
+   * instead.
+   *
    * @param clazz the service class annotated with {@link Service}
-   * @return a reference to invoke the service
+   * @return a handle to invoke the service with advanced options
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
-  default <SVC> ClientServiceReference<SVC> service(Class<SVC> clazz) {
+  default <SVC> ClientServiceHandle<SVC> serviceHandle(Class<SVC> clazz) {
     mustHaveAnnotation(clazz, Service.class);
-    return new ClientServiceReferenceImpl<>(this, clazz, null);
+    return new ClientServiceHandleImpl<>(this, clazz, null);
   }
 
   /**
-   * <b>EXPERIMENTAL API:</b> Create a reference to invoke a Restate Virtual Object from the
-   * ingress. This API may change in future releases.
+   * <b>EXPERIMENTAL API:</b> Simple API to invoke a Restate Virtual Object from the ingress.
    *
-   * <p>You can invoke the virtual object in three ways:
+   * <p>Create a proxy client that allows calling virtual object methods directly and synchronously,
+   * returning just the output (not wrapped in {@link Response}). This is the recommended approach
+   * for straightforward request-response interactions.
    *
    * <pre>{@code
    * Client client = Client.connect("http://localhost:8080");
    *
-   * // 1. Create a client proxy and call it directly (returns output directly)
-   * var counterProxy = client.virtualObject(Counter.class, "my-counter").client();
+   * var counterProxy = client.virtualObject(Counter.class, "my-counter");
    * int count = counterProxy.increment();
-   *
-   * // 2. Use call() with method reference and wait for the result
-   * Response<Integer> response = client.virtualObject(Counter.class, "my-counter")
-   *   .call(Counter::increment);
-   *
-   * // 3. Use send() for one-way invocation without waiting
-   * SendResponse<Integer> sendResponse = client.virtualObject(Counter.class, "my-counter")
-   *   .send(Counter::increment);
    * }</pre>
+   *
+   * <p>For advanced use cases requiring asynchronous request handling, access to {@link Response}
+   * metadata, or invocation options (such as idempotency keys), use {@link
+   * #virtualObjectHandle(Class, String)} instead.
    *
    * @param clazz the virtual object class annotated with {@link VirtualObject}
    * @param key the key identifying the specific virtual object instance
-   * @return a reference to invoke the virtual object
+   * @return a proxy client to invoke the virtual object
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
-  default <SVC> ClientServiceReference<SVC> virtualObject(Class<SVC> clazz, String key) {
+  default <SVC> SVC virtualObject(Class<SVC> clazz, String key) {
     mustHaveAnnotation(clazz, VirtualObject.class);
-    return new ClientServiceReferenceImpl<>(this, clazz, key);
+    var serviceName = ReflectionUtils.extractServiceName(clazz);
+    return ProxySupport.createProxy(
+        clazz,
+        invocation -> {
+          var methodInfo = MethodInfo.fromMethod(invocation.getMethod());
+
+          //noinspection unchecked
+          return this.call(
+                  Request.of(
+                      Target.virtualObject(serviceName, key, methodInfo.getHandlerName()),
+                      (TypeTag<? super Object>) RestateUtils.typeTag(methodInfo.getInputType()),
+                      (TypeTag<? super Object>) RestateUtils.typeTag(methodInfo.getOutputType()),
+                      invocation.getArguments().length == 0 ? null : invocation.getArguments()[0]))
+              .response();
+        });
   }
 
   /**
-   * <b>EXPERIMENTAL API:</b> Create a reference to invoke a Restate Workflow from the ingress. This
-   * API may change in future releases.
+   * <b>EXPERIMENTAL API:</b> Advanced API to invoke a Restate Virtual Object from the ingress with
+   * full control.
    *
-   * <p>You can invoke the workflow in three ways:
+   * <p>Create a handle that provides advanced invocation capabilities including:
+   *
+   * <ul>
+   *   <li>Async request handling with {@link CompletableFuture}
+   *   <li>Invocation options such as idempotency keys
+   *   <li>Fire-and-forget requests via {@code send()}
+   *   <li>Access to full {@link Response} metadata
+   * </ul>
    *
    * <pre>{@code
    * Client client = Client.connect("http://localhost:8080");
    *
-   * // 1. Create a client proxy and call it directly (returns output directly)
-   * var workflowProxy = client.workflow(OrderWorkflow.class, "order-123").client();
-   * OrderResult result = workflowProxy.start(new OrderRequest(...));
+   * // Use call() with method reference and wait for the result
+   * Response<Integer> response = client.virtualObjectHandle(Counter.class, "my-counter")
+   *   .call(Counter::increment);
    *
-   * // 2. Use call() with method reference and wait for the result
-   * Response<OrderResult> response = client.workflow(OrderWorkflow.class, "order-123")
-   *   .call(OrderWorkflow::start, new OrderRequest(...));
-   *
-   * // 3. Use send() for one-way invocation without waiting
-   * SendResponse<OrderResult> sendResponse = client.workflow(OrderWorkflow.class, "order-123")
-   *   .send(OrderWorkflow::start, new OrderRequest(...));
+   * // Use send() for one-way invocation without waiting
+   * SendResponse<Integer> sendResponse = client.virtualObjectHandle(Counter.class, "my-counter")
+   *   .send(Counter::increment);
    * }</pre>
+   *
+   * <p>For simple synchronous request-response interactions, consider using {@link
+   * #virtualObject(Class, String)} instead.
+   *
+   * @param clazz the virtual object class annotated with {@link VirtualObject}
+   * @param key the key identifying the specific virtual object instance
+   * @return a handle to invoke the virtual object with advanced options
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  default <SVC> ClientServiceHandle<SVC> virtualObjectHandle(Class<SVC> clazz, String key) {
+    mustHaveAnnotation(clazz, VirtualObject.class);
+    return new ClientServiceHandleImpl<>(this, clazz, key);
+  }
+
+  /**
+   * <b>EXPERIMENTAL API:</b> Simple API to invoke a Restate Workflow from the ingress.
+   *
+   * <p>Create a proxy client that allows calling workflow methods directly and synchronously,
+   * returning just the output (not wrapped in {@link Response}). This is the recommended approach
+   * for straightforward request-response interactions.
+   *
+   * <pre>{@code
+   * Client client = Client.connect("http://localhost:8080");
+   *
+   * var workflowProxy = client.workflow(OrderWorkflow.class, "order-123");
+   * OrderResult result = workflowProxy.start(new OrderRequest(...));
+   * }</pre>
+   *
+   * <p>For advanced use cases requiring asynchronous request handling, access to {@link Response}
+   * metadata, or invocation options (such as idempotency keys), use {@link #workflowHandle(Class,
+   * String)} instead.
    *
    * @param clazz the workflow class annotated with {@link Workflow}
    * @param key the key identifying the specific workflow instance
-   * @return a reference to invoke the workflow
+   * @return a proxy client to invoke the workflow
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
-  default <SVC> ClientServiceReference<SVC> workflow(Class<SVC> clazz, String key) {
+  default <SVC> SVC workflow(Class<SVC> clazz, String key) {
     mustHaveAnnotation(clazz, Workflow.class);
-    return new ClientServiceReferenceImpl<>(this, clazz, key);
+    var serviceName = ReflectionUtils.extractServiceName(clazz);
+    return ProxySupport.createProxy(
+        clazz,
+        invocation -> {
+          var methodInfo = MethodInfo.fromMethod(invocation.getMethod());
+
+          //noinspection unchecked
+          return this.call(
+                  Request.of(
+                      Target.virtualObject(serviceName, key, methodInfo.getHandlerName()),
+                      (TypeTag<? super Object>) RestateUtils.typeTag(methodInfo.getInputType()),
+                      (TypeTag<? super Object>) RestateUtils.typeTag(methodInfo.getOutputType()),
+                      invocation.getArguments().length == 0 ? null : invocation.getArguments()[0]))
+              .response();
+        });
+  }
+
+  /**
+   * <b>EXPERIMENTAL API:</b> Advanced API to invoke a Restate Workflow from the ingress with full
+   * control.
+   *
+   * <p>Create a handle that provides advanced invocation capabilities including:
+   *
+   * <ul>
+   *   <li>Async request handling with {@link CompletableFuture}
+   *   <li>Invocation options such as idempotency keys
+   *   <li>Fire-and-forget requests via {@code send()}
+   *   <li>Access to full {@link Response} metadata
+   * </ul>
+   *
+   * <pre>{@code
+   * Client client = Client.connect("http://localhost:8080");
+   *
+   * // Use call() with method reference and wait for the result
+   * Response<OrderResult> response = client.workflowHandle(OrderWorkflow.class, "order-123")
+   *   .call(OrderWorkflow::start, new OrderRequest(...));
+   *
+   * // Use send() for one-way invocation without waiting
+   * SendResponse<OrderResult> sendResponse = client.workflowHandle(OrderWorkflow.class, "order-123")
+   *   .send(OrderWorkflow::start, new OrderRequest(...));
+   * }</pre>
+   *
+   * <p>For simple synchronous request-response interactions, consider using {@link #workflow(Class,
+   * String)} instead.
+   *
+   * @param clazz the workflow class annotated with {@link Workflow}
+   * @param key the key identifying the specific workflow instance
+   * @return a handle to invoke the workflow with advanced options
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  default <SVC> ClientServiceHandle<SVC> workflowHandle(Class<SVC> clazz, String key) {
+    mustHaveAnnotation(clazz, Workflow.class);
+    return new ClientServiceHandleImpl<>(this, clazz, key);
   }
 
   /**

@@ -58,48 +58,49 @@ public class LoanWorkflow {
 
   @Workflow
   public String run(LoanRequest loanRequest) {
-    var ctx = (WorkflowContext) Restate.context();
+    var state = Restate.state();
 
     // 1. Set status
-    ctx.set(STATUS, Status.SUBMITTED);
-    ctx.set(LOAN_REQUEST, loanRequest);
+    state.set(STATUS, Status.SUBMITTED);
+    state.set(LOAN_REQUEST, loanRequest);
 
     LOG.info("Loan request submitted");
 
     // 2. Ask human approval
-    ctx.run(() -> askHumanApproval(ctx.key()));
-    ctx.set(STATUS, Status.WAITING_HUMAN_APPROVAL);
+    var key = Restate.key();
+    Restate.run("human-approval", () -> askHumanApproval(key));
+    state.set(STATUS, Status.WAITING_HUMAN_APPROVAL);
 
     // 3. Wait human approval
-    boolean approved = ctx.promise(HUMAN_APPROVAL).future().await();
+    boolean approved = Restate.promise(HUMAN_APPROVAL).future().await();
     if (!approved) {
       LOG.info("Not approved");
-      ctx.set(STATUS, Status.NOT_APPROVED);
+      state.set(STATUS, Status.NOT_APPROVED);
       return "Not approved";
     }
     LOG.info("Approved");
-    ctx.set(STATUS, Status.APPROVED);
+    state.set(STATUS, Status.APPROVED);
 
     // 4. Request money transaction to the bank
     Instant executionTime;
     try {
       executionTime =
-          Restate.service(MockBank.class)
+          Restate.serviceHandle(MockBank.class)
               .call(
                   MockBank::transfer,
                   new TransferRequest(loanRequest.customerBankAccount(), loanRequest.amount()))
               .await(Duration.ofDays(7));
     } catch (TerminalException e) {
       LOG.warn("Transaction failed", e);
-      ctx.set(STATUS, Status.TRANSFER_FAILED);
+      state.set(STATUS, Status.TRANSFER_FAILED);
       return "Failed";
     }
 
     LOG.info("Transfer complete");
 
     // 5. Transfer complete!
-    ctx.set(TRANSFER_EXECUTION_TIME, executionTime.toString());
-    ctx.set(STATUS, Status.TRANSFER_SUCCEEDED);
+    state.set(TRANSFER_EXECUTION_TIME, executionTime.toString());
+    state.set(STATUS, Status.TRANSFER_SUCCEEDED);
 
     return "Transfer succeeded";
   }
@@ -108,24 +109,18 @@ public class LoanWorkflow {
 
   @Shared
   public String approveLoan() {
-    var ctx = (SharedWorkflowContext) Restate.context();
-
-    ctx.promiseHandle(HUMAN_APPROVAL).resolve(true);
+    Restate.promiseHandle(HUMAN_APPROVAL).resolve(true);
     return "Approved";
   }
 
   @Shared
   public void rejectLoan() {
-    var ctx = (SharedWorkflowContext) Restate.context();
-
-    ctx.promiseHandle(HUMAN_APPROVAL).resolve(false);
+    Restate.promiseHandle(HUMAN_APPROVAL).resolve(false);
   }
 
   @Shared
   public Status getStatus() {
-    var ctx = (SharedWorkflowContext) Restate.context();
-
-    return ctx.get(STATUS).orElse(Status.UNKNOWN);
+    return Restate.state().get(STATUS).orElse(Status.UNKNOWN);
   }
 
   public static void main(String[] args) {
@@ -148,10 +143,10 @@ public class LoanWorkflow {
 
     // To invoke the workflow:
     Client restateClient = Client.connect("http://127.0.0.1:8080");
-    ClientServiceReference<LoanWorkflow> loanWorkflow =
+    LoanWorkflow loanWorkflow =
         restateClient.workflow(LoanWorkflow.class, "my-loan");
     var handle =
-        loanWorkflow.send(
+            restateClient.workflowHandle(LoanWorkflow.class, "my-loan").send(
             LoanWorkflow::run,
             new LoanRequest(
                 "Francesco", "slinkydeveloper", "DE1234", new BigDecimal("1000000000")));
@@ -168,12 +163,12 @@ public class LoanWorkflow {
     LOG.info("We took the decision to approve your loan! You can now achieve your dreams!");
 
     // Now approve it
-    loanWorkflow.client().approveLoan();
+    loanWorkflow.approveLoan();
 
     // Wait for output
     handle.attach();
 
-    LOG.info("Loan workflow completed, now in status {}", loanWorkflow.client().getStatus());
+    LOG.info("Loan workflow completed, now in status {}", loanWorkflow.getStatus());
   }
 
   // -- Some mocks

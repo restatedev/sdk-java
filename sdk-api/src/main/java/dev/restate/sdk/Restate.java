@@ -10,19 +10,25 @@ package dev.restate.sdk;
 
 import static dev.restate.common.reflections.ReflectionUtils.mustHaveAnnotation;
 
+import dev.restate.common.Request;
 import dev.restate.common.Slice;
+import dev.restate.common.Target;
 import dev.restate.common.function.ThrowingRunnable;
 import dev.restate.common.function.ThrowingSupplier;
+import dev.restate.common.reflections.MethodInfo;
+import dev.restate.common.reflections.ProxySupport;
+import dev.restate.common.reflections.ReflectionUtils;
+import dev.restate.common.reflections.RestateUtils;
 import dev.restate.sdk.annotation.Service;
 import dev.restate.sdk.annotation.VirtualObject;
 import dev.restate.sdk.annotation.Workflow;
-import dev.restate.sdk.common.AbortedExecutionException;
-import dev.restate.sdk.common.HandlerRequest;
-import dev.restate.sdk.common.RetryPolicy;
-import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.internal.ContextThreadLocal;
+import dev.restate.sdk.common.*;
+import dev.restate.serde.Serde;
 import dev.restate.serde.TypeTag;
 import java.time.Duration;
+import java.util.Collection;
+import java.util.Optional;
+import org.jspecify.annotations.NonNull;
 
 /**
  * This class exposes the Restate functionalities to Restate services using the reflection-based
@@ -77,133 +83,11 @@ import java.time.Duration;
 @org.jetbrains.annotations.ApiStatus.Experimental
 public final class Restate {
   /**
-   * Get the base {@link Context} for the current handler invocation.
-   *
-   * <p>This method is safe to call from any Restate handler (Service, Virtual Object, or Workflow).
-   *
-   * <p>For handlers requiring access to state or promises, prefer using the specialized context
-   * getters: {@link #objectContext()}, {@link #sharedObjectContext()}, {@link #workflowContext()},
-   * or {@link #sharedWorkflowContext()}.
-   *
-   * @return the current context
-   * @throws IllegalStateException if called outside a Restate handler
-   */
-  @org.jetbrains.annotations.ApiStatus.Experimental
-  public static Context context() {
-    return ContextThreadLocal.getContext();
-  }
-
-  /**
-   * Get the {@link ObjectContext} for the current Virtual Object handler invocation.
-   *
-   * <p>This context provides access to read and write state operations for Virtual Objects. It is
-   * safe to call this method only from exclusive Virtual Object handlers (non-shared handlers).
-   *
-   * @return the current object context
-   * @throws IllegalStateException if called from a shared Virtual Object handler (use {@link
-   *     #sharedObjectContext()} instead) or from a non-Virtual Object handler
-   */
-  @org.jetbrains.annotations.ApiStatus.Experimental
-  public static ObjectContext objectContext() {
-    var handlerContext = HandlerRunner.getHandlerContext();
-
-    if (handlerContext.canReadState() && handlerContext.canWriteState()) {
-      return (ObjectContext) context();
-    }
-    if (handlerContext.canReadState()) {
-      throw new IllegalStateException(
-          "Calling objectContext() from a Virtual object shared handler. You must use Restate.sharedObjectContext() instead.");
-    }
-
-    throw new IllegalStateException(
-        "Calling objectContext() from a non Virtual object handler. You can use Restate.objectContext() only inside a Restate Virtual Object handler.");
-  }
-
-  /**
-   * Get the {@link SharedObjectContext} for the current Virtual Object shared handler invocation.
-   *
-   * <p>This context provides read-only access to state operations for Virtual Objects. It is safe
-   * to call this method from shared Virtual Object handlers that need to read state but not modify
-   * it.
-   *
-   * @return the current shared object context
-   * @throws IllegalStateException if called from a non-Virtual Object handler
-   */
-  @org.jetbrains.annotations.ApiStatus.Experimental
-  public static SharedObjectContext sharedObjectContext() {
-    var handlerContext = HandlerRunner.getHandlerContext();
-
-    if (handlerContext.canReadState()) {
-      return (SharedObjectContext) context();
-    }
-
-    throw new IllegalStateException(
-        "Calling objectContext() from a non Virtual object handler. You can use Restate.objectContext() only inside a Restate Virtual Object handler.");
-  }
-
-  /**
-   * Get the {@link WorkflowContext} for the current Workflow handler invocation.
-   *
-   * <p>This context provides access to read and write promise operations for Workflows. It is safe
-   * to call this method only from exclusive Workflow handlers (non-shared handlers).
-   *
-   * @return the current workflow context
-   * @throws IllegalStateException if called from a shared Workflow handler (use {@link
-   *     #sharedWorkflowContext()} instead) or from a non-Workflow handler
-   */
-  @org.jetbrains.annotations.ApiStatus.Experimental
-  public static WorkflowContext workflowContext() {
-    var handlerContext = HandlerRunner.getHandlerContext();
-
-    if (handlerContext.canReadPromises() && handlerContext.canWritePromises()) {
-      return (WorkflowContext) context();
-    }
-    if (handlerContext.canReadPromises()) {
-      throw new IllegalStateException(
-          "Calling workflowContext() from a Workflow shared handler. You must use Restate.sharedWorkflowContext() instead.");
-    }
-
-    throw new IllegalStateException(
-        "Calling workflowContext() from a non Workflow handler. You can use Restate.workflowContext() only inside a Restate Workflow handler.");
-  }
-
-  /**
-   * Get the {@link SharedWorkflowContext} for the current Workflow shared handler invocation.
-   *
-   * <p>This context provides read-only access to promise operations for Workflows. It is safe to
-   * call this method from shared Workflow handlers that need to read promises but not modify them.
-   *
-   * @return the current shared workflow context
-   * @throws IllegalStateException if called from a non-Workflow handler
-   */
-  @org.jetbrains.annotations.ApiStatus.Experimental
-  public static SharedWorkflowContext sharedWorkflowContext() {
-    var handlerContext = HandlerRunner.getHandlerContext();
-
-    if (handlerContext.canReadPromises()) {
-      return (SharedWorkflowContext) context();
-    }
-
-    throw new IllegalStateException(
-        "Calling workflowContext() from a non Workflow handler. You can use Restate.workflowContext() only inside a Restate Workflow handler.");
-  }
-
-  /**
-   * Check if the current code is executing inside a Restate handler.
-   *
-   * @return true if currently inside a handler, false otherwise
-   */
-  @org.jetbrains.annotations.ApiStatus.Experimental
-  public static boolean isInsideHandler() {
-    return ContextThreadLocal.CONTEXT_THREAD_LOCAL.get() != null;
-  }
-
-  /**
    * @see Context#request()
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static HandlerRequest request() {
-    return context().request();
+    return Context.current().request();
   }
 
   /**
@@ -214,7 +98,7 @@ public final class Restate {
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static RestateRandom random() {
-    return context().random();
+    return Context.current().random();
   }
 
   /**
@@ -223,7 +107,7 @@ public final class Restate {
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <R> InvocationHandle<R> invocationHandle(
       String invocationId, TypeTag<R> responseTypeTag) {
-    return context().invocationHandle(invocationId, responseTypeTag);
+    return Context.current().invocationHandle(invocationId, responseTypeTag);
   }
 
   /**
@@ -237,7 +121,7 @@ public final class Restate {
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <R> InvocationHandle<R> invocationHandle(
       String invocationId, Class<R> responseClazz) {
-    return context().invocationHandle(invocationId, responseClazz);
+    return Context.current().invocationHandle(invocationId, responseClazz);
   }
 
   /**
@@ -247,7 +131,7 @@ public final class Restate {
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static InvocationHandle<Slice> invocationHandle(String invocationId) {
-    return context().invocationHandle(invocationId);
+    return Context.current().invocationHandle(invocationId);
   }
 
   /**
@@ -258,7 +142,7 @@ public final class Restate {
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static void sleep(Duration duration) {
-    context().sleep(duration);
+    Context.current().sleep(duration);
   }
 
   /**
@@ -271,7 +155,7 @@ public final class Restate {
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static DurableFuture<Void> timer(String name, Duration duration) {
-    return context().timer(name, duration);
+    return Context.current().timer(name, duration);
   }
 
   /**
@@ -304,7 +188,7 @@ public final class Restate {
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <T> T run(String name, Class<T> clazz, ThrowingSupplier<T> action)
       throws TerminalException {
-    return context().run(name, clazz, action);
+    return Context.current().run(name, clazz, action);
   }
 
   /**
@@ -322,7 +206,7 @@ public final class Restate {
   public static <T> T run(
       String name, TypeTag<T> typeTag, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
       throws TerminalException {
-    return context().run(name, typeTag, retryPolicy, action);
+    return Context.current().run(name, typeTag, retryPolicy, action);
   }
 
   /**
@@ -340,7 +224,7 @@ public final class Restate {
   public static <T> T run(
       String name, Class<T> clazz, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
       throws TerminalException {
-    return context().run(name, clazz, retryPolicy, action);
+    return Context.current().run(name, clazz, retryPolicy, action);
   }
 
   /**
@@ -354,7 +238,7 @@ public final class Restate {
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <T> T run(String name, TypeTag<T> typeTag, ThrowingSupplier<T> action)
       throws TerminalException {
-    return context().run(name, typeTag, action);
+    return Context.current().run(name, typeTag, action);
   }
 
   /**
@@ -372,7 +256,7 @@ public final class Restate {
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static void run(String name, RetryPolicy retryPolicy, ThrowingRunnable runnable)
       throws TerminalException {
-    context().run(name, retryPolicy, runnable);
+    Context.current().run(name, retryPolicy, runnable);
   }
 
   /**
@@ -383,7 +267,7 @@ public final class Restate {
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static void run(String name, ThrowingRunnable runnable) throws TerminalException {
-    context().run(name, runnable);
+    Context.current().run(name, runnable);
   }
 
   /**
@@ -396,7 +280,7 @@ public final class Restate {
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <T> DurableFuture<T> runAsync(
       String name, Class<T> clazz, ThrowingSupplier<T> action) throws TerminalException {
-    return context().runAsync(name, clazz, action);
+    return Context.current().runAsync(name, clazz, action);
   }
 
   /**
@@ -410,7 +294,7 @@ public final class Restate {
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <T> DurableFuture<T> runAsync(
       String name, TypeTag<T> typeTag, ThrowingSupplier<T> action) throws TerminalException {
-    return context().runAsync(name, typeTag, action);
+    return Context.current().runAsync(name, typeTag, action);
   }
 
   /**
@@ -428,7 +312,7 @@ public final class Restate {
   public static <T> DurableFuture<T> runAsync(
       String name, Class<T> clazz, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
       throws TerminalException {
-    return context().runAsync(name, clazz, retryPolicy, action);
+    return Context.current().runAsync(name, clazz, retryPolicy, action);
   }
 
   /**
@@ -446,7 +330,7 @@ public final class Restate {
   public static <T> DurableFuture<T> runAsync(
       String name, TypeTag<T> typeTag, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
       throws TerminalException {
-    return context().runAsync(name, typeTag, retryPolicy, action);
+    return Context.current().runAsync(name, typeTag, retryPolicy, action);
   }
 
   /**
@@ -464,7 +348,7 @@ public final class Restate {
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static DurableFuture<Void> runAsync(
       String name, RetryPolicy retryPolicy, ThrowingRunnable runnable) throws TerminalException {
-    return context().runAsync(name, retryPolicy, runnable);
+    return Context.current().runAsync(name, retryPolicy, runnable);
   }
 
   /**
@@ -475,7 +359,7 @@ public final class Restate {
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static DurableFuture<Void> runAsync(String name, ThrowingRunnable runnable)
       throws TerminalException {
-    return context().runAsync(name, runnable);
+    return Context.current().runAsync(name, runnable);
   }
 
   /**
@@ -494,7 +378,7 @@ public final class Restate {
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <T> Awakeable<T> awakeable(Class<T> clazz) {
-    return context().awakeable(clazz);
+    return Context.current().awakeable(clazz);
   }
 
   /**
@@ -512,7 +396,7 @@ public final class Restate {
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <T> Awakeable<T> awakeable(TypeTag<T> typeTag) {
-    return context().awakeable(typeTag);
+    return Context.current().awakeable(typeTag);
   }
 
   /**
@@ -525,95 +409,408 @@ public final class Restate {
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static AwakeableHandle awakeableHandle(String id) {
-    return context().awakeableHandle(id);
+    return Context.current().awakeableHandle(id);
   }
 
   /**
-   * <b>EXPERIMENTAL API:</b> Create a reference to invoke a Restate service.
+   * <b>EXPERIMENTAL API:</b> Simple API to invoke a Restate service.
    *
-   * <p>You can invoke the service in three ways:
+   * <p>Create a proxy client that allows calling service methods directly and synchronously. This
+   * is the recommended approach for straightforward request-response interactions.
    *
    * <pre>{@code
-   * // 1. Create a client proxy and call it directly
-   * var greeterProxy = Restate.service(Greeter.class).client();
+   * var greeterProxy = Restate.service(Greeter.class);
    * GreetingResponse response = greeterProxy.greet(new Greeting("Alice"));
+   * }</pre>
    *
-   * // 2. Use call() with method reference and await the result
-   * GreetingResponse response = Restate.service(Greeter.class)
+   * <p>For advanced use cases requiring asynchronous request handling, composable futures, or
+   * invocation options (such as idempotency keys), use {@link #serviceHandle(Class)} instead.
+   *
+   * @param clazz the service class annotated with {@link Service}
+   * @return a proxy client to invoke the service
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  public static <SVC> SVC service(Class<SVC> clazz) {
+    mustHaveAnnotation(clazz, Service.class);
+    String serviceName = ReflectionUtils.extractServiceName(clazz);
+    return ProxySupport.createProxy(
+        clazz,
+        invocation -> {
+          var methodInfo = MethodInfo.fromMethod(invocation.getMethod());
+
+          //noinspection unchecked
+          return Context.current()
+              .call(
+                  Request.of(
+                      Target.virtualObject(serviceName, null, methodInfo.getHandlerName()),
+                      (TypeTag<? super Object>) RestateUtils.typeTag(methodInfo.getInputType()),
+                      (TypeTag<? super Object>) RestateUtils.typeTag(methodInfo.getOutputType()),
+                      invocation.getArguments().length == 0 ? null : invocation.getArguments()[0]))
+              .await();
+        });
+  }
+
+  /**
+   * <b>EXPERIMENTAL API:</b> Advanced API to invoke a Restate service with full control.
+   *
+   * <p>Create a handle that provides advanced invocation capabilities including:
+   *
+   * <ul>
+   *   <li>Composable futures for asynchronous request handling
+   *   <li>Invocation options such as {@link
+   *       dev.restate.common.InvocationOptions#idempotencyKey(String)}
+   *   <li>Fire-and-forget requests via {@code send()}
+   *   <li>Deferred response handling
+   * </ul>
+   *
+   * <pre>{@code
+   * // 1. Use call() with method reference and await the result
+   * GreetingResponse response = Restate.serviceHandle(Greeter.class)
    *   .call(Greeter::greet, new Greeting("Alice"))
    *   .await();
    *
-   * // 3. Use send() for one-way invocation without waiting
-   * InvocationHandle<GreetingResponse> handle = Restate.service(Greeter.class)
+   * // 2. Use send() for one-way invocation without waiting
+   * InvocationHandle<GreetingResponse> handle = Restate.serviceHandle(Greeter.class)
    *   .send(Greeter::greet, new Greeting("Alice"));
    * }</pre>
    *
+   * <p>For simple synchronous request-response interactions, consider using {@link #service(Class)}
+   * instead.
+   *
    * @param clazz the service class annotated with {@link Service}
-   * @return a reference to invoke the service
+   * @return a handle to invoke the service with advanced options
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
-  public static <SVC> ServiceReference<SVC> service(Class<SVC> clazz) {
+  public static <SVC> ServiceHandle<SVC> serviceHandle(Class<SVC> clazz) {
     mustHaveAnnotation(clazz, Service.class);
-    return new ServiceReferenceImpl<>(clazz, null);
+    return new ServiceHandleImpl<>(clazz, null);
   }
 
   /**
-   * <b>EXPERIMENTAL API:</b> Create a reference to invoke a Restate Virtual Object.
+   * <b>EXPERIMENTAL API:</b> Simple API to invoke a Restate Virtual Object.
    *
-   * <p>You can invoke the virtual object in three ways:
+   * <p>Create a proxy client that allows calling virtual object methods directly and synchronously.
+   * This is the recommended approach for straightforward request-response interactions.
    *
    * <pre>{@code
-   * // 1. Create a client proxy and call it directly
-   * var counterProxy = Restate.virtualObject(Counter.class, "my-counter").client();
+   * var counterProxy = Restate.virtualObject(Counter.class, "my-counter");
    * int count = counterProxy.increment();
-   *
-   * // 2. Use call() with method reference and await the result
-   * int count = Restate.virtualObject(Counter.class, "my-counter")
-   *   .call(Counter::increment)
-   *   .await();
-   *
-   * // 3. Use send() for one-way invocation without waiting
-   * InvocationHandle<Integer> handle = Restate.virtualObject(Counter.class, "my-counter")
-   *   .send(Counter::increment);
    * }</pre>
+   *
+   * <p>For advanced use cases requiring asynchronous request handling, composable futures, or
+   * invocation options (such as idempotency keys), use {@link #virtualObjectHandle(Class, String)}
+   * instead.
    *
    * @param clazz the virtual object class annotated with {@link VirtualObject}
    * @param key the key identifying the specific virtual object instance
-   * @return a reference to invoke the virtual object
+   * @return a proxy client to invoke the virtual object
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
-  public static <SVC> ServiceReference<SVC> virtualObject(Class<SVC> clazz, String key) {
+  public static <SVC> SVC virtualObject(Class<SVC> clazz, String key) {
     mustHaveAnnotation(clazz, VirtualObject.class);
-    return new ServiceReferenceImpl<>(clazz, key);
+    String serviceName = ReflectionUtils.extractServiceName(clazz);
+    return ProxySupport.createProxy(
+        clazz,
+        invocation -> {
+          var methodInfo = MethodInfo.fromMethod(invocation.getMethod());
+
+          //noinspection unchecked
+          return Context.current()
+              .call(
+                  Request.of(
+                      Target.virtualObject(serviceName, key, methodInfo.getHandlerName()),
+                      (TypeTag<? super Object>) RestateUtils.typeTag(methodInfo.getInputType()),
+                      (TypeTag<? super Object>) RestateUtils.typeTag(methodInfo.getOutputType()),
+                      invocation.getArguments().length == 0 ? null : invocation.getArguments()[0]))
+              .await();
+        });
   }
 
   /**
-   * <b>EXPERIMENTAL API:</b> Create a reference to invoke a Restate Workflow.
+   * <b>EXPERIMENTAL API:</b> Advanced API to invoke a Restate Virtual Object with full control.
    *
-   * <p>You can invoke the workflow in three ways:
+   * <p>Create a handle that provides advanced invocation capabilities including:
+   *
+   * <ul>
+   *   <li>Composable futures for asynchronous request handling
+   *   <li>Invocation options such as {@link
+   *       dev.restate.common.InvocationOptions#idempotencyKey(String)}
+   *   <li>Fire-and-forget requests via {@code send()}
+   *   <li>Deferred response handling
+   * </ul>
    *
    * <pre>{@code
-   * // 1. Create a client proxy and call it directly
-   * var workflowProxy = Restate.workflow(OrderWorkflow.class, "order-123").client();
-   * workflowProxy.start(new OrderRequest(...));
-   *
-   * // 2. Use call() with method reference and await the result
-   * Restate.workflow(OrderWorkflow.class, "order-123")
-   *   .call(OrderWorkflow::start, new OrderRequest(...))
+   * // 1. Use call() with method reference and await the result
+   * int count = Restate.virtualObjectHandle(Counter.class, "my-counter")
+   *   .call(Counter::increment)
    *   .await();
    *
-   * // 3. Use send() for one-way invocation without waiting
-   * InvocationHandle<Void> handle = Restate.workflow(OrderWorkflow.class, "order-123")
-   *   .send(OrderWorkflow::start, new OrderRequest(...));
+   * // 2. Use send() for one-way invocation without waiting
+   * InvocationHandle<Integer> handle = Restate.virtualObjectHandle(Counter.class, "my-counter")
+   *   .send(Counter::increment);
    * }</pre>
+   *
+   * <p>For simple synchronous request-response interactions, consider using {@link
+   * #virtualObject(Class, String)} instead.
+   *
+   * @param clazz the virtual object class annotated with {@link VirtualObject}
+   * @param key the key identifying the specific virtual object instance
+   * @return a handle to invoke the virtual object with advanced options
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  public static <SVC> ServiceHandle<SVC> virtualObjectHandle(Class<SVC> clazz, String key) {
+    mustHaveAnnotation(clazz, VirtualObject.class);
+    return new ServiceHandleImpl<>(clazz, key);
+  }
+
+  /**
+   * <b>EXPERIMENTAL API:</b> Simple API to invoke a Restate Workflow.
+   *
+   * <p>Create a proxy client that allows calling workflow methods directly and synchronously. This
+   * is the recommended approach for straightforward request-response interactions.
+   *
+   * <pre>{@code
+   * var workflowProxy = Restate.workflow(OrderWorkflow.class, "order-123");
+   * workflowProxy.start(new OrderRequest(...));
+   * }</pre>
+   *
+   * <p>For advanced use cases requiring asynchronous request handling, composable futures, or
+   * invocation options (such as idempotency keys), use {@link #workflowHandle(Class, String)}
+   * instead.
    *
    * @param clazz the workflow class annotated with {@link Workflow}
    * @param key the key identifying the specific workflow instance
-   * @return a reference to invoke the workflow
+   * @return a proxy client to invoke the workflow
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
-  public static <SVC> ServiceReference<SVC> workflow(Class<SVC> clazz, String key) {
+  public static <SVC> SVC workflow(Class<SVC> clazz, String key) {
     mustHaveAnnotation(clazz, Workflow.class);
-    return new ServiceReferenceImpl<>(clazz, key);
+    String serviceName = ReflectionUtils.extractServiceName(clazz);
+    return ProxySupport.createProxy(
+        clazz,
+        invocation -> {
+          var methodInfo = MethodInfo.fromMethod(invocation.getMethod());
+
+          //noinspection unchecked
+          return Context.current()
+              .call(
+                  Request.of(
+                      Target.virtualObject(serviceName, key, methodInfo.getHandlerName()),
+                      (TypeTag<? super Object>) RestateUtils.typeTag(methodInfo.getInputType()),
+                      (TypeTag<? super Object>) RestateUtils.typeTag(methodInfo.getOutputType()),
+                      invocation.getArguments().length == 0 ? null : invocation.getArguments()[0]))
+              .await();
+        });
+  }
+
+  /**
+   * <b>EXPERIMENTAL API:</b> Advanced API to invoke a Restate Workflow with full control.
+   *
+   * <p>Create a handle that provides advanced invocation capabilities including:
+   *
+   * <ul>
+   *   <li>Composable futures for asynchronous request handling
+   *   <li>Invocation options such as {@link
+   *       dev.restate.common.InvocationOptions#idempotencyKey(String)}
+   *   <li>Fire-and-forget requests via {@code send()}
+   *   <li>Deferred response handling
+   * </ul>
+   *
+   * <pre>{@code
+   * // 1. Use call() with method reference and await the result
+   * Restate.workflowHandle(OrderWorkflow.class, "order-123")
+   *   .call(OrderWorkflow::start, new OrderRequest(...))
+   *   .await();
+   *
+   * // 2. Use send() for one-way invocation without waiting
+   * InvocationHandle<Void> handle = Restate.workflowHandle(OrderWorkflow.class, "order-123")
+   *   .send(OrderWorkflow::start, new OrderRequest(...));
+   * }</pre>
+   *
+   * <p>For simple synchronous request-response interactions, consider using {@link #workflow(Class,
+   * String)} instead.
+   *
+   * @param clazz the workflow class annotated with {@link Workflow}
+   * @param key the key identifying the specific workflow instance
+   * @return a handle to invoke the workflow with advanced options
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  public static <SVC> ServiceHandle<SVC> workflowHandle(Class<SVC> clazz, String key) {
+    mustHaveAnnotation(clazz, Workflow.class);
+    return new ServiceHandleImpl<>(clazz, key);
+  }
+
+  /** <b>EXPERIMENTAL API:</b> Interface to interact with this Virtual Object/Workflow state. */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  public interface State {
+
+    /**
+     * <b>EXPERIMENTAL API:</b> Gets the state stored under key, deserializing the raw value using
+     * the {@link Serde} in the {@link StateKey}.
+     *
+     * @param key identifying the state to get and its type.
+     * @return an {@link Optional} containing the stored state deserialized or an empty {@link
+     *     Optional} if not set yet.
+     * @throws RuntimeException when the state cannot be deserialized.
+     */
+    @org.jetbrains.annotations.ApiStatus.Experimental
+    <T> Optional<T> get(StateKey<T> key);
+
+    /**
+     * <b>EXPERIMENTAL API:</b> Sets the given value under the given key, serializing the value
+     * using the {@link Serde} in the {@link StateKey}.
+     *
+     * @param key identifying the value to store and its type.
+     * @param value to store under the given key. MUST NOT be null.
+     * @throws IllegalStateException if called from a Shared handler
+     */
+    @org.jetbrains.annotations.ApiStatus.Experimental
+    <T> void set(StateKey<T> key, @NonNull T value);
+
+    /**
+     * <b>EXPERIMENTAL API:</b> Clears the state stored under key.
+     *
+     * @param key identifying the state to clear.
+     * @throws IllegalStateException if called from a Shared handler
+     */
+    @org.jetbrains.annotations.ApiStatus.Experimental
+    void clear(StateKey<?> key);
+
+    /**
+     * <b>EXPERIMENTAL API:</b> Gets all the known state keys for this virtual object instance.
+     *
+     * @return the immutable collection of known state keys.
+     */
+    @org.jetbrains.annotations.ApiStatus.Experimental
+    Collection<String> getAllKeys();
+
+    /**
+     * <b>EXPERIMENTAL API:</b> Clears all the state of this virtual object instance key-value state
+     * storage
+     *
+     * @throws IllegalStateException if called from a Shared handler
+     */
+    @org.jetbrains.annotations.ApiStatus.Experimental
+    void clearAll();
+  }
+
+  private static final State STATE_INSTANCE =
+      new State() {
+        @Override
+        public <T> Optional<T> get(StateKey<T> key) {
+          return ((SharedObjectContext) Context.current()).get(key);
+        }
+
+        @Override
+        public <T> void set(StateKey<T> key, @NonNull T value) {
+          checkCanWriteState("set");
+          ((ObjectContext) Context.current()).set(key, value);
+        }
+
+        @Override
+        public void clear(StateKey<?> key) {
+          checkCanWriteState("clear");
+          ((ObjectContext) Context.current()).clear(key);
+        }
+
+        @Override
+        public Collection<String> getAllKeys() {
+          return ((SharedObjectContext) Context.current()).stateKeys();
+        }
+
+        @Override
+        public void clearAll() {
+          checkCanWriteState("clearAll");
+          ((ObjectContext) Context.current()).clearAll();
+        }
+
+        private void checkCanWriteState(String opName) {
+          var handlerContext = HandlerRunner.getHandlerContext();
+          if (!handlerContext.canWriteState()) {
+            throw new IllegalStateException(
+                "State."
+                    + opName
+                    + "() cannot be used in shared handlers. Check https://docs.restate.dev/develop/java/state for more details.");
+          }
+        }
+      };
+
+  /**
+   * <b>EXPERIMENTAL API</b>
+   *
+   * @return this Virtual Object/Workflow key
+   * @throws IllegalStateException if called from a regular Service handler.
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  public static String key() {
+    var handlerContext = HandlerRunner.getHandlerContext();
+
+    if (!handlerContext.canReadState()) {
+      throw new IllegalStateException(
+          "Restate.key() can be used only within Virtual Object or Workflow handlers. Check https://docs.restate.dev/develop/java/state for more details.");
+    }
+
+    return ((SharedObjectContext) Context.current()).key();
+  }
+
+  /**
+   * <b>EXPERIMENTAL API:</b> Access to this Virtual Object/Workflow state.
+   *
+   * @return {@link State} for this Virtual Object/Workflow
+   * @throws IllegalStateException if called from a regular Service handler.
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  public static State state() {
+    var handlerContext = HandlerRunner.getHandlerContext();
+
+    if (!handlerContext.canReadState()) {
+      throw new IllegalStateException(
+          "Restate.state() can be used only within Virtual Object or Workflow handlers. Check https://docs.restate.dev/develop/java/state for more details.");
+    }
+    return STATE_INSTANCE;
+  }
+
+  /**
+   * <b>EXPERIMENTAL API:</b> Create a {@link DurablePromise} for the given key.
+   *
+   * <p>You can use this feature to implement interaction between different workflow handlers, e.g.
+   * to send a signal from a shared handler to the workflow handler.
+   *
+   * @return the {@link DurablePromise}.
+   * @see DurablePromise
+   * @throws IllegalStateException if called from a non-Workflow handler
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  public static <T> DurablePromise<T> promise(DurablePromiseKey<T> key) {
+    var handlerContext = HandlerRunner.getHandlerContext();
+
+    if (!handlerContext.canReadPromises() || !handlerContext.canWritePromises()) {
+      throw new IllegalStateException(
+          "Restate.promise(key) can be used only within Workflow handlers. Check https://docs.restate.dev/develop/java/external-events#durable-promises for more details.");
+    }
+
+    SharedWorkflowContext ctx = (SharedWorkflowContext) Context.current();
+    return ctx.promise(key);
+  }
+
+  /**
+   * <b>EXPERIMENTAL API:</b> Create a new {@link DurablePromiseHandle} for the provided key. You
+   * can use it to {@link DurablePromiseHandle#resolve(Object)} or {@link
+   * DurablePromiseHandle#reject(String)} the given {@link DurablePromise}.
+   *
+   * @see DurablePromise
+   * @throws IllegalStateException if called from a non-Workflow handler
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  public static <T> DurablePromiseHandle<T> promiseHandle(DurablePromiseKey<T> key) {
+    var handlerContext = HandlerRunner.getHandlerContext();
+
+    if (!handlerContext.canReadPromises() || !handlerContext.canWritePromises()) {
+      throw new IllegalStateException(
+          "Restate.promiseHandle(key) can be used only within Workflow handlers. Check https://docs.restate.dev/develop/java/external-events#durable-promises for more details.");
+    }
+
+    SharedWorkflowContext ctx = (SharedWorkflowContext) Context.current();
+    return ctx.promiseHandle(key);
   }
 }

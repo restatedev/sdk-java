@@ -16,6 +16,7 @@ import dev.restate.sdk.common.AbortedExecutionException;
 import dev.restate.sdk.common.HandlerRequest;
 import dev.restate.sdk.common.RetryPolicy;
 import dev.restate.sdk.common.TerminalException;
+import dev.restate.sdk.internal.ContextThreadLocal;
 import dev.restate.serde.Serde;
 import dev.restate.serde.TypeTag;
 import java.time.Duration;
@@ -482,4 +483,12 @@ public interface Context {
    * @see RestateRandom
    */
   RestateRandom random();
+
+  /**
+   * @return the current context
+   * @throws NullPointerException if called outside a Restate Handler
+   */
+  static Context current() {
+    return ContextThreadLocal.getContext();
+  }
 }
