@@ -49,8 +49,8 @@ final class ClientServiceHandleImpl<SVC> implements ClientServiceHandle<SVC> {
             serviceName,
             key,
             methodInfo.getHandlerName(),
-            (TypeTag<I>) RestateUtils.typeTag(methodInfo.getInputType()),
-            (TypeTag<O>) RestateUtils.typeTag(methodInfo.getOutputType()),
+            (TypeTag<I>) methodInfo.getInputType(),
+            (TypeTag<O>) methodInfo.getOutputType(),
             input,
             invocationOptions));
   }
@@ -65,7 +65,7 @@ final class ClientServiceHandleImpl<SVC> implements ClientServiceHandle<SVC> {
             serviceName,
             key,
             methodInfo.getHandlerName(),
-            (TypeTag<I>) RestateUtils.typeTag(methodInfo.getInputType()),
+            (TypeTag<I>) methodInfo.getInputType(),
             Serde.VOID,
             input,
             invocationOptions));
@@ -82,7 +82,7 @@ final class ClientServiceHandleImpl<SVC> implements ClientServiceHandle<SVC> {
             key,
             methodInfo.getHandlerName(),
             Serde.VOID,
-            (TypeTag<O>) RestateUtils.typeTag(methodInfo.getOutputType()),
+            (TypeTag<O>) methodInfo.getOutputType(),
             null,
             invocationOptions));
   }
@@ -112,8 +112,8 @@ final class ClientServiceHandleImpl<SVC> implements ClientServiceHandle<SVC> {
             serviceName,
             key,
             methodInfo.getHandlerName(),
-            (TypeTag<I>) RestateUtils.typeTag(methodInfo.getInputType()),
-            (TypeTag<O>) RestateUtils.typeTag(methodInfo.getOutputType()),
+            (TypeTag<I>) methodInfo.getInputType(),
+            (TypeTag<O>) methodInfo.getOutputType(),
             input,
             invocationOptions),
         delay);
@@ -129,7 +129,7 @@ final class ClientServiceHandleImpl<SVC> implements ClientServiceHandle<SVC> {
             serviceName,
             key,
             methodInfo.getHandlerName(),
-            (TypeTag<I>) RestateUtils.typeTag(methodInfo.getInputType()),
+            (TypeTag<I>) methodInfo.getInputType(),
             Serde.VOID,
             input,
             invocationOptions),
@@ -147,7 +147,7 @@ final class ClientServiceHandleImpl<SVC> implements ClientServiceHandle<SVC> {
             key,
             methodInfo.getHandlerName(),
             Serde.VOID,
-            (TypeTag<O>) RestateUtils.typeTag(methodInfo.getOutputType()),
+            (TypeTag<O>) methodInfo.getOutputType(),
             null,
             invocationOptions),
         delay);

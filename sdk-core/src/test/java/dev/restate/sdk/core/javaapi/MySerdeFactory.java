@@ -18,7 +18,7 @@ import java.nio.charset.StandardCharsets;
 @SuppressWarnings("unchecked")
 public class MySerdeFactory implements SerdeFactory {
 
-  static Serde<String> SERDE =
+  public static Serde<String> SERDE =
       Serde.using(
           "mycontent/type",
           s -> s.toUpperCase().getBytes(),

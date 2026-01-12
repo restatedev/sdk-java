@@ -21,9 +21,9 @@ public final class MethodInfoCollector<SVC> {
     this.infoCollectorProxy = ProxySupport.createProxy(svcClass, METHOD_INFO_COLLECTOR_INTERCEPTOR);
   }
 
-  public <O> MethodInfo resolve(Function<SVC, O> s) {
+  public <O> MethodInfo resolve(Function<SVC, O> methodReference) {
     try {
-      s.apply(this.infoCollectorProxy);
+      methodReference.apply(this.infoCollectorProxy);
       throw new UnsupportedOperationException(
           "The provided lambda MUST contain ONLY a method reference to the service method");
     } catch (MethodInfo e) {
@@ -31,9 +31,9 @@ public final class MethodInfoCollector<SVC> {
     }
   }
 
-  public <I, O> MethodInfo resolve(BiFunction<SVC, I, O> s, I input) {
+  public <I, O> MethodInfo resolve(BiFunction<SVC, I, O> methodReference, I input) {
     try {
-      s.apply(this.infoCollectorProxy, input);
+      methodReference.apply(this.infoCollectorProxy, input);
       throw new UnsupportedOperationException(
           "The provided lambda MUST contain ONLY a method reference to the service method");
     } catch (MethodInfo e) {
@@ -41,9 +41,9 @@ public final class MethodInfoCollector<SVC> {
     }
   }
 
-  public <I> MethodInfo resolve(BiConsumer<SVC, I> s, I input) {
+  public <I> MethodInfo resolve(BiConsumer<SVC, I> methodReference, I input) {
     try {
-      s.accept(this.infoCollectorProxy, input);
+      methodReference.accept(this.infoCollectorProxy, input);
       throw new UnsupportedOperationException(
           "The provided lambda MUST contain ONLY a method reference to a service method");
     } catch (MethodInfo e) {
@@ -51,9 +51,9 @@ public final class MethodInfoCollector<SVC> {
     }
   }
 
-  public MethodInfo resolve(Consumer<SVC> s) {
+  public MethodInfo resolve(Consumer<SVC> methodReference) {
     try {
-      s.accept(this.infoCollectorProxy);
+      methodReference.accept(this.infoCollectorProxy);
       throw new UnsupportedOperationException(
           "The provided lambda MUST contain ONLY a method reference to a service method");
     } catch (MethodInfo e) {

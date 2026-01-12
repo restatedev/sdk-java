@@ -47,8 +47,8 @@ final class ServiceHandleImpl<SVC> implements ServiceHandle<SVC> {
                 serviceName,
                 key,
                 methodInfo.getHandlerName(),
-                (TypeTag<I>) RestateUtils.typeTag(methodInfo.getInputType()),
-                (TypeTag<O>) RestateUtils.typeTag(methodInfo.getOutputType()),
+                (TypeTag<I>) methodInfo.getInputType(),
+                (TypeTag<O>) methodInfo.getOutputType(),
                 input,
                 options));
   }
@@ -64,7 +64,7 @@ final class ServiceHandleImpl<SVC> implements ServiceHandle<SVC> {
                 serviceName,
                 key,
                 methodInfo.getHandlerName(),
-                (TypeTag<I>) RestateUtils.typeTag(methodInfo.getInputType()),
+                (TypeTag<I>) methodInfo.getInputType(),
                 Serde.VOID,
                 input,
                 options));
@@ -81,7 +81,7 @@ final class ServiceHandleImpl<SVC> implements ServiceHandle<SVC> {
                 key,
                 methodInfo.getHandlerName(),
                 Serde.VOID,
-                (TypeTag<O>) RestateUtils.typeTag(methodInfo.getOutputType()),
+                (TypeTag<O>) methodInfo.getOutputType(),
                 null,
                 options));
   }
@@ -112,8 +112,8 @@ final class ServiceHandleImpl<SVC> implements ServiceHandle<SVC> {
                 serviceName,
                 key,
                 methodInfo.getHandlerName(),
-                (TypeTag<I>) RestateUtils.typeTag(methodInfo.getInputType()),
-                (TypeTag<O>) RestateUtils.typeTag(methodInfo.getOutputType()),
+                (TypeTag<I>) methodInfo.getInputType(),
+                (TypeTag<O>) methodInfo.getOutputType(),
                 input,
                 options),
             delay);
@@ -130,7 +130,7 @@ final class ServiceHandleImpl<SVC> implements ServiceHandle<SVC> {
                 serviceName,
                 key,
                 methodInfo.getHandlerName(),
-                (TypeTag<I>) RestateUtils.typeTag(methodInfo.getInputType()),
+                (TypeTag<I>) methodInfo.getInputType(),
                 Serde.VOID,
                 input,
                 options),
@@ -149,7 +149,7 @@ final class ServiceHandleImpl<SVC> implements ServiceHandle<SVC> {
                 key,
                 methodInfo.getHandlerName(),
                 Serde.VOID,
-                (TypeTag<O>) RestateUtils.typeTag(methodInfo.getOutputType()),
+                (TypeTag<O>) methodInfo.getOutputType(),
                 null,
                 options),
             delay);

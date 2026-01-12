@@ -18,7 +18,6 @@ import dev.restate.common.function.ThrowingSupplier;
 import dev.restate.common.reflections.MethodInfo;
 import dev.restate.common.reflections.ProxySupport;
 import dev.restate.common.reflections.ReflectionUtils;
-import dev.restate.common.reflections.RestateUtils;
 import dev.restate.sdk.annotation.Service;
 import dev.restate.sdk.annotation.VirtualObject;
 import dev.restate.sdk.annotation.Workflow;
@@ -443,8 +442,8 @@ public final class Restate {
               .call(
                   Request.of(
                       Target.virtualObject(serviceName, null, methodInfo.getHandlerName()),
-                      (TypeTag<? super Object>) RestateUtils.typeTag(methodInfo.getInputType()),
-                      (TypeTag<? super Object>) RestateUtils.typeTag(methodInfo.getOutputType()),
+                      (TypeTag<? super Object>) methodInfo.getInputType(),
+                      (TypeTag<? super Object>) methodInfo.getOutputType(),
                       invocation.getArguments().length == 0 ? null : invocation.getArguments()[0]))
               .await();
         });
@@ -519,8 +518,8 @@ public final class Restate {
               .call(
                   Request.of(
                       Target.virtualObject(serviceName, key, methodInfo.getHandlerName()),
-                      (TypeTag<? super Object>) RestateUtils.typeTag(methodInfo.getInputType()),
-                      (TypeTag<? super Object>) RestateUtils.typeTag(methodInfo.getOutputType()),
+                      (TypeTag<? super Object>) methodInfo.getInputType(),
+                      (TypeTag<? super Object>) methodInfo.getOutputType(),
                       invocation.getArguments().length == 0 ? null : invocation.getArguments()[0]))
               .await();
         });
@@ -596,8 +595,8 @@ public final class Restate {
               .call(
                   Request.of(
                       Target.virtualObject(serviceName, key, methodInfo.getHandlerName()),
-                      (TypeTag<? super Object>) RestateUtils.typeTag(methodInfo.getInputType()),
-                      (TypeTag<? super Object>) RestateUtils.typeTag(methodInfo.getOutputType()),
+                      (TypeTag<? super Object>) methodInfo.getInputType(),
+                      (TypeTag<? super Object>) methodInfo.getOutputType(),
                       invocation.getArguments().length == 0 ? null : invocation.getArguments()[0]))
               .await();
         });

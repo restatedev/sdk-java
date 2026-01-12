@@ -85,7 +85,9 @@ public final class ReflectionServiceDefinitionFactory implements ServiceDefiniti
             serviceClazz,
             method ->
                 ReflectionUtils.findAnnotation(method, Handler.class) != null
-                    || ReflectionUtils.findAnnotation(method, Shared.class) != null);
+                    || ReflectionUtils.findAnnotation(method, Shared.class) != null
+                    || ReflectionUtils.findAnnotation(method, Workflow.class) != null
+                    || ReflectionUtils.findAnnotation(method, Exclusive.class) != null);
     if (methods.length == 0) {
       throw new MalformedRestateServiceException(serviceName, "No @Handler method found");
     }
@@ -95,7 +97,7 @@ public final class ReflectionServiceDefinitionFactory implements ServiceDefiniti
         Arrays.stream(methods)
             .map(
                 method ->
-                    createHandlerDefinition(
+                    this.createHandlerDefinition(
                         serviceInstance,
                         method,
                         serviceName,
@@ -172,8 +174,6 @@ public final class ReflectionServiceDefinitionFactory implements ServiceDefiniti
               + method.getName()
               + ". Only zero or one parameter is supported.");
     }
-    var inputType = genericParameterTypes.length == 0 ? Void.TYPE : genericParameterTypes[0];
-    var outputType = method.getGenericReturnType();
 
     if (serviceType == ServiceType.SERVICE && handlerInfo.shared()) {
       throw new MalformedRestateServiceException(
@@ -185,6 +185,9 @@ public final class ReflectionServiceDefinitionFactory implements ServiceDefiniti
             : serviceType == ServiceType.VIRTUAL_OBJECT
                 ? HandlerType.EXCLUSIVE
                 : serviceType == ServiceType.WORKFLOW ? HandlerType.WORKFLOW : null;
+
+    Serde<Object> inputSerde = resolveInputSerde(method, serdeFactory, serviceName);
+    Serde<Object> outputSerde = resolveOutputSerde(method, serdeFactory, serviceName);
 
     var runner =
         dev.restate.sdk.HandlerRunner.of(
@@ -202,13 +205,116 @@ public final class ReflectionServiceDefinitionFactory implements ServiceDefiniti
             serdeFactory,
             overrideHandlerOptions);
 
-    //noinspection unchecked
-    return HandlerDefinition.of(
-        handlerName,
-        handlerType,
-        (Serde<Object>) serdeFactory.create(RestateUtils.typeTag(inputType)),
-        (Serde<Object>) serdeFactory.create(RestateUtils.typeTag(outputType)),
-        runner);
+    var handlerDefinition =
+        HandlerDefinition.of(handlerName, handlerType, inputSerde, outputSerde, runner);
+
+    // Look for the accept annotation
+    if (parameterCount > 0) {
+      Accept acceptAnnotation = method.getParameters()[0].getAnnotation(Accept.class);
+      if (acceptAnnotation != null) {
+        handlerDefinition = handlerDefinition.withAcceptContentType(acceptAnnotation.value());
+      }
+    }
+
+    return handlerDefinition;
+  }
+
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  private Serde<Object> resolveInputSerde(
+      Method method, SerdeFactory serdeFactory, String serviceName) {
+    if (method.getParameterCount() == 0) {
+      return (Serde) Serde.VOID;
+    }
+
+    var inputType = method.getGenericParameterTypes()[0];
+
+    var parameter = method.getParameters()[0];
+    Raw rawAnnotation = parameter.getAnnotation(Raw.class);
+    Json jsonAnnotation = parameter.getAnnotation(Json.class);
+
+    // Validate annotations
+    if (rawAnnotation != null && jsonAnnotation != null) {
+      throw new MalformedRestateServiceException(
+          serviceName,
+          "Parameter in method "
+              + method.getName()
+              + " cannot be annotated with both @Raw and @Json");
+    }
+
+    if (rawAnnotation != null) {
+      // Validate parameter type is byte[]
+      if (!inputType.equals(byte[].class)) {
+        throw new MalformedRestateServiceException(
+            serviceName,
+            "Parameter annotated with @Raw in method "
+                + method.getName()
+                + " MUST be of type byte[], was "
+                + inputType);
+      }
+      Serde serde = Serde.RAW;
+      // Apply content type if not default
+      if (!rawAnnotation.contentType().equals("application/octet-stream")) {
+        serde = Serde.withContentType(rawAnnotation.contentType(), serde);
+      }
+      return serde;
+    }
+
+    // Use serdeFactory to create serde
+    Serde<Object> serde = (Serde<Object>) serdeFactory.create(RestateUtils.typeTag(inputType));
+
+    // Apply custom content-type from @Json if present
+    if (jsonAnnotation != null && !jsonAnnotation.contentType().equals("application/json")) {
+      serde = Serde.withContentType(jsonAnnotation.contentType(), serde);
+    }
+
+    return serde;
+  }
+
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  private Serde<Object> resolveOutputSerde(
+      Method method, SerdeFactory serdeFactory, String serviceName) {
+    var outputType = method.getGenericReturnType();
+    if (outputType.equals(Void.TYPE)) {
+      return (Serde) Serde.VOID;
+    }
+
+    Raw rawAnnotation = method.getAnnotation(Raw.class);
+    Json jsonAnnotation = method.getAnnotation(Json.class);
+
+    // Validate annotations
+    if (rawAnnotation != null && jsonAnnotation != null) {
+      throw new MalformedRestateServiceException(
+          serviceName,
+          "Method " + method.getName() + " cannot be annotated with both @Raw and @Json");
+    }
+
+    if (rawAnnotation != null) {
+      // Validate return type is byte[]
+      if (!outputType.equals(byte[].class)) {
+        throw new MalformedRestateServiceException(
+            serviceName,
+            "Method "
+                + method.getName()
+                + " annotated with @Raw MUST return byte[], was "
+                + outputType);
+      }
+      Serde serde = Serde.RAW;
+      // Apply content type if not default
+      if (!rawAnnotation.contentType().equals("application/octet-stream")) {
+        serde = Serde.withContentType(rawAnnotation.contentType(), serde);
+      }
+      return serde;
+    }
+
+    // Use serdeFactory to create serde
+    Serde<Object> serde = (Serde<Object>) serdeFactory.create(RestateUtils.typeTag(outputType));
+
+    // Apply custom content-type from @Json if present
+    if (jsonAnnotation != null && !jsonAnnotation.contentType().equals("application/json")) {
+      serde = Serde.withContentType(jsonAnnotation.contentType(), serde);
+    }
+
+    return serde;
   }
 
   private SerdeFactory resolveSerdeFactory(Class<?> serviceClazz) {

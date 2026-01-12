@@ -9,7 +9,6 @@
 package my.restate.sdk.examples;
 
 import dev.restate.client.Client;
-import dev.restate.client.ClientServiceReference;
 import dev.restate.sdk.*;
 import dev.restate.sdk.annotation.Handler;
 import dev.restate.sdk.annotation.Service;
@@ -143,13 +142,14 @@ public class LoanWorkflow {
 
     // To invoke the workflow:
     Client restateClient = Client.connect("http://127.0.0.1:8080");
-    LoanWorkflow loanWorkflow =
-        restateClient.workflow(LoanWorkflow.class, "my-loan");
+    LoanWorkflow loanWorkflow = restateClient.workflow(LoanWorkflow.class, "my-loan");
     var handle =
-            restateClient.workflowHandle(LoanWorkflow.class, "my-loan").send(
-            LoanWorkflow::run,
-            new LoanRequest(
-                "Francesco", "slinkydeveloper", "DE1234", new BigDecimal("1000000000")));
+        restateClient
+            .workflowHandle(LoanWorkflow.class, "my-loan")
+            .send(
+                LoanWorkflow::run,
+                new LoanRequest(
+                    "Francesco", "slinkydeveloper", "DE1234", new BigDecimal("1000000000")));
 
     LOG.info("Started loan workflow");
 
