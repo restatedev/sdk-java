@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package my.restate.sdk.examples;
 
-import dev.restate.sdk.*;
+import dev.restate.sdk.Restate;
 import dev.restate.sdk.annotation.Handler;
 import dev.restate.sdk.annotation.Name;
 import dev.restate.sdk.annotation.Shared;
@@ -16,13 +16,12 @@ import dev.restate.sdk.annotation.VirtualObject;
 import dev.restate.sdk.common.StateKey;
 import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.http.vertx.RestateHttpServer;
-import java.time.Duration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 /** Counter virtual object */
 @VirtualObject
-@Name("Counter")
+@Name("BroCounter")
 public class Counter {
 
   private static final Logger LOG = LogManager.getLogger(Counter.class);
@@ -31,29 +30,33 @@ public class Counter {
 
   /** Reset the counter. */
   @Handler
-  public void reset(ObjectContext ctx) {
-    ctx.clearAll();
+  public void reset() {
+    Restate.objectContext().clearAll();
   }
 
   /** Add the given value to the count. */
   @Handler
-  public void add(ObjectContext ctx, long request) {
+  public void add(long request) {
+    var ctx = Restate.objectContext();
+
     long currentValue = ctx.get(TOTAL).orElse(0L);
     long newValue = currentValue + request;
-    ctx.sleep(Duration.ofSeconds(120));
     ctx.set(TOTAL, newValue);
   }
 
   /** Get the current counter value. */
   @Shared
   @Handler
-  public long get(SharedObjectContext ctx) {
+  public long get() {
+    var ctx = Restate.sharedObjectContext();
     return ctx.get(TOTAL).orElse(0L);
   }
 
   /** Add a value, and get both the previous value and the new value. */
   @Handler
-  public CounterUpdateResult getAndAdd(ObjectContext ctx, long request) {
+  public CounterUpdateResult getAndAdd(long request) {
+    var ctx = Restate.objectContext();
+
     LOG.info("Invoked get and add with {}", request);
 
     long currentValue = ctx.get(TOTAL).orElse(0L);

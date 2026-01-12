@@ -8,9 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package my.restate.sdk.examples;
 
-import dev.restate.sdk.Context;
-import dev.restate.sdk.SharedWorkflowContext;
-import dev.restate.sdk.WorkflowContext;
+import dev.restate.client.Client;
+import dev.restate.client.ClientServiceReference;
+import dev.restate.sdk.*;
 import dev.restate.sdk.annotation.Handler;
 import dev.restate.sdk.annotation.Service;
 import dev.restate.sdk.annotation.Shared;
@@ -57,7 +57,9 @@ public class LoanWorkflow {
   // --- The main workflow method
 
   @Workflow
-  public String run(WorkflowContext ctx, LoanRequest loanRequest) {
+  public String run(LoanRequest loanRequest) {
+    var ctx = (WorkflowContext) Restate.context();
+
     // 1. Set status
     ctx.set(STATUS, Status.SUBMITTED);
     ctx.set(LOAN_REQUEST, loanRequest);
@@ -79,12 +81,12 @@ public class LoanWorkflow {
     ctx.set(STATUS, Status.APPROVED);
 
     // 4. Request money transaction to the bank
-    var bankClient = LoanWorkflowMockBankClient.fromContext(ctx);
     Instant executionTime;
     try {
       executionTime =
-          bankClient
-              .transfer(
+          Restate.service(MockBank.class)
+              .call(
+                  MockBank::transfer,
                   new TransferRequest(loanRequest.customerBankAccount(), loanRequest.amount()))
               .await(Duration.ofDays(7));
     } catch (TerminalException e) {
@@ -105,18 +107,24 @@ public class LoanWorkflow {
   // --- Methods to approve/reject loan
 
   @Shared
-  public String approveLoan(SharedWorkflowContext ctx) {
+  public String approveLoan() {
+    var ctx = (SharedWorkflowContext) Restate.context();
+
     ctx.promiseHandle(HUMAN_APPROVAL).resolve(true);
     return "Approved";
   }
 
   @Shared
-  public void rejectLoan(SharedWorkflowContext ctx) {
+  public void rejectLoan() {
+    var ctx = (SharedWorkflowContext) Restate.context();
+
     ctx.promiseHandle(HUMAN_APPROVAL).resolve(false);
   }
 
   @Shared
-  public Status getStatus(SharedWorkflowContext ctx) {
+  public Status getStatus() {
+    var ctx = (SharedWorkflowContext) Restate.context();
+
     return ctx.get(STATUS).orElse(Status.UNKNOWN);
   }
 
@@ -139,11 +147,12 @@ public class LoanWorkflow {
     }
 
     // To invoke the workflow:
-    LoanWorkflowClient.IngressClient client =
-        LoanWorkflowClient.connect("http://127.0.0.1:8080", "my-loan");
-
-    var state =
-        client.submit(
+    Client restateClient = Client.connect("http://127.0.0.1:8080");
+    ClientServiceReference<LoanWorkflow> loanWorkflow =
+        restateClient.workflow(LoanWorkflow.class, "my-loan");
+    var handle =
+        loanWorkflow.send(
+            LoanWorkflow::run,
             new LoanRequest(
                 "Francesco", "slinkydeveloper", "DE1234", new BigDecimal("1000000000")));
 
@@ -159,12 +168,12 @@ public class LoanWorkflow {
     LOG.info("We took the decision to approve your loan! You can now achieve your dreams!");
 
     // Now approve it
-    client.approveLoan();
+    loanWorkflow.client().approveLoan();
 
     // Wait for output
-    client.workflowHandle().attach();
+    handle.attach();
 
-    LOG.info("Loan workflow completed, now in status {}", client.getStatus());
+    LOG.info("Loan workflow completed, now in status {}", loanWorkflow.client().getStatus());
   }
 
   // -- Some mocks
@@ -177,8 +186,8 @@ public class LoanWorkflow {
   @Service
   static class MockBank {
     @Handler
-    public Instant transfer(Context context, TransferRequest request) throws TerminalException {
-      boolean shouldAccept = context.random().nextInt(3) != 1;
+    public Instant transfer(TransferRequest request) throws TerminalException {
+      boolean shouldAccept = Restate.random().nextInt(3) != 1;
       if (shouldAccept) {
         return Instant.now();
       } else {

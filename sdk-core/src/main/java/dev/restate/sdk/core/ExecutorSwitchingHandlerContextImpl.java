@@ -14,6 +14,8 @@ import dev.restate.common.Target;
 import dev.restate.sdk.common.*;
 import dev.restate.sdk.core.statemachine.StateMachine;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
+import dev.restate.sdk.endpoint.definition.HandlerType;
+import dev.restate.sdk.endpoint.definition.ServiceType;
 import io.opentelemetry.context.Context;
 import java.time.Duration;
 import java.util.Collection;
@@ -31,11 +33,13 @@ final class ExecutorSwitchingHandlerContextImpl extends HandlerContextImpl {
 
   ExecutorSwitchingHandlerContextImpl(
       String fullyQualifiedHandlerName,
+      ServiceType serviceType,
+      @Nullable HandlerType handlerType,
       StateMachine stateMachine,
       Context otelContext,
       StateMachine.Input input,
       Executor coreExecutor) {
-    super(fullyQualifiedHandlerName, stateMachine, otelContext, input);
+    super(fullyQualifiedHandlerName, serviceType, handlerType, stateMachine, otelContext, input);
     this.coreExecutor = coreExecutor;
   }
 

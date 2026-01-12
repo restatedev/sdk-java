@@ -22,6 +22,7 @@ import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 
 final class EndpointManifest {
 
@@ -278,7 +279,10 @@ final class EndpointManifest {
     return output;
   }
 
-  private static Handler.Ty convertHandlerType(HandlerType handlerType) {
+  private static Handler.Ty convertHandlerType(@Nullable HandlerType handlerType) {
+    if (handlerType == null) {
+      return null;
+    }
     return switch (handlerType) {
       case WORKFLOW -> Handler.Ty.WORKFLOW;
       case EXCLUSIVE -> Handler.Ty.EXCLUSIVE;

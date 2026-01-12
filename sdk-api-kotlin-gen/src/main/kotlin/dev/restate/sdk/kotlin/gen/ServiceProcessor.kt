@@ -175,7 +175,8 @@ class ServiceProcessor(
         when (annotatedElement.classKind) {
           ClassKind.INTERFACE,
           ClassKind.CLASS -> {
-            if (annotatedElement.containingFile!!.origin != Origin.KOTLIN) {
+            if (annotatedElement.containingFile!!.origin != Origin.KOTLIN ||
+                options.isClassDisabled(annotatedElement.qualifiedName!!.asString())) {
               // Skip if it's not kotlin
               continue
             }

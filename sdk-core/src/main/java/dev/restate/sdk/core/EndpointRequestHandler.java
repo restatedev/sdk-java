@@ -216,6 +216,7 @@ public final class EndpointRequestHandler {
     return new RequestProcessorImpl(
         fullyQualifiedServiceMethod,
         stateMachine,
+        svc.getServiceType(),
         handler,
         otelContext,
         loggingContextSetter,

@@ -1,0 +1,22 @@
+// Copyright (c) 2023 - Restate Software, Inc., Restate GmbH
+//
+// This file is part of the Restate Java SDK,
+// which is released under the MIT license.
+//
+// You can find a copy of the license in file LICENSE in the root
+// directory of this repository or package, or at
+// https://github.com/restatedev/sdk-java/blob/main/LICENSE
+package dev.restate.sdk.internal;
+
+@org.jetbrains.annotations.ApiStatus.Internal
+public class MalformedRestateServiceException extends RuntimeException {
+
+  public MalformedRestateServiceException(String serviceName, String message) {
+    super("Failed to instantiate Restate service '" + serviceName + "'.\nReason: " + message);
+  }
+
+  public MalformedRestateServiceException(String serviceName, String message, Throwable cause) {
+    super(
+        "Failed to instantiate Restate service '" + serviceName + "'.\nReason: " + message, cause);
+  }
+}

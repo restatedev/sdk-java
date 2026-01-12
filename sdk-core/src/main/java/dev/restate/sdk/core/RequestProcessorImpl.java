@@ -13,6 +13,7 @@ import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.statemachine.InvocationState;
 import dev.restate.sdk.core.statemachine.StateMachine;
 import dev.restate.sdk.endpoint.definition.HandlerDefinition;
+import dev.restate.sdk.endpoint.definition.ServiceType;
 import io.opentelemetry.context.Context;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -28,6 +29,7 @@ final class RequestProcessorImpl implements RequestProcessor {
 
   private final String fullyQualifiedHandlerName;
   private final StateMachine stateMachine;
+  private final ServiceType serviceType;
   private final HandlerDefinition<Object, Object> handlerDefinition;
   private final Context otelContext;
   private final EndpointRequestHandler.LoggingContextSetter loggingContextSetter;
@@ -35,15 +37,17 @@ final class RequestProcessorImpl implements RequestProcessor {
   private final AtomicReference<Runnable> onHandlerTaskCancellation;
 
   @SuppressWarnings("unchecked")
-  public RequestProcessorImpl(
+  RequestProcessorImpl(
       String fullyQualifiedHandlerName,
       StateMachine stateMachine,
+      ServiceType serviceType,
       HandlerDefinition<?, ?> handlerDefinition,
       Context otelContext,
       EndpointRequestHandler.LoggingContextSetter loggingContextSetter,
       Executor syscallExecutor) {
     this.fullyQualifiedHandlerName = fullyQualifiedHandlerName;
     this.stateMachine = stateMachine;
+    this.serviceType = serviceType;
     this.otelContext = otelContext;
     this.loggingContextSetter = loggingContextSetter;
     this.handlerDefinition = (HandlerDefinition<Object, Object>) handlerDefinition;
@@ -143,8 +147,20 @@ final class RequestProcessorImpl implements RequestProcessor {
     HandlerContextInternal contextInternal =
         this.syscallsExecutor != null
             ? new ExecutorSwitchingHandlerContextImpl(
-                fullyQualifiedHandlerName, stateMachine, otelContext, input, this.syscallsExecutor)
-            : new HandlerContextImpl(fullyQualifiedHandlerName, stateMachine, otelContext, input);
+                fullyQualifiedHandlerName,
+                serviceType,
+                handlerDefinition.getHandlerType(),
+                stateMachine,
+                otelContext,
+                input,
+                this.syscallsExecutor)
+            : new HandlerContextImpl(
+                fullyQualifiedHandlerName,
+                serviceType,
+                handlerDefinition.getHandlerType(),
+                stateMachine,
+                otelContext,
+                input);
 
     CompletableFuture<Slice> userCodeFuture =
         this.handlerDefinition

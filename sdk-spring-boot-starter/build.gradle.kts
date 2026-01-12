@@ -23,6 +23,7 @@ dependencies {
   api(project(":sdk-api"), excludeJackson)
   api(project(":client"), excludeJackson)
   api(project(":sdk-serde-jackson"), excludeJackson)
+  runtimeOnly(project(":bytebuddy-proxy-support")) { isTransitive = true }
 
   // Spring boot starter brought in here for convenience
   api(libs.spring.boot.starter)
@@ -38,4 +39,12 @@ dependencies {
   testImplementation(project(":sdk-testing"))
 }
 
-tasks.withType<JavaCompile> { options.compilerArgs.add("-parameters") }
+tasks.withType<JavaCompile> {
+  val disabledClassesCodegen = listOf("dev.restate.sdk.springboot.java.GreeterNewApi")
+
+  options.compilerArgs.addAll(
+      listOf(
+          "-parameters",
+          "-Adev.restate.codegen.disabledClasses=${disabledClassesCodegen.joinToString(",")}",
+      ))
+}

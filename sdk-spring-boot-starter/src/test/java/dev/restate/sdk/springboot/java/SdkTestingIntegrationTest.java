@@ -18,17 +18,26 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest(
-    classes = Greeter.class,
+    classes = {Greeter.class, GreeterNewApi.class},
     properties = {"greetingPrefix=Something something "})
 @RestateTest(containerImage = "ghcr.io/restatedev/restate:main")
 public class SdkTestingIntegrationTest {
 
   @Autowired @BindService private Greeter greeter;
+  @Autowired @BindService private GreeterNewApi greeterNewApi;
 
   @Test
   @Timeout(value = 10)
   void greet(@RestateClient Client ingressClient) {
     var client = GreeterClient.fromClient(ingressClient);
+
+    assertThat(client.greet("Francesco")).isEqualTo("Something something Francesco");
+  }
+
+  @Test
+  @Timeout(value = 10)
+  void greetNewApi(@RestateClient Client ingressClient) {
+    var client = ingressClient.service(GreeterNewApi.class).client();
 
     assertThat(client.greet("Francesco")).isEqualTo("Something something Francesco");
   }

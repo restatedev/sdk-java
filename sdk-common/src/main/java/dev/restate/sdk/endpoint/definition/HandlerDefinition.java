@@ -21,7 +21,7 @@ import org.jspecify.annotations.Nullable;
 public final class HandlerDefinition<REQ, RES> {
 
   private final String name;
-  private final HandlerType handlerType;
+  private final @Nullable HandlerType handlerType;
   private final @Nullable String acceptContentType;
   private final Serde<REQ> requestSerde;
   private final Serde<RES> responseSerde;
@@ -39,7 +39,7 @@ public final class HandlerDefinition<REQ, RES> {
 
   HandlerDefinition(
       String name,
-      HandlerType handlerType,
+      @Nullable HandlerType handlerType,
       @Nullable String acceptContentType,
       Serde<REQ> requestSerde,
       Serde<RES> responseSerde,
@@ -82,7 +82,7 @@ public final class HandlerDefinition<REQ, RES> {
   /**
    * @return handler type.
    */
-  public HandlerType getHandlerType() {
+  public @Nullable HandlerType getHandlerType() {
     return handlerType;
   }
 

@@ -8,10 +8,15 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.client;
 
+import static dev.restate.common.reflections.ReflectionUtils.mustHaveAnnotation;
+
 import dev.restate.common.Output;
 import dev.restate.common.Request;
 import dev.restate.common.Target;
 import dev.restate.common.WorkflowRequest;
+import dev.restate.sdk.annotation.Service;
+import dev.restate.sdk.annotation.VirtualObject;
+import dev.restate.sdk.annotation.Workflow;
 import dev.restate.serde.SerdeFactory;
 import dev.restate.serde.TypeTag;
 import java.time.Duration;
@@ -523,6 +528,101 @@ public interface Client {
     default Response<Output<Res>> getOutput() throws IngressException {
       return getOutput(RequestOptions.DEFAULT);
     }
+  }
+
+  /**
+   * <b>EXPERIMENTAL API:</b> Create a reference to invoke a Restate service from the ingress. This
+   * API may change in future releases.
+   *
+   * <p>You can invoke the service in three ways:
+   *
+   * <pre>{@code
+   * Client client = Client.connect("http://localhost:8080");
+   *
+   * // 1. Create a client proxy and call it directly (returns output directly)
+   * var greeterProxy = client.service(Greeter.class).client();
+   * GreetingResponse output = greeterProxy.greet(new Greeting("Alice"));
+   *
+   * // 2. Use call() with method reference and wait for the result
+   * Response<GreetingResponse> response = client.service(Greeter.class)
+   *   .call(Greeter::greet, new Greeting("Alice"));
+   *
+   * // 3. Use send() for one-way invocation without waiting
+   * SendResponse<GreetingResponse> sendResponse = client.service(Greeter.class)
+   *   .send(Greeter::greet, new Greeting("Alice"));
+   * }</pre>
+   *
+   * @param clazz the service class annotated with {@link Service}
+   * @return a reference to invoke the service
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  default <SVC> ClientServiceReference<SVC> service(Class<SVC> clazz) {
+    mustHaveAnnotation(clazz, Service.class);
+    return new ClientServiceReferenceImpl<>(this, clazz, null);
+  }
+
+  /**
+   * <b>EXPERIMENTAL API:</b> Create a reference to invoke a Restate Virtual Object from the
+   * ingress. This API may change in future releases.
+   *
+   * <p>You can invoke the virtual object in three ways:
+   *
+   * <pre>{@code
+   * Client client = Client.connect("http://localhost:8080");
+   *
+   * // 1. Create a client proxy and call it directly (returns output directly)
+   * var counterProxy = client.virtualObject(Counter.class, "my-counter").client();
+   * int count = counterProxy.increment();
+   *
+   * // 2. Use call() with method reference and wait for the result
+   * Response<Integer> response = client.virtualObject(Counter.class, "my-counter")
+   *   .call(Counter::increment);
+   *
+   * // 3. Use send() for one-way invocation without waiting
+   * SendResponse<Integer> sendResponse = client.virtualObject(Counter.class, "my-counter")
+   *   .send(Counter::increment);
+   * }</pre>
+   *
+   * @param clazz the virtual object class annotated with {@link VirtualObject}
+   * @param key the key identifying the specific virtual object instance
+   * @return a reference to invoke the virtual object
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  default <SVC> ClientServiceReference<SVC> virtualObject(Class<SVC> clazz, String key) {
+    mustHaveAnnotation(clazz, VirtualObject.class);
+    return new ClientServiceReferenceImpl<>(this, clazz, key);
+  }
+
+  /**
+   * <b>EXPERIMENTAL API:</b> Create a reference to invoke a Restate Workflow from the ingress. This
+   * API may change in future releases.
+   *
+   * <p>You can invoke the workflow in three ways:
+   *
+   * <pre>{@code
+   * Client client = Client.connect("http://localhost:8080");
+   *
+   * // 1. Create a client proxy and call it directly (returns output directly)
+   * var workflowProxy = client.workflow(OrderWorkflow.class, "order-123").client();
+   * OrderResult result = workflowProxy.start(new OrderRequest(...));
+   *
+   * // 2. Use call() with method reference and wait for the result
+   * Response<OrderResult> response = client.workflow(OrderWorkflow.class, "order-123")
+   *   .call(OrderWorkflow::start, new OrderRequest(...));
+   *
+   * // 3. Use send() for one-way invocation without waiting
+   * SendResponse<OrderResult> sendResponse = client.workflow(OrderWorkflow.class, "order-123")
+   *   .send(OrderWorkflow::start, new OrderRequest(...));
+   * }</pre>
+   *
+   * @param clazz the workflow class annotated with {@link Workflow}
+   * @param key the key identifying the specific workflow instance
+   * @return a reference to invoke the workflow
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  default <SVC> ClientServiceReference<SVC> workflow(Class<SVC> clazz, String key) {
+    mustHaveAnnotation(clazz, Workflow.class);
+    return new ClientServiceReferenceImpl<>(this, clazz, key);
   }
 
   /**

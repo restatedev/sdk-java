@@ -14,14 +14,11 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Defines a method as a Shared handler. It can be used only on methods of either {@link
- * VirtualObject} or {@link Workflow}.
- *
- * <p>Shared handlers can execute concurrently with the other handlers of Virtual Objects or
- * Workflows. They can therefore not set or clear state.
- *
- * <p>This implies the annotation {@link Handler}.
+ * Annotate a method as Restate handler. This annotation can be used only on public methods of a
+ * class interface annotated with either {@link Service}, {@link VirtualObject} or {@link Workflow}.
+ * Within the same class/interface, two methods with the same name cannot both be annotated as
+ * handlers.
  */
 @Target(ElementType.METHOD)
-@Retention(RetentionPolicy.SOURCE)
-public @interface Shared {}
+@Retention(RetentionPolicy.RUNTIME)
+public @interface Handler {}

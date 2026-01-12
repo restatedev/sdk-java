@@ -103,11 +103,12 @@ public class ServiceProcessor extends AbstractProcessor {
                         .getElementsAnnotatedWith(metaAnnotation.getAnnotationTypeElement())
                         .stream()
                         .filter(e -> e.getKind().isClass() || e.getKind().isInterface())
+                        .map(e -> (TypeElement) e)
+                        .filter(e -> !this.options.isClassDisabled(e.getQualifiedName().toString()))
                         .map(
                             e ->
                                 Map.entry(
-                                    (Element) e,
-                                    converter.fromTypeElement(metaAnnotation, (TypeElement) e))))
+                                    (Element) e, converter.fromTypeElement(metaAnnotation, e))))
             .collect(Collectors.toList());
 
     Filer filer = processingEnv.getFiler();
@@ -160,6 +161,13 @@ public class ServiceProcessor extends AbstractProcessor {
   @Override
   public SourceVersion getSupportedSourceVersion() {
     return SourceVersion.latestSupported();
+  }
+
+  @Override
+  public Set<String> getSupportedOptions() {
+    return Set.of(
+        AnnotationProcessingOptions.DISABLED_CLASSES,
+        AnnotationProcessingOptions.DISABLED_CLIENT_GENERATION);
   }
 
   public static Path readOrCreateResource(Filer filer, String file) throws IOException {

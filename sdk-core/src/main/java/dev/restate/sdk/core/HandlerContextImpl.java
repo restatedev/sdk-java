@@ -19,6 +19,8 @@ import dev.restate.sdk.core.statemachine.InvocationState;
 import dev.restate.sdk.core.statemachine.NotificationValue;
 import dev.restate.sdk.core.statemachine.StateMachine;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
+import dev.restate.sdk.endpoint.definition.HandlerType;
+import dev.restate.sdk.endpoint.definition.ServiceType;
 import io.opentelemetry.context.Context;
 import java.time.Duration;
 import java.time.Instant;
@@ -41,12 +43,16 @@ class HandlerContextImpl implements HandlerContextInternal {
   private final StateMachine stateMachine;
   private final @Nullable String objectKey;
   private final String fullyQualifiedHandlerName;
+  private final ServiceType serviceType;
+  private final @Nullable HandlerType handlerType;
 
   private final List<AsyncResultInternal<String>> invocationIdsToCancel;
   private final HashMap<Integer, Consumer<RunCompleter>> scheduledRuns;
 
   HandlerContextImpl(
       String fullyQualifiedHandlerName,
+      ServiceType serviceType,
+      @Nullable HandlerType handlerType,
       StateMachine stateMachine,
       Context otelContext,
       StateMachine.Input input) {
@@ -55,6 +61,8 @@ class HandlerContextImpl implements HandlerContextInternal {
     this.objectKey = input.key();
     this.stateMachine = stateMachine;
     this.fullyQualifiedHandlerName = fullyQualifiedHandlerName;
+    this.serviceType = serviceType;
+    this.handlerType = handlerType;
     this.invocationIdsToCancel = new ArrayList<>();
     this.scheduledRuns = new HashMap<>();
   }
@@ -100,6 +108,26 @@ class HandlerContextImpl implements HandlerContextInternal {
   @Override
   public HandlerRequest request() {
     return this.handlerRequest;
+  }
+
+  @Override
+  public boolean canReadState() {
+    return serviceType == ServiceType.VIRTUAL_OBJECT || serviceType == ServiceType.WORKFLOW;
+  }
+
+  @Override
+  public boolean canWriteState() {
+    return handlerType == HandlerType.EXCLUSIVE || handlerType == HandlerType.WORKFLOW;
+  }
+
+  @Override
+  public boolean canReadPromises() {
+    return serviceType == ServiceType.WORKFLOW;
+  }
+
+  @Override
+  public boolean canWritePromises() {
+    return serviceType == ServiceType.WORKFLOW;
   }
 
   @Override
