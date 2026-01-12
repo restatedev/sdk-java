@@ -61,7 +61,7 @@ public final class MethodInfoCollector<SVC> {
     }
   }
 
-  private static final ProxySupport.MethodInterceptor METHOD_INFO_COLLECTOR_INTERCEPTOR =
+  private static final ProxyFactory.MethodInterceptor METHOD_INFO_COLLECTOR_INTERCEPTOR =
       invocation -> {
         throw MethodInfo.fromMethod(invocation.getMethod());
       };

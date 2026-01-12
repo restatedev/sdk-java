@@ -12,10 +12,10 @@ import java.util.*;
 
 public class AnnotationProcessingOptions {
 
-  private static final String DISABLED_CLIENT_GENERATION =
+  public static final String DISABLED_CLIENT_GENERATION =
       "dev.restate.codegen.disabledClientGeneration";
 
-  private static final String DISABLED_CLASSES = "dev.restate.codegen.disabledClasses";
+  public static final String DISABLED_CLASSES = "dev.restate.codegen.disabledClasses";
 
   private final Set<String> disabledClientGenFQCN;
   private final Set<String> disabledClasses;

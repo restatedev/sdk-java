@@ -48,7 +48,7 @@ public final class ProxySupport {
   }
 
   /** Resolve the code generated {@link ProxyFactory} */
-  public static <T> T createProxy(Class<T> clazz, MethodInterceptor interceptor) {
+  public static <T> T createProxy(Class<T> clazz, ProxyFactory.MethodInterceptor interceptor) {
     ProxySupport proxySupport = ProxySupportSingleton.INSTANCE;
 
     for (ProxyFactory proxyFactory : proxySupport.factories) {
@@ -61,27 +61,10 @@ public final class ProxySupport {
     throw new IllegalStateException(
         "Class "
             + clazz.toString()
-            + " cannot be proxied. If the type is a concrete class, make sure to have sdk-proxy-bytebuddy in your dependencies. Registered proxies: "
+            + " cannot be proxied. If the type is a concrete class, make sure to have bytebuddy-proxy-support in your dependencies. Registered ProxyFactory: "
             + proxySupport.factories.stream()
                 .map(pf -> pf.getClass().toString())
                 .collect(Collectors.joining(", ")));
-  }
-
-  public interface MethodInvocation {
-    Object[] getArguments();
-
-    Method getMethod();
-  }
-
-  @FunctionalInterface
-  public interface MethodInterceptor {
-    @Nullable Object invoke(MethodInvocation invocation) throws Throwable;
-  }
-
-  @FunctionalInterface
-  public interface ProxyFactory {
-    /** If returns null, it's not supported. */
-    <T> @Nullable T createProxy(Class<T> clazz, MethodInterceptor interceptor);
   }
 
   private static final class JdkProxyFactory implements ProxyFactory {

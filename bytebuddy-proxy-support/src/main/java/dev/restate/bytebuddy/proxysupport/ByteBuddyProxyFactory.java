@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.bytebuddy.proxysupport;
 
-import dev.restate.common.reflections.ProxySupport;
+import dev.restate.common.reflections.ProxyFactory;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -29,7 +29,7 @@ import org.objenesis.ObjenesisStd;
  * constructor. Uses TypeCache to cache generated proxy classes for better performance
  * (thread-safe).
  */
-public final class ByteBuddyProxyFactory implements ProxySupport.ProxyFactory {
+public final class ByteBuddyProxyFactory implements ProxyFactory {
 
   private static final String INTERCEPTOR_FIELD_NAME = "$$interceptor$$";
 
@@ -39,7 +39,7 @@ public final class ByteBuddyProxyFactory implements ProxySupport.ProxyFactory {
 
   @Override
   @SuppressWarnings("unchecked")
-  public <T> @Nullable T createProxy(Class<T> clazz, ProxySupport.MethodInterceptor interceptor) {
+  public <T> @Nullable T createProxy(Class<T> clazz, MethodInterceptor interceptor) {
     // Cannot proxy final classes
     if (Modifier.isFinal(clazz.getModifiers())) {
       return null;
@@ -79,8 +79,7 @@ public final class ByteBuddyProxyFactory implements ProxySupport.ProxyFactory {
     try (var unloaded =
         builder
             // Add a field to store the interceptor
-            .defineField(
-                INTERCEPTOR_FIELD_NAME, ProxySupport.MethodInterceptor.class, Visibility.PUBLIC)
+            .defineField(INTERCEPTOR_FIELD_NAME, MethodInterceptor.class, Visibility.PUBLIC)
             // Intercept all methods
             .method(ElementMatchers.any())
             .intercept(
@@ -89,15 +88,14 @@ public final class ByteBuddyProxyFactory implements ProxySupport.ProxyFactory {
                       // Get the interceptor from the field
                       Field field = proxy.getClass().getDeclaredField(INTERCEPTOR_FIELD_NAME);
                       field.setAccessible(true);
-                      ProxySupport.MethodInterceptor interceptor =
-                          (ProxySupport.MethodInterceptor) field.get(proxy);
+                      MethodInterceptor interceptor = (MethodInterceptor) field.get(proxy);
 
                       if (interceptor == null) {
                         throw new IllegalStateException("Interceptor not set on proxy instance");
                       }
 
-                      ProxySupport.MethodInvocation invocation =
-                          new ProxySupport.MethodInvocation() {
+                      MethodInvocation invocation =
+                          new MethodInvocation() {
                             @Override
                             public Object[] getArguments() {
                               return args != null ? args : new Object[0];

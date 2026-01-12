@@ -163,6 +163,13 @@ public class ServiceProcessor extends AbstractProcessor {
     return SourceVersion.latestSupported();
   }
 
+  @Override
+  public Set<String> getSupportedOptions() {
+    return Set.of(
+        AnnotationProcessingOptions.DISABLED_CLASSES,
+        AnnotationProcessingOptions.DISABLED_CLIENT_GENERATION);
+  }
+
   public static Path readOrCreateResource(Filer filer, String file) throws IOException {
     try {
       FileObject fileObject = filer.getResource(StandardLocation.CLASS_OUTPUT, "", file);

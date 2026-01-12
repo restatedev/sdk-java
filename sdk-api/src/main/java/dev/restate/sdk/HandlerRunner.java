@@ -19,7 +19,6 @@ import dev.restate.sdk.internal.ContextThreadLocal;
 import dev.restate.serde.Serde;
 import dev.restate.serde.SerdeFactory;
 import io.opentelemetry.context.Scope;
-
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -204,9 +203,9 @@ public class HandlerRunner<REQ, RES>
     }
   }
 
-    static HandlerContext getHandlerContext() {
-        return Objects.requireNonNull(
-                dev.restate.sdk.endpoint.definition.HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL.get(),
-                "Restate methods must be invoked from within a Restate handler");
-    }
+  static HandlerContext getHandlerContext() {
+    return Objects.requireNonNull(
+        dev.restate.sdk.endpoint.definition.HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL.get(),
+        "Restate methods must be invoked from within a Restate handler");
+  }
 }

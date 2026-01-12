@@ -198,7 +198,9 @@ public final class Restate {
     return ContextThreadLocal.CONTEXT_THREAD_LOCAL.get() != null;
   }
 
-  /** @see Context#request() */
+  /**
+   * @see Context#request()
+   */
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static HandlerRequest request() {
     return context().request();
@@ -215,7 +217,9 @@ public final class Restate {
     return context().random();
   }
 
-  /** @see Context#invocationHandle(String, TypeTag) */
+  /**
+   * @see Context#invocationHandle(String, TypeTag)
+   */
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <R> InvocationHandle<R> invocationHandle(
       String invocationId, TypeTag<R> responseTypeTag) {

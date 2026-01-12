@@ -1,3 +1,11 @@
+// Copyright (c) 2023 - Restate Software, Inc., Restate GmbH
+//
+// This file is part of the Restate Java SDK,
+// which is released under the MIT license.
+//
+// You can find a copy of the license in file LICENSE in the root
+// directory of this repository or package, or at
+// https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.fake;
 
 import dev.restate.common.function.ThrowingRunnable;
@@ -9,8 +17,8 @@ import dev.restate.sdk.internal.ContextThreadLocal;
 /**
  * Fake Restate environment for testing handlers using the new reflection API.
  *
- * <p>This class provides utility methods to execute service methods that use the new reflection
- * API (without explicit Context parameters) in a fake Restate context for testing purposes.
+ * <p>This class provides utility methods to execute service methods that use the new reflection API
+ * (without explicit Context parameters) in a fake Restate context for testing purposes.
  *
  * <p>Example usage:
  *
@@ -46,77 +54,77 @@ import dev.restate.sdk.internal.ContextThreadLocal;
 @org.jetbrains.annotations.ApiStatus.Experimental
 public final class FakeRestate {
 
-    /**
-     * Execute a runnable in a fake Restate context with default expectations.
-     *
-     * @param runnable the code to execute
-     */
-    public static void execute(ThrowingRunnable runnable) {
-        execute(new ContextExpectations(), runnable);
-    }
+  /**
+   * Execute a runnable in a fake Restate context with default expectations.
+   *
+   * @param runnable the code to execute
+   */
+  public static void execute(ThrowingRunnable runnable) {
+    execute(new ContextExpectations(), runnable);
+  }
 
-    /**
-     * Execute a runnable in a fake Restate context with custom expectations.
-     *
-     * @param expectations the context expectations to use
-     * @param runnable the code to execute
-     */
-    public static void execute(ContextExpectations expectations, ThrowingRunnable runnable) {
-        var fakeHandlerContext = new FakeHandlerContext(expectations);
-        var fakeContext =
-                ContextInternal.createContext(
-                        fakeHandlerContext, Runnable::run, expectations.serdeFactory());
-        HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL.set(fakeHandlerContext);
-        ContextThreadLocal.setContext(fakeContext);
-        try {
-runnable.run();
-        } catch (Throwable e) {
-            sneakyThrow(e);
-        } finally {
-            ContextThreadLocal.clearContext();
-            HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL.remove();
-        }
+  /**
+   * Execute a runnable in a fake Restate context with custom expectations.
+   *
+   * @param expectations the context expectations to use
+   * @param runnable the code to execute
+   */
+  public static void execute(ContextExpectations expectations, ThrowingRunnable runnable) {
+    var fakeHandlerContext = new FakeHandlerContext(expectations);
+    var fakeContext =
+        ContextInternal.createContext(
+            fakeHandlerContext, Runnable::run, expectations.serdeFactory());
+    HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL.set(fakeHandlerContext);
+    ContextThreadLocal.setContext(fakeContext);
+    try {
+      runnable.run();
+    } catch (Throwable e) {
+      sneakyThrow(e);
+    } finally {
+      ContextThreadLocal.clearContext();
+      HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL.remove();
     }
+  }
 
-    /**
-     * Execute a supplier in a fake Restate context with default expectations and return the result.
-     *
-     * @param runnable the code to execute
-     * @param <T> the return type
-     * @return the result of the supplier
-     */
-    public static <T> T execute( ThrowingSupplier<T> runnable) {
-        return execute(new ContextExpectations(), runnable);
-    }
+  /**
+   * Execute a supplier in a fake Restate context with default expectations and return the result.
+   *
+   * @param runnable the code to execute
+   * @param <T> the return type
+   * @return the result of the supplier
+   */
+  public static <T> T execute(ThrowingSupplier<T> runnable) {
+    return execute(new ContextExpectations(), runnable);
+  }
 
-    /**
-     * Execute a supplier in a fake Restate context with custom expectations and return the result.
-     *
-     * @param expectations the context expectations to use
-     * @param runnable the code to execute
-     * @param <T> the return type
-     * @return the result of the supplier
-     */
-    public static <T> T execute(ContextExpectations expectations, ThrowingSupplier<T> runnable) {
-        var fakeHandlerContext = new FakeHandlerContext(expectations);
-        var fakeContext =
-                ContextInternal.createContext(
-                        fakeHandlerContext, Runnable::run, expectations.serdeFactory());
-        HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL.set(fakeHandlerContext);
-        ContextThreadLocal.setContext(fakeContext);
-        try {
-            return runnable.get();
-        } catch (Throwable e) {
-            sneakyThrow(e);
-            return null;
-        } finally {
-            ContextThreadLocal.clearContext();
-            HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL.remove();
-        }
+  /**
+   * Execute a supplier in a fake Restate context with custom expectations and return the result.
+   *
+   * @param expectations the context expectations to use
+   * @param runnable the code to execute
+   * @param <T> the return type
+   * @return the result of the supplier
+   */
+  public static <T> T execute(ContextExpectations expectations, ThrowingSupplier<T> runnable) {
+    var fakeHandlerContext = new FakeHandlerContext(expectations);
+    var fakeContext =
+        ContextInternal.createContext(
+            fakeHandlerContext, Runnable::run, expectations.serdeFactory());
+    HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL.set(fakeHandlerContext);
+    ContextThreadLocal.setContext(fakeContext);
+    try {
+      return runnable.get();
+    } catch (Throwable e) {
+      sneakyThrow(e);
+      return null;
+    } finally {
+      ContextThreadLocal.clearContext();
+      HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL.remove();
     }
+  }
 
-    @SuppressWarnings("unchecked")
-    private static <E extends Throwable> void sneakyThrow(Throwable e) throws E {
-        throw (E) e;
-    }
+  @SuppressWarnings("unchecked")
+  private static <E extends Throwable> void sneakyThrow(Throwable e) throws E {
+    throw (E) e;
+  }
 }

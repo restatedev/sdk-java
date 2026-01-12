@@ -14,4 +14,6 @@ dependencies {
   api(project(":sdk-serde-jackson"))
 
   implementation(libs.log4j.api)
+
+  runtimeOnly(project(":bytebuddy-proxy-support")) { isTransitive = true }
 }

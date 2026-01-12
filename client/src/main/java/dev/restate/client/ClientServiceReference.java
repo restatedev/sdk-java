@@ -18,8 +18,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * <b>EXPERIMENTAL API:</b> This interface is part of the new reflection-based API and may change
- * in future releases.
+ * <b>EXPERIMENTAL API:</b> This interface is part of the new reflection-based API and may change in
+ * future releases.
  *
  * <p>A reference to a Restate service, virtual object, or workflow that can be invoked from the
  * ingress (outside of a handler). Provides three ways to invoke methods:
@@ -40,8 +40,8 @@ import java.util.function.Function;
  *   .send(Greeter::greet, new Greeting("Alice"));
  * }</pre>
  *
- * <p>Create instances using {@link Client#service(Class)}, {@link
- * Client#virtualObject(Class, String)}, or {@link Client#workflow(Class, String)}.
+ * <p>Create instances using {@link Client#service(Class)}, {@link Client#virtualObject(Class,
+ * String)}, or {@link Client#workflow(Class, String)}.
  *
  * @param <SVC> the service interface type
  */
@@ -356,9 +356,7 @@ public interface ClientServiceReference<SVC> {
   }
 
   // send - Function variants
-  /**
-   * <b>EXPERIMENTAL API:</b> Like {@link #send(BiFunction, Object)}, for methods without input.
-   */
+  /** <b>EXPERIMENTAL API:</b> Like {@link #send(BiFunction, Object)}, for methods without input. */
   @org.jetbrains.annotations.ApiStatus.Experimental
   default <O> SendResponse<O> send(Function<SVC, O> s) {
     return send(s, InvocationOptions.DEFAULT);
@@ -480,14 +478,18 @@ public interface ClientServiceReference<SVC> {
     return sendAsync(s, input, delay, InvocationOptions.DEFAULT);
   }
 
-  /** <b>EXPERIMENTAL API:</b> Like {@link #sendAsync(BiFunction, Object)}, with delay and options. */
+  /**
+   * <b>EXPERIMENTAL API:</b> Like {@link #sendAsync(BiFunction, Object)}, with delay and options.
+   */
   @org.jetbrains.annotations.ApiStatus.Experimental
   default <I, O> CompletableFuture<SendResponse<O>> sendAsync(
       BiFunction<SVC, I, O> s, I input, Duration delay, InvocationOptions.Builder options) {
     return sendAsync(s, input, delay, options.build());
   }
 
-  /** <b>EXPERIMENTAL API:</b> Like {@link #sendAsync(BiFunction, Object)}, with delay and options. */
+  /**
+   * <b>EXPERIMENTAL API:</b> Like {@link #sendAsync(BiFunction, Object)}, with delay and options.
+   */
   @org.jetbrains.annotations.ApiStatus.Experimental
   <I, O> CompletableFuture<SendResponse<O>> sendAsync(
       BiFunction<SVC, I, O> s, I input, Duration delay, InvocationOptions invocationOptions);
@@ -520,14 +522,18 @@ public interface ClientServiceReference<SVC> {
     return sendAsync(s, input, delay, InvocationOptions.DEFAULT);
   }
 
-  /** <b>EXPERIMENTAL API:</b> Like {@link #sendAsync(BiConsumer, Object)}, with delay and options. */
+  /**
+   * <b>EXPERIMENTAL API:</b> Like {@link #sendAsync(BiConsumer, Object)}, with delay and options.
+   */
   @org.jetbrains.annotations.ApiStatus.Experimental
   default <I> CompletableFuture<SendResponse<Void>> sendAsync(
       BiConsumer<SVC, I> s, I input, Duration delay, InvocationOptions.Builder options) {
     return sendAsync(s, input, delay, options.build());
   }
 
-  /** <b>EXPERIMENTAL API:</b> Like {@link #sendAsync(BiConsumer, Object)}, with delay and options. */
+  /**
+   * <b>EXPERIMENTAL API:</b> Like {@link #sendAsync(BiConsumer, Object)}, with delay and options.
+   */
   @org.jetbrains.annotations.ApiStatus.Experimental
   <I> CompletableFuture<SendResponse<Void>> sendAsync(
       BiConsumer<SVC, I> s, I input, Duration delay, InvocationOptions invocationOptions);
@@ -572,7 +578,10 @@ public interface ClientServiceReference<SVC> {
       Function<SVC, O> s, Duration delay, InvocationOptions invocationOptions);
 
   // sendAsync - Consumer variants
-  /** <b>EXPERIMENTAL API:</b> Like {@link #sendAsync(BiFunction, Object)}, for no-input/void methods. */
+  /**
+   * <b>EXPERIMENTAL API:</b> Like {@link #sendAsync(BiFunction, Object)}, for no-input/void
+   * methods.
+   */
   @org.jetbrains.annotations.ApiStatus.Experimental
   default CompletableFuture<SendResponse<Void>> sendAsync(Consumer<SVC> s) {
     return sendAsync(s, InvocationOptions.DEFAULT);

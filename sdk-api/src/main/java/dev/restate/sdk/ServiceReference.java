@@ -16,8 +16,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * <b>EXPERIMENTAL API:</b> This interface is part of the new reflection-based API and may change
- * in future releases.
+ * <b>EXPERIMENTAL API:</b> This interface is part of the new reflection-based API and may change in
+ * future releases.
  *
  * <p>A reference to a Restate service, virtual object, or workflow that can be invoked from within
  * a handler. Provides three ways to invoke methods:
@@ -37,8 +37,8 @@ import java.util.function.Function;
  *   .send(Greeter::greet, new Greeting("Alice"));
  * }</pre>
  *
- * <p>Create instances using {@link Restate#service(Class)}, {@link
- * Restate#virtualObject(Class, String)}, or {@link Restate#workflow(Class, String)}.
+ * <p>Create instances using {@link Restate#service(Class)}, {@link Restate#virtualObject(Class,
+ * String)}, or {@link Restate#workflow(Class, String)}.
  *
  * @param <SVC> the service interface type
  */
@@ -96,9 +96,7 @@ public interface ServiceReference<SVC> {
     return call(s, input, options.build());
   }
 
-  /**
-   * <b>EXPERIMENTAL API:</b> Like {@link #call(BiFunction, Object)}, with invocation options.
-   */
+  /** <b>EXPERIMENTAL API:</b> Like {@link #call(BiFunction, Object)}, with invocation options. */
   @org.jetbrains.annotations.ApiStatus.Experimental
   <I, O> DurableFuture<O> call(BiFunction<SVC, I, O> s, I input, InvocationOptions options);
 
@@ -275,9 +273,7 @@ public interface ServiceReference<SVC> {
   <I> InvocationHandle<Void> send(
       BiConsumer<SVC, I> s, I input, Duration delay, InvocationOptions options);
 
-  /**
-   * <b>EXPERIMENTAL API:</b> Like {@link #send(BiFunction, Object)}, for methods without input.
-   */
+  /** <b>EXPERIMENTAL API:</b> Like {@link #send(BiFunction, Object)}, for methods without input. */
   @org.jetbrains.annotations.ApiStatus.Experimental
   default <O> InvocationHandle<O> send(Function<SVC, O> s) {
     return send(s, InvocationOptions.DEFAULT);

@@ -594,8 +594,8 @@ public interface Client {
   }
 
   /**
-   * <b>EXPERIMENTAL API:</b> Create a reference to invoke a Restate Workflow from the ingress.
-   * This API may change in future releases.
+   * <b>EXPERIMENTAL API:</b> Create a reference to invoke a Restate Workflow from the ingress. This
+   * API may change in future releases.
    *
    * <p>You can invoke the workflow in three ways:
    *
