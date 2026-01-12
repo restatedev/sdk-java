@@ -15,9 +15,11 @@ import dev.restate.common.function.ThrowingConsumer;
 import dev.restate.common.function.ThrowingFunction;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
+import dev.restate.sdk.internal.ContextThreadLocal;
 import dev.restate.serde.Serde;
 import dev.restate.serde.SerdeFactory;
 import io.opentelemetry.context.Scope;
+
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -91,12 +93,12 @@ public class HandlerRunner<REQ, RES>
           RES res = null;
           Throwable error = null;
           try {
-            setContext(ctx);
+            ContextThreadLocal.setContext(ctx);
             res = this.runner.apply(ctx, req);
           } catch (Throwable e) {
             error = e;
           } finally {
-            clearContext();
+            ContextThreadLocal.clearContext();
           }
 
           // If error, just return now
@@ -202,25 +204,9 @@ public class HandlerRunner<REQ, RES>
     }
   }
 
-  static final ThreadLocal<Context> CONTEXT_THREAD_LOCAL = new ThreadLocal<>();
-
-  static Context getContext() {
-    return Objects.requireNonNull(
-        CONTEXT_THREAD_LOCAL.get(),
-        "Restate methods must be invoked from within a Restate handler");
-  }
-
-  static HandlerContext getHandlerContext() {
-    return Objects.requireNonNull(
-        HANDLER_CONTEXT_THREAD_LOCAL.get(),
-        "Restate methods must be invoked from within a Restate handler");
-  }
-
-  private static void setContext(Context context) {
-    CONTEXT_THREAD_LOCAL.set(context);
-  }
-
-  private static void clearContext() {
-    CONTEXT_THREAD_LOCAL.remove();
-  }
+    static HandlerContext getHandlerContext() {
+        return Objects.requireNonNull(
+                dev.restate.sdk.endpoint.definition.HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL.get(),
+                "Restate methods must be invoked from within a Restate handler");
+    }
 }
