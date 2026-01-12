@@ -8,7 +8,13 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.bytebuddy.proxysupport;
 
+import static net.bytebuddy.matcher.ElementMatchers.*;
+
 import dev.restate.common.reflections.ProxyFactory;
+import dev.restate.sdk.annotation.Exclusive;
+import dev.restate.sdk.annotation.Handler;
+import dev.restate.sdk.annotation.Shared;
+import dev.restate.sdk.annotation.Workflow;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -17,7 +23,6 @@ import net.bytebuddy.TypeCache;
 import net.bytebuddy.description.modifier.Visibility;
 import net.bytebuddy.dynamic.scaffold.TypeValidation;
 import net.bytebuddy.implementation.InvocationHandlerAdapter;
-import net.bytebuddy.matcher.ElementMatchers;
 import org.jspecify.annotations.Nullable;
 import org.objenesis.Objenesis;
 import org.objenesis.ObjenesisStd;
@@ -42,7 +47,7 @@ public final class ByteBuddyProxyFactory implements ProxyFactory {
   public <T> @Nullable T createProxy(Class<T> clazz, MethodInterceptor interceptor) {
     // Cannot proxy final classes
     if (Modifier.isFinal(clazz.getModifiers())) {
-      return null;
+      throw new IllegalArgumentException("Class " + clazz + " is final, cannot be proxied.");
     }
 
     try {
@@ -61,15 +66,13 @@ public final class ByteBuddyProxyFactory implements ProxyFactory {
       interceptorField.set(proxyInstance, interceptor);
 
       return proxyInstance;
-
     } catch (Exception e) {
-      // Could not create or instantiate the proxy
-      return null;
+      throw new IllegalArgumentException("Cannot create proxy for class " + clazz, e);
     }
   }
 
   private <T> Class<?> generateProxyClass(Class<T> clazz) {
-    ByteBuddy byteBuddy = new ByteBuddy().with(TypeValidation.DISABLED);
+    ByteBuddy byteBuddy = new ByteBuddy().with(TypeValidation.ENABLED);
 
     var builder =
         clazz.isInterface()
@@ -81,7 +84,13 @@ public final class ByteBuddyProxyFactory implements ProxyFactory {
             // Add a field to store the interceptor
             .defineField(INTERCEPTOR_FIELD_NAME, MethodInterceptor.class, Visibility.PUBLIC)
             // Intercept all methods
-            .method(ElementMatchers.any())
+            .method(
+                isMethod()
+                    .and(
+                        isAnnotatedWith(Handler.class)
+                            .or(isAnnotatedWith(Exclusive.class))
+                            .or(isAnnotatedWith(Shared.class))
+                            .or(isAnnotatedWith(Workflow.class))))
             .intercept(
                 InvocationHandlerAdapter.of(
                     (proxy, method, args) -> {
@@ -91,7 +100,8 @@ public final class ByteBuddyProxyFactory implements ProxyFactory {
                       MethodInterceptor interceptor = (MethodInterceptor) field.get(proxy);
 
                       if (interceptor == null) {
-                        throw new IllegalStateException("Interceptor not set on proxy instance");
+                        throw new IllegalStateException(
+                            "Interceptor not set on proxy instance. This is a bug, please contact the developers.");
                       }
 
                       MethodInvocation invocation =
