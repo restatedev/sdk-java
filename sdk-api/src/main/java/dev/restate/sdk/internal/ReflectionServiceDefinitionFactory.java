@@ -8,12 +8,10 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.internal;
 
-import dev.restate.common.function.ThrowingBiFunction;
 import dev.restate.common.reflections.ReflectionUtils;
 import dev.restate.common.reflections.RestateUtils;
-import dev.restate.sdk.Context;
+import dev.restate.sdk.*;
 import dev.restate.sdk.HandlerRunner;
-import dev.restate.sdk.MalformedRestateServiceException;
 import dev.restate.sdk.annotation.*;
 import dev.restate.sdk.endpoint.definition.*;
 import dev.restate.serde.Serde;
@@ -21,8 +19,8 @@ import dev.restate.serde.SerdeFactory;
 import dev.restate.serde.provider.DefaultSerdeFactoryProvider;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.Arrays;
-import java.util.ServiceLoader;
+import java.text.MessageFormat;
+import java.util.*;
 import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 
@@ -117,12 +115,62 @@ public final class ReflectionServiceDefinitionFactory implements ServiceDefiniti
     var handlerInfo = ReflectionUtils.mustHaveHandlerAnnotation(method);
     var handlerName = handlerInfo.name();
     var genericParameterTypes = method.getGenericParameterTypes();
-    if (genericParameterTypes.length > 1) {
+    var parameterCount = method.getParameterCount();
+
+    if ((parameterCount == 1 || parameterCount == 2)
+        && (genericParameterTypes[0].equals(Context.class)
+            || genericParameterTypes[0].equals(SharedObjectContext.class)
+            || genericParameterTypes[0].equals(ObjectContext.class)
+            || genericParameterTypes[0].equals(WorkflowContext.class)
+            || genericParameterTypes[0].equals(SharedWorkflowContext.class))) {
+      var ctxTypeName = ((Class<?>) genericParameterTypes[0]).getSimpleName();
+      var returnTypeName =
+          !method.getGenericReturnType().equals(Void.TYPE)
+              ? method.getGenericReturnType().toString()
+              : null;
+      var restateCtxGetter = ctxTypeName.substring(0, 1).toLowerCase() + ctxTypeName.substring(1);
+      throw new MalformedRestateServiceException(
+          serviceName,
+          MessageFormat.format(
+              """
+                    The service is being loaded with the new Reflection based API, but handler ''{0}'' contains {1} as first parameter. Suggestions:
+                    * If you want to use the new Reflection based API, remove {2} from the method definition and use {3} inside the handler:
+                      - {4} '{'
+                      -   // code
+                      - '}'
+                    Replace with:
+                      + {5} '{'
+                      +   var ctx = Restate.{6}();
+                      +   // code
+                      + '}
+                    * If you''re still using the annotation processor based API, make sure the ServiceDefinitionFactory class was correctly generated.""",
+              handlerName,
+              ctxTypeName,
+              ctxTypeName,
+              Restate.class.getName(),
+              renderSignature(
+                  handlerName,
+                  parameterCount == 1
+                      ? List.of(Map.entry(ctxTypeName, "ctx"))
+                      : List.of(
+                          Map.entry(ctxTypeName, "ctx"),
+                          Map.entry(genericParameterTypes[1].getTypeName(), "input")),
+                  returnTypeName),
+              renderSignature(
+                  handlerName,
+                  parameterCount == 1
+                      ? List.of()
+                      : List.of(Map.entry(genericParameterTypes[1].getTypeName(), "input")),
+                  returnTypeName),
+              restateCtxGetter));
+    }
+
+    if (parameterCount > 1) {
       throw new MalformedRestateServiceException(
           serviceName,
           "More than one parameter found in method "
               + method.getName()
-              + ". Only one parameter is supported.");
+              + ". Only zero or one parameter is supported.");
     }
     var inputType = genericParameterTypes.length == 0 ? Void.TYPE : genericParameterTypes[0];
     var outputType = method.getGenericReturnType();
@@ -138,29 +186,19 @@ public final class ReflectionServiceDefinitionFactory implements ServiceDefiniti
                 ? HandlerType.EXCLUSIVE
                 : serviceType == ServiceType.WORKFLOW ? HandlerType.WORKFLOW : null;
 
-    var parameterCount = method.getParameterCount();
-
-    // TODO here we should add some code to handle handling Context in method definition.
-    // This is because we want to make sure people declaring the handlers with the Context in the
-    // method works
-    // providing a smoother path to transition from code generation
-    // Plus plus plus important bit -> we need to validate the input paramters can be one and only
-    // one (OBV)!
-
     var runner =
         dev.restate.sdk.HandlerRunner.of(
-            (ThrowingBiFunction<Context, Object, Object>)
-                (ctx, in) -> {
-                  try {
-                    if (parameterCount == 0) {
-                      return method.invoke(serviceInstance);
-                    } else {
-                      return method.invoke(serviceInstance, in);
-                    }
-                  } catch (InvocationTargetException e) {
-                    throw e.getCause();
-                  }
-                },
+            (ctx, in) -> {
+              try {
+                if (parameterCount == 0) {
+                  return method.invoke(serviceInstance);
+                } else {
+                  return method.invoke(serviceInstance, in);
+                }
+              } catch (InvocationTargetException e) {
+                throw e.getCause();
+              }
+            },
             serdeFactory,
             overrideHandlerOptions);
 
@@ -215,6 +253,18 @@ public final class ReflectionServiceDefinitionFactory implements ServiceDefiniti
               + "Make sure sdk-serde-jackson is on the classpath.",
           e);
     }
+  }
+
+  private String renderSignature(
+      String name, List<Map.Entry<String, String>> inputTypes, @Nullable String outputType) {
+    return Objects.requireNonNullElse(outputType, "void")
+        + " "
+        + name
+        + "("
+        + inputTypes.stream()
+            .map(e -> e.getKey() + " " + e.getValue())
+            .collect(Collectors.joining(", "))
+        + ")";
   }
 
   @Override
