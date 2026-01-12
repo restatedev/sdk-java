@@ -103,11 +103,12 @@ public class ServiceProcessor extends AbstractProcessor {
                         .getElementsAnnotatedWith(metaAnnotation.getAnnotationTypeElement())
                         .stream()
                         .filter(e -> e.getKind().isClass() || e.getKind().isInterface())
+                        .map(e -> (TypeElement) e)
+                        .filter(e -> !this.options.isClassDisabled(e.getQualifiedName().toString()))
                         .map(
                             e ->
                                 Map.entry(
-                                    (Element) e,
-                                    converter.fromTypeElement(metaAnnotation, (TypeElement) e))))
+                                    (Element) e, converter.fromTypeElement(metaAnnotation, e))))
             .collect(Collectors.toList());
 
     Filer filer = processingEnv.getFiler();

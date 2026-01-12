@@ -67,6 +67,26 @@ class FakeHandlerContext implements HandlerContext {
   }
 
   @Override
+  public boolean canReadState() {
+    return true;
+  }
+
+  @Override
+  public boolean canWriteState() {
+    return true;
+  }
+
+  @Override
+  public boolean canReadPromises() {
+    return true;
+  }
+
+  @Override
+  public boolean canWritePromises() {
+    return true;
+  }
+
+  @Override
   public CompletableFuture<Void> writeOutput(Slice slice) {
     throw new UnsupportedOperationException(
         "FakeHandlerContext doesn't currently support mocking this operation");
