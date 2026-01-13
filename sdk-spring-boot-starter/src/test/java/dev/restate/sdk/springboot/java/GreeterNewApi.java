@@ -10,12 +10,10 @@ package dev.restate.sdk.springboot.java;
 
 import dev.restate.sdk.annotation.Handler;
 import dev.restate.sdk.annotation.Name;
-import dev.restate.sdk.annotation.Service;
-import dev.restate.sdk.springboot.RestateComponent;
+import dev.restate.sdk.springboot.RestateService;
 import org.springframework.beans.factory.annotation.Value;
 
-@Service
-@RestateComponent
+@RestateService
 @Name("greeterNewApi")
 public class GreeterNewApi {
 
