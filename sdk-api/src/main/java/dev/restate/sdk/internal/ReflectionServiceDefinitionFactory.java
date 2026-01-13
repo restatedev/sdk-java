@@ -119,17 +119,7 @@ public final class ReflectionServiceDefinitionFactory implements ServiceDefiniti
     var handlerName = handlerInfo.name();
     var genericParameterTypes = method.getGenericParameterTypes();
     var parameterCount = method.getParameterCount();
-
-    if (!Modifier.isPublic(method.getModifiers())) {
-      throw new MalformedRestateServiceException(
-          serviceName,
-          "Handler method '"
-              + handlerName
-              + "' MUST be public, but method '"
-              + method.getName()
-              + "' has modifiers: "
-              + Modifier.toString(method.getModifiers()));
-    }
+    validateMethod(method, serviceName);
 
     if ((parameterCount == 1 || parameterCount == 2)
         && (genericParameterTypes[0].equals(Context.class)
@@ -229,6 +219,22 @@ public final class ReflectionServiceDefinitionFactory implements ServiceDefiniti
     }
 
     return handlerDefinition;
+  }
+
+  private static void validateMethod(Method method, String serviceName) {
+    if (!Modifier.isPublic(method.getModifiers())) {
+      throw new MalformedRestateServiceException(
+          serviceName,
+          "Method '"
+              + method.getName()
+              + "' MUST be public to be used as Restate handler. Modifiers:"
+              + Modifier.toString(method.getModifiers()));
+    }
+    if (Modifier.isStatic(method.getModifiers())) {
+      throw new MalformedRestateServiceException(
+          serviceName,
+          "Method '" + method.getName() + "' is static, cannot be used as Restate handler");
+    }
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
