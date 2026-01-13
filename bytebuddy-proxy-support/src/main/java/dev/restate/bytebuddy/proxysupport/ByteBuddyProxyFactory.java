@@ -11,17 +11,20 @@ package dev.restate.bytebuddy.proxysupport;
 import static net.bytebuddy.matcher.ElementMatchers.*;
 
 import dev.restate.common.reflections.ProxyFactory;
+import dev.restate.common.reflections.ReflectionUtils;
 import dev.restate.sdk.annotation.Exclusive;
 import dev.restate.sdk.annotation.Handler;
 import dev.restate.sdk.annotation.Shared;
 import dev.restate.sdk.annotation.Workflow;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.TypeCache;
 import net.bytebuddy.description.modifier.Visibility;
 import net.bytebuddy.dynamic.scaffold.TypeValidation;
+import net.bytebuddy.implementation.ExceptionMethod;
 import net.bytebuddy.implementation.InvocationHandlerAdapter;
 import org.jspecify.annotations.Nullable;
 import org.objenesis.Objenesis;
@@ -39,6 +42,7 @@ public final class ByteBuddyProxyFactory implements ProxyFactory {
   private static final String INTERCEPTOR_FIELD_NAME = "$$interceptor$$";
 
   private final Objenesis objenesis = new ObjenesisStd();
+  private final ByteBuddy byteBuddy = new ByteBuddy().with(TypeValidation.ENABLED);
   private final TypeCache<Class<?>> proxyClassCache =
       new TypeCache.WithInlineExpunction<>(TypeCache.Sort.SOFT);
 
@@ -62,8 +66,24 @@ public final class ByteBuddyProxyFactory implements ProxyFactory {
 
       // Set the interceptor field
       Field interceptorField = proxyClass.getDeclaredField(INTERCEPTOR_FIELD_NAME);
-      interceptorField.setAccessible(true);
-      interceptorField.set(proxyInstance, interceptor);
+      interceptorField.set(
+          proxyInstance,
+          (InvocationHandler)
+              (proxy, method, args) -> {
+                MethodInvocation invocation =
+                    new MethodInvocation() {
+                      @Override
+                      public Object[] getArguments() {
+                        return args != null ? args : new Object[0];
+                      }
+
+                      @Override
+                      public Method getMethod() {
+                        return method;
+                      }
+                    };
+                return interceptor.invoke(invocation);
+              });
 
       return proxyInstance;
     } catch (Exception e) {
@@ -71,55 +91,81 @@ public final class ByteBuddyProxyFactory implements ProxyFactory {
     }
   }
 
-  private <T> Class<?> generateProxyClass(Class<T> clazz) {
-    ByteBuddy byteBuddy = new ByteBuddy().with(TypeValidation.ENABLED);
+  private <T> Class<?> generateProxyClass(Class<T> clazz) throws NoSuchFieldException {
+    if (!clazz.isInterface()) {
+      // We perform here some additional validation of the handlers that won't be executed by
+      // bytebuddy and can easily lead to strange behavior
+      var methods =
+          ReflectionUtils.getUniqueDeclaredMethods(
+              clazz,
+              method ->
+                  ReflectionUtils.findAnnotation(method, Handler.class) != null
+                      || ReflectionUtils.findAnnotation(method, Shared.class) != null
+                      || ReflectionUtils.findAnnotation(method, Workflow.class) != null
+                      || ReflectionUtils.findAnnotation(method, Exclusive.class) != null);
+      for (var method : methods) {
+        validateMethod(method);
+      }
+    }
 
     var builder =
         clazz.isInterface()
             ? byteBuddy.subclass(Object.class).implement(clazz)
             : byteBuddy.subclass(clazz);
 
+    var annotationMatcher =
+        isAnnotatedWith(Handler.class)
+            .or(isAnnotatedWith(Exclusive.class))
+            .or(isAnnotatedWith(Shared.class))
+            .or(isAnnotatedWith(Workflow.class));
     try (var unloaded =
         builder
             // Add a field to store the interceptor
-            .defineField(INTERCEPTOR_FIELD_NAME, MethodInterceptor.class, Visibility.PUBLIC)
+            .defineField(INTERCEPTOR_FIELD_NAME, InvocationHandler.class, Visibility.PUBLIC)
             // Intercept all methods
-            .method(
-                isMethod()
-                    .and(
-                        isAnnotatedWith(Handler.class)
-                            .or(isAnnotatedWith(Exclusive.class))
-                            .or(isAnnotatedWith(Shared.class))
-                            .or(isAnnotatedWith(Workflow.class))))
+            .method(annotationMatcher)
+            .intercept(InvocationHandlerAdapter.toField(INTERCEPTOR_FIELD_NAME))
+            .method(not(annotationMatcher))
             .intercept(
-                InvocationHandlerAdapter.of(
-                    (proxy, method, args) -> {
-                      // Get the interceptor from the field
-                      Field field = proxy.getClass().getDeclaredField(INTERCEPTOR_FIELD_NAME);
-                      field.setAccessible(true);
-                      MethodInterceptor interceptor = (MethodInterceptor) field.get(proxy);
-
-                      if (interceptor == null) {
-                        throw new IllegalStateException(
-                            "Interceptor not set on proxy instance. This is a bug, please contact the developers.");
-                      }
-
-                      MethodInvocation invocation =
-                          new MethodInvocation() {
-                            @Override
-                            public Object[] getArguments() {
-                              return args != null ? args : new Object[0];
-                            }
-
-                            @Override
-                            public Method getMethod() {
-                              return method;
-                            }
-                          };
-                      return interceptor.invoke(invocation);
-                    }))
+                ExceptionMethod.throwing(
+                    UnsupportedOperationException.class,
+                    "Calling a method not annotated with a Restate handler annotation on the proxy class"))
             .make()) {
-      return unloaded.load(clazz.getClassLoader()).getLoaded();
+
+      var proxyClazz = unloaded.load(clazz.getClassLoader()).getLoaded();
+
+      // Make sure the field is accessible
+      Field interceptorField = proxyClazz.getDeclaredField(INTERCEPTOR_FIELD_NAME);
+      interceptorField.setAccessible(true);
+      return proxyClazz;
+    }
+  }
+
+  private static void validateMethod(Method method) {
+    if (!Modifier.isPublic(method.getModifiers())) {
+      throw new IllegalArgumentException(
+          "Method '"
+              + method.getDeclaringClass().getSimpleName()
+              + "#"
+              + method.getName()
+              + "' MUST be public to be used as Restate handler. Modifiers:"
+              + Modifier.toString(method.getModifiers()));
+    }
+    if (Modifier.isStatic(method.getModifiers())) {
+      throw new IllegalArgumentException(
+          "Method '"
+              + method.getDeclaringClass().getSimpleName()
+              + "#"
+              + method.getName()
+              + "' is static, cannot be used as Restate handler");
+    }
+    if (Modifier.isFinal(method.getModifiers())) {
+      throw new IllegalArgumentException(
+          "Method '"
+              + method.getDeclaringClass().getSimpleName()
+              + "#"
+              + method.getName()
+              + "' is final, cannot be used as Restate handler");
     }
   }
 }
