@@ -21,6 +21,7 @@ public class MethodInfo extends RuntimeException {
   private final TypeTag<?> outputType;
 
   private MethodInfo(String handlerName, TypeTag<?> inputType, TypeTag<?> outputType) {
+    super("MethodInfo message should not be used", null, false, false);
     this.inputType = inputType;
     this.outputType = outputType;
     this.handlerName = handlerName;
