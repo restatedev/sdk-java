@@ -47,12 +47,9 @@ public final class ReflectionServiceDefinitionFactory implements ServiceDefiniti
 
     Class<?> serviceClazz = serviceInstance.getClass();
 
-    boolean hasServiceAnnotation =
-        ReflectionUtils.findAnnotation(serviceClazz, Service.class) != null;
-    boolean hasVirtualObjectAnnotation =
-        ReflectionUtils.findAnnotation(serviceClazz, VirtualObject.class) != null;
-    boolean hasWorkflowAnnotation =
-        ReflectionUtils.findAnnotation(serviceClazz, Workflow.class) != null;
+    boolean hasServiceAnnotation = ReflectionUtils.hasServiceAnnotation(serviceClazz);
+    boolean hasVirtualObjectAnnotation = ReflectionUtils.hasVirtualObjectAnnotation(serviceClazz);
+    boolean hasWorkflowAnnotation = ReflectionUtils.hasWorkflowAnnotation(serviceClazz);
 
     boolean hasAnyAnnotation =
         hasServiceAnnotation || hasVirtualObjectAnnotation || hasWorkflowAnnotation;

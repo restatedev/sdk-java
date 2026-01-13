@@ -8,8 +8,6 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import static dev.restate.common.reflections.ReflectionUtils.mustHaveAnnotation;
-
 import dev.restate.common.Request;
 import dev.restate.common.Slice;
 import dev.restate.common.Target;
@@ -430,7 +428,7 @@ public final class Restate {
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <SVC> SVC service(Class<SVC> clazz) {
-    mustHaveAnnotation(clazz, Service.class);
+    ReflectionUtils.mustHaveServiceAnnotation(clazz);
     String serviceName = ReflectionUtils.extractServiceName(clazz);
     return ProxySupport.createProxy(
         clazz,
@@ -481,7 +479,7 @@ public final class Restate {
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <SVC> ServiceHandle<SVC> serviceHandle(Class<SVC> clazz) {
-    mustHaveAnnotation(clazz, Service.class);
+    ReflectionUtils.mustHaveServiceAnnotation(clazz);
     return new ServiceHandleImpl<>(clazz, null);
   }
 
@@ -506,7 +504,7 @@ public final class Restate {
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <SVC> SVC virtualObject(Class<SVC> clazz, String key) {
-    mustHaveAnnotation(clazz, VirtualObject.class);
+    ReflectionUtils.mustHaveVirtualObjectAnnotation(clazz);
     String serviceName = ReflectionUtils.extractServiceName(clazz);
     return ProxySupport.createProxy(
         clazz,
@@ -558,7 +556,7 @@ public final class Restate {
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <SVC> ServiceHandle<SVC> virtualObjectHandle(Class<SVC> clazz, String key) {
-    mustHaveAnnotation(clazz, VirtualObject.class);
+    ReflectionUtils.mustHaveVirtualObjectAnnotation(clazz);
     return new ServiceHandleImpl<>(clazz, key);
   }
 
@@ -583,7 +581,7 @@ public final class Restate {
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <SVC> SVC workflow(Class<SVC> clazz, String key) {
-    mustHaveAnnotation(clazz, Workflow.class);
+    ReflectionUtils.mustHaveWorkflowAnnotation(clazz);
     String serviceName = ReflectionUtils.extractServiceName(clazz);
     return ProxySupport.createProxy(
         clazz,
@@ -635,7 +633,7 @@ public final class Restate {
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <SVC> ServiceHandle<SVC> workflowHandle(Class<SVC> clazz, String key) {
-    mustHaveAnnotation(clazz, Workflow.class);
+    ReflectionUtils.mustHaveWorkflowAnnotation(clazz);
     return new ServiceHandleImpl<>(clazz, key);
   }
 

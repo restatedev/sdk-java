@@ -20,6 +20,14 @@ import org.jspecify.annotations.Nullable;
 
 public class ReflectionUtils {
 
+  private static final @Nullable Class<? extends Annotation> RESTATE_SPRING_SERVICE_ANNOTATION =
+      tryLoadClass("dev.restate.sdk.springboot.RestateService");
+  private static final @Nullable Class<? extends Annotation>
+      RESTATE_SPRING_VIRTUAL_OBJECT_ANNOTATION =
+          tryLoadClass("dev.restate.sdk.springboot.RestateVirtualObject");
+  private static final @Nullable Class<? extends Annotation> RESTATE_SPRING_WORKFLOW_ANNOTATION =
+      tryLoadClass("dev.restate.sdk.springboot.RestateWorkflow");
+
   /** Record containing handler information extracted from annotations. */
   public record HandlerInfo(String name, boolean shared) {}
 
@@ -163,16 +171,17 @@ public class ReflectionUtils {
     }
 
     // Check if the type has any of the Restate component annotations
-    var restateServiceAnnotation = type.getAnnotation(Service.class);
-    if (restateServiceAnnotation != null) {
-      return extractNameFromAnnotations(type);
-    }
-    var restateVirtualObjectAnnotation = type.getAnnotation(VirtualObject.class);
-    if (restateVirtualObjectAnnotation != null) {
-      return extractNameFromAnnotations(type);
-    }
-    var restateWorkflowAnnotation = type.getAnnotation(Workflow.class);
-    if (restateWorkflowAnnotation != null) {
+    var isRestateAnnotated =
+        type.getAnnotation(Service.class) != null
+            || type.getAnnotation(VirtualObject.class) != null
+            || type.getAnnotation(Workflow.class) != null
+            || (RESTATE_SPRING_SERVICE_ANNOTATION != null
+                && type.getAnnotation(RESTATE_SPRING_SERVICE_ANNOTATION) != null)
+            || (RESTATE_SPRING_VIRTUAL_OBJECT_ANNOTATION != null
+                && type.getAnnotation(RESTATE_SPRING_VIRTUAL_OBJECT_ANNOTATION) != null)
+            || (RESTATE_SPRING_WORKFLOW_ANNOTATION != null
+                && type.getAnnotation(RESTATE_SPRING_WORKFLOW_ANNOTATION) != null);
+    if (isRestateAnnotated) {
       return extractNameFromAnnotations(type);
     }
 
@@ -200,17 +209,49 @@ public class ReflectionUtils {
     return type.getSimpleName();
   }
 
-  public static <A extends Annotation> A mustHaveAnnotation(
-      Class<?> clazz, Class<A> annotationClazz) {
-    A annotation = findAnnotation(clazz, annotationClazz);
-    if (annotation == null) {
+  public static boolean hasServiceAnnotation(Class<?> clazz) {
+    return findAnnotation(clazz, Service.class) != null
+        || (RESTATE_SPRING_SERVICE_ANNOTATION != null
+            && findAnnotation(clazz, RESTATE_SPRING_SERVICE_ANNOTATION) != null);
+  }
+
+  public static void mustHaveServiceAnnotation(Class<?> clazz) {
+    if (!hasServiceAnnotation(clazz)) {
       throw new IllegalArgumentException(
           "The given class "
               + clazz.getName()
-              + " is not annotated with @"
-              + annotationClazz.getSimpleName());
+              + " is not annotated with the Restate service annotation");
     }
-    return annotation;
+  }
+
+  public static boolean hasVirtualObjectAnnotation(Class<?> clazz) {
+    return findAnnotation(clazz, VirtualObject.class) != null
+        || (RESTATE_SPRING_VIRTUAL_OBJECT_ANNOTATION != null
+            && findAnnotation(clazz, RESTATE_SPRING_VIRTUAL_OBJECT_ANNOTATION) != null);
+  }
+
+  public static void mustHaveVirtualObjectAnnotation(Class<?> clazz) {
+    if (!hasVirtualObjectAnnotation(clazz)) {
+      throw new IllegalArgumentException(
+          "The given class "
+              + clazz.getName()
+              + " is not annotated with the Restate virtualObject annotation");
+    }
+  }
+
+  public static boolean hasWorkflowAnnotation(Class<?> clazz) {
+    return findAnnotation(clazz, Workflow.class) != null
+        || (RESTATE_SPRING_WORKFLOW_ANNOTATION != null
+            && findAnnotation(clazz, RESTATE_SPRING_WORKFLOW_ANNOTATION) != null);
+  }
+
+  public static void mustHaveWorkflowAnnotation(Class<?> clazz) {
+    if (!hasWorkflowAnnotation(clazz)) {
+      throw new IllegalArgumentException(
+          "The given class "
+              + clazz.getName()
+              + " is not annotated with the Restate workflow annotation");
+    }
   }
 
   public static HandlerInfo mustHaveHandlerAnnotation(@NonNull Method method) {
@@ -306,6 +347,15 @@ public class ReflectionUtils {
   public static boolean isKotlinClass(Class<?> clazz) {
     return Arrays.stream(clazz.getDeclaredAnnotations())
         .anyMatch(annotation -> annotation.annotationType().getName().equals("kotlin.Metadata"));
+  }
+
+  @SuppressWarnings("unchecked")
+  private static @Nullable <T> Class<T> tryLoadClass(String className) {
+    try {
+      return (Class<T>) Class.forName(className);
+    } catch (ClassNotFoundException e) {
+      return null;
+    }
   }
 
   // From Spring's ReflectionUtils

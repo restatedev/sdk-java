@@ -8,8 +8,6 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.client;
 
-import static dev.restate.common.reflections.ReflectionUtils.mustHaveAnnotation;
-
 import dev.restate.common.Output;
 import dev.restate.common.Request;
 import dev.restate.common.Target;
@@ -556,7 +554,7 @@ public interface Client {
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
   default <SVC> SVC service(Class<SVC> clazz) {
-    mustHaveAnnotation(clazz, Service.class);
+    ReflectionUtils.mustHaveServiceAnnotation(clazz);
     var serviceName = ReflectionUtils.extractServiceName(clazz);
     return ProxySupport.createProxy(
         clazz,
@@ -607,7 +605,7 @@ public interface Client {
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
   default <SVC> ClientServiceHandle<SVC> serviceHandle(Class<SVC> clazz) {
-    mustHaveAnnotation(clazz, Service.class);
+    ReflectionUtils.mustHaveServiceAnnotation(clazz);
     return new ClientServiceHandleImpl<>(this, clazz, null);
   }
 
@@ -635,7 +633,7 @@ public interface Client {
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
   default <SVC> SVC virtualObject(Class<SVC> clazz, String key) {
-    mustHaveAnnotation(clazz, VirtualObject.class);
+    ReflectionUtils.mustHaveVirtualObjectAnnotation(clazz);
     var serviceName = ReflectionUtils.extractServiceName(clazz);
     return ProxySupport.createProxy(
         clazz,
@@ -687,7 +685,7 @@ public interface Client {
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
   default <SVC> ClientServiceHandle<SVC> virtualObjectHandle(Class<SVC> clazz, String key) {
-    mustHaveAnnotation(clazz, VirtualObject.class);
+    ReflectionUtils.mustHaveVirtualObjectAnnotation(clazz);
     return new ClientServiceHandleImpl<>(this, clazz, key);
   }
 
@@ -715,7 +713,7 @@ public interface Client {
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
   default <SVC> SVC workflow(Class<SVC> clazz, String key) {
-    mustHaveAnnotation(clazz, Workflow.class);
+    ReflectionUtils.mustHaveWorkflowAnnotation(clazz);
     var serviceName = ReflectionUtils.extractServiceName(clazz);
     return ProxySupport.createProxy(
         clazz,
@@ -767,7 +765,7 @@ public interface Client {
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
   default <SVC> ClientServiceHandle<SVC> workflowHandle(Class<SVC> clazz, String key) {
-    mustHaveAnnotation(clazz, Workflow.class);
+    ReflectionUtils.mustHaveWorkflowAnnotation(clazz);
     return new ClientServiceHandleImpl<>(this, clazz, key);
   }
 
