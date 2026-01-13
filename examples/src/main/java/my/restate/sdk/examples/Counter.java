@@ -10,7 +10,6 @@ package my.restate.sdk.examples;
 
 import dev.restate.sdk.Restate;
 import dev.restate.sdk.annotation.Handler;
-import dev.restate.sdk.annotation.Name;
 import dev.restate.sdk.annotation.Shared;
 import dev.restate.sdk.annotation.VirtualObject;
 import dev.restate.sdk.common.StateKey;
@@ -21,7 +20,6 @@ import org.apache.logging.log4j.Logger;
 
 /** Counter virtual object */
 @VirtualObject
-@Name("BroCounter")
 public class Counter {
 
   private static final Logger LOG = LogManager.getLogger(Counter.class);
