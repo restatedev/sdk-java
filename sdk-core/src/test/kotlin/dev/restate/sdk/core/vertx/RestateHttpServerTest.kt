@@ -75,7 +75,10 @@ internal class RestateHttpServerTest {
                       ctx.sleep(1.seconds)
 
                       "Hello $request. Count: $count"
-                    })))
+                    },
+                )
+            ),
+        )
   }
 
   @Test
@@ -83,7 +86,10 @@ internal class RestateHttpServerTest {
       runBlocking(vertx.dispatcher()) {
         val endpointPort: Int =
             RestateHttpServer.fromEndpoint(
-                    vertx, endpoint { bind(greeter()) }, HttpServerOptions().setPort(0))
+                    vertx,
+                    endpoint { bind(greeter()) },
+                    HttpServerOptions().setPort(0),
+                )
                 .listen()
                 .coAwait()
                 .actualPort()
@@ -96,7 +102,8 @@ internal class RestateHttpServerTest {
                     HttpMethod.POST,
                     endpointPort,
                     "localhost",
-                    "/invoke/$GREETER_NAME/unknownMethod")
+                    "/invoke/$GREETER_NAME/unknownMethod",
+                )
                 .coAwait()
 
         // Prepare request header
@@ -119,7 +126,10 @@ internal class RestateHttpServerTest {
       runBlocking(vertx.dispatcher()) {
         val endpointPort: Int =
             RestateHttpServer.fromEndpoint(
-                    vertx, endpoint { bind(greeter()) }, HttpServerOptions().setPort(0))
+                    vertx,
+                    endpoint { bind(greeter()) },
+                    HttpServerOptions().setPort(0),
+                )
                 .listen()
                 .coAwait()
                 .actualPort()

@@ -28,7 +28,8 @@ class StateMachineFailuresTest : StateMachineFailuresTestSuite() {
             Serde.using({ i: Int -> i.toString().toByteArray(StandardCharsets.UTF_8) }) {
                 b: ByteArray? ->
               String(b!!, StandardCharsets.UTF_8).toInt()
-            })
+            },
+        )
   }
 
   override fun getState(nonTerminalExceptionsSeen: AtomicInteger): TestInvocationBuilder =

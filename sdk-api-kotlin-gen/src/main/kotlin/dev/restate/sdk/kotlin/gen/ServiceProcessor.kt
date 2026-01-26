@@ -31,7 +31,7 @@ import java.nio.charset.Charset
 class ServiceProcessor(
     private val logger: KSPLogger,
     private val codeGenerator: CodeGenerator,
-    private val options: AnnotationProcessingOptions
+    private val options: AnnotationProcessingOptions,
 ) : SymbolProcessor {
 
   companion object {
@@ -45,8 +45,10 @@ class ServiceProcessor(
           mapOf(
               ServiceType.SERVICE to "templates/ServiceDefinitionFactory",
               ServiceType.WORKFLOW to "templates/ServiceDefinitionFactory",
-              ServiceType.VIRTUAL_OBJECT to "templates/ServiceDefinitionFactory"),
-          RESERVED_METHOD_NAMES)
+              ServiceType.VIRTUAL_OBJECT to "templates/ServiceDefinitionFactory",
+          ),
+          RESERVED_METHOD_NAMES,
+      )
   private val clientCodegen: HandlebarsTemplateEngine =
       HandlebarsTemplateEngine(
           "Client",
@@ -54,8 +56,10 @@ class ServiceProcessor(
           mapOf(
               ServiceType.SERVICE to "templates/Client",
               ServiceType.WORKFLOW to "templates/Client",
-              ServiceType.VIRTUAL_OBJECT to "templates/Client"),
-          RESERVED_METHOD_NAMES)
+              ServiceType.VIRTUAL_OBJECT to "templates/Client",
+          ),
+          RESERVED_METHOD_NAMES,
+      )
   private val handlersCodegen: HandlebarsTemplateEngine =
       HandlebarsTemplateEngine(
           "Handlers",
@@ -63,8 +67,10 @@ class ServiceProcessor(
           mapOf(
               ServiceType.SERVICE to "templates/Handlers",
               ServiceType.WORKFLOW to "templates/Handlers",
-              ServiceType.VIRTUAL_OBJECT to "templates/Handlers"),
-          RESERVED_METHOD_NAMES)
+              ServiceType.VIRTUAL_OBJECT to "templates/Handlers",
+          ),
+          RESERVED_METHOD_NAMES,
+      )
 
   @OptIn(KspExperimental::class)
   override fun process(resolver: Resolver): List<KSAnnotated> {
@@ -72,7 +78,8 @@ class ServiceProcessor(
         KElementConverter(
             logger,
             resolver.builtIns,
-            resolver.getKotlinClassByName(ByteArray::class.qualifiedName!!)!!.asType(listOf()))
+            resolver.getKotlinClassByName(ByteArray::class.qualifiedName!!)!!.asType(listOf()),
+        )
 
     val discovered = discoverRestateAnnotatedOrMetaAnnotatedServices(resolver)
 
@@ -103,7 +110,8 @@ class ServiceProcessor(
               .createNewFile(
                   Dependencies(false, service.first.containingFile!!),
                   service.second.targetPkg.toString(),
-                  name)
+                  name,
+              )
               .writer(Charset.defaultCharset())
         }
         this.bindableServiceFactoryCodegen.generate(fileCreator, service.second)
@@ -135,17 +143,21 @@ class ServiceProcessor(
                 resolver
                     .getClassDeclarationByName<dev.restate.sdk.annotation.Service>()!!
                     .qualifiedName!!,
-                ServiceType.SERVICE),
+                ServiceType.SERVICE,
+            ),
             MetaRestateAnnotation(
                 resolver
                     .getClassDeclarationByName<dev.restate.sdk.annotation.VirtualObject>()!!
                     .qualifiedName!!,
-                ServiceType.VIRTUAL_OBJECT),
+                ServiceType.VIRTUAL_OBJECT,
+            ),
             MetaRestateAnnotation(
                 resolver
                     .getClassDeclarationByName<dev.restate.sdk.annotation.Workflow>()!!
                     .qualifiedName!!,
-                ServiceType.WORKFLOW))
+                ServiceType.WORKFLOW,
+            ),
+        )
 
     // Add spring annotations, if available
     resolver.getClassDeclarationByName("dev.restate.sdk.springboot.RestateService")?.let {
@@ -153,7 +165,8 @@ class ServiceProcessor(
     }
     resolver.getClassDeclarationByName("dev.restate.sdk.springboot.RestateVirtualObject")?.let {
       metaAnnotationsToProcess.add(
-          MetaRestateAnnotation(it.qualifiedName!!, ServiceType.VIRTUAL_OBJECT))
+          MetaRestateAnnotation(it.qualifiedName!!, ServiceType.VIRTUAL_OBJECT)
+      )
     }
     resolver.getClassDeclarationByName("dev.restate.sdk.springboot.RestateWorkflow")?.let {
       metaAnnotationsToProcess.add(MetaRestateAnnotation(it.qualifiedName!!, ServiceType.WORKFLOW))
@@ -175,8 +188,10 @@ class ServiceProcessor(
         when (annotatedElement.classKind) {
           ClassKind.INTERFACE,
           ClassKind.CLASS -> {
-            if (annotatedElement.containingFile!!.origin != Origin.KOTLIN ||
-                options.isClassDisabled(annotatedElement.qualifiedName!!.asString())) {
+            if (
+                annotatedElement.containingFile!!.origin != Origin.KOTLIN ||
+                    options.isClassDisabled(annotatedElement.qualifiedName!!.asString())
+            ) {
               // Skip if it's not kotlin
               continue
             }
@@ -184,12 +199,14 @@ class ServiceProcessor(
           }
           ClassKind.ANNOTATION_CLASS -> {
             metaAnnotationsToProcess.add(
-                MetaRestateAnnotation(annotatedElement.qualifiedName!!, metaAnnotation.serviceType))
+                MetaRestateAnnotation(annotatedElement.qualifiedName!!, metaAnnotation.serviceType)
+            )
           }
           else ->
               logger.error(
                   "The ServiceProcessor supports only interfaces or classes declarations",
-                  annotatedElement)
+                  annotatedElement,
+              )
         }
       }
       metaAnnotation = metaAnnotationsToProcess.removeFirstOrNull()

@@ -14,7 +14,7 @@ import dev.restate.sdk.endpoint.definition.ServiceType
 
 internal data class MetaRestateAnnotation(
     val annotationName: KSName,
-    val serviceType: ServiceType
+    val serviceType: ServiceType,
 ) {
   fun resolveName(annotated: KSAnnotated): String? =
       annotated.annotations

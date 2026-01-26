@@ -29,7 +29,7 @@ import kotlinx.coroutines.future.await
 internal class ContextImpl
 internal constructor(
     internal val handlerContext: HandlerContext,
-    internal val contextSerdeFactory: SerdeFactory
+    internal val contextSerdeFactory: SerdeFactory,
 ) : WorkflowContext {
   override fun key(): String {
     return this.handlerContext.objectKey()
@@ -76,7 +76,8 @@ internal constructor(
                     request.getTarget(),
                     resolveAndSerialize<Req>(request.getRequestTypeTag(), request.getRequest()),
                     request.getIdempotencyKey(),
-                    request.getHeaders()?.entries)
+                    request.getHeaders()?.entries,
+                )
                 .await()
 
         val callAsyncResult =
@@ -89,7 +90,7 @@ internal constructor(
 
   override suspend fun <Req : Any?, Res : Any?> send(
       request: Request<Req, Res>,
-      delay: Duration?
+      delay: Duration?,
   ): InvocationHandle<Res> =
       resolveSerde<Res>(request.getResponseTypeTag()).let { responseSerde ->
         val invocationIdAsyncResult =
@@ -99,7 +100,8 @@ internal constructor(
                     resolveAndSerialize<Req>(request.getRequestTypeTag(), request.getRequest()),
                     request.getIdempotencyKey(),
                     request.getHeaders()?.entries,
-                    delay?.toJavaDuration())
+                    delay?.toJavaDuration(),
+                )
                 .await()
 
         object : BaseInvocationHandle<Res>(handlerContext, responseSerde) {
@@ -109,7 +111,7 @@ internal constructor(
 
   override fun <Res> invocationHandle(
       invocationId: String,
-      responseTypeTag: TypeTag<Res>
+      responseTypeTag: TypeTag<Res>,
   ): InvocationHandle<Res> =
       resolveSerde<Res>(responseTypeTag).let { responseSerde ->
         object : BaseInvocationHandle<Res>(handlerContext, responseSerde) {
@@ -121,14 +123,16 @@ internal constructor(
       typeTag: TypeTag<T>,
       name: String,
       retryPolicy: RetryPolicy?,
-      block: suspend () -> T
+      block: suspend () -> T,
   ): DurableFuture<T> {
     val serde: Serde<T> = resolveSerde(typeTag)
     val coroutineCtx = currentCoroutineContext()
     val javaRetryPolicy =
         retryPolicy?.let {
           dev.restate.sdk.common.RetryPolicy.exponential(
-                  it.initialDelay.toJavaDuration(), it.exponentiationFactor)
+                  it.initialDelay.toJavaDuration(),
+                  it.exponentiationFactor,
+              )
               .setMaxAttempts(it.maxAttempts)
               .setMaxDelay(it.maxDelay?.toJavaDuration())
               .setMaxDuration(it.maxDuration?.toJavaDuration())
@@ -199,14 +203,18 @@ internal constructor(
       SingleDurableFutureImpl(
               handlerContext
                   .resolvePromise(
-                      key.name(), serde.serializeWrappingException(handlerContext, payload))
-                  .await())
+                      key.name(),
+                      serde.serializeWrappingException(handlerContext, payload),
+                  )
+                  .await()
+          )
           .await()
     }
 
     override suspend fun reject(reason: String) {
       SingleDurableFutureImpl(
-              handlerContext.rejectPromise(key.name(), TerminalException(reason)).await())
+              handlerContext.rejectPromise(key.name(), TerminalException(reason)).await()
+          )
           .await()
     }
   }

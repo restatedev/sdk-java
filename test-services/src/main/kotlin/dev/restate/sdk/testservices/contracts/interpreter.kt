@@ -243,7 +243,7 @@ interface ObjectInterpreter {
 @Serializable
 data class IncrementViaAwakeableDanceRequest(
     val interpreter: InterpreterId,
-    val txPromiseId: String
+    val txPromiseId: String,
 )
 
 @Service

@@ -51,7 +51,7 @@ class ThreadTrampoliningTestSuite : TestDefinitions.TestSuite {
 
   private fun checkBlockingComponentTrampolineExecutor(
       ctx: dev.restate.sdk.Context,
-      _unused: Any?
+      _unused: Any?,
   ): Void? {
     val id = Thread.currentThread().id
     check(Vertx.currentContext() == null)
@@ -76,16 +76,23 @@ class ThreadTrampoliningTestSuite : TestDefinitions.TestSuite {
                             HandlerRunner.of(
                                 KotlinSerializationSerdeFactory(),
                                 HandlerRunner.Options(
-                                    Dispatchers.Default + nonBlockingCoroutineName)) {
-                                    ctx: Context,
-                                    _: Unit ->
-                                  checkNonBlockingComponentTrampolineExecutor(ctx)
-                                }))),
-                "do")
+                                    Dispatchers.Default + nonBlockingCoroutineName
+                                ),
+                            ) { ctx: Context, _: Unit ->
+                              checkNonBlockingComponentTrampolineExecutor(ctx)
+                            },
+                        )
+                    ),
+                ),
+                "do",
+            )
             .withInput(startMessage(1), inputCmd())
             .onlyBidiStream()
             .expectingOutput(
-                runCmd(1), proposeRunCompletion(1, Serde.VOID, null), suspensionMessage(1)),
+                runCmd(1),
+                proposeRunCompletion(1, Serde.VOID, null),
+                suspensionMessage(1),
+            ),
         testInvocation(
                 ServiceDefinition.of(
                     "CheckBlockingComponentTrampolineExecutor",
@@ -99,11 +106,20 @@ class ThreadTrampoliningTestSuite : TestDefinitions.TestSuite {
                             dev.restate.sdk.HandlerRunner.of(
                                 this::checkBlockingComponentTrampolineExecutor,
                                 JacksonSerdeFactory(),
-                                null)))),
-                "do")
+                                null,
+                            ),
+                        )
+                    ),
+                ),
+                "do",
+            )
             .withInput(startMessage(1), inputCmd())
             .onlyBidiStream()
             .expectingOutput(
-                runCmd(1), proposeRunCompletion(1, Serde.VOID, null), suspensionMessage(1)))
+                runCmd(1),
+                proposeRunCompletion(1, Serde.VOID, null),
+                suspensionMessage(1),
+            ),
+    )
   }
 }

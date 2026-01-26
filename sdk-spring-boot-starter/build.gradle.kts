@@ -47,5 +47,6 @@ tasks.withType<JavaCompile> {
       listOf(
           "-parameters",
           "-Adev.restate.codegen.disabledClasses=${disabledClassesCodegen.joinToString(",")}",
-      ))
+      )
+  )
 }

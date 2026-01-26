@@ -33,7 +33,7 @@ interface Failing {
   @Handler
   suspend fun sideEffectSucceedsAfterGivenAttempts(
       context: ObjectContext,
-      minimumAttempts: Int
+      minimumAttempts: Int,
   ): Int
 
   /**
@@ -45,6 +45,6 @@ interface Failing {
   @Handler
   suspend fun sideEffectFailsAfterGivenAttempts(
       context: ObjectContext,
-      retryPolicyMaxRetryCount: Int
+      retryPolicyMaxRetryCount: Int,
   ): Int
 }

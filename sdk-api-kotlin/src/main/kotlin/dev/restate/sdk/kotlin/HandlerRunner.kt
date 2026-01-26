@@ -28,7 +28,7 @@ class HandlerRunner<REQ, RES, CTX : Context>
 internal constructor(
     private val runner: suspend (CTX, REQ) -> RES,
     private val contextSerdeFactory: SerdeFactory,
-    private val options: Options
+    private val options: Options,
 ) : dev.restate.sdk.endpoint.definition.HandlerRunner<REQ, RES> {
 
   companion object {
@@ -73,7 +73,8 @@ internal constructor(
             Unit
           },
           contextSerdeFactory,
-          options)
+          options,
+      )
     }
 
     /**
@@ -91,7 +92,8 @@ internal constructor(
             Unit
           },
           contextSerdeFactory,
-          options)
+          options,
+      )
     }
   }
 
@@ -99,7 +101,7 @@ internal constructor(
       handlerContext: HandlerContext,
       requestSerde: Serde<REQ>,
       responseSerde: Serde<RES>,
-      onClosedInvocationStreamHook: AtomicReference<Runnable>
+      onClosedInvocationStreamHook: AtomicReference<Runnable>,
   ): CompletableFuture<Slice> {
     val ctx: Context = ContextImpl(handlerContext, contextSerdeFactory)
 
@@ -108,7 +110,8 @@ internal constructor(
             options.coroutineContext +
                 dev.restate.sdk.endpoint.definition.HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL
                     .asContextElement(handlerContext) +
-                handlerContext.request().openTelemetryContext()!!.asContextElement())
+                handlerContext.request().openTelemetryContext()!!.asContextElement()
+        )
 
     val completableFuture = CompletableFuture<Slice>()
     val job =
@@ -125,7 +128,9 @@ internal constructor(
               completableFuture.completeExceptionally(
                   throw TerminalException(
                       TerminalException.BAD_REQUEST_CODE,
-                      "Cannot deserialize request: " + e.message))
+                      "Cannot deserialize request: " + e.message,
+                  )
+              )
               return@launch
             }
 

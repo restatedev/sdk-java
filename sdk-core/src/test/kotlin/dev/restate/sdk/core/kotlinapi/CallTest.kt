@@ -21,14 +21,15 @@ class CallTest : CallTestSuite() {
       target: Target,
       idempotencyKey: String,
       headers: Map<String, String>,
-      body: Slice
+      body: Slice,
   ) =
       testDefinitionForService("OneWayCall") { ctx, _: Unit ->
         val ignored =
             ctx.send(
                 Request.of<Slice, ByteArray>(target, Serde.SLICE, Serde.RAW, body)
                     .headers(headers)
-                    .idempotencyKey(idempotencyKey))
+                    .idempotencyKey(idempotencyKey)
+            )
       }
 
   override fun implicitCancellation(target: Target, body: Slice) =

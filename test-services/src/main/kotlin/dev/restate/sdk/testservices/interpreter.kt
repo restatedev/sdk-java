@@ -32,19 +32,20 @@ suspend fun <T> checkAwaitable(
     actual: DurableFuture<T>,
     expected: T,
     cmdIndex: Int,
-    interpreterCommand: InterpreterCommand
+    interpreterCommand: InterpreterCommand,
 ) {
   val result = actual.await()
   if (result != expected) {
     throw TerminalException(
-        "Awaited promise mismatch. got '$result' expected '$expected'; command at index $cmdIndex was $interpreterCommand")
+        "Awaited promise mismatch. got '$result' expected '$expected'; command at index $cmdIndex was $interpreterCommand"
+    )
   }
 }
 
 suspend fun <T> checkAwaitableFails(
     actual: DurableFuture<T>,
     cmdIndex: Int,
-    interpreterCommand: InterpreterCommand
+    interpreterCommand: InterpreterCommand,
 ) {
   try {
     actual.await()
@@ -52,7 +53,8 @@ suspend fun <T> checkAwaitableFails(
     return
   }
   throw TerminalException(
-      "Awaited promise mismatch. should fail but instead got ${actual.await()}; command at index $cmdIndex was $interpreterCommand")
+      "Awaited promise mismatch. should fail but instead got ${actual.await()}; command at index $cmdIndex was $interpreterCommand"
+  )
 }
 
 fun cmdStateKey(key: Int): StateKey<String> {
@@ -67,7 +69,10 @@ class ObjectInterpreterImpl(private val layer: Int) : ObjectInterpreter {
       val originalDefinition =
           ObjectInterpreterServiceDefinitionFactory().create(ObjectInterpreterImpl(layer), null)
       return ServiceDefinition.of(
-          interpreterName(layer), originalDefinition.serviceType, originalDefinition.handlers)
+          interpreterName(layer),
+          originalDefinition.serviceType,
+          originalDefinition.handlers,
+      )
     }
   }
 
@@ -87,7 +92,8 @@ class ObjectInterpreterImpl(private val layer: Int) : ObjectInterpreter {
           val p =
               promises.remove(cmd.index)
                   ?: throw TerminalException(
-                      "ObjectInterpreterL$layer: can not find a promise for the id ${cmd.index}.")
+                      "ObjectInterpreterL$layer: can not find a promise for the id ${cmd.index}."
+                  )
           // Await on promise, this will under the hood check the promise result
           p()
         }
@@ -98,7 +104,9 @@ class ObjectInterpreterImpl(private val layer: Int) : ObjectInterpreter {
                       interpretTarget(layer + 1, cmd.key.toString()),
                       ObjectInterpreterHandlers.Metadata.Serde.INTERPRET_INPUT,
                       ObjectInterpreterHandlers.Metadata.Serde.INTERPRET_OUTPUT,
-                      cmd.program))
+                      cmd.program,
+                  )
+              )
           promises[i] = { awaitable.await() }
         }
         is CallService -> {
@@ -129,7 +137,8 @@ class ObjectInterpreterImpl(private val layer: Int) : ObjectInterpreter {
           // Dancing in the mooonlight!
           val awakeable = ctx.awakeable<String>()
           ServiceInterpreterHelperHandlers.incrementViaAwakeableDance(
-                  IncrementViaAwakeableDanceRequest(interpreterId(ctx), awakeable.id))
+                  IncrementViaAwakeableDanceRequest(interpreterId(ctx), awakeable.id)
+              )
               .send(ctx)
           val theirPromiseIdForUsToResolve = awakeable.await()
           ctx.awakeableHandle(theirPromiseIdForUsToResolve).resolve("ok")
@@ -147,7 +156,8 @@ class ObjectInterpreterImpl(private val layer: Int) : ObjectInterpreter {
           }
           if (!caught) {
             throw TerminalException(
-                "Test assertion failed, was expected to get a terminal error. Layer $layer, Command $i")
+                "Test assertion failed, was expected to get a terminal error. Layer $layer, Command $i"
+            )
           }
         }
         is RecoverTerminalCallMaybeUnAwaited -> {
@@ -213,7 +223,9 @@ class ServiceInterpreterHelperImpl : ServiceInterpreterHelper {
                 interpretTarget(id.layer, id.key),
                 ObjectInterpreterHandlers.Metadata.Serde.INTERPRET_INPUT,
                 Serde.SLICE,
-                Program(listOf(IncrementStateCounter()))))
+                Program(listOf(IncrementStateCounter())),
+            )
+        )
   }
 
   override suspend fun resolveAwakeable(ctx: Context, id: String) {
@@ -226,7 +238,7 @@ class ServiceInterpreterHelperImpl : ServiceInterpreterHelper {
 
   override suspend fun incrementViaAwakeableDance(
       ctx: Context,
-      req: IncrementViaAwakeableDanceRequest
+      req: IncrementViaAwakeableDanceRequest,
   ) {
     //
     // 1. create an awakeable that we will be blocked on
@@ -249,6 +261,8 @@ class ServiceInterpreterHelperImpl : ServiceInterpreterHelper {
                 interpretTarget(req.interpreter.layer, req.interpreter.key),
                 ObjectInterpreterHandlers.Metadata.Serde.INTERPRET_INPUT,
                 Serde.SLICE,
-                Program(listOf(IncrementStateCounter()))))
+                Program(listOf(IncrementStateCounter())),
+            )
+        )
   }
 }

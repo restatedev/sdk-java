@@ -28,147 +28,152 @@ class KotlinxSerdeTest {
   @Serializable
   data class RecursiveTemplateCircular<V>(
       val rec: RecursiveTemplateOtherCircular<V>? = null,
-      val value: V
+      val value: V,
   )
 
   @Serializable
   data class RecursiveTemplateOtherCircular<V>(
       val rec: RecursiveTemplateCircular<V>? = null,
-      val value: V
+      val value: V,
   )
 
   @Test
   fun schemaGenWithPrimitive() {
     testSchemaGen<String>(
         """
-      {
-        "${'$'}schema": "https://json-schema.org/draft/2020-12/schema",
-        "type": "string"
-      }
-      """
-            .trimIndent())
+        {
+          "${'$'}schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "string"
+        }
+        """
+            .trimIndent()
+    )
   }
 
   @Test
   fun schemaGenWithNullablePrimitive() {
     testSchemaGen<String?>(
         """
-      {
-        "${'$'}schema": "https://json-schema.org/draft/2020-12/schema",
-        "type": ["string", "null"]
-      }
-      """
-            .trimIndent())
+        {
+          "${'$'}schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": ["string", "null"]
+        }
+        """
+            .trimIndent()
+    )
   }
 
   @Test
   fun schemaGenWithRecursive() {
     testSchemaGen<Recursive>(
         """
-      {
-         "type": "object",
-         "required": [
-            "value"
-         ],
-         "properties": {
-            "rec": {
-               "${'$'}ref": "#/"
-            },
-            "value": {
-               "type": "string"
-            }
-         },
-         "title": "Recursive",
-         "${'$'}schema": "https://json-schema.org/draft/2020-12/schema"
-      }
-    """
-            .trimIndent())
+        {
+           "type": "object",
+           "required": [
+              "value"
+           ],
+           "properties": {
+              "rec": {
+                 "${'$'}ref": "#/"
+              },
+              "value": {
+                 "type": "string"
+              }
+           },
+           "title": "Recursive",
+           "${'$'}schema": "https://json-schema.org/draft/2020-12/schema"
+        }
+        """
+            .trimIndent()
+    )
   }
 
   @Test
   fun schemaGenWithRecursiveCircular() {
     testSchemaGen<RecursiveCircular>(
         """
-      {
-         "type": "object",
-         "required": [
-            "value"
-         ],
-         "properties": {
-            "rec": {
-               "${'$'}ref": "#/${'$'}defs/RecursiveOtherCircular"
-            },
-            "value": {
-               "type": "string"
-            }
-         },
-         "title": "RecursiveCircular",
-         "${'$'}schema": "https://json-schema.org/draft/2020-12/schema",
-         "${'$'}defs": {
-            "RecursiveOtherCircular": {
-               "type": "object",
-               "required": [
-                  "value"
-               ],
-               "properties": {
-                  "rec": {
-                     "${'$'}ref": "#/"
-                  },
-                  "value": {
-                     "type": "string"
-                  }
-               },
-               "title": "RecursiveOtherCircular"
-            }
-         }
-      }
-    """
-            .trimIndent())
+        {
+           "type": "object",
+           "required": [
+              "value"
+           ],
+           "properties": {
+              "rec": {
+                 "${'$'}ref": "#/${'$'}defs/RecursiveOtherCircular"
+              },
+              "value": {
+                 "type": "string"
+              }
+           },
+           "title": "RecursiveCircular",
+           "${'$'}schema": "https://json-schema.org/draft/2020-12/schema",
+           "${'$'}defs": {
+              "RecursiveOtherCircular": {
+                 "type": "object",
+                 "required": [
+                    "value"
+                 ],
+                 "properties": {
+                    "rec": {
+                       "${'$'}ref": "#/"
+                    },
+                    "value": {
+                       "type": "string"
+                    }
+                 },
+                 "title": "RecursiveOtherCircular"
+              }
+           }
+        }
+        """
+            .trimIndent()
+    )
   }
 
   @Test
   fun schemaGenWorksWithNestedRecursionTemplated() {
     testSchemaGen<RecursiveTemplateCircular<Integer>>(
         """
-      {
-         "type": "object",
-         "required": [
-            "value"
-         ],
-         "properties": {
-            "rec": {
-               "${'$'}ref": "#/${'$'}defs/RecursiveTemplateOtherCircular"
-            },
-            "value": {
-               "type": "integer",
-               "minimum": -2147483648,
-               "maximum": 2147483647
-            }
-         },
-         "title": "RecursiveTemplateCircular",
-         "${'$'}schema": "https://json-schema.org/draft/2020-12/schema",
-         "${'$'}defs": {
-            "RecursiveTemplateOtherCircular": {
-               "type": "object",
-               "required": [
-                  "value"
-               ],
-               "properties": {
-                  "rec": {
-                     "${'$'}ref": "#/"
-                  },
-                  "value": {
-                     "type": "integer",
-                     "minimum": -2147483648,
-                     "maximum": 2147483647
-                  }
-               },
-               "title": "RecursiveTemplateOtherCircular"
-            }
-         }
-      }
-    """
-            .trimIndent())
+        {
+           "type": "object",
+           "required": [
+              "value"
+           ],
+           "properties": {
+              "rec": {
+                 "${'$'}ref": "#/${'$'}defs/RecursiveTemplateOtherCircular"
+              },
+              "value": {
+                 "type": "integer",
+                 "minimum": -2147483648,
+                 "maximum": 2147483647
+              }
+           },
+           "title": "RecursiveTemplateCircular",
+           "${'$'}schema": "https://json-schema.org/draft/2020-12/schema",
+           "${'$'}defs": {
+              "RecursiveTemplateOtherCircular": {
+                 "type": "object",
+                 "required": [
+                    "value"
+                 ],
+                 "properties": {
+                    "rec": {
+                       "${'$'}ref": "#/"
+                    },
+                    "value": {
+                       "type": "integer",
+                       "minimum": -2147483648,
+                       "maximum": 2147483647
+                    }
+                 },
+                 "title": "RecursiveTemplateOtherCircular"
+              }
+           }
+        }
+        """
+            .trimIndent()
+    )
   }
 
   inline fun <reified T : Any?> testSchemaGen(expectedSchema: String) {

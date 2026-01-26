@@ -42,13 +42,14 @@ class KotlinAPITests : TestRunner() {
         StateMachineFailuresTest(),
         UserFailuresTest(),
         RandomTest(),
-        CodegenTest())
+        CodegenTest(),
+    )
   }
 
   companion object {
     inline fun <reified REQ, reified RES> testDefinitionForService(
         name: String,
-        noinline runner: suspend (Context, REQ) -> RES
+        noinline runner: suspend (Context, REQ) -> RES,
     ): TestInvocationBuilder {
       return TestDefinitions.testInvocation(
           ServiceDefinition.of(
@@ -63,13 +64,18 @@ class KotlinAPITests : TestRunner() {
                       HandlerRunner.of(
                           KotlinSerializationSerdeFactory(),
                           HandlerRunner.Options(Dispatchers.Unconfined),
-                          runner)))),
-          "run")
+                          runner,
+                      ),
+                  )
+              ),
+          ),
+          "run",
+      )
     }
 
     inline fun <reified REQ, reified RES> testDefinitionForVirtualObject(
         name: String,
-        noinline runner: suspend (ObjectContext, REQ) -> RES
+        noinline runner: suspend (ObjectContext, REQ) -> RES,
     ): TestInvocationBuilder {
       return TestDefinitions.testInvocation(
           ServiceDefinition.of(
@@ -84,13 +90,18 @@ class KotlinAPITests : TestRunner() {
                       HandlerRunner.of(
                           KotlinSerializationSerdeFactory(),
                           HandlerRunner.Options(Dispatchers.Unconfined),
-                          runner)))),
-          "run")
+                          runner,
+                      ),
+                  )
+              ),
+          ),
+          "run",
+      )
     }
 
     inline fun <reified REQ, reified RES> testDefinitionForWorkflow(
         name: String,
-        noinline runner: suspend (WorkflowContext, REQ) -> RES
+        noinline runner: suspend (WorkflowContext, REQ) -> RES,
     ): TestInvocationBuilder {
       return TestDefinitions.testInvocation(
           ServiceDefinition.of(
@@ -105,14 +116,24 @@ class KotlinAPITests : TestRunner() {
                       HandlerRunner.of(
                           KotlinSerializationSerdeFactory(),
                           HandlerRunner.Options(Dispatchers.Unconfined),
-                          runner)))),
-          "run")
+                          runner,
+                      ),
+                  )
+              ),
+          ),
+          "run",
+      )
     }
 
     suspend fun callGreeterGreetService(ctx: Context, parameter: String): DurableFuture<String> {
       return ctx.call(
           Request.of<String, String>(
-              ProtoUtils.GREETER_SERVICE_TARGET, TestSerdes.STRING, TestSerdes.STRING, parameter))
+              ProtoUtils.GREETER_SERVICE_TARGET,
+              TestSerdes.STRING,
+              TestSerdes.STRING,
+              parameter,
+          )
+      )
     }
   }
 }

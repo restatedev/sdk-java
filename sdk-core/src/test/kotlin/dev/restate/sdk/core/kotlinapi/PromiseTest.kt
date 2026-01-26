@@ -22,7 +22,7 @@ class PromiseTest : PromiseTestSuite() {
 
   override fun awaitPeekPromise(
       promiseKey: String,
-      emptyCaseReturnValue: String
+      emptyCaseReturnValue: String,
   ): TestDefinitions.TestInvocationBuilder =
       testDefinitionForWorkflow("AwaitPeekPromise") { ctx, _: Unit ->
         ctx.promise(durablePromiseKey<String>(promiseKey)).peek().orElse(emptyCaseReturnValue)
@@ -35,7 +35,7 @@ class PromiseTest : PromiseTestSuite() {
 
   override fun awaitResolvePromise(
       promiseKey: String,
-      completionValue: String
+      completionValue: String,
   ): TestDefinitions.TestInvocationBuilder =
       testDefinitionForWorkflow("ResolvePromise") { ctx, _: Unit ->
         try {
@@ -48,7 +48,7 @@ class PromiseTest : PromiseTestSuite() {
 
   override fun awaitRejectPromise(
       promiseKey: String,
-      rejectReason: String
+      rejectReason: String,
   ): TestDefinitions.TestInvocationBuilder =
       testDefinitionForWorkflow("RejectPromise") { ctx, _: Unit ->
         try {

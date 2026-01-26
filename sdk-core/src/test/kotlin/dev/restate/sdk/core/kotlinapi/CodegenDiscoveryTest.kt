@@ -57,7 +57,8 @@ class CodegenDiscoveryTest {
               override fun greet(context: dev.restate.sdk.kotlin.Context, request: String): String {
                 TODO("Not yet implemented")
               }
-            })
+            }
+        )
         .extractingService("MyExplicitName")
         .extractingHandler("my_greeter")
     Assertions.assertThat(GreeterWithExplicitNameHandlers.Metadata.SERVICE_NAME)
@@ -83,7 +84,8 @@ class CodegenDiscoveryTest {
                   it.documentation = "My handler documentation"
                 }
               }
-            })
+            }
+        )
         .extractingService("RawInputOutput")
         .returns("My service documentation", Service::getDocumentation)
         .extractingHandler("rawInputWithCustomCt")

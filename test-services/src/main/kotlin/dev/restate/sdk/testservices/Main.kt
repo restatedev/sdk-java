@@ -41,7 +41,8 @@ val KNOWN_SERVICES_FACTORIES: Map<String, () -> Any> =
         ServiceInterpreterHelperHandlers.Metadata.SERVICE_NAME to
             {
               ServiceInterpreterHelperImpl()
-            })
+            },
+    )
 
 val NEEDS_EXPERIMENTAL_CONTEXT: Set<String> = setOf()
 
@@ -60,7 +61,8 @@ fun main(args: Array<String>) {
         val fqsn = svc.trim { it <= ' ' }
         bind(
             KNOWN_SERVICES_FACTORIES[fqsn]?.invoke()
-                ?: throw IllegalStateException("Service $fqsn not implemented"))
+                ?: throw IllegalStateException("Service $fqsn not implemented")
+        )
       }
     }
 

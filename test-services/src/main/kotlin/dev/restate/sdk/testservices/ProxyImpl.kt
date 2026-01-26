@@ -57,7 +57,8 @@ class ProxyImpl : Proxy {
                 request.proxyRequest.toTarget(),
                 Serde.RAW,
                 Serde.SLICE,
-                request.proxyRequest.message)
+                request.proxyRequest.message,
+            )
             .also {
               if (request.proxyRequest.idempotencyKey != null) {
                 it.idempotencyKey = request.proxyRequest.idempotencyKey
@@ -70,7 +71,8 @@ class ProxyImpl : Proxy {
                     request.proxyRequest.toTarget(),
                     Serde.RAW,
                     Serde.RAW,
-                    request.proxyRequest.message)
+                    request.proxyRequest.message,
+                )
                 .also {
                   if (request.proxyRequest.idempotencyKey != null) {
                     it.idempotencyKey = request.proxyRequest.idempotencyKey

@@ -47,7 +47,8 @@ object KtDurablePromiseKey {
   /** Creates a json [StateKey]. */
   @Deprecated(
       "Use durablePromiseKey() instead",
-      replaceWith = ReplaceWith(expression = "durablePromiseKey()"))
+      replaceWith = ReplaceWith(expression = "durablePromiseKey()"),
+  )
   inline fun <reified T : Any?> json(name: String): DurablePromiseKey<T> {
     return DurablePromiseKey.of(name, KtSerdes.json())
   }
@@ -87,7 +88,8 @@ object KtSerdes {
       override fun serialize(value: T?): Slice {
         if (value == null) {
           return Slice.wrap(
-              Json.encodeToString(JsonNull.serializer(), JsonNull).encodeToByteArray())
+              Json.encodeToString(JsonNull.serializer(), JsonNull).encodeToByteArray()
+          )
         }
 
         return Slice.wrap(Json.encodeToString(serializer, value).encodeToByteArray())
@@ -95,7 +97,9 @@ object KtSerdes {
 
       override fun deserialize(value: Slice): T {
         return Json.decodeFromString(
-            serializer, String(value.toByteArray(), StandardCharsets.UTF_8))
+            serializer,
+            String(value.toByteArray(), StandardCharsets.UTF_8),
+        )
       }
 
       override fun contentType(): String {

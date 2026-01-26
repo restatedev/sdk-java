@@ -25,7 +25,7 @@ class VirtualObjectCommandInterpreterImpl : VirtualObjectCommandInterpreter {
 
   override suspend fun interpretCommands(
       context: ObjectContext,
-      req: VirtualObjectCommandInterpreter.InterpretRequest
+      req: VirtualObjectCommandInterpreter.InterpretRequest,
   ): String {
     LOG.info("Interpreting commands {}", req)
 
@@ -93,23 +93,25 @@ class VirtualObjectCommandInterpreterImpl : VirtualObjectCommandInterpreter {
 
   override suspend fun resolveAwakeable(
       context: SharedObjectContext,
-      resolveAwakeable: VirtualObjectCommandInterpreter.ResolveAwakeable
+      resolveAwakeable: VirtualObjectCommandInterpreter.ResolveAwakeable,
   ) {
     context
         .awakeableHandle(
             context.get("awk-${resolveAwakeable.awakeableKey}")
-                ?: throw TerminalException("awakeable is not registerd yet"))
+                ?: throw TerminalException("awakeable is not registerd yet")
+        )
         .resolve(resolveAwakeable.value)
   }
 
   override suspend fun rejectAwakeable(
       context: SharedObjectContext,
-      rejectAwakeable: VirtualObjectCommandInterpreter.RejectAwakeable
+      rejectAwakeable: VirtualObjectCommandInterpreter.RejectAwakeable,
   ) {
     context
         .awakeableHandle(
             context.get("awk-${rejectAwakeable.awakeableKey}")
-                ?: throw TerminalException("awakeable is not registerd yet"))
+                ?: throw TerminalException("awakeable is not registerd yet")
+        )
         .reject(rejectAwakeable.reason)
   }
 

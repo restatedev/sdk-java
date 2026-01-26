@@ -116,13 +116,15 @@ tasks {
             "dev.restate.sdk.core.javaapi.reflections.ObjectGreeterImplementedFromInterface",
             "dev.restate.sdk.core.javaapi.reflections.PrimitiveTypes",
             "dev.restate.sdk.core.javaapi.reflections.RawInputOutput",
-            "dev.restate.sdk.core.javaapi.reflections.ServiceGreeter")
+            "dev.restate.sdk.core.javaapi.reflections.ServiceGreeter",
+        )
 
     options.compilerArgs.addAll(
         listOf(
             "-parameters",
             "-Adev.restate.codegen.disabledClasses=${disabledClassesCodegen.joinToString(",")}",
-        ))
+        )
+    )
   }
   withType<KotlinCompile>().configureEach { dependsOn(generateJsonSchema2Pojo, generateProto) }
   withType<org.gradle.jvm.tasks.Jar>().configureEach {
@@ -157,7 +159,8 @@ configure<com.diffplug.gradle.spotless.SpotlessExtension> {
     // their repos.
     targetExclude(
         fileTree("$rootDir/sdk-common/src/main/proto") { include("**/*.*") },
-        fileTree("$rootDir/sdk-core/src/main/service-protocol") { include("**/*.*") })
+        fileTree("$rootDir/sdk-core/src/main/service-protocol") { include("**/*.*") },
+    )
 
     licenseHeaderFile("$rootDir/config/license-header", "syntax")
   }

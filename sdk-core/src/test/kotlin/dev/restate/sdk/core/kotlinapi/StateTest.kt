@@ -64,19 +64,23 @@ class StateTest : StateTestSuite() {
                     startMessage(3),
                     inputCmd(),
                     getEagerStateCmd("STATE", jsonSerde<Data>(), Data(1, "Till")),
-                    setStateCmd("STATE", jsonSerde<Data>(), Data(2, "Till")))
+                    setStateCmd("STATE", jsonSerde<Data>(), Data(2, "Till")),
+                )
                 .expectingOutput(outputCmd("Hello " + Data(2, "Till")), END_MESSAGE)
                 .named("With GetState and SetState"),
             getAndSetStateUsingKtSerdes()
                 .withInput(
                     startMessage(2),
                     inputCmd(),
-                    getEagerStateCmd("STATE", jsonSerde<Data>(), Data(1, "Till")))
+                    getEagerStateCmd("STATE", jsonSerde<Data>(), Data(1, "Till")),
+                )
                 .expectingOutput(
                     setStateCmd("STATE", jsonSerde<Data>(), Data(2, "Till")),
                     outputCmd("Hello " + Data(2, "Till")),
-                    END_MESSAGE)
+                    END_MESSAGE,
+                )
                 .named("With GetState already completed"),
-        ))
+        ),
+    )
   }
 }

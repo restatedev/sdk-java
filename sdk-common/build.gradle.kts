@@ -35,7 +35,7 @@ sourceSets { main { java { srcDir(generatedVersionDir) } } }
 fun String.runCommand(
     workingDir: File = File("."),
     timeoutAmount: Long = 5,
-    timeoutUnit: TimeUnit = TimeUnit.SECONDS
+    timeoutUnit: TimeUnit = TimeUnit.SECONDS,
 ): String =
     ProcessBuilder(split("\\s(?=(?:[^'\"`]*(['\"`])[^'\"`]*\\1)*[^'\"`]*$)".toRegex()))
         .directory(workingDir)
@@ -74,7 +74,8 @@ val generateVersionClass =
           public static final String X_RESTATE_SERVER = "restate-sdk-java/" + VERSION + "_" + GIT_HASH;
       }
       """
-                    .trimIndent())
+                    .trimIndent()
+            )
 
         check(file("${projectDir}/build/version/dev/restate/sdk/version/Version.java").exists()) {
           "${projectDir}/build/version/dev/restate/sdk/version/Version.java doesn't exist?!"

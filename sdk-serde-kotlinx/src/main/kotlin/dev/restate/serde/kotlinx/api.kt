@@ -18,7 +18,7 @@ import kotlinx.serialization.serializer
 inline fun <reified T : Any?> jsonSerde(
     json: Json = Json.Default,
     jsonSchemaFactory: KotlinSerializationSerdeFactory.JsonSchemaFactory =
-        KotlinSerializationSerdeFactory.JsonSchemaFactory.NOOP
+        KotlinSerializationSerdeFactory.JsonSchemaFactory.NOOP,
 ): Serde<T> {
   @Suppress("UNCHECKED_CAST")
   return when (typeOf<T>()) {
