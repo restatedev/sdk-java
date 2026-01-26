@@ -39,6 +39,7 @@ dependencies {
   testImplementation(libs.spring.boot.starter)
   testImplementation(libs.spring.boot.starter.json)
   testImplementation(libs.spring.boot.starter.test)
+  testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 tasks.withType<JavaCompile> { options.compilerArgs.add("-parameters") }

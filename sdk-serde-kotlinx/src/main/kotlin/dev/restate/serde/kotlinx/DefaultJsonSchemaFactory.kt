@@ -52,7 +52,9 @@ object DefaultJsonSchemaFactory : KotlinSerializationSerdeFactory.JsonSchemaFact
                 // In case of nested schemas, compileReferencing also contains self schema...
                 val rootSchemaName =
                     TitleBuilder.BUILDER_SIMPLE(
-                        compiledSchema.typeData, intermediateStep.typeDataById)
+                        compiledSchema.typeData,
+                        intermediateStep.typeDataById,
+                    )
 
                 // If schema is not json object, then it's boolean, so we're good no need for
                 // additional manipulation
@@ -64,7 +66,9 @@ object DefaultJsonSchemaFactory : KotlinSerializationSerdeFactory.JsonSchemaFact
                 val rootNode = compiledSchema.json as JsonObject
                 // Add $schema
                 rootNode.properties.put(
-                    "\$schema", JsonTextValue("https://json-schema.org/draft/2020-12/schema"))
+                    "\$schema",
+                    JsonTextValue("https://json-schema.org/draft/2020-12/schema"),
+                )
                 // Add $defs
                 val definitions =
                     compiledSchema.definitions.filter { it.key != rootSchemaName }.toMutableMap()
@@ -89,18 +93,21 @@ object DefaultJsonSchemaFactory : KotlinSerializationSerdeFactory.JsonSchemaFact
                 return@runCatching rootNode
               }
               .getOrDefault(JsonObject(mutableMapOf()))
-              .prettyPrint())
+              .prettyPrint()
+      )
 
   private fun IntermediateJsonSchemaData.writeTitles() {
     this.entries.forEach { schema ->
       if (schema.json is JsonObject) {
-        if ((schema.typeData.isMap ||
-            schema.typeData.isCollection ||
-            schema.typeData.isEnum ||
-            schema.typeData.isInlineValue ||
-            schema.typeData.typeParameters.isNotEmpty() ||
-            schema.typeData.members.isNotEmpty()) &&
-            (schema.json as JsonObject).properties["title"] == null) {
+        if (
+            (schema.typeData.isMap ||
+                schema.typeData.isCollection ||
+                schema.typeData.isEnum ||
+                schema.typeData.isInlineValue ||
+                schema.typeData.typeParameters.isNotEmpty() ||
+                schema.typeData.members.isNotEmpty()) &&
+                (schema.json as JsonObject).properties["title"] == null
+        ) {
           (schema.json as JsonObject).properties["title"] =
               JsonTextValue(TitleBuilder.BUILDER_SIMPLE(schema.typeData, this.typeDataById))
         }

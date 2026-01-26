@@ -23,7 +23,8 @@ import org.springframework.boot.test.context.SpringBootTest
 
 @SpringBootTest(
     classes = [RestateHttpEndpointBean::class, Greeter::class],
-    properties = ["restate.sdk.http.port=0"])
+    properties = ["restate.sdk.http.port=0"],
+)
 class RestateHttpEndpointBeanTest {
   @Autowired lateinit var restateHttpEndpointBean: RestateHttpEndpointBean
 
@@ -41,10 +42,12 @@ class RestateHttpEndpointBeanTest {
                 .GET()
                 .version(HttpClient.Version.HTTP_2)
                 .uri(
-                    URI.create("http://localhost:${restateHttpEndpointBean.actualPort()}/discover"))
+                    URI.create("http://localhost:${restateHttpEndpointBean.actualPort()}/discover")
+                )
                 .header("Accept", "application/vnd.restate.endpointmanifest.v1+json")
                 .build(),
-            HttpResponse.BodyHandlers.ofString())
+            HttpResponse.BodyHandlers.ofString(),
+        )
     assertThat(response.version()).isEqualTo(HttpClient.Version.HTTP_2)
     assertThat(response.statusCode()).isEqualTo(200)
 

@@ -75,7 +75,7 @@ sealed interface Context {
    */
   suspend fun <Req : Any?, Res : Any?> send(
       request: Request<Req, Res>,
-      delay: Duration? = null
+      delay: Duration? = null,
   ): InvocationHandle<Res>
 
   /**
@@ -87,7 +87,7 @@ sealed interface Context {
    */
   fun <Res : Any?> invocationHandle(
       invocationId: String,
-      responseTypeTag: TypeTag<Res>
+      responseTypeTag: TypeTag<Res>,
   ): InvocationHandle<Res>
 
   /**
@@ -140,7 +140,7 @@ sealed interface Context {
       typeTag: TypeTag<T>,
       name: String = "",
       retryPolicy: RetryPolicy? = null,
-      block: suspend () -> T
+      block: suspend () -> T,
   ): T {
     return runAsync(typeTag, name, retryPolicy, block).await()
   }
@@ -165,7 +165,7 @@ sealed interface Context {
       typeTag: TypeTag<T>,
       name: String = "",
       retryPolicy: RetryPolicy? = null,
-      block: suspend () -> T
+      block: suspend () -> T,
   ): DurableFuture<T>
 
   /**
@@ -265,7 +265,7 @@ inline fun <reified Res : Any?> Context.invocationHandle(
 suspend inline fun <reified T : Any> Context.runBlock(
     name: String = "",
     retryPolicy: RetryPolicy? = null,
-    noinline block: suspend () -> T
+    noinline block: suspend () -> T,
 ): T {
   return this.runBlock(typeTag<T>(), name, retryPolicy, block)
 }
@@ -289,7 +289,7 @@ suspend inline fun <reified T : Any> Context.runBlock(
 suspend inline fun <reified T : Any> Context.runAsync(
     name: String = "",
     retryPolicy: RetryPolicy? = null,
-    noinline block: suspend () -> T
+    noinline block: suspend () -> T,
 ): DurableFuture<T> {
   return this.runAsync(typeTag<T>(), name, retryPolicy, block)
 }
@@ -482,7 +482,7 @@ sealed interface DurableFuture<T> {
    */
   suspend fun <R> map(
       transformSuccess: suspend (value: T) -> R,
-      transformFailure: suspend (exception: TerminalException) -> R
+      transformFailure: suspend (exception: TerminalException) -> R,
   ): DurableFuture<R>
 
   /**
@@ -500,7 +500,7 @@ sealed interface DurableFuture<T> {
     fun all(
         first: DurableFuture<*>,
         second: DurableFuture<*>,
-        vararg others: DurableFuture<*>
+        vararg others: DurableFuture<*>,
     ): DurableFuture<Unit> {
       return wrapAllDurableFuture(listOf(first) + listOf(second) + others.asList())
     }
@@ -514,7 +514,7 @@ sealed interface DurableFuture<T> {
     fun any(
         first: DurableFuture<*>,
         second: DurableFuture<*>,
-        vararg others: DurableFuture<*>
+        vararg others: DurableFuture<*>,
     ): DurableFuture<Int> {
       return wrapAnyDurableFuture(listOf(first) + listOf(second) + others.asList())
     }
@@ -673,7 +673,8 @@ sealed interface DurablePromise<T> {
   @Deprecated(
       message = "Use future() instead",
       level = DeprecationLevel.WARNING,
-      replaceWith = ReplaceWith(expression = "future()"))
+      replaceWith = ReplaceWith(expression = "future()"),
+  )
   suspend fun awaitable(): DurableFuture<T> {
     return future()
   }
@@ -715,7 +716,7 @@ suspend fun <Req : Any?, Res : Any?> Request<Req, Res>.call(
 /** Shorthand for [Context.send] */
 suspend fun <Req : Any?, Res : Any?> Request<Req, Res>.send(
     context: Context,
-    delay: Duration? = null
+    delay: Duration? = null,
 ): InvocationHandle<Res> {
   return context.send(this, delay)
 }

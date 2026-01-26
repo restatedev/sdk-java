@@ -15,7 +15,7 @@ import kotlinx.coroutines.CancellationException
 
 internal fun <T : Any?> Serde<T>.serializeWrappingException(
     handlerContext: HandlerContext,
-    value: T?
+    value: T?,
 ): Slice {
   return try {
     this.serialize(value)

@@ -43,8 +43,9 @@ internal abstract class BaseDurableFutureImpl<T : Any?> : DurableFuture<T> {
     return (DurableFuture.any(
             this,
             SingleDurableFutureImpl(
-                asyncResult().ctx().timer(duration.toJavaDuration(), null).await()))
-            as BaseDurableFutureImpl<*>)
+                asyncResult().ctx().timer(duration.toJavaDuration(), null).await()
+            ),
+        ) as BaseDurableFutureImpl<*>)
         .simpleMap {
           if (it == 1) {
             throw TimeoutException("Timed out waiting for durable future after $duration")
@@ -61,7 +62,8 @@ internal abstract class BaseDurableFutureImpl<T : Any?> : DurableFuture<T> {
 
   fun <R> simpleMap(transform: (T) -> R): DurableFuture<R> {
     return SingleDurableFutureImpl(
-        this.asyncResult().map { CompletableFuture.completedFuture(transform(it)) })
+        this.asyncResult().map { CompletableFuture.completedFuture(transform(it)) }
+    )
   }
 
   override suspend fun <R> map(transform: suspend (T) -> R): DurableFuture<R> {
@@ -80,12 +82,13 @@ internal abstract class BaseDurableFutureImpl<T : Any?> : DurableFuture<T> {
             completableFuture.complete(r)
           }
           completableFuture
-        })
+        }
+    )
   }
 
   override suspend fun <R> map(
       transformSuccess: suspend (T) -> R,
-      transformFailure: suspend (TerminalException) -> R
+      transformFailure: suspend (TerminalException) -> R,
   ): DurableFuture<R> {
     var ctx = currentCoroutineContext()
     return SingleDurableFutureImpl(
@@ -118,7 +121,9 @@ internal abstract class BaseDurableFutureImpl<T : Any?> : DurableFuture<T> {
                     completableFuture.complete(r)
                   }
                   completableFuture
-                }))
+                },
+            )
+    )
   }
 
   override suspend fun mapFailure(transform: suspend (TerminalException) -> T): DurableFuture<T> {
@@ -137,7 +142,8 @@ internal abstract class BaseDurableFutureImpl<T : Any?> : DurableFuture<T> {
             completableFuture.complete(newT)
           }
           completableFuture
-        })
+        }
+    )
   }
 }
 
@@ -153,7 +159,9 @@ internal fun wrapAllDurableFuture(durableFutures: List<DurableFuture<*>>): Durab
   val ctx = (durableFutures.get(0) as BaseDurableFutureImpl<*>).asyncResult().ctx()
   return SingleDurableFutureImpl(
           ctx.createAllAsyncResult(
-              durableFutures.map { (it as BaseDurableFutureImpl<*>).asyncResult() }))
+              durableFutures.map { (it as BaseDurableFutureImpl<*>).asyncResult() }
+          )
+      )
       .simpleMap {}
 }
 
@@ -164,13 +172,15 @@ internal fun wrapAnyDurableFuture(
   val ctx = (durableFutures.get(0) as BaseDurableFutureImpl<*>).asyncResult().ctx()
   return SingleDurableFutureImpl(
       ctx.createAnyAsyncResult(
-          durableFutures.map { (it as BaseDurableFutureImpl<*>).asyncResult() }))
+          durableFutures.map { (it as BaseDurableFutureImpl<*>).asyncResult() }
+      )
+  )
 }
 
 internal class CallDurableFutureImpl<T : Any?>
 internal constructor(
     callAsyncResult: AsyncResult<T>,
-    private val invocationIdAsyncResult: AsyncResult<String>
+    private val invocationIdAsyncResult: AsyncResult<String>,
 ) : SingleDurableFutureImpl<T>(callAsyncResult), CallDurableFuture<T> {
   override suspend fun invocationId(): String {
     return invocationIdAsyncResult.poll().await()
@@ -180,7 +190,7 @@ internal constructor(
 internal abstract class BaseInvocationHandle<Res>
 internal constructor(
     private val handlerContext: HandlerContext,
-    private val responseSerde: Serde<Res>
+    private val responseSerde: Serde<Res>,
 ) : InvocationHandle<Res> {
   override suspend fun cancel() {
     val ignored = handlerContext.cancelInvocation(invocationId()).await()
@@ -190,7 +200,8 @@ internal constructor(
       SingleDurableFutureImpl(
           handlerContext.attachInvocation(invocationId()).await().map {
             CompletableFuture.completedFuture<Res>(responseSerde.deserialize(it))
-          })
+          }
+      )
 
   override suspend fun output(): Output<Res> =
       SingleDurableFutureImpl(handlerContext.getInvocationOutput(invocationId()).await())
@@ -201,7 +212,8 @@ internal constructor(
 internal class AwakeableImpl<T : Any?>
 internal constructor(asyncResult: AsyncResult<Slice>, serde: Serde<T>, override val id: String) :
     SingleDurableFutureImpl<T>(
-        asyncResult.map { CompletableFuture.completedFuture(serde.deserialize(it)) }),
+        asyncResult.map { CompletableFuture.completedFuture(serde.deserialize(it)) }
+    ),
     Awakeable<T>
 
 internal class AwakeableHandleImpl(val contextImpl: ContextImpl, val id: String) : AwakeableHandle {

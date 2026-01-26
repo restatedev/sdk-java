@@ -28,4 +28,5 @@ dependencies {
   testImplementation(project(":sdk-core"))
   testImplementation(libs.jackson.annotations)
   testImplementation(libs.jackson.databind)
+  testRuntimeOnly(libs.junit.platform.launcher)
 }

@@ -42,7 +42,7 @@ data class RetryPolicy(
      * the nature of the `run` operation, which executes the closure on the service and sends the
      * result afterward to Restate.
      */
-    val maxDuration: Duration? = null
+    val maxDuration: Duration? = null,
 ) {
 
   data class Builder(
@@ -50,7 +50,7 @@ data class RetryPolicy(
       var exponentiationFactor: Float = 2.0f,
       var maxDelay: Duration? = null,
       var maxAttempts: Int? = null,
-      var maxDuration: Duration? = null
+      var maxDuration: Duration? = null,
   ) {
     fun build() =
         RetryPolicy(
@@ -58,7 +58,8 @@ data class RetryPolicy(
             exponentiationFactor = exponentiationFactor,
             maxDelay = maxDelay,
             maxDuration = maxDuration,
-            maxAttempts = maxAttempts)
+            maxAttempts = maxAttempts,
+        )
   }
 }
 

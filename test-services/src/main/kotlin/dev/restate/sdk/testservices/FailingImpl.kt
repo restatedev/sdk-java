@@ -36,7 +36,7 @@ class FailingImpl : Failing {
 
   override suspend fun callTerminallyFailingCall(
       context: ObjectContext,
-      errorMessage: String
+      errorMessage: String,
   ): String {
     LOG.info("Invoked failAndHandle")
 
@@ -66,7 +66,7 @@ class FailingImpl : Failing {
 
   override suspend fun sideEffectSucceedsAfterGivenAttempts(
       context: ObjectContext,
-      minimumAttempts: Int
+      minimumAttempts: Int,
   ): Int =
       context.runBlock(
           name = "failing_side_effect",
@@ -74,19 +74,20 @@ class FailingImpl : Failing {
               retryPolicy {
                 initialDelay = 10.milliseconds
                 exponentiationFactor = 1.0f
-              }) {
-            val currentAttempt = eventualSuccessSideEffectCalls.incrementAndGet()
-            if (currentAttempt >= 4) {
-              eventualSuccessSideEffectCalls.set(0)
-              return@runBlock currentAttempt
-            } else {
-              throw IllegalArgumentException("Failed at attempt: $currentAttempt")
-            }
-          }
+              },
+      ) {
+        val currentAttempt = eventualSuccessSideEffectCalls.incrementAndGet()
+        if (currentAttempt >= 4) {
+          eventualSuccessSideEffectCalls.set(0)
+          return@runBlock currentAttempt
+        } else {
+          throw IllegalArgumentException("Failed at attempt: $currentAttempt")
+        }
+      }
 
   override suspend fun sideEffectFailsAfterGivenAttempts(
       context: ObjectContext,
-      retryPolicyMaxRetryCount: Int
+      retryPolicyMaxRetryCount: Int,
   ): Int {
     try {
       context.runBlock<Unit>(
@@ -96,10 +97,11 @@ class FailingImpl : Failing {
                 initialDelay = 10.milliseconds
                 exponentiationFactor = 1.0f
                 maxAttempts = retryPolicyMaxRetryCount
-              }) {
-            val currentAttempt = eventualFailureSideEffectCalls.incrementAndGet()
-            throw IllegalArgumentException("Failed at attempt: $currentAttempt")
-          }
+              },
+      ) {
+        val currentAttempt = eventualFailureSideEffectCalls.incrementAndGet()
+        throw IllegalArgumentException("Failed at attempt: $currentAttempt")
+      }
     } catch (_: TerminalException) {
       return eventualFailureSideEffectCalls.get()
     }

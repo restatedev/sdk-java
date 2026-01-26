@@ -37,6 +37,7 @@ dependencies {
   testImplementation(libs.jackson.databind)
   testImplementation(project(":sdk-serde-jackson"))
   testImplementation(project(":sdk-testing"))
+  testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 tasks.withType<JavaCompile> {
@@ -46,5 +47,6 @@ tasks.withType<JavaCompile> {
       listOf(
           "-parameters",
           "-Adev.restate.codegen.disabledClasses=${disabledClassesCodegen.joinToString(",")}",
-      ))
+      )
+  )
 }

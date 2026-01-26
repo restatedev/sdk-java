@@ -27,13 +27,17 @@ import kotlin.reflect.KClass
 class KElementConverter(
     private val logger: KSPLogger,
     private val builtIns: KSBuiltIns,
-    private val byteArrayType: KSType
+    private val byteArrayType: KSType,
 ) : KSDefaultVisitor<Service.Builder, Unit>() {
   companion object {
     private val SUPPORTED_CLASS_KIND: Set<ClassKind> = setOf(ClassKind.CLASS, ClassKind.INTERFACE)
     private val EMPTY_PAYLOAD: PayloadType =
         PayloadType(
-            true, "", "Unit", "dev.restate.serde.kotlinx.KotlinSerializationSerdeFactory.UNIT")
+            true,
+            "",
+            "Unit",
+            "dev.restate.serde.kotlinx.KotlinSerializationSerdeFactory.UNIT",
+        )
     private const val RAW_SERDE: String = "dev.restate.serde.Serde.RAW"
   }
 
@@ -42,7 +46,8 @@ class KElementConverter(
   override fun visitAnnotated(annotated: KSAnnotated, data: Service.Builder) {
     if (annotated !is KSClassDeclaration) {
       logger.error(
-          "Only classes or interfaces can be annotated with @Service or @VirtualObject or @Workflow")
+          "Only classes or interfaces can be annotated with @Service or @VirtualObject or @Workflow"
+      )
     }
     visitClassDeclaration(annotated as KSClassDeclaration, data)
   }
@@ -56,7 +61,8 @@ class KElementConverter(
     if (!SUPPORTED_CLASS_KIND.contains(classDeclaration.classKind)) {
       logger.error(
           "The ServiceProcessor supports only class declarations of kind $SUPPORTED_CLASS_KIND",
-          classDeclaration)
+          classDeclaration,
+      )
     }
     if (classDeclaration.getVisibility() == Visibility.PRIVATE) {
       logger.error("The annotated class is private", classDeclaration)
@@ -94,7 +100,8 @@ class KElementConverter(
     if (data.handlers.isEmpty()) {
       logger.warn(
           "The class declaration $targetFqcn has no methods annotated as handlers",
-          classDeclaration)
+          classDeclaration,
+      )
     }
 
     var serdeFactoryDecl = "dev.restate.serde.kotlinx.KotlinSerializationSerdeFactory()"
@@ -134,7 +141,8 @@ class KElementConverter(
     if (!(!hasAnyAnnotation || hasExactlyOneAnnotation)) {
       logger.error(
           "You can have only one annotation between @Shared and @Exclusive and @Workflow to a method",
-          function)
+          function,
+      )
     }
 
     val handlerBuilder = Handler.builder()
@@ -158,7 +166,8 @@ class KElementConverter(
               .withInputAccept(inputAcceptFromParameterList(function.parameters))
               .withInputType(inputPayloadFromParameterList(function.parameters))
               .withOutputType(outputPayloadFromExecutableElement(function))
-              .validateAndBuild())
+              .validateAndBuild()
+      )
     } catch (e: Exception) {
       logger.error("Error when building handler: $e", function)
     }
@@ -184,7 +193,8 @@ class KElementConverter(
         parameterElement.type.resolve(),
         parameterElement.getAnnotationsByType(Json::class).firstOrNull(),
         parameterElement.getAnnotationsByType(Raw::class).firstOrNull(),
-        parameterElement)
+        parameterElement,
+    )
   }
 
   @OptIn(KspExperimental::class)
@@ -193,14 +203,15 @@ class KElementConverter(
         fn.returnType?.resolve() ?: builtIns.unitType,
         fn.getAnnotationsByType(Json::class).firstOrNull(),
         fn.getAnnotationsByType(Raw::class).firstOrNull(),
-        fn)
+        fn,
+    )
   }
 
   private fun payloadFromTypeMirrorAndAnnotations(
       ty: KSType,
       jsonAnnotation: Json?,
       rawAnnotation: Raw?,
-      relatedNode: KSNode
+      relatedNode: KSNode,
   ): PayloadType {
     if (ty == builtIns.unitType) {
       if (rawAnnotation != null || jsonAnnotation != null) {
@@ -222,12 +233,16 @@ class KElementConverter(
     val qualifiedTypeName = qualifiedTypeName(ty)
     var serdeDecl: String =
         if (rawAnnotation != null) RAW_SERDE else jsonSerdeDecl(ty, qualifiedTypeName)
-    if (rawAnnotation != null &&
-        rawAnnotation.contentType != getAnnotationDefaultValue(Raw::class.java, "contentType")) {
+    if (
+        rawAnnotation != null &&
+            rawAnnotation.contentType != getAnnotationDefaultValue(Raw::class.java, "contentType")
+    ) {
       serdeDecl = contentTypeDecoratedSerdeDecl(serdeDecl, rawAnnotation.contentType)
     }
-    if (jsonAnnotation != null &&
-        jsonAnnotation.contentType != getAnnotationDefaultValue(Json::class.java, "contentType")) {
+    if (
+        jsonAnnotation != null &&
+            jsonAnnotation.contentType != getAnnotationDefaultValue(Json::class.java, "contentType")
+    ) {
       serdeDecl = contentTypeDecoratedSerdeDecl(serdeDecl, jsonAnnotation.contentType)
     }
 
@@ -249,12 +264,13 @@ class KElementConverter(
   private fun validateMethodSignature(
       serviceType: ServiceType,
       handlerType: HandlerType,
-      function: KSFunctionDeclaration
+      function: KSFunctionDeclaration,
   ) {
     if (function.parameters.isEmpty()) {
       logger.error(
           "The annotated method has no parameters. There must be at least the context parameter as first parameter",
-          function)
+          function,
+      )
     }
     when (handlerType) {
       HandlerType.SHARED ->
@@ -265,7 +281,8 @@ class KElementConverter(
           } else {
             logger.error(
                 "The annotation @Shared is not supported by the service type $serviceType",
-                function)
+                function,
+            )
           }
       HandlerType.EXCLUSIVE ->
           if (serviceType == ServiceType.VIRTUAL_OBJECT) {
@@ -273,7 +290,8 @@ class KElementConverter(
           } else {
             logger.error(
                 "The annotation @Exclusive is not supported by the service type $serviceType",
-                function)
+                function,
+            )
           }
       HandlerType.STATELESS -> validateFirstParameterType(Context::class, function)
       HandlerType.WORKFLOW ->
@@ -282,17 +300,21 @@ class KElementConverter(
           } else {
             logger.error(
                 "The annotation @Workflow is not supported by the service type $serviceType",
-                function)
+                function,
+            )
           }
     }
   }
 
   private fun validateFirstParameterType(clazz: KClass<*>, function: KSFunctionDeclaration) {
-    if (function.parameters[0].type.resolve().declaration.qualifiedName!!.asString() !=
-        clazz.qualifiedName) {
+    if (
+        function.parameters[0].type.resolve().declaration.qualifiedName!!.asString() !=
+            clazz.qualifiedName
+    ) {
       logger.error(
           "The method signature must have ${clazz.qualifiedName} as first parameter, was ${function.parameters[0].type.resolve().declaration.qualifiedName!!.asString()}",
-          function)
+          function,
+      )
     }
   }
 

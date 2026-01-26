@@ -56,7 +56,7 @@ suspend fun <Req, Res> Client.callSuspend(request: Request<Req, Res>): Response<
  */
 suspend fun <Req, Res> Request<Req, Res>.send(
     client: Client,
-    delay: Duration? = null
+    delay: Duration? = null,
 ): SendResponse<Res> {
   return client.sendSuspend(this, delay)
 }
@@ -67,7 +67,7 @@ suspend fun <Req, Res> Request<Req, Res>.send(
  */
 suspend fun <Req, Res> Client.sendSuspend(
     request: Request<Req, Res>,
-    delay: Duration? = null
+    delay: Duration? = null,
 ): SendResponse<Res> {
   return this.sendAsync(request, delay?.toJavaDuration()).await()
 }
@@ -81,7 +81,7 @@ suspend fun <Req, Res> Client.sendSuspend(
  */
 suspend fun <Req, Res> WorkflowRequest<Req, Res>.submit(
     client: Client,
-    delay: Duration? = null
+    delay: Duration? = null,
 ): SendResponse<Res> {
   return client.submitSuspend(this, delay)
 }
@@ -89,7 +89,7 @@ suspend fun <Req, Res> WorkflowRequest<Req, Res>.submit(
 /** Submit a workflow, optionally providing an execution delay to wait for. */
 suspend fun <Req, Res> Client.submitSuspend(
     request: WorkflowRequest<Req, Res>,
-    delay: Duration? = null
+    delay: Duration? = null,
 ): SendResponse<Res> {
   return this.submitAsync(request, delay?.toJavaDuration()).await()
 }
@@ -104,7 +104,7 @@ suspend fun <Req, Res> Client.submitSuspend(
 suspend fun <T : Any> Client.AwakeableHandle.resolveSuspend(
     typeTag: TypeTag<T>,
     payload: T,
-    options: RequestOptions = RequestOptions.DEFAULT
+    options: RequestOptions = RequestOptions.DEFAULT,
 ): Response<Void> {
   return this.resolveAsync(typeTag, payload, options).await()
 }
@@ -117,7 +117,7 @@ suspend fun <T : Any> Client.AwakeableHandle.resolveSuspend(
  */
 suspend inline fun <reified T : Any> Client.AwakeableHandle.resolveSuspend(
     payload: T,
-    options: RequestOptions = RequestOptions.DEFAULT
+    options: RequestOptions = RequestOptions.DEFAULT,
 ): Response<Void> {
   return this.resolveSuspend(typeTag<T>(), payload, options)
 }
@@ -130,7 +130,7 @@ suspend inline fun <reified T : Any> Client.AwakeableHandle.resolveSuspend(
  */
 suspend fun Client.AwakeableHandle.rejectSuspend(
     reason: String,
-    options: RequestOptions = RequestOptions.DEFAULT
+    options: RequestOptions = RequestOptions.DEFAULT,
 ): Response<Void> {
   return this.rejectAsync(reason, options).await()
 }
@@ -180,7 +180,7 @@ suspend fun <T : Any?> Client.InvocationHandle<T>.getOutputSuspend(
  */
 inline fun <reified Res> Client.idempotentInvocationHandle(
     target: Target,
-    idempotencyKey: String
+    idempotencyKey: String,
 ): Client.IdempotentInvocationHandle<Res> {
   return this.idempotentInvocationHandle(target, idempotencyKey, typeTag<Res>())
 }
@@ -218,7 +218,7 @@ suspend fun <T> Client.IdempotentInvocationHandle<T>.getOutputSuspend(
  */
 inline fun <reified Res> Client.workflowHandle(
     workflowName: String,
-    workflowId: String
+    workflowId: String,
 ): Client.WorkflowHandle<Res> {
   return this.workflowHandle(workflowName, workflowId, typeTag<Res>())
 }

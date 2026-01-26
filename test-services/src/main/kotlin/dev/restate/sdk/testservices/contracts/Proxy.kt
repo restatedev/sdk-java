@@ -20,7 +20,7 @@ data class ProxyRequest(
     // Bytes are encoded as array of numbers
     val message: ByteArray,
     val delayMillis: Int? = null,
-    val idempotencyKey: String? = null
+    val idempotencyKey: String? = null,
 )
 
 @Serializable
@@ -32,7 +32,7 @@ data class ManyCallRequest(
      * If await at the end, then perform the call as regular call, and collect all the futures to
      * wait at the end, before returning, instead of awaiting them immediately.
      */
-    val awaitAtTheEnd: Boolean
+    val awaitAtTheEnd: Boolean,
 )
 
 @Service

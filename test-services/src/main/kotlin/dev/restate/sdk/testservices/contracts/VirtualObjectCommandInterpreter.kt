@@ -45,9 +45,7 @@ interface VirtualObjectCommandInterpreter {
   data class AwaitAny(val commands: List<AwaitableCommand>) : Command
 
   // Returns the result
-  @Serializable
-  @SerialName("awaitOne")
-  data class AwaitOne(val command: AwaitableCommand) : Command
+  @Serializable @SerialName("awaitOne") data class AwaitOne(val command: AwaitableCommand) : Command
 
   // This is serialized as `{"type": "awaitAwakeableOrTimeout", ...}`
   // The timeout throws a terminal error with "await-timeout" string in it

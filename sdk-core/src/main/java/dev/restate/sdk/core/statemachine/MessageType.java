@@ -119,17 +119,17 @@ public enum MessageType {
       case GetInvocationOutputCommandMessage -> Protocol.GetInvocationOutputCommandMessage.parser();
       case CompleteAwakeableCommandMessage -> Protocol.CompleteAwakeableCommandMessage.parser();
       case GetLazyStateCompletionNotificationMessage,
-              SignalNotificationMessage,
-              GetLazyStateKeysCompletionNotificationMessage,
-              GetPromiseCompletionNotificationMessage,
-              PeekPromiseCompletionNotificationMessage,
-              CompletePromiseCompletionNotificationMessage,
-              SleepCompletionNotificationMessage,
-              CallInvocationIdCompletionNotificationMessage,
-              CallCompletionNotificationMessage,
-              RunCompletionNotificationMessage,
-              AttachInvocationCompletionNotificationMessage,
-              GetInvocationOutputCompletionNotificationMessage ->
+          SignalNotificationMessage,
+          GetLazyStateKeysCompletionNotificationMessage,
+          GetPromiseCompletionNotificationMessage,
+          PeekPromiseCompletionNotificationMessage,
+          CompletePromiseCompletionNotificationMessage,
+          SleepCompletionNotificationMessage,
+          CallInvocationIdCompletionNotificationMessage,
+          CallCompletionNotificationMessage,
+          RunCompletionNotificationMessage,
+          AttachInvocationCompletionNotificationMessage,
+          GetInvocationOutputCompletionNotificationMessage ->
           Protocol.NotificationTemplate.parser();
     };
   }
@@ -186,25 +186,25 @@ public enum MessageType {
   public boolean isCommand() {
     return switch (this) {
       case InputCommandMessage,
-              GetLazyStateCommandMessage,
-              OutputCommandMessage,
-              SetStateCommandMessage,
-              ClearStateCommandMessage,
-              ClearAllStateCommandMessage,
-              GetLazyStateKeysCommandMessage,
-              GetEagerStateCommandMessage,
-              GetEagerStateKeysCommandMessage,
-              GetPromiseCommandMessage,
-              PeekPromiseCommandMessage,
-              CompletePromiseCommandMessage,
-              SleepCommandMessage,
-              CallCommandMessage,
-              OneWayCallCommandMessage,
-              SendSignalCommandMessage,
-              RunCommandMessage,
-              AttachInvocationCommandMessage,
-              GetInvocationOutputCommandMessage,
-              CompleteAwakeableCommandMessage ->
+          GetLazyStateCommandMessage,
+          OutputCommandMessage,
+          SetStateCommandMessage,
+          ClearStateCommandMessage,
+          ClearAllStateCommandMessage,
+          GetLazyStateKeysCommandMessage,
+          GetEagerStateCommandMessage,
+          GetEagerStateKeysCommandMessage,
+          GetPromiseCommandMessage,
+          PeekPromiseCommandMessage,
+          CompletePromiseCommandMessage,
+          SleepCommandMessage,
+          CallCommandMessage,
+          OneWayCallCommandMessage,
+          SendSignalCommandMessage,
+          RunCommandMessage,
+          AttachInvocationCommandMessage,
+          GetInvocationOutputCommandMessage,
+          CompleteAwakeableCommandMessage ->
           true;
       default -> false;
     };
@@ -213,17 +213,17 @@ public enum MessageType {
   public boolean isNotification() {
     return switch (this) {
       case GetLazyStateCompletionNotificationMessage,
-              SignalNotificationMessage,
-              GetLazyStateKeysCompletionNotificationMessage,
-              GetPromiseCompletionNotificationMessage,
-              PeekPromiseCompletionNotificationMessage,
-              CompletePromiseCompletionNotificationMessage,
-              SleepCompletionNotificationMessage,
-              CallInvocationIdCompletionNotificationMessage,
-              CallCompletionNotificationMessage,
-              RunCompletionNotificationMessage,
-              AttachInvocationCompletionNotificationMessage,
-              GetInvocationOutputCompletionNotificationMessage ->
+          SignalNotificationMessage,
+          GetLazyStateKeysCompletionNotificationMessage,
+          GetPromiseCompletionNotificationMessage,
+          PeekPromiseCompletionNotificationMessage,
+          CompletePromiseCompletionNotificationMessage,
+          SleepCompletionNotificationMessage,
+          CallInvocationIdCompletionNotificationMessage,
+          CallCompletionNotificationMessage,
+          RunCompletionNotificationMessage,
+          AttachInvocationCompletionNotificationMessage,
+          GetInvocationOutputCompletionNotificationMessage ->
           true;
       default -> false;
     };

@@ -64,17 +64,21 @@ class SideEffectTest : SideEffectTestSuite() {
                           KotlinSerializationSerdeFactory(),
                           HandlerRunner.Options(
                               Dispatchers.Unconfined +
-                                  CoroutineName("CheckContextSwitchingTestCoroutine"))) {
-                              ctx: Context,
-                              _: Unit ->
-                            val sideEffectCoroutine =
-                                ctx.runBlock { coroutineContext[CoroutineName]!!.name }
-                            check(sideEffectCoroutine == "CheckContextSwitchingTestCoroutine") {
-                              "Side effect thread is not running within the same coroutine context of the handler method: $sideEffectCoroutine"
-                            }
-                            "Hello"
-                          }))),
-          "run")
+                                  CoroutineName("CheckContextSwitchingTestCoroutine")
+                          ),
+                      ) { ctx: Context, _: Unit ->
+                        val sideEffectCoroutine =
+                            ctx.runBlock { coroutineContext[CoroutineName]!!.name }
+                        check(sideEffectCoroutine == "CheckContextSwitchingTestCoroutine") {
+                          "Side effect thread is not running within the same coroutine context of the handler method: $sideEffectCoroutine"
+                        }
+                        "Hello"
+                      },
+                  )
+              ),
+          ),
+          "run",
+      )
 
   override fun failingSideEffect(name: String, reason: String) =
       testDefinitionForService<Unit, String>("FailingSideEffect") { ctx, _: Unit ->
@@ -85,7 +89,7 @@ class SideEffectTest : SideEffectTestSuite() {
       firstSideEffect: String,
       secondSideEffect: String,
       successValue: String,
-      failureReason: String
+      failureReason: String,
   ) =
       testDefinitionForService<Unit, Unit>("AwaitAllSideEffectWithFirstFailing") { ctx, _: Unit ->
         val fut1 =
@@ -98,7 +102,7 @@ class SideEffectTest : SideEffectTestSuite() {
       firstSideEffect: String,
       secondSideEffect: String,
       successValue: String,
-      failureReason: String
+      failureReason: String,
   ) =
       testDefinitionForService<Unit, Unit>("AwaitAllSideEffectWithSecondFailing") { ctx, _: Unit ->
         val fut1 = ctx.runAsync(firstSideEffect) { successValue }
@@ -117,9 +121,11 @@ class SideEffectTest : SideEffectTestSuite() {
                       exponentiationFactor = it.exponentiationFactor,
                       maxDelay = it.maxDelay?.toKotlinDuration(),
                       maxDuration = it.maxDuration?.toKotlinDuration(),
-                      maxAttempts = it.maxAttempts)
-                }) {
-              throw IllegalStateException(reason)
-            }
+                      maxAttempts = it.maxAttempts,
+                  )
+                }
+        ) {
+          throw IllegalStateException(reason)
+        }
       }
 }

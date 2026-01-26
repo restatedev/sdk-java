@@ -39,6 +39,7 @@ class RestateHttpServerTests : TestRunner() {
   override fun definitions(): Stream<TestSuite> {
     return Stream.concat(
         Stream.concat(JavaAPITests().definitions(), KotlinAPITests().definitions()),
-        Stream.of(ThreadTrampoliningTestSuite()))
+        Stream.of(ThreadTrampoliningTestSuite()),
+    )
   }
 }

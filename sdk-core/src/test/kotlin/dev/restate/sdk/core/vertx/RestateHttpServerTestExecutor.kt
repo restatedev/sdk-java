@@ -48,7 +48,10 @@ class RestateHttpServerTestExecutor(private val vertx: Vertx) : TestExecutor {
       // Start server
       val server =
           RestateHttpServer.fromEndpoint(
-              vertx, endpointBuilder.build(), HttpServerOptions().setPort(0))
+              vertx,
+              endpointBuilder.build(),
+              HttpServerOptions().setPort(0),
+          )
       server.listen().coAwait()
 
       val client = vertx.createHttpClient(RestateHttpServerTest.Companion.HTTP_CLIENT_OPTIONS)
@@ -59,7 +62,8 @@ class RestateHttpServerTestExecutor(private val vertx: Vertx) : TestExecutor {
                   HttpMethod.POST,
                   server.actualPort(),
                   "localhost",
-                  "/invoke/${definition.serviceDefinition.serviceName}/${definition.method}")
+                  "/invoke/${definition.serviceDefinition.serviceName}/${definition.method}",
+              )
               .coAwait()
 
       // Prepare request header and send them
@@ -67,18 +71,20 @@ class RestateHttpServerTestExecutor(private val vertx: Vertx) : TestExecutor {
           .setChunked(true)
           .putHeader(
               HttpHeaders.CONTENT_TYPE,
-              ProtoUtils.serviceProtocolContentTypeHeader(definition.isEnablePreviewContext))
+              ProtoUtils.serviceProtocolContentTypeHeader(definition.isEnablePreviewContext),
+          )
           .putHeader(
               HttpHeaders.ACCEPT,
-              ProtoUtils.serviceProtocolContentTypeHeader(definition.isEnablePreviewContext))
+              ProtoUtils.serviceProtocolContentTypeHeader(definition.isEnablePreviewContext),
+          )
       request.sendHead().coAwait()
 
       launch {
         for (msg in definition.input) {
           request
               .write(
-                  Buffer.buffer(
-                      Unpooled.wrappedBuffer(ProtoUtils.invocationInputToByteString(msg))))
+                  Buffer.buffer(Unpooled.wrappedBuffer(ProtoUtils.invocationInputToByteString(msg)))
+              )
               .coAwait()
           yield()
         }
@@ -98,7 +104,8 @@ class RestateHttpServerTestExecutor(private val vertx: Vertx) : TestExecutor {
       val buffers = inputChannel.receiveAsFlow().toList()
 
       definition.outputAssert.accept(
-          ProtoUtils.bufferToMessages(buffers.map { ByteBuffer.wrap(it.bytes) }))
+          ProtoUtils.bufferToMessages(buffers.map { ByteBuffer.wrap(it.bytes) })
+      )
 
       // Close the server
       server.close().coAwait()

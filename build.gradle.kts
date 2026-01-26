@@ -65,7 +65,10 @@ allprojects {
     filters =
         arrayOf(
             com.github.jk1.license.filter.LicenseBundleNormalizer(
-                "$rootDir/config/license-normalizer-bundle.json", true))
+                "$rootDir/config/license-normalizer-bundle.json",
+                true,
+            )
+        )
   }
 }
 

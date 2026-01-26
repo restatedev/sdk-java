@@ -34,7 +34,7 @@ open class KotlinSerializationSerdeFactory
 @JvmOverloads
 constructor(
     private val json: Json = Json.Default,
-    private val jsonSchemaFactory: JsonSchemaFactory = DefaultJsonSchemaFactory
+    private val jsonSchemaFactory: JsonSchemaFactory = DefaultJsonSchemaFactory,
 ) : SerdeFactory {
 
   /** Factory to generate json schemas. */
@@ -52,7 +52,7 @@ constructor(
   class KtTypeTag<T>(
       val type: KClass<*>,
       /** Reified type */
-      val kotlinType: KType?
+      val kotlinType: KType?,
   ) : TypeTag<T>
 
   override fun <T : Any?> create(typeTag: TypeTag<T>): Serde<T> {
@@ -113,7 +113,7 @@ constructor(
     fun <T : Any?> jsonSerde(
         json: Json = Json.Default,
         jsonSchemaFactory: JsonSchemaFactory = DefaultJsonSchemaFactory,
-        serializer: KSerializer<T>
+        serializer: KSerializer<T>,
     ): Serde<T> {
       val schema = jsonSchemaFactory.generateSchema(json, serializer)
 
@@ -128,7 +128,9 @@ constructor(
 
         override fun deserialize(value: Slice): T {
           return json.decodeFromString(
-              serializer, String(value.toByteArray(), StandardCharsets.UTF_8))
+              serializer,
+              String(value.toByteArray(), StandardCharsets.UTF_8),
+          )
         }
 
         override fun contentType(): String {

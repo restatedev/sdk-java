@@ -19,6 +19,7 @@ class ServiceProcessorProvider : SymbolProcessorProvider {
     return ServiceProcessor(
         logger = environment.logger,
         codeGenerator = environment.codeGenerator,
-        options = AnnotationProcessingOptions(environment.options))
+        options = AnnotationProcessingOptions(environment.options),
+    )
   }
 }
