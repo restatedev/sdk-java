@@ -29,29 +29,29 @@ class CounterKt {
   @Serializable data class CounterUpdate(var oldValue: Long, val newValue: Long)
 
   @Handler
-  suspend fun reset(ctx: ObjectContext) {
-    ctx.clear(TOTAL)
+  suspend fun reset() {
+    state().clear(TOTAL)
   }
 
   @Handler
-  suspend fun add(ctx: ObjectContext, value: Long) {
-    val currentValue = ctx.get(TOTAL) ?: 0L
+  suspend fun add(value: Long) {
+    val currentValue = state().get(TOTAL) ?: 0L
     val newValue = currentValue + value
-    ctx.set(TOTAL, newValue)
+    state().set(TOTAL, newValue)
   }
 
   @Handler
   @Shared
-  suspend fun get(ctx: SharedObjectContext): Long? {
-    return ctx.get(TOTAL)
+  suspend fun get(): Long? {
+    return state().get(TOTAL)
   }
 
   @Handler
-  suspend fun getAndAdd(ctx: ObjectContext, value: Long): CounterUpdate {
+  suspend fun getAndAdd(value: Long): CounterUpdate {
     LOG.info("Invoked get and add with $value")
-    val currentValue = ctx.get(TOTAL) ?: 0L
+    val currentValue = state().get(TOTAL) ?: 0L
     val newValue = currentValue + value
-    ctx.set(TOTAL, newValue)
+    state().set(TOTAL, newValue)
     return CounterUpdate(currentValue, newValue)
   }
 }

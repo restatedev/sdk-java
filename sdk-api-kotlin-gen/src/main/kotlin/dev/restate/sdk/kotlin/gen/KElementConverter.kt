@@ -312,7 +312,7 @@ class KElementConverter(
             clazz.qualifiedName
     ) {
       logger.error(
-          "The method signature must have ${clazz.qualifiedName} as first parameter, was ${function.parameters[0].type.resolve().declaration.qualifiedName!!.asString()}",
+          "The method ${function.qualifiedName?.asString()} signature must have ${clazz.qualifiedName} as first parameter, was ${function.parameters[0].type.resolve().declaration.qualifiedName!!.asString()}",
           function,
       )
     }

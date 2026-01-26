@@ -19,6 +19,8 @@ import dev.restate.common.Target
 import dev.restate.common.WorkflowRequest
 import dev.restate.serde.TypeTag
 import dev.restate.serde.kotlinx.typeTag
+import kotlin.reflect.jvm.javaMethod
+import kotlin.reflect.jvm.kotlinFunction
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
 import kotlinx.coroutines.future.await
@@ -262,3 +264,316 @@ val <Res> Response<Res>.response: Res
 /** @see SendResponse.sendStatus */
 val <Res> SendResponse<Res>.sendStatus: SendResponse.SendStatus
   get() = this.sendStatus()
+
+// =============================================================================
+// Kotlin-specific Client Service Handle
+// =============================================================================
+
+/**
+ * Kotlin-specific client service handle for invoking Restate services using method references.
+ *
+ * Example usage:
+ * ```kotlin
+ * val client = Client.connect("http://localhost:8080")
+ *
+ * // Call a service
+ * val response = client.serviceHandle<Greeter>()
+ *     .call(Greeter::greet, "Alice")
+ *
+ * // Send without waiting
+ * val sendResponse = client.serviceHandle<Greeter>()
+ *     .send(Greeter::greet, "Alice")
+ * ```
+ *
+ * @param SVC the service interface type
+ */
+interface KotlinClientServiceHandle<SVC : Any> {
+  /**
+   * Call a service method with input and wait for the response.
+   *
+   * @param method method reference (e.g., `Greeter::greet`)
+   * @param input the input parameter to pass to the method
+   * @param options request options
+   * @return the response
+   */
+  suspend fun <I, O> call(
+      method: kotlin.reflect.KSuspendFunction2<SVC, I, O>,
+      input: I,
+      options: RequestOptions = RequestOptions.DEFAULT,
+  ): Response<O>
+
+  /**
+   * Call a service method without input and wait for the response.
+   *
+   * @param method method reference (e.g., `Counter::get`)
+   * @param options request options
+   * @return the response
+   */
+  suspend fun <O> call(
+      method: kotlin.reflect.KSuspendFunction1<SVC, O>,
+      options: RequestOptions = RequestOptions.DEFAULT,
+  ): Response<O>
+
+  /**
+   * Send a one-way invocation to a service method with input.
+   *
+   * @param method method reference
+   * @param input the input parameter
+   * @param delay optional execution delay
+   * @param options request options
+   * @return the send response
+   */
+  suspend fun <I, O> send(
+      method: kotlin.reflect.KSuspendFunction2<SVC, I, O>,
+      input: I,
+      delay: Duration? = null,
+      options: RequestOptions = RequestOptions.DEFAULT,
+  ): SendResponse<O>
+
+  /**
+   * Send a one-way invocation to a service method without input.
+   *
+   * @param method method reference
+   * @param delay optional execution delay
+   * @param options request options
+   * @return the send response
+   */
+  suspend fun <O> send(
+      method: kotlin.reflect.KSuspendFunction1<SVC, O>,
+      delay: Duration? = null,
+      options: RequestOptions = RequestOptions.DEFAULT,
+  ): SendResponse<O>
+}
+
+/**
+ * Create a Kotlin-specific service handle for invoking a Restate service.
+ *
+ * @param SVC the service class annotated with @Service
+ * @return a handle to invoke the service with method references
+ */
+inline fun <reified SVC : Any> Client.serviceHandle(): KotlinClientServiceHandle<SVC> {
+  return KotlinClientServiceHandleImpl(this, SVC::class.java, null)
+}
+
+/**
+ * Create a Kotlin-specific virtual object handle.
+ *
+ * @param SVC the virtual object class annotated with @VirtualObject
+ * @param key the key identifying the specific virtual object instance
+ * @return a handle to invoke the virtual object with method references
+ */
+inline fun <reified SVC : Any> Client.virtualObjectHandle(
+    key: String
+): KotlinClientServiceHandle<SVC> {
+  return KotlinClientServiceHandleImpl(this, SVC::class.java, key)
+}
+
+/**
+ * Create a Kotlin-specific workflow handle.
+ *
+ * @param SVC the workflow class annotated with @Workflow
+ * @param key the key identifying the specific workflow instance
+ * @return a handle to invoke the workflow with method references
+ */
+inline fun <reified SVC : Any> Client.workflowHandle(key: String): KotlinClientServiceHandle<SVC> {
+  return KotlinClientServiceHandleImpl(this, SVC::class.java, key)
+}
+
+@PublishedApi
+internal class KotlinClientServiceHandleImpl<SVC : Any>(
+    private val client: Client,
+    private val clazz: Class<SVC>,
+    private val key: String?,
+) : KotlinClientServiceHandle<SVC> {
+
+  private val serviceName: String =
+      dev.restate.common.reflections.ReflectionUtils.extractServiceName(clazz)
+
+  override suspend fun <I, O> call(
+      method: kotlin.reflect.KSuspendFunction2<SVC, I, O>,
+      input: I,
+      options: RequestOptions,
+  ): Response<O> {
+    val methodInfo = extractMethodInfo(method)
+    val target =
+        if (key != null) {
+          Target.virtualObject(serviceName, key, methodInfo.handlerName)
+        } else {
+          Target.service(serviceName, methodInfo.handlerName)
+        }
+
+    @Suppress("UNCHECKED_CAST")
+    val request =
+        Request.of(
+            target,
+            methodInfo.inputType as TypeTag<I>,
+            methodInfo.outputType as TypeTag<O>,
+            input,
+        )
+
+    return client.callSuspend(request)
+  }
+
+  override suspend fun <O> call(
+      method: kotlin.reflect.KSuspendFunction1<SVC, O>,
+      options: RequestOptions,
+  ): Response<O> {
+    val methodInfo = extractMethodInfo(method)
+    val target =
+        if (key != null) {
+          Target.virtualObject(serviceName, key, methodInfo.handlerName)
+        } else {
+          Target.service(serviceName, methodInfo.handlerName)
+        }
+
+    @Suppress("UNCHECKED_CAST")
+    val request =
+        Request.of(
+            target,
+            dev.restate.serde.Serde.VOID as TypeTag<Unit>,
+            methodInfo.outputType as TypeTag<O>,
+            Unit,
+        )
+
+    @Suppress("UNCHECKED_CAST")
+    return client.callSuspend(request as Request<Unit, O>)
+  }
+
+  override suspend fun <I, O> send(
+      method: kotlin.reflect.KSuspendFunction2<SVC, I, O>,
+      input: I,
+      delay: Duration?,
+      options: RequestOptions,
+  ): SendResponse<O> {
+    val methodInfo = extractMethodInfo(method)
+    val target =
+        if (key != null) {
+          Target.virtualObject(serviceName, key, methodInfo.handlerName)
+        } else {
+          Target.service(serviceName, methodInfo.handlerName)
+        }
+
+    @Suppress("UNCHECKED_CAST")
+    val request =
+        Request.of(
+            target,
+            methodInfo.inputType as TypeTag<I>,
+            methodInfo.outputType as TypeTag<O>,
+            input,
+        )
+
+    return client.sendSuspend(request, delay)
+  }
+
+  override suspend fun <O> send(
+      method: kotlin.reflect.KSuspendFunction1<SVC, O>,
+      delay: Duration?,
+      options: RequestOptions,
+  ): SendResponse<O> {
+    val methodInfo = extractMethodInfo(method)
+    val target =
+        if (key != null) {
+          Target.virtualObject(serviceName, key, methodInfo.handlerName)
+        } else {
+          Target.service(serviceName, methodInfo.handlerName)
+        }
+
+    @Suppress("UNCHECKED_CAST")
+    val request =
+        Request.of(
+            target,
+            dev.restate.serde.Serde.VOID as TypeTag<Unit>,
+            methodInfo.outputType as TypeTag<O>,
+            Unit,
+        )
+
+    @Suppress("UNCHECKED_CAST")
+    return client.sendSuspend(request as Request<Unit, O>, delay)
+  }
+
+  private fun extractMethodInfo(method: kotlin.reflect.KFunction<*>): KotlinClientMethodInfo {
+    val javaMethod = method.javaMethod ?: error("Cannot extract Java method from KFunction")
+    return KotlinClientMethodInfo.fromMethod(javaMethod)
+  }
+}
+
+/** Kotlin-aware method info extraction for client-side that handles suspend functions. */
+internal class KotlinClientMethodInfo(
+    val handlerName: String,
+    val inputType: TypeTag<*>,
+    val outputType: TypeTag<*>,
+) {
+  companion object {
+    fun fromMethod(method: java.lang.reflect.Method): KotlinClientMethodInfo {
+      val handlerInfo =
+          dev.restate.common.reflections.ReflectionUtils.mustHaveHandlerAnnotation(method)
+      val handlerName = handlerInfo.name
+
+      // Check if this is a Kotlin suspend function
+      val kFunction = method.kotlinFunction
+      val isSuspend = kFunction?.isSuspend == true
+
+      val genericParameters = method.genericParameterTypes
+      val paramCount = method.parameterCount
+
+      // For suspend functions, last param is Continuation<T>
+      val effectiveParamCount = if (isSuspend) paramCount - 1 else paramCount
+
+      val inputTypeTag: TypeTag<*> =
+          when {
+            effectiveParamCount == 0 -> dev.restate.serde.Serde.VOID
+            else -> resolveTypeTag(genericParameters[0])
+          }
+
+      val outputTypeTag: TypeTag<*> =
+          if (isSuspend) {
+            // Extract return type from Continuation<T>
+            val continuationType = genericParameters[paramCount - 1]
+            val returnType = extractSuspendReturnType(continuationType)
+            if (returnType == null || returnType.typeName == "kotlin.Unit") {
+              dev.restate.serde.Serde.VOID
+            } else {
+              resolveTypeTag(returnType)
+            }
+          } else {
+            resolveTypeTag(method.genericReturnType)
+          }
+
+      return KotlinClientMethodInfo(handlerName, inputTypeTag, outputTypeTag)
+    }
+
+    private fun extractSuspendReturnType(
+        continuationType: java.lang.reflect.Type
+    ): java.lang.reflect.Type? {
+      if (continuationType is java.lang.reflect.ParameterizedType) {
+        val rawType = continuationType.rawType
+        if (rawType == kotlin.coroutines.Continuation::class.java) {
+          val typeArg = continuationType.actualTypeArguments[0]
+          // Handle wildcard types like "? super T"
+          if (typeArg is java.lang.reflect.WildcardType) {
+            val lowerBounds = typeArg.lowerBounds
+            if (lowerBounds.isNotEmpty()) {
+              return lowerBounds[0]
+            }
+          }
+          return typeArg
+        }
+      }
+      return null
+    }
+
+    private fun resolveTypeTag(type: java.lang.reflect.Type?): TypeTag<*> {
+      if (type == null || type == Void.TYPE) {
+        return dev.restate.serde.Serde.VOID
+      }
+      return dev.restate.common.reflections.RestateUtils.typeTag(type)
+    }
+  }
+}
+
+// Extension properties for InvocationOptions to access fields with Kotlin property syntax
+private val dev.restate.common.InvocationOptions.idempotencyKey: String?
+  get() = this.getIdempotencyKey()
+
+private val dev.restate.common.InvocationOptions.headers: Map<String, String>?
+  get() = this.getHeaders()

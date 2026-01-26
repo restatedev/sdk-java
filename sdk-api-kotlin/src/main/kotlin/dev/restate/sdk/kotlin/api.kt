@@ -22,6 +22,7 @@ import java.nio.ByteBuffer
 import java.util.*
 import kotlin.random.Random
 import kotlin.time.Duration
+import kotlinx.coroutines.currentCoroutineContext
 
 /**
  * This interface exposes the Restate functionalities to Restate services. It can be used to
@@ -733,3 +734,302 @@ val HandlerRequest.bodyAsByteBuffer: ByteBuffer
   get() = this.bodyAsBodyBuffer()
 val HandlerRequest.headers: Map<String, String>
   get() = this.headers()
+
+// =============================================================================
+// Free-floating API functions for the reflection-based API
+// =============================================================================
+
+/**
+ * Get the current Restate [Context] from within a handler.
+ *
+ * This function must be called from within a Restate handler's suspend function. It retrieves the
+ * context from the coroutine context.
+ *
+ * Example usage:
+ * ```kotlin
+ * @Service
+ * class MyService {
+ *     @Handler
+ *     suspend fun myHandler(input: String): String {
+ *         val ctx = context()
+ *         // Use ctx for Restate operations
+ *         return "processed: $input"
+ *     }
+ * }
+ * ```
+ *
+ * @throws IllegalStateException if called outside of a Restate handler
+ */
+suspend fun context(): Context {
+  val element =
+      currentCoroutineContext()[dev.restate.sdk.kotlin.internal.RestateContextElement]
+          ?: error("context() must be called from within a Restate handler")
+  return element.ctx
+}
+
+/**
+ * Get the current request information.
+ *
+ * @throws IllegalStateException if called outside of a Restate handler
+ * @see Context.request
+ */
+suspend fun request(): HandlerRequest {
+  return context().request()
+}
+
+/**
+ * Get the deterministic random instance.
+ *
+ * @throws IllegalStateException if called outside of a Restate handler
+ * @see Context.random
+ */
+suspend fun random(): RestateRandom {
+  return context().random()
+}
+
+/**
+ * Causes the current execution of the function invocation to sleep for the given duration.
+ *
+ * @param duration for which to sleep.
+ * @throws IllegalStateException if called outside of a Restate handler
+ * @see Context.sleep
+ */
+suspend fun sleep(duration: Duration) {
+  context().sleep(duration)
+}
+
+/**
+ * Causes the start of a timer for the given duration.
+ *
+ * @param duration for which to sleep.
+ * @param name name to be used for the timer
+ * @throws IllegalStateException if called outside of a Restate handler
+ * @see Context.timer
+ */
+suspend fun timer(duration: Duration, name: String? = null): DurableFuture<Unit> {
+  return context().timer(duration, name)
+}
+
+/**
+ * Execute a closure, recording the result value in the journal.
+ *
+ * @param name the name of the side effect.
+ * @param retryPolicy optional retry policy.
+ * @param block closure to execute.
+ * @return value of the run operation.
+ * @throws IllegalStateException if called outside of a Restate handler
+ * @see Context.runBlock
+ */
+suspend inline fun <reified T : Any> run(
+    name: String = "",
+    retryPolicy: RetryPolicy? = null,
+    noinline block: suspend () -> T,
+): T {
+  return context().runBlock(typeTag<T>(), name, retryPolicy, block)
+}
+
+/**
+ * Execute a closure without a return value.
+ *
+ * @param name the name of the side effect.
+ * @param retryPolicy optional retry policy.
+ * @param block closure to execute.
+ * @throws IllegalStateException if called outside of a Restate handler
+ * @see Context.runBlock
+ */
+@JvmName("runUnit")
+suspend fun run(name: String = "", retryPolicy: RetryPolicy? = null, block: suspend () -> Unit) {
+  context().runBlock(typeTag<Unit>(), name, retryPolicy, block)
+}
+
+/**
+ * Execute a closure asynchronously.
+ *
+ * @param name the name of the side effect.
+ * @param retryPolicy optional retry policy.
+ * @param block closure to execute.
+ * @return a [DurableFuture] that you can combine and select.
+ * @throws IllegalStateException if called outside of a Restate handler
+ * @see Context.runAsync
+ */
+suspend inline fun <reified T : Any> runAsync(
+    name: String = "",
+    retryPolicy: RetryPolicy? = null,
+    noinline block: suspend () -> T,
+): DurableFuture<T> {
+  return context().runAsync(typeTag<T>(), name, retryPolicy, block)
+}
+
+/**
+ * Create an [Awakeable], addressable through [Awakeable.id].
+ *
+ * @return the [Awakeable] to await on.
+ * @throws IllegalStateException if called outside of a Restate handler
+ * @see Context.awakeable
+ */
+suspend inline fun <reified T : Any> awakeable(): Awakeable<T> {
+  return context().awakeable(typeTag<T>())
+}
+
+/**
+ * Create a new [AwakeableHandle] for the provided identifier.
+ *
+ * @throws IllegalStateException if called outside of a Restate handler
+ * @see Context.awakeableHandle
+ */
+suspend fun awakeableHandle(id: String): AwakeableHandle {
+  return context().awakeableHandle(id)
+}
+
+/**
+ * Get an [InvocationHandle] for an already existing invocation.
+ *
+ * @param invocationId The invocation to interact with.
+ * @throws IllegalStateException if called outside of a Restate handler
+ * @see Context.invocationHandle
+ */
+suspend inline fun <reified R : Any?> invocationHandle(invocationId: String): InvocationHandle<R> {
+  return context().invocationHandle(invocationId, typeTag<R>())
+}
+
+/**
+ * Get the key of this Virtual Object or Workflow.
+ *
+ * @return the key of this object
+ * @throws IllegalStateException if called from a regular Service handler or outside of a Restate
+ *   handler
+ */
+suspend fun key(): String {
+  val ctx = context()
+  val handlerContext =
+      dev.restate.sdk.endpoint.definition.HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL.get()
+          ?: error("key() must be called from within a Restate handler")
+
+  if (!handlerContext.canReadState()) {
+    error(
+        "key() can be used only within Virtual Object or Workflow handlers. " +
+            "Check https://docs.restate.dev/develop/java/state for more details."
+    )
+  }
+
+  return (ctx as SharedObjectContext).key()
+}
+
+/**
+ * Access to this Virtual Object/Workflow state.
+ *
+ * @return [KotlinState] for this Virtual Object/Workflow
+ * @throws IllegalStateException if called from a regular Service handler or outside of a Restate
+ *   handler
+ */
+suspend fun state(): KotlinState {
+  val ctx = context()
+  val handlerContext =
+      dev.restate.sdk.endpoint.definition.HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL.get()
+          ?: error("state() must be called from within a Restate handler")
+
+  if (!handlerContext.canReadState()) {
+    error(
+        "state() can be used only within Virtual Object or Workflow handlers. " +
+            "Check https://docs.restate.dev/develop/java/state for more details."
+    )
+  }
+
+  return KotlinStateImpl(ctx as SharedObjectContext, handlerContext)
+}
+
+/**
+ * Create a [DurablePromise] for the given key.
+ *
+ * @throws IllegalStateException if called from a non-Workflow handler or outside of a Restate
+ *   handler
+ * @see SharedWorkflowContext.promise
+ */
+suspend fun <T : Any> promise(key: DurablePromiseKey<T>): DurablePromise<T> {
+  val ctx = context()
+  val handlerContext =
+      dev.restate.sdk.endpoint.definition.HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL.get()
+          ?: error("promise() must be called from within a Restate handler")
+
+  if (!handlerContext.canReadPromises() || !handlerContext.canWritePromises()) {
+    error(
+        "promise(key) can be used only within Workflow handlers. " +
+            "Check https://docs.restate.dev/develop/java/external-events#durable-promises for more details."
+    )
+  }
+
+  return (ctx as SharedWorkflowContext).promise(key)
+}
+
+/**
+ * Create a new [DurablePromiseHandle] for the provided key.
+ *
+ * @throws IllegalStateException if called from a non-Workflow handler or outside of a Restate
+ *   handler
+ * @see SharedWorkflowContext.promiseHandle
+ */
+suspend fun <T : Any> promiseHandle(key: DurablePromiseKey<T>): DurablePromiseHandle<T> {
+  val ctx = context()
+  val handlerContext =
+      dev.restate.sdk.endpoint.definition.HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL.get()
+          ?: error("promiseHandle() must be called from within a Restate handler")
+
+  if (!handlerContext.canReadPromises() || !handlerContext.canWritePromises()) {
+    error(
+        "promiseHandle(key) can be used only within Workflow handlers. " +
+            "Check https://docs.restate.dev/develop/java/external-events#durable-promises for more details."
+    )
+  }
+
+  return (ctx as SharedWorkflowContext).promiseHandle(key)
+}
+
+// Internal implementation of KotlinState
+private class KotlinStateImpl(
+    private val ctx: SharedObjectContext,
+    private val handlerContext: dev.restate.sdk.endpoint.definition.HandlerContext,
+) : KotlinState {
+  override suspend fun <T : Any> get(key: StateKey<T>): T? {
+    return ctx.get(key)
+  }
+
+  override suspend fun <T : Any> set(key: StateKey<T>, value: T) {
+    checkCanWriteState("set")
+    (ctx as ObjectContext).set(key, value)
+  }
+
+  override suspend fun clear(key: StateKey<*>) {
+    checkCanWriteState("clear")
+    (ctx as ObjectContext).clear(key)
+  }
+
+  override suspend fun clearAll() {
+    checkCanWriteState("clearAll")
+    (ctx as ObjectContext).clearAll()
+  }
+
+  override suspend fun stateKeys(): Collection<String> {
+    return ctx.stateKeys()
+  }
+
+  private fun checkCanWriteState(opName: String) {
+    if (!handlerContext.canWriteState()) {
+      error(
+          "state().$opName() cannot be used in shared handlers. " +
+              "Check https://docs.restate.dev/develop/java/state for more details."
+      )
+    }
+  }
+}
+
+/** Shorthand for [Context.call] */
+suspend fun <Req : Any?, Res : Any?> Request<Req, Res>.call(): CallDurableFuture<Res> {
+  return context().call(this)
+}
+
+/** Shorthand for [Context.send] */
+suspend fun <Req : Any?, Res : Any?> Request<Req, Res>.send(
+    delay: Duration? = null
+): InvocationHandle<Res> {
+  return context().send(this, delay)
+}

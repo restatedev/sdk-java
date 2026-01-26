@@ -10,4 +10,5 @@ dependencies {
   api(project(":sdk-serde-kotlinx"))
 
   implementation(libs.kotlinx.coroutines.core)
+  implementation(kotlin("reflect"))
 }
