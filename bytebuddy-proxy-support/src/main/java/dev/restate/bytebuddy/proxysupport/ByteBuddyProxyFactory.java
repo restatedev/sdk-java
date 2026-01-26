@@ -51,7 +51,24 @@ public final class ByteBuddyProxyFactory implements ProxyFactory {
   public <T> @Nullable T createProxy(Class<T> clazz, MethodInterceptor interceptor) {
     // Cannot proxy final classes
     if (Modifier.isFinal(clazz.getModifiers())) {
-      throw new IllegalArgumentException("Class " + clazz + " is final, cannot be proxied.");
+      if (ReflectionUtils.isKotlinClass(clazz)) {
+        throw new IllegalArgumentException(
+            clazz
+                +
+"""
+ is not open, cannot be proxied. Suggestions:
+* Extract the @Handler annotated functions in an interface
+* Make the class and all its @Handler annotated functions 'open'
+* Use the Kotlin allopen compiler plugin https://kotlinlang.org/docs/all-open-plugin.html with the following configuration:
+
+allOpen {
+    annotations("dev.restate.sdk.annotation.Service", "dev.restate.sdk.annotation.VirtualObject", "dev.restate.sdk.annotation.Workflow")
+}
+""");
+      }
+      throw new IllegalArgumentException(
+          clazz
+              + " is final, cannot be proxied. Remove the final keyword, or refactor it extracting the restate interface out of it.");
     }
 
     try {
@@ -87,7 +104,7 @@ public final class ByteBuddyProxyFactory implements ProxyFactory {
 
       return proxyInstance;
     } catch (Exception e) {
-      throw new IllegalArgumentException("Cannot create proxy for class " + clazz, e);
+      throw new IllegalArgumentException("Cannot create proxy for " + clazz, e);
     }
   }
 
@@ -99,10 +116,11 @@ public final class ByteBuddyProxyFactory implements ProxyFactory {
           ReflectionUtils.getUniqueDeclaredMethods(
               clazz,
               method ->
-                  ReflectionUtils.findAnnotation(method, Handler.class) != null
-                      || ReflectionUtils.findAnnotation(method, Shared.class) != null
-                      || ReflectionUtils.findAnnotation(method, Workflow.class) != null
-                      || ReflectionUtils.findAnnotation(method, Exclusive.class) != null);
+                  !Modifier.isStatic(method.getModifiers())
+                      && (ReflectionUtils.findAnnotation(method, Handler.class) != null
+                          || ReflectionUtils.findAnnotation(method, Shared.class) != null
+                          || ReflectionUtils.findAnnotation(method, Workflow.class) != null
+                          || ReflectionUtils.findAnnotation(method, Exclusive.class) != null));
       for (var method : methods) {
         validateMethod(method);
       }
@@ -114,10 +132,12 @@ public final class ByteBuddyProxyFactory implements ProxyFactory {
             : byteBuddy.subclass(clazz);
 
     var annotationMatcher =
-        isAnnotatedWith(Handler.class)
-            .or(isAnnotatedWith(Exclusive.class))
-            .or(isAnnotatedWith(Shared.class))
-            .or(isAnnotatedWith(Workflow.class));
+        not(isStatic())
+            .and(
+                isAnnotatedWith(Handler.class)
+                    .or(isAnnotatedWith(Exclusive.class))
+                    .or(isAnnotatedWith(Shared.class))
+                    .or(isAnnotatedWith(Workflow.class)));
     try (var unloaded =
         builder
             // Add a field to store the interceptor

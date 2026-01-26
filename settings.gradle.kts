@@ -15,6 +15,7 @@ include(
     "admin-client",
     "bytebuddy-proxy-support",
     "common",
+    "common-kotlin",
     "client",
     "client-kotlin",
     "sdk-common",
