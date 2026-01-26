@@ -20,7 +20,7 @@ dependencies {
 
   testImplementation(libs.junit.jupiter)
   testImplementation(libs.assertj)
-  testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+  testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 tasks.withType<Javadoc> { isFailOnError = false }

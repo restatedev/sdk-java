@@ -68,7 +68,7 @@ dependencies {
   testImplementation(libs.kotlinx.serialization.core)
   testImplementation(libs.vertx.junit5)
   testImplementation(libs.vertx.kotlin.coroutines)
-  testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+  testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 // Configure source sets for protobuf plugin and jsonschema2pojo

@@ -37,7 +37,7 @@ dependencies {
   testImplementation(libs.jackson.databind)
   testImplementation(project(":sdk-serde-jackson"))
   testImplementation(project(":sdk-testing"))
-  testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+  testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 tasks.withType<JavaCompile> {
