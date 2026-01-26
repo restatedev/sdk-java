@@ -35,7 +35,7 @@ public final class LambdaEndpointRequestHandler {
   private final EndpointRequestHandler endpoint;
 
   LambdaEndpointRequestHandler(Endpoint endpoint) {
-    this.endpoint = EndpointRequestHandler.forRequestResponse(endpoint);
+    this.endpoint = EndpointRequestHandler.create(endpoint);
   }
 
   /** Handle a Lambda request as Restate Lambda endpoint. */
