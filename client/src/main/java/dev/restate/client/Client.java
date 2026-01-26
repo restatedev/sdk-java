@@ -555,6 +555,9 @@ public interface Client {
   @org.jetbrains.annotations.ApiStatus.Experimental
   default <SVC> SVC service(Class<SVC> clazz) {
     ReflectionUtils.mustHaveServiceAnnotation(clazz);
+    if (ReflectionUtils.isKotlinClass(clazz)) {
+      throw new IllegalArgumentException("Using Kotlin classes with Java's API is not supported");
+    }
     var serviceName = ReflectionUtils.extractServiceName(clazz);
     return ProxySupport.createProxy(
         clazz,
@@ -606,6 +609,9 @@ public interface Client {
   @org.jetbrains.annotations.ApiStatus.Experimental
   default <SVC> ClientServiceHandle<SVC> serviceHandle(Class<SVC> clazz) {
     ReflectionUtils.mustHaveServiceAnnotation(clazz);
+    if (ReflectionUtils.isKotlinClass(clazz)) {
+      throw new IllegalArgumentException("Using Kotlin classes with Java's API is not supported");
+    }
     return new ClientServiceHandleImpl<>(this, clazz, null);
   }
 
@@ -634,6 +640,9 @@ public interface Client {
   @org.jetbrains.annotations.ApiStatus.Experimental
   default <SVC> SVC virtualObject(Class<SVC> clazz, String key) {
     ReflectionUtils.mustHaveVirtualObjectAnnotation(clazz);
+    if (ReflectionUtils.isKotlinClass(clazz)) {
+      throw new IllegalArgumentException("Using Kotlin classes with Java's API is not supported");
+    }
     var serviceName = ReflectionUtils.extractServiceName(clazz);
     return ProxySupport.createProxy(
         clazz,
@@ -686,6 +695,9 @@ public interface Client {
   @org.jetbrains.annotations.ApiStatus.Experimental
   default <SVC> ClientServiceHandle<SVC> virtualObjectHandle(Class<SVC> clazz, String key) {
     ReflectionUtils.mustHaveVirtualObjectAnnotation(clazz);
+    if (ReflectionUtils.isKotlinClass(clazz)) {
+      throw new IllegalArgumentException("Using Kotlin classes with Java's API is not supported");
+    }
     return new ClientServiceHandleImpl<>(this, clazz, key);
   }
 
@@ -714,6 +726,9 @@ public interface Client {
   @org.jetbrains.annotations.ApiStatus.Experimental
   default <SVC> SVC workflow(Class<SVC> clazz, String key) {
     ReflectionUtils.mustHaveWorkflowAnnotation(clazz);
+    if (ReflectionUtils.isKotlinClass(clazz)) {
+      throw new IllegalArgumentException("Using Kotlin classes with Java's API is not supported");
+    }
     var serviceName = ReflectionUtils.extractServiceName(clazz);
     return ProxySupport.createProxy(
         clazz,
@@ -766,6 +781,9 @@ public interface Client {
   @org.jetbrains.annotations.ApiStatus.Experimental
   default <SVC> ClientServiceHandle<SVC> workflowHandle(Class<SVC> clazz, String key) {
     ReflectionUtils.mustHaveWorkflowAnnotation(clazz);
+    if (ReflectionUtils.isKotlinClass(clazz)) {
+      throw new IllegalArgumentException("Using Kotlin classes with Java's API is not supported");
+    }
     return new ClientServiceHandleImpl<>(this, clazz, key);
   }
 

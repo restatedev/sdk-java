@@ -57,6 +57,10 @@ public class InvocationOptions {
         + '}';
   }
 
+  public static Builder builder() {
+    return new Builder(null, null);
+  }
+
   public static Builder idempotencyKey(String idempotencyKey) {
     return new Builder(null, null).idempotencyKey(idempotencyKey);
   }

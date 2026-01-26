@@ -7,6 +7,11 @@ plugins {
 
 description = "Restate SDK Spring Boot Kotlin starter"
 
+configurations.all {
+  // Gonna conflict with sdk-serde-kotlinx
+  exclude(group = "dev.restate", module = "sdk-serde-jackson")
+}
+
 dependencies {
   compileOnly(libs.jspecify)
 
@@ -29,4 +34,12 @@ dependencies {
   testImplementation(libs.jackson.annotations)
   testImplementation(libs.jackson.databind)
   testRuntimeOnly(libs.junit.platform.launcher)
+}
+
+ksp {
+  val disabledClassesCodegen =
+      listOf(
+          "dev.restate.sdk.springboot.kotlin.GreeterNewApi",
+      )
+  arg("dev.restate.codegen.disabledClasses", disabledClassesCodegen.joinToString(","))
 }

@@ -180,6 +180,11 @@ final class RequestImpl<Req, Res> implements WorkflowRequest<Req, Res> {
       return headers;
     }
 
+    @Override
+    public RequestBuilder<Req, Res> toBuilder() {
+      return this;
+    }
+
     /**
      * @param headers headers to send together with the request. This will overwrite the already
      *     configured headers
@@ -203,6 +208,7 @@ final class RequestImpl<Req, Res> implements WorkflowRequest<Req, Res> {
     }
   }
 
+  @Override
   public Builder<Req, Res> toBuilder() {
     return new Builder<>(
         this.target,
