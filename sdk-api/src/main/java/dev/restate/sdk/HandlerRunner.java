@@ -9,10 +9,7 @@
 package dev.restate.sdk;
 
 import dev.restate.common.Slice;
-import dev.restate.common.function.ThrowingBiConsumer;
-import dev.restate.common.function.ThrowingBiFunction;
-import dev.restate.common.function.ThrowingConsumer;
-import dev.restate.common.function.ThrowingFunction;
+import dev.restate.common.function.*;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
 import dev.restate.sdk.internal.ContextThreadLocal;
@@ -22,6 +19,7 @@ import io.opentelemetry.context.Scope;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.logging.log4j.LogManager;
@@ -182,24 +180,42 @@ public class HandlerRunner<REQ, RES>
   public static final class Options
       implements dev.restate.sdk.endpoint.definition.HandlerRunner.Options {
     /**
-     * Default options will use a {@link Executors#newCachedThreadPool()} shared among all the
-     * {@link HandlerRunner} instances.
+     * Default options will use virtual threads on Java 21+, or fallback to {@link
+     * Executors#newCachedThreadPool()} for Java &lt; 21. The bounded pool is shared among all
+     * {@link HandlerRunner} instances, and is used by {@link Restate#run}/{@link Context#run} as
+     * well.
      */
-    public static final Options DEFAULT = new Options(Executors.newCachedThreadPool());
+    public static final Options DEFAULT = new Options(createDefaultExecutor());
 
     private final Executor executor;
 
-    /**
-     * You can run on virtual threads by using the executor {@code
-     * Executors.newVirtualThreadPerTaskExecutor()}.
-     */
     private Options(Executor executor) {
       this.executor = executor;
     }
 
-    /** Copy this options setting the given {@code executor}. */
+    /**
+     * Create an instance of {@link Options} with the given {@code executor}.
+     *
+     * <p>The given executor is used for running the handler code, and {@link Restate#run}/{@link
+     * Context#run} as well.
+     */
     public static Options withExecutor(Executor executor) {
       return new Options(executor);
+    }
+
+    private static ExecutorService createDefaultExecutor() {
+      // Try to use virtual threads if available (Java 21+)
+      try {
+        return (ExecutorService)
+            Executors.class.getMethod("newVirtualThreadPerTaskExecutor").invoke(null);
+      } catch (Exception e) {
+        LOG.debug(
+            "Virtual threads not available, using unbounded thread pool. "
+                + "If you need to customize the thread pool used by your restate handlers, "
+                + "use HandlerRunner.Options.withExecutor() with Endpoint.bind()");
+
+        return Executors.newCachedThreadPool();
+      }
     }
   }
 
