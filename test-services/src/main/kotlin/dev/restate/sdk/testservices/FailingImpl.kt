@@ -9,11 +9,8 @@
 package dev.restate.sdk.testservices
 
 import dev.restate.sdk.common.TerminalException
-import dev.restate.sdk.kotlin.ObjectContext
-import dev.restate.sdk.kotlin.retryPolicy
-import dev.restate.sdk.kotlin.runBlock
+import dev.restate.sdk.kotlin.*
 import dev.restate.sdk.testservices.contracts.Failing
-import dev.restate.sdk.testservices.contracts.FailingClient
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 import org.apache.logging.log4j.LogManager
@@ -28,26 +25,23 @@ class FailingImpl : Failing {
   private val eventualSuccessSideEffectCalls = AtomicInteger(0)
   private val eventualFailureSideEffectCalls = AtomicInteger(0)
 
-  override suspend fun terminallyFailingCall(context: ObjectContext, errorMessage: String) {
+  override suspend fun terminallyFailingCall(errorMessage: String) {
     LOG.info("Invoked fail")
 
     throw TerminalException(errorMessage)
   }
 
   override suspend fun callTerminallyFailingCall(
-      context: ObjectContext,
       errorMessage: String,
   ): String {
     LOG.info("Invoked failAndHandle")
 
-    FailingClient.fromContext(context, context.random().nextUUID().toString())
-        .terminallyFailingCall(errorMessage)
-        .await()
+    virtualObject<Failing>(random().nextUUID().toString()).terminallyFailingCall(errorMessage)
 
     throw IllegalStateException("This should be unreachable")
   }
 
-  override suspend fun failingCallWithEventualSuccess(context: ObjectContext): Int {
+  override suspend fun failingCallWithEventualSuccess(): Int {
     val currentAttempt = eventualSuccessCalls.incrementAndGet()
 
     if (currentAttempt >= 4) {
@@ -58,17 +52,16 @@ class FailingImpl : Failing {
     }
   }
 
-  override suspend fun terminallyFailingSideEffect(context: ObjectContext, errorMessage: String) {
-    context.runBlock<Unit> { throw TerminalException(errorMessage) }
+  override suspend fun terminallyFailingSideEffect(errorMessage: String) {
+    runBlock<Unit> { throw TerminalException(errorMessage) }
 
     throw IllegalStateException("Should not be reached.")
   }
 
   override suspend fun sideEffectSucceedsAfterGivenAttempts(
-      context: ObjectContext,
       minimumAttempts: Int,
   ): Int =
-      context.runBlock(
+      runBlock(
           name = "failing_side_effect",
           retryPolicy =
               retryPolicy {
@@ -86,11 +79,10 @@ class FailingImpl : Failing {
       }
 
   override suspend fun sideEffectFailsAfterGivenAttempts(
-      context: ObjectContext,
       retryPolicyMaxRetryCount: Int,
   ): Int {
     try {
-      context.runBlock<Unit>(
+      runBlock<Unit>(
           name = "failing_side_effect",
           retryPolicy =
               retryPolicy {

@@ -16,9 +16,9 @@ import dev.restate.sdk.kotlin.*
 @VirtualObject
 @Name("AwakeableHolder")
 interface AwakeableHolder {
-  @Exclusive suspend fun hold(context: ObjectContext, id: String)
+  @Exclusive suspend fun hold(id: String)
 
-  @Exclusive suspend fun hasAwakeable(context: ObjectContext): Boolean
+  @Exclusive suspend fun hasAwakeable(): Boolean
 
-  @Exclusive suspend fun unlock(context: ObjectContext, payload: String)
+  @Exclusive suspend fun unlock(payload: String)
 }

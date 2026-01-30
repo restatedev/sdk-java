@@ -15,11 +15,11 @@ import dev.restate.sdk.kotlin.*
 @Name("NonDeterministic")
 interface NonDeterministic {
   /** On first invocation sleeps, on second invocation calls */
-  @Handler suspend fun eitherSleepOrCall(context: ObjectContext)
+  @Handler suspend fun eitherSleepOrCall()
 
-  @Handler suspend fun callDifferentMethod(context: ObjectContext)
+  @Handler suspend fun callDifferentMethod()
 
-  @Handler suspend fun backgroundInvokeWithDifferentTargets(context: ObjectContext)
+  @Handler suspend fun backgroundInvokeWithDifferentTargets()
 
-  @Handler suspend fun setDifferentKey(context: ObjectContext)
+  @Handler suspend fun setDifferentKey()
 }
