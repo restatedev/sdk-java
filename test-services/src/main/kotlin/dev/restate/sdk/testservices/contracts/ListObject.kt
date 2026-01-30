@@ -15,11 +15,11 @@ import dev.restate.sdk.kotlin.*
 @Name("ListObject")
 interface ListObject {
   /** Append a value to the list object */
-  @Handler suspend fun append(context: ObjectContext, value: String)
+  @Handler suspend fun append(value: String)
 
   /** Get current list */
-  @Handler suspend fun get(context: ObjectContext): List<String>
+  @Handler suspend fun get(): List<String>
 
   /** Clear list */
-  @Handler suspend fun clear(context: ObjectContext): List<String>
+  @Handler suspend fun clear(): List<String>
 }

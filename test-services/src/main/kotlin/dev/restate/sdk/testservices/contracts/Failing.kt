@@ -14,14 +14,13 @@ import dev.restate.sdk.kotlin.*
 @VirtualObject
 @Name("Failing")
 interface Failing {
-  @Handler suspend fun terminallyFailingCall(context: ObjectContext, errorMessage: String)
+  @Handler suspend fun terminallyFailingCall(errorMessage: String)
 
-  @Handler
-  suspend fun callTerminallyFailingCall(context: ObjectContext, errorMessage: String): String
+  @Handler suspend fun callTerminallyFailingCall(errorMessage: String): String
 
-  @Handler suspend fun failingCallWithEventualSuccess(context: ObjectContext): Int
+  @Handler suspend fun failingCallWithEventualSuccess(): Int
 
-  @Handler suspend fun terminallyFailingSideEffect(context: ObjectContext, errorMessage: String)
+  @Handler suspend fun terminallyFailingSideEffect(errorMessage: String)
 
   /**
    * `minimumAttempts` should be used to check when to succeed. The retry policy should be
@@ -32,7 +31,6 @@ interface Failing {
    */
   @Handler
   suspend fun sideEffectSucceedsAfterGivenAttempts(
-      context: ObjectContext,
       minimumAttempts: Int,
   ): Int
 
@@ -44,7 +42,6 @@ interface Failing {
    */
   @Handler
   suspend fun sideEffectFailsAfterGivenAttempts(
-      context: ObjectContext,
       retryPolicyMaxRetryCount: Int,
   ): Int
 }

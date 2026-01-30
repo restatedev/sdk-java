@@ -15,40 +15,40 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 
 class TestUtilsServiceImpl : TestUtilsService {
-  override suspend fun echo(context: Context, input: String): String {
+  override suspend fun echo(input: String): String {
     return input
   }
 
-  override suspend fun uppercaseEcho(context: Context, input: String): String {
+  override suspend fun uppercaseEcho(input: String): String {
     return input.uppercase(Locale.getDefault())
   }
 
-  override suspend fun echoHeaders(context: Context): Map<String, String> {
-    return context.request().headers
+  override suspend fun echoHeaders(): Map<String, String> {
+    return request().headers
   }
 
-  override suspend fun rawEcho(context: Context, input: ByteArray): ByteArray {
-    check(input.contentEquals(context.request().bodyAsByteArray))
+  override suspend fun rawEcho(input: ByteArray): ByteArray {
+    check(input.contentEquals(request().bodyAsByteArray))
     return input
   }
 
-  override suspend fun sleepConcurrently(context: Context, millisDuration: List<Long>) {
-    val timers = millisDuration.map { context.timer(it.milliseconds) }.toList()
+  override suspend fun sleepConcurrently(millisDuration: List<Long>) {
+    val timers = millisDuration.map { timer("${it.milliseconds}ms", it.milliseconds) }.toList()
 
     timers.awaitAll()
   }
 
-  override suspend fun countExecutedSideEffects(context: Context, increments: Int): Int {
+  override suspend fun countExecutedSideEffects(increments: Int): Int {
     val invokedSideEffects = AtomicInteger(0)
 
     for (i in 0..<increments) {
-      context.runBlock { invokedSideEffects.incrementAndGet() }
+      runBlock { invokedSideEffects.incrementAndGet() }
     }
 
     return invokedSideEffects.get()
   }
 
-  override suspend fun cancelInvocation(context: Context, invocationId: String) {
-    context.invocationHandle<Unit>(invocationId).cancel()
+  override suspend fun cancelInvocation(invocationId: String) {
+    invocationHandle<Unit>(invocationId).cancel()
   }
 }

@@ -8,6 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.testservices
 
+import dev.restate.common.reflections.ReflectionUtils.extractServiceName
 import dev.restate.sdk.auth.signing.RestateRequestIdentityVerifier
 import dev.restate.sdk.http.vertx.RestateHttpServer
 import dev.restate.sdk.kotlin.endpoint.endpoint
@@ -15,30 +16,30 @@ import dev.restate.sdk.testservices.contracts.*
 
 val KNOWN_SERVICES_FACTORIES: Map<String, () -> Any> =
     mapOf(
-        AwakeableHolderHandlers.Metadata.SERVICE_NAME to { AwakeableHolderImpl() },
-        BlockAndWaitWorkflowHandlers.Metadata.SERVICE_NAME to { BlockAndWaitWorkflowImpl() },
-        CancelTestBlockingServiceHandlers.Metadata.SERVICE_NAME to
+        extractServiceName(AwakeableHolder::class.java) to { AwakeableHolderImpl() },
+        extractServiceName(BlockAndWaitWorkflow::class.java) to { BlockAndWaitWorkflowImpl() },
+        extractServiceName(CancelTest.BlockingService::class.java) to
             {
               CancelTestImpl.BlockingService()
             },
-        CancelTestRunnerHandlers.Metadata.SERVICE_NAME to { CancelTestImpl.RunnerImpl() },
-        CounterHandlers.Metadata.SERVICE_NAME to { CounterImpl() },
-        FailingHandlers.Metadata.SERVICE_NAME to { FailingImpl() },
-        KillTestRunnerHandlers.Metadata.SERVICE_NAME to { KillTestImpl.RunnerImpl() },
-        KillTestSingletonHandlers.Metadata.SERVICE_NAME to { KillTestImpl.SingletonImpl() },
-        ListObjectHandlers.Metadata.SERVICE_NAME to { ListObjectImpl() },
-        MapObjectHandlers.Metadata.SERVICE_NAME to { MapObjectImpl() },
-        NonDeterministicHandlers.Metadata.SERVICE_NAME to { NonDeterministicImpl() },
-        ProxyHandlers.Metadata.SERVICE_NAME to { ProxyImpl() },
-        TestUtilsServiceHandlers.Metadata.SERVICE_NAME to { TestUtilsServiceImpl() },
-        VirtualObjectCommandInterpreterHandlers.Metadata.SERVICE_NAME to
+        extractServiceName(CancelTest.Runner::class.java) to { CancelTestImpl.RunnerImpl() },
+        extractServiceName(Counter::class.java) to { CounterImpl() },
+        extractServiceName(Failing::class.java) to { FailingImpl() },
+        extractServiceName(KillTest.Runner::class.java) to { KillTestImpl.RunnerImpl() },
+        extractServiceName(KillTest.Singleton::class.java) to { KillTestImpl.SingletonImpl() },
+        extractServiceName(ListObject::class.java) to { ListObjectImpl() },
+        extractServiceName(MapObject::class.java) to { MapObjectImpl() },
+        extractServiceName(NonDeterministic::class.java) to { NonDeterministicImpl() },
+        extractServiceName(Proxy::class.java) to { ProxyImpl() },
+        extractServiceName(TestUtilsService::class.java) to { TestUtilsServiceImpl() },
+        extractServiceName(VirtualObjectCommandInterpreter::class.java) to
             {
               VirtualObjectCommandInterpreterImpl()
             },
         interpreterName(0) to { ObjectInterpreterImpl.getInterpreterDefinition(0) },
         interpreterName(1) to { ObjectInterpreterImpl.getInterpreterDefinition(1) },
         interpreterName(2) to { ObjectInterpreterImpl.getInterpreterDefinition(2) },
-        ServiceInterpreterHelperHandlers.Metadata.SERVICE_NAME to
+        extractServiceName(ServiceInterpreterHelper::class.java) to
             {
               ServiceInterpreterHelperImpl()
             },
