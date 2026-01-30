@@ -429,10 +429,10 @@ internal constructor(
    * @return a [KClientRequest] with the correct response type
    */
   @Suppress("UNCHECKED_CAST")
-  fun <Res> request(block: suspend (SVC) -> Res): KClientRequest<Any?, Res> {
+  fun <Res> request(block: suspend SVC.() -> Res): KClientRequest<Any?, Res> {
     return KClientRequestImpl(
         client,
-        RequestCaptureProxy(clazz, key).capture(block as suspend (SVC) -> Any?).toRequest(),
+        RequestCaptureProxy(clazz, key).capture(block as suspend SVC.() -> Any?).toRequest(),
     )
         as KClientRequest<Any?, Res>
   }
@@ -444,7 +444,7 @@ internal constructor(
  * Example usage:
  * ```kotlin
  * client.toService<CounterKt>()
- *     .request { it.add(1) }
+ *     .request { add(1) }
  *     .withOptions { idempotencyKey = "123" }
  *     .call()
  * ```
@@ -485,7 +485,7 @@ interface KClientRequest<Req, Res> : Request<Req, Res> {
  * Example usage:
  * ```kotlin
  * val response = client.toService<Greeter>()
- *     .request { it.greet("Alice") }
+ *     .request { greet("Alice") }
  *     .call()
  * ```
  *
@@ -507,7 +507,7 @@ inline fun <reified SVC : Any> Client.toService(): KClientRequestBuilder<SVC> {
  * Example usage:
  * ```kotlin
  * val response = client.toVirtualObject<Counter>("my-counter")
- *     .request { it.add(1) }
+ *     .request { add(1) }
  *     .call()
  * ```
  *
@@ -530,7 +530,7 @@ inline fun <reified SVC : Any> Client.toVirtualObject(key: String): KClientReque
  * Example usage:
  * ```kotlin
  * val response = client.toWorkflow<MyWorkflow>("workflow-123")
- *     .request { it.run("input") }
+ *     .request { run("input") }
  *     .call()
  * ```
  *

@@ -28,7 +28,7 @@ class KillTestImpl {
   class SingletonImpl : KillTest.Singleton {
     override suspend fun recursiveCall() {
       val awakeable = awakeable(Serde.RAW)
-      toVirtualObject<AwakeableHolder>(key()).request { it.hold(awakeable.id) }.send()
+      toVirtualObject<AwakeableHolder>(key()).request { hold(awakeable.id) }.send()
       awakeable.await()
 
       virtualObject<KillTest.Singleton>(key()).recursiveCall()

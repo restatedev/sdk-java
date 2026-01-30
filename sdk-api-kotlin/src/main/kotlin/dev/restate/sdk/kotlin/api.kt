@@ -1142,7 +1142,7 @@ private class KotlinStateImpl(
  * Example usage:
  * ```kotlin
  * toService<CounterKt>()
- *     .request { it.add(1) }
+ *     .request { add(1) }
  *     .withOptions { idempotencyKey = "123" }
  *     .call()
  * ```
@@ -1203,9 +1203,9 @@ internal constructor(
    * @return a [KRequest] with the correct response type
    */
   @Suppress("UNCHECKED_CAST")
-  fun <Res> request(block: suspend (SVC) -> Res): KRequest<Any?, Res> {
+  fun <Res> request(block: suspend SVC.() -> Res): KRequest<Any?, Res> {
     return KRequestImpl(
-        RequestCaptureProxy(clazz, key).capture(block as suspend (SVC) -> Any?).toRequest()
+        RequestCaptureProxy(clazz, key).capture(block as suspend SVC.() -> Any?).toRequest()
     )
         as KRequest<Any?, Res>
   }
@@ -1219,7 +1219,7 @@ internal constructor(
  * @Handler
  * suspend fun myHandler(): String {
  *     val result = toService<Greeter>()
- *         .request { it.greet("Alice") }
+ *         .request { greet("Alice") }
  *         .call()
  *         .await()
  *     return result
@@ -1246,7 +1246,7 @@ inline fun <reified SVC : Any> toService(): KRequestBuilder<SVC> {
  * @Handler
  * suspend fun myHandler(): Long {
  *     val result = toVirtualObject<Counter>("my-counter")
- *         .request { it.add(1) }
+ *         .request { add(1) }
  *         .call()
  *         .await()
  *     return result
@@ -1274,7 +1274,7 @@ inline fun <reified SVC : Any> toVirtualObject(key: String): KRequestBuilder<SVC
  * @Handler
  * suspend fun myHandler(): String {
  *     val result = toWorkflow<MyWorkflow>("workflow-123")
- *         .request { it.run("input") }
+ *         .request { run("input") }
  *         .call()
  *         .await()
  *     return result

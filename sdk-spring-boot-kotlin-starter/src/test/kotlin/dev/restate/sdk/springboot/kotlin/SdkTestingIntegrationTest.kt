@@ -49,7 +49,7 @@ class SdkTestingIntegrationTest {
   @Timeout(value = 10)
   fun greetNewApiWithRequestTo(@RestateClient ingressClient: Client) = runTest {
     val response: String =
-        ingressClient.toService<GreeterNewApi>().request { it.greet("Francesco") }.call().response()
+        ingressClient.toService<GreeterNewApi>().request { greet("Francesco") }.call().response()
 
     assertThat(response).isEqualTo("Something something Francesco")
   }

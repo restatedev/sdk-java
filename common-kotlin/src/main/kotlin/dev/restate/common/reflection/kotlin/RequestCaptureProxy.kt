@@ -37,7 +37,7 @@ class RequestCaptureProxy<SVC : Any>(private val clazz: Class<SVC>, private val 
    * @param block the suspend lambda that invokes a method on the service proxy
    * @return the captured invocation information
    */
-  fun capture(block: suspend (SVC) -> Any?): CapturedInvocation {
+  fun capture(block: suspend SVC.() -> Any?): CapturedInvocation {
     var capturedInvocation: CapturedInvocation? = null
 
     val proxy =
@@ -60,7 +60,7 @@ class RequestCaptureProxy<SVC : Any>(private val clazz: Class<SVC>, private val 
           }
         }
 
-    val suspendBlock: suspend () -> Any? = { block(proxy) }
+    val suspendBlock: suspend () -> Any? = { proxy.block() }
     suspendBlock.startCoroutine(capturingContinuation)
 
     return capturedInvocation

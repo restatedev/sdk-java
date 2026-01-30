@@ -14,6 +14,7 @@ import dev.restate.sdk.core.generated.manifest.Input
 import dev.restate.sdk.core.generated.manifest.Output
 import dev.restate.sdk.core.generated.manifest.Service
 import dev.restate.sdk.kotlin.endpoint.*
+import dev.restate.serde.Serde
 import org.assertj.core.api.InstanceOfAssertFactories.type
 import org.junit.jupiter.api.Test
 
@@ -47,6 +48,26 @@ class ReflectionDiscoveryTest {
         .extracting({ it.output }, type(Output::class.java))
         .extracting { it.contentType }
         .isEqualTo("application/vnd.my.custom")
+  }
+
+  @Test
+  fun checkRawInputContentType() {
+    assertThatDiscovery(RawInputOutput())
+      .extractingService("RawInputOutput")
+      .extractingHandler("rawInput")
+      .extracting({ it.input }, type(Input::class.java))
+      .extracting { it.contentType }
+      .isEqualTo(Serde.RAW.contentType())
+  }
+
+  @Test
+  fun checkRawOutputContentType() {
+    assertThatDiscovery(RawInputOutput())
+      .extractingService("RawInputOutput")
+      .extractingHandler("rawOutput")
+      .extracting({ it.output }, type(Output::class.java))
+      .extracting { it.contentType }
+      .isEqualTo(Serde.RAW.contentType())
   }
 
   @Test
