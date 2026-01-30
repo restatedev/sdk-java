@@ -53,21 +53,21 @@ class ReflectionDiscoveryTest {
   @Test
   fun checkRawInputContentType() {
     assertThatDiscovery(RawInputOutput())
-      .extractingService("RawInputOutput")
-      .extractingHandler("rawInput")
-      .extracting({ it.input }, type(Input::class.java))
-      .extracting { it.contentType }
-      .isEqualTo(Serde.RAW.contentType())
+        .extractingService("RawInputOutput")
+        .extractingHandler("rawInput")
+        .extracting({ it.input }, type(Input::class.java))
+        .extracting { it.contentType }
+        .isEqualTo(Serde.RAW.contentType())
   }
 
   @Test
   fun checkRawOutputContentType() {
     assertThatDiscovery(RawInputOutput())
-      .extractingService("RawInputOutput")
-      .extractingHandler("rawOutput")
-      .extracting({ it.output }, type(Output::class.java))
-      .extracting { it.contentType }
-      .isEqualTo(Serde.RAW.contentType())
+        .extractingService("RawInputOutput")
+        .extractingHandler("rawOutput")
+        .extracting({ it.output }, type(Output::class.java))
+        .extracting { it.contentType }
+        .isEqualTo(Serde.RAW.contentType())
   }
 
   @Test
