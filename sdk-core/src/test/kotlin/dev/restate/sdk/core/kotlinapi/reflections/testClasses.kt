@@ -110,7 +110,7 @@ open class CornerCases {
 
   @Exclusive
   open suspend fun badReturnTypeInferred(): Unit {
-    toVirtualObject<CornerCases>(key()).request { it.badReturnTypeInferred() }.send()
+    toVirtualObject<CornerCases>(key()).request { badReturnTypeInferred() }.send()
   }
 }
 
@@ -149,7 +149,7 @@ open class RawInputOutput {
 open class MyWorkflow {
   @Workflow
   open suspend fun run(myInput: String) {
-    toWorkflow<MyWorkflow>(key()).request { it.sharedHandler(myInput) }.send()
+    toWorkflow<MyWorkflow>(key()).request { sharedHandler(myInput) }.send()
   }
 
   @Handler

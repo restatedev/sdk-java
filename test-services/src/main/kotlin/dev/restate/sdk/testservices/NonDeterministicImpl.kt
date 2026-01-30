@@ -44,9 +44,9 @@ class NonDeterministicImpl : NonDeterministic {
 
   override suspend fun backgroundInvokeWithDifferentTargets() {
     if (doLeftAction()) {
-      toVirtualObject<Counter>("abc").request { it.get() }.send()
+      toVirtualObject<Counter>("abc").request { get() }.send()
     } else {
-      toVirtualObject<Counter>("abc").request { it.reset() }.send()
+      toVirtualObject<Counter>("abc").request { reset() }.send()
     }
     // This is required to cause a suspension after the non-deterministic operation
     sleep(100.milliseconds)
@@ -65,7 +65,7 @@ class NonDeterministicImpl : NonDeterministic {
   }
 
   private suspend fun incrementCounter() {
-    toVirtualObject<Counter>("abc").request { it.add(1) }.send()
+    toVirtualObject<Counter>("abc").request { add(1) }.send()
   }
 
   private suspend fun doLeftAction(): Boolean {

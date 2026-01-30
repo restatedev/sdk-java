@@ -116,14 +116,14 @@ class ObjectInterpreterImpl(private val layer: Int) : ObjectInterpreter {
         }
         is CallService -> {
           val expected = "hello-$i"
-          val awaitable = toService<ServiceInterpreterHelper>().request { it.echo(expected) }.call()
+          val awaitable = toService<ServiceInterpreterHelper>().request { echo(expected) }.call()
           promises[i] = { checkAwaitable(awaitable, expected, i, cmd) }
         }
         is CallSlowService -> {
           val expected = "hello-$i"
           val awaitable =
               toService<ServiceInterpreterHelper>()
-                  .request { it.echoLater(EchoLaterRequest(cmd.sleep, expected)) }
+                  .request { echoLater(EchoLaterRequest(cmd.sleep, expected)) }
                   .call()
           promises[i] = { checkAwaitable(awaitable, expected, i, cmd) }
         }
@@ -138,7 +138,7 @@ class ObjectInterpreterImpl(private val layer: Int) : ObjectInterpreter {
         }
         is IncrementStateCounterIndirectly -> {
           toService<ServiceInterpreterHelper>()
-              .request { it.incrementIndirectly(interpreterId()) }
+              .request { incrementIndirectly(interpreterId()) }
               .send()
         }
         is IncrementStateCounterViaAwakeable -> {
@@ -146,7 +146,7 @@ class ObjectInterpreterImpl(private val layer: Int) : ObjectInterpreter {
           val awakeable = awakeable<String>()
           toService<ServiceInterpreterHelper>()
               .request {
-                it.incrementViaAwakeableDance(
+                incrementViaAwakeableDance(
                     IncrementViaAwakeableDanceRequest(interpreterId(), awakeable.id)
                 )
               }
@@ -156,7 +156,7 @@ class ObjectInterpreterImpl(private val layer: Int) : ObjectInterpreter {
         }
         is IncrementViaDelayedCall -> {
           toService<ServiceInterpreterHelper>()
-              .request { it.incrementIndirectly(interpreterId()) }
+              .request { incrementIndirectly(interpreterId()) }
               .send(delay = cmd.duration.milliseconds)
         }
         is RecoverTerminalCall -> {
@@ -174,18 +174,18 @@ class ObjectInterpreterImpl(private val layer: Int) : ObjectInterpreter {
         }
         is RecoverTerminalCallMaybeUnAwaited -> {
           val awaitable =
-              toService<ServiceInterpreterHelper>().request { it.terminalFailure() }.call()
+              toService<ServiceInterpreterHelper>().request { terminalFailure() }.call()
           promises[i] = { checkAwaitableFails(awaitable, i, cmd) }
         }
         is RejectAwakeable -> {
           val awakeable = awakeable<String>()
           promises[i] = { checkAwaitableFails(awakeable, i, cmd) }
-          toService<ServiceInterpreterHelper>().request { it.rejectAwakeable(awakeable.id) }.send()
+          toService<ServiceInterpreterHelper>().request { rejectAwakeable(awakeable.id) }.send()
         }
         is ResolveAwakeable -> {
           val awakeable = awakeable<String>()
           promises[i] = { checkAwaitable(awakeable, "ok", i, cmd) }
-          toService<ServiceInterpreterHelper>().request { it.resolveAwakeable(awakeable.id) }.send()
+          toService<ServiceInterpreterHelper>().request { resolveAwakeable(awakeable.id) }.send()
         }
         is SetState -> {
           state().set(cmdStateKey(cmd.key), "value-${cmd.key}")
