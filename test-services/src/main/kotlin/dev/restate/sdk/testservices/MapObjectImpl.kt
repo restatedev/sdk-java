@@ -9,26 +9,25 @@
 package dev.restate.sdk.testservices
 
 import dev.restate.sdk.kotlin.*
-import dev.restate.sdk.testservices.contracts.Entry
 import dev.restate.sdk.testservices.contracts.MapObject
 
 class MapObjectImpl : MapObject {
-  override suspend fun set(context: ObjectContext, entry: Entry) {
-    context.set(stateKey(entry.key), entry.value)
+  override suspend fun set(entry: MapObject.Entry) {
+    state().set(stateKey(entry.key), entry.value)
   }
 
-  override suspend fun get(context: ObjectContext, key: String): String {
-    return context.get(stateKey(key)) ?: ""
+  override suspend fun get(key: String): String {
+    return state().get(stateKey(key)) ?: ""
   }
 
-  override suspend fun clearAll(context: ObjectContext): List<Entry> {
-    val keys = context.stateKeys()
+  override suspend fun clearAll(): List<MapObject.Entry> {
+    val keys = state().keys()
     // AH AH AH and here I wanna see if you really respect determinism!!!
-    val result = mutableListOf<Entry>()
+    val result = mutableListOf<MapObject.Entry>()
     for (k in keys) {
-      result.add(Entry(k, context.get(stateKey<String>(k))!!))
+      result.add(MapObject.Entry(k, state().get(stateKey<String>(k))!!))
     }
-    context.clearAll()
+    state().clearAll()
     return result
   }
 }

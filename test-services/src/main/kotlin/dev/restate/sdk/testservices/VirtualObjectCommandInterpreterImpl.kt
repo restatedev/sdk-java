@@ -24,7 +24,6 @@ class VirtualObjectCommandInterpreterImpl : VirtualObjectCommandInterpreter {
   }
 
   override suspend fun interpretCommands(
-      context: ObjectContext,
       req: VirtualObjectCommandInterpreter.InterpretRequest,
   ): String {
     LOG.info("Interpreting commands {}", req)
@@ -35,7 +34,7 @@ class VirtualObjectCommandInterpreterImpl : VirtualObjectCommandInterpreter {
       LOG.info("Start interpreting command {}", it)
       when (it) {
         is VirtualObjectCommandInterpreter.AwaitAny -> {
-          val cmds = it.commands.map { it.toAwaitable(context) }
+          val cmds = it.commands.map { it.toAwaitable() }
           result =
               select {
                     for (cmd in cmds) {
@@ -45,7 +44,7 @@ class VirtualObjectCommandInterpreterImpl : VirtualObjectCommandInterpreter {
                   .await()
         }
         is VirtualObjectCommandInterpreter.AwaitAnySuccessful -> {
-          val cmds = it.commands.map { it.toAwaitable(context) }.toMutableList()
+          val cmds = it.commands.map { it.toAwaitable() }.toMutableList()
 
           while (true) {
             @Suppress("UNCHECKED_CAST")
@@ -61,22 +60,22 @@ class VirtualObjectCommandInterpreterImpl : VirtualObjectCommandInterpreter {
           }
         }
         is VirtualObjectCommandInterpreter.AwaitOne -> {
-          result = it.command.toAwaitable(context).await()
+          result = it.command.toAwaitable().await()
         }
         is VirtualObjectCommandInterpreter.GetEnvVariable -> {
-          result = context.runBlock { System.getenv(it.envName) ?: "" }
+          result = runBlock { System.getenv(it.envName) ?: "" }
         }
         is VirtualObjectCommandInterpreter.ResolveAwakeable -> {
-          resolveAwakeable(context, it)
+          resolveAwakeable(it)
           result = ""
         }
         is VirtualObjectCommandInterpreter.RejectAwakeable -> {
-          rejectAwakeable(context, it)
+          rejectAwakeable(it)
           result = ""
         }
         is VirtualObjectCommandInterpreter.AwaitAwakeableOrTimeout -> {
-          val awk = context.awakeable<String>()
-          context.set("awk-${it.awakeableKey}", awk.id)
+          val awk = awakeable<String>()
+          state().set("awk-${it.awakeableKey}", awk.id)
           try {
             result = awk.await(it.timeoutMillis.milliseconds)
           } catch (_: TimeoutException) {
@@ -85,60 +84,54 @@ class VirtualObjectCommandInterpreterImpl : VirtualObjectCommandInterpreter {
         }
       }
       LOG.info("Command result {}", result)
-      appendResult(context, result)
+      appendResult(result)
     }
 
     return result
   }
 
   override suspend fun resolveAwakeable(
-      context: SharedObjectContext,
       resolveAwakeable: VirtualObjectCommandInterpreter.ResolveAwakeable,
   ) {
-    context
-        .awakeableHandle(
-            context.get("awk-${resolveAwakeable.awakeableKey}")
+    awakeableHandle(
+            state().get("awk-${resolveAwakeable.awakeableKey}")
                 ?: throw TerminalException("awakeable is not registerd yet")
         )
         .resolve(resolveAwakeable.value)
   }
 
   override suspend fun rejectAwakeable(
-      context: SharedObjectContext,
       rejectAwakeable: VirtualObjectCommandInterpreter.RejectAwakeable,
   ) {
-    context
-        .awakeableHandle(
-            context.get("awk-${rejectAwakeable.awakeableKey}")
+    awakeableHandle(
+            state().get("awk-${rejectAwakeable.awakeableKey}")
                 ?: throw TerminalException("awakeable is not registerd yet")
         )
         .reject(rejectAwakeable.reason)
   }
 
-  override suspend fun hasAwakeable(context: SharedObjectContext, awakeableKey: String): Boolean =
-      !context.get<String>("awk-$awakeableKey").isNullOrBlank()
+  override suspend fun hasAwakeable(awakeableKey: String): Boolean =
+      !state().get<String>("awk-$awakeableKey").isNullOrBlank()
 
-  override suspend fun getResults(context: SharedObjectContext): List<String> =
-      context.get("results") ?: listOf()
+  override suspend fun getResults(): List<String> = state().get("results") ?: listOf()
 
-  private suspend fun VirtualObjectCommandInterpreter.AwaitableCommand.toAwaitable(
-      ctx: ObjectContext
-  ): DurableFuture<String> {
+  private suspend fun VirtualObjectCommandInterpreter.AwaitableCommand.toAwaitable():
+      DurableFuture<String> {
     return when (this) {
       is VirtualObjectCommandInterpreter.CreateAwakeable -> {
-        val awk = ctx.awakeable<String>()
-        ctx.set("awk-${this.awakeableKey}", awk.id)
+        val awk = awakeable<String>()
+        state().set("awk-${this.awakeableKey}", awk.id)
         awk
       }
       is VirtualObjectCommandInterpreter.RunThrowTerminalException ->
-          ctx.runAsync<String>("should-fail-with-${this.reason}") {
+          runAsync<String>("should-fail-with-${this.reason}") {
             throw TerminalException(this.reason)
           }
       is VirtualObjectCommandInterpreter.Sleep ->
-          ctx.timer(this.timeoutMillis.milliseconds).map { "sleep" }
+          timer("command-timer", this.timeoutMillis.milliseconds).map { "sleep" }
     }
   }
 
-  private suspend fun appendResult(ctx: ObjectContext, newResult: String) =
-      ctx.set("results", (ctx.get("results") ?: listOf<String>()) + listOf(newResult))
+  private suspend fun appendResult(newResult: String) =
+      state().set("results", (state().get("results") ?: listOf<String>()) + listOf(newResult))
 }

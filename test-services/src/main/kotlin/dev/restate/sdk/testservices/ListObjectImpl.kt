@@ -20,18 +20,18 @@ class ListObjectImpl : ListObject {
         )
   }
 
-  override suspend fun append(context: ObjectContext, value: String) {
-    val list = context.get(LIST_KEY) ?: emptyList()
-    context.set(LIST_KEY, list + value)
+  override suspend fun append(value: String) {
+    val list = state().get(LIST_KEY) ?: emptyList()
+    state().set(LIST_KEY, list + value)
   }
 
-  override suspend fun get(context: ObjectContext): List<String> {
-    return context.get(LIST_KEY) ?: emptyList()
+  override suspend fun get(): List<String> {
+    return state().get(LIST_KEY) ?: emptyList()
   }
 
-  override suspend fun clear(context: ObjectContext): List<String> {
-    val result = context.get(LIST_KEY) ?: emptyList()
-    context.clear(LIST_KEY)
+  override suspend fun clear(): List<String> {
+    val result = state().get(LIST_KEY) ?: emptyList()
+    state().clear(LIST_KEY)
     return result
   }
 }

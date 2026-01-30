@@ -3,14 +3,11 @@ import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform.getCurr
 plugins {
   `java-conventions`
   `kotlin-conventions`
-  alias(libs.plugins.ksp)
   application
   alias(libs.plugins.jib)
 }
 
 dependencies {
-  ksp(project(":sdk-api-kotlin-gen"))
-
   implementation(project(":sdk-kotlin-http"))
   implementation(project(":sdk-request-identity"))
 

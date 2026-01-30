@@ -20,24 +20,24 @@ class BlockAndWaitWorkflowImpl : BlockAndWaitWorkflow {
     private val MY_STATE: StateKey<String> = stateKey("my-state")
   }
 
-  override suspend fun run(context: WorkflowContext, input: String): String {
-    context.set(MY_STATE, input)
+  override suspend fun run(input: String): String {
+    state().set(MY_STATE, input)
 
     // Wait on unblock
-    val output: String = context.promise(MY_DURABLE_PROMISE).future().await()
+    val output: String = promise(MY_DURABLE_PROMISE).future().await()
 
-    if (!context.promise(MY_DURABLE_PROMISE).peek().isReady) {
+    if (!promise(MY_DURABLE_PROMISE).peek().isReady) {
       throw TerminalException("Durable promise should be completed")
     }
 
     return output
   }
 
-  override suspend fun unblock(context: SharedWorkflowContext, output: String) {
-    context.promiseHandle(MY_DURABLE_PROMISE).resolve(output)
+  override suspend fun unblock(output: String) {
+    promiseHandle(MY_DURABLE_PROMISE).resolve(output)
   }
 
-  override suspend fun getState(context: SharedWorkflowContext): String? {
-    return context.get(MY_STATE)
+  override suspend fun getState(): String? {
+    return state().get(MY_STATE)
   }
 }

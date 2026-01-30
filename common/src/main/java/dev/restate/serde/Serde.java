@@ -153,6 +153,11 @@ public interface Serde<T extends @Nullable Object> extends TypeTag<T> {
         public byte[] deserialize(@NonNull Slice value) {
           return value.toByteArray();
         }
+
+        @Override
+        public String contentType() {
+          return "application/octet-stream";
+        }
       };
 
   /** Passthrough serializer/deserializer */

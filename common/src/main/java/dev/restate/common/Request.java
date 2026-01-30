@@ -77,4 +77,9 @@ public interface Request<Req, Res> {
    * @return the request headers
    */
   @Nullable Map<String, String> getHeaders();
+
+  /**
+   * @return a builder filled with this request
+   */
+  RequestBuilder<Req, Res> toBuilder();
 }

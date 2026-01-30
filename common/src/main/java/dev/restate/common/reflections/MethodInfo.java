@@ -40,6 +40,9 @@ public class MethodInfo extends RuntimeException {
   }
 
   public static MethodInfo fromMethod(Method method) {
+    if (ReflectionUtils.isKotlinClass(method.getDeclaringClass())) {
+      throw new IllegalArgumentException("Using Kotlin classes with Java's API is not supported");
+    }
     var handlerInfo = ReflectionUtils.mustHaveHandlerAnnotation(method);
     var genericParameters = method.getGenericParameterTypes();
     var handlerName = handlerInfo.name();

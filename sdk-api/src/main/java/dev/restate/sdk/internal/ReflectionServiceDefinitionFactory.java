@@ -82,10 +82,11 @@ public final class ReflectionServiceDefinitionFactory implements ServiceDefiniti
         ReflectionUtils.getUniqueDeclaredMethods(
             serviceClazz,
             method ->
-                ReflectionUtils.findAnnotation(method, Handler.class) != null
-                    || ReflectionUtils.findAnnotation(method, Shared.class) != null
-                    || ReflectionUtils.findAnnotation(method, Workflow.class) != null
-                    || ReflectionUtils.findAnnotation(method, Exclusive.class) != null);
+                !Modifier.isStatic(method.getModifiers())
+                    && (ReflectionUtils.findAnnotation(method, Handler.class) != null
+                        || ReflectionUtils.findAnnotation(method, Shared.class) != null
+                        || ReflectionUtils.findAnnotation(method, Workflow.class) != null
+                        || ReflectionUtils.findAnnotation(method, Exclusive.class) != null));
     if (methods.length == 0) {
       throw new MalformedRestateServiceException(serviceName, "No @Handler method found");
     }

@@ -11,6 +11,7 @@ package dev.restate.sdk.kotlin
 import dev.restate.common.Slice
 import dev.restate.sdk.common.TerminalException
 import dev.restate.sdk.endpoint.definition.HandlerContext
+import dev.restate.sdk.kotlin.internal.RestateContextElement
 import dev.restate.serde.Serde
 import dev.restate.serde.SerdeFactory
 import io.opentelemetry.extension.kotlin.asContextElement
@@ -108,6 +109,7 @@ internal constructor(
     val scope =
         CoroutineScope(
             options.coroutineContext +
+                RestateContextElement(ctx) +
                 dev.restate.sdk.endpoint.definition.HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL
                     .asContextElement(handlerContext) +
                 handlerContext.request().openTelemetryContext()!!.asContextElement()
