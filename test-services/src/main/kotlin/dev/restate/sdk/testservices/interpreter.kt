@@ -173,8 +173,7 @@ class ObjectInterpreterImpl(private val layer: Int) : ObjectInterpreter {
           }
         }
         is RecoverTerminalCallMaybeUnAwaited -> {
-          val awaitable =
-              toService<ServiceInterpreterHelper>().request { terminalFailure() }.call()
+          val awaitable = toService<ServiceInterpreterHelper>().request { terminalFailure() }.call()
           promises[i] = { checkAwaitableFails(awaitable, i, cmd) }
         }
         is RejectAwakeable -> {
