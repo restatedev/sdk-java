@@ -8,6 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.bytebuddy.proxysupport;
 
+import static dev.restate.common.reflections.ReflectionUtils.findRestateAnnotatedClass;
 import static net.bytebuddy.matcher.ElementMatchers.*;
 
 import dev.restate.common.reflections.ProxyFactory;
@@ -95,14 +96,8 @@ public final class ByteBuddyProxyFactory implements ProxyFactory {
     if (!clazz.isInterface()) {
       // We perform here some additional validation of the handlers that won't be executed by
       // bytebuddy and can easily lead to strange behavior
-      var methods =
-          ReflectionUtils.getUniqueDeclaredMethods(
-              clazz,
-              method ->
-                  ReflectionUtils.findAnnotation(method, Handler.class) != null
-                      || ReflectionUtils.findAnnotation(method, Shared.class) != null
-                      || ReflectionUtils.findAnnotation(method, Workflow.class) != null
-                      || ReflectionUtils.findAnnotation(method, Exclusive.class) != null);
+      var restateAnnotatedClazz = findRestateAnnotatedClass(clazz);
+      var methods = ReflectionUtils.findRestateHandlers(restateAnnotatedClazz);
       for (var method : methods) {
         validateMethod(method);
       }

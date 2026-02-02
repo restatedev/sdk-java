@@ -116,6 +116,7 @@ tasks {
             "dev.restate.sdk.core.javaapi.reflections.ObjectGreeterImplementedFromInterface",
             "dev.restate.sdk.core.javaapi.reflections.PrimitiveTypes",
             "dev.restate.sdk.core.javaapi.reflections.RawInputOutput",
+            "dev.restate.sdk.core.javaapi.reflections.RawService",
             "dev.restate.sdk.core.javaapi.reflections.ServiceGreeter",
         )
 
