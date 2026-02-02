@@ -1143,7 +1143,7 @@ private class KotlinStateImpl(
  * ```kotlin
  * toService<CounterKt>()
  *     .request { add(1) }
- *     .withOptions { idempotencyKey = "123" }
+ *     .options { idempotencyKey = "123" }
  *     .call()
  * ```
  *
@@ -1160,7 +1160,7 @@ interface KRequest<Req, Res> : Request<Req, Res> {
    * @return a new request with the configured options
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
-  fun withOptions(block: InvocationOptions.Builder.() -> Unit): KRequest<Req, Res>
+  fun options(block: InvocationOptions.Builder.() -> Unit): KRequest<Req, Res>
 
   /**
    * Call the target handler and return a [CallDurableFuture] for the result.
@@ -1297,7 +1297,7 @@ inline fun <reified SVC : Any> toWorkflow(key: String): KRequestBuilder<SVC> {
 /** Implementation of [KRequest] for SDK context. */
 private class KRequestImpl<Req, Res>(private val request: Request<Req, Res>) :
     KRequest<Req, Res>, Request<Req, Res> by request {
-  override fun withOptions(block: InvocationOptions.Builder.() -> Unit): KRequest<Req, Res> {
+  override fun options(block: InvocationOptions.Builder.() -> Unit): KRequest<Req, Res> {
     val builder = InvocationOptions.builder()
     builder.block()
     return KRequestImpl(

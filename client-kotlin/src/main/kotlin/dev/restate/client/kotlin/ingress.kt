@@ -445,7 +445,7 @@ internal constructor(
  * ```kotlin
  * client.toService<CounterKt>()
  *     .request { add(1) }
- *     .withOptions { idempotencyKey = "123" }
+ *     .options { idempotencyKey = "123" }
  *     .call()
  * ```
  *
@@ -461,7 +461,7 @@ interface KClientRequest<Req, Res> : Request<Req, Res> {
    * @param block builder block for options
    * @return a new request with the configured options
    */
-  fun withOptions(block: InvocationOptions.Builder.() -> Unit): KClientRequest<Req, Res>
+  fun options(block: InvocationOptions.Builder.() -> Unit): KClientRequest<Req, Res>
 
   /**
    * Call the target handler and wait for the response.
@@ -553,7 +553,7 @@ private class KClientRequestImpl<Req, Res>(
     private val request: Request<Req, Res>,
 ) : KClientRequest<Req, Res>, Request<Req, Res> by request {
 
-  override fun withOptions(block: InvocationOptions.Builder.() -> Unit): KClientRequest<Req, Res> {
+  override fun options(block: InvocationOptions.Builder.() -> Unit): KClientRequest<Req, Res> {
     val builder = InvocationOptions.builder()
     builder.block()
     return KClientRequestImpl(
