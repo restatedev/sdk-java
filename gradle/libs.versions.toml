@@ -177,6 +177,12 @@
     [libraries.spring-boot-starter-test.version]
       ref = 'spring-boot'
 
+  [libraries.spring-boot-configuration-processor]
+  module = 'org.springframework.boot:spring-boot-configuration-processor'
+
+    [libraries.spring-boot-configuration-processor.version]
+    ref = 'spring-boot'
+
   [libraries.vertx-core]
     module = 'io.vertx:vertx-core'
 
@@ -237,6 +243,6 @@
   protobuf = '4.29.3'
   restate = '2.6.0-SNAPSHOT'
   schema-kenerator = '2.1.2'
-  spring-boot = '3.4.9'
+  spring-boot = '3.5.10'
   vertx = '4.5.22'
   victools-json-schema = '4.38.0'

@@ -10,6 +10,9 @@ description = "Restate SDK Spring Boot integration"
 dependencies {
   compileOnly(libs.jspecify)
 
+  // This generates the metadata needed for the configuration properties
+  annotationProcessor(libs.spring.boot.configuration.processor)
+
   val excludeJackson =
       fun ProjectDependency.() {
         // Let spring bring jackson in
