@@ -8,6 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.internal;
 
+import static dev.restate.common.reflections.ReflectionUtils.findRestateAnnotatedClass;
+
 import dev.restate.common.reflections.ReflectionUtils;
 import dev.restate.common.reflections.RestateUtils;
 import dev.restate.sdk.*;
@@ -47,9 +49,16 @@ public final class ReflectionServiceDefinitionFactory implements ServiceDefiniti
 
     Class<?> serviceClazz = serviceInstance.getClass();
 
-    boolean hasServiceAnnotation = ReflectionUtils.hasServiceAnnotation(serviceClazz);
-    boolean hasVirtualObjectAnnotation = ReflectionUtils.hasVirtualObjectAnnotation(serviceClazz);
-    boolean hasWorkflowAnnotation = ReflectionUtils.hasWorkflowAnnotation(serviceClazz);
+    // The behavior of the reflections work as follows:
+    // * There is one class that has all the restate annotations. That being either the serviceClazz
+    // itself (concrete class) or some interface in the hierarchy.
+    // * Then there is the serviceInstance, which is where we call the methods themselves.
+    Class<?> restateAnnotatedClazz = findRestateAnnotatedClass(serviceClazz);
+
+    boolean hasServiceAnnotation = ReflectionUtils.hasServiceAnnotation(restateAnnotatedClazz);
+    boolean hasVirtualObjectAnnotation =
+        ReflectionUtils.hasVirtualObjectAnnotation(restateAnnotatedClazz);
+    boolean hasWorkflowAnnotation = ReflectionUtils.hasWorkflowAnnotation(restateAnnotatedClazz);
 
     boolean hasAnyAnnotation =
         hasServiceAnnotation || hasVirtualObjectAnnotation || hasWorkflowAnnotation;
@@ -71,21 +80,14 @@ public final class ReflectionServiceDefinitionFactory implements ServiceDefiniti
               + "exactly one annotation between @Service/@VirtualObject/@Workflow, more than one annotation found");
     }
 
-    var serviceName = ReflectionUtils.extractServiceName(serviceClazz);
+    var serviceName = ReflectionUtils.extractServiceName(restateAnnotatedClazz);
     var serviceType =
         hasServiceAnnotation
             ? ServiceType.SERVICE
             : hasVirtualObjectAnnotation ? ServiceType.VIRTUAL_OBJECT : ServiceType.WORKFLOW;
-    var serdeFactory = resolveSerdeFactory(serviceClazz);
+    var serdeFactory = resolveSerdeFactory(restateAnnotatedClazz);
 
-    var methods =
-        ReflectionUtils.getUniqueDeclaredMethods(
-            serviceClazz,
-            method ->
-                ReflectionUtils.findAnnotation(method, Handler.class) != null
-                    || ReflectionUtils.findAnnotation(method, Shared.class) != null
-                    || ReflectionUtils.findAnnotation(method, Workflow.class) != null
-                    || ReflectionUtils.findAnnotation(method, Exclusive.class) != null);
+    var methods = ReflectionUtils.findRestateHandlers(restateAnnotatedClazz);
     if (methods.length == 0) {
       throw new MalformedRestateServiceException(serviceName, "No @Handler method found");
     }
@@ -332,17 +334,17 @@ public final class ReflectionServiceDefinitionFactory implements ServiceDefiniti
     return serde;
   }
 
-  private SerdeFactory resolveSerdeFactory(Class<?> serviceClazz) {
+  private SerdeFactory resolveSerdeFactory(Class<?> restateAnnotatedClazz) {
     // Check for CustomSerdeFactory annotation
     CustomSerdeFactory customSerdeFactoryAnnotation =
-        ReflectionUtils.findAnnotation(serviceClazz, CustomSerdeFactory.class);
+        restateAnnotatedClazz.getDeclaredAnnotation(CustomSerdeFactory.class);
 
     if (customSerdeFactoryAnnotation != null) {
       try {
         return customSerdeFactoryAnnotation.value().getDeclaredConstructor().newInstance();
       } catch (Exception e) {
         throw new MalformedRestateServiceException(
-            serviceClazz.getSimpleName(),
+            restateAnnotatedClazz.getSimpleName(),
             "Failed to instantiate custom SerdeFactory: "
                 + customSerdeFactoryAnnotation.value().getName(),
             e);
@@ -369,7 +371,7 @@ public final class ReflectionServiceDefinitionFactory implements ServiceDefiniti
       return this.cachedDefaultSerdeFactory;
     } catch (Exception e) {
       throw new MalformedRestateServiceException(
-          serviceClazz.getSimpleName(),
+          restateAnnotatedClazz.getSimpleName(),
           "Failed to load JacksonSerdeFactory for Java service. "
               + "Make sure sdk-serde-jackson is on the classpath.",
           e);

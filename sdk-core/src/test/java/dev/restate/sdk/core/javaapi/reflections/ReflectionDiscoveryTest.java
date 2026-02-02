@@ -19,6 +19,7 @@ import dev.restate.sdk.core.generated.manifest.Service;
 import dev.restate.sdk.core.javaapi.GreeterWithExplicitName;
 import dev.restate.sdk.core.javaapi.GreeterWithExplicitNameHandlers;
 import dev.restate.sdk.endpoint.Endpoint;
+import dev.restate.serde.Serde;
 import org.junit.jupiter.api.Test;
 
 public class ReflectionDiscoveryTest {
@@ -51,6 +52,44 @@ public class ReflectionDiscoveryTest {
         .extracting(Handler::getOutput, type(Output.class))
         .extracting(Output::getContentType)
         .isEqualTo("application/vnd.my.custom");
+  }
+
+  @Test
+  void checkRawInputContentType() {
+    assertThatDiscovery(new RawInputOutput())
+        .extractingService("RawInputOutput")
+        .extractingHandler("rawInput")
+        .extracting(Handler::getInput, type(Input.class))
+        .extracting(Input::getContentType)
+        .isEqualTo(Serde.RAW.contentType());
+  }
+
+  @Test
+  void checkRawOutputContentType() {
+    assertThatDiscovery(new RawInputOutput())
+        .extractingService("RawInputOutput")
+        .extractingHandler("rawOutput")
+        .extracting(Handler::getOutput, type(Output.class))
+        .extracting(Output::getContentType)
+        .isEqualTo(Serde.RAW.contentType());
+  }
+
+  @Test
+  void checkRawInfoFromInterface() {
+    var handlerAssert =
+        assertThatDiscovery(new RawServiceImpl())
+            .extractingService("RawService")
+            .extractingHandler("echo");
+
+    handlerAssert
+        .extracting(Handler::getInput, type(Input.class))
+        .extracting(Input::getContentType)
+        .isEqualTo(Serde.RAW.contentType());
+
+    handlerAssert
+        .extracting(Handler::getOutput, type(Output.class))
+        .extracting(Output::getContentType)
+        .isEqualTo(Serde.RAW.contentType());
   }
 
   @Test
