@@ -28,8 +28,9 @@ import org.springframework.core.annotation.AliasFor;
 public @interface RestateWorkflow {
 
   /**
-   * Bean name to use to configure this workflow. The bean MUST be an instance of {@link
-   * RestateServiceConfigurator}.
+   * Bean name to use to configure this component.
+   *
+   * <p>The bean MUST be an instance of {@link RestateComponentProperties}.
    */
   @AliasFor(annotation = RestateComponent.class, attribute = "configuration")
   String configuration() default "";

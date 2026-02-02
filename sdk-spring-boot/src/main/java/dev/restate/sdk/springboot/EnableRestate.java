@@ -22,5 +22,9 @@ import org.springframework.context.annotation.Import;
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-@Import({RestateHttpEndpointBean.class, RestateClientAutoConfiguration.class})
+@Import({
+  RestateEndpointConfiguration.class,
+  RestateHttpConfiguration.class,
+  RestateClientAutoConfiguration.class
+})
 public @interface EnableRestate {}

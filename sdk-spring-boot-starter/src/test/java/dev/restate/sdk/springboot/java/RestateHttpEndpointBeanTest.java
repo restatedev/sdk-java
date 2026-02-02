@@ -12,19 +12,31 @@ import static org.assertj.core.api.Assertions.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.restate.sdk.core.generated.manifest.EndpointManifestSchema;
+import dev.restate.sdk.springboot.RestateEndpointConfiguration;
+import dev.restate.sdk.springboot.RestateHttpConfiguration;
 import dev.restate.sdk.springboot.RestateHttpEndpointBean;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest(
-    classes = {RestateHttpEndpointBean.class, Greeter.class, Configuration.class},
-    properties = {"restate.sdk.http.port=0"})
+    classes = {
+      RestateEndpointConfiguration.class,
+      RestateHttpConfiguration.class,
+      Greeter.class,
+      ServicesConfiguration.class
+    },
+    properties = {
+      "restate.sdk.http.port=0",
+      "restate.components.greeter.journal-retention=PT48H",
+      "greetingPrefix=Hello "
+    })
 public class RestateHttpEndpointBeanTest {
 
   @Autowired private RestateHttpEndpointBean restateHttpEndpointBean;
@@ -56,7 +68,8 @@ public class RestateHttpEndpointBeanTest {
     assertThat(endpointManifest.getServices())
         .extracting(
             dev.restate.sdk.core.generated.manifest.Service::getName,
-            dev.restate.sdk.core.generated.manifest.Service::getDocumentation)
-        .containsOnly(tuple("greeter", "blabla"));
+            dev.restate.sdk.core.generated.manifest.Service::getDocumentation,
+            dev.restate.sdk.core.generated.manifest.Service::getJournalRetention)
+        .containsOnly(tuple("greeter", "blabla", Duration.ofDays(2).toMillis()));
   }
 }

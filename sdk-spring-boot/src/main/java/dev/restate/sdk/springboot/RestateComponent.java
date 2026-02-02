@@ -25,8 +25,9 @@ import org.springframework.stereotype.Component;
 @Component
 public @interface RestateComponent {
   /**
-   * Bean name to use to configure this component. The bean MUST be an instance of {@link
-   * RestateServiceConfigurator}.
+   * Bean name to use to configure this component.
+   *
+   * <p>The bean MUST be an instance of {@link RestateComponentProperties}.
    */
   String configuration() default "";
 }

@@ -17,46 +17,42 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.SmartLifecycle;
-import org.springframework.stereotype.Component;
 
-/**
- * Restate HTTP Endpoint serving {@link RestateComponent}.
- *
- * @see Component
- */
-@Component
-@EnableConfigurationProperties({RestateHttpServerProperties.class, RestateEndpointProperties.class})
+/** Restate HTTP Endpoint serving {@link Endpoint} */
 public class RestateHttpEndpointBean implements InitializingBean, SmartLifecycle {
 
   private final Logger logger = LoggerFactory.getLogger(getClass());
 
-  private final ApplicationContext applicationContext;
-  private final RestateEndpointProperties restateEndpointProperties;
   private final RestateHttpServerProperties restateHttpServerProperties;
 
   private volatile boolean running;
 
-  private HttpServer server;
+  private final HttpServer server;
 
+  public RestateHttpEndpointBean(
+      Endpoint endpoint, RestateHttpServerProperties restateHttpServerProperties) {
+    this.restateHttpServerProperties = restateHttpServerProperties;
+    this.server =
+        RestateHttpServer.fromHandler(
+            HttpEndpointRequestHandler.fromEndpoint(
+                endpoint, this.restateHttpServerProperties.isDisableBidirectionalStreaming()));
+  }
+
+  @Deprecated
   public RestateHttpEndpointBean(
       ApplicationContext applicationContext,
       RestateEndpointProperties restateEndpointProperties,
       RestateHttpServerProperties restateHttpServerProperties) {
-    this.applicationContext = applicationContext;
-    this.restateEndpointProperties = restateEndpointProperties;
     this.restateHttpServerProperties = restateHttpServerProperties;
-  }
 
-  @Override
-  public void afterPropertiesSet() {
     Map<String, Object> restateComponents =
         applicationContext.getBeansWithAnnotation(RestateComponent.class);
 
     if (restateComponents.isEmpty()) {
       logger.info("No @RestateComponent discovered");
+      this.server = null;
       // Don't start anything, if no service is registered
       return;
     }
@@ -87,41 +83,40 @@ public class RestateHttpEndpointBean implements InitializingBean, SmartLifecycle
     this.server =
         RestateHttpServer.fromHandler(
             HttpEndpointRequestHandler.fromEndpoint(
-                builder.build(),
-                this.restateHttpServerProperties.isDisableBidirectionalStreaming()));
+                builder.build(), restateHttpServerProperties.isDisableBidirectionalStreaming()));
   }
+
+  @Deprecated
+  @Override
+  public void afterPropertiesSet() {}
 
   @Override
   public void start() {
-    if (this.server != null) {
-      try {
-        this.server
-            .listen(this.restateHttpServerProperties.getPort())
-            .toCompletionStage()
-            .toCompletableFuture()
-            .get();
-        logger.info("Started Restate Spring HTTP server on port {}", this.server.actualPort());
-      } catch (Exception e) {
-        logger.error(
-            "Error when starting Restate Spring HTTP server on port {}",
-            this.restateHttpServerProperties.getPort(),
-            e);
-      }
-      this.running = true;
+    try {
+      this.server
+          .listen(this.restateHttpServerProperties.getPort())
+          .toCompletionStage()
+          .toCompletableFuture()
+          .get();
+      logger.info("Started Restate Spring HTTP server on port {}", this.server.actualPort());
+    } catch (Exception e) {
+      logger.error(
+          "Error when starting Restate Spring HTTP server on port {}",
+          this.restateHttpServerProperties.getPort(),
+          e);
     }
+    this.running = true;
   }
 
   @Override
   public void stop() {
-    if (this.server != null) {
-      try {
-        this.server.close().toCompletionStage().toCompletableFuture().get();
-        logger.info("Stopped Restate Spring HTTP server");
-      } catch (Exception e) {
-        logger.error("Error when stopping the Restate Spring HTTP server", e);
-      }
-      this.running = false;
+    try {
+      this.server.close().toCompletionStage().toCompletableFuture().get();
+      logger.info("Stopped Restate Spring HTTP server");
+    } catch (Exception e) {
+      logger.error("Error when stopping the Restate Spring HTTP server", e);
     }
+    this.running = false;
   }
 
   @Override
@@ -130,7 +125,7 @@ public class RestateHttpEndpointBean implements InitializingBean, SmartLifecycle
   }
 
   public int actualPort() {
-    if (this.server == null) {
+    if (!this.isRunning()) {
       return -1;
     }
     return this.server.actualPort();

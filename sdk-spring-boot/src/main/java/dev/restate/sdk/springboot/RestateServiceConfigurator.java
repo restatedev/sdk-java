@@ -11,6 +11,13 @@ package dev.restate.sdk.springboot;
 import dev.restate.sdk.endpoint.definition.ServiceDefinition;
 import java.util.function.Consumer;
 
-/** Service configurator to be registered as */
+/**
+ * Service configurator to be registered as
+ *
+ * @deprecated Use {@link RestateComponentProperties} instead, or directly define the configuration
+ *     in your {@code application.properties} file. See {@link RestateComponentsProperties} for more
+ *     info.
+ */
 @FunctionalInterface
+@Deprecated
 public interface RestateServiceConfigurator extends Consumer<ServiceDefinition.Configurator> {}
