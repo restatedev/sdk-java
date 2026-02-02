@@ -9,25 +9,10 @@
 package dev.restate.sdk.kotlin.internal
 
 import dev.restate.common.reflections.ReflectionUtils
-import dev.restate.sdk.annotation.Accept
-import dev.restate.sdk.annotation.CustomSerdeFactory
-import dev.restate.sdk.annotation.Exclusive
-import dev.restate.sdk.annotation.Handler
-import dev.restate.sdk.annotation.Json
-import dev.restate.sdk.annotation.Raw
-import dev.restate.sdk.annotation.Shared
-import dev.restate.sdk.annotation.Workflow
-import dev.restate.sdk.endpoint.definition.HandlerDefinition
+import dev.restate.sdk.annotation.*
+import dev.restate.sdk.endpoint.definition.*
 import dev.restate.sdk.endpoint.definition.HandlerRunner
-import dev.restate.sdk.endpoint.definition.HandlerType
-import dev.restate.sdk.endpoint.definition.ServiceDefinition
-import dev.restate.sdk.endpoint.definition.ServiceDefinitionFactory
-import dev.restate.sdk.endpoint.definition.ServiceType
-import dev.restate.sdk.kotlin.Context
-import dev.restate.sdk.kotlin.ObjectContext
-import dev.restate.sdk.kotlin.SharedObjectContext
-import dev.restate.sdk.kotlin.SharedWorkflowContext
-import dev.restate.sdk.kotlin.WorkflowContext
+import dev.restate.sdk.kotlin.*
 import dev.restate.serde.Serde
 import dev.restate.serde.SerdeFactory
 import dev.restate.serde.kotlinx.KotlinSerializationSerdeFactory
@@ -35,10 +20,12 @@ import dev.restate.serde.kotlinx.KotlinSerializationSerdeFactory.KtTypeTag
 import dev.restate.serde.provider.DefaultSerdeFactoryProvider
 import java.lang.reflect.Modifier
 import java.util.*
+import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.KVisibility
 import kotlin.reflect.full.callSuspend
 import kotlin.reflect.full.findAnnotation
+import kotlin.reflect.full.hasAnnotation
 import kotlin.reflect.full.memberFunctions
 import kotlin.reflect.full.valueParameters
 import kotlin.reflect.jvm.javaMethod
@@ -66,15 +53,23 @@ internal class ReflectionServiceDefinitionFactory : ServiceDefinitionFactory<Any
 
     val serviceClazz: Class<*> = serviceInstance.javaClass
 
-    val hasServiceAnnotation = ReflectionUtils.hasServiceAnnotation(serviceClazz)
-    val hasVirtualObjectAnnotation = ReflectionUtils.hasVirtualObjectAnnotation(serviceClazz)
-    val hasWorkflowAnnotation = ReflectionUtils.hasWorkflowAnnotation(serviceClazz)
+    // The behavior of the reflections work as follows:
+    // * There is one class that has all the restate annotations. That being either the serviceClazz
+    // itself (concrete class) or some interface in the hierarchy.
+    // * Then there is the serviceInstance, which is where we call the methods themselves.
+    val restateAnnotatedClazz = ReflectionUtils.findRestateAnnotatedClass(serviceClazz)
+    val restateAnnotatedKotlinClazz = restateAnnotatedClazz.kotlin
+
+    val hasServiceAnnotation = ReflectionUtils.hasServiceAnnotation(restateAnnotatedClazz)
+    val hasVirtualObjectAnnotation =
+        ReflectionUtils.hasVirtualObjectAnnotation(restateAnnotatedClazz)
+    val hasWorkflowAnnotation = ReflectionUtils.hasWorkflowAnnotation(restateAnnotatedClazz)
 
     val hasAnyAnnotation =
         hasServiceAnnotation || hasVirtualObjectAnnotation || hasWorkflowAnnotation
     if (!hasAnyAnnotation) {
       throw MalformedRestateServiceException(
-          serviceClazz.simpleName,
+          restateAnnotatedClazz.simpleName,
           "A restate component MUST be annotated with " +
               "exactly one annotation between @Service/@VirtualObject/@Workflow, no annotation was found",
       )
@@ -84,27 +79,24 @@ internal class ReflectionServiceDefinitionFactory : ServiceDefinitionFactory<Any
 
     if (!hasExactlyOneAnnotation) {
       throw MalformedRestateServiceException(
-          serviceClazz.simpleName,
+          restateAnnotatedClazz.simpleName,
           "A restate component MUST be annotated with " +
               "exactly one annotation between @Service/@VirtualObject/@Workflow, more than one annotation found",
       )
     }
 
-    val serviceName = ReflectionUtils.extractServiceName(serviceClazz)
+    val serviceName = ReflectionUtils.extractServiceName(restateAnnotatedClazz)
     val serviceType =
         if (hasServiceAnnotation) ServiceType.SERVICE
         else if (hasVirtualObjectAnnotation) ServiceType.VIRTUAL_OBJECT else ServiceType.WORKFLOW
-    val serdeFactory: SerdeFactory = resolveSerdeFactory(serviceClazz)
+    val serdeFactory: SerdeFactory = resolveSerdeFactory(restateAnnotatedKotlinClazz)
 
     val kFunctions =
-        serviceClazz.kotlin.memberFunctions.filter {
-          it.javaMethod?.let { method ->
-            // Can't use findAnnotations because that won't walk the stack!
-            ReflectionUtils.findAnnotation(method, Handler::class.java) != null ||
-                ReflectionUtils.findAnnotation(method, Shared::class.java) != null ||
-                ReflectionUtils.findAnnotation(method, Workflow::class.java) != null ||
-                ReflectionUtils.findAnnotation(method, Exclusive::class.java) != null
-          } ?: false
+        restateAnnotatedKotlinClazz.memberFunctions.filter {
+          it.hasAnnotation<Handler>() ||
+              it.hasAnnotation<Shared>() ||
+              it.hasAnnotation<Workflow>() ||
+              it.hasAnnotation<Exclusive>()
         }
 
     if (kFunctions.isEmpty()) {
@@ -351,20 +343,16 @@ internal class ReflectionServiceDefinitionFactory : ServiceDefinitionFactory<Any
     return serde
   }
 
-  private fun resolveSerdeFactory(serviceClazz: Class<*>): SerdeFactory {
+  private fun resolveSerdeFactory(serviceClazz: KClass<*>): SerdeFactory {
     // Check for CustomSerdeFactory annotation
-    val customSerdeFactoryAnnotation: CustomSerdeFactory? =
-        ReflectionUtils.findAnnotation(
-            serviceClazz,
-            CustomSerdeFactory::class.java,
-        )
+    val customSerdeFactoryAnnotation = serviceClazz.findAnnotation<CustomSerdeFactory>()
 
     if (customSerdeFactoryAnnotation != null) {
       try {
         return customSerdeFactoryAnnotation.value.java.getDeclaredConstructor().newInstance()
       } catch (e: Exception) {
         throw MalformedRestateServiceException(
-            serviceClazz.simpleName,
+            serviceClazz.simpleName!!,
             "Failed to instantiate custom SerdeFactory: ${customSerdeFactoryAnnotation.value.java.name}",
             e,
         )
@@ -392,7 +380,7 @@ internal class ReflectionServiceDefinitionFactory : ServiceDefinitionFactory<Any
       return this.cachedDefaultSerdeFactory!!
     } catch (e: Exception) {
       throw MalformedRestateServiceException(
-          serviceClazz.simpleName,
+          serviceClazz.simpleName!!,
           "Failed to load KotlinSerializationSerdeFactory for Kotlin service. " +
               "Make sure sdk-serde-kotlinx is on the classpath.",
           e,

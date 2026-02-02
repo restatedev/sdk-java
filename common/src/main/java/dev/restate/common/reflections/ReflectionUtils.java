@@ -35,10 +35,11 @@ public class ReflectionUtils {
     return getUniqueDeclaredMethods(
         restateAnnotatedClazz,
         method ->
-            method.getDeclaredAnnotation(Handler.class) != null
-                || method.getDeclaredAnnotation(Shared.class) != null
-                || method.getDeclaredAnnotation(Workflow.class) != null
-                || method.getDeclaredAnnotation(Exclusive.class) != null);
+            !Modifier.isStatic(method.getModifiers())
+                && (method.getDeclaredAnnotation(Handler.class) != null
+                    || method.getDeclaredAnnotation(Shared.class) != null
+                    || method.getDeclaredAnnotation(Workflow.class) != null
+                    || method.getDeclaredAnnotation(Exclusive.class) != null));
   }
 
   /** Find the class where the Restate annotations are declared. */
