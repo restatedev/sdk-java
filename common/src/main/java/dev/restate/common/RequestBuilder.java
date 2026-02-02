@@ -18,7 +18,7 @@ public interface RequestBuilder<Req, Res> extends Request<Req, Res> {
    * @param idempotencyKey Idempotency key to attach in the request.
    * @return this instance, so the builder can be used fluently.
    */
-  RequestBuilder<Req, Res> idempotencyKey(String idempotencyKey);
+  RequestBuilder<Req, Res> idempotencyKey(@Nullable String idempotencyKey);
 
   /**
    * @param idempotencyKey Idempotency key to attach in the request.
@@ -40,7 +40,7 @@ public interface RequestBuilder<Req, Res> extends Request<Req, Res> {
    * @param newHeaders headers to send together with the request.
    * @return this instance, so the builder can be used fluently.
    */
-  RequestBuilder<Req, Res> headers(Map<String, String> newHeaders);
+  RequestBuilder<Req, Res> headers(@Nullable Map<String, String> newHeaders);
 
   /**
    * @param headers headers to send together with the request. This will overwrite the already
