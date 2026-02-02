@@ -41,8 +41,10 @@ public interface SerdeFactory {
       return this.create(tClass.type());
     } else if (typeTag instanceof TypeRef<T> tTypeRef) {
       return this.create(tTypeRef);
-    } else {
+    } else if (typeTag instanceof Serde<T>) {
       return ((Serde<T>) typeTag);
+    } else {
+      throw new IllegalArgumentException("TypeTag not supported by this SerdeFactory: " + typeTag);
     }
   }
 
