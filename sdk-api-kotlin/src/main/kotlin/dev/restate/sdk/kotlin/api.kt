@@ -912,23 +912,47 @@ suspend inline fun <reified R : Any?> invocationHandle(invocationId: String): In
 }
 
 /**
- * Get the key of this Virtual Object or Workflow.
+ * Get the key of this Virtual Object.
  *
  * @return the key of this object
  * @throws IllegalStateException if called from a regular Service handler or outside of a Restate
  *   handler
  */
 @org.jetbrains.annotations.ApiStatus.Experimental
-suspend fun key(): String {
+suspend fun objectKey(): String {
   val ctx = context()
   val handlerContext =
       dev.restate.sdk.endpoint.definition.HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL.get()
-          ?: error("key() must be called from within a Restate handler")
+          ?: error("objectKey() must be called from within a Restate handler")
 
   if (!handlerContext.canReadState()) {
     error(
-        "key() can be used only within Virtual Object or Workflow handlers. " +
-            "Check https://docs.restate.dev/develop/java/state for more details."
+        "objectKey() can be used only within Virtual Object handlers. " +
+            "Check https://docs.restate.dev/develop/java/services#virtual-objects for more details."
+    )
+  }
+
+  return (ctx as SharedObjectContext).key()
+}
+
+/**
+ * Get the key of this Workflow.
+ *
+ * @return the key of this workflow
+ * @throws IllegalStateException if called from a regular Service handler, or from a virtual object
+ *   handler, or outside of a Restate handler
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+suspend fun workflowKey(): String {
+  val ctx = context()
+  val handlerContext =
+      dev.restate.sdk.endpoint.definition.HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL.get()
+          ?: error("workflowKey() must be called from within a Restate handler")
+
+  if (!handlerContext.canReadPromises()) {
+    error(
+        "workflowKey() can be used only within Workflow handlers. " +
+            "Check https://docs.restate.dev/develop/java/services#workflows for more details."
     )
   }
 

@@ -70,7 +70,7 @@ class NonDeterministicImpl : NonDeterministic {
 
   private suspend fun doLeftAction(): Boolean {
     // Test runner sets an appropriate key here
-    val countKey = key()
+    val countKey = objectKey()
     return invocationCounts.merge(countKey, 1) { a: Int, b: Int -> a + b }!! % 2 == 1
   }
 }

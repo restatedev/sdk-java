@@ -81,7 +81,7 @@ class ObjectInterpreterImpl(private val layer: Int) : ObjectInterpreter {
   }
 
   private suspend fun interpreterId(): InterpreterId {
-    return InterpreterId(layer, key())
+    return InterpreterId(layer, objectKey())
   }
 
   override suspend fun counter(): Int {

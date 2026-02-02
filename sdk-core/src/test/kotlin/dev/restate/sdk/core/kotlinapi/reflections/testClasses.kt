@@ -63,7 +63,7 @@ interface GreeterInterface {
 
 class ObjectGreeterImplementedFromInterface : GreeterInterface {
   override suspend fun greet(request: String): String {
-    return virtualObject<GreeterInterface>(key()).greet(request)
+    return virtualObject<GreeterInterface>(objectKey()).greet(request)
   }
 }
 
@@ -105,12 +105,12 @@ open class CornerCases {
 
   @Exclusive
   open suspend fun returnNull(request: String?): String? {
-    return virtualObject<CornerCases>(key()).returnNull(request)
+    return virtualObject<CornerCases>(objectKey()).returnNull(request)
   }
 
   @Exclusive
   open suspend fun badReturnTypeInferred(): Unit {
-    toVirtualObject<CornerCases>(key()).request { badReturnTypeInferred() }.send()
+    toVirtualObject<CornerCases>(objectKey()).request { badReturnTypeInferred() }.send()
   }
 }
 
@@ -149,12 +149,12 @@ open class RawInputOutput {
 open class MyWorkflow {
   @Workflow
   open suspend fun run(myInput: String) {
-    toWorkflow<MyWorkflow>(key()).request { sharedHandler(myInput) }.send()
+    toWorkflow<MyWorkflow>(workflowKey()).request { sharedHandler(myInput) }.send()
   }
 
   @Handler
   open suspend fun sharedHandler(myInput: String): String =
-      workflow<MyWorkflow>(key()).sharedHandler(myInput)
+      workflow<MyWorkflow>(workflowKey()).sharedHandler(myInput)
 }
 
 @Suppress("UNCHECKED_CAST")

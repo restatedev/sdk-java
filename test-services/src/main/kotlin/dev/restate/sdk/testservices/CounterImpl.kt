@@ -37,7 +37,7 @@ class CounterImpl : Counter {
 
     logger.info("New counter value: {}", counter)
 
-    throw TerminalException(key())
+    throw TerminalException(objectKey())
   }
 
   override suspend fun get(): Long {

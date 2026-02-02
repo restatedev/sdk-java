@@ -23,7 +23,7 @@ class CancelTestImpl {
 
     override suspend fun startTest(operation: CancelTest.BlockingOperation) {
       try {
-        virtualObject<CancelTest.BlockingService>(key()).block(operation)
+        virtualObject<CancelTest.BlockingService>(objectKey()).block(operation)
       } catch (e: TerminalException) {
         if (e.code == TerminalException.CANCELLED_CODE) {
           state().set(CANCELED_STATE, true)
@@ -40,8 +40,8 @@ class CancelTestImpl {
 
   class BlockingService : CancelTest.BlockingService {
     override suspend fun block(operation: CancelTest.BlockingOperation) {
-      val self = virtualObject<CancelTest.BlockingService>(key())
-      val awakeableHolder = virtualObject<AwakeableHolder>(key())
+      val self = virtualObject<CancelTest.BlockingService>(objectKey())
+      val awakeableHolder = virtualObject<AwakeableHolder>(objectKey())
 
       val awakeable = awakeable<String>()
       awakeableHolder.hold(awakeable.id)

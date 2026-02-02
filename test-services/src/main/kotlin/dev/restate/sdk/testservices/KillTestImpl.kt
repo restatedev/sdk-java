@@ -21,17 +21,17 @@ class KillTestImpl {
     // in the inbox:
     // startCallTree --> recursiveCall --> recursiveCall:inboxed
     override suspend fun startCallTree() {
-      virtualObject<KillTest.Singleton>(key()).recursiveCall()
+      virtualObject<KillTest.Singleton>(objectKey()).recursiveCall()
     }
   }
 
   class SingletonImpl : KillTest.Singleton {
     override suspend fun recursiveCall() {
       val awakeable = awakeable(Serde.RAW)
-      toVirtualObject<AwakeableHolder>(key()).request { hold(awakeable.id) }.send()
+      toVirtualObject<AwakeableHolder>(objectKey()).request { hold(awakeable.id) }.send()
       awakeable.await()
 
-      virtualObject<KillTest.Singleton>(key()).recursiveCall()
+      virtualObject<KillTest.Singleton>(objectKey()).recursiveCall()
     }
 
     override suspend fun isUnlocked() {
