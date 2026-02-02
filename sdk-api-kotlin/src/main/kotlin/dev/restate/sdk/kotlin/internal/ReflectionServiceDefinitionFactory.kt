@@ -18,6 +18,7 @@ import dev.restate.serde.SerdeFactory
 import dev.restate.serde.kotlinx.KotlinSerializationSerdeFactory
 import dev.restate.serde.kotlinx.KotlinSerializationSerdeFactory.KtTypeTag
 import dev.restate.serde.provider.DefaultSerdeFactoryProvider
+import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Modifier
 import java.util.*
 import kotlin.reflect.KClass
@@ -231,10 +232,14 @@ internal class ReflectionServiceDefinitionFactory : ServiceDefinitionFactory<Any
         serdeFactory,
         overrideHandlerOptions ?: dev.restate.sdk.kotlin.HandlerRunner.Options.DEFAULT,
     ) { _, input ->
-      if (parameterCount == 0) {
-        kFunction.callSuspend(serviceInstance)
-      } else {
-        kFunction.callSuspend(serviceInstance, input)
+      try {
+        if (parameterCount == 0) {
+          kFunction.callSuspend(serviceInstance)
+        } else {
+          kFunction.callSuspend(serviceInstance, input)
+        }
+      } catch (t: InvocationTargetException) {
+        throw t.cause!!
       }
     }
   }
