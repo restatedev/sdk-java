@@ -150,6 +150,26 @@ tasks {
   }
 }
 
+ksp {
+  val disabledClassesCodegen =
+      listOf(
+          "dev.restate.sdk.core.kotlinapi.reflections.CheckedException",
+          "dev.restate.sdk.core.kotlinapi.reflections.CustomSerdeService",
+          "dev.restate.sdk.core.kotlinapi.reflections.Empty",
+          "dev.restate.sdk.core.kotlinapi.reflections.GreeterInterface",
+          "dev.restate.sdk.core.kotlinapi.reflections.NestedDataClass",
+          "dev.restate.sdk.core.kotlinapi.reflections.CornerCases",
+          "dev.restate.sdk.core.kotlinapi.reflections.GreeterWithExplicitName",
+          "dev.restate.sdk.core.kotlinapi.reflections.MyWorkflow",
+          "dev.restate.sdk.core.kotlinapi.reflections.ObjectGreeter",
+          "dev.restate.sdk.core.kotlinapi.reflections.ObjectGreeterImplementedFromInterface",
+          "dev.restate.sdk.core.kotlinapi.reflections.PrimitiveTypes",
+          "dev.restate.sdk.core.kotlinapi.reflections.RawInputOutput",
+          "dev.restate.sdk.core.kotlinapi.reflections.ServiceGreeter",
+      )
+  arg("dev.restate.codegen.disabledClasses", disabledClassesCodegen.joinToString(","))
+}
+
 // spotless configuration for protobuf
 
 configure<com.diffplug.gradle.spotless.SpotlessExtension> {

@@ -3,14 +3,11 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 plugins {
   `java-conventions`
   `kotlin-conventions`
-  alias(libs.plugins.ksp)
   application
   alias(libs.plugins.shadow)
 }
 
 dependencies {
-  ksp(project(":sdk-api-kotlin-gen"))
-
   implementation(project(":client"))
   implementation(project(":client-kotlin"))
   implementation(project(":sdk-api"))

@@ -12,6 +12,7 @@ import dev.restate.common.Request
 import dev.restate.sdk.core.*
 import dev.restate.sdk.core.TestDefinitions.TestExecutor
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder
+import dev.restate.sdk.core.kotlinapi.reflections.ReflectionTest
 import dev.restate.sdk.core.statemachine.ProtoUtils
 import dev.restate.sdk.endpoint.definition.HandlerDefinition
 import dev.restate.sdk.endpoint.definition.HandlerType
@@ -43,6 +44,7 @@ class KotlinAPITests : TestRunner() {
         UserFailuresTest(),
         RandomTest(),
         CodegenTest(),
+        ReflectionTest(),
     )
   }
 

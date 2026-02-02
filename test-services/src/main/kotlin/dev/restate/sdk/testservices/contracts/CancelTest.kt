@@ -12,28 +12,28 @@ import dev.restate.sdk.annotation.*
 import dev.restate.sdk.kotlin.*
 import kotlinx.serialization.Serializable
 
-@Serializable
-enum class BlockingOperation {
-  CALL,
-  SLEEP,
-  AWAKEABLE,
-}
-
 interface CancelTest {
+
+  @Serializable
+  enum class BlockingOperation {
+    CALL,
+    SLEEP,
+    AWAKEABLE,
+  }
 
   @VirtualObject
   @Name("CancelTestRunner")
   interface Runner {
-    @Exclusive suspend fun startTest(context: ObjectContext, operation: BlockingOperation)
+    @Handler suspend fun startTest(operation: BlockingOperation)
 
-    @Exclusive suspend fun verifyTest(context: ObjectContext): Boolean
+    @Handler suspend fun verifyTest(): Boolean
   }
 
   @VirtualObject
   @Name("CancelTestBlockingService")
   interface BlockingService {
-    @Exclusive suspend fun block(context: ObjectContext, operation: BlockingOperation)
+    @Handler suspend fun block(operation: BlockingOperation)
 
-    @Exclusive suspend fun isUnlocked(context: ObjectContext)
+    @Handler suspend fun isUnlocked()
   }
 }

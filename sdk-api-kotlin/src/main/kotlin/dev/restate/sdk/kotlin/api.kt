@@ -8,9 +8,14 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.kotlin
 
+import dev.restate.common.InvocationOptions
 import dev.restate.common.Output
 import dev.restate.common.Request
 import dev.restate.common.Slice
+import dev.restate.common.reflection.kotlin.RequestCaptureProxy
+import dev.restate.common.reflection.kotlin.captureInvocation
+import dev.restate.common.reflections.ProxySupport
+import dev.restate.common.reflections.ReflectionUtils
 import dev.restate.sdk.common.DurablePromiseKey
 import dev.restate.sdk.common.HandlerRequest
 import dev.restate.sdk.common.InvocationId
@@ -20,8 +25,12 @@ import dev.restate.serde.TypeTag
 import dev.restate.serde.kotlinx.*
 import java.nio.ByteBuffer
 import java.util.*
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
+import kotlin.coroutines.startCoroutine
 import kotlin.random.Random
 import kotlin.time.Duration
+import kotlinx.coroutines.currentCoroutineContext
 
 /**
  * This interface exposes the Restate functionalities to Restate services. It can be used to
@@ -209,7 +218,6 @@ sealed interface Context {
  * running invocation, for example to cancel it or retrieve its result.
  *
  * @param invocationId The invocation to interact with.
- * @param responseClazz The response class.
  */
 inline fun <reified Res : Any?> Context.invocationHandle(
     invocationId: String
@@ -733,3 +741,719 @@ val HandlerRequest.bodyAsByteBuffer: ByteBuffer
   get() = this.bodyAsBodyBuffer()
 val HandlerRequest.headers: Map<String, String>
   get() = this.headers()
+
+// =============================================================================
+// Free-floating API functions for the reflection-based API
+// =============================================================================
+
+/**
+ * Get the current Restate [Context] from within a handler.
+ *
+ * This function must be called from within a Restate handler's suspend function. It retrieves the
+ * context from the coroutine context.
+ *
+ * Example usage:
+ * ```kotlin
+ * @Service
+ * class MyService {
+ *     @Handler
+ *     suspend fun myHandler(input: String): String {
+ *         val ctx = context()
+ *         // Use ctx for Restate operations
+ *         return "processed: $input"
+ *     }
+ * }
+ * ```
+ *
+ * @throws IllegalStateException if called outside of a Restate handler
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+suspend fun context(): Context {
+  val element =
+      currentCoroutineContext()[dev.restate.sdk.kotlin.internal.RestateContextElement]
+          ?: error("context() must be called from within a Restate handler")
+  return element.ctx
+}
+
+/**
+ * Get the current request information.
+ *
+ * @throws IllegalStateException if called outside of a Restate handler
+ * @see Context.request
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+suspend fun request(): HandlerRequest {
+  return context().request()
+}
+
+/**
+ * Get the deterministic random instance.
+ *
+ * @throws IllegalStateException if called outside of a Restate handler
+ * @see Context.random
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+suspend fun random(): RestateRandom {
+  return context().random()
+}
+
+/**
+ * Causes the current execution of the function invocation to sleep for the given duration.
+ *
+ * @param duration for which to sleep.
+ * @throws IllegalStateException if called outside of a Restate handler
+ * @see Context.sleep
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+suspend fun sleep(duration: Duration) {
+  context().sleep(duration)
+}
+
+/**
+ * Causes the start of a timer for the given duration.
+ *
+ * @param duration for which to sleep.
+ * @param name name to be used for the timer
+ * @throws IllegalStateException if called outside of a Restate handler
+ * @see Context.timer
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+suspend fun timer(name: String = "", duration: Duration): DurableFuture<Unit> {
+  return context().timer(duration, name)
+}
+
+/**
+ * Execute a closure, recording the result value in the journal.
+ *
+ * @param name the name of the side effect.
+ * @param retryPolicy optional retry policy.
+ * @param block closure to execute.
+ * @return value of the run operation.
+ * @throws IllegalStateException if called outside of a Restate handler
+ * @see Context.runBlock
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+suspend inline fun <reified T : Any> runBlock(
+    name: String = "",
+    retryPolicy: RetryPolicy? = null,
+    noinline block: suspend () -> T,
+): T {
+  return context().runBlock(typeTag<T>(), name, retryPolicy, block)
+}
+
+/**
+ * Execute a closure asynchronously.
+ *
+ * @param name the name of the side effect.
+ * @param retryPolicy optional retry policy.
+ * @param block closure to execute.
+ * @return a [DurableFuture] that you can combine and select.
+ * @throws IllegalStateException if called outside of a Restate handler
+ * @see Context.runAsync
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+suspend inline fun <reified T : Any> runAsync(
+    name: String = "",
+    retryPolicy: RetryPolicy? = null,
+    noinline block: suspend () -> T,
+): DurableFuture<T> {
+  return context().runAsync(typeTag<T>(), name, retryPolicy, block)
+}
+
+/**
+ * Create an [Awakeable], addressable through [Awakeable.id].
+ *
+ * @return the [Awakeable] to await on.
+ * @throws IllegalStateException if called outside of a Restate handler
+ * @see Context.awakeable
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+suspend inline fun <reified T : Any> awakeable(): Awakeable<T> {
+  return context().awakeable(typeTag<T>())
+}
+
+/**
+ * Create an [Awakeable], addressable through [Awakeable.id].
+ *
+ * You can use this feature to implement external asynchronous systems interactions, for example you
+ * can send a Kafka record including the [Awakeable.id], and then let another service consume from
+ * Kafka the responses of given external system interaction by using [awakeableHandle].
+ *
+ * @param typeTag the type tag for deserializing the [Awakeable] result.
+ * @return the [Awakeable] to await on.
+ * @see Awakeable
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+suspend fun <T : Any> awakeable(typeTag: TypeTag<T>): Awakeable<T> {
+  return context().awakeable(typeTag)
+}
+
+/**
+ * Create a new [AwakeableHandle] for the provided identifier.
+ *
+ * @throws IllegalStateException if called outside of a Restate handler
+ * @see Context.awakeableHandle
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+suspend fun awakeableHandle(id: String): AwakeableHandle {
+  return context().awakeableHandle(id)
+}
+
+/**
+ * Get an [InvocationHandle] for an already existing invocation.
+ *
+ * @param invocationId The invocation to interact with.
+ * @throws IllegalStateException if called outside of a Restate handler
+ * @see Context.invocationHandle
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+suspend inline fun <reified R : Any?> invocationHandle(invocationId: String): InvocationHandle<R> {
+  return context().invocationHandle(invocationId, typeTag<R>())
+}
+
+/**
+ * Get the key of this Virtual Object.
+ *
+ * @return the key of this object
+ * @throws IllegalStateException if called from a regular Service handler or outside of a Restate
+ *   handler
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+suspend fun objectKey(): String {
+  val ctx = context()
+  val handlerContext =
+      dev.restate.sdk.endpoint.definition.HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL.get()
+          ?: error("objectKey() must be called from within a Restate handler")
+
+  if (!handlerContext.canReadState()) {
+    error(
+        "objectKey() can be used only within Virtual Object handlers. " +
+            "Check https://docs.restate.dev/develop/java/services#virtual-objects for more details."
+    )
+  }
+
+  return (ctx as SharedObjectContext).key()
+}
+
+/**
+ * Get the key of this Workflow.
+ *
+ * @return the key of this workflow
+ * @throws IllegalStateException if called from a regular Service handler, or from a virtual object
+ *   handler, or outside of a Restate handler
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+suspend fun workflowKey(): String {
+  val ctx = context()
+  val handlerContext =
+      dev.restate.sdk.endpoint.definition.HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL.get()
+          ?: error("workflowKey() must be called from within a Restate handler")
+
+  if (!handlerContext.canReadPromises()) {
+    error(
+        "workflowKey() can be used only within Workflow handlers. " +
+            "Check https://docs.restate.dev/develop/java/services#workflows for more details."
+    )
+  }
+
+  return (ctx as SharedObjectContext).key()
+}
+
+/**
+ * Access to this Virtual Object/Workflow state.
+ *
+ * @return [KotlinState] for this Virtual Object/Workflow
+ * @throws IllegalStateException if called from a regular Service handler or outside of a Restate
+ *   handler
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+suspend fun state(): KotlinState {
+  val ctx = context()
+  val handlerContext =
+      dev.restate.sdk.endpoint.definition.HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL.get()
+          ?: error("state() must be called from within a Restate handler")
+
+  if (!handlerContext.canReadState()) {
+    error(
+        "state() can be used only within Virtual Object or Workflow handlers. " +
+            "Check https://docs.restate.dev/develop/java/state for more details."
+    )
+  }
+
+  return KotlinStateImpl(ctx as SharedObjectContext, handlerContext)
+}
+
+/**
+ * Create a [DurablePromise] for the given key.
+ *
+ * @throws IllegalStateException if called from a non-Workflow handler or outside of a Restate
+ *   handler
+ * @see SharedWorkflowContext.promise
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+suspend fun <T : Any> promise(key: DurablePromiseKey<T>): DurablePromise<T> {
+  val ctx = context()
+  val handlerContext =
+      dev.restate.sdk.endpoint.definition.HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL.get()
+          ?: error("promise() must be called from within a Restate handler")
+
+  if (!handlerContext.canReadPromises() || !handlerContext.canWritePromises()) {
+    error(
+        "promise(key) can be used only within Workflow handlers. " +
+            "Check https://docs.restate.dev/develop/java/external-events#durable-promises for more details."
+    )
+  }
+
+  return (ctx as SharedWorkflowContext).promise(key)
+}
+
+/**
+ * Create a new [DurablePromiseHandle] for the provided key.
+ *
+ * @throws IllegalStateException if called from a non-Workflow handler or outside of a Restate
+ *   handler
+ * @see SharedWorkflowContext.promiseHandle
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+suspend fun <T : Any> promiseHandle(key: DurablePromiseKey<T>): DurablePromiseHandle<T> {
+  val ctx = context()
+  val handlerContext =
+      dev.restate.sdk.endpoint.definition.HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL.get()
+          ?: error("promiseHandle() must be called from within a Restate handler")
+
+  if (!handlerContext.canReadPromises() || !handlerContext.canWritePromises()) {
+    error(
+        "promiseHandle(key) can be used only within Workflow handlers. " +
+            "Check https://docs.restate.dev/develop/java/external-events#durable-promises for more details."
+    )
+  }
+
+  return (ctx as SharedWorkflowContext).promiseHandle(key)
+}
+
+/**
+ * Interface for accessing Virtual Object/Workflow state in the reflection-based API.
+ *
+ * This interface provides suspend-friendly state operations that can be used from within Restate
+ * handlers using the free-floating `state()` function.
+ *
+ * Example usage:
+ * ```kotlin
+ * @VirtualObject
+ * class Counter {
+ *     companion object {
+ *         private val COUNT = stateKey<Long>("count")
+ *     }
+ *
+ *     @Handler
+ *     suspend fun increment(): Long {
+ *         val current = state().get(COUNT) ?: 0L
+ *         val next = current + 1
+ *         state().set(COUNT, next)
+ *         return next
+ *     }
+ * }
+ * ```
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+interface KotlinState {
+  /**
+   * Gets the state stored under key, deserializing the raw value using the [StateKey.serdeInfo].
+   *
+   * @param key identifying the state to get and its type.
+   * @return the value containing the stored state deserialized, or null if not set.
+   * @throws RuntimeException when the state cannot be deserialized.
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental suspend fun <T : Any> get(key: StateKey<T>): T?
+
+  /**
+   * Sets the given value under the given key, serializing the value using the [StateKey.serdeInfo].
+   *
+   * @param key identifying the value to store and its type.
+   * @param value to store under the given key.
+   * @throws IllegalStateException if called from a Shared handler
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  suspend fun <T : Any> set(key: StateKey<T>, value: T)
+
+  /**
+   * Clears the state stored under key.
+   *
+   * @param key identifying the state to clear.
+   * @throws IllegalStateException if called from a Shared handler
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental suspend fun clear(key: StateKey<*>)
+
+  /**
+   * Clears all the state of this virtual object instance key-value state storage.
+   *
+   * @throws IllegalStateException if called from a Shared handler
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental suspend fun clearAll()
+
+  /**
+   * Gets all the known state keys for this virtual object instance.
+   *
+   * @return the immutable collection of known state keys.
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental suspend fun keys(): Collection<String>
+}
+
+/**
+ * Gets the state stored under key.
+ *
+ * @param key the name of the state key.
+ * @return the value containing the stored state deserialized, or null if not set.
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+suspend inline fun <reified T : Any> KotlinState.get(key: String): T? {
+  return this.get(StateKey.of<T>(key, typeTag<T>()))
+}
+
+/**
+ * Sets the given value under the given key.
+ *
+ * @param key the name of the state key.
+ * @param value to store under the given key.
+ * @throws IllegalStateException if called from a Shared handler
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+suspend inline fun <reified T : Any> KotlinState.set(key: String, value: T) {
+  this.set(StateKey.of<T>(key, typeTag<T>()), value)
+}
+
+// Internal implementation of KotlinState
+private class KotlinStateImpl(
+    private val ctx: SharedObjectContext,
+    private val handlerContext: dev.restate.sdk.endpoint.definition.HandlerContext,
+) : KotlinState {
+  override suspend fun <T : Any> get(key: StateKey<T>): T? {
+    return ctx.get(key)
+  }
+
+  override suspend fun <T : Any> set(key: StateKey<T>, value: T) {
+    checkCanWriteState("set")
+    (ctx as ObjectContext).set(key, value)
+  }
+
+  override suspend fun clear(key: StateKey<*>) {
+    checkCanWriteState("clear")
+    (ctx as ObjectContext).clear(key)
+  }
+
+  override suspend fun clearAll() {
+    checkCanWriteState("clearAll")
+    (ctx as ObjectContext).clearAll()
+  }
+
+  override suspend fun keys(): Collection<String> {
+    return ctx.stateKeys()
+  }
+
+  private fun checkCanWriteState(opName: String) {
+    if (!handlerContext.canWriteState()) {
+      error(
+          "state().$opName() cannot be used in shared handlers. " +
+              "Check https://docs.restate.dev/develop/java/state for more details."
+      )
+    }
+  }
+}
+
+/**
+ * Kotlin-idiomatic request for invoking Restate services from within a handler.
+ *
+ * Example usage:
+ * ```kotlin
+ * toService<CounterKt>()
+ *     .request { add(1) }
+ *     .options { idempotencyKey = "123" }
+ *     .call()
+ * ```
+ *
+ * @param Req the request type
+ * @param Res the response type
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+interface KRequest<Req, Res> : Request<Req, Res> {
+
+  /**
+   * Configure invocation options using a DSL.
+   *
+   * @param block builder block for options
+   * @return a new request with the configured options
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  fun options(block: InvocationOptions.Builder.() -> Unit): KRequest<Req, Res>
+
+  /**
+   * Call the target handler and return a [CallDurableFuture] for the result.
+   *
+   * @return a [CallDurableFuture] that will contain the response
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental suspend fun call(): CallDurableFuture<Res>
+
+  /**
+   * Send the request without waiting for the response.
+   *
+   * @param delay optional delay before the invocation is executed
+   * @return an [InvocationHandle] to interact with the sent request
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  suspend fun send(delay: Duration? = null): InvocationHandle<Res>
+}
+
+/**
+ * Builder for creating type-safe requests from within a handler.
+ *
+ * This builder allows the response type to be inferred from the lambda passed to [request].
+ *
+ * @param SVC the service/virtual object/workflow class
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+class KRequestBuilder<SVC : Any>
+@PublishedApi
+internal constructor(
+    private val clazz: Class<SVC>,
+    private val key: String?,
+) {
+  /**
+   * Create a request by invoking a method on the target.
+   *
+   * The response type is inferred from the return type of the invoked method.
+   *
+   * @param Res the response type (inferred from the lambda)
+   * @param block a suspend lambda that invokes a method on the target
+   * @return a [KRequest] with the correct response type
+   */
+  @Suppress("UNCHECKED_CAST")
+  fun <Res> request(block: suspend SVC.() -> Res): KRequest<Any?, Res> {
+    return KRequestImpl(
+        RequestCaptureProxy(clazz, key).capture(block as suspend SVC.() -> Any?).toRequest()
+    )
+        as KRequest<Any?, Res>
+  }
+}
+
+/**
+ * Create a builder for invoking a Restate service from within a handler.
+ *
+ * Example usage:
+ * ```kotlin
+ * @Handler
+ * suspend fun myHandler(): String {
+ *     val result = toService<Greeter>()
+ *         .request { greet("Alice") }
+ *         .call()
+ *         .await()
+ *     return result
+ * }
+ * ```
+ *
+ * @param SVC the service class annotated with @Service
+ * @return a builder for creating typed requests
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+inline fun <reified SVC : Any> toService(): KRequestBuilder<SVC> {
+  ReflectionUtils.mustHaveServiceAnnotation(SVC::class.java)
+  require(ReflectionUtils.isKotlinClass(SVC::class.java)) {
+    "Using Java classes with Kotlin's API is not supported"
+  }
+  return KRequestBuilder(SVC::class.java, null)
+}
+
+/**
+ * Create a builder for invoking a Restate virtual object from within a handler.
+ *
+ * Example usage:
+ * ```kotlin
+ * @Handler
+ * suspend fun myHandler(): Long {
+ *     val result = toVirtualObject<Counter>("my-counter")
+ *         .request { add(1) }
+ *         .call()
+ *         .await()
+ *     return result
+ * }
+ * ```
+ *
+ * @param SVC the virtual object class annotated with @VirtualObject
+ * @param key the key identifying the specific virtual object instance
+ * @return a builder for creating typed requests
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+inline fun <reified SVC : Any> toVirtualObject(key: String): KRequestBuilder<SVC> {
+  ReflectionUtils.mustHaveVirtualObjectAnnotation(SVC::class.java)
+  require(ReflectionUtils.isKotlinClass(SVC::class.java)) {
+    "Using Java classes with Kotlin's API is not supported"
+  }
+  return KRequestBuilder(SVC::class.java, key)
+}
+
+/**
+ * Create a builder for invoking a Restate workflow from within a handler.
+ *
+ * Example usage:
+ * ```kotlin
+ * @Handler
+ * suspend fun myHandler(): String {
+ *     val result = toWorkflow<MyWorkflow>("workflow-123")
+ *         .request { run("input") }
+ *         .call()
+ *         .await()
+ *     return result
+ * }
+ * ```
+ *
+ * @param SVC the workflow class annotated with @Workflow
+ * @param key the key identifying the specific workflow instance
+ * @return a builder for creating typed requests
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+inline fun <reified SVC : Any> toWorkflow(key: String): KRequestBuilder<SVC> {
+  ReflectionUtils.mustHaveWorkflowAnnotation(SVC::class.java)
+  require(ReflectionUtils.isKotlinClass(SVC::class.java)) {
+    "Using Java classes with Kotlin's API is not supported"
+  }
+  return KRequestBuilder(SVC::class.java, key)
+}
+
+/** Implementation of [KRequest] for SDK context. */
+private class KRequestImpl<Req, Res>(private val request: Request<Req, Res>) :
+    KRequest<Req, Res>, Request<Req, Res> by request {
+  override fun options(block: InvocationOptions.Builder.() -> Unit): KRequest<Req, Res> {
+    val builder = InvocationOptions.builder()
+    builder.block()
+    return KRequestImpl(
+        this.toBuilder().headers(builder.headers).idempotencyKey(builder.idempotencyKey).build()
+    )
+  }
+
+  override suspend fun call(): CallDurableFuture<Res> {
+    return context().call(request)
+  }
+
+  override suspend fun send(delay: Duration?): InvocationHandle<Res> {
+    return context().send(request, delay)
+  }
+}
+
+/**
+ * Create a proxy client for a Restate service.
+ *
+ * This creates a proxy that allows calling service methods directly. The proxy intercepts method
+ * calls, converts them to Restate requests, and awaits the result.
+ *
+ * Example usage:
+ * ```kotlin
+ * @Handler
+ * suspend fun myHandler(): String {
+ *     val greeter = service<Greeter>()
+ *     val response = greeter.greet("Alice")
+ *     return "Got: $response"
+ * }
+ * ```
+ *
+ * @param SVC the service class annotated with @Service
+ * @return a proxy client to invoke the service
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+suspend inline fun <reified SVC : Any> service(): SVC {
+  return service(SVC::class.java)
+}
+
+/**
+ * Create a proxy client for a Restate virtual object.
+ *
+ * Example usage:
+ * ```kotlin
+ * @Handler
+ * suspend fun myHandler(): Long {
+ *     val counter = virtualObject<Counter>("my-counter")
+ *     return counter.increment()
+ * }
+ * ```
+ *
+ * @param SVC the virtual object class annotated with @VirtualObject
+ * @param key the key identifying the specific virtual object instance
+ * @return a proxy client to invoke the virtual object
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+suspend inline fun <reified SVC : Any> virtualObject(key: String): SVC {
+  return virtualObject(SVC::class.java, key)
+}
+
+/**
+ * Create a proxy client for a Restate workflow.
+ *
+ * @param SVC the workflow class annotated with @Workflow
+ * @param key the key identifying the specific workflow instance
+ * @return a proxy client to invoke the workflow
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+suspend inline fun <reified SVC : Any> workflow(key: String): SVC {
+  return workflow(SVC::class.java, key)
+}
+
+@PublishedApi
+internal fun <SVC : Any> service(clazz: Class<SVC>): SVC {
+  ReflectionUtils.mustHaveServiceAnnotation(clazz)
+  require(ReflectionUtils.isKotlinClass(clazz)) {
+    "Using Java classes with Kotlin's API is not supported"
+  }
+  val serviceName = ReflectionUtils.extractServiceName(clazz)
+
+  return ProxySupport.createProxy(clazz) { invocation ->
+    val request = invocation.captureInvocation(serviceName, null).toRequest()
+
+    // Last argument is the continuation for suspend functions
+    @Suppress("UNCHECKED_CAST") val continuation = invocation.arguments.last() as Continuation<Any?>
+
+    // Start a coroutine that calls the client and resumes the continuation
+    val suspendBlock: suspend () -> Any? = { context().call(request).await() }
+    suspendBlock.startCoroutine(continuation)
+    COROUTINE_SUSPENDED
+  }
+}
+
+@PublishedApi
+internal fun <SVC : Any> virtualObject(clazz: Class<SVC>, key: String): SVC {
+  ReflectionUtils.mustHaveVirtualObjectAnnotation(clazz)
+  require(ReflectionUtils.isKotlinClass(clazz)) {
+    "Using Java classes with Kotlin's API is not supported"
+  }
+  val serviceName = ReflectionUtils.extractServiceName(clazz)
+
+  return ProxySupport.createProxy(clazz) { invocation ->
+    val request = invocation.captureInvocation(serviceName, key).toRequest()
+
+    // Last argument is the continuation for suspend functions
+    @Suppress("UNCHECKED_CAST") val continuation = invocation.arguments.last() as Continuation<Any?>
+
+    // Start a coroutine that calls the client and resumes the continuation
+    val suspendBlock: suspend () -> Any? = { context().call(request).await() }
+    suspendBlock.startCoroutine(continuation)
+    COROUTINE_SUSPENDED
+  }
+}
+
+@PublishedApi
+internal fun <SVC : Any> workflow(clazz: Class<SVC>, key: String): SVC {
+  ReflectionUtils.mustHaveWorkflowAnnotation(clazz)
+  require(ReflectionUtils.isKotlinClass(clazz)) {
+    "Using Java classes with Kotlin's API is not supported"
+  }
+  val serviceName = ReflectionUtils.extractServiceName(clazz)
+
+  return ProxySupport.createProxy(clazz) { invocation ->
+    val request = invocation.captureInvocation(serviceName, key).toRequest()
+
+    // Last argument is the continuation for suspend functions
+    @Suppress("UNCHECKED_CAST") val continuation = invocation.arguments.last() as Continuation<Any?>
+
+    // Start a coroutine that calls the client and resumes the continuation
+    val suspendBlock: suspend () -> Any? = { context().call(request).await() }
+    suspendBlock.startCoroutine(continuation)
+    COROUTINE_SUSPENDED
+  }
+}

@@ -231,9 +231,9 @@ object CommandSerializer :
 @Name("ObjectInterpreter")
 interface ObjectInterpreter {
 
-  @Shared suspend fun counter(ctx: SharedObjectContext): Int
+  @Shared suspend fun counter(): Int
 
-  @Handler suspend fun interpret(ctx: ObjectContext, program: Program)
+  @Handler suspend fun interpret(program: Program)
 }
 
 @Serializable data class EchoLaterRequest(val sleep: Int, val parameter: String)
@@ -249,20 +249,19 @@ data class IncrementViaAwakeableDanceRequest(
 @Service
 @Name("ServiceInterpreterHelper")
 interface ServiceInterpreterHelper {
-  @Handler suspend fun ping(ctx: Context)
+  @Handler suspend fun ping()
 
-  @Handler suspend fun echo(ctx: Context, param: String): String
+  @Handler suspend fun echo(param: String): String
 
-  @Handler suspend fun echoLater(ctx: Context, req: EchoLaterRequest): String
+  @Handler suspend fun echoLater(req: EchoLaterRequest): String
 
-  @Handler suspend fun terminalFailure(ctx: Context)
+  @Handler suspend fun terminalFailure()
 
-  @Handler suspend fun incrementIndirectly(ctx: Context, id: InterpreterId)
+  @Handler suspend fun incrementIndirectly(id: InterpreterId)
 
-  @Handler suspend fun resolveAwakeable(ctx: Context, id: String)
+  @Handler suspend fun resolveAwakeable(id: String)
 
-  @Handler suspend fun rejectAwakeable(ctx: Context, id: String)
+  @Handler suspend fun rejectAwakeable(id: String)
 
-  @Handler
-  suspend fun incrementViaAwakeableDance(ctx: Context, req: IncrementViaAwakeableDanceRequest)
+  @Handler suspend fun incrementViaAwakeableDance(req: IncrementViaAwakeableDanceRequest)
 }

@@ -155,10 +155,12 @@ final class RequestImpl<Req, Res> implements WorkflowRequest<Req, Res> {
      */
     @Override
     public Builder<Req, Res> headers(Map<String, String> newHeaders) {
-      if (this.headers == null) {
-        this.headers = new LinkedHashMap<>();
+      if (newHeaders != null) {
+        if (this.headers == null) {
+          this.headers = new LinkedHashMap<>();
+        }
+        this.headers.putAll(newHeaders);
       }
-      this.headers.putAll(newHeaders);
       return this;
     }
 
@@ -178,6 +180,11 @@ final class RequestImpl<Req, Res> implements WorkflowRequest<Req, Res> {
     @Override
     public @Nullable Map<String, String> getHeaders() {
       return headers;
+    }
+
+    @Override
+    public RequestBuilder<Req, Res> toBuilder() {
+      return this;
     }
 
     /**
@@ -203,6 +210,7 @@ final class RequestImpl<Req, Res> implements WorkflowRequest<Req, Res> {
     }
   }
 
+  @Override
   public Builder<Req, Res> toBuilder() {
     return new Builder<>(
         this.target,

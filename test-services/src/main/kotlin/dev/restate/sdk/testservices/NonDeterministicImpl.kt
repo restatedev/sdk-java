@@ -10,7 +10,7 @@ package dev.restate.sdk.testservices
 
 import dev.restate.sdk.common.StateKey
 import dev.restate.sdk.kotlin.*
-import dev.restate.sdk.testservices.contracts.CounterClient
+import dev.restate.sdk.testservices.contracts.Counter
 import dev.restate.sdk.testservices.contracts.NonDeterministic
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.milliseconds
@@ -20,57 +20,57 @@ class NonDeterministicImpl : NonDeterministic {
   private val STATE_A: StateKey<String> = stateKey("a")
   private val STATE_B: StateKey<String> = stateKey("b")
 
-  override suspend fun eitherSleepOrCall(context: ObjectContext) {
-    if (doLeftAction(context)) {
-      context.sleep(100.milliseconds)
+  override suspend fun eitherSleepOrCall() {
+    if (doLeftAction()) {
+      sleep(100.milliseconds)
     } else {
-      CounterClient.fromContext(context, "abc").get().await()
+      virtualObject<Counter>("abc").get()
     }
     // This is required to cause a suspension after the non-deterministic operation
-    context.sleep(100.milliseconds)
-    incrementCounter(context)
+    sleep(100.milliseconds)
+    incrementCounter()
   }
 
-  override suspend fun callDifferentMethod(context: ObjectContext) {
-    if (doLeftAction(context)) {
-      CounterClient.fromContext(context, "abc").get().await()
+  override suspend fun callDifferentMethod() {
+    if (doLeftAction()) {
+      virtualObject<Counter>("abc").get()
     } else {
-      CounterClient.fromContext(context, "abc").reset().await()
+      virtualObject<Counter>("abc").reset()
     }
     // This is required to cause a suspension after the non-deterministic operation
-    context.sleep(100.milliseconds)
-    incrementCounter(context)
+    sleep(100.milliseconds)
+    incrementCounter()
   }
 
-  override suspend fun backgroundInvokeWithDifferentTargets(context: ObjectContext) {
-    if (doLeftAction(context)) {
-      CounterClient.fromContext(context, "abc").send().get()
+  override suspend fun backgroundInvokeWithDifferentTargets() {
+    if (doLeftAction()) {
+      toVirtualObject<Counter>("abc").request { get() }.send()
     } else {
-      CounterClient.fromContext(context, "abc").send().reset()
+      toVirtualObject<Counter>("abc").request { reset() }.send()
     }
     // This is required to cause a suspension after the non-deterministic operation
-    context.sleep(100.milliseconds)
-    incrementCounter(context)
+    sleep(100.milliseconds)
+    incrementCounter()
   }
 
-  override suspend fun setDifferentKey(context: ObjectContext) {
-    if (doLeftAction(context)) {
-      context.set(STATE_A, "my-state")
+  override suspend fun setDifferentKey() {
+    if (doLeftAction()) {
+      state().set(STATE_A, "my-state")
     } else {
-      context.set(STATE_B, "my-state")
+      state().set(STATE_B, "my-state")
     }
     // This is required to cause a suspension after the non-deterministic operation
-    context.sleep(100.milliseconds)
-    incrementCounter(context)
+    sleep(100.milliseconds)
+    incrementCounter()
   }
 
-  private suspend fun incrementCounter(context: ObjectContext) {
-    CounterClient.fromContext(context, context.key()).send().add(1)
+  private suspend fun incrementCounter() {
+    toVirtualObject<Counter>("abc").request { add(1) }.send()
   }
 
-  private fun doLeftAction(context: ObjectContext): Boolean {
+  private suspend fun doLeftAction(): Boolean {
     // Test runner sets an appropriate key here
-    val countKey = context.key()
+    val countKey = objectKey()
     return invocationCounts.merge(countKey, 1) { a: Int, b: Int -> a + b }!! % 2 == 1
   }
 }

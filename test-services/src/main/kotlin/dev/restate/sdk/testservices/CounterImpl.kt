@@ -12,7 +12,6 @@ import dev.restate.sdk.common.StateKey
 import dev.restate.sdk.common.TerminalException
 import dev.restate.sdk.kotlin.*
 import dev.restate.sdk.testservices.contracts.Counter
-import dev.restate.sdk.testservices.contracts.CounterUpdateResponse
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 
@@ -24,37 +23,37 @@ class CounterImpl : Counter {
     private val COUNTER_KEY: StateKey<Long> = stateKey<Long>("counter")
   }
 
-  override suspend fun reset(context: ObjectContext) {
+  override suspend fun reset() {
     logger.info("Counter cleaned up")
-    context.clear(COUNTER_KEY)
+    state().clear(COUNTER_KEY)
   }
 
-  override suspend fun addThenFail(context: ObjectContext, value: Long) {
-    var counter: Long = context.get(COUNTER_KEY) ?: 0L
+  override suspend fun addThenFail(value: Long) {
+    var counter: Long = state().get(COUNTER_KEY) ?: 0L
     logger.info("Old counter value: {}", counter)
 
     counter += value
-    context.set(COUNTER_KEY, counter)
+    state().set(COUNTER_KEY, counter)
 
     logger.info("New counter value: {}", counter)
 
-    throw TerminalException(context.key())
+    throw TerminalException(objectKey())
   }
 
-  override suspend fun get(context: SharedObjectContext): Long {
-    val counter: Long = context.get(COUNTER_KEY) ?: 0L
+  override suspend fun get(): Long {
+    val counter: Long = state().get(COUNTER_KEY) ?: 0L
     logger.info("Get counter value: {}", counter)
     return counter
   }
 
-  override suspend fun add(context: ObjectContext, value: Long): CounterUpdateResponse {
-    val oldCount: Long = context.get(COUNTER_KEY) ?: 0L
+  override suspend fun add(value: Long): Counter.CounterUpdateResponse {
+    val oldCount: Long = state().get(COUNTER_KEY) ?: 0L
     val newCount = oldCount + value
-    context.set(COUNTER_KEY, newCount)
+    state().set(COUNTER_KEY, newCount)
 
     logger.info("Old counter value: {}", oldCount)
     logger.info("New counter value: {}", newCount)
 
-    return CounterUpdateResponse(oldCount, newCount)
+    return Counter.CounterUpdateResponse(oldCount, newCount)
   }
 }
