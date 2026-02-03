@@ -19,5 +19,8 @@ dependencies {
   // Observability
   implementation(libs.opentelemetry.api)
   implementation(libs.log4j.api)
-  implementation(libs.reactiverse.contextual.logging)
+  implementation(libs.reactiverse.contextual.logging) {
+    // Version of vertx is pinned above
+    exclude(group = "io.vertx")
+  }
 }
