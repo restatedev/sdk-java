@@ -20,6 +20,7 @@ import dev.restate.sdk.internal.ContextThreadLocal;
 import dev.restate.serde.Serde;
 import dev.restate.serde.TypeTag;
 import java.time.Duration;
+import java.time.Instant;
 
 /**
  * This interface exposes the Restate functionalities to Restate services. It can be used to
@@ -483,6 +484,20 @@ public interface Context {
    * @see RestateRandom
    */
   RestateRandom random();
+
+  /**
+   * Returns the current time as a deterministic {@link Instant}.
+   *
+   * <p>This method returns the current timestamp in a way that is consistent across replays. The
+   * time is captured using {@link Context#run}, ensuring that the same value is returned during
+   * replay as was returned during the original execution.
+   *
+   * @return the recorded {@link Instant}
+   * @see Instant#now()
+   */
+  default Instant instantNow() {
+    return run("Instant.now()", Instant.class, Instant::now);
+  }
 
   /**
    * @return the current context

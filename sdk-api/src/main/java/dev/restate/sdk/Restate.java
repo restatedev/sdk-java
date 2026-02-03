@@ -23,6 +23,7 @@ import dev.restate.sdk.common.*;
 import dev.restate.serde.Serde;
 import dev.restate.serde.TypeTag;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Optional;
 import org.jspecify.annotations.NonNull;
@@ -96,6 +97,21 @@ public final class Restate {
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static RestateRandom random() {
     return Context.current().random();
+  }
+
+  /**
+   * Returns the current time as a deterministic {@link Instant}.
+   *
+   * <p>This method returns the current timestamp in a way that is consistent across replays. The
+   * time is captured using {@link Restate#run}, ensuring that the same value is returned during
+   * replay as was returned during the original execution.
+   *
+   * @return the recorded {@link Instant}
+   * @see Instant#now()
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  public static Instant instantNow() {
+    return Context.current().instantNow();
   }
 
   /**

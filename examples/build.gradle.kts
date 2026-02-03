@@ -16,7 +16,6 @@ dependencies {
   implementation(project(":sdk-api-kotlin"))
   implementation(project(":sdk-serde-jackson"))
 
-  implementation(libs.jackson.jsr310)
   implementation(libs.jackson.parameter.names)
 
   implementation(libs.kotlinx.coroutines.core)
