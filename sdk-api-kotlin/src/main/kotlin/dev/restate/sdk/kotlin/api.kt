@@ -1293,7 +1293,7 @@ internal constructor(
    * @return a [KRequest] with the correct response type
    */
   @Suppress("UNCHECKED_CAST")
-  fun <Res> request(block: suspend SVC.() -> Res): KRequest<Any?, Res> {
+  suspend fun <Res> request(block: suspend SVC.() -> Res): KRequest<Any?, Res> {
     return KRequestImpl(
         RequestCaptureProxy(clazz, key).capture(block as suspend SVC.() -> Any?).toRequest()
     )

@@ -36,7 +36,7 @@ data class CapturedInvocation(
     val inputTypeTag: TypeTag<*>,
     val outputTypeTag: TypeTag<*>,
     val input: Any?,
-) {
+) : RuntimeException("CapturedInvocation message should not be used", null, false, false) {
   @Suppress("UNCHECKED_CAST")
   fun toRequest(): Request<*, *> {
     return Request.of(target, inputTypeTag as TypeTag<Any?>, outputTypeTag as TypeTag<Any?>, input)

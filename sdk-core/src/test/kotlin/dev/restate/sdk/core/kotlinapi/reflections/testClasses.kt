@@ -15,6 +15,7 @@ import dev.restate.serde.SerdeFactory
 import dev.restate.serde.TypeRef
 import dev.restate.serde.TypeTag
 import dev.restate.serde.kotlinx.KotlinSerializationSerdeFactory
+import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
 
 @Service
@@ -111,6 +112,17 @@ open class CornerCases {
   @Exclusive
   open suspend fun badReturnTypeInferred(): Unit {
     toVirtualObject<CornerCases>(objectKey()).request { badReturnTypeInferred() }.send()
+  }
+
+  @Exclusive
+  open suspend fun callSuspendWithinProxy() {
+    toVirtualObject<CornerCases>(objectKey())
+        .request {
+          // Doing a suspend call within the proxy
+          delay(1)
+          callSuspendWithinProxy()
+        }
+        .send()
   }
 }
 

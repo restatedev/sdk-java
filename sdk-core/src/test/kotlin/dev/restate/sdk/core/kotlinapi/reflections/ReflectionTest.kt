@@ -220,6 +220,24 @@ class ReflectionTest : TestDefinitions.TestSuite {
                 outputCmd(),
                 END_MESSAGE,
             ),
+        testInvocation({ CornerCases() }, "callSuspendWithinProxy")
+            .withInput(startMessage(1, "mykey"), inputCmd())
+            .onlyBidiStream()
+            .expectingOutput(
+                oneWayCallCmd(
+                    1,
+                    Target.virtualObject(
+                        "CornerCases",
+                        "mykey",
+                        "callSuspendWithinProxy",
+                    ),
+                    null,
+                    null,
+                    Slice.EMPTY,
+                ),
+                outputCmd(),
+                END_MESSAGE,
+            ),
         testInvocation({ CustomSerdeService() }, "echo")
             .withInput(startMessage(1), inputCmd(byteArrayOf(1)))
             .onlyBidiStream()

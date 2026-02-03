@@ -429,7 +429,7 @@ internal constructor(
    * @return a [KClientRequest] with the correct response type
    */
   @Suppress("UNCHECKED_CAST")
-  fun <Res> request(block: suspend SVC.() -> Res): KClientRequest<Any?, Res> {
+  suspend fun <Res> request(block: suspend SVC.() -> Res): KClientRequest<Any?, Res> {
     return KClientRequestImpl(
         client,
         RequestCaptureProxy(clazz, key).capture(block as suspend SVC.() -> Any?).toRequest(),
