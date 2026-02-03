@@ -9,13 +9,19 @@
 package dev.restate.sdk.core.javaapi;
 
 import static dev.restate.sdk.core.javaapi.JavaAPITests.testDefinitionForService;
+import static org.assertj.core.api.Assertions.assertThat;
 
+import com.google.protobuf.ByteString;
+import dev.restate.common.Slice;
 import dev.restate.sdk.DurableFuture;
+import dev.restate.sdk.Restate;
 import dev.restate.sdk.common.RetryPolicy;
 import dev.restate.sdk.core.SideEffectTestSuite;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import dev.restate.sdk.core.TestSerdes;
 import dev.restate.serde.Serde;
+import dev.restate.serde.jackson.JacksonSerdeFactory;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 
@@ -158,5 +164,26 @@ public class SideEffectTest extends SideEffectTestSuite {
               });
           return null;
         });
+  }
+
+  @Override
+  protected TestInvocationBuilder instantNow() {
+    return testDefinitionForService(
+        "InstantNow",
+        Serde.VOID,
+        TestSerdes.STRING,
+        (ctx, unused) -> {
+          var instant = Restate.instantNow();
+          return null;
+        });
+  }
+
+  @Override
+  protected void assertIsInstant(ByteString bytes) {
+    Instant instant =
+        JacksonSerdeFactory.DEFAULT
+            .create(Instant.class)
+            .deserialize(Slice.wrap(bytes.asReadOnlyByteBuffer()));
+    assertThat(instant).isNotNull().isBefore(Instant.now());
   }
 }

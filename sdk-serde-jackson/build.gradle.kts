@@ -13,6 +13,7 @@ dependencies {
   implementation(project(":common"))
 
   api(libs.jackson.databind)
+  implementation(libs.jackson.jsr310)
   implementation(libs.jackson.core)
 
   implementation(libs.victools.jsonschema.generator)

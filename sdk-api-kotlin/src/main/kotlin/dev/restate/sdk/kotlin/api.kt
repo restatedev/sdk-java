@@ -29,7 +29,10 @@ import kotlin.coroutines.Continuation
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 import kotlin.coroutines.startCoroutine
 import kotlin.random.Random
+import kotlin.time.Clock
 import kotlin.time.Duration
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 import kotlinx.coroutines.currentCoroutineContext
 
 /**
@@ -211,6 +214,23 @@ sealed interface Context {
    * @return the [Random] instance.
    */
   fun random(): RestateRandom
+
+  /**
+   * Returns the current time as a deterministic [Instant].
+   *
+   * <p>This method returns the current timestamp in a way that is consistent across replays. The
+   * time is captured using [Context.runBlock], ensuring that the same value is returned during
+   * replay as was returned during the original execution.
+   *
+   * @return the recorded [Instant]
+   * @see Clock.System.now
+   */
+  @ExperimentalTime
+  suspend fun instantNow(): Instant {
+    return runBlock(name = "Clock.System.now()", typeTag = typeTag<Instant>()) {
+      Clock.System.now()
+    }
+  }
 }
 
 /**
@@ -796,6 +816,52 @@ suspend fun request(): HandlerRequest {
 suspend fun random(): RestateRandom {
   return context().random()
 }
+
+/**
+ * Get [RestateClock], that deterministically records the time.
+ *
+ * @see RestateClock.now
+ */
+@ExperimentalTime
+@org.jetbrains.annotations.ApiStatus.Experimental
+fun clock(): RestateClock {
+  return RestateClockImpl
+}
+
+@ExperimentalTime
+@org.jetbrains.annotations.ApiStatus.Experimental
+interface RestateClock {
+  /**
+   * Returns the current time as a deterministic [Instant].
+   *
+   * <p>This method returns the current timestamp in a way that is consistent across replays. The
+   * time is captured using [runBlock], ensuring that the same value is returned during replay as
+   * was returned during the original execution.
+   *
+   * @return the recorded [Instant]
+   * @throws IllegalStateException if called outside a Restate handler
+   * @see Clock.System.now
+   */
+  suspend fun now(): Instant
+}
+
+@ExperimentalTime
+@org.jetbrains.annotations.ApiStatus.Experimental
+private object RestateClockImpl : RestateClock {
+  override suspend fun now(): Instant {
+    return context().instantNow()
+  }
+}
+
+/**
+ * Get [RestateClock], that deterministically records the time.
+ *
+ * @see RestateClock.now
+ */
+@ExperimentalTime
+@get:org.jetbrains.annotations.ApiStatus.Experimental
+val Clock.Companion.Restate: RestateClock
+  get() = clock()
 
 /**
  * Causes the current execution of the function invocation to sleep for the given duration.

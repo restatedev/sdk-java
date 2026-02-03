@@ -13,7 +13,9 @@ import static dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
+import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
+import com.google.protobuf.ByteString;
 import dev.restate.sdk.common.RetryPolicy;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
@@ -42,6 +44,10 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
 
   protected abstract TestInvocationBuilder failingSideEffectWithRetryPolicy(
       String reason, RetryPolicy retryPolicy);
+
+  protected abstract TestInvocationBuilder instantNow();
+
+  protected abstract void assertIsInstant(ByteString bytes);
 
   @Override
   public Stream<TestDefinitions.TestDefinition> definitions() {
@@ -301,6 +307,26 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
             .onlyBidiStream()
             .assertingOutput(
                 actualOutputMessages ->
-                    assertThat(actualOutputMessages).element(2).isEqualTo(suspensionMessage(1))));
+                    assertThat(actualOutputMessages).element(2).isEqualTo(suspensionMessage(1))),
+        this.instantNow()
+            .withInput(startMessage(1), inputCmd())
+            .onlyBidiStream()
+            .assertingOutput(
+                msgs ->
+                    assertThat(msgs)
+                        .satisfiesExactly(
+                            msg ->
+                                assertThat(msg)
+                                    .asInstanceOf(type(Protocol.RunCommandMessage.class))
+                                    .returns(1, Protocol.RunCommandMessage::getResultCompletionId),
+                            msg ->
+                                assertThat(msg)
+                                    .asInstanceOf(type(Protocol.ProposeRunCompletionMessage.class))
+                                    .returns(
+                                        1,
+                                        Protocol.ProposeRunCompletionMessage::getResultCompletionId)
+                                    .extracting(Protocol.ProposeRunCompletionMessage::getValue)
+                                    .satisfies(this::assertIsInstant),
+                            msg -> assertThat(msg).isEqualTo(suspensionMessage(1)))));
   }
 }

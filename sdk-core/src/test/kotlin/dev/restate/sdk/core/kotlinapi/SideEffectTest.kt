@@ -8,6 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core.kotlinapi
 
+import com.google.protobuf.ByteString
+import dev.restate.common.Slice
+import dev.restate.sdk.Restate
 import dev.restate.sdk.common.RetryPolicy
 import dev.restate.sdk.core.SideEffectTestSuite
 import dev.restate.sdk.core.TestDefinitions
@@ -18,15 +21,19 @@ import dev.restate.sdk.endpoint.definition.HandlerType
 import dev.restate.sdk.endpoint.definition.ServiceDefinition
 import dev.restate.sdk.endpoint.definition.ServiceType
 import dev.restate.sdk.kotlin.*
-import dev.restate.sdk.kotlin.awaitAll
-import dev.restate.sdk.kotlin.runAsync
-import dev.restate.sdk.kotlin.runBlock
-import dev.restate.serde.kotlinx.*
+import dev.restate.serde.kotlinx.KotlinSerializationSerdeFactory
+import dev.restate.serde.kotlinx.jsonSerde
+import dev.restate.serde.kotlinx.typeTag
 import java.util.*
 import kotlin.coroutines.coroutineContext
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
+import kotlin.time.toJavaInstant
 import kotlin.time.toKotlinDuration
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
+import org.assertj.core.api.Assertions
 
 class SideEffectTest : SideEffectTestSuite() {
 
@@ -128,4 +135,17 @@ class SideEffectTest : SideEffectTestSuite() {
           throw IllegalStateException(reason)
         }
       }
+
+  @OptIn(ExperimentalTime::class)
+  override fun instantNow() =
+      testDefinitionForService<Unit, Instant>("InstantNow") { ctx, _: Unit -> Clock.Restate.now() }
+
+  @OptIn(ExperimentalTime::class)
+  override fun assertIsInstant(bytes: ByteString) {
+    val instant =
+        KotlinSerializationSerdeFactory()
+            .create(typeTag<Instant>())
+            .deserialize(Slice.wrap(bytes.asReadOnlyByteBuffer()))
+    Assertions.assertThat(instant.toJavaInstant()).isNotNull().isBefore(java.time.Instant.now())
+  }
 }
