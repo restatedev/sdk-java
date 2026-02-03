@@ -10,10 +10,6 @@ package dev.restate.common.reflection.kotlin
 
 import dev.restate.common.reflections.ProxySupport
 import dev.restate.common.reflections.ReflectionUtils
-import kotlin.coroutines.Continuation
-import kotlin.coroutines.EmptyCoroutineContext
-import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
-import kotlin.coroutines.startCoroutine
 
 /**
  * Captures method invocations on a proxy to extract invocation information.
@@ -37,35 +33,20 @@ class RequestCaptureProxy<SVC : Any>(private val clazz: Class<SVC>, private val 
    * @param block the suspend lambda that invokes a method on the service proxy
    * @return the captured invocation information
    */
-  fun capture(block: suspend SVC.() -> Any?): CapturedInvocation {
-    var capturedInvocation: CapturedInvocation? = null
-
+  suspend fun capture(block: suspend SVC.() -> Any?): CapturedInvocation {
     val proxy =
         ProxySupport.createProxy(clazz) { invocation ->
-          capturedInvocation = invocation.captureInvocation(serviceName, key)
-
-          // Return COROUTINE_SUSPENDED to prevent actual execution
-          COROUTINE_SUSPENDED
+          throw invocation.captureInvocation(serviceName, key)
         }
 
-    // Invoke the block with the proxy to capture the method call.
-    // Since the proxy returns COROUTINE_SUSPENDED, we use startCoroutine
-    // which starts but doesn't block waiting for completion.
-    val capturingContinuation =
-        object : Continuation<Any?> {
-          override val context = EmptyCoroutineContext
+    try {
+      proxy.block()
+    } catch (e: CapturedInvocation) {
+      return e
+    }
 
-          override fun resumeWith(result: Result<Any?>) {
-            // Do nothing - we're just capturing, the coroutine suspends immediately
-          }
-        }
-
-    val suspendBlock: suspend () -> Any? = { proxy.block() }
-    suspendBlock.startCoroutine(capturingContinuation)
-
-    return capturedInvocation
-        ?: error(
-            "Method invocation was not captured. Make sure to call ONLY a method of the service proxy."
-        )
+    error(
+        "Method invocation was not captured. Make sure to call ONLY a method of the service proxy."
+    )
   }
 }
