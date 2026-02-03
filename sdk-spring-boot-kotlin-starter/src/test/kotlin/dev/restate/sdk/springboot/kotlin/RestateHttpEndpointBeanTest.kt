@@ -10,6 +10,8 @@ package dev.restate.sdk.springboot.kotlin
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import dev.restate.sdk.core.generated.manifest.EndpointManifestSchema
+import dev.restate.sdk.springboot.RestateEndpointConfiguration
+import dev.restate.sdk.springboot.RestateHttpConfiguration
 import dev.restate.sdk.springboot.RestateHttpEndpointBean
 import java.io.IOException
 import java.net.URI
@@ -22,7 +24,8 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 
 @SpringBootTest(
-    classes = [RestateHttpEndpointBean::class, Greeter::class],
+    classes =
+        [RestateEndpointConfiguration::class, RestateHttpConfiguration::class, Greeter::class],
     properties = ["restate.sdk.http.port=0"],
 )
 class RestateHttpEndpointBeanTest {

@@ -8,12 +8,17 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.springboot.java;
 
-import dev.restate.sdk.springboot.RestateServiceConfigurator;
+import dev.restate.sdk.springboot.RestateComponentProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
-public class Configuration {
+@Configuration
+public class ServicesConfiguration {
+
   @Bean
-  public RestateServiceConfigurator greeterConfiguration() {
-    return configurator -> configurator.documentation("blabla");
+  public RestateComponentProperties greeterConfiguration() {
+    var properties = new RestateComponentProperties();
+    properties.setDocumentation("blabla");
+    return properties;
   }
 }
