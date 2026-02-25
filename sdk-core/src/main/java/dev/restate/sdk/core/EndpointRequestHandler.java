@@ -17,6 +17,7 @@ import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.endpoint.definition.HandlerDefinition;
 import dev.restate.sdk.endpoint.definition.ServiceDefinition;
+import dev.restate.sdk.upcasting.Upcaster;
 import io.opentelemetry.context.propagation.TextMapGetter;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -179,14 +180,18 @@ public final class EndpointRequestHandler {
       loggingContextSetter.set(LoggingContextSetter.INVOCATION_ID_KEY, invocationIdHeader);
     }
 
-    // Instantiate state machine
-    StateMachine stateMachine = StateMachine.init(headersAccessor, loggingContextSetter);
-
     // Resolve the service method definition
     ServiceDefinition svc = this.endpoint.resolveService(serviceName);
     if (svc == null) {
       throw ProtocolException.methodNotFound(serviceName, handlerName);
     }
+
+    // Instantiate state machine
+    Upcaster upcaster =
+        svc.getUpcasterFactory()
+            .newUpcaster(svc.getServiceName(), svc.getServiceType(), svc.getMetadata());
+    StateMachine stateMachine = StateMachine.init(headersAccessor, loggingContextSetter, upcaster);
+
     HandlerDefinition<?, ?> handler = svc.getHandler(handlerName);
     if (handler == null) {
       throw ProtocolException.methodNotFound(serviceName, handlerName);

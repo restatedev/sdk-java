@@ -18,7 +18,9 @@ import dev.restate.sdk.common.*;
 import dev.restate.sdk.core.EndpointRequestHandler;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
+import dev.restate.sdk.core.statemachine.upcasting.DefaultInvocationInputUpcaster;
 import dev.restate.sdk.endpoint.HeadersAccessor;
+import dev.restate.sdk.upcasting.Upcaster;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.time.Instant;
@@ -48,9 +50,13 @@ class StateMachineImpl implements StateMachine {
   // State machine context
   private final StateContext stateContext;
 
+  private final InvocationInputUpcaster upcaster;
+
   StateMachineImpl(
       HeadersAccessor headersAccessor,
-      EndpointRequestHandler.LoggingContextSetter loggingContextSetter) {
+      EndpointRequestHandler.LoggingContextSetter loggingContextSetter,
+      Upcaster upcaster) {
+    this.upcaster = new DefaultInvocationInputUpcaster(upcaster);
     String contentTypeHeader = headersAccessor.get(ServiceProtocol.CONTENT_TYPE);
 
     var serviceProtocolVersion = ServiceProtocol.parseServiceProtocolVersion(contentTypeHeader);
@@ -128,7 +134,7 @@ class StateMachineImpl implements StateMachine {
       this.messageDecoder.offer(slice);
 
       boolean shouldTriggerInputListener = this.messageDecoder.isNextAvailable();
-      InvocationInput invocationInput = this.messageDecoder.next();
+      InvocationInput invocationInput = upcaster.upcast(this.messageDecoder.next());
       while (invocationInput != null) {
         LOG.trace(
             "Received input message {} {}",
@@ -139,7 +145,7 @@ class StateMachineImpl implements StateMachine {
             .getCurrentState()
             .onNewMessage(invocationInput, this.stateContext, this.waitForReadyFuture);
 
-        invocationInput = this.messageDecoder.next();
+        invocationInput = upcaster.upcast(this.messageDecoder.next());
       }
 
       if (shouldTriggerInputListener) {
