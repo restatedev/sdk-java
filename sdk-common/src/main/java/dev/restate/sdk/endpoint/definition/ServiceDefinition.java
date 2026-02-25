@@ -163,6 +163,10 @@ public final class ServiceDefinition {
     return invocationRetryPolicy;
   }
 
+  /**
+   * @return Upcaster factory used for upcasting journal messages while applying them to the state machine
+   * @see Configurator#upcasterFactory
+   */
   public UpcasterFactory getUpcasterFactory() {
     return upcasterFactory;
   }
@@ -550,6 +554,16 @@ public final class ServiceDefinition {
       return this;
     }
 
+    /**
+     * Configure upcaster factory for this service. Upcaster factory is used to create a fresh upcaster for each
+     * invocation. The upcaster is then used to upcast (transform) journal messages. The upcaster is mostly used for
+     * transforming messages in older format to the newest format. Could also be used for transformations of Virtual
+     * Objects state.
+     *
+     * @return this
+     * @see UpcasterFactory
+     * @see Upcaster
+     */
     public Configurator configureUpcasterFactory(UpcasterFactory upcasterFactory) {
       this.upcasterFactory = upcasterFactory;
       return this;
