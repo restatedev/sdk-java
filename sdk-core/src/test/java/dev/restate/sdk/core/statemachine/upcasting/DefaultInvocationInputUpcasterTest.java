@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test;
  * Tests for {@link DefaultInvocationInputUpcaster}, ensuring payloads are upcast with proper
  * metadata propagation and that failures are handled gracefully.
  *
- * <p>Author: Milan Savic
+ * @author Milan Savic
  */
 class DefaultInvocationInputUpcasterTest {
 
