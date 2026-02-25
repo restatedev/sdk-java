@@ -8,6 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.endpoint.definition;
 
+import dev.restate.sdk.upcasting.Upcaster;
+import dev.restate.sdk.upcasting.UpcasterFactory;
 import java.time.Duration;
 import java.util.*;
 import java.util.function.Consumer;
@@ -30,6 +32,7 @@ public final class ServiceDefinition {
   private final @Nullable Boolean ingressPrivate;
   private final @Nullable Boolean enableLazyState;
   private final @Nullable InvocationRetryPolicy invocationRetryPolicy;
+  private final UpcasterFactory upcasterFactory;
 
   private ServiceDefinition(
       String serviceName,
@@ -43,7 +46,8 @@ public final class ServiceDefinition {
       @Nullable Duration journalRetention,
       @Nullable Boolean ingressPrivate,
       @Nullable Boolean enableLazyState,
-      @Nullable InvocationRetryPolicy invocationRetryPolicy) {
+      @Nullable InvocationRetryPolicy invocationRetryPolicy,
+      UpcasterFactory upcasterFactory) {
     this.serviceName = serviceName;
     this.serviceType = serviceType;
     this.handlers = handlers;
@@ -56,6 +60,7 @@ public final class ServiceDefinition {
     this.ingressPrivate = ingressPrivate;
     this.enableLazyState = enableLazyState;
     this.invocationRetryPolicy = invocationRetryPolicy;
+    this.upcasterFactory = upcasterFactory;
   }
 
   /**
@@ -158,6 +163,10 @@ public final class ServiceDefinition {
     return invocationRetryPolicy;
   }
 
+  public UpcasterFactory getUpcasterFactory() {
+    return upcasterFactory;
+  }
+
   public ServiceDefinition withDocumentation(@Nullable String documentation) {
     return new ServiceDefinition(
         serviceName,
@@ -171,7 +180,8 @@ public final class ServiceDefinition {
         journalRetention,
         ingressPrivate,
         enableLazyState,
-        invocationRetryPolicy);
+        invocationRetryPolicy,
+        upcasterFactory);
   }
 
   public ServiceDefinition withMetadata(Map<String, String> metadata) {
@@ -187,7 +197,8 @@ public final class ServiceDefinition {
         journalRetention,
         ingressPrivate,
         enableLazyState,
-        invocationRetryPolicy);
+        invocationRetryPolicy,
+        upcasterFactory);
   }
 
   /**
@@ -205,7 +216,8 @@ public final class ServiceDefinition {
             journalRetention,
             ingressPrivate,
             enableLazyState,
-            invocationRetryPolicy);
+            invocationRetryPolicy,
+            upcasterFactory);
     configurator.accept(configuratorObj);
     return new ServiceDefinition(
         serviceName,
@@ -219,7 +231,8 @@ public final class ServiceDefinition {
         configuratorObj.journalRetention,
         configuratorObj.ingressPrivate,
         configuratorObj.enableLazyState,
-        configuratorObj.invocationRetryPolicy);
+        configuratorObj.invocationRetryPolicy,
+        configuratorObj.upcasterFactory);
   }
 
   /** Configurator for a {@link ServiceDefinition}. */
@@ -235,6 +248,7 @@ public final class ServiceDefinition {
     private @Nullable Boolean ingressPrivate;
     private @Nullable Boolean enableLazyState;
     private @Nullable InvocationRetryPolicy invocationRetryPolicy;
+    private UpcasterFactory upcasterFactory;
 
     private Configurator(
         Map<String, HandlerDefinition<?, ?>> handlers,
@@ -246,7 +260,8 @@ public final class ServiceDefinition {
         @Nullable Duration journalRetention,
         @Nullable Boolean ingressPrivate,
         @Nullable Boolean enableLazyState,
-        @Nullable InvocationRetryPolicy invocationRetryPolicy) {
+        @Nullable InvocationRetryPolicy invocationRetryPolicy,
+        UpcasterFactory upcasterFactory) {
       this.handlers = new HashMap<>(handlers);
       this.documentation = documentation;
       this.metadata = new HashMap<>(metadata);
@@ -257,6 +272,7 @@ public final class ServiceDefinition {
       this.ingressPrivate = ingressPrivate;
       this.enableLazyState = enableLazyState;
       this.invocationRetryPolicy = invocationRetryPolicy;
+      this.upcasterFactory = upcasterFactory;
     }
 
     /**
@@ -533,6 +549,11 @@ public final class ServiceDefinition {
       handlers.computeIfPresent(handlerName, (k, v) -> v.configure(configurator));
       return this;
     }
+
+    public Configurator configureUpcasterFactory(UpcasterFactory upcasterFactory) {
+      this.upcasterFactory = upcasterFactory;
+      return this;
+    }
   }
 
   @Override
@@ -549,7 +570,8 @@ public final class ServiceDefinition {
         && Objects.equals(journalRetention, that.journalRetention)
         && Objects.equals(ingressPrivate, that.ingressPrivate)
         && Objects.equals(enableLazyState, that.enableLazyState)
-        && Objects.equals(invocationRetryPolicy, that.invocationRetryPolicy);
+        && Objects.equals(invocationRetryPolicy, that.invocationRetryPolicy)
+        && Objects.equals(upcasterFactory, that.upcasterFactory);
   }
 
   @Override
@@ -566,7 +588,8 @@ public final class ServiceDefinition {
         journalRetention,
         ingressPrivate,
         enableLazyState,
-        invocationRetryPolicy);
+        invocationRetryPolicy,
+        upcasterFactory);
   }
 
   public static ServiceDefinition of(
@@ -584,6 +607,7 @@ public final class ServiceDefinition {
         null,
         null,
         null,
-        null);
+        null,
+        (n, type, metadata) -> Upcaster.noop());
   }
 }

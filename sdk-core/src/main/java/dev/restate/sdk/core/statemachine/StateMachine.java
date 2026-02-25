@@ -13,6 +13,7 @@ import dev.restate.common.Target;
 import dev.restate.sdk.common.*;
 import dev.restate.sdk.core.EndpointRequestHandler;
 import dev.restate.sdk.endpoint.HeadersAccessor;
+import dev.restate.sdk.upcasting.Upcaster;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
@@ -30,8 +31,9 @@ public interface StateMachine extends Flow.Processor<Slice, Slice> {
 
   static StateMachine init(
       HeadersAccessor headersAccessor,
-      EndpointRequestHandler.LoggingContextSetter loggingContextSetter) {
-    return new StateMachineImpl(headersAccessor, loggingContextSetter);
+      EndpointRequestHandler.LoggingContextSetter loggingContextSetter,
+      Upcaster upcaster) {
+    return new StateMachineImpl(headersAccessor, loggingContextSetter, upcaster);
   }
 
   // --- Response metadata
