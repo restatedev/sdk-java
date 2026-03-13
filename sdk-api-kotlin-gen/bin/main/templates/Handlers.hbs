@@ -1,0 +1,29 @@
+{{#if originalClassPkg}}package {{originalClassPkg}}{{/if}}
+
+object {{generatedClassSimpleName}} {
+
+    {{#handlers}}
+        fun {{handlersClassMethodName}}({{#if ../isKeyed}}key: String, {{/if}}{{^inputEmpty}}req: {{{inputFqcn}}}, {{/inputEmpty}}init: dev.restate.common.RequestBuilder<{{{boxedInputFqcn}}}, {{{boxedOutputFqcn}}}>.() -> Unit = {}): {{#if isWorkflow}}dev.restate.common.WorkflowRequest{{else}}dev.restate.common.Request{{/if}}<{{{boxedInputFqcn}}}, {{{boxedOutputFqcn}}}> {
+        val builder = dev.restate.common.Request.of<{{{boxedInputFqcn}}}, {{{boxedOutputFqcn}}}>(
+            {{{targetExpr this "key"}}},
+            {{inputSerdeRef}},
+            {{outputSerdeRef}},
+            {{#if inputEmpty}}null{{else}}req{{/if}});
+        builder.init()
+        return builder.build() {{#if isWorkflow}} as dev.restate.common.WorkflowRequest{{/if}}
+    }
+
+    {{/handlers}}
+
+    object Metadata {
+        const val SERVICE_NAME: String = "{{restateServiceName}}"
+        val SERDE_FACTORY: dev.restate.serde.SerdeFactory = {{serdeFactoryDecl}}
+
+        object Serde {
+            {{#handlers}}
+            val {{inputSerdeFieldName}}: dev.restate.serde.Serde<{{{boxedInputFqcn}}}> = {{{inputSerdeDecl}}}
+            val {{outputSerdeFieldName}}: dev.restate.serde.Serde<{{{boxedOutputFqcn}}}> = {{{outputSerdeDecl}}}
+            {{/handlers}}
+        }
+    }
+}

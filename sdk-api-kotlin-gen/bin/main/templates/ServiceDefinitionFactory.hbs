@@ -1,0 +1,33 @@
+{{#if originalClassPkg}}package {{originalClassPkg}}{{/if}}
+
+class {{generatedClassSimpleName}}: dev.restate.sdk.endpoint.definition.ServiceDefinitionFactory<{{originalClassFqcn}}> {
+
+    override fun create(bindableService: {{originalClassFqcn}}, overrideHandlerOptions: dev.restate.sdk.endpoint.definition.HandlerRunner.Options?): dev.restate.sdk.endpoint.definition.ServiceDefinition {
+        val handlerRunnerOptions = if (overrideHandlerOptions != null) {
+            check(overrideHandlerOptions is dev.restate.sdk.kotlin.HandlerRunner.Options)
+            overrideHandlerOptions as dev.restate.sdk.kotlin.HandlerRunner.Options
+        } else {
+            dev.restate.sdk.kotlin.HandlerRunner.Options.DEFAULT
+        }
+
+        return dev.restate.sdk.endpoint.definition.ServiceDefinition.of(
+            {{metadataClass}}.SERVICE_NAME,
+            {{#if isObject}}dev.restate.sdk.endpoint.definition.ServiceType.VIRTUAL_OBJECT{{else if isWorkflow}}dev.restate.sdk.endpoint.definition.ServiceType.WORKFLOW{{else}}dev.restate.sdk.endpoint.definition.ServiceType.SERVICE{{/if}},
+            listOf(
+            {{#handlers}}
+                dev.restate.sdk.endpoint.definition.HandlerDefinition.of(
+                "{{restateName}}",
+                {{#if isExclusive}}dev.restate.sdk.endpoint.definition.HandlerType.EXCLUSIVE{{else if isWorkflow}}dev.restate.sdk.endpoint.definition.HandlerType.WORKFLOW{{else}}dev.restate.sdk.endpoint.definition.HandlerType.SHARED{{/if}},
+                {{inputSerdeRef}},
+                {{outputSerdeRef}},
+                dev.restate.sdk.kotlin.HandlerRunner.{{#if outputEmpty}}ofEmptyReturn{{else}}of{{/if}}({{serdeFactoryRef}}, handlerRunnerOptions, bindableService::{{name}})
+                ){{#if inputAcceptContentType}}.withAcceptContentType("{{inputAcceptContentType}}"){{/if}}{{#unless @last}},{{/unless}}
+            {{/handlers}}
+            )
+        )
+    }
+
+    override fun supports(serviceObject: Any?): Boolean {
+        return serviceObject is {{originalClassFqcn}};
+    }
+}
