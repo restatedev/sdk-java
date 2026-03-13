@@ -23,7 +23,11 @@ import dev.restate.common.reflections.ReflectionUtils
  * @property serviceName the resolved service name
  * @property key the virtual object/workflow key (null for stateless services)
  */
-class RequestCaptureProxy<SVC : Any>(private val clazz: Class<SVC>, private val key: String?) {
+class RequestCaptureProxy<SVC : Any>(
+    private val clazz: Class<SVC>,
+    private val key: String?,
+    private val scope: String? = null,
+) {
 
   private val serviceName: String = ReflectionUtils.extractServiceName(clazz)
 
@@ -36,7 +40,7 @@ class RequestCaptureProxy<SVC : Any>(private val clazz: Class<SVC>, private val 
   suspend fun capture(block: suspend SVC.() -> Any?): CapturedInvocation {
     val proxy =
         ProxySupport.createProxy(clazz) { invocation ->
-          throw invocation.captureInvocation(serviceName, key)
+          throw invocation.captureInvocation(serviceName, key, scope)
         }
 
     try {

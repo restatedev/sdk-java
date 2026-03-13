@@ -278,11 +278,14 @@ class StateMachineImpl implements StateMachine {
       Target target,
       Slice payload,
       @Nullable String idempotencyKey,
+      @Nullable String limitKey,
       @Nullable Collection<Map.Entry<String, String>> headers) {
     LOG.debug("Executing 'Call {}'", target);
     if (idempotencyKey != null && idempotencyKey.isBlank()) {
       throw ProtocolException.idempotencyKeyIsEmpty();
     }
+    verifyScopeFeatureSupport(target);
+    verifyLimitKeyFeatureSupport(limitKey);
 
     var invocationIdCompletionId = this.stateContext.getJournal().nextCompletionNotificationId();
     var callCompletionId = this.stateContext.getJournal().nextCompletionNotificationId();
@@ -297,8 +300,14 @@ class StateMachineImpl implements StateMachine {
     if (target.getKey() != null) {
       callCommandBuilder.setKey(target.getKey());
     }
+    if (target.getScope() != null) {
+      callCommandBuilder.setScope(target.getScope());
+    }
     if (idempotencyKey != null) {
       callCommandBuilder.setIdempotencyKey(idempotencyKey);
+    }
+    if (limitKey != null) {
+      callCommandBuilder.setLimitKey(limitKey);
     }
     if (headers != null) {
       for (var header : headers) {
@@ -327,6 +336,7 @@ class StateMachineImpl implements StateMachine {
       Target target,
       Slice payload,
       @Nullable String idempotencyKey,
+      @Nullable String limitKey,
       @Nullable Collection<Map.Entry<String, String>> headers,
       @Nullable Duration delay) {
     if (delay != null && !delay.isZero()) {
@@ -337,6 +347,8 @@ class StateMachineImpl implements StateMachine {
     if (idempotencyKey != null && idempotencyKey.isBlank()) {
       throw ProtocolException.idempotencyKeyIsEmpty();
     }
+    verifyScopeFeatureSupport(target);
+    verifyLimitKeyFeatureSupport(limitKey);
 
     var invocationIdCompletionId = this.stateContext.getJournal().nextCompletionNotificationId();
 
@@ -349,8 +361,14 @@ class StateMachineImpl implements StateMachine {
     if (target.getKey() != null) {
       sendCommandBuilder.setKey(target.getKey());
     }
+    if (target.getScope() != null) {
+      sendCommandBuilder.setScope(target.getScope());
+    }
     if (idempotencyKey != null) {
       sendCommandBuilder.setIdempotencyKey(idempotencyKey);
+    }
+    if (limitKey != null) {
+      sendCommandBuilder.setLimitKey(limitKey);
     }
     if (headers != null) {
       for (var header : headers) {
@@ -681,6 +699,28 @@ class StateMachineImpl implements StateMachine {
       throw ProtocolException.unsupportedFeature(
           "terminal error metadata",
           Protocol.ServiceProtocolVersion.V6,
+          stateContext.getNegotiatedProtocolVersion());
+    }
+  }
+
+  private void verifyLimitKeyFeatureSupport(@Nullable String limitKey) {
+    if (limitKey != null
+        && stateContext.getNegotiatedProtocolVersion().getNumber()
+            < Protocol.ServiceProtocolVersion.V7.getNumber()) {
+      throw ProtocolException.unsupportedFeature(
+          "limit key",
+          Protocol.ServiceProtocolVersion.V7,
+          stateContext.getNegotiatedProtocolVersion());
+    }
+  }
+
+  private void verifyScopeFeatureSupport(Target target) {
+    if (target.getScope() != null
+        && stateContext.getNegotiatedProtocolVersion().getNumber()
+            < Protocol.ServiceProtocolVersion.V7.getNumber()) {
+      throw ProtocolException.unsupportedFeature(
+          "invocation target scope",
+          Protocol.ServiceProtocolVersion.V7,
           stateContext.getNegotiatedProtocolVersion());
     }
   }

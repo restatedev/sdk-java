@@ -74,6 +74,11 @@ public interface Request<Req, Res> {
   @Nullable String getIdempotencyKey();
 
   /**
+   * @return the limit key
+   */
+  @Nullable String getLimitKey();
+
+  /**
    * @return the request headers
    */
   @Nullable Map<String, String> getHeaders();

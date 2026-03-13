@@ -61,16 +61,37 @@ public interface HandlerContext {
   record CallResult(
       AsyncResult<String> invocationIdAsyncResult, AsyncResult<Slice> callAsyncResult) {}
 
+  @Deprecated
+  default CompletableFuture<CallResult> call(
+      Target target,
+      Slice parameter,
+      @Nullable String idempotencyKey,
+      @Nullable Collection<Map.Entry<String, String>> headers) {
+    return call(target, parameter, idempotencyKey, null, headers);
+  }
+
   CompletableFuture<CallResult> call(
       Target target,
       Slice parameter,
       @Nullable String idempotencyKey,
+      @Nullable String limitKey,
       @Nullable Collection<Map.Entry<String, String>> headers);
+
+  @Deprecated
+  default CompletableFuture<AsyncResult<String>> send(
+      Target target,
+      Slice parameter,
+      @Nullable String idempotencyKey,
+      @Nullable Collection<Map.Entry<String, String>> headers,
+      @Nullable Duration delay) {
+    return send(target, parameter, idempotencyKey, null, headers, delay);
+  }
 
   CompletableFuture<AsyncResult<String>> send(
       Target target,
       Slice parameter,
       @Nullable String idempotencyKey,
+      @Nullable String limitKey,
       @Nullable Collection<Map.Entry<String, String>> headers,
       @Nullable Duration delay);
 

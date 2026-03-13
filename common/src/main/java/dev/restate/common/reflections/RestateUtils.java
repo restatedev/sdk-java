@@ -19,6 +19,7 @@ import org.jspecify.annotations.Nullable;
 
 public final class RestateUtils {
 
+  @Deprecated
   public static <Req, Res> Request<Req, Res> toRequest(
       String serviceName,
       @Nullable String key,
@@ -27,11 +28,23 @@ public final class RestateUtils {
       TypeTag<Res> resTypeTag,
       Req request,
       @Nullable InvocationOptions options) {
-    var builder =
-        Request.of(
-            Target.virtualObject(serviceName, key, handlerName), reqTypeTag, resTypeTag, request);
+    return toRequest(null, serviceName, key, handlerName, reqTypeTag, resTypeTag, request, options);
+  }
+
+  public static <Req, Res> Request<Req, Res> toRequest(
+      @Nullable String scope,
+      String serviceName,
+      @Nullable String key,
+      String handlerName,
+      TypeTag<Req> reqTypeTag,
+      TypeTag<Res> resTypeTag,
+      Req request,
+      @Nullable InvocationOptions options) {
+    Target target = Target.virtualObject(scope, serviceName, key, handlerName);
+    var builder = Request.of(target, reqTypeTag, resTypeTag, request);
     if (options != null) {
       builder.setIdempotencyKey(options.getIdempotencyKey());
+      builder.setLimitKey(options.getLimitKey());
       if (options.getHeaders() != null) {
         builder.setHeaders(options.getHeaders());
       }

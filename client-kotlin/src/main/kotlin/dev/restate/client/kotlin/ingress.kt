@@ -272,6 +272,84 @@ val <Res> SendResponse<Res>.sendStatus: SendResponse.SendStatus
   get() = this.sendStatus()
 
 /**
+ * Scope client communication, to send requests to services, virtual objects and workflows within a
+ * scope. Requires Restate >= 1.7.
+ *
+ * Example usage:
+ * ```kotlin
+ * val greeter = client.scope("my-scope").service<Greeter>()
+ * val response = greeter.greet("Alice")
+ * ```
+ *
+ * @param scopeKey the scope key to prepend to all invocation targets
+ * @return a scoped client
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+fun Client.scope(scopeKey: String): ScopedKotlinClient = ScopedKotlinClient(this, scopeKey)
+
+/**
+ * Scope client communication, to send requests to services, virtual objects and workflows within a
+ * scope. Requires Restate >= 1.7.
+ *
+ * Obtain an instance via [Client.scope].
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+class ScopedKotlinClient
+@PublishedApi
+internal constructor(
+    @PublishedApi internal val client: Client,
+    @PublishedApi internal val scopeKey: String,
+) {
+  /** @see Client.service */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  inline fun <reified SVC : Any> service(): SVC {
+    return service(client, SVC::class.java, scopeKey)
+  }
+
+  /** @see Client.virtualObject */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  inline fun <reified SVC : Any> virtualObject(key: String): SVC {
+    return virtualObject(client, SVC::class.java, key, scopeKey)
+  }
+
+  /** @see Client.workflow */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  inline fun <reified SVC : Any> workflow(key: String): SVC {
+    return workflow(client, SVC::class.java, key, scopeKey)
+  }
+
+  /** @see Client.toService */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  inline fun <reified SVC : Any> toService(): KClientRequestBuilder<SVC> {
+    ReflectionUtils.mustHaveServiceAnnotation(SVC::class.java)
+    require(ReflectionUtils.isKotlinClass(SVC::class.java)) {
+      "Using Java classes with Kotlin's API is not supported"
+    }
+    return KClientRequestBuilder(client, SVC::class.java, null, scopeKey)
+  }
+
+  /** @see Client.toVirtualObject */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  inline fun <reified SVC : Any> toVirtualObject(key: String): KClientRequestBuilder<SVC> {
+    ReflectionUtils.mustHaveVirtualObjectAnnotation(SVC::class.java)
+    require(ReflectionUtils.isKotlinClass(SVC::class.java)) {
+      "Using Java classes with Kotlin's API is not supported"
+    }
+    return KClientRequestBuilder(client, SVC::class.java, key, scopeKey)
+  }
+
+  /** @see Client.toWorkflow */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  inline fun <reified SVC : Any> toWorkflow(key: String): KClientRequestBuilder<SVC> {
+    ReflectionUtils.mustHaveWorkflowAnnotation(SVC::class.java)
+    require(ReflectionUtils.isKotlinClass(SVC::class.java)) {
+      "Using Java classes with Kotlin's API is not supported"
+    }
+    return KClientRequestBuilder(client, SVC::class.java, key, scopeKey)
+  }
+}
+
+/**
  * Create a proxy client for a Restate service.
  *
  * Example usage:
@@ -332,7 +410,7 @@ inline fun <reified SVC : Any> Client.workflow(key: String): SVC {
  * @return a proxy that intercepts method calls and executes them via the client
  */
 @PublishedApi
-internal fun <SVC : Any> service(client: Client, clazz: Class<SVC>): SVC {
+internal fun <SVC : Any> service(client: Client, clazz: Class<SVC>, scope: String? = null): SVC {
   ReflectionUtils.mustHaveServiceAnnotation(clazz)
   require(ReflectionUtils.isKotlinClass(clazz)) {
     "Using Java classes with Kotlin's API is not supported"
@@ -340,7 +418,7 @@ internal fun <SVC : Any> service(client: Client, clazz: Class<SVC>): SVC {
 
   val serviceName = ReflectionUtils.extractServiceName(clazz)
   return ProxySupport.createProxy(clazz) { invocation ->
-    val request = invocation.captureInvocation(serviceName, null).toRequest()
+    val request = invocation.captureInvocation(serviceName, null, scope).toRequest()
     @Suppress("UNCHECKED_CAST") val continuation = invocation.arguments.last() as Continuation<Any?>
 
     // Start a coroutine that calls the client and resumes the continuation
@@ -359,7 +437,12 @@ internal fun <SVC : Any> service(client: Client, clazz: Class<SVC>): SVC {
  * @return a proxy that intercepts method calls and executes them via the client
  */
 @PublishedApi
-internal fun <SVC : Any> virtualObject(client: Client, clazz: Class<SVC>, key: String): SVC {
+internal fun <SVC : Any> virtualObject(
+    client: Client,
+    clazz: Class<SVC>,
+    key: String,
+    scope: String? = null,
+): SVC {
   ReflectionUtils.mustHaveVirtualObjectAnnotation(clazz)
   require(ReflectionUtils.isKotlinClass(clazz)) {
     "Using Java classes with Kotlin's API is not supported"
@@ -367,7 +450,7 @@ internal fun <SVC : Any> virtualObject(client: Client, clazz: Class<SVC>, key: S
 
   val serviceName = ReflectionUtils.extractServiceName(clazz)
   return ProxySupport.createProxy(clazz) { invocation ->
-    val request = invocation.captureInvocation(serviceName, key).toRequest()
+    val request = invocation.captureInvocation(serviceName, key, scope).toRequest()
     @Suppress("UNCHECKED_CAST") val continuation = invocation.arguments.last() as Continuation<Any?>
 
     // Start a coroutine that calls the client and resumes the continuation
@@ -386,7 +469,12 @@ internal fun <SVC : Any> virtualObject(client: Client, clazz: Class<SVC>, key: S
  * @return a proxy that intercepts method calls and executes them via the client
  */
 @PublishedApi
-internal fun <SVC : Any> workflow(client: Client, clazz: Class<SVC>, key: String): SVC {
+internal fun <SVC : Any> workflow(
+    client: Client,
+    clazz: Class<SVC>,
+    key: String,
+    scope: String? = null,
+): SVC {
   ReflectionUtils.mustHaveWorkflowAnnotation(clazz)
   require(ReflectionUtils.isKotlinClass(clazz)) {
     "Using Java classes with Kotlin's API is not supported"
@@ -394,7 +482,7 @@ internal fun <SVC : Any> workflow(client: Client, clazz: Class<SVC>, key: String
 
   val serviceName = ReflectionUtils.extractServiceName(clazz)
   return ProxySupport.createProxy(clazz) { invocation ->
-    val request = invocation.captureInvocation(serviceName, key).toRequest()
+    val request = invocation.captureInvocation(serviceName, key, scope).toRequest()
     @Suppress("UNCHECKED_CAST") val continuation = invocation.arguments.last() as Continuation<Any?>
 
     // Start a coroutine that calls the client and resumes the continuation
@@ -418,6 +506,7 @@ internal constructor(
     private val client: Client,
     private val clazz: Class<SVC>,
     private val key: String?,
+    private val scope: String? = null,
 ) {
   /**
    * Create a request by invoking a method on the target.
@@ -432,7 +521,7 @@ internal constructor(
   suspend fun <Res> request(block: suspend SVC.() -> Res): KClientRequest<Any?, Res> {
     return KClientRequestImpl(
         client,
-        RequestCaptureProxy(clazz, key).capture(block as suspend SVC.() -> Any?).toRequest(),
+        RequestCaptureProxy(clazz, key, scope).capture(block as suspend SVC.() -> Any?).toRequest(),
     )
         as KClientRequest<Any?, Res>
   }

@@ -26,6 +26,17 @@ public interface RequestBuilder<Req, Res> extends Request<Req, Res> {
   RequestBuilder<Req, Res> setIdempotencyKey(@Nullable String idempotencyKey);
 
   /**
+   * @param limitKey Limit key to attach in the request.
+   * @return this instance, so the builder can be used fluently.
+   */
+  RequestBuilder<Req, Res> limitKey(@Nullable String limitKey);
+
+  /**
+   * @param limitKey Limit key to attach in the request.
+   */
+  RequestBuilder<Req, Res> setLimitKey(@Nullable String limitKey);
+
+  /**
    * Append this header to the list of configured headers.
    *
    * @param key header key
