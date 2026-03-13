@@ -456,7 +456,7 @@ public class ProtoUtils {
   }
 
   public static Protocol.Failure failure(int code, String message) {
-    return Util.toProtocolFailure(code, message);
+    return Util.toProtocolFailure(code, message, Map.of());
   }
 
   public static Protocol.Failure failure(Throwable throwable) {

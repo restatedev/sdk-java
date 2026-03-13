@@ -16,27 +16,48 @@ import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
 import java.nio.ByteBuffer;
 import java.time.Duration;
+import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 public class Util {
 
-  static Protocol.Failure toProtocolFailure(int code, String message) {
+  static Protocol.Failure toProtocolFailure(
+      int code, String message, Map<String, String> metadata) {
     Protocol.Failure.Builder builder = Protocol.Failure.newBuilder().setCode(code);
     if (message != null) {
       builder.setMessage(message);
+    }
+    if (metadata != null) {
+      for (Map.Entry<String, String> entry : metadata.entrySet()) {
+        builder.addMetadata(
+            Protocol.FailureMetadata.newBuilder()
+                .setKey(entry.getKey())
+                .setValue(entry.getValue()));
+      }
     }
     return builder.build();
   }
 
   static Protocol.Failure toProtocolFailure(Throwable throwable) {
     if (throwable instanceof TerminalException) {
-      return toProtocolFailure(((TerminalException) throwable).getCode(), throwable.getMessage());
+      return toProtocolFailure(
+          ((TerminalException) throwable).getCode(),
+          throwable.getMessage(),
+          ((TerminalException) throwable).getMetadata());
     }
-    return toProtocolFailure(TerminalException.INTERNAL_SERVER_ERROR_CODE, throwable.toString());
+    return toProtocolFailure(
+        TerminalException.INTERNAL_SERVER_ERROR_CODE, throwable.toString(), Map.of());
   }
 
   static TerminalException toRestateException(Protocol.Failure failure) {
-    return new TerminalException(failure.getCode(), failure.getMessage());
+    return new TerminalException(
+        failure.getCode(),
+        failure.getMessage(),
+        failure.getMetadataList().stream()
+            .collect(
+                Collectors.toMap(
+                    Protocol.FailureMetadata::getKey, Protocol.FailureMetadata::getValue)));
   }
 
   /** NOTE! This method rewinds the buffer!!! */

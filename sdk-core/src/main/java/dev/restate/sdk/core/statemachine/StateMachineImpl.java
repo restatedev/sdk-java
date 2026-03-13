@@ -411,6 +411,7 @@ class StateMachineImpl implements StateMachine {
   @Override
   public void completeAwakeable(String awakeableId, TerminalException exception) {
     LOG.debug("Executing 'Complete awakeable {} with failure'", awakeableId);
+    verifyErrorMetadataFeatureSupport(exception);
     completeAwakeable(awakeableId, builder -> builder.setFailure(toProtocolFailure(exception)));
   }
 
@@ -455,6 +456,7 @@ class StateMachineImpl implements StateMachine {
         "Executing 'Complete signal {} to invocation {} with failure'",
         signalName,
         targetInvocationId);
+    verifyErrorMetadataFeatureSupport(exception);
     this.completeSignal(
         targetInvocationId,
         signalName,
@@ -520,6 +522,7 @@ class StateMachineImpl implements StateMachine {
   @Override
   public int promiseComplete(String key, TerminalException exception) {
     LOG.debug("Executing 'Complete promise {} with failure'", key);
+    verifyErrorMetadataFeatureSupport(exception);
     return this.promiseComplete(
         key, builder -> builder.setCompletionFailure(toProtocolFailure(exception)));
   }
@@ -567,6 +570,9 @@ class StateMachineImpl implements StateMachine {
       Duration attemptDuration,
       @Nullable RetryPolicy retryPolicy) {
     LOG.debug("Executing 'Run completed with failure'");
+    if (exception instanceof TerminalException) {
+      verifyErrorMetadataFeatureSupport((TerminalException) exception);
+    }
     try {
       this.stateContext
           .getCurrentState()
@@ -639,6 +645,7 @@ class StateMachineImpl implements StateMachine {
   @Override
   public void writeOutput(TerminalException exception) {
     LOG.debug("Executing 'Write invocation output with failure'");
+    verifyErrorMetadataFeatureSupport(exception);
     this.stateContext
         .getCurrentState()
         .processNonCompletableCommand(
@@ -664,6 +671,17 @@ class StateMachineImpl implements StateMachine {
     if (this.inputSubscription != null) {
       this.inputSubscription.cancel();
       this.inputSubscription = null;
+    }
+  }
+
+  private void verifyErrorMetadataFeatureSupport(TerminalException exception) {
+    if (!exception.getMetadata().isEmpty()
+        && stateContext.getNegotiatedProtocolVersion().getNumber()
+            < Protocol.ServiceProtocolVersion.V6.getNumber()) {
+      throw ProtocolException.unsupportedFeature(
+          "terminal error metadata",
+          Protocol.ServiceProtocolVersion.V6,
+          stateContext.getNegotiatedProtocolVersion());
     }
   }
 }

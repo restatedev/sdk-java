@@ -10,6 +10,7 @@ package dev.restate.sdk.core;
 
 import com.google.protobuf.MessageLite;
 import dev.restate.sdk.common.TerminalException;
+import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.core.statemachine.NotificationId;
 
 public class ProtocolException extends RuntimeException {
@@ -20,6 +21,7 @@ public class ProtocolException extends RuntimeException {
   public static final int INTERNAL_CODE = 500;
   public static final int JOURNAL_MISMATCH_CODE = 570;
   static final int PROTOCOL_VIOLATION_CODE = 571;
+  static final int UNSUPPORTED_FEATURE = 573;
 
   private final int code;
 
@@ -128,5 +130,20 @@ public class ProtocolException extends RuntimeException {
 
   public static ProtocolException unauthorized(Throwable e) {
     return new ProtocolException("Unauthorized", UNAUTHORIZED_CODE, e);
+  }
+
+  public static ProtocolException unsupportedFeature(
+      String featureName,
+      Protocol.ServiceProtocolVersion requiredVersion,
+      Protocol.ServiceProtocolVersion negotiatedVersion) {
+    return new ProtocolException(
+        "Current service protocol version does not support "
+            + featureName
+            + ". "
+            + "Negotiated version: "
+            + negotiatedVersion.getNumber()
+            + ", minimum required: "
+            + requiredVersion.getNumber(),
+        UNSUPPORTED_FEATURE);
   }
 }
