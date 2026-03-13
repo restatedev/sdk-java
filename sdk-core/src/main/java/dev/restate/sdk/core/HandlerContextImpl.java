@@ -215,11 +215,12 @@ class HandlerContextImpl implements HandlerContextInternal {
       Target target,
       Slice parameter,
       @Nullable String idempotencyKey,
+      @Nullable String limitKey,
       @Nullable Collection<Map.Entry<String, String>> headers) {
     return catchExceptions(
         () -> {
           StateMachine.CallHandle callHandle =
-              this.stateMachine.call(target, parameter, idempotencyKey, headers);
+              this.stateMachine.call(target, parameter, idempotencyKey, limitKey, headers);
 
           AsyncResultInternal<String> invocationIdAsyncResult =
               AsyncResults.single(this, callHandle.invocationIdHandle(), invocationIdCompleter());
@@ -238,12 +239,13 @@ class HandlerContextImpl implements HandlerContextInternal {
       Target target,
       Slice parameter,
       @Nullable String idempotencyKey,
+      @Nullable String limitKey,
       @Nullable Collection<Map.Entry<String, String>> headers,
       @Nullable Duration delay) {
     return catchExceptions(
         () -> {
           int sendHandle =
-              this.stateMachine.send(target, parameter, idempotencyKey, headers, delay);
+              this.stateMachine.send(target, parameter, idempotencyKey, limitKey, headers, delay);
 
           return AsyncResults.single(this, sendHandle, invocationIdCompleter());
         });

@@ -532,6 +532,25 @@ public interface Client {
   }
 
   /**
+   * <b>EXPERIMENTAL API:</b> Scope client communication, to send requests to services, virtual
+   * objects and workflows within a scope. Requires Restate >= 1.7.
+   *
+   * <pre>{@code
+   * Client client = Client.connect("http://localhost:8080");
+   *
+   * var greeterProxy = client.scope("my-scope").service(Greeter.class);
+   * GreetingResponse output = greeterProxy.greet(new Greeting("Alice"));
+   * }</pre>
+   *
+   * @param scopeKey the scope key to prepend to all invocation targets
+   * @return a scoped client
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  default ScopedClient scope(String scopeKey) {
+    return new ScopedClient(this, scopeKey);
+  }
+
+  /**
    * <b>EXPERIMENTAL API:</b> Simple API to invoke a Restate service from the ingress.
    *
    * <p>Create a proxy client that allows calling service methods directly and synchronously,

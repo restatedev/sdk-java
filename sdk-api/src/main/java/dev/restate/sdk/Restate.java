@@ -81,6 +81,23 @@ import org.jspecify.annotations.NonNull;
 @org.jetbrains.annotations.ApiStatus.Experimental
 public final class Restate {
   /**
+   * <b>EXPERIMENTAL API:</b> Scope service-to-service communication, to send requests to services,
+   * virtual objects and workflows within a scope. Requires Restate >= 1.7.
+   *
+   * <pre>{@code
+   * var greeterProxy = Restate.scope("my-scope").service(Greeter.class);
+   * GreetingResponse response = greeterProxy.greet(new Greeting("Alice"));
+   * }</pre>
+   *
+   * @param scopeKey the scope key to prepend to all invocation targets
+   * @return a scoped entry point
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  public static Scope scope(String scopeKey) {
+    return new Scope(scopeKey);
+  }
+
+  /**
    * @see Context#request()
    */
   @org.jetbrains.annotations.ApiStatus.Experimental

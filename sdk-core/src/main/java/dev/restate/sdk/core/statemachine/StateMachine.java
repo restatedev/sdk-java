@@ -95,12 +95,14 @@ public interface StateMachine extends Flow.Processor<Slice, Slice> {
       Target target,
       Slice payload,
       @Nullable String idempotencyKey,
+      @Nullable String limitKey,
       @Nullable Collection<Map.Entry<String, String>> headers);
 
   int send(
       Target target,
       Slice payload,
       @Nullable String idempotencyKey,
+      @Nullable String limitKey,
       @Nullable Collection<Map.Entry<String, String>> headers,
       @Nullable Duration delay);
 

@@ -76,6 +76,7 @@ internal constructor(
                     request.getTarget(),
                     resolveAndSerialize<Req>(request.getRequestTypeTag(), request.getRequest()),
                     request.getIdempotencyKey(),
+                    request.getLimitKey(),
                     request.getHeaders()?.entries,
                 )
                 .await()
@@ -99,6 +100,7 @@ internal constructor(
                     request.getTarget(),
                     resolveAndSerialize<Req>(request.getRequestTypeTag(), request.getRequest()),
                     request.getIdempotencyKey(),
+                    request.getLimitKey(),
                     request.getHeaders()?.entries,
                     delay?.toJavaDuration(),
                 )
