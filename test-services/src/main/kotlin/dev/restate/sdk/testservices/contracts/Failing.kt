@@ -9,18 +9,21 @@
 package dev.restate.sdk.testservices.contracts
 
 import dev.restate.sdk.annotation.*
-import dev.restate.sdk.kotlin.*
+import kotlinx.serialization.Serializable
 
 @VirtualObject
 @Name("Failing")
 interface Failing {
-  @Handler suspend fun terminallyFailingCall(errorMessage: String)
+  @Serializable
+  data class FailureToPropagate(val errorMessage: String, val metadata: Map<String, String>? = null)
 
-  @Handler suspend fun callTerminallyFailingCall(errorMessage: String): String
+  @Handler suspend fun terminallyFailingCall(failureToPropagate: FailureToPropagate)
+
+  @Handler suspend fun callTerminallyFailingCall(failureToPropagate: FailureToPropagate): String
 
   @Handler suspend fun failingCallWithEventualSuccess(): Int
 
-  @Handler suspend fun terminallyFailingSideEffect(errorMessage: String)
+  @Handler suspend fun terminallyFailingSideEffect(failureToPropagate: FailureToPropagate)
 
   /**
    * `minimumAttempts` should be used to check when to succeed. The retry policy should be
