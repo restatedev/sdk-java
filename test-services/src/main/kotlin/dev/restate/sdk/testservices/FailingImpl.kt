@@ -25,18 +25,18 @@ class FailingImpl : Failing {
   private val eventualSuccessSideEffectCalls = AtomicInteger(0)
   private val eventualFailureSideEffectCalls = AtomicInteger(0)
 
-  override suspend fun terminallyFailingCall(errorMessage: String) {
+  override suspend fun terminallyFailingCall(failureToPropagate: Failing.FailureToPropagate) {
     LOG.info("Invoked fail")
 
-    throw TerminalException(errorMessage)
+    throw TerminalException(failureToPropagate.errorMessage, failureToPropagate.metadata)
   }
 
   override suspend fun callTerminallyFailingCall(
-      errorMessage: String,
+      failureToPropagate: Failing.FailureToPropagate,
   ): String {
     LOG.info("Invoked failAndHandle")
 
-    virtualObject<Failing>(random().nextUUID().toString()).terminallyFailingCall(errorMessage)
+    virtualObject<Failing>(random().nextUUID().toString()).terminallyFailingCall(failureToPropagate)
 
     throw IllegalStateException("This should be unreachable")
   }
@@ -52,8 +52,10 @@ class FailingImpl : Failing {
     }
   }
 
-  override suspend fun terminallyFailingSideEffect(errorMessage: String) {
-    runBlock<Unit> { throw TerminalException(errorMessage) }
+  override suspend fun terminallyFailingSideEffect(failureToPropagate: Failing.FailureToPropagate) {
+    runBlock<Unit> {
+      throw TerminalException(failureToPropagate.errorMessage, failureToPropagate.metadata)
+    }
 
     throw IllegalStateException("Should not be reached.")
   }
