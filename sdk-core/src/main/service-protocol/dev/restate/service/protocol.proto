@@ -36,6 +36,12 @@ enum ServiceProtocolVersion {
   // * StartMessage.random_seed
   // * Failure.metadata
   V6 = 6;
+  // Added:
+  // * CallCommandMessage.scope
+  // * OneWayCallCommandMessage.scope
+  // * CallCommandMessage.limit_key
+  // * OneWayCallCommandMessage.limit_key
+  V7 = 7;
 }
 
 // --- Core frames ---
@@ -419,6 +425,12 @@ message CallCommandMessage {
   // If present, it must be non empty.
   optional string idempotency_key = 6;
 
+  // Optional scope for the invocation target.
+  optional string scope = 7;
+
+  // Optional limit key for the invocation.
+  optional string limit_key = 8;
+
   uint32 invocation_id_notification_idx = 10;
   uint32 result_completion_id = 11;
   string name = 12;
@@ -470,6 +482,12 @@ message OneWayCallCommandMessage {
 
   // If present, it must be non empty.
   optional string idempotency_key = 7;
+
+  // Optional scope for the invocation target.
+  optional string scope = 8;
+
+  // Optional limit key for the invocation.
+  optional string limit_key = 9;
 
   uint32 invocation_id_notification_idx = 10;
   string name = 12;

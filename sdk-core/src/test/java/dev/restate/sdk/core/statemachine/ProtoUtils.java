@@ -247,6 +247,9 @@ public class ProtoUtils {
     if (target.getKey() != null) {
       builder.setKey(target.getKey());
     }
+    if (target.getScope() != null) {
+      builder.setScope(target.getScope());
+    }
     builder
         .setInvocationIdNotificationIdx(invocationIdCompletionId)
         .setResultCompletionId(resultCompletionId);
@@ -287,6 +290,9 @@ public class ProtoUtils {
             .setHandlerName(target.getHandler());
     if (target.getKey() != null) {
       builder.setKey(target.getKey());
+    }
+    if (target.getScope() != null) {
+      builder.setScope(target.getScope());
     }
     if (idempotencyKey != null) {
       builder.setIdempotencyKey(idempotencyKey);

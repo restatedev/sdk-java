@@ -138,7 +138,11 @@ class FakeHandlerContext implements HandlerContext {
 
   @Override
   public CompletableFuture<CallResult> call(
-      Target target, Slice slice, String s, Collection<Map.Entry<String, String>> collection) {
+      Target target,
+      Slice slice,
+      String s,
+      String limitKey,
+      Collection<Map.Entry<String, String>> collection) {
     throw new UnsupportedOperationException(
         "FakeHandlerContext doesn't currently support mocking this operation");
   }
@@ -148,6 +152,7 @@ class FakeHandlerContext implements HandlerContext {
       Target target,
       Slice slice,
       String s,
+      String limitKey,
       Collection<Map.Entry<String, String>> collection,
       Duration duration) {
     throw new UnsupportedOperationException(
