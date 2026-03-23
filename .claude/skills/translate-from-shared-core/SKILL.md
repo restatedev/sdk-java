@@ -130,7 +130,8 @@ These are structurally very similar between both codebases:
 | `src/vm/transitions/journal.rs` | Methods across `ReplayingState.java` and `ProcessingState.java` |
 | `src/vm/transitions/async_results.rs` | Methods in `ReplayingState.java`, `ProcessingState.java`, `AsyncResultsState.java` |
 | `src/vm/transitions/terminal.rs` | `hitError()`/`hitSuspended()` methods on `State` interface |
-| `src/vm/errors.rs` | `ProtocolException.java` |
+| `src/vm/errors.rs` | `ProtocolException.java` (factory methods, not separate error classes) |
+| `src/error.rs` (CommandMetadata, NotificationMetadata) | `CommandMetadata.java` (record); notification metadata is built as strings inline |
 | `src/service_protocol/` | `MessageDecoder.java`, `MessageEncoder.java`, `MessageType.java`, `ServiceProtocol.java` |
 
 ### Command processing patterns
@@ -164,6 +165,39 @@ VMTestCase::new()
 Java test inputs are built with `ProtoUtils` helpers (`startMessage()`, `inputCmd()`, `getLazyStateCmd()`, etc.) and assertions use `AssertUtils`.
 
 **Key implication**: When a Rust commit adds a new VM-level test, in Java you typically need to add a handler-level test in the appropriate test suite, not a direct state machine test.
+
+### Test translation details
+
+When translating Rust VM tests to Java:
+
+1. **Identify the right test suite**: Match the Rust test module to the Java abstract test suite:
+   - `src/tests/failures.rs` (journal_mismatch) → `StateMachineFailuresTestSuite`
+   - `src/tests/async_result.rs` → `AsyncResultTestSuite`
+   - `src/tests/run.rs` → `SideEffectTestSuite`
+   - `src/tests/state.rs` → `StateTestSuite` / `EagerStateTestSuite`
+
+2. **Add abstract method + test definition**: Add the abstract handler method to the suite, then add test definitions using `withInput(...)` and assertion patterns like `assertingOutput(containsOnly(errorMessage(...)))` or `expectingOutput(...)`.
+
+3. **Implement in both Java and Kotlin**: The suite is extended in both:
+   - `sdk-core/src/test/java/dev/restate/sdk/core/javaapi/<TestName>.java`
+   - `sdk-core/src/test/kotlin/dev/restate/sdk/core/kotlinapi/<TestName>.kt`
+
+4. **Kotlin API differences**:
+   - Must `import dev.restate.sdk.kotlin.*` for reified extension functions (`runAsync`, `runBlock`, etc.)
+   - `ctx.runAsync<String>(name) { ... }` (reified, not `ctx.runAsync(name, String.class, ...)`)
+   - `ctx.awakeable(TestSerdes.STRING)` (needs a serde, not `String::class.java`)
+   - `ctx.timer(0.milliseconds)` (uses Kotlin Duration)
+   - Handler factories: `testDefinitionForService<Unit, String?>("Name") { ctx, _: Unit -> ... }`
+
+5. **Cancel signal is always included**: The `HandlerContextImpl` automatically appends `CANCEL_HANDLE` (handle=1, mapping to `SignalId(1)`) to every `doProgress` call. This matches Rust's `CoreVM.do_progress` which appends `cancel_signal_handle`. So in test assertions, the cancel signal notification ID will always be part of the awaited notifications.
+
+6. **ProtoUtils helpers**: Use `startMessage(n)`, `inputCmd()`, `runCmd(completionId, name)`, `suspensionMessage(completionIds...)`, etc. For messages without helpers (e.g., `SleepCommandMessage`, `SleepCompletionNotificationMessage`), build them directly with the protobuf builders.
+
+### Shared utilities
+
+- `Util.awakeableIdStr(invocationId, signalId)` — computes the awakeable ID string from invocation ID and signal ID. Used in both `StateMachineImpl` (for creating awakeables) and `ReplayingState` (for error messages).
+- `StateMachineImpl.CANCEL_SIGNAL_ID` — the signal ID for the built-in cancel signal (value: 1). Package-private, available via static import.
+- Java 17 target — do NOT use switch pattern matching (`case Type t ->`) in Java source; use `instanceof` chains instead.
 
 ## Step 4: Apply the translation
 

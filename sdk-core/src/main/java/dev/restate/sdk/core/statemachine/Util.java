@@ -16,6 +16,7 @@ import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
 import java.nio.ByteBuffer;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -76,6 +77,17 @@ public class Util {
 
   static Duration durationMin(Duration a, Duration b) {
     return (a.compareTo(b) <= 0) ? a : b;
+  }
+
+  private static final String AWAKEABLE_IDENTIFIER_PREFIX = "sign_1";
+
+  static String awakeableIdStr(ByteString invocationId, int signalId) {
+    return AWAKEABLE_IDENTIFIER_PREFIX
+        + Base64.getUrlEncoder()
+            .encodeToString(
+                invocationId
+                    .concat(ByteString.copyFrom(ByteBuffer.allocate(4).putInt(signalId).flip()))
+                    .toByteArray());
   }
 
   /**

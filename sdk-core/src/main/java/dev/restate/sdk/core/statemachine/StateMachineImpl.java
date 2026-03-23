@@ -19,7 +19,6 @@ import dev.restate.sdk.core.EndpointRequestHandler;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.endpoint.HeadersAccessor;
-import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
@@ -34,8 +33,7 @@ import org.jspecify.annotations.Nullable;
 class StateMachineImpl implements StateMachine {
 
   private static final Logger LOG = LogManager.getLogger(StateMachineImpl.class);
-  private static final String AWAKEABLE_IDENTIFIER_PREFIX = "sign_1";
-  private static final int CANCEL_SIGNAL_ID = 1;
+  static final int CANCEL_SIGNAL_ID = 1;
 
   // Callbacks
   private final CompletableFuture<Void> waitForReadyFuture = new CompletableFuture<>();
@@ -385,15 +383,7 @@ class StateMachineImpl implements StateMachine {
             .createSignalHandle(new NotificationId.SignalId(signalId), this.stateContext);
 
     // Encode awakeable id
-    String awakeableId =
-        AWAKEABLE_IDENTIFIER_PREFIX
-            + Base64.getUrlEncoder()
-                .encodeToString(
-                    this.stateContext
-                        .getStartInfo()
-                        .id()
-                        .concat(ByteString.copyFrom(ByteBuffer.allocate(4).putInt(signalId).flip()))
-                        .toByteArray());
+    String awakeableId = Util.awakeableIdStr(this.stateContext.getStartInfo().id(), signalId);
 
     return new Awakeable(awakeableId, signalHandle);
   }
