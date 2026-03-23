@@ -21,7 +21,7 @@ concurrency:
 jobs:
   build-javadocs:
     name: Build Javadocs/KtDocs
-    runs-on: ubuntu-latest
+    runs-on: warp-ubuntu-latest-x64-4x
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -48,7 +48,7 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
+    runs-on: warp-ubuntu-latest-x64-4x
     needs: build-javadocs
     steps:
       - name: Deploy to GitHub Pages

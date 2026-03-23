@@ -10,7 +10,7 @@ on:
 jobs:
   build-and-test:
     name: Build and test (Java ${{ matrix.java }})
-    runs-on: ubuntu-latest
+    runs-on: warp-ubuntu-latest-x64-4x
     timeout-minutes: 10
     strategy:
       fail-fast: false
@@ -42,7 +42,7 @@ jobs:
 
   test-javadocs:
     name: Test Javadocs and dokka
-    runs-on: ubuntu-latest
+    runs-on: warp-ubuntu-latest-x64-4x
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -62,7 +62,7 @@ jobs:
 
   event_file:
     name: "Event File"
-    runs-on: ubuntu-latest
+    runs-on: warp-ubuntu-latest-x64-4x
     timeout-minutes: 10
     steps:
       - name: Upload
