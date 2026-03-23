@@ -52,6 +52,7 @@ public abstract class DurableFuture<T> {
    * @throws TerminalException if this future was completed with a failure
    */
   public final T await() throws TerminalException {
+    ContextImpl.checkNotInsideRun();
     return Util.awaitCompletableFuture(asyncResult().poll());
   }
 

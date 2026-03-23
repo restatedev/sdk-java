@@ -27,6 +27,7 @@ import dev.restate.serde.kotlinx.typeTag
 import java.util.*
 import kotlin.coroutines.coroutineContext
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 import kotlin.time.toJavaInstant
@@ -134,6 +135,19 @@ class SideEffectTest : SideEffectTestSuite() {
         ) {
           throw IllegalStateException(reason)
         }
+      }
+
+  override fun sideEffectGuard() =
+      testDefinitionForService<Unit, String>("SideEffectGuard") { ctx, _: Unit ->
+        ctx.runBlock { ctx.sleep(100.milliseconds) }
+        ""
+      }
+
+  override fun sideEffectGuardAwait() =
+      testDefinitionForService<Unit, String>("SideEffectGuardAwait") { ctx, _: Unit ->
+        val timer = ctx.timer(100.milliseconds)
+        ctx.runBlock { timer.await() }
+        ""
       }
 
   @OptIn(ExperimentalTime::class)

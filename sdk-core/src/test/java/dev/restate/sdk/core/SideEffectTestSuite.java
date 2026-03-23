@@ -45,6 +45,10 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
   protected abstract TestInvocationBuilder failingSideEffectWithRetryPolicy(
       String reason, RetryPolicy retryPolicy);
 
+  protected abstract TestInvocationBuilder sideEffectGuard();
+
+  protected abstract TestInvocationBuilder sideEffectGuardAwait();
+
   protected abstract TestInvocationBuilder instantNow();
 
   protected abstract void assertIsInstant(ByteString bytes);
@@ -327,6 +331,49 @@ public abstract class SideEffectTestSuite implements TestDefinitions.TestSuite {
                                         Protocol.ProposeRunCompletionMessage::getResultCompletionId)
                                     .extracting(Protocol.ProposeRunCompletionMessage::getValue)
                                     .satisfies(this::assertIsInstant),
-                            msg -> assertThat(msg).isEqualTo(suspensionMessage(1)))));
+                            msg -> assertThat(msg).isEqualTo(suspensionMessage(1)))),
+        this.sideEffectGuard()
+            .withInput(startMessage(1), inputCmd())
+            .assertingOutput(
+                msgs ->
+                    assertThat(msgs)
+                        .satisfiesExactly(
+                            msg -> assertThat(msg).isEqualTo(runCmd(1)),
+                            errorMessage(
+                                errorMessage ->
+                                    assertThat(errorMessage)
+                                        .returns(
+                                            TerminalException.INTERNAL_SERVER_ERROR_CODE,
+                                            Protocol.ErrorMessage::getCode)
+                                        .returns(1, Protocol.ErrorMessage::getRelatedCommandIndex)
+                                        .returns(
+                                            (int) MessageType.RunCommandMessage.encode(),
+                                            Protocol.ErrorMessage::getRelatedCommandType)
+                                        .extracting(Protocol.ErrorMessage::getMessage, STRING)
+                                        .contains(
+                                            "Cannot invoke context method inside ctx.run()"))))
+            .named("Side effect guard prevents context usage inside run"),
+        this.sideEffectGuardAwait()
+            .withInput(startMessage(1), inputCmd())
+            .assertingOutput(
+                msgs ->
+                    assertThat(msgs)
+                        .satisfiesExactly(
+                            msg -> assertThat(msg).isInstanceOf(Protocol.SleepCommandMessage.class),
+                            msg -> assertThat(msg).isEqualTo(runCmd(2)),
+                            errorMessage(
+                                errorMessage ->
+                                    assertThat(errorMessage)
+                                        .returns(
+                                            TerminalException.INTERNAL_SERVER_ERROR_CODE,
+                                            Protocol.ErrorMessage::getCode)
+                                        .returns(2, Protocol.ErrorMessage::getRelatedCommandIndex)
+                                        .returns(
+                                            (int) MessageType.RunCommandMessage.encode(),
+                                            Protocol.ErrorMessage::getRelatedCommandType)
+                                        .extracting(Protocol.ErrorMessage::getMessage, STRING)
+                                        .contains(
+                                            "Cannot invoke context method inside ctx.run()"))))
+            .named("Side effect guard prevents awaiting durable future inside run"));
   }
 }
