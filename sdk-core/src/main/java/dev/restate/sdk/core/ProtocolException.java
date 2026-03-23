@@ -114,6 +114,7 @@ public class ProtocolException extends RuntimeException {
         PROTOCOL_VIOLATION_CODE);
   }
 
+  @Deprecated
   static ProtocolException invalidSideEffectCall() {
     return new ProtocolException(
         "A syscall was invoked from within a side effect closure.",

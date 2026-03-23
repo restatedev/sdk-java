@@ -167,6 +167,31 @@ public class SideEffectTest extends SideEffectTestSuite {
   }
 
   @Override
+  protected TestInvocationBuilder sideEffectGuard() {
+    return testDefinitionForService(
+        "SideEffectGuard",
+        Serde.VOID,
+        TestSerdes.STRING,
+        (ctx, unused) -> {
+          ctx.run(() -> ctx.sleep(java.time.Duration.ofMillis(100)));
+          return null;
+        });
+  }
+
+  @Override
+  protected TestInvocationBuilder sideEffectGuardAwait() {
+    return testDefinitionForService(
+        "SideEffectGuardAwait",
+        Serde.VOID,
+        TestSerdes.STRING,
+        (ctx, unused) -> {
+          DurableFuture<Void> timer = ctx.timer("my-sleep", java.time.Duration.ofMillis(100));
+          ctx.run(() -> timer.await());
+          return null;
+        });
+  }
+
+  @Override
   protected TestInvocationBuilder instantNow() {
     return testDefinitionForService(
         "InstantNow",

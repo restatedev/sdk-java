@@ -14,6 +14,7 @@ import dev.restate.sdk.common.TerminalException
 import dev.restate.sdk.common.TimeoutException
 import dev.restate.sdk.endpoint.definition.AsyncResult
 import dev.restate.sdk.endpoint.definition.HandlerContext
+import dev.restate.sdk.kotlin.internal.InsideRunElement.Key.checkNotInsideRun
 import dev.restate.serde.Serde
 import dev.restate.serde.TypeTag
 import java.util.concurrent.CompletableFuture
@@ -32,6 +33,7 @@ internal abstract class BaseDurableFutureImpl<T : Any?> : DurableFuture<T> {
     get() = SelectClauseImpl(this)
 
   override suspend fun await(): T {
+    checkNotInsideRun()
     return asyncResult().poll().await()
   }
 
@@ -193,20 +195,25 @@ internal constructor(
     private val responseSerde: Serde<Res>,
 ) : InvocationHandle<Res> {
   override suspend fun cancel() {
+    checkNotInsideRun()
     val ignored = handlerContext.cancelInvocation(invocationId()).await()
   }
 
-  override suspend fun attach(): DurableFuture<Res> =
-      SingleDurableFutureImpl(
-          handlerContext.attachInvocation(invocationId()).await().map {
-            CompletableFuture.completedFuture<Res>(responseSerde.deserialize(it))
-          }
-      )
+  override suspend fun attach(): DurableFuture<Res> {
+    checkNotInsideRun()
+    return SingleDurableFutureImpl(
+        handlerContext.attachInvocation(invocationId()).await().map {
+          CompletableFuture.completedFuture<Res>(responseSerde.deserialize(it))
+        }
+    )
+  }
 
-  override suspend fun output(): Output<Res> =
-      SingleDurableFutureImpl(handlerContext.getInvocationOutput(invocationId()).await())
-          .simpleMap { it.map { responseSerde.deserialize(it) } }
-          .await()
+  override suspend fun output(): Output<Res> {
+    checkNotInsideRun()
+    return SingleDurableFutureImpl(handlerContext.getInvocationOutput(invocationId()).await())
+        .simpleMap { it.map { responseSerde.deserialize(it) } }
+        .await()
+  }
 }
 
 internal class AwakeableImpl<T : Any?>
@@ -218,13 +225,14 @@ internal constructor(asyncResult: AsyncResult<Slice>, serde: Serde<T>, override 
 
 internal class AwakeableHandleImpl(val contextImpl: ContextImpl, val id: String) : AwakeableHandle {
   override suspend fun <T : Any> resolve(typeTag: TypeTag<T>, payload: T) {
+    checkNotInsideRun()
     contextImpl.handlerContext
         .resolveAwakeable(id, contextImpl.resolveAndSerialize(typeTag, payload))
         .await()
   }
 
   override suspend fun reject(reason: String) {
-    return
+    checkNotInsideRun()
     contextImpl.handlerContext.rejectAwakeable(id, TerminalException(reason)).await()
   }
 }

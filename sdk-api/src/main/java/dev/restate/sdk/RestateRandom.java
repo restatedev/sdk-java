@@ -53,6 +53,7 @@ public class RestateRandom extends Random {
 
   @Override
   protected int next(int bits) {
+    ContextImpl.checkNotInsideRun();
     return super.next(bits);
   }
 }

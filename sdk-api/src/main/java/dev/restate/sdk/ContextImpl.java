@@ -31,6 +31,8 @@ import org.jspecify.annotations.Nullable;
 
 class ContextImpl implements ObjectContext, WorkflowContext {
 
+  private static final ThreadLocal<Boolean> INSIDE_RUN = new ThreadLocal<>();
+
   private final HandlerContext handlerContext;
   private final Executor serviceExecutor;
   private final SerdeFactory serdeFactory;
@@ -39,6 +41,15 @@ class ContextImpl implements ObjectContext, WorkflowContext {
     this.handlerContext = handlerContext;
     this.serviceExecutor = serviceExecutor;
     this.serdeFactory = serdeFactory;
+  }
+
+  static void checkNotInsideRun() {
+    if (Boolean.TRUE.equals(INSIDE_RUN.get())) {
+      throw new IllegalStateException(
+          "Cannot invoke context method inside ctx.run(). "
+              + "The run closure is meant for non-deterministic operations (e.g., HTTP calls, database reads). "
+              + "You MUST use context methods outside of ctx.run(), check the documentation: https://docs.restate.dev/develop/java/durable-steps#run");
+    }
   }
 
   @Override
@@ -53,6 +64,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
 
   @Override
   public <T> Optional<T> get(StateKey<T> key) {
+    checkNotInsideRun();
     return DurableFuture.fromAsyncResult(
             Util.awaitCompletableFuture(handlerContext.get(key.name())), serviceExecutor)
         .mapWithoutExecutor(opt -> opt.map(serdeFactory.create(key.serdeInfo())::deserialize))
@@ -61,22 +73,26 @@ class ContextImpl implements ObjectContext, WorkflowContext {
 
   @Override
   public Collection<String> stateKeys() {
+    checkNotInsideRun();
     return Util.awaitCompletableFuture(
         Util.awaitCompletableFuture(handlerContext.getKeys()).poll());
   }
 
   @Override
   public void clear(StateKey<?> key) {
+    checkNotInsideRun();
     Util.awaitCompletableFuture(handlerContext.clear(key.name()));
   }
 
   @Override
   public void clearAll() {
+    checkNotInsideRun();
     Util.awaitCompletableFuture(handlerContext.clearAll());
   }
 
   @Override
   public <T> void set(StateKey<T> key, @NonNull T value) {
+    checkNotInsideRun();
     Util.awaitCompletableFuture(
         handlerContext.set(
             key.name(),
@@ -86,12 +102,14 @@ class ContextImpl implements ObjectContext, WorkflowContext {
 
   @Override
   public DurableFuture<Void> timer(String name, Duration duration) {
+    checkNotInsideRun();
     return DurableFuture.fromAsyncResult(
         Util.awaitCompletableFuture(handlerContext.timer(duration, name)), serviceExecutor);
   }
 
   @Override
   public <T, R> CallDurableFuture<R> call(Request<T, R> request) {
+    checkNotInsideRun();
     Slice input =
         Util.executeOrFail(
             handlerContext,
@@ -121,6 +139,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
   @Override
   public <Req, Res> InvocationHandle<Res> send(
       Request<Req, Res> request, @Nullable Duration delay) {
+    checkNotInsideRun();
     Slice input =
         Util.executeOrFail(
             handlerContext,
@@ -152,6 +171,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
 
   @Override
   public <R> InvocationHandle<R> invocationHandle(String invocationId, TypeTag<R> responseTypeTag) {
+    checkNotInsideRun();
     return new BaseInvocationHandle<>(
         Util.executeOrFail(handlerContext, () -> serdeFactory.create(responseTypeTag))) {
       @Override
@@ -170,11 +190,13 @@ class ContextImpl implements ObjectContext, WorkflowContext {
 
     @Override
     public void cancel() {
+      checkNotInsideRun();
       Util.awaitCompletableFuture(handlerContext.cancelInvocation(invocationId()));
     }
 
     @Override
     public DurableFuture<R> attach() {
+      checkNotInsideRun();
       return DurableFuture.fromAsyncResult(
           Util.awaitCompletableFuture(handlerContext.attachInvocation(invocationId()))
               .map(s -> CompletableFuture.completedFuture(responseSerde.deserialize(s))),
@@ -183,6 +205,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
 
     @Override
     public Output<R> getOutput() {
+      checkNotInsideRun();
       return DurableFuture.fromAsyncResult(
               Util.awaitCompletableFuture(handlerContext.getInvocationOutput(invocationId()))
                   .map(o -> CompletableFuture.completedFuture(o.map(responseSerde::deserialize))),
@@ -194,6 +217,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
   @Override
   public <T> DurableFuture<T> runAsync(
       String name, TypeTag<T> typeTag, RetryPolicy retryPolicy, ThrowingSupplier<T> action) {
+    checkNotInsideRun();
     Serde<T> serde = serdeFactory.create(typeTag);
     return DurableFuture.fromAsyncResult(
             Util.awaitCompletableFuture(
@@ -203,12 +227,15 @@ class ContextImpl implements ObjectContext, WorkflowContext {
                         serviceExecutor.execute(
                             () -> {
                               Slice result;
+                              INSIDE_RUN.set(Boolean.TRUE);
                               try {
                                 result = serde.serialize(action.get());
                               } catch (Throwable e) {
+                                INSIDE_RUN.remove();
                                 runCompleter.proposeFailure(e, retryPolicy);
                                 return;
                               }
+                              INSIDE_RUN.remove();
                               runCompleter.proposeSuccess(result);
                             }))),
             serviceExecutor)
@@ -217,6 +244,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
 
   @Override
   public <T> Awakeable<T> awakeable(TypeTag<T> typeTag) throws TerminalException {
+    checkNotInsideRun();
     Serde<T> serde = serdeFactory.create(typeTag);
     // Retrieve the awakeable
     HandlerContext.Awakeable awakeable = Util.awaitCompletableFuture(handlerContext.awakeable());
@@ -228,6 +256,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
     return new AwakeableHandle() {
       @Override
       public <T> void resolve(TypeTag<T> serde, @NonNull T payload) {
+        checkNotInsideRun();
         Util.awaitCompletableFuture(
             handlerContext.resolveAwakeable(
                 id,
@@ -237,6 +266,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
 
       @Override
       public void reject(String reason) {
+        checkNotInsideRun();
         Util.awaitCompletableFuture(
             handlerContext.rejectAwakeable(id, new TerminalException(reason)));
       }
@@ -253,6 +283,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
     return new DurablePromise<>() {
       @Override
       public DurableFuture<T> future() {
+        checkNotInsideRun();
         AsyncResult<Slice> result = Util.awaitCompletableFuture(handlerContext.promise(key.name()));
         return DurableFuture.fromAsyncResult(result, serviceExecutor)
             .mapWithoutExecutor(serdeFactory.create(key.serdeInfo())::deserialize);
@@ -260,6 +291,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
 
       @Override
       public Output<T> peek() {
+        checkNotInsideRun();
         return Util.awaitCompletableFuture(
                 Util.awaitCompletableFuture(handlerContext.peekPromise(key.name())).poll())
             .map(serdeFactory.create(key.serdeInfo())::deserialize);
@@ -272,6 +304,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
     return new DurablePromiseHandle<>() {
       @Override
       public void resolve(T payload) throws IllegalStateException {
+        checkNotInsideRun();
         Util.awaitCompletableFuture(
             Util.awaitCompletableFuture(
                     handlerContext.resolvePromise(
@@ -285,6 +318,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
 
       @Override
       public void reject(String reason) throws IllegalStateException {
+        checkNotInsideRun();
         Util.awaitCompletableFuture(
             Util.awaitCompletableFuture(
                     handlerContext.rejectPromise(key.name(), new TerminalException(reason)))

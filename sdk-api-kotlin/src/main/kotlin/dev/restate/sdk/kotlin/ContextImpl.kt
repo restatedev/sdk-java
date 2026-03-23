@@ -16,6 +16,8 @@ import dev.restate.sdk.common.HandlerRequest
 import dev.restate.sdk.common.StateKey
 import dev.restate.sdk.common.TerminalException
 import dev.restate.sdk.endpoint.definition.HandlerContext
+import dev.restate.sdk.kotlin.internal.InsideRunElement
+import dev.restate.sdk.kotlin.internal.InsideRunElement.Key.checkNotInsideRun
 import dev.restate.serde.Serde
 import dev.restate.serde.SerdeFactory
 import dev.restate.serde.TypeTag
@@ -31,6 +33,7 @@ internal constructor(
     internal val handlerContext: HandlerContext,
     internal val contextSerdeFactory: SerdeFactory,
 ) : WorkflowContext {
+
   override fun key(): String {
     return this.handlerContext.objectKey()
   }
@@ -39,75 +42,89 @@ internal constructor(
     return this.handlerContext.request()
   }
 
-  override suspend fun <T : Any> get(key: StateKey<T>): T? =
-      resolveSerde<T?>(key.serdeInfo())
-          .let { serde ->
-            SingleDurableFutureImpl(handlerContext.get(key.name()).await()).simpleMap {
-              it.getOrNull()?.let { serde.deserialize(it) }
-            }
+  override suspend fun <T : Any> get(key: StateKey<T>): T? {
+    checkNotInsideRun()
+    return resolveSerde<T?>(key.serdeInfo())
+        .let { serde ->
+          SingleDurableFutureImpl(handlerContext.get(key.name()).await()).simpleMap {
+            it.getOrNull()?.let { serde.deserialize(it) }
           }
-          .await()
+        }
+        .await()
+  }
 
-  override suspend fun stateKeys(): Collection<String> =
-      SingleDurableFutureImpl(handlerContext.getKeys().await()).await()
+  override suspend fun stateKeys(): Collection<String> {
+    checkNotInsideRun()
+    return SingleDurableFutureImpl(handlerContext.getKeys().await()).await()
+  }
 
   override suspend fun <T : Any> set(key: StateKey<T>, value: T) {
+    checkNotInsideRun()
     handlerContext.set(key.name(), resolveAndSerialize(key.serdeInfo(), value)).await()
   }
 
   override suspend fun clear(key: StateKey<*>) {
+    checkNotInsideRun()
     handlerContext.clear(key.name()).await()
   }
 
   override suspend fun clearAll() {
+    checkNotInsideRun()
     handlerContext.clearAll().await()
   }
 
-  override suspend fun timer(duration: Duration, name: String?): DurableFuture<Unit> =
-      SingleDurableFutureImpl(handlerContext.timer(duration.toJavaDuration(), name).await()).map {}
+  override suspend fun timer(duration: Duration, name: String?): DurableFuture<Unit> {
+    checkNotInsideRun()
+    return SingleDurableFutureImpl(handlerContext.timer(duration.toJavaDuration(), name).await())
+        .map {}
+  }
 
   override suspend fun <Req : Any?, Res : Any?> call(
       request: Request<Req, Res>
-  ): CallDurableFuture<Res> =
-      resolveSerde<Res>(request.getResponseTypeTag()).let { responseSerde ->
-        val callHandle =
-            handlerContext
-                .call(
-                    request.getTarget(),
-                    resolveAndSerialize<Req>(request.getRequestTypeTag(), request.getRequest()),
-                    request.getIdempotencyKey(),
-                    request.getHeaders()?.entries,
-                )
-                .await()
+  ): CallDurableFuture<Res> {
+    checkNotInsideRun()
+    return resolveSerde<Res>(request.getResponseTypeTag()).let { responseSerde ->
+      val callHandle =
+          handlerContext
+              .call(
+                  request.getTarget(),
+                  resolveAndSerialize<Req>(request.getRequestTypeTag(), request.getRequest()),
+                  request.getIdempotencyKey(),
+                  request.getHeaders()?.entries,
+              )
+              .await()
 
-        val callAsyncResult =
-            callHandle.callAsyncResult.map {
-              CompletableFuture.completedFuture<Res>(responseSerde.deserialize(it))
-            }
+      val callAsyncResult =
+          callHandle.callAsyncResult.map {
+            CompletableFuture.completedFuture<Res>(responseSerde.deserialize(it))
+          }
 
-        return@let CallDurableFutureImpl(callAsyncResult, callHandle.invocationIdAsyncResult)
-      }
+      return@let CallDurableFutureImpl(callAsyncResult, callHandle.invocationIdAsyncResult)
+    }
+  }
 
   override suspend fun <Req : Any?, Res : Any?> send(
       request: Request<Req, Res>,
       delay: Duration?,
-  ): InvocationHandle<Res> =
-      resolveSerde<Res>(request.getResponseTypeTag()).let { responseSerde ->
-        val invocationIdAsyncResult =
-            handlerContext
-                .send(
-                    request.getTarget(),
-                    resolveAndSerialize<Req>(request.getRequestTypeTag(), request.getRequest()),
-                    request.getIdempotencyKey(),
-                    request.getHeaders()?.entries,
-                    delay?.toJavaDuration(),
-                )
-                .await()
+  ): InvocationHandle<Res> {
+    checkNotInsideRun()
+    return resolveSerde<Res>(request.getResponseTypeTag()).let { responseSerde ->
+      val invocationIdAsyncResult =
+          handlerContext
+              .send(
+                  request.getTarget(),
+                  resolveAndSerialize<Req>(request.getRequestTypeTag(), request.getRequest()),
+                  request.getIdempotencyKey(),
+                  request.getHeaders()?.entries,
+                  delay?.toJavaDuration(),
+              )
+              .await()
 
-        object : BaseInvocationHandle<Res>(handlerContext, responseSerde) {
-          override suspend fun invocationId(): String = invocationIdAsyncResult.poll().await()
-        }
+      object : BaseInvocationHandle<Res>(handlerContext, responseSerde) {
+        override suspend fun invocationId(): String = invocationIdAsyncResult.poll().await()
       }
+    }
+  }
 
   override fun <Res> invocationHandle(
       invocationId: String,
@@ -125,6 +142,7 @@ internal constructor(
       retryPolicy: RetryPolicy?,
       block: suspend () -> T,
   ): DurableFuture<T> {
+    checkNotInsideRun()
     val serde: Serde<T> = resolveSerde(typeTag)
     val coroutineCtx = currentCoroutineContext()
     val javaRetryPolicy =
@@ -138,7 +156,10 @@ internal constructor(
               .setMaxDuration(it.maxDuration?.toJavaDuration())
         }
 
-    val scope = CoroutineScope(coroutineCtx + CoroutineName("restate-run-$name"))
+    val scope =
+        CoroutineScope(
+            coroutineCtx + CoroutineName("restate-run-$name") + InsideRunElement.INSTANCE
+        )
 
     val asyncResult =
         handlerContext
@@ -159,6 +180,7 @@ internal constructor(
   }
 
   override suspend fun <T : Any> awakeable(typeTag: TypeTag<T>): Awakeable<T> {
+    checkNotInsideRun()
     val serde: Serde<T> = resolveSerde(typeTag)
     val awk = handlerContext.awakeable().await()
     return AwakeableImpl(awk.asyncResult, serde, awk.id)
@@ -184,15 +206,19 @@ internal constructor(
       DurablePromise<T> {
     val serde: Serde<T> = resolveSerde(key.serdeInfo())
 
-    override suspend fun future(): DurableFuture<T> =
-        SingleDurableFutureImpl(handlerContext.promise(key.name()).await()).simpleMap {
-          serde.deserialize(it)
-        }
+    override suspend fun future(): DurableFuture<T> {
+      checkNotInsideRun()
+      return SingleDurableFutureImpl(handlerContext.promise(key.name()).await()).simpleMap {
+        serde.deserialize(it)
+      }
+    }
 
-    override suspend fun peek(): Output<T> =
-        SingleDurableFutureImpl(handlerContext.peekPromise(key.name()).await())
-            .simpleMap { it.map { serde.deserialize(it) } }
-            .await()
+    override suspend fun peek(): Output<T> {
+      checkNotInsideRun()
+      return SingleDurableFutureImpl(handlerContext.peekPromise(key.name()).await())
+          .simpleMap { it.map { serde.deserialize(it) } }
+          .await()
+    }
   }
 
   inner class DurablePromiseHandleImpl<T : Any>(private val key: DurablePromiseKey<T>) :
@@ -200,6 +226,7 @@ internal constructor(
     val serde: Serde<T> = resolveSerde(key.serdeInfo())
 
     override suspend fun resolve(payload: T) {
+      checkNotInsideRun()
       SingleDurableFutureImpl(
               handlerContext
                   .resolvePromise(
@@ -212,6 +239,7 @@ internal constructor(
     }
 
     override suspend fun reject(reason: String) {
+      checkNotInsideRun()
       SingleDurableFutureImpl(
               handlerContext.rejectPromise(key.name(), TerminalException(reason)).await()
           )
