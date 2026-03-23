@@ -8,6 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core.javaapi;
 
+import static dev.restate.sdk.core.javaapi.JavaAPITests.testDefinitionForService;
 import static dev.restate.sdk.core.javaapi.JavaAPITests.testDefinitionForVirtualObject;
 
 import dev.restate.sdk.common.AbortedExecutionException;
@@ -18,6 +19,7 @@ import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import dev.restate.sdk.core.TestSerdes;
 import dev.restate.serde.Serde;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class StateMachineFailuresTest extends StateMachineFailuresTestSuite {
@@ -63,6 +65,45 @@ public class StateMachineFailuresTest extends StateMachineFailuresTestSuite {
         (ctx, unused) -> {
           ctx.run(serde, () -> 0);
           return "Francesco";
+        });
+  }
+
+  @Override
+  protected TestInvocationBuilder awaitRunAfterProgressWasMade() {
+    return testDefinitionForService(
+        "AwaitRunAfterProgressWasMade",
+        Serde.VOID,
+        TestSerdes.STRING,
+        (ctx, unused) -> {
+          var runFuture = ctx.runAsync("my-side-effect", String.class, () -> "result");
+          runFuture.await();
+          return null;
+        });
+  }
+
+  @Override
+  protected TestInvocationBuilder awaitSleepAfterProgressWasMade() {
+    return testDefinitionForService(
+        "AwaitSleepAfterProgressWasMade",
+        Serde.VOID,
+        TestSerdes.STRING,
+        (ctx, unused) -> {
+          var sleepFuture = ctx.timer(Duration.ZERO);
+          sleepFuture.await();
+          return null;
+        });
+  }
+
+  @Override
+  protected TestInvocationBuilder awaitAwakeableAfterProgressWasMade() {
+    return testDefinitionForService(
+        "AwaitAwakeableAfterProgressWasMade",
+        Serde.VOID,
+        TestSerdes.STRING,
+        (ctx, unused) -> {
+          var awakeable = ctx.awakeable(String.class);
+          awakeable.await();
+          return null;
         });
   }
 }

@@ -12,6 +12,7 @@ import static dev.restate.sdk.core.AssertUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
 
 import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.serde.Serde;
@@ -24,6 +25,12 @@ public abstract class StateMachineFailuresTestSuite implements TestDefinitions.T
   protected abstract TestInvocationBuilder getState(AtomicInteger nonTerminalExceptionsSeen);
 
   protected abstract TestInvocationBuilder sideEffectFailure(Serde<Integer> serde);
+
+  protected abstract TestInvocationBuilder awaitRunAfterProgressWasMade();
+
+  protected abstract TestInvocationBuilder awaitSleepAfterProgressWasMade();
+
+  protected abstract TestInvocationBuilder awaitAwakeableAfterProgressWasMade();
 
   private static final Serde<Integer> FAILING_SERIALIZATION_INTEGER_TYPE_TAG =
       Serde.using(
@@ -91,6 +98,72 @@ public abstract class StateMachineFailuresTestSuite implements TestDefinitions.T
             .assertingOutput(
                 containsOnly(
                     errorDescriptionStartingWith(IllegalStateException.class.getCanonicalName())))
-            .named("Serde deserialization error"));
+            .named("Serde deserialization error"),
+        // --- Uncompleted doProgress during replay (bad await) tests
+        this.awaitRunAfterProgressWasMade()
+            .withInput(
+                startMessage(4),
+                inputCmd(),
+                runCmd(1, "my-side-effect"),
+                Protocol.SleepCommandMessage.newBuilder().setResultCompletionId(2).build(),
+                Protocol.SleepCompletionNotificationMessage.newBuilder()
+                    .setCompletionId(2)
+                    .setVoid(Protocol.Void.getDefaultInstance())
+                    .build())
+            .assertingOutput(
+                containsOnly(
+                    errorMessage(
+                        errorMessage ->
+                            assertThat(errorMessage)
+                                .returns(
+                                    ProtocolException.JOURNAL_MISMATCH_CODE,
+                                    Protocol.ErrorMessage::getCode)
+                                .extracting(Protocol.ErrorMessage::getMessage, STRING)
+                                .contains("could not be replayed")
+                                .contains("await"))))
+            .named("Add await on run after progress was made"),
+        this.awaitSleepAfterProgressWasMade()
+            .withInput(
+                startMessage(4),
+                inputCmd(),
+                Protocol.SleepCommandMessage.newBuilder().setResultCompletionId(1).build(),
+                Protocol.SleepCommandMessage.newBuilder().setResultCompletionId(2).build(),
+                Protocol.SleepCompletionNotificationMessage.newBuilder()
+                    .setCompletionId(2)
+                    .setVoid(Protocol.Void.getDefaultInstance())
+                    .build())
+            .assertingOutput(
+                containsOnly(
+                    errorMessage(
+                        errorMessage ->
+                            assertThat(errorMessage)
+                                .returns(
+                                    ProtocolException.JOURNAL_MISMATCH_CODE,
+                                    Protocol.ErrorMessage::getCode)
+                                .extracting(Protocol.ErrorMessage::getMessage, STRING)
+                                .contains("could not be replayed")
+                                .contains("await"))))
+            .named("Add await on sleep after progress was made"),
+        this.awaitAwakeableAfterProgressWasMade()
+            .withInput(
+                startMessage(3),
+                inputCmd(),
+                Protocol.SleepCommandMessage.newBuilder().setResultCompletionId(2).build(),
+                Protocol.SleepCompletionNotificationMessage.newBuilder()
+                    .setCompletionId(2)
+                    .setVoid(Protocol.Void.getDefaultInstance())
+                    .build())
+            .assertingOutput(
+                containsOnly(
+                    errorMessage(
+                        errorMessage ->
+                            assertThat(errorMessage)
+                                .returns(
+                                    ProtocolException.JOURNAL_MISMATCH_CODE,
+                                    Protocol.ErrorMessage::getCode)
+                                .extracting(Protocol.ErrorMessage::getMessage, STRING)
+                                .contains("could not be replayed")
+                                .contains("await"))))
+            .named("Add await on awakeable after progress was made"));
   }
 }

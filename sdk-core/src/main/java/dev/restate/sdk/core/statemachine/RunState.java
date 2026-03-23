@@ -32,6 +32,10 @@ final class RunState {
     return null;
   }
 
+  public @Nullable Run getRunInfo(int handle) {
+    return runs.get(handle);
+  }
+
   public boolean anyExecuting(Collection<Integer> anyHandle) {
     return anyHandle.stream()
         .anyMatch(h -> runs.containsKey(h) && runs.get(h).state == RunStateInner.Executing);

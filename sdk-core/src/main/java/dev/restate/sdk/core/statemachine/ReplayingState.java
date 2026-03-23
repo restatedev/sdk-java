@@ -8,6 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core.statemachine;
 
+import static dev.restate.sdk.core.statemachine.StateMachineImpl.CANCEL_SIGNAL_ID;
 import static dev.restate.sdk.core.statemachine.Util.byteStringToSlice;
 
 import com.google.protobuf.ByteString;
@@ -19,12 +20,44 @@ import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.core.statemachine.StateMachine.DoProgressResponse;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 final class ReplayingState implements State {
 
   private static final Logger LOG = LogManager.getLogger(ReplayingState.class);
+
+  /**
+   * Comparator for notification IDs in error messages. Orders: completions first (by id), then
+   * named signals (by name), then signal IDs (by id, with cancel signal last).
+   */
+  private static final Comparator<NotificationId> NOTIFICATION_ID_COMPARATOR_FOR_JOURNAL_MISMATCH =
+      Comparator.<NotificationId>comparingInt(
+              id -> {
+                if (id instanceof NotificationId.CompletionId) return 0;
+                if (id instanceof NotificationId.SignalName) return 1;
+                return 2;
+              })
+          .thenComparing(
+              (a, b) -> {
+                if (a instanceof NotificationId.CompletionId ac
+                    && b instanceof NotificationId.CompletionId bc) {
+                  return Integer.compare(ac.id(), bc.id());
+                }
+                if (a instanceof NotificationId.SignalName an
+                    && b instanceof NotificationId.SignalName bn) {
+                  return an.name().compareTo(bn.name());
+                }
+                if (a instanceof NotificationId.SignalId as_
+                    && b instanceof NotificationId.SignalId bs) {
+                  boolean aIsCancel = as_.id() == CANCEL_SIGNAL_ID;
+                  boolean bIsCancel = bs.id() == CANCEL_SIGNAL_ID;
+                  if (aIsCancel != bIsCancel) return aIsCancel ? 1 : -1;
+                  return Integer.compare(as_.id(), bs.id());
+                }
+                return 0;
+              });
 
   private final Deque<MessageLite> commandsToProcess;
   private final AsyncResultsState asyncResultsState;
@@ -68,12 +101,65 @@ final class ReplayingState implements State {
       return DoProgressResponse.AnyCompleted.INSTANCE;
     }
 
-    if (stateContext.isInputClosed()) {
-      this.hitSuspended(notificationIds, stateContext);
-      ExceptionUtils.sneakyThrow(AbortedExecutionException.INSTANCE);
+    // This assertion proves the user mutated the code, adding an await point.
+    //
+    // During replay, we transition to processing AFTER replaying all COMMANDS.
+    // If we reach this point, none of the previous checks succeeded, meaning we don't have
+    // enough notifications to complete this await point. But if this await cannot be completed
+    // during replay, then no progress should have been made afterward, meaning there should be
+    // no more commands to replay. However, we ARE still replaying, which means there ARE commands
+    // to replay after this await point.
+    //
+    // This contradiction proves the code was mutated: an await must have been added after
+    // the journal was originally created.
+
+    // Prepare error metadata to make it easier to debug
+    Map<NotificationId, String> knownNotificationMetadata = new HashMap<>();
+    CommandRelationship relatedCommand = null;
+
+    // Collect run info
+    for (int handle : awaitingOn) {
+      RunState.Run runInfo = runState.getRunInfo(handle);
+      if (runInfo != null) {
+        var notifId = asyncResultsState.mustResolveNotificationHandle(handle);
+        knownNotificationMetadata.put(
+            notifId,
+            MessageType.RunCommandMessage.name()
+                + " '"
+                + runInfo.commandName()
+                + "' (command index "
+                + runInfo.commandIndex()
+                + ")");
+        relatedCommand =
+            new CommandRelationship.Specific(
+                runInfo.commandIndex(), CommandType.RUN, runInfo.commandName());
+      }
     }
 
-    return DoProgressResponse.ReadFromInput.INSTANCE;
+    // For awakeables and cancellation, add descriptions
+    for (var notifId : notificationIds) {
+      if (notifId instanceof NotificationId.SignalId signalId) {
+        if (signalId.id() == CANCEL_SIGNAL_ID) {
+          knownNotificationMetadata.put(notifId, "Cancellation");
+        } else if (signalId.id() > 16) {
+          knownNotificationMetadata.put(
+              notifId,
+              "Awakeable " + Util.awakeableIdStr(stateContext.getStartInfo().id(), signalId.id()));
+        }
+      }
+    }
+
+    this.hitError(
+        ProtocolException.uncompletedDoProgressDuringReplay(
+            notificationIds.stream()
+                .sorted(NOTIFICATION_ID_COMPARATOR_FOR_JOURNAL_MISMATCH)
+                .collect(Collectors.toList()),
+            knownNotificationMetadata),
+        relatedCommand,
+        null,
+        stateContext);
+    ExceptionUtils.sneakyThrow(AbortedExecutionException.INSTANCE);
+    return null; // unreachable
   }
 
   @Override

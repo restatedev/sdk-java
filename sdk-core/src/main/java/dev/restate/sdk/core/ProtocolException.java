@@ -12,6 +12,8 @@ import com.google.protobuf.MessageLite;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.core.statemachine.NotificationId;
+import java.util.List;
+import java.util.Map;
 
 public class ProtocolException extends RuntimeException {
 
@@ -131,6 +133,31 @@ public class ProtocolException extends RuntimeException {
 
   public static ProtocolException unauthorized(Throwable e) {
     return new ProtocolException("Unauthorized", UNAUTHORIZED_CODE, e);
+  }
+
+  public static ProtocolException uncompletedDoProgressDuringReplay(
+      List<NotificationId> sortedNotificationIds,
+      Map<NotificationId, String> notificationDescriptions) {
+    var sb = new StringBuilder();
+    sb.append(
+        "Found a mismatch between the code paths taken during the previous execution and the paths taken during this execution.\n");
+    sb.append(
+        "'Awaiting a future' could not be replayed. This usually means the code was mutated adding an 'await' without registering a new service revision.\n");
+    sb.append("Notifications awaited on this await point:");
+    for (var notificationId : sortedNotificationIds) {
+      sb.append("\n - ");
+      String description = notificationDescriptions.get(notificationId);
+      if (description != null) {
+        sb.append(description);
+      } else if (notificationId instanceof NotificationId.CompletionId completionId) {
+        sb.append("completion id ").append(completionId.id());
+      } else if (notificationId instanceof NotificationId.SignalId signalId) {
+        sb.append("signal [").append(signalId.id()).append("]");
+      } else if (notificationId instanceof NotificationId.SignalName signalName) {
+        sb.append("signal '").append(signalName.name()).append("'");
+      }
+    }
+    return new ProtocolException(sb.toString(), JOURNAL_MISMATCH_CODE);
   }
 
   public static ProtocolException unsupportedFeature(
