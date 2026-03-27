@@ -1,0 +1,43 @@
+// Copyright (c) 2023 - Restate Software, Inc., Restate GmbH
+//
+// This file is part of the Restate Java SDK,
+// which is released under the MIT license.
+//
+// You can find a copy of the license in file LICENSE in the root
+// directory of this repository or package, or at
+// https://github.com/restatedev/sdk-java/blob/main/LICENSE
+package dev.restate.sdk.testservices
+
+import dev.restate.sdk.common.DurablePromiseKey
+import dev.restate.sdk.common.StateKey
+import dev.restate.sdk.common.TerminalException
+import dev.restate.sdk.kotlin.*
+import dev.restate.sdk.testservices.contracts.BlockAndWaitWorkflow
+
+class BlockAndWaitWorkflowImpl : BlockAndWaitWorkflow {
+  companion object {
+    private val MY_DURABLE_PROMISE: DurablePromiseKey<String> = durablePromiseKey("durable-promise")
+    private val MY_STATE: StateKey<String> = stateKey("my-state")
+  }
+
+  override suspend fun run(input: String): String {
+    state().set(MY_STATE, input)
+
+    // Wait on unblock
+    val output: String = promise(MY_DURABLE_PROMISE).future().await()
+
+    if (!promise(MY_DURABLE_PROMISE).peek().isReady) {
+      throw TerminalException("Durable promise should be completed")
+    }
+
+    return output
+  }
+
+  override suspend fun unblock(output: String) {
+    promiseHandle(MY_DURABLE_PROMISE).resolve(output)
+  }
+
+  override suspend fun getState(): String? {
+    return state().get(MY_STATE)
+  }
+}
