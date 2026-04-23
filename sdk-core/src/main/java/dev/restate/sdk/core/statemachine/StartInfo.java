@@ -10,6 +10,7 @@ package dev.restate.sdk.core.statemachine;
 
 import com.google.protobuf.ByteString;
 import java.time.Duration;
+import org.jspecify.annotations.Nullable;
 
 record StartInfo(
     ByteString id,
@@ -18,4 +19,7 @@ record StartInfo(
     int entriesToReplay,
     int retryCountSinceLastStoredEntry,
     Duration durationSinceLastStoredEntry,
-    Long randomSeed) {}
+    Long randomSeed,
+    @Nullable String scope,
+    @Nullable String limitKey,
+    @Nullable String idempotencyKey) {}

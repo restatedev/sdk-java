@@ -13,6 +13,7 @@ import io.opentelemetry.context.Context;
 import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
 /** This class encapsulates the inputs to a handler. */
 public final class HandlerRequest {
@@ -20,13 +21,30 @@ public final class HandlerRequest {
   private final Context otelContext;
   private final Slice body;
   private final Map<String, String> headers;
+  private final @Nullable String scope;
+  private final @Nullable String limitKey;
+  private final @Nullable String idempotencyKey;
 
   public HandlerRequest(
-      InvocationId invocationId, Context otelContext, Slice body, Map<String, String> headers) {
+      InvocationId invocationId,
+      Context otelContext,
+      Slice body,
+      Map<String, String> headers,
+      @Nullable String scope,
+      @Nullable String limitKey,
+      @Nullable String idempotencyKey) {
     this.invocationId = invocationId;
     this.otelContext = otelContext;
     this.body = body;
     this.headers = headers;
+    this.scope = scope;
+    this.limitKey = limitKey;
+    this.idempotencyKey = idempotencyKey;
+  }
+
+  public HandlerRequest(
+      InvocationId invocationId, Context otelContext, Slice body, Map<String, String> headers) {
+    this(invocationId, otelContext, body, headers, null, null, null);
   }
 
   public InvocationId invocationId() {
@@ -53,6 +71,21 @@ public final class HandlerRequest {
     return headers;
   }
 
+  /** If this invocation was called within a scope, returns the scope. */
+  public @Nullable String scope() {
+    return scope;
+  }
+
+  /** If this invocation was called with a limit key, returns the limit key. */
+  public @Nullable String limitKey() {
+    return limitKey;
+  }
+
+  /** If this invocation was called with an idempotency key, returns the idempotency key. */
+  public @Nullable String idempotencyKey() {
+    return idempotencyKey;
+  }
+
   @Override
   public boolean equals(Object obj) {
     if (obj == this) return true;
@@ -61,12 +94,15 @@ public final class HandlerRequest {
     return Objects.equals(this.invocationId, that.invocationId)
         && Objects.equals(this.otelContext, that.otelContext)
         && Objects.equals(this.body, that.body)
-        && Objects.equals(this.headers, that.headers);
+        && Objects.equals(this.headers, that.headers)
+        && Objects.equals(this.scope, that.scope)
+        && Objects.equals(this.limitKey, that.limitKey)
+        && Objects.equals(this.idempotencyKey, that.idempotencyKey);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(invocationId, otelContext, body, headers);
+    return Objects.hash(invocationId, otelContext, body, headers, scope, limitKey, idempotencyKey);
   }
 
   @Override
@@ -83,6 +119,15 @@ public final class HandlerRequest {
         + ", "
         + "headers="
         + headers
+        + ", "
+        + "scope="
+        + scope
+        + ", "
+        + "limitKey="
+        + limitKey
+        + ", "
+        + "idempotencyKey="
+        + idempotencyKey
         + ']';
   }
 }

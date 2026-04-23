@@ -761,6 +761,12 @@ val HandlerRequest.bodyAsByteBuffer: ByteBuffer
   get() = this.bodyAsBodyBuffer()
 val HandlerRequest.headers: Map<String, String>
   get() = this.headers()
+val HandlerRequest.scope: String?
+  get() = this.scope()
+val HandlerRequest.limitKey: String?
+  get() = this.limitKey()
+val HandlerRequest.idempotencyKey: String?
+  get() = this.idempotencyKey()
 
 // =============================================================================
 // Free-floating API functions for the reflection-based API

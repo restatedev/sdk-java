@@ -57,7 +57,14 @@ class HandlerContextImpl implements HandlerContextInternal {
       Context otelContext,
       StateMachine.Input input) {
     this.handlerRequest =
-        new HandlerRequest(input.invocationId(), otelContext, input.body(), input.headers());
+        new HandlerRequest(
+            input.invocationId(),
+            otelContext,
+            input.body(),
+            input.headers(),
+            input.scope(),
+            input.limitKey(),
+            input.idempotencyKey());
     this.objectKey = input.key();
     this.stateMachine = stateMachine;
     this.fullyQualifiedHandlerName = fullyQualifiedHandlerName;

@@ -73,7 +73,13 @@ public interface StateMachine extends Flow.Processor<Slice, Slice> {
   // --- Commands. The int return value is the handle of the operation.
 
   record Input(
-      InvocationId invocationId, Slice body, Map<String, String> headers, @Nullable String key) {}
+      InvocationId invocationId,
+      Slice body,
+      Map<String, String> headers,
+      @Nullable String key,
+      @Nullable String scope,
+      @Nullable String limitKey,
+      @Nullable String idempotencyKey) {}
 
   @Nullable Input input();
 

@@ -46,7 +46,11 @@ final class WaitingStartState implements State {
             stateContext.getNegotiatedProtocolVersion().getNumber()
                     >= Protocol.ServiceProtocolVersion.V6_VALUE
                 ? startMessage.getRandomSeed()
-                : null));
+                : null,
+            // Scope, limit key and idempotency key are available since protocol V7
+            startMessage.hasScope() ? startMessage.getScope() : null,
+            startMessage.hasLimitKey() ? startMessage.getLimitKey() : null,
+            startMessage.hasIdempotencyKey() ? startMessage.getIdempotencyKey() : null));
     stateContext.setEagerState(new EagerState(startMessage));
 
     // Tracing and logging setup

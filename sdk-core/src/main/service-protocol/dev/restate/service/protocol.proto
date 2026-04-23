@@ -37,10 +37,9 @@ enum ServiceProtocolVersion {
   // * Failure.metadata
   V6 = 6;
   // Added:
-  // * CallCommandMessage.scope
-  // * OneWayCallCommandMessage.scope
-  // * CallCommandMessage.limit_key
-  // * OneWayCallCommandMessage.limit_key
+  // * CallCommandMessage.scope and CallCommandMessage.limit_key
+  // * OneWayCallCommandMessage.scope and OneWayCallCommandMessage.limit_key
+  // * StartMessage.scope, StartMessage.limit_key and StartMessage.idempotency_key
   V7 = 7;
 }
 
@@ -87,6 +86,15 @@ message StartMessage {
   // Random seed to use to seed the deterministic RNG exposed in the context API.
   // This will be stable across restarts.
   uint64 random_seed = 9;
+
+  // If this invocation was called within a scope, returns the scope
+  optional string scope = 10;
+
+  // If this invocation was called with a limit key, returns the limit key
+  optional string limit_key = 11;
+
+  // If this invocation was called with an idempotency key, returns the idempotency key
+  optional string idempotency_key = 12;
 }
 
 // Type: 0x0000 + 1
@@ -677,6 +685,7 @@ message IdempotentRequestTarget {
   optional string service_key = 2;
   string handler_name = 3;
   string idempotency_key = 4;
+  optional string scope = 5;
 }
 
 message Void {

@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.function.BiPredicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Expectation configuration for {@code FakeContext}.
@@ -36,6 +37,9 @@ public record ContextExpectations(
     long randomSeed,
     String invocationId,
     Map<String, String> requestHeaders,
+    @Nullable String scope,
+    @Nullable String limitKey,
+    @Nullable String idempotencyKey,
     Map<String, RunExpectation> runExpectations,
     BiPredicate<Duration, String> completeTimerIf,
     SerdeFactory serdeFactory) {
@@ -45,6 +49,9 @@ public record ContextExpectations(
         1,
         "inv_1aiqX0vFEFNH1Umgre58JiCLgHfTtztYK5",
         Map.of(),
+        null,
+        null,
+        null,
         Map.of(),
         (i1, i2) -> false,
         JacksonSerdeFactory.DEFAULT);
@@ -75,6 +82,9 @@ public record ContextExpectations(
         randomSeed,
         this.invocationId,
         this.requestHeaders,
+        this.scope,
+        this.limitKey,
+        this.idempotencyKey,
         this.runExpectations,
         this.completeTimerIf,
         this.serdeFactory);
@@ -90,6 +100,9 @@ public record ContextExpectations(
         this.randomSeed,
         invocationId,
         this.requestHeaders,
+        this.scope,
+        this.limitKey,
+        this.idempotencyKey,
         this.runExpectations,
         this.completeTimerIf,
         this.serdeFactory);
@@ -105,6 +118,63 @@ public record ContextExpectations(
         this.randomSeed,
         this.invocationId,
         requestHeaders,
+        this.scope,
+        this.limitKey,
+        this.idempotencyKey,
+        this.runExpectations,
+        this.completeTimerIf,
+        this.serdeFactory);
+  }
+
+  /**
+   * Set the scope returned by {@code ctx.request().scope()}.
+   *
+   * @param scope the scope to use
+   */
+  public ContextExpectations withScope(String scope) {
+    return new ContextExpectations(
+        this.randomSeed,
+        this.invocationId,
+        this.requestHeaders,
+        scope,
+        this.limitKey,
+        this.idempotencyKey,
+        this.runExpectations,
+        this.completeTimerIf,
+        this.serdeFactory);
+  }
+
+  /**
+   * Set the limit key returned by {@code ctx.request().limitKey()}.
+   *
+   * @param limitKey the limit key to use
+   */
+  public ContextExpectations withLimitKey(String limitKey) {
+    return new ContextExpectations(
+        this.randomSeed,
+        this.invocationId,
+        this.requestHeaders,
+        this.scope,
+        limitKey,
+        this.idempotencyKey,
+        this.runExpectations,
+        this.completeTimerIf,
+        this.serdeFactory);
+  }
+
+  /**
+   * Set the idempotency key returned by {@code ctx.request().idempotencyKey()}.
+   *
+   * @param idempotencyKey the idempotency key to use
+   */
+  public ContextExpectations withIdempotencyKey(String idempotencyKey) {
+    return new ContextExpectations(
+        this.randomSeed,
+        this.invocationId,
+        this.requestHeaders,
+        this.scope,
+        this.limitKey,
+        idempotencyKey,
         this.runExpectations,
         this.completeTimerIf,
         this.serdeFactory);
@@ -156,6 +226,9 @@ public record ContextExpectations(
         this.randomSeed,
         this.invocationId,
         requestHeaders,
+        this.scope,
+        this.limitKey,
+        this.idempotencyKey,
         this.runExpectations,
         (i1, i2) -> true,
         this.serdeFactory);
@@ -179,6 +252,9 @@ public record ContextExpectations(
         this.randomSeed,
         this.invocationId,
         requestHeaders,
+        this.scope,
+        this.limitKey,
+        this.idempotencyKey,
         Stream.concat(
                 this.runExpectations.entrySet().stream(),
                 Stream.of(Map.entry(runName, expectation)))
@@ -192,6 +268,9 @@ public record ContextExpectations(
         this.randomSeed,
         this.invocationId,
         requestHeaders,
+        this.scope,
+        this.limitKey,
+        this.idempotencyKey,
         this.runExpectations,
         (d, n) -> this.completeTimerIf.test(d, n) || completeTimerIf.test(d, n),
         this.serdeFactory);

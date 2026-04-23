@@ -108,7 +108,10 @@ final class ReplayingState implements State {
             inputCommandMessage.getHeadersList().stream()
                 .map(h -> Map.entry(h.getKey(), h.getValue()))
                 .toArray(Map.Entry[]::new)),
-        stateContext.getStartInfo().objectKey());
+        stateContext.getStartInfo().objectKey(),
+        stateContext.getStartInfo().scope(),
+        stateContext.getStartInfo().limitKey(),
+        stateContext.getStartInfo().idempotencyKey());
   }
 
   @Override

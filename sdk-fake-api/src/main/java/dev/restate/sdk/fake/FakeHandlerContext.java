@@ -63,7 +63,10 @@ class FakeHandlerContext implements HandlerContext {
         },
         Context.root(),
         Slice.EMPTY,
-        expectations.requestHeaders());
+        expectations.requestHeaders(),
+        expectations.scope(),
+        expectations.limitKey(),
+        expectations.idempotencyKey());
   }
 
   @Override
