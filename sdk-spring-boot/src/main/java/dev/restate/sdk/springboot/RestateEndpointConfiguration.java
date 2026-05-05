@@ -94,7 +94,9 @@ public class RestateEndpointConfiguration {
       var isKotlinClass = ReflectionUtils.isKotlinClass(restateServiceDefinitionClazz);
 
       var handlerOptions = javaRunnerOptions;
-      Consumer<ServiceDefinition.Configurator> configurator = conf -> {};
+      // Apply global defaults first, per-service config layered on top
+      Consumer<ServiceDefinition.Configurator> configurator =
+          conf -> configureServiceDefaults(conf, restateComponentsProperties);
 
       var componentProperties = restateComponentsProperties.getComponents().get(serviceName);
       if (componentProperties != null) {
@@ -108,7 +110,9 @@ public class RestateEndpointConfiguration {
           handlerOptions =
               createHandlerRunnerOptions(applicationContext, componentProperties.getExecutor());
         }
-        configurator = conf -> configureService(conf, componentProperties);
+        final var finalComponentProperties = componentProperties;
+        configurator =
+            combine(configurator, conf -> configureService(conf, finalComponentProperties));
       }
 
       // Check the configurator on the annotation as well
@@ -192,6 +196,40 @@ public class RestateEndpointConfiguration {
       for (var entry : properties.getHandlers().entrySet()) {
         configurator.configureHandler(entry.getKey(), hc -> configureHandler(hc, entry.getValue()));
       }
+    }
+  }
+
+  private static void configureServiceDefaults(
+      ServiceDefinition.Configurator configurator, RestateComponentsProperties properties) {
+    if (properties.getDocumentation() != null) {
+      configurator.documentation(properties.getDocumentation());
+    }
+    if (properties.getMetadata() != null) {
+      configurator.metadata(properties.getMetadata());
+    }
+    if (properties.getInactivityTimeout() != null) {
+      configurator.inactivityTimeout(properties.getInactivityTimeout());
+    }
+    if (properties.getAbortTimeout() != null) {
+      configurator.abortTimeout(properties.getAbortTimeout());
+    }
+    if (properties.getIdempotencyRetention() != null) {
+      configurator.idempotencyRetention(properties.getIdempotencyRetention());
+    }
+    if (properties.getWorkflowRetention() != null) {
+      configurator.workflowRetention(properties.getWorkflowRetention());
+    }
+    if (properties.getJournalRetention() != null) {
+      configurator.journalRetention(properties.getJournalRetention());
+    }
+    if (properties.getIngressPrivate() != null) {
+      configurator.ingressPrivate(properties.getIngressPrivate());
+    }
+    if (properties.getEnableLazyState() != null) {
+      configurator.enableLazyState(properties.getEnableLazyState());
+    }
+    if (properties.getRetryPolicy() != null) {
+      configurator.invocationRetryPolicy(convertRetryPolicy(properties.getRetryPolicy()));
     }
   }
 
