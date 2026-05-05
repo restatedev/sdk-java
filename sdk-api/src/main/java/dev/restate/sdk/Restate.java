@@ -19,7 +19,12 @@ import dev.restate.common.reflections.ReflectionUtils;
 import dev.restate.sdk.annotation.Service;
 import dev.restate.sdk.annotation.VirtualObject;
 import dev.restate.sdk.annotation.Workflow;
-import dev.restate.sdk.common.*;
+import dev.restate.sdk.common.AbortedExecutionException;
+import dev.restate.sdk.common.DurablePromiseKey;
+import dev.restate.sdk.common.HandlerRequest;
+import dev.restate.sdk.common.RetryPolicy;
+import dev.restate.sdk.common.StateKey;
+import dev.restate.sdk.common.TerminalException;
 import dev.restate.serde.Serde;
 import dev.restate.serde.TypeTag;
 import java.time.Duration;
@@ -27,6 +32,7 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.Optional;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class exposes the Restate functionalities to Restate services using the reflection-based
@@ -445,26 +451,29 @@ public final class Restate {
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <SVC> SVC service(Class<SVC> clazz) {
     ReflectionUtils.mustHaveServiceAnnotation(clazz);
-    String serviceName = ReflectionUtils.extractServiceName(clazz);
-    return ProxySupport.createProxy(
-        clazz,
-        invocation -> {
-          var methodInfo = MethodInfo.fromMethod(invocation.getMethod());
-
-          //noinspection unchecked
-          return Context.current()
-              .call(
-                  Request.of(
-                      Target.virtualObject(serviceName, null, methodInfo.getHandlerName()),
-                      (TypeTag<? super Object>) methodInfo.getInputType(),
-                      (TypeTag<? super Object>) methodInfo.getOutputType(),
-                      invocation.getArguments().length == 0 ? null : invocation.getArguments()[0]))
-              .await();
-        });
+    return service(clazz, ReflectionUtils.extractServiceName(clazz));
   }
 
   /**
-   * <b>EXPERIMENTAL API:</b> Advanced API to invoke a Restate service with full control.
+   * <b>EXPERIMENTAL API:</b> Simple API to invoke a Restate service.
+   *
+   * <p>Like {@link #service(Class)}, but specifying the service name.
+   *
+   * <p>Use this method when you want to use a common interface for multiple service
+   * implementations, where the service name is not known at compile time or is not defined in the
+   * interface.
+   *
+   * @param clazz the service class or interface
+   * @param serviceName the name of the service to invoke
+   * @return a proxy client to invoke the service
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  public static <SVC> SVC service(Class<SVC> clazz, String serviceName) {
+    return createProxy(clazz, serviceName, null);
+  }
+
+  /**
+   * Ok <b>EXPERIMENTAL API:</b> Advanced API to invoke a Restate service with full control.
    *
    * <p>Create a handle that provides advanced invocation capabilities including:
    *
@@ -496,7 +505,25 @@ public final class Restate {
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <SVC> ServiceHandle<SVC> serviceHandle(Class<SVC> clazz) {
     ReflectionUtils.mustHaveServiceAnnotation(clazz);
-    return new ServiceHandleImpl<>(clazz, null);
+    return serviceHandle(clazz, ReflectionUtils.extractServiceName(clazz));
+  }
+
+  /**
+   * <b>EXPERIMENTAL API:</b> Advanced API to invoke a Restate service with full control.
+   *
+   * <p>Like {@link #serviceHandle(Class)}, but specifying the service name.
+   *
+   * <p>Use this method when you want to use a common interface for multiple service
+   * implementations, where the service name is not known at compile time or is not defined in the
+   * interface.
+   *
+   * @param clazz the service class or interface
+   * @param serviceName the name of the service to invoke
+   * @return a handle to invoke the service with advanced options
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  public static <SVC> ServiceHandle<SVC> serviceHandle(Class<SVC> clazz, String serviceName) {
+    return new ServiceHandleImpl<>(clazz, serviceName, null);
   }
 
   /**
@@ -521,22 +548,7 @@ public final class Restate {
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <SVC> SVC virtualObject(Class<SVC> clazz, String key) {
     ReflectionUtils.mustHaveVirtualObjectAnnotation(clazz);
-    String serviceName = ReflectionUtils.extractServiceName(clazz);
-    return ProxySupport.createProxy(
-        clazz,
-        invocation -> {
-          var methodInfo = MethodInfo.fromMethod(invocation.getMethod());
-
-          //noinspection unchecked
-          return Context.current()
-              .call(
-                  Request.of(
-                      Target.virtualObject(serviceName, key, methodInfo.getHandlerName()),
-                      (TypeTag<? super Object>) methodInfo.getInputType(),
-                      (TypeTag<? super Object>) methodInfo.getOutputType(),
-                      invocation.getArguments().length == 0 ? null : invocation.getArguments()[0]))
-              .await();
-        });
+    return createProxy(clazz, ReflectionUtils.extractServiceName(clazz), key);
   }
 
   /**
@@ -598,22 +610,7 @@ public final class Restate {
   @org.jetbrains.annotations.ApiStatus.Experimental
   public static <SVC> SVC workflow(Class<SVC> clazz, String key) {
     ReflectionUtils.mustHaveWorkflowAnnotation(clazz);
-    String serviceName = ReflectionUtils.extractServiceName(clazz);
-    return ProxySupport.createProxy(
-        clazz,
-        invocation -> {
-          var methodInfo = MethodInfo.fromMethod(invocation.getMethod());
-
-          //noinspection unchecked
-          return Context.current()
-              .call(
-                  Request.of(
-                      Target.virtualObject(serviceName, key, methodInfo.getHandlerName()),
-                      (TypeTag<? super Object>) methodInfo.getInputType(),
-                      (TypeTag<? super Object>) methodInfo.getOutputType(),
-                      invocation.getArguments().length == 0 ? null : invocation.getArguments()[0]))
-              .await();
-        });
+    return createProxy(clazz, ReflectionUtils.extractServiceName(clazz), key);
   }
 
   /**
@@ -651,6 +648,24 @@ public final class Restate {
   public static <SVC> ServiceHandle<SVC> workflowHandle(Class<SVC> clazz, String key) {
     ReflectionUtils.mustHaveWorkflowAnnotation(clazz);
     return new ServiceHandleImpl<>(clazz, key);
+  }
+
+  private static <SVC> SVC createProxy(Class<SVC> clazz, String serviceName, @Nullable String key) {
+    return ProxySupport.createProxy(
+        clazz,
+        invocation -> {
+          var methodInfo = MethodInfo.fromMethod(invocation.getMethod());
+
+          //noinspection unchecked
+          return Context.current()
+              .call(
+                  Request.of(
+                      Target.virtualObject(serviceName, key, methodInfo.getHandlerName()),
+                      (TypeTag<? super Object>) methodInfo.getInputType(),
+                      (TypeTag<? super Object>) methodInfo.getOutputType(),
+                      invocation.getArguments().length == 0 ? null : invocation.getArguments()[0]))
+              .await();
+        });
   }
 
   /** <b>EXPERIMENTAL API:</b> Interface to interact with this Virtual Object/Workflow state. */
