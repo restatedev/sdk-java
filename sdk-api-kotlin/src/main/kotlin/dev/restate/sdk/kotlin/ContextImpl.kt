@@ -34,6 +34,9 @@ internal constructor(
     internal val contextSerdeFactory: SerdeFactory,
 ) : WorkflowContext {
 
+  internal val random: RestateRandom =
+      RestateRandom(handlerContext.request().invocationId().toRandomSeed())
+
   override fun key(): String {
     return this.handlerContext.objectKey()
   }
@@ -191,7 +194,7 @@ internal constructor(
   }
 
   override fun random(): RestateRandom {
-    return RestateRandom(handlerContext.request().invocationId().toRandomSeed())
+    return this.random
   }
 
   override fun <T : Any> promise(key: DurablePromiseKey<T>): DurablePromise<T> {

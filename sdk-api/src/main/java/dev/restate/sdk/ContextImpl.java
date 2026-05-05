@@ -36,11 +36,13 @@ class ContextImpl implements ObjectContext, WorkflowContext {
   private final HandlerContext handlerContext;
   private final Executor serviceExecutor;
   private final SerdeFactory serdeFactory;
+  private final RestateRandom random;
 
   ContextImpl(HandlerContext handlerContext, Executor serviceExecutor, SerdeFactory serdeFactory) {
     this.handlerContext = handlerContext;
     this.serviceExecutor = serviceExecutor;
     this.serdeFactory = serdeFactory;
+    this.random = new RestateRandom(this.request().invocationId().toRandomSeed());
   }
 
   static void checkNotInsideRun() {
@@ -275,7 +277,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
 
   @Override
   public RestateRandom random() {
-    return new RestateRandom(this.request().invocationId().toRandomSeed());
+    return this.random;
   }
 
   @Override
