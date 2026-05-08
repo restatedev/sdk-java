@@ -178,8 +178,13 @@ class StateMachineImpl implements StateMachine {
   }
 
   @Override
-  public DoProgressResponse doProgress(List<Integer> anyHandle) {
-    return this.stateContext.getCurrentState().doProgress(anyHandle, this.stateContext);
+  public StateMachine.AwaitResponse doAwait(UnresolvedFuture future) {
+    // Wrap with cancel signal for implicit cancellation support
+    var futureWithCancellation =
+        new UnresolvedFuture.FirstCompleted(
+            List.of(
+                future, new UnresolvedFuture.Single(AsyncResultsState.CANCEL_NOTIFICATION_HANDLE)));
+    return this.stateContext.getCurrentState().doAwait(futureWithCancellation, this.stateContext);
   }
 
   @Override

@@ -15,7 +15,6 @@ import dev.restate.sdk.core.EndpointRequestHandler;
 import dev.restate.sdk.endpoint.HeadersAccessor;
 import java.time.Duration;
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -48,23 +47,18 @@ public interface StateMachine extends Flow.Processor<Slice, Slice> {
 
   // --- Async results
 
-  sealed interface DoProgressResponse {
-    record AnyCompleted() implements DoProgressResponse {
+  sealed interface AwaitResponse {
+    record AnyCompleted() implements AwaitResponse {
       static AnyCompleted INSTANCE = new AnyCompleted();
     }
 
-    record ReadFromInput() implements DoProgressResponse {
-      static ReadFromInput INSTANCE = new ReadFromInput();
-    }
+    record WaitingExternalProgress(boolean waitingInput, boolean waitingRunProposal)
+        implements AwaitResponse {}
 
-    record ExecuteRun(int handle) implements DoProgressResponse {}
-
-    record WaitingPendingRun() implements DoProgressResponse {
-      static WaitingPendingRun INSTANCE = new WaitingPendingRun();
-    }
+    record ExecuteRun(int handle) implements AwaitResponse {}
   }
 
-  DoProgressResponse doProgress(List<Integer> anyHandle);
+  AwaitResponse doAwait(UnresolvedFuture future);
 
   boolean isCompleted(int handle);
 

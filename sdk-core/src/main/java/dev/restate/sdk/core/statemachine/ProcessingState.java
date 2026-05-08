@@ -20,9 +20,9 @@ import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.ExceptionUtils;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
-import dev.restate.sdk.core.statemachine.StateMachine.DoProgressResponse;
+import dev.restate.sdk.core.statemachine.AsyncResultsState.ResolveFutureResult;
+import dev.restate.sdk.core.statemachine.StateMachine.AwaitResponse;
 import java.time.Duration;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.logging.log4j.LogManager;
@@ -61,35 +61,43 @@ final class ProcessingState implements State {
   }
 
   @Override
-  public DoProgressResponse doProgress(List<Integer> awaitingOn, StateContext stateContext) {
-    if (awaitingOn.stream().anyMatch(this.asyncResultsState::isHandleCompleted)) {
-      return DoProgressResponse.AnyCompleted.INSTANCE;
+  public AwaitResponse doAwait(UnresolvedFuture future, StateContext stateContext) {
+    ResolveFutureResult resolveResult = asyncResultsState.tryResolveFuture(future);
+
+    if (resolveResult instanceof ResolveFutureResult.AnyCompleted) {
+      return AwaitResponse.AnyCompleted.INSTANCE;
     }
 
-    var notificationIds = asyncResultsState.resolveNotificationHandles(awaitingOn);
-    if (notificationIds.isEmpty()) {
-      return DoProgressResponse.AnyCompleted.INSTANCE;
-    }
+    var remaining = ((ResolveFutureResult.WaitExternalInput) resolveResult).remaining();
+    var awaitingOnHandles = remaining.handles();
 
-    if (asyncResultsState.processNextUntilAnyFound(notificationIds)) {
-      return DoProgressResponse.AnyCompleted.INSTANCE;
-    }
-
-    Integer maybeRunHandle = runState.tryExecuteRun(awaitingOn);
+    Integer maybeRunHandle = runState.tryExecuteRun(awaitingOnHandles);
     if (maybeRunHandle != null) {
-      return new DoProgressResponse.ExecuteRun(maybeRunHandle);
+      return new AwaitResponse.ExecuteRun(maybeRunHandle);
     }
+
+    boolean waitingRunProposal = runState.anyExecutingInThisSet(awaitingOnHandles);
 
     if (stateContext.isInputClosed()) {
-      if (runState.anyExecuting(awaitingOn)) {
-        return DoProgressResponse.WaitingPendingRun.INSTANCE;
+      if (waitingRunProposal) {
+        return new AwaitResponse.WaitingExternalProgress(false, true);
       }
-
-      this.hitSuspended(notificationIds, stateContext);
+      this.hitSuspended(remaining, asyncResultsState, stateContext);
       ExceptionUtils.sneakyThrow(AbortedExecutionException.INSTANCE);
     }
 
-    return DoProgressResponse.ReadFromInput.INSTANCE;
+    // Send AwaitingOnMessage if protocol version >= V7
+    if (stateContext.getNegotiatedProtocolVersion().getNumber()
+            >= Protocol.ServiceProtocolVersion.V7_VALUE
+        && !runState.anyExecuting()) {
+      stateContext.maybeWriteMessageOut(
+          Protocol.AwaitingOnMessage.newBuilder()
+              .setAwaitingOn(asyncResultsState.resolveUnresolvedFuture(remaining))
+              .setExecutingSideEffects(false)
+              .build());
+    }
+
+    return new AwaitResponse.WaitingExternalProgress(true, waitingRunProposal);
   }
 
   @Override

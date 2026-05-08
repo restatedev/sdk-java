@@ -19,6 +19,7 @@ public enum MessageType {
   ErrorMessage,
   EndMessage,
   ProposeRunCompletionMessage,
+  AwaitingOnMessage,
 
   InputCommandMessage,
   OutputCommandMessage,
@@ -58,6 +59,7 @@ public enum MessageType {
   public static final short ErrorMessage_TYPE = (short) 0x0002;
   public static final short EndMessage_TYPE = (short) 0x0003;
   public static final short ProposeRunCompletionMessage_TYPE = (short) 0x0005;
+  public static final short AwaitingOnMessage_TYPE = (short) 0x0006;
   public static final short InputCommandMessage_TYPE = (short) 0x0400;
   public static final short OutputCommandMessage_TYPE = (short) 0x0401;
   public static final short GetLazyStateCommandMessage_TYPE = (short) 0x0402;
@@ -98,6 +100,7 @@ public enum MessageType {
       case ErrorMessage -> Protocol.ErrorMessage.parser();
       case EndMessage -> Protocol.EndMessage.parser();
       case ProposeRunCompletionMessage -> Protocol.ProposeRunCompletionMessage.parser();
+      case AwaitingOnMessage -> Protocol.AwaitingOnMessage.parser();
       case InputCommandMessage -> Protocol.InputCommandMessage.parser();
       case OutputCommandMessage -> Protocol.OutputCommandMessage.parser();
       case GetLazyStateCommandMessage -> Protocol.GetLazyStateCommandMessage.parser();
@@ -141,6 +144,7 @@ public enum MessageType {
       case ErrorMessage -> ErrorMessage_TYPE;
       case EndMessage -> EndMessage_TYPE;
       case ProposeRunCompletionMessage -> ProposeRunCompletionMessage_TYPE;
+      case AwaitingOnMessage -> AwaitingOnMessage_TYPE;
       case InputCommandMessage -> InputCommandMessage_TYPE;
       case OutputCommandMessage -> OutputCommandMessage_TYPE;
       case GetLazyStateCommandMessage -> GetLazyStateCommandMessage_TYPE;
@@ -236,6 +240,7 @@ public enum MessageType {
       case ErrorMessage_TYPE -> ErrorMessage;
       case EndMessage_TYPE -> EndMessage;
       case ProposeRunCompletionMessage_TYPE -> ProposeRunCompletionMessage;
+      case AwaitingOnMessage_TYPE -> AwaitingOnMessage;
       case InputCommandMessage_TYPE -> InputCommandMessage;
       case OutputCommandMessage_TYPE -> OutputCommandMessage;
       case GetLazyStateCommandMessage_TYPE -> GetLazyStateCommandMessage;
@@ -290,6 +295,8 @@ public enum MessageType {
       return MessageType.EndMessage;
     } else if (msg instanceof Protocol.ProposeRunCompletionMessage) {
       return MessageType.ProposeRunCompletionMessage;
+    } else if (msg instanceof Protocol.AwaitingOnMessage) {
+      return MessageType.AwaitingOnMessage;
     } else if (msg instanceof Protocol.InputCommandMessage) {
       return MessageType.InputCommandMessage;
     } else if (msg instanceof Protocol.OutputCommandMessage) {

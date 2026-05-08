@@ -17,8 +17,6 @@ import dev.restate.sdk.core.generated.protocol.Protocol;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.time.Duration;
-import java.util.Collection;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.logging.log4j.LogManager;
@@ -41,8 +39,7 @@ sealed interface State
     throw ProtocolException.badState(this);
   }
 
-  default StateMachine.DoProgressResponse doProgress(
-      List<Integer> anyHandle, StateContext stateContext) {
+  default StateMachine.AwaitResponse doAwait(UnresolvedFuture future, StateContext stateContext) {
     throw ProtocolException.badState(this);
   }
 
@@ -162,25 +159,43 @@ sealed interface State
     stateContext.closeOutputSubscriber();
   }
 
-  default void hitSuspended(Collection<NotificationId> awaitingOn, StateContext stateContext) {
+  default void hitSuspended(
+      UnresolvedFuture awaitingOn, AsyncResultsState asyncResultsState, StateContext stateContext) {
     LOG.info("Invocation suspended");
     LOG.debug("Awaiting on {}", awaitingOn);
 
-    var suspensionMessageBuilder = Protocol.SuspensionMessage.newBuilder();
-    for (var notificationId : awaitingOn) {
-      if (notificationId instanceof NotificationId.CompletionId completionId) {
-        suspensionMessageBuilder.addWaitingCompletions(completionId.id());
-      } else if (notificationId instanceof NotificationId.SignalId signalId) {
-        suspensionMessageBuilder.addWaitingSignals(signalId.id());
-      } else if (notificationId instanceof NotificationId.SignalName signalName) {
-        suspensionMessageBuilder.addWaitingNamedSignals(signalName.name());
-      }
+    Protocol.SuspensionMessage suspensionMessage;
+    if (stateContext.getNegotiatedProtocolVersion().getNumber()
+        >= Protocol.ServiceProtocolVersion.V7_VALUE) {
+      var future = asyncResultsState.resolveUnresolvedFuture(awaitingOn);
+      suspensionMessage = Protocol.SuspensionMessage.newBuilder().setAwaitingOn(future).build();
+    } else {
+      // V6 format: flatten the future tree into the flat waiting_* lists
+      suspensionMessage = buildV6SuspensionMessage(awaitingOn, asyncResultsState);
     }
 
-    stateContext.maybeWriteMessageOut(suspensionMessageBuilder.build());
+    stateContext.maybeWriteMessageOut(suspensionMessage);
     stateContext.getStateHolder().transition(new ClosedState());
 
     stateContext.closeOutputSubscriber();
+  }
+
+  private static Protocol.SuspensionMessage buildV6SuspensionMessage(
+      UnresolvedFuture awaitingOn, AsyncResultsState asyncResultsState) {
+    var builder = Protocol.SuspensionMessage.newBuilder();
+    for (int handle : awaitingOn.handles()) {
+      var notifId = asyncResultsState.resolveNotificationHandles(java.util.List.of(handle));
+      for (var id : notifId) {
+        if (id instanceof NotificationId.CompletionId c) {
+          builder.addWaitingCompletions(c.id());
+        } else if (id instanceof NotificationId.SignalId s) {
+          builder.addWaitingSignals(s.id());
+        } else if (id instanceof NotificationId.SignalName n) {
+          builder.addWaitingNamedSignals(n.name());
+        }
+      }
+    }
+    return builder.build();
   }
 
   default void end(StateContext stateContext) {

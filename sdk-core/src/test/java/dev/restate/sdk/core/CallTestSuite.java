@@ -61,7 +61,9 @@ public abstract class CallTestSuite implements TestSuite {
                 callCmd(1, 2, GREETER_SERVICE_TARGET, BODY.toByteArray()),
                 CANCELLATION_SIGNAL)
             .onlyBidiStream()
-            .expectingOutput(Protocol.SuspensionMessage.newBuilder().addWaitingCompletions(1))
+            // Cancel handle was consumed before suspension, so no waiting_signals here
+            .expectingOutput(
+                Protocol.SuspensionMessage.newBuilder().addWaitingCompletions(1).build())
             .named("Suspends on waiting the invocation id"),
         implicitCancellation(GREETER_SERVICE_TARGET, BODY)
             .withInput(

@@ -36,9 +36,13 @@ final class RunState {
     return runs.get(handle);
   }
 
-  public boolean anyExecuting(Collection<Integer> anyHandle) {
+  public boolean anyExecutingInThisSet(Collection<Integer> anyHandle) {
     return anyHandle.stream()
         .anyMatch(h -> runs.containsKey(h) && runs.get(h).state == RunStateInner.Executing);
+  }
+
+  public boolean anyExecuting() {
+    return runs.values().stream().anyMatch(r -> r.state == RunStateInner.Executing);
   }
 
   /**

@@ -18,6 +18,7 @@ import dev.restate.sdk.core.AsyncResults.AsyncResultInternal;
 import dev.restate.sdk.core.statemachine.InvocationState;
 import dev.restate.sdk.core.statemachine.NotificationValue;
 import dev.restate.sdk.core.statemachine.StateMachine;
+import dev.restate.sdk.core.statemachine.UnresolvedFuture;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
 import dev.restate.sdk.endpoint.definition.HandlerType;
 import dev.restate.sdk.endpoint.definition.ServiceType;
@@ -28,7 +29,6 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
-import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
@@ -422,33 +422,39 @@ class HandlerContextImpl implements HandlerContextInternal {
       asyncResult.tryComplete(this.stateMachine);
 
       // Now let's take the unprocessed leaves
-      List<Integer> uncompletedLeaves =
-          Stream.concat(asyncResult.uncompletedLeaves(), Stream.of(CANCEL_HANDLE)).toList();
-      if (uncompletedLeaves.size() == 1) {
+      List<Integer> uncompletedLeaves = asyncResult.uncompletedLeaves().toList();
+      if (uncompletedLeaves.isEmpty()) {
         // Nothing else to do!
         return;
       }
 
+      // Build the UnresolvedFuture from the leaf handles
+      UnresolvedFuture future =
+          uncompletedLeaves.size() == 1
+              ? new UnresolvedFuture.Single(uncompletedLeaves.get(0))
+              : new UnresolvedFuture.FirstCompleted(
+                  uncompletedLeaves.stream()
+                      .map(h -> (UnresolvedFuture) new UnresolvedFuture.Single(h))
+                      .toList());
+
       // Not ready yet, let's try to do some progress
-      StateMachine.DoProgressResponse response;
+      StateMachine.AwaitResponse response;
       try {
-        response = this.stateMachine.doProgress(uncompletedLeaves);
+        response = this.stateMachine.doAwait(future);
       } catch (Throwable e) {
         this.failWithoutContextSwitch(e);
         asyncResult.publicFuture().completeExceptionally(AbortedExecutionException.INSTANCE);
         return;
       }
 
-      if (response instanceof StateMachine.DoProgressResponse.AnyCompleted) {
+      if (response instanceof StateMachine.AwaitResponse.AnyCompleted) {
         // Let it loop now
-      } else if (response instanceof StateMachine.DoProgressResponse.ReadFromInput
-          || response instanceof StateMachine.DoProgressResponse.WaitingPendingRun) {
+      } else if (response instanceof StateMachine.AwaitResponse.WaitingExternalProgress wep) {
         this.stateMachine.onNextEvent(
-            () -> this.pollAsyncResultInner(asyncResult),
-            response instanceof StateMachine.DoProgressResponse.ReadFromInput);
+            () -> this.pollAsyncResultInner(asyncResult), wep.waitingInput());
         return;
-      } else if (response instanceof StateMachine.DoProgressResponse.ExecuteRun) {
-        triggerScheduledRun(((StateMachine.DoProgressResponse.ExecuteRun) response).handle());
+      } else if (response instanceof StateMachine.AwaitResponse.ExecuteRun) {
+        triggerScheduledRun(((StateMachine.AwaitResponse.ExecuteRun) response).handle());
         // Let it loop now
       }
     }

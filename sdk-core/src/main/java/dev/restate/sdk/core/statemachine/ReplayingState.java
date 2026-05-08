@@ -17,7 +17,8 @@ import dev.restate.sdk.common.AbortedExecutionException;
 import dev.restate.sdk.core.ExceptionUtils;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
-import dev.restate.sdk.core.statemachine.StateMachine.DoProgressResponse;
+import dev.restate.sdk.core.statemachine.AsyncResultsState.ResolveFutureResult;
+import dev.restate.sdk.core.statemachine.StateMachine.AwaitResponse;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -87,19 +88,14 @@ final class ReplayingState implements State {
   }
 
   @Override
-  public DoProgressResponse doProgress(List<Integer> awaitingOn, StateContext stateContext) {
-    if (awaitingOn.stream().anyMatch(this.asyncResultsState::isHandleCompleted)) {
-      return DoProgressResponse.AnyCompleted.INSTANCE;
+  public AwaitResponse doAwait(UnresolvedFuture future, StateContext stateContext) {
+    ResolveFutureResult resolveResult = asyncResultsState.tryResolveFuture(future);
+
+    if (resolveResult instanceof ResolveFutureResult.AnyCompleted) {
+      return AwaitResponse.AnyCompleted.INSTANCE;
     }
 
-    var notificationIds = asyncResultsState.resolveNotificationHandles(awaitingOn);
-    if (notificationIds.isEmpty()) {
-      return DoProgressResponse.AnyCompleted.INSTANCE;
-    }
-
-    if (asyncResultsState.processNextUntilAnyFound(notificationIds)) {
-      return DoProgressResponse.AnyCompleted.INSTANCE;
-    }
+    var remaining = ((ResolveFutureResult.WaitExternalInput) resolveResult).remaining();
 
     // This assertion proves the user mutated the code, adding an await point.
     //
@@ -113,12 +109,15 @@ final class ReplayingState implements State {
     // This contradiction proves the code was mutated: an await must have been added after
     // the journal was originally created.
 
+    var awaitingOnHandles = remaining.handles();
+    var notificationIds = asyncResultsState.resolveNotificationHandles(awaitingOnHandles);
+
     // Prepare error metadata to make it easier to debug
     Map<NotificationId, String> knownNotificationMetadata = new HashMap<>();
     CommandRelationship relatedCommand = null;
 
     // Collect run info
-    for (int handle : awaitingOn) {
+    for (int handle : awaitingOnHandles) {
       RunState.Run runInfo = runState.getRunInfo(handle);
       if (runInfo != null) {
         var notifId = asyncResultsState.mustResolveNotificationHandle(handle);
