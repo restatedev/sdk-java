@@ -147,18 +147,6 @@
     [libraries.micrometer-context-propagation.version]
       ref = 'micrometer-context-propagation'
 
-  [libraries.protobuf-java]
-    module = 'com.google.protobuf:protobuf-java'
-
-    [libraries.protobuf-java.version]
-      ref = 'protobuf'
-
-  [libraries.protobuf-kotlin]
-    module = 'com.google.protobuf:protobuf-kotlin'
-
-    [libraries.protobuf-kotlin.version]
-      ref = 'protobuf'
-
   [libraries.schema-kenerator-core]
     module = 'io.github.smiley4:schema-kenerator-core'
 
@@ -243,7 +231,32 @@
     [libraries.victools-jsonschema-module-jackson.version]
       ref = 'victools-json-schema'
 
+  [libraries.chicory-runtime]
+    module = 'com.dylibso.chicory:runtime'
+
+    [libraries.chicory-runtime.version]
+      ref = 'chicory'
+
+  [libraries.chicory-annotations]
+    module = 'com.dylibso.chicory:annotations'
+
+    [libraries.chicory-annotations.version]
+      ref = 'chicory'
+
+  [libraries.chicory-annotations-processor]
+    module = 'com.dylibso.chicory:annotations-processor'
+
+    [libraries.chicory-annotations-processor.version]
+      ref = 'chicory'
+
+  [libraries.jackson-cbor]
+    module = 'com.fasterxml.jackson.dataformat:jackson-dataformat-cbor'
+
+    [libraries.jackson-cbor.version]
+      ref = 'jackson'
+
 [plugins]
+  wasm2class = 'at.released.wasm2class.plugin:0.5.0'
   aggregate-javadoc = 'io.freefair.aggregate-javadoc:8.14'
   dependency-license-report = 'com.github.jk1.dependency-license-report:2.9'
   dokka = 'org.jetbrains.dokka:1.9.20'
@@ -251,7 +264,6 @@
   jsonschema2pojo = 'org.jsonschema2pojo:1.2.2'
   nexus-publish = 'io.github.gradle-nexus.publish-plugin:1.3.0'
   openapi-generator = 'org.openapi.generator:7.17.0'
-  protobuf = 'com.google.protobuf:0.9.4'
   shadow = 'com.gradleup.shadow:9.0.0-beta8'
   spotless = 'com.diffplug.spotless:7.2.1'
   spring-dependency-management = 'io.spring.dependency-management:1.1.6'
@@ -263,6 +275,7 @@
       ref = 'ksp'
 
 [versions]
+  chicory = '1.7.5'
   jackson = '2.19.4'
   junit = '5.14.1'
   kotlinx-coroutines = '1.10.2'
@@ -272,7 +285,6 @@
   micrometer = '1.14.14'
   micrometer-context-propagation = '1.1.3'
   opentelemetry = '1.58.0'
-  protobuf = '4.29.3'
   restate = '2.9.0-SNAPSHOT'
   schema-kenerator = '2.1.2'
   spring-boot = '3.4.13'

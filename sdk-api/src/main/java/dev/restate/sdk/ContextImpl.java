@@ -227,6 +227,30 @@ class ContextImpl implements ObjectContext, WorkflowContext {
               serviceExecutor)
           .await();
     }
+
+    @Override
+    public SignalHandle signal(String name) {
+      String invocationId = invocationId();
+      return new SignalHandle() {
+        @Override
+        public <T> void resolve(TypeTag<T> typeTag, T payload) {
+          checkNotInsideRun();
+          Util.awaitCompletableFuture(
+              handlerContext.resolveSignal(
+                  invocationId,
+                  name,
+                  Util.executeOrFail(
+                      handlerContext, serdeFactory.create(typeTag)::serialize, payload)));
+        }
+
+        @Override
+        public void reject(String reason) {
+          checkNotInsideRun();
+          Util.awaitCompletableFuture(
+              handlerContext.rejectSignal(invocationId, name, new TerminalException(reason)));
+        }
+      };
+    }
   }
 
   @Override
@@ -323,6 +347,15 @@ class ContextImpl implements ObjectContext, WorkflowContext {
             handlerContext.rejectAwakeable(id, new TerminalException(reason)));
       }
     };
+  }
+
+  @Override
+  public <T> DurableFuture<T> signal(String name, TypeTag<T> typeTag) throws TerminalException {
+    checkNotInsideRun();
+    Serde<T> serde = serdeFactory.create(typeTag);
+    AsyncResult<Slice> result = Util.awaitCompletableFuture(handlerContext.signal(name));
+    return DurableFuture.fromAsyncResult(result, serviceExecutor)
+        .mapWithoutExecutor(serde::deserialize);
   }
 
   @Override

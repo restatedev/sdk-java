@@ -12,7 +12,7 @@ import dev.restate.common.Output;
 import dev.restate.common.Slice;
 import dev.restate.common.Target;
 import dev.restate.sdk.common.*;
-import dev.restate.sdk.core.statemachine.StateMachine;
+import dev.restate.sdk.core.sharedcore.StateMachine;
 import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
 import dev.restate.sdk.endpoint.definition.HandlerType;
@@ -33,21 +33,24 @@ final class ExecutorSwitchingHandlerContextImpl extends HandlerContextImpl {
   private final Executor coreExecutor;
 
   ExecutorSwitchingHandlerContextImpl(
+      StateMachine vm,
+      ExternalProgressChannel externalProgressChannel,
+      Consumer<Slice> outputSink,
       String serviceName,
       String handlerName,
       ServiceType serviceType,
       @Nullable HandlerType handlerType,
-      StateMachine stateMachine,
       Context otelContext,
       HeadersAccessor attemptHeaders,
       StateMachine.Input input,
       Executor coreExecutor) {
-    super(
+    super(        vm,
+            externalProgressChannel,
+            outputSink,
         serviceName,
         handlerName,
         serviceType,
         handlerType,
-        stateMachine,
         otelContext,
         attemptHeaders,
         input);
@@ -163,6 +166,27 @@ final class ExecutorSwitchingHandlerContextImpl extends HandlerContextImpl {
   }
 
   @Override
+  public CompletableFuture<AsyncResult<Slice>> signal(String name) {
+    return CompletableFuture.supplyAsync(() -> super.signal(name), coreExecutor)
+        .thenCompose(Function.identity());
+  }
+
+  @Override
+  public CompletableFuture<Void> resolveSignal(String invocationId, String name, Slice payload) {
+    return CompletableFuture.supplyAsync(
+            () -> super.resolveSignal(invocationId, name, payload), coreExecutor)
+        .thenCompose(Function.identity());
+  }
+
+  @Override
+  public CompletableFuture<Void> rejectSignal(
+      String invocationId, String name, TerminalException reason) {
+    return CompletableFuture.supplyAsync(
+            () -> super.rejectSignal(invocationId, name, reason), coreExecutor)
+        .thenCompose(Function.identity());
+  }
+
+  @Override
   public void proposeRunSuccess(int runHandle, Slice toWrite) {
     coreExecutor.execute(() -> super.proposeRunSuccess(runHandle, toWrite));
   }
@@ -182,21 +206,18 @@ final class ExecutorSwitchingHandlerContextImpl extends HandlerContextImpl {
     coreExecutor.execute(() -> super.pollAsyncResult(asyncResult));
   }
 
+  @Deprecated
   @Override
   public CompletableFuture<Void> writeOutput(Slice value) {
     return CompletableFuture.supplyAsync(() -> super.writeOutput(value), coreExecutor)
         .thenCompose(Function.identity());
   }
 
+  @Deprecated
   @Override
   public CompletableFuture<Void> writeOutput(TerminalException throwable) {
     return CompletableFuture.supplyAsync(() -> super.writeOutput(throwable), coreExecutor)
         .thenCompose(Function.identity());
-  }
-
-  @Override
-  public void close() {
-    coreExecutor.execute(super::close);
   }
 
   @Override

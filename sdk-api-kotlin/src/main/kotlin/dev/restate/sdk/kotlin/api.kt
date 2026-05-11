@@ -202,6 +202,21 @@ sealed interface Context {
   fun awakeableHandle(id: String): AwakeableHandle
 
   /**
+   * Create a [DurableFuture] waiting on a named signal targeting the current invocation.
+   *
+   * Signals are identified by `(invocationId, name)`. The resolution can arrive before or after the
+   * handler starts waiting on the signal — there's no need to pre-register.
+   *
+   * Another invocation can resolve or reject the signal using [signalHandle].
+   *
+   * @param name the signal name.
+   * @param typeTag the response type tag to use for deserializing the signal result.
+   * @return a [DurableFuture] that resolves to the signal value (or rejects with a
+   *   [dev.restate.sdk.common.TerminalException]).
+   */
+  suspend fun <T : Any> signal(name: String, typeTag: TypeTag<T>): DurableFuture<T>
+
+  /**
    * Create a [RestateRandom] instance inherently predictable, seeded on the
    * [dev.restate.sdk.common.InvocationId], which is not secret.
    *
@@ -334,6 +349,15 @@ suspend inline fun <reified T : Any> Context.runAsync(
  */
 suspend inline fun <reified T : Any> Context.awakeable(): Awakeable<T> {
   return this.awakeable(typeTag<T>())
+}
+
+/**
+ * Create a [DurableFuture] waiting on a named signal targeting the current invocation.
+ *
+ * @see Context.signal
+ */
+suspend inline fun <reified T : Any> Context.signal(name: String): DurableFuture<T> {
+  return this.signal(name, typeTag<T>())
 }
 
 /**
@@ -629,6 +653,14 @@ sealed interface InvocationHandle<Res : Any?> {
 
   /** @return the output of this invocation, if present. */
   suspend fun output(): Output<Res>
+
+  /**
+   * Get a [SignalHandle] for resolving or rejecting a named signal on this invocation. The
+   * receiving handler can await on the signal using [Context.signal].
+   *
+   * @param name the signal name.
+   */
+  suspend fun signal(name: String): SignalHandle
 }
 
 /**
@@ -674,6 +706,35 @@ sealed interface AwakeableHandle {
  * @see Awakeable
  */
 suspend inline fun <reified T : Any> AwakeableHandle.resolve(payload: T) {
+  return this.resolve(typeTag<T>(), payload)
+}
+
+/**
+ * Handle to resolve or reject a named signal on a target invocation.
+ *
+ * Unlike awakeables, signals are identified by `(invocationId, name)` and do not need to be
+ * pre-registered: the resolution can arrive before or after the handler starts waiting.
+ */
+sealed interface SignalHandle {
+  /**
+   * Resolve the signal with the given value.
+   *
+   * @param typeTag used to serialize the result payload.
+   * @param payload the result payload.
+   */
+  suspend fun <T : Any> resolve(typeTag: TypeTag<T>, payload: T)
+
+  /**
+   * Reject the signal with the given reason. The handler awaiting the signal will receive a
+   * terminal error with [reason] as the message.
+   *
+   * @param reason the rejection reason.
+   */
+  suspend fun reject(reason: String)
+}
+
+/** Resolve the signal with the given value. */
+suspend inline fun <reified T : Any> SignalHandle.resolve(payload: T) {
   return this.resolve(typeTag<T>(), payload)
 }
 
@@ -963,6 +1024,17 @@ suspend fun <T : Any> awakeable(typeTag: TypeTag<T>): Awakeable<T> {
 @org.jetbrains.annotations.ApiStatus.Experimental
 suspend fun awakeableHandle(id: String): AwakeableHandle {
   return context().awakeableHandle(id)
+}
+
+/**
+ * Create a [DurableFuture] waiting on a named signal targeting the current invocation.
+ *
+ * @throws IllegalStateException if called outside of a Restate handler
+ * @see Context.signal
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+suspend inline fun <reified T : Any> signal(name: String): DurableFuture<T> {
+  return context().signal(name, typeTag<T>())
 }
 
 /**

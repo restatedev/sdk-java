@@ -9,10 +9,9 @@
 package dev.restate.sdk.core;
 
 import dev.restate.common.Slice;
-import dev.restate.sdk.core.generated.discovery.Discovery;
 import dev.restate.sdk.core.generated.manifest.EndpointManifestSchema;
 import dev.restate.sdk.core.generated.manifest.Service;
-import dev.restate.sdk.core.statemachine.StateMachine;
+import dev.restate.sdk.core.sharedcore.StateMachine;
 import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.endpoint.definition.HandlerDefinition;
@@ -179,9 +178,6 @@ public final class EndpointRequestHandler {
       loggingContextSetter.set(LoggingContextSetter.INVOCATION_ID_KEY, invocationIdHeader);
     }
 
-    // Instantiate state machine
-    StateMachine stateMachine = StateMachine.init(headersAccessor, loggingContextSetter);
-
     // Resolve the service method definition
     ServiceDefinition svc = this.endpoint.resolveService(serviceName);
     if (svc == null) {
@@ -209,7 +205,7 @@ public final class EndpointRequestHandler {
     return new RequestProcessorImpl(
         serviceName,
         handlerName,
-        stateMachine,
+            StateMachine.create(headersAccessor),
         svc.getServiceType(),
         handler,
         otelContext,
@@ -223,14 +219,8 @@ public final class EndpointRequestHandler {
       throws ProtocolException {
     String acceptContentType = headersAccessor.get(ACCEPT);
 
-    Discovery.ServiceDiscoveryProtocolVersion version =
+    DiscoveryProtocol.Version version =
         DiscoveryProtocol.selectSupportedServiceDiscoveryProtocolVersion(acceptContentType);
-    if (!DiscoveryProtocol.isSupported(version)) {
-      throw new ProtocolException(
-          String.format(
-              "Unsupported Discovery version in the Accept header '%s'", acceptContentType),
-          ProtocolException.UNSUPPORTED_MEDIA_TYPE_CODE);
-    }
 
     EndpointManifestSchema response =
         this.deploymentManifest.manifest(
@@ -244,7 +234,7 @@ public final class EndpointRequestHandler {
 
     return new StaticResponseRequestProcessor(
         200,
-        DiscoveryProtocol.serviceDiscoveryProtocolVersionToHeaderValue(version),
+        version.getHeader(),
         Slice.wrap(DiscoveryProtocol.serializeManifest(version, response)));
   }
 }

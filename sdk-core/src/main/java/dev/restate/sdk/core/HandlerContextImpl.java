@@ -15,9 +15,7 @@ import dev.restate.common.function.ThrowingRunnable;
 import dev.restate.common.function.ThrowingSupplier;
 import dev.restate.sdk.common.*;
 import dev.restate.sdk.core.AsyncResults.AsyncResultInternal;
-import dev.restate.sdk.core.statemachine.InvocationState;
-import dev.restate.sdk.core.statemachine.NotificationValue;
-import dev.restate.sdk.core.statemachine.StateMachine;
+import dev.restate.sdk.core.sharedcore.StateMachine;
 import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
 import dev.restate.sdk.endpoint.definition.HandlerType;
@@ -29,7 +27,6 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
-import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
@@ -38,72 +35,78 @@ class HandlerContextImpl implements HandlerContextInternal {
 
   private static final Logger LOG = LogManager.getLogger(HandlerContextImpl.class);
 
-  private static final int CANCEL_HANDLE = 1;
+  private final StateMachine stateMachine;
+  private final ExternalProgressChannel externalProgressChannel;
+  private final Consumer<Slice> outputSink;
 
   private final HandlerRequest handlerRequest;
-  private final HeadersAccessor attemptHeaders;
-  private final StateMachine stateMachine;
+    private final HeadersAccessor attemptHeaders;
   private final @Nullable String objectKey;
   private final ServiceType serviceType;
   private final @Nullable HandlerType handlerType;
 
-  private final List<AsyncResultInternal<String>> invocationIdsToCancel;
   private final HashMap<Integer, Consumer<RunCompleter>> scheduledRuns;
 
   HandlerContextImpl(
+      StateMachine stateMachine,
+      ExternalProgressChannel externalProgressChannel,
+      Consumer<Slice> outputSink,
       String serviceName,
       String handlerName,
       ServiceType serviceType,
       @Nullable HandlerType handlerType,
-      StateMachine stateMachine,
       Context otelContext,
       HeadersAccessor attemptHeaders,
       StateMachine.Input input) {
+    this.stateMachine = stateMachine;
+    this.externalProgressChannel = externalProgressChannel;
+    this.outputSink = outputSink;
+
     this.handlerRequest =
         new HandlerRequest(
-            input.invocationId(),
+            new InvocationIdImpl(input.invocationId(), input.randomSeed()),
             otelContext,
-            input.body(),
-            input.headers(),
+            Slice.wrap(input.input()),
+            input.headersAsMap(),
             serviceName,
             handlerName);
     this.attemptHeaders = attemptHeaders;
-    this.objectKey = input.key();
-    this.stateMachine = stateMachine;
+    this.objectKey = input.key() != null && !input.key().isEmpty() ? input.key() : null;
     this.serviceType = serviceType;
     this.handlerType = handlerType;
-    this.invocationIdsToCancel = new ArrayList<>();
     this.scheduledRuns = new HashMap<>();
   }
 
-  private static void parseSuccessOrFailure(NotificationValue s, CompletableFuture<Slice> cf) {
-    if (s instanceof NotificationValue.Success success) {
+  private static void parseSuccessOrFailure(
+      StateMachine.NotificationValue s, CompletableFuture<Slice> cf) {
+    if (s instanceof StateMachine.NotificationValue.Success success) {
       cf.complete(success.slice());
-    } else if (s instanceof NotificationValue.Failure failure) {
-      cf.completeExceptionally(failure.exception());
+    } else if (s instanceof StateMachine.NotificationValue.Failure failure) {
+      cf.completeExceptionally(failure.terminalException());
     } else {
       throw ProtocolException.unexpectedNotificationVariant(s.getClass());
     }
   }
 
   private static void parseEmptyOrSuccessOrFailure(
-      NotificationValue s, CompletableFuture<Output<Slice>> cf) {
-    if (s instanceof NotificationValue.Empty) {
+      StateMachine.NotificationValue s, CompletableFuture<Output<Slice>> cf) {
+    if (s instanceof StateMachine.NotificationValue.Void) {
       cf.complete(Output.notReady());
-    } else if (s instanceof NotificationValue.Success success) {
+    } else if (s instanceof StateMachine.NotificationValue.Success success) {
       cf.complete(Output.ready(success.slice()));
-    } else if (s instanceof NotificationValue.Failure failure) {
-      cf.completeExceptionally(failure.exception());
+    } else if (s instanceof StateMachine.NotificationValue.Failure failure) {
+      cf.completeExceptionally(failure.terminalException());
     } else {
       throw ProtocolException.unexpectedNotificationVariant(s.getClass());
     }
   }
 
-  private static void parseEmptyOrFailure(NotificationValue s, CompletableFuture<Void> cf) {
-    if (s instanceof NotificationValue.Empty) {
+  private static void parseEmptyOrFailure(
+      StateMachine.NotificationValue s, CompletableFuture<Void> cf) {
+    if (s instanceof StateMachine.NotificationValue.Void) {
       cf.complete(null);
-    } else if (s instanceof NotificationValue.Failure failure) {
-      cf.completeExceptionally(failure.exception());
+    } else if (s instanceof StateMachine.NotificationValue.Failure failure) {
+      cf.completeExceptionally(failure.terminalException());
     } else {
       throw ProtocolException.unexpectedNotificationVariant(s.getClass());
     }
@@ -165,11 +168,11 @@ class HandlerContextImpl implements HandlerContextInternal {
         () ->
             AsyncResults.single(
                 this,
-                this.stateMachine.stateGet(name),
+                this.stateMachine.sysStateGet(name),
                 (s, cf) -> {
-                  if (s instanceof NotificationValue.Empty) {
+                  if (s instanceof StateMachine.NotificationValue.Void) {
                     cf.complete(Optional.empty());
-                  } else if (s instanceof NotificationValue.Success success) {
+                  } else if (s instanceof StateMachine.NotificationValue.Success success) {
                     cf.complete(Optional.of(success.slice()));
                   } else {
                     throw ProtocolException.unexpectedNotificationVariant(s.getClass());
@@ -183,10 +186,10 @@ class HandlerContextImpl implements HandlerContextInternal {
         () ->
             AsyncResults.single(
                 this,
-                this.stateMachine.stateGetKeys(),
+                this.stateMachine.sysStateGetKeys(),
                 (s, cf) -> {
-                  if (s instanceof NotificationValue.StateKeys stateKeys) {
-                    cf.complete(stateKeys.stateKeys());
+                  if (s instanceof StateMachine.NotificationValue.StateKeys stateKeys) {
+                    cf.complete(stateKeys.keys());
                   } else {
                     throw ProtocolException.unexpectedNotificationVariant(s.getClass());
                   }
@@ -195,17 +198,17 @@ class HandlerContextImpl implements HandlerContextInternal {
 
   @Override
   public CompletableFuture<Void> clear(String name) {
-    return this.catchExceptions(() -> this.stateMachine.stateClear(name));
+    return this.catchExceptions(() -> this.stateMachine.sysStateClear(name));
   }
 
   @Override
   public CompletableFuture<Void> clearAll() {
-    return this.catchExceptions(this.stateMachine::stateClearAll);
+    return this.catchExceptions(this.stateMachine::sysStateClearAll);
   }
 
   @Override
   public CompletableFuture<Void> set(String name, Slice value) {
-    return this.catchExceptions(() -> this.stateMachine.stateSet(name, value));
+    return this.catchExceptions(() -> this.stateMachine.sysStateSet(name, value));
   }
 
   @Override
@@ -214,9 +217,9 @@ class HandlerContextImpl implements HandlerContextInternal {
         () ->
             AsyncResults.single(
                 this,
-                this.stateMachine.sleep(duration, name),
+                this.stateMachine.sysSleep(duration, name),
                 (s, cf) -> {
-                  if (s instanceof NotificationValue.Empty) {
+                  if (s instanceof StateMachine.NotificationValue.Void) {
                     cf.complete(null);
                   } else {
                     throw ProtocolException.unexpectedNotificationVariant(s.getClass());
@@ -232,12 +235,11 @@ class HandlerContextImpl implements HandlerContextInternal {
       @Nullable Collection<Map.Entry<String, String>> headers) {
     return catchExceptions(
         () -> {
-          StateMachine.CallHandle callHandle =
-              this.stateMachine.call(target, parameter, idempotencyKey, headers);
+          StateMachine.SysCallReturn.Ok callHandle =
+              this.stateMachine.sysCall(target, parameter, idempotencyKey, headers);
 
           AsyncResultInternal<String> invocationIdAsyncResult =
               AsyncResults.single(this, callHandle.invocationIdHandle(), invocationIdCompleter());
-          this.invocationIdsToCancel.add(invocationIdAsyncResult);
 
           AsyncResult<Slice> callAsyncResult =
               AsyncResults.single(
@@ -257,7 +259,7 @@ class HandlerContextImpl implements HandlerContextInternal {
     return catchExceptions(
         () -> {
           int sendHandle =
-              this.stateMachine.send(target, parameter, idempotencyKey, headers, delay);
+              this.stateMachine.sysSend(target, parameter, idempotencyKey, headers, delay);
 
           return AsyncResults.single(this, sendHandle, invocationIdCompleter());
         });
@@ -265,8 +267,8 @@ class HandlerContextImpl implements HandlerContextInternal {
 
   private static AsyncResults.Completer<String> invocationIdCompleter() {
     return (s, cf) -> {
-      if (s instanceof NotificationValue.InvocationId invocationId) {
-        cf.complete(invocationId.invocationId());
+      if (s instanceof StateMachine.NotificationValue.InvocationId invocationId) {
+        cf.complete(invocationId.id());
       } else {
         throw ProtocolException.unexpectedNotificationVariant(s.getClass());
       }
@@ -278,7 +280,7 @@ class HandlerContextImpl implements HandlerContextInternal {
       @Nullable String name, Consumer<RunCompleter> closure) {
     return catchExceptions(
         () -> {
-          int runHandle = this.stateMachine.run(name);
+          int runHandle = this.stateMachine.sysRun(name);
           this.scheduledRuns.put(runHandle, closure);
           return AsyncResults.single(this, runHandle, HandlerContextImpl::parseSuccessOrFailure);
         });
@@ -288,9 +290,9 @@ class HandlerContextImpl implements HandlerContextInternal {
   public CompletableFuture<Awakeable> awakeable() {
     return catchExceptions(
         () -> {
-          StateMachine.Awakeable awakeable = this.stateMachine.awakeable();
+          StateMachine.AwakeableReturn.Ok awakeable = this.stateMachine.sysAwakeable();
           return new Awakeable(
-              awakeable.awakeableId(),
+              awakeable.id(),
               AsyncResults.single(
                   this, awakeable.handle(), HandlerContextImpl::parseSuccessOrFailure));
         });
@@ -298,12 +300,14 @@ class HandlerContextImpl implements HandlerContextInternal {
 
   @Override
   public CompletableFuture<Void> resolveAwakeable(String id, Slice payload) {
-    return this.catchExceptions(() -> this.stateMachine.completeAwakeable(id, payload));
+    return this.catchExceptions(
+        () -> this.stateMachine.sysCompleteAwakeableWithSuccess(id, payload));
   }
 
   @Override
   public CompletableFuture<Void> rejectAwakeable(String id, TerminalException reason) {
-    return this.catchExceptions(() -> this.stateMachine.completeAwakeable(id, reason));
+    return this.catchExceptions(
+        () -> this.stateMachine.sysCompleteAwakeableWithFailure(id, reason));
   }
 
   @Override
@@ -312,7 +316,7 @@ class HandlerContextImpl implements HandlerContextInternal {
         () ->
             AsyncResults.single(
                 this,
-                this.stateMachine.promiseGet(key),
+                this.stateMachine.sysPromiseGet(key),
                 HandlerContextImpl::parseSuccessOrFailure));
   }
 
@@ -322,7 +326,7 @@ class HandlerContextImpl implements HandlerContextInternal {
         () ->
             AsyncResults.single(
                 this,
-                this.stateMachine.promisePeek(key),
+                this.stateMachine.sysPromisePeek(key),
                 HandlerContextImpl::parseEmptyOrSuccessOrFailure));
   }
 
@@ -332,7 +336,7 @@ class HandlerContextImpl implements HandlerContextInternal {
         () ->
             AsyncResults.single(
                 this,
-                this.stateMachine.promiseComplete(key, payload),
+                this.stateMachine.sysPromiseCompleteWithSuccess(key, payload),
                 HandlerContextImpl::parseEmptyOrFailure));
   }
 
@@ -342,13 +346,36 @@ class HandlerContextImpl implements HandlerContextInternal {
         () ->
             AsyncResults.single(
                 this,
-                this.stateMachine.promiseComplete(key, reason),
+                this.stateMachine.sysPromiseCompleteWithFailure(key, reason),
                 HandlerContextImpl::parseEmptyOrFailure));
   }
 
   @Override
+  public CompletableFuture<AsyncResult<Slice>> signal(String name) {
+    return catchExceptions(
+        () ->
+            AsyncResults.single(
+                this,
+                this.stateMachine.sysCreateSignalHandle(name),
+                HandlerContextImpl::parseSuccessOrFailure));
+  }
+
+  @Override
+  public CompletableFuture<Void> resolveSignal(String invocationId, String name, Slice payload) {
+    return this.catchExceptions(
+        () -> this.stateMachine.sysCompleteSignalWithSuccess(invocationId, name, payload));
+  }
+
+  @Override
+  public CompletableFuture<Void> rejectSignal(
+      String invocationId, String name, TerminalException reason) {
+    return this.catchExceptions(
+        () -> this.stateMachine.sysCompleteSignalWithFailure(invocationId, name, reason));
+  }
+
+  @Override
   public CompletableFuture<Void> cancelInvocation(String invocationId) {
-    return this.catchExceptions(() -> this.stateMachine.cancelInvocation(invocationId));
+    return this.catchExceptions(() -> this.stateMachine.sysCancelInvocation(invocationId));
   }
 
   @Override
@@ -357,7 +384,7 @@ class HandlerContextImpl implements HandlerContextInternal {
         () ->
             AsyncResults.single(
                 this,
-                this.stateMachine.attachInvocation(invocationId),
+                this.stateMachine.sysAttachInvocation(invocationId),
                 HandlerContextImpl::parseSuccessOrFailure));
   }
 
@@ -367,25 +394,32 @@ class HandlerContextImpl implements HandlerContextInternal {
         () ->
             AsyncResults.single(
                 this,
-                this.stateMachine.getInvocationOutput(invocationId),
+                this.stateMachine.sysGetInvocationOutput(invocationId),
                 HandlerContextImpl::parseEmptyOrSuccessOrFailure));
   }
 
+  @SuppressWarnings("removal")
+  @Deprecated
   @Override
   public CompletableFuture<Void> writeOutput(Slice value) {
-    return this.catchExceptions(() -> this.stateMachine.writeOutput(value));
+    return this.catchExceptions(() -> this.stateMachine.sysWriteOutputWithSuccess(value));
   }
 
+  @SuppressWarnings("removal")
+  @Deprecated
   @Override
   public CompletableFuture<Void> writeOutput(TerminalException throwable) {
-    return this.catchExceptions(() -> this.stateMachine.writeOutput(throwable));
+    return this.catchExceptions(() -> this.stateMachine.sysWriteOutputWithFailure(throwable));
   }
 
   @Override
   public void pollAsyncResult(AsyncResultInternal<?> asyncResult) {
-    // We use the separate function for the recursion,
-    // as there's no need to jump back and forth between threads again.
-    this.pollAsyncResultInner(asyncResult);
+    try {
+      this.pumpOutput();
+      this.pollAsyncResultInner(asyncResult);
+    } catch (Exception e) {
+      this.failWithoutContextSwitch(e);
+    }
   }
 
   private void pollAsyncResultInner(AsyncResultInternal<?> asyncResult) {
@@ -398,96 +432,84 @@ class HandlerContextImpl implements HandlerContextInternal {
         return;
       }
 
-      // Let's look for the cancellation notification
-      var cancellationNotification = this.stateMachine.takeNotification(CANCEL_HANDLE);
-      if (cancellationNotification.isPresent()) {
-        LOG.info("Detected cancellation signal! Will start cancelling child invocations");
-
-        // Let's wait to cancel all
-        @SuppressWarnings({"rawtypes", "unchecked"})
-        AsyncResultInternal<Void> allInvocationIds =
-            AsyncResults.all(this, (List) this.invocationIdsToCancel);
-        allInvocationIds
-            .publicFuture()
-            .whenComplete(
-                (ignored, throwable) -> {
-                  if (throwable != null) {
-                    // Already handled
-                    return;
-                  }
-                  LOG.info("All child invocation ids retrieved");
-                  try {
-                    for (var invocationIdAr : this.invocationIdsToCancel) {
-                      this.stateMachine.cancelInvocation(
-                          Objects.requireNonNull(invocationIdAr.publicFuture().getNow(null)));
-                    }
-                    asyncResult.tryCancel();
-                  } catch (Throwable e) {
-                    // Not good!
-                    this.failWithoutContextSwitch(e);
-                  }
-                });
-        // Let's resolve all the invocation IDs
-        pollAsyncResultInner(allInvocationIds);
-        return;
-      }
-
       // Let's start by trying to complete it
-      asyncResult.tryComplete(this.stateMachine);
+      try {
+      asyncResult.tryComplete(this::takeNotification);
+    } catch (Throwable e) {
+        // This can happen if the state machine was closed in the meantime.
+      failWithoutContextSwitch(e);
+      asyncResult.publicFuture().completeExceptionally(AbortedExecutionException.INSTANCE);
+      return;
+    }
 
-      // Now let's take the unprocessed leaves
-      List<Integer> uncompletedLeaves =
-          Stream.concat(asyncResult.uncompletedLeaves(), Stream.of(CANCEL_HANDLE)).toList();
-      if (uncompletedLeaves.size() == 1) {
+      // Build the tree of what we're still awaiting on
+      StateMachine.UnresolvedFuture future = asyncResult.uncompletedFuture();
+      if (future == null) {
         // Nothing else to do!
         return;
       }
 
       // Not ready yet, let's try to do some progress
-      StateMachine.DoProgressResponse response;
+      StateMachine.AwaitResult response;
       try {
-        response = this.stateMachine.doProgress(uncompletedLeaves);
+        response = this.stateMachine.doAwait(future);
       } catch (Throwable e) {
         this.failWithoutContextSwitch(e);
         asyncResult.publicFuture().completeExceptionally(AbortedExecutionException.INSTANCE);
         return;
       }
 
-      if (response instanceof StateMachine.DoProgressResponse.AnyCompleted) {
+      if (response instanceof StateMachine.AwaitResult.AnyCompleted) {
         // Let it loop now
-      } else if (response instanceof StateMachine.DoProgressResponse.ReadFromInput
-          || response instanceof StateMachine.DoProgressResponse.WaitingPendingRun) {
-        this.stateMachine.onNextEvent(
-            () -> this.pollAsyncResultInner(asyncResult),
-            response instanceof StateMachine.DoProgressResponse.ReadFromInput);
+      } else if (response instanceof StateMachine.AwaitResult.WaitExternalProgress) {
+        this.pumpOutput();
+        this.externalProgressChannel.awaitNext(() -> this.pollAsyncResultInner(asyncResult));
         return;
-      } else if (response instanceof StateMachine.DoProgressResponse.ExecuteRun) {
-        triggerScheduledRun(((StateMachine.DoProgressResponse.ExecuteRun) response).handle());
+      } else if (response instanceof StateMachine.AwaitResult.CancelSignalReceived) {
+        asyncResult.tryCancel();
+        return;
+      } else if (response instanceof StateMachine.AwaitResult.ExecuteRun) {
+        triggerScheduledRun(((StateMachine.AwaitResult.ExecuteRun) response).handle());
         // Let it loop now
       }
     }
   }
 
+  Optional<StateMachine.NotificationValue> takeNotification(int handle) {
+    return Optional.ofNullable(this.stateMachine.takeNotification(handle));
+  }
+
   @Override
   public void proposeRunSuccess(int runHandle, Slice toWrite) {
     try {
-      this.stateMachine.proposeRunCompletion(runHandle, toWrite);
+      // TODO this fails here when you propose a run but the state machine was already closed!!!
+      this.stateMachine.proposeRunCompletionWithSuccess(runHandle, toWrite);
     } catch (Exception e) {
       this.failWithoutContextSwitch(e);
     }
+    this.pumpOutput();
+    this.externalProgressChannel.signal();
   }
 
   @Override
   public void proposeRunFailure(
       int runHandle,
-      Throwable toWrite,
+      Throwable throwable,
       Duration attemptDuration,
       @Nullable RetryPolicy retryPolicy) {
     try {
-      this.stateMachine.proposeRunCompletion(runHandle, toWrite, attemptDuration, retryPolicy);
+      if (throwable instanceof TerminalException) {
+        this.stateMachine.proposeRunCompletionTerminalFailure(
+            runHandle, (TerminalException) throwable);
+      } else {
+        this.stateMachine.proposeRunCompletionRetryableFailure(
+            runHandle, throwable, attemptDuration, retryPolicy);
+      }
     } catch (Exception e) {
       this.failWithoutContextSwitch(e);
     }
+    this.pumpOutput();
+    this.externalProgressChannel.signal();
   }
 
   private void triggerScheduledRun(int handle) {
@@ -510,9 +532,9 @@ class HandlerContextImpl implements HandlerContextInternal {
         });
   }
 
-  @Override
-  public void close() {
-    this.stateMachine.end();
+  private void pumpOutput() {
+    byte[] chunk = stateMachine.takeOutput();
+    if (chunk.length > 0) outputSink.accept(Slice.wrap(chunk));
   }
 
   @Override
@@ -522,7 +544,7 @@ class HandlerContextImpl implements HandlerContextInternal {
 
   @Override
   public void failWithoutContextSwitch(Throwable cause) {
-    this.stateMachine.onError(cause);
+    this.stateMachine.notifyError(cause);
   }
 
   // -- Wrapper for failure propagation

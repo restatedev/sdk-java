@@ -18,5 +18,9 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: 17
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          target: wasm32-unknown-unknown
       - name: Generate and submit dependency graph
         uses: gradle/actions/dependency-submission@v4

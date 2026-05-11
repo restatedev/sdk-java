@@ -62,6 +62,53 @@ class VirtualObjectCommandInterpreterImpl : VirtualObjectCommandInterpreter {
         is VirtualObjectCommandInterpreter.AwaitOne -> {
           result = it.command.toAwaitable().await()
         }
+        is VirtualObjectCommandInterpreter.AwaitFirstCompleted -> {
+          val cmds = it.commands.map { it.toAwaitable() }
+          result =
+              try {
+                select { cmds.forEach { cmd -> cmd.onAwait { v -> v } } }.await()
+              } catch (e: TerminalException) {
+                throw e
+              }
+        }
+        is VirtualObjectCommandInterpreter.AwaitFirstSucceededOrAllFailed -> {
+          val cmds = it.commands.map { it.toAwaitable() }.toMutableList()
+          var lastError: TerminalException? = null
+          while (cmds.isNotEmpty()) {
+            @Suppress("UNCHECKED_CAST")
+            val completed = DurableFuture.any(cmds as List<DurableFuture<*>>).await()
+            try {
+              result = cmds[completed].await()
+              lastError = null
+              break
+            } catch (e: TerminalException) {
+              lastError = e
+              cmds.removeAt(completed)
+            }
+          }
+          if (lastError != null) {
+            throw lastError
+          }
+        }
+        is VirtualObjectCommandInterpreter.AwaitAllSucceededOrFirstFailed -> {
+          val cmds = it.commands.map { it.toAwaitable() }
+          // DurableFuture.all completes on first failure or when all succeed.
+          @Suppress("UNCHECKED_CAST") DurableFuture.all(cmds as List<DurableFuture<*>>).await()
+          result = cmds.map { c -> c.await() }.joinToString(separator = "|")
+        }
+        is VirtualObjectCommandInterpreter.AwaitAllCompleted -> {
+          val cmds = it.commands.map { it.toAwaitable() }
+          // Wait for all to settle (no fail-fast). Accomplish by individually awaiting each.
+          val parts = mutableListOf<String>()
+          for (cmd in cmds) {
+            try {
+              parts += "ok:${cmd.await()}"
+            } catch (e: TerminalException) {
+              parts += "err:${e.message ?: ""}"
+            }
+          }
+          result = parts.joinToString(separator = "|")
+        }
         is VirtualObjectCommandInterpreter.GetEnvVariable -> {
           result = runBlock { System.getenv(it.envName) ?: "" }
         }
@@ -127,8 +174,11 @@ class VirtualObjectCommandInterpreterImpl : VirtualObjectCommandInterpreter {
           runAsync<String>("should-fail-with-${this.reason}") {
             throw TerminalException(this.reason)
           }
+      is VirtualObjectCommandInterpreter.RunReturns ->
+          runAsync<String>("run-returns-${this.value}") { this.value }
       is VirtualObjectCommandInterpreter.Sleep ->
           timer("command-timer", this.timeoutMillis.milliseconds).map { "sleep" }
+      is VirtualObjectCommandInterpreter.CreateSignal -> signal<String>(this.signalName)
     }
   }
 

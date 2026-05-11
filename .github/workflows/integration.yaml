@@ -123,6 +123,12 @@ jobs:
         if: ${{ inputs.serviceImage == '' }}
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Install Rust toolchain
+        if: ${{ inputs.serviceImage == '' }}
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          target: wasm32-unknown-unknown
+
       - name: Build restatedev/test-services-java image
         if: ${{ inputs.serviceImage == '' }}
         run: ./gradlew -Djib.console=plain :test-services:jibDockerBuild
@@ -135,7 +141,7 @@ jobs:
 
       - name: Run test tool
         continue-on-error: ${{ inputs.continueOnError == 'true' }}
-        uses: restatedev/e2e/sdk-tests@v1.0
+        uses: restatedev/e2e/sdk-tests@v2.1
         with:
           envVars: ${{ inputs.envVars }}
           testArtifactOutput: ${{ inputs.testArtifactOutput != '' && inputs.testArtifactOutput || 'sdk-java-integration-test-report' }}

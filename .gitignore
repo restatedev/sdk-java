@@ -38,3 +38,4 @@ kls_database.db
 .kotlin
 
 .restate
+/sdk-core/src/main/rust/target/

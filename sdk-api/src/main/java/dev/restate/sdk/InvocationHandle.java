@@ -31,4 +31,12 @@ public interface InvocationHandle<Res> {
    * @return the output of this invocation, if present.
    */
   Output<Res> getOutput();
+
+  /**
+   * Get a {@link SignalHandle} for resolving or rejecting a named signal on this invocation. The
+   * receiving handler can await on the signal using {@link Context#signal(String, Class)}.
+   *
+   * @param name the signal name.
+   */
+  SignalHandle signal(String name);
 }

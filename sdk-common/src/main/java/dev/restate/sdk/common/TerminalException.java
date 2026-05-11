@@ -56,7 +56,7 @@ public class TerminalException extends RuntimeException {
    * @param metadata error metadata (supported only from Restate > 1.6)
    */
   public TerminalException(int code, String message, Map<String, String> metadata) {
-    super(message);
+    super(message != null ? message : "");
     this.code = code;
     this.metadata = Objects.requireNonNullElse(metadata, Map.of());
   }

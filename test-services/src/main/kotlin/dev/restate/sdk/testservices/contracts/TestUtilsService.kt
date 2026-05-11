@@ -9,6 +9,7 @@
 package dev.restate.sdk.testservices.contracts
 
 import dev.restate.sdk.annotation.*
+import kotlinx.serialization.Serializable
 
 /** Collection of various utilities/corner cases scenarios used by tests */
 @Service
@@ -26,9 +27,6 @@ interface TestUtilsService {
   /** Just echo */
   @Handler @Raw suspend fun rawEcho(@Raw input: ByteArray): ByteArray
 
-  /** Create timers and await them all. Durations in milliseconds */
-  @Handler suspend fun sleepConcurrently(millisDuration: List<Long>)
-
   /**
    * Invoke `ctx.run` incrementing a local variable counter (not a restate state key!).
    *
@@ -40,4 +38,24 @@ interface TestUtilsService {
 
   /** Cancel invocation using the context. */
   @Handler suspend fun cancelInvocation(invocationId: String)
+
+  @Serializable
+  data class ResolveSignalRequest(
+      val invocationId: String,
+      val signalName: String,
+      val value: String,
+  )
+
+  /** Resolve a named signal on the target invocation with a string value. */
+  @Handler suspend fun resolveSignal(req: ResolveSignalRequest)
+
+  @Serializable
+  data class RejectSignalRequest(
+      val invocationId: String,
+      val signalName: String,
+      val reason: String,
+  )
+
+  /** Reject a named signal on the target invocation. */
+  @Handler suspend fun rejectSignal(req: RejectSignalRequest)
 }
