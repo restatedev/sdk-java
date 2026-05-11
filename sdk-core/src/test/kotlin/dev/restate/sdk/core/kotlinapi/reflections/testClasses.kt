@@ -10,63 +10,7 @@ package dev.restate.sdk.core.kotlinapi.reflections
 
 import dev.restate.sdk.annotation.*
 import dev.restate.sdk.kotlin.*
-import dev.restate.serde.Serde
-import dev.restate.serde.SerdeFactory
-import dev.restate.serde.TypeRef
-import dev.restate.serde.TypeTag
-import dev.restate.serde.kotlinx.KotlinSerializationSerdeFactory
 import kotlinx.coroutines.delay
-import kotlinx.serialization.Serializable
-
-@Service
-class ServiceGreeter {
-  @Handler
-  suspend fun greet(request: String): String {
-    return request
-  }
-}
-
-@VirtualObject
-class ObjectGreeter {
-  @Exclusive
-  suspend fun greet(request: String): String {
-    return request
-  }
-
-  @Handler
-  @Shared
-  suspend fun sharedGreet(request: String): String {
-    return request
-  }
-}
-
-@VirtualObject
-class NestedDataClass {
-  @Serializable data class Input(val a: String)
-
-  @Serializable data class Output(val a: String)
-
-  @Exclusive
-  suspend fun greet(request: Input): Output {
-    return Output(request.a)
-  }
-
-  @Exclusive
-  suspend fun complexType(request: Map<String, List<out Input>>): Map<String, List<out Output>> {
-    return mapOf()
-  }
-}
-
-@VirtualObject
-interface GreeterInterface {
-  @Exclusive suspend fun greet(request: String): String
-}
-
-class ObjectGreeterImplementedFromInterface : GreeterInterface {
-  override suspend fun greet(request: String): String {
-    return virtualObject<GreeterInterface>(objectKey()).greet(request)
-  }
-}
 
 @Service
 @Name("Empty")
@@ -167,35 +111,6 @@ open class MyWorkflow {
   @Handler
   open suspend fun sharedHandler(myInput: String): String =
       workflow<MyWorkflow>(workflowKey()).sharedHandler(myInput)
-}
-
-@Suppress("UNCHECKED_CAST")
-class MyCustomSerdeFactory : SerdeFactory {
-  override fun <T> create(typeTag: TypeTag<T?>): Serde<T?> {
-    check(typeTag is KotlinSerializationSerdeFactory.KtTypeTag)
-    check(typeTag.type == Byte::class)
-    return Serde.using<Byte>({ b -> byteArrayOf(b) }, { it[0] }) as Serde<T?>
-  }
-
-  override fun <T> create(typeRef: TypeRef<T?>): Serde<T?> {
-    check(typeRef.type == Byte::class)
-    return Serde.using<Byte>({ b -> byteArrayOf(b) }, { it[0] }) as Serde<T?>
-  }
-
-  override fun <T> create(clazz: Class<T?>?): Serde<T?> {
-    check(clazz == Byte::class.java)
-    return Serde.using<Byte>({ b -> byteArrayOf(b) }, { it[0] }) as Serde<T?>
-  }
-}
-
-@CustomSerdeFactory(MyCustomSerdeFactory::class)
-@Service
-@Name("CustomSerdeService")
-class CustomSerdeService {
-  @Handler
-  suspend fun echo(input: Byte): Byte {
-    return input
-  }
 }
 
 @Service

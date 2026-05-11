@@ -1,0 +1,155 @@
+// Copyright (c) 2023 - Restate Software, Inc., Restate GmbH
+//
+// This file is part of the Restate Java SDK,
+// which is released under the MIT license.
+//
+// You can find a copy of the license in file LICENSE in the root
+// directory of this repository or package, or at
+// https://github.com/restatedev/sdk-java/blob/main/LICENSE
+package dev.restate.sdk.core;
+
+import dev.restate.common.Slice;
+import dev.restate.common.Target;
+import dev.restate.sdk.common.*;
+import dev.restate.sdk.endpoint.HeadersAccessor;
+import java.time.Duration;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Flow;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * More or less same as the <a
+ * href="https://github.com/restatedev/sdk-shared-core/blob/main/src/lib.rs">VM trait</a>
+ */
+public interface StateMachine extends Flow.Processor<Slice, Slice> {
+
+  static StateMachine init(
+      HeadersAccessor headersAccessor,
+      EndpointRequestHandler.LoggingContextSetter loggingContextSetter) {
+    return new WasmStateMachineImpl(headersAccessor, loggingContextSetter);
+  }
+
+  // --- Response metadata
+
+  String getResponseContentType();
+
+  // --- Execution starting point
+
+  CompletableFuture<Void> waitForReady();
+
+  // --- Await next event
+
+  void onExternalProgress(Runnable runnable);
+
+  // --- Async results
+
+  sealed interface DoProgressResponse {
+    record AnyCompleted() implements DoProgressResponse {
+      static AnyCompleted INSTANCE = new AnyCompleted();
+    }
+
+    /**
+     * The VM needs more external input (notify_input, notify_input_closed, or
+     * propose_run_completion).
+     */
+    record WaitExternalProgress() implements DoProgressResponse {
+      static WaitExternalProgress INSTANCE = new WaitExternalProgress();
+    }
+
+    record ExecuteRun(int handle) implements DoProgressResponse {}
+
+    /** The implicit-cancellation signal was received. */
+    record CancelSignalReceived() implements DoProgressResponse {
+      static CancelSignalReceived INSTANCE = new CancelSignalReceived();
+    }
+  }
+
+  DoProgressResponse doProgress(List<Integer> anyHandle);
+
+  boolean isCompleted(int handle);
+
+  Optional<NotificationValue> takeNotification(int handle);
+
+  // --- Commands. The int return value is the handle of the operation.
+
+  record Input(
+      InvocationId invocationId, Slice body, Map<String, String> headers, @Nullable String key) {}
+
+  @Nullable Input input();
+
+  int stateGet(String key);
+
+  int stateGetKeys();
+
+  void stateSet(String key, Slice bytes);
+
+  void stateClear(String key);
+
+  void stateClearAll();
+
+  int sleep(Duration duration, String name);
+
+  record CallHandle(int invocationIdHandle, int resultHandle) {}
+
+  CallHandle call(
+      Target target,
+      Slice payload,
+      @Nullable String idempotencyKey,
+      @Nullable Collection<Map.Entry<String, String>> headers);
+
+  int send(
+      Target target,
+      Slice payload,
+      @Nullable String idempotencyKey,
+      @Nullable Collection<Map.Entry<String, String>> headers,
+      @Nullable Duration delay);
+
+  record Awakeable(String awakeableId, int handle) {}
+
+  Awakeable awakeable();
+
+  void completeAwakeable(String awakeableId, Slice value);
+
+  void completeAwakeable(String awakeableId, TerminalException exception);
+
+  int createSignalHandle(String signalName);
+
+  void completeSignal(String targetInvocationId, String signalName, Slice value);
+
+  void completeSignal(String targetInvocationId, String signalName, TerminalException exception);
+
+  int promiseGet(String key);
+
+  int promisePeek(String key);
+
+  int promiseComplete(String key, Slice value);
+
+  int promiseComplete(String key, TerminalException exception);
+
+  int run(String name);
+
+  void proposeRunCompletion(int handle, Slice value);
+
+  void proposeRunCompletion(
+      int handle, Throwable exception, Duration attemptDuration, RetryPolicy retryPolicy);
+
+  void cancelInvocation(String targetInvocationId);
+
+  int attachInvocation(String invocationId);
+
+  int getInvocationOutput(String invocationId);
+
+  void writeOutput(Slice value);
+
+  void writeOutput(TerminalException exception);
+
+  void end();
+
+  // -- Introspection
+
+  InvocationState state();
+}

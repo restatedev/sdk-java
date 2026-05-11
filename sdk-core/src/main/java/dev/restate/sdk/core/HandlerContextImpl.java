@@ -15,9 +15,6 @@ import dev.restate.common.function.ThrowingRunnable;
 import dev.restate.common.function.ThrowingSupplier;
 import dev.restate.sdk.common.*;
 import dev.restate.sdk.core.AsyncResults.AsyncResultInternal;
-import dev.restate.sdk.core.statemachine.InvocationState;
-import dev.restate.sdk.core.statemachine.NotificationValue;
-import dev.restate.sdk.core.statemachine.StateMachine;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
 import dev.restate.sdk.endpoint.definition.HandlerType;
 import dev.restate.sdk.endpoint.definition.ServiceType;
@@ -28,7 +25,6 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
-import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
@@ -46,7 +42,6 @@ class HandlerContextImpl implements HandlerContextInternal {
   private final ServiceType serviceType;
   private final @Nullable HandlerType handlerType;
 
-  private final List<AsyncResultInternal<String>> invocationIdsToCancel;
   private final HashMap<Integer, Consumer<RunCompleter>> scheduledRuns;
 
   HandlerContextImpl(
@@ -63,7 +58,6 @@ class HandlerContextImpl implements HandlerContextInternal {
     this.fullyQualifiedHandlerName = fullyQualifiedHandlerName;
     this.serviceType = serviceType;
     this.handlerType = handlerType;
-    this.invocationIdsToCancel = new ArrayList<>();
     this.scheduledRuns = new HashMap<>();
   }
 
@@ -223,7 +217,6 @@ class HandlerContextImpl implements HandlerContextInternal {
 
           AsyncResultInternal<String> invocationIdAsyncResult =
               AsyncResults.single(this, callHandle.invocationIdHandle(), invocationIdCompleter());
-          this.invocationIdsToCancel.add(invocationIdAsyncResult);
 
           AsyncResult<Slice> callAsyncResult =
               AsyncResults.single(
@@ -384,46 +377,11 @@ class HandlerContextImpl implements HandlerContextInternal {
         return;
       }
 
-      // Let's look for the cancellation notification
-      var cancellationNotification = this.stateMachine.takeNotification(CANCEL_HANDLE);
-      if (cancellationNotification.isPresent()) {
-        LOG.info("Detected cancellation signal! Will start cancelling child invocations");
-
-        // Let's wait to cancel all
-        @SuppressWarnings({"rawtypes", "unchecked"})
-        AsyncResultInternal<Void> allInvocationIds =
-            AsyncResults.all(this, (List) this.invocationIdsToCancel);
-        allInvocationIds
-            .publicFuture()
-            .whenComplete(
-                (ignored, throwable) -> {
-                  if (throwable != null) {
-                    // Already handled
-                    return;
-                  }
-                  LOG.info("All child invocation ids retrieved");
-                  try {
-                    for (var invocationIdAr : this.invocationIdsToCancel) {
-                      this.stateMachine.cancelInvocation(
-                          Objects.requireNonNull(invocationIdAr.publicFuture().getNow(null)));
-                    }
-                    asyncResult.tryCancel();
-                  } catch (Throwable e) {
-                    // Not good!
-                    this.failWithoutContextSwitch(e);
-                  }
-                });
-        // Let's resolve all the invocation IDs
-        pollAsyncResultInner(allInvocationIds);
-        return;
-      }
-
       // Let's start by trying to complete it
       asyncResult.tryComplete(this.stateMachine);
 
       // Now let's take the unprocessed leaves
-      List<Integer> uncompletedLeaves =
-          Stream.concat(asyncResult.uncompletedLeaves(), Stream.of(CANCEL_HANDLE)).toList();
+      List<Integer> uncompletedLeaves = asyncResult.uncompletedLeaves().toList();
       if (uncompletedLeaves.size() == 1) {
         // Nothing else to do!
         return;
@@ -441,12 +399,11 @@ class HandlerContextImpl implements HandlerContextInternal {
 
       if (response instanceof StateMachine.DoProgressResponse.AnyCompleted) {
         // Let it loop now
-      } else if (response instanceof StateMachine.DoProgressResponse.ReadFromInput
-          || response instanceof StateMachine.DoProgressResponse.WaitingPendingRun) {
-        this.stateMachine.onNextEvent(
-            () -> this.pollAsyncResultInner(asyncResult),
-            response instanceof StateMachine.DoProgressResponse.ReadFromInput);
+      } else if (response instanceof StateMachine.DoProgressResponse.WaitExternalProgress) {
+        this.stateMachine.onExternalProgress(() -> this.pollAsyncResultInner(asyncResult));
         return;
+      } else if (response instanceof StateMachine.DoProgressResponse.CancelSignalReceived) {
+        asyncResult.tryCancel();
       } else if (response instanceof StateMachine.DoProgressResponse.ExecuteRun) {
         triggerScheduledRun(((StateMachine.DoProgressResponse.ExecuteRun) response).handle());
         // Let it loop now

@@ -12,7 +12,6 @@ import dev.restate.common.Output;
 import dev.restate.common.Slice;
 import dev.restate.common.Target;
 import dev.restate.sdk.common.*;
-import dev.restate.sdk.core.statemachine.StateMachine;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
 import dev.restate.sdk.endpoint.definition.HandlerType;
 import dev.restate.sdk.endpoint.definition.ServiceType;

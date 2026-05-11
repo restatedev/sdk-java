@@ -13,7 +13,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ser.impl.SimpleBeanPropertyFilter;
 import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
-import dev.restate.sdk.core.generated.discovery.Discovery;
 import dev.restate.sdk.core.generated.manifest.EndpointManifestSchema;
 import dev.restate.sdk.core.generated.manifest.Handler;
 import dev.restate.sdk.core.generated.manifest.Service;
@@ -23,18 +22,41 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-class DiscoveryProtocol {
-  static final Discovery.ServiceDiscoveryProtocolVersion MIN_SERVICE_DISCOVERY_PROTOCOL_VERSION =
-      Discovery.ServiceDiscoveryProtocolVersion.V1;
-  static final Discovery.ServiceDiscoveryProtocolVersion MAX_SERVICE_DISCOVERY_PROTOCOL_VERSION =
-      Discovery.ServiceDiscoveryProtocolVersion.V4;
+public class DiscoveryProtocol {
+  public enum Version {
+    V1("application/vnd.restate.endpointmanifest.v1+json"),
+    V2("application/vnd.restate.endpointmanifest.v2+json"),
+    V3("application/vnd.restate.endpointmanifest.v3+json"),
+    V4("application/vnd.restate.endpointmanifest.v4+json");
 
-  static boolean isSupported(
-      Discovery.ServiceDiscoveryProtocolVersion serviceDiscoveryProtocolVersion) {
-    return MIN_SERVICE_DISCOVERY_PROTOCOL_VERSION.getNumber()
-            <= serviceDiscoveryProtocolVersion.getNumber()
-        && serviceDiscoveryProtocolVersion.getNumber()
-            <= MAX_SERVICE_DISCOVERY_PROTOCOL_VERSION.getNumber();
+    private final String header;
+
+    Version(String header) {
+      this.header = header;
+    }
+
+    public String getHeader() {
+      return header;
+    }
+
+    public int getNumber() {
+      return ordinal() + 1;
+    }
+
+    public boolean isSupported() {
+      // We support all versions so far
+      return true;
+    }
+
+    public static final Version MIN = Version.V1;
+    public static final Version MAX = Version.V4;
+
+    public static Optional<Version> fromHeader(String headerValue) {
+      String trimmed = headerValue.trim();
+      return Stream.of(values())
+          .filter(version -> version.header.equalsIgnoreCase(trimmed))
+          .findFirst();
+    }
   }
 
   /**
@@ -44,69 +66,36 @@ class DiscoveryProtocol {
    * @return The highest supported service protocol version, otherwise
    *     Protocol.ServiceProtocolVersion.SERVICE_PROTOCOL_VERSION_UNSPECIFIED
    */
-  static Discovery.ServiceDiscoveryProtocolVersion selectSupportedServiceDiscoveryProtocolVersion(
-      String acceptedVersionsString) {
+  static Version selectSupportedServiceDiscoveryProtocolVersion(String acceptedVersionsString) {
     // assume V1 in case nothing was set
     if (acceptedVersionsString == null || acceptedVersionsString.isEmpty()) {
-      return Discovery.ServiceDiscoveryProtocolVersion.V1;
+      return Version.V1;
     }
 
     final String[] supportedVersions = acceptedVersionsString.split(",");
 
-    Discovery.ServiceDiscoveryProtocolVersion maxVersion =
-        Discovery.ServiceDiscoveryProtocolVersion.SERVICE_DISCOVERY_PROTOCOL_VERSION_UNSPECIFIED;
+    Version maxVersion = null;
 
     for (String versionString : supportedVersions) {
-      final Optional<Discovery.ServiceDiscoveryProtocolVersion> optionalVersion =
-          parseServiceDiscoveryProtocolVersion(versionString);
+      final Optional<Version> optionalVersion = Version.fromHeader(versionString);
 
       if (optionalVersion.isPresent()) {
-        final Discovery.ServiceDiscoveryProtocolVersion version = optionalVersion.get();
-        if (isSupported(version) && version.getNumber() > maxVersion.getNumber()) {
+        final Version version = optionalVersion.get();
+        if (version.isSupported()
+            && (maxVersion == null || version.getNumber() > maxVersion.getNumber())) {
           maxVersion = version;
         }
       }
     }
 
+    if (Objects.isNull(maxVersion)) {
+      throw new ProtocolException(
+          String.format(
+              "Unsupported Discovery version in the Accept header '%s'", acceptedVersionsString),
+          ProtocolException.UNSUPPORTED_MEDIA_TYPE_CODE);
+    }
+
     return maxVersion;
-  }
-
-  static Optional<Discovery.ServiceDiscoveryProtocolVersion> parseServiceDiscoveryProtocolVersion(
-      String versionString) {
-    versionString = versionString.trim();
-
-    if (versionString.equals("application/vnd.restate.endpointmanifest.v1+json")) {
-      return Optional.of(Discovery.ServiceDiscoveryProtocolVersion.V1);
-    }
-    if (versionString.equals("application/vnd.restate.endpointmanifest.v2+json")) {
-      return Optional.of(Discovery.ServiceDiscoveryProtocolVersion.V2);
-    }
-    if (versionString.equals("application/vnd.restate.endpointmanifest.v3+json")) {
-      return Optional.of(Discovery.ServiceDiscoveryProtocolVersion.V3);
-    }
-    if (versionString.equals("application/vnd.restate.endpointmanifest.v4+json")) {
-      return Optional.of(Discovery.ServiceDiscoveryProtocolVersion.V4);
-    }
-    return Optional.empty();
-  }
-
-  static String serviceDiscoveryProtocolVersionToHeaderValue(
-      Discovery.ServiceDiscoveryProtocolVersion version) {
-    if (Objects.requireNonNull(version) == Discovery.ServiceDiscoveryProtocolVersion.V1) {
-      return "application/vnd.restate.endpointmanifest.v1+json";
-    }
-    if (Objects.requireNonNull(version) == Discovery.ServiceDiscoveryProtocolVersion.V2) {
-      return "application/vnd.restate.endpointmanifest.v2+json";
-    }
-    if (Objects.requireNonNull(version) == Discovery.ServiceDiscoveryProtocolVersion.V3) {
-      return "application/vnd.restate.endpointmanifest.v3+json";
-    }
-    if (Objects.requireNonNull(version) == Discovery.ServiceDiscoveryProtocolVersion.V4) {
-      return "application/vnd.restate.endpointmanifest.v4+json";
-    }
-    throw new IllegalArgumentException(
-        String.format(
-            "Service discovery protocol version '%s' has no header value", version.getNumber()));
   }
 
   static final ObjectMapper MANIFEST_OBJECT_MAPPER = new ObjectMapper();
@@ -139,12 +128,11 @@ class DiscoveryProtocol {
   }
 
   static byte[] serializeManifest(
-      Discovery.ServiceDiscoveryProtocolVersion serviceDiscoveryProtocolVersion,
-      EndpointManifestSchema response)
+      Version serviceDiscoveryProtocolVersion, EndpointManifestSchema response)
       throws ProtocolException {
     try {
       SimpleBeanPropertyFilter filter;
-      if (serviceDiscoveryProtocolVersion == Discovery.ServiceDiscoveryProtocolVersion.V1) {
+      if (serviceDiscoveryProtocolVersion == Version.V1) {
         filter =
             SimpleBeanPropertyFilter.serializeAllExcept(
                 Stream.concat(
@@ -153,14 +141,14 @@ class DiscoveryProtocol {
                             DISCOVERY_FIELDS_ADDED_IN_V3.stream()),
                         DISCOVERY_FIELDS_ADDED_IN_V4.stream())
                     .collect(Collectors.toSet()));
-      } else if (serviceDiscoveryProtocolVersion == Discovery.ServiceDiscoveryProtocolVersion.V2) {
+      } else if (serviceDiscoveryProtocolVersion == Version.V2) {
         filter =
             SimpleBeanPropertyFilter.serializeAllExcept(
                 Stream.concat(
                         DISCOVERY_FIELDS_ADDED_IN_V3.stream(),
                         DISCOVERY_FIELDS_ADDED_IN_V4.stream())
                     .collect(Collectors.toSet()));
-      } else if (serviceDiscoveryProtocolVersion == Discovery.ServiceDiscoveryProtocolVersion.V3) {
+      } else if (serviceDiscoveryProtocolVersion == Version.V3) {
         filter = SimpleBeanPropertyFilter.serializeAllExcept(DISCOVERY_FIELDS_ADDED_IN_V4);
       } else {
         filter = SimpleBeanPropertyFilter.serializeAll();

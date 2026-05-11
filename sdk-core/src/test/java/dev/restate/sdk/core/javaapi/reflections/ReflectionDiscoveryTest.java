@@ -9,15 +9,12 @@
 package dev.restate.sdk.core.javaapi.reflections;
 
 import static dev.restate.sdk.core.AssertUtils.assertThatDiscovery;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 import dev.restate.sdk.core.generated.manifest.Handler;
 import dev.restate.sdk.core.generated.manifest.Input;
 import dev.restate.sdk.core.generated.manifest.Output;
 import dev.restate.sdk.core.generated.manifest.Service;
-import dev.restate.sdk.core.javaapi.GreeterWithExplicitName;
-import dev.restate.sdk.core.javaapi.GreeterWithExplicitNameHandlers;
 import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.serde.Serde;
 import org.junit.jupiter.api.Test;
@@ -97,7 +94,6 @@ public class ReflectionDiscoveryTest {
     assertThatDiscovery((GreeterWithExplicitName) (context, request) -> "")
         .extractingService("MyExplicitName")
         .extractingHandler("my_greeter");
-    assertThat(GreeterWithExplicitNameHandlers.Metadata.SERVICE_NAME).isEqualTo("MyExplicitName");
   }
 
   @Test

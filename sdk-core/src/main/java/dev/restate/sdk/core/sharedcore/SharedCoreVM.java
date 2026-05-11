@@ -1,0 +1,781 @@
+// Copyright (c) 2023 - Restate Software, Inc., Restate GmbH
+//
+// This file is part of the Restate Java SDK,
+// which is released under the MIT license.
+//
+// You can find a copy of the license in file LICENSE in the root
+// directory of this repository or package, or at
+// https://github.com/restatedev/sdk-java/blob/main/LICENSE
+package dev.restate.sdk.core.sharedcore;
+
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
+import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
+import dev.restate.sdk.endpoint.HeadersAccessor;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.BiFunction;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * Java wrapper around the Rust {@code restate-sdk-shared-core} VM, embedded as a Chicory WASM
+ * module.
+ *
+ * <p>Mirrors sdk-go/internal/statemachine/wasm.go. Every WASM function returns {@code u64 = (ptr <<
+ * 32) | len} pointing to CBOR. Response types match the Rust output DTOs 1:1.
+ */
+public final class SharedCoreVM implements AutoCloseable {
+
+  private static final Logger LOG = LogManager.getLogger(SharedCoreVM.class);
+  //  private static final Cleaner CLEANER = Cleaner.create();
+
+  private final SharedCoreInstance instance;
+  private final int vmPtr;
+
+  //  private final Cleaner.Cleanable cleanable;
+  //
+  //  private record CleanState(SharedCoreWasm_ModuleExports exports, int vmPtr) implements Runnable
+  // {
+  //    @Override
+  //    public void run() {
+  //      try {
+  //        exports.vmFree(vmPtr);
+  //      } catch (Exception e) {
+  //        LOG.warn("[restate] Failed to free WASM VM pointer", e);
+  //      }
+  //    }
+  //  }
+
+  private SharedCoreVM(SharedCoreInstance instance, int vmPtr) {
+    this.instance = instance;
+    this.vmPtr = vmPtr;
+    //    this.cleanable = CLEANER.register(this, new CleanState(instance.getExports(), vmPtr));
+  }
+
+  // -------------------------------------------------------------------------
+  // Factory
+  // -------------------------------------------------------------------------
+
+  public static SharedCoreVM create(HeadersAccessor headersAccessor) {
+    // TODO sort out here if we wanna do any sort of caching or whatnot
+    SharedCoreInstance instance = SharedCoreInstance.create();
+
+    var newVmReturn =
+        instance.callCborVmFunction(
+            SharedCoreWasm_ModuleExports::vmNew,
+            new VmNewParameters(
+                StreamSupport.stream(headersAccessor.keys().spliterator(), false)
+                    .map(key -> new String[] {key, headersAccessor.get(key)})
+                    .filter(arr -> arr[1] != null)
+                    .collect(Collectors.toList())),
+            VmNewReturn.class);
+    if (newVmReturn instanceof VmNewReturn.Failure f) {
+      throw new RuntimeException(
+          "Failed to create state machine: " + f.code() + ": " + f.message());
+    }
+    int vmPtr = ((VmNewReturn.Ok) newVmReturn).pointer();
+    return new SharedCoreVM(instance, vmPtr);
+  }
+
+  // -------------------------------------------------------------------------
+  // AutoCloseable
+  // -------------------------------------------------------------------------
+
+  @Override
+  public void close() {
+    //    cleanable.clean();
+  }
+
+  // -------------------------------------------------------------------------
+  // Input / output
+  // -------------------------------------------------------------------------
+
+  public void notifyInput(byte[] bytes) {
+    var bufferPtr = instance.write(bytes);
+    instance.getExports().vmNotifyInput(vmPtr, bufferPtr, bytes.length);
+  }
+
+  public void notifyInputClosed() {
+    instance.getExports().vmNotifyInputClosed(vmPtr);
+  }
+
+  public Optional<byte[]> takeOutput() {
+    var ret =
+        instance.callCborVmFunction(exports -> exports.vmTakeOutput(vmPtr), TakeOutputReturn.class);
+    if (ret instanceof TakeOutputReturn.Eof) return Optional.empty();
+    return Optional.of(((TakeOutputReturn.Buffer) ret).bytes());
+  }
+
+  public String getResponseContentType() {
+    // TODO change this to just return headers back bro
+    var ret =
+        instance.callCborVmFunction(
+            exports -> exports.vmGetResponseHead(vmPtr), ResponseHeadReturn.class);
+    if (ret.headers() == null) return "";
+    for (String[] pair : ret.headers()) {
+      if ("content-type".equalsIgnoreCase(pair[0])) return pair[1];
+    }
+    return "";
+  }
+
+  public boolean isReadyToExecute() {
+    var ret =
+        instance.callCborVmFunction(
+            exports -> exports.vmIsReadyToExecute(vmPtr), IsReadyReturn.class);
+    if (ret instanceof IsReadyReturn.Failure f) throw vmError(f.code, f.message);
+    return ((IsReadyReturn.Ok) ret).ready();
+  }
+
+  public boolean isCompleted(int handle) {
+    return instance.getExports().vmIsCompleted(vmPtr, handle) != 0L;
+  }
+
+  // -------------------------------------------------------------------------
+  // Progress
+  // -------------------------------------------------------------------------
+
+  public DoProgressResult doProgress(int[] handles) {
+    var ret =
+        instance.callCborVmFunction(
+            (exports, ptr, len) -> exports.vmDoProgress(vmPtr, ptr, len),
+            new VmDoProgressParameters(handles),
+            DoProgressReturn.class);
+    if (ret instanceof DoProgressReturn.AnyCompleted) return DoProgressResult.ANY_COMPLETED;
+    if (ret instanceof DoProgressReturn.WaitingExternalProgress)
+      return DoProgressResult.WAIT_EXTERNAL_PROGRESS;
+    if (ret instanceof DoProgressReturn.CancelSignalReceived)
+      return DoProgressResult.CANCEL_SIGNAL_RECEIVED;
+    if (ret instanceof DoProgressReturn.ExecuteRun r)
+      return new DoProgressResult.ExecuteRun(r.handle());
+    if (ret instanceof DoProgressReturn.Suspended) return DoProgressResult.SUSPENDED;
+    DoProgressReturn.Failure f = (DoProgressReturn.Failure) ret;
+    throw vmError(f.code, f.message);
+  }
+
+  // -------------------------------------------------------------------------
+  // Notifications
+  // -------------------------------------------------------------------------
+
+  public @Nullable NotificationValue takeNotification(int handle) {
+    var ret =
+        instance.callCborVmFunction(
+            exports -> exports.vmTakeNotification(vmPtr, handle), TakeNotificationReturn.class);
+    if (ret instanceof TakeNotificationReturn.NotReady) return null;
+    if (ret instanceof TakeNotificationReturn.Suspended) return null;
+    if (ret instanceof TakeNotificationReturn.Value v) return v.value();
+    TakeNotificationReturn.Failure f = (TakeNotificationReturn.Failure) ret;
+    throw vmError(f.code, f.message);
+  }
+
+  // -------------------------------------------------------------------------
+  // sys_input
+  // -------------------------------------------------------------------------
+
+  public Input sysInput() {
+    var ret =
+        instance.callCborVmFunction(exports -> exports.vmSysInput(vmPtr), SysInputReturn.class);
+    if (ret instanceof SysInputReturn.Failure f) throw vmError(f.code(), f.message());
+    WasmInput w = ((SysInputReturn.Ok) ret).input();
+    List<Map.Entry<String, String>> hdrs = new ArrayList<>();
+    if (w.headers() != null) {
+      for (String[] pair : w.headers()) hdrs.add(Map.entry(pair[0], pair[1]));
+    }
+    return new Input(
+        w.invocationId(), w.randomSeed(), w.key(), Collections.unmodifiableList(hdrs), w.input());
+  }
+
+  // -------------------------------------------------------------------------
+  // State
+  // -------------------------------------------------------------------------
+
+  public int sysStateGet(String key) {
+    return callWithHandleReturn(
+        SharedCoreWasm_ModuleExports::vmSysStateGet, new VmSysStateGetParameters(key));
+  }
+
+  public int sysStateGetKeys() {
+    return callWithHandleReturn(SharedCoreWasm_ModuleExports::vmSysStateGetKeys);
+  }
+
+  public void sysStateSet(String key, byte[] value) {
+    callWithEmptyReturn(
+        SharedCoreWasm_ModuleExports::vmSysStateSet, new VmSysStateSetParameters(key, value));
+  }
+
+  public void sysStateClear(String key) {
+    callWithEmptyReturn(
+        SharedCoreWasm_ModuleExports::vmSysStateClear, new VmSysStateClearParameters(key));
+  }
+
+  public void sysStateClearAll() {
+    callWithEmptyReturn(SharedCoreWasm_ModuleExports::vmSysStateClearAll);
+  }
+
+  // -------------------------------------------------------------------------
+  // Sleep
+  // -------------------------------------------------------------------------
+
+  public int sysSleep(long durationMillis, @Nullable String name) {
+    long now = System.currentTimeMillis();
+    return callWithHandleReturn(
+        SharedCoreWasm_ModuleExports::vmSysSleep,
+        new VmSysSleepParameters(name != null ? name : "", now + durationMillis, now));
+  }
+
+  // -------------------------------------------------------------------------
+  // Call / Send
+  // -------------------------------------------------------------------------
+
+  public CallHandleResult sysCall(
+      String service,
+      String handler,
+      @Nullable String key,
+      byte[] payload,
+      @Nullable String idempotencyKey,
+      @Nullable List<Map.Entry<String, String>> extraHeaders) {
+    var ret =
+        instance.callCborVmFunction(
+            (exports, ptr, len) -> exports.vmSysCall(vmPtr, ptr, len),
+            new VmSysCallParameters(
+                service, handler, key, idempotencyKey, toHeaderList(extraHeaders), payload),
+            SysCallReturn.class);
+    if (ret instanceof SysCallReturn.Failure f) throw vmError(f.code(), f.message());
+    SysCallReturn.Ok ok = (SysCallReturn.Ok) ret;
+    return new CallHandleResult(ok.invocationIdHandle(), ok.resultHandle());
+  }
+
+  public int sysSend(
+      String service,
+      String handler,
+      @Nullable String key,
+      byte[] payload,
+      @Nullable String idempotencyKey,
+      @Nullable List<Map.Entry<String, String>> extraHeaders,
+      @Nullable Long delayMillis) {
+    Long executionTime = delayMillis != null ? System.currentTimeMillis() + delayMillis : null;
+    return callWithHandleReturn(
+        SharedCoreWasm_ModuleExports::vmSysSend,
+        new VmSysSendParameters(
+            service,
+            handler,
+            key,
+            idempotencyKey,
+            toHeaderList(extraHeaders),
+            payload,
+            executionTime));
+  }
+
+  // -------------------------------------------------------------------------
+  // Awakeables
+  // -------------------------------------------------------------------------
+
+  public AwakeableResult sysAwakeable() {
+    AwakeableReturn ret =
+        instance.callCborVmFunction(
+            (exports) -> exports.vmSysAwakeable(vmPtr), AwakeableReturn.class);
+    if (ret instanceof AwakeableReturn.Failure f) throw vmError(f.code(), f.message());
+    AwakeableReturn.Ok ok = (AwakeableReturn.Ok) ret;
+    return new AwakeableResult(ok.handle(), ok.id());
+  }
+
+  public void sysCompleteAwakeable(String id, NonEmptyValueParam result) {
+    callWithEmptyReturn(
+        SharedCoreWasm_ModuleExports::vmSysCompleteAwakeable,
+        new VmSysCompleteAwakeableParameters(id, result));
+  }
+
+  public void sysCompleteAwakeableSuccess(String id, byte[] value) {
+    sysCompleteAwakeable(id, new NonEmptyValueParam.Success(value));
+  }
+
+  public void sysCompleteAwakeableFailure(String id, int code, String message) {
+    sysCompleteAwakeable(id, new NonEmptyValueParam.Failure(code, message));
+  }
+
+  // -------------------------------------------------------------------------
+  // Signals
+  // -------------------------------------------------------------------------
+
+  public int sysCreateSignalHandle(String signalName) {
+    return callWithHandleReturn(
+        SharedCoreWasm_ModuleExports::vmSysCreateSignalHandle,
+        new VmSysCreateSignalHandleParameters(signalName));
+  }
+
+  public void sysCompleteSignal(String target, String signalName, NonEmptyValueParam result) {
+    callWithEmptyReturn(
+        SharedCoreWasm_ModuleExports::vmSysCompleteSignal,
+        new VmSysCompleteSignalParameters(target, signalName, result));
+  }
+
+  public void sysCompleteSignalSuccess(String target, String signalName, byte[] value) {
+    sysCompleteSignal(target, signalName, new NonEmptyValueParam.Success(value));
+  }
+
+  public void sysCompleteSignalFailure(String target, String signalName, int code, String message) {
+    sysCompleteSignal(target, signalName, new NonEmptyValueParam.Failure(code, message));
+  }
+
+  // -------------------------------------------------------------------------
+  // Promises
+  // -------------------------------------------------------------------------
+
+  public int sysPromiseGet(String key) {
+    return callWithHandleReturn(
+        SharedCoreWasm_ModuleExports::vmSysPromiseGet, new VmSysPromiseGetParameters(key));
+  }
+
+  public int sysPromisePeek(String key) {
+    return callWithHandleReturn(
+        SharedCoreWasm_ModuleExports::vmSysPromisePeek, new VmSysPromisePeekParameters(key));
+  }
+
+  public int sysPromiseComplete(String key, NonEmptyValueParam result) {
+    return callWithHandleReturn(
+        SharedCoreWasm_ModuleExports::vmSysPromiseComplete,
+        new VmSysPromiseCompleteParameters(key, result));
+  }
+
+  public int sysPromiseCompleteSuccess(String key, byte[] value) {
+    return sysPromiseComplete(key, new NonEmptyValueParam.Success(value));
+  }
+
+  public int sysPromiseCompleteFailure(String key, int code, String message) {
+    return sysPromiseComplete(key, new NonEmptyValueParam.Failure(code, message));
+  }
+
+  // -------------------------------------------------------------------------
+  // Run
+  // -------------------------------------------------------------------------
+
+  public int sysRun(String name) {
+    return callWithHandleReturn(
+        SharedCoreWasm_ModuleExports::vmSysRun, new VmSysRunParameters(name));
+  }
+
+  public void proposeRunCompletionSuccess(int handle, byte[] value) {
+    callWithEmptyReturn(
+        SharedCoreWasm_ModuleExports::vmProposeRunCompletion,
+        new VmProposeRunCompletionParameters(handle, new RunResult.Success(value), 0L, null));
+  }
+
+  public void proposeRunCompletionTerminalFailure(int handle, int code, String message) {
+    callWithEmptyReturn(
+        SharedCoreWasm_ModuleExports::vmProposeRunCompletion,
+        new VmProposeRunCompletionParameters(
+            handle, new RunResult.TerminalFailure(code, message), 0L, null));
+  }
+
+  public void proposeRunCompletionRetryableFailure(
+      int handle,
+      int code,
+      String message,
+      long attemptDurationMillis,
+      @Nullable WasmRetryPolicy retryPolicy) {
+    callWithEmptyReturn(
+        SharedCoreWasm_ModuleExports::vmProposeRunCompletion,
+        new VmProposeRunCompletionParameters(
+            handle,
+            new RunResult.RetryableFailure(code, message),
+            attemptDurationMillis,
+            retryPolicy));
+  }
+
+  // -------------------------------------------------------------------------
+  // Invocation control
+  // -------------------------------------------------------------------------
+
+  public void sysCancelInvocation(String invocationId) {
+    callWithEmptyReturn(
+        SharedCoreWasm_ModuleExports::vmSysCancelInvocation,
+        new VmSysCancelInvocation(invocationId));
+  }
+
+  public int sysAttachInvocation(String invocationId) {
+    return callWithHandleReturn(
+        SharedCoreWasm_ModuleExports::vmSysAttachInvocation,
+        new VmSysAttachInvocation(invocationId));
+  }
+
+  public int sysGetInvocationOutput(String invocationId) {
+    return callWithHandleReturn(
+        SharedCoreWasm_ModuleExports::vmSysGetInvocationOutput,
+        new VmSysGetInvocationOutput(invocationId));
+  }
+
+  // -------------------------------------------------------------------------
+  // Output / end
+  // -------------------------------------------------------------------------
+
+  public void sysWriteOutput(NonEmptyValueParam result) {
+    callWithEmptyReturn(
+        SharedCoreWasm_ModuleExports::vmSysWriteOutput, new VmSysWriteOutputParameters(result));
+  }
+
+  public void sysWriteOutputSuccess(byte[] value) {
+    sysWriteOutput(new NonEmptyValueParam.Success(value));
+  }
+
+  public void sysWriteOutputFailure(int code, String message) {
+    sysWriteOutput(new NonEmptyValueParam.Failure(code, message));
+  }
+
+  public void sysEnd() {
+    callWithEmptyReturn(SharedCoreWasm_ModuleExports::vmSysEnd);
+  }
+
+  // =========================================================================
+  // Result types (returned to callers of this class)
+  // =========================================================================
+
+  public sealed interface DoProgressResult {
+    DoProgressResult ANY_COMPLETED = new AnyCompleted();
+    DoProgressResult WAIT_EXTERNAL_PROGRESS = new WaitExternalProgress();
+    DoProgressResult CANCEL_SIGNAL_RECEIVED = new CancelSignalReceived();
+    DoProgressResult SUSPENDED = new Suspended();
+
+    record AnyCompleted() implements DoProgressResult {}
+
+    record WaitExternalProgress() implements DoProgressResult {}
+
+    record ExecuteRun(int handle) implements DoProgressResult {}
+
+    record CancelSignalReceived() implements DoProgressResult {}
+
+    record Suspended() implements DoProgressResult {}
+  }
+
+  // =========================================================================
+  // CBOR response types (decoded from WASM responses)
+  // =========================================================================
+
+  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
+  @JsonSubTypes({
+    @JsonSubTypes.Type(value = VmNewReturn.Ok.class, name = "ok"),
+    @JsonSubTypes.Type(value = VmNewReturn.Failure.class, name = "failure"),
+  })
+  public sealed interface VmNewReturn {
+    record Ok(int pointer) implements VmNewReturn {}
+
+    record Failure(int code, String message) implements VmNewReturn {}
+  }
+
+  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
+  @JsonSubTypes({
+    @JsonSubTypes.Type(value = EmptyReturn.Ok.class, name = "ok"),
+    @JsonSubTypes.Type(value = EmptyReturn.Failure.class, name = "failure"),
+  })
+  public sealed interface EmptyReturn {
+    record Ok() implements EmptyReturn {}
+
+    record Failure(int code, String message) implements EmptyReturn {}
+  }
+
+  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
+  @JsonSubTypes({
+    @JsonSubTypes.Type(value = HandleReturn.Ok.class, name = "ok"),
+    @JsonSubTypes.Type(value = HandleReturn.Failure.class, name = "failure"),
+  })
+  public sealed interface HandleReturn {
+    record Ok(int handle) implements HandleReturn {}
+
+    record Failure(int code, String message) implements HandleReturn {}
+  }
+
+  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
+  @JsonSubTypes({
+    @JsonSubTypes.Type(value = TakeOutputReturn.Buffer.class, name = "buffer"),
+    @JsonSubTypes.Type(value = TakeOutputReturn.Eof.class, name = "eof"),
+  })
+  public sealed interface TakeOutputReturn {
+    record Buffer(byte[] bytes) implements TakeOutputReturn {}
+
+    record Eof() implements TakeOutputReturn {}
+  }
+
+  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
+  @JsonSubTypes({
+    @JsonSubTypes.Type(value = IsReadyReturn.Ok.class, name = "ok"),
+    @JsonSubTypes.Type(value = IsReadyReturn.Failure.class, name = "failure"),
+  })
+  public sealed interface IsReadyReturn {
+    record Ok(boolean ready) implements IsReadyReturn {}
+
+    record Failure(int code, String message) implements IsReadyReturn {}
+  }
+
+  /** Plain struct — mirrors Go's VmGetResponseHeadReturn (no Ok/Failure wrapper). */
+  public record ResponseHeadReturn(int statusCode, List<String[]> headers) {}
+
+  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
+  @JsonSubTypes({
+    @JsonSubTypes.Type(value = DoProgressReturn.AnyCompleted.class, name = "anyCompleted"),
+    @JsonSubTypes.Type(
+        value = DoProgressReturn.WaitingExternalProgress.class,
+        name = "waitingExternalProgress"),
+    @JsonSubTypes.Type(value = DoProgressReturn.ExecuteRun.class, name = "executeRun"),
+    @JsonSubTypes.Type(
+        value = DoProgressReturn.CancelSignalReceived.class,
+        name = "cancelSignalReceived"),
+    @JsonSubTypes.Type(value = DoProgressReturn.Suspended.class, name = "suspended"),
+    @JsonSubTypes.Type(value = DoProgressReturn.Failure.class, name = "failure"),
+  })
+  public sealed interface DoProgressReturn {
+    record AnyCompleted() implements DoProgressReturn {}
+
+    record WaitingExternalProgress() implements DoProgressReturn {}
+
+    record ExecuteRun(int handle) implements DoProgressReturn {}
+
+    record CancelSignalReceived() implements DoProgressReturn {}
+
+    record Suspended() implements DoProgressReturn {}
+
+    record Failure(int code, String message) implements DoProgressReturn {}
+  }
+
+  /** Notification value payload — matches Rust {@code NotificationValue}. */
+  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
+  @JsonSubTypes({
+    @JsonSubTypes.Type(value = NotificationValue.Void.class, name = "void"),
+    @JsonSubTypes.Type(value = NotificationValue.Success.class, name = "success"),
+    @JsonSubTypes.Type(value = NotificationValue.Failure.class, name = "failure"),
+    @JsonSubTypes.Type(value = NotificationValue.StateKeys.class, name = "stateKeys"),
+    @JsonSubTypes.Type(value = NotificationValue.InvocationId.class, name = "invocationId"),
+  })
+  public sealed interface NotificationValue {
+    NotificationValue VOID = new Void();
+
+    record Void() implements NotificationValue {}
+
+    record Success(byte[] value) implements NotificationValue {}
+
+    record Failure(int code, String message) implements NotificationValue {}
+
+    record StateKeys(List<String> keys) implements NotificationValue {}
+
+    record InvocationId(String id) implements NotificationValue {}
+  }
+
+  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
+  @JsonSubTypes({
+    @JsonSubTypes.Type(value = TakeNotificationReturn.NotReady.class, name = "notReady"),
+    @JsonSubTypes.Type(value = TakeNotificationReturn.Value.class, name = "value"),
+    @JsonSubTypes.Type(value = TakeNotificationReturn.Suspended.class, name = "suspended"),
+    @JsonSubTypes.Type(value = TakeNotificationReturn.Failure.class, name = "failure"),
+  })
+  public sealed interface TakeNotificationReturn {
+    record NotReady() implements TakeNotificationReturn {}
+
+    record Value(NotificationValue value) implements TakeNotificationReturn {}
+
+    record Suspended() implements TakeNotificationReturn {}
+
+    record Failure(int code, String message) implements TakeNotificationReturn {}
+  }
+
+  public record WasmInput(
+      String invocationId,
+      String key,
+      List<String[]> headers,
+      byte[] input,
+      long randomSeed,
+      boolean shouldUseRandomSeed) {}
+
+  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
+  @JsonSubTypes({
+    @JsonSubTypes.Type(value = SysInputReturn.Ok.class, name = "ok"),
+    @JsonSubTypes.Type(value = SysInputReturn.Failure.class, name = "failure"),
+  })
+  public sealed interface SysInputReturn {
+    record Ok(WasmInput input) implements SysInputReturn {}
+
+    record Failure(int code, String message) implements SysInputReturn {}
+  }
+
+  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
+  @JsonSubTypes({
+    @JsonSubTypes.Type(value = AwakeableReturn.Ok.class, name = "ok"),
+    @JsonSubTypes.Type(value = AwakeableReturn.Failure.class, name = "failure"),
+  })
+  public sealed interface AwakeableReturn {
+    record Ok(String id, int handle) implements AwakeableReturn {}
+
+    record Failure(int code, String message) implements AwakeableReturn {}
+  }
+
+  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
+  @JsonSubTypes({
+    @JsonSubTypes.Type(value = SysCallReturn.Ok.class, name = "ok"),
+    @JsonSubTypes.Type(value = SysCallReturn.Failure.class, name = "failure"),
+  })
+  public sealed interface SysCallReturn {
+    record Ok(int invocationIdHandle, int resultHandle) implements SysCallReturn {}
+
+    record Failure(int code, String message) implements SysCallReturn {}
+  }
+
+  // =========================================================================
+  // Input DTOs (Java → Rust, CBOR maps with camelCase keys)
+  // Field names match Rust struct field names after camelCase renaming.
+  // =========================================================================
+
+  public record VmNewParameters(List<String[]> headers) {}
+
+  public record VmDoProgressParameters(int[] handles) {}
+
+  public record VmSysStateGetParameters(String key) {}
+
+  public record VmSysStateSetParameters(String key, byte[] value) {}
+
+  public record VmSysStateClearParameters(String key) {}
+
+  public record VmSysSleepParameters(
+      String name, long wakeUpTimeSinceUnixEpochMillis, long nowSinceUnixEpochMillis) {}
+
+  /** Combined success/failure union — matches Rust {@code NonEmptyValueParam}. */
+  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
+  @JsonSubTypes({
+    @JsonSubTypes.Type(value = NonEmptyValueParam.Success.class, name = "success"),
+    @JsonSubTypes.Type(value = NonEmptyValueParam.Failure.class, name = "failure"),
+  })
+  public sealed interface NonEmptyValueParam {
+    record Success(byte[] value) implements NonEmptyValueParam {}
+
+    record Failure(int code, String message) implements NonEmptyValueParam {}
+  }
+
+  public record VmSysCompleteAwakeableParameters(String id, NonEmptyValueParam result) {}
+
+  public record VmSysCallParameters(
+      String service,
+      String handler,
+      @Nullable String key,
+      @Nullable String idempotencyKey,
+      List<String[]> headers,
+      byte[] input) {}
+
+  public record VmSysSendParameters(
+      String service,
+      String handler,
+      @Nullable String key,
+      @Nullable String idempotencyKey,
+      List<String[]> headers,
+      byte[] input,
+      @Nullable Long executionTimeSinceUnixEpochMillis) {}
+
+  public record VmSysCancelInvocation(String invocationId) {}
+
+  public record VmSysAttachInvocation(String invocationId) {}
+
+  public record VmSysGetInvocationOutput(String invocationId) {}
+
+  public record VmSysPromiseGetParameters(String key) {}
+
+  public record VmSysPromisePeekParameters(String key) {}
+
+  public record VmSysPromiseCompleteParameters(String id, NonEmptyValueParam result) {}
+
+  public record VmSysRunParameters(String name) {}
+
+  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
+  @JsonSubTypes({
+    @JsonSubTypes.Type(value = RunResult.Success.class, name = "success"),
+    @JsonSubTypes.Type(value = RunResult.TerminalFailure.class, name = "terminalFailure"),
+    @JsonSubTypes.Type(value = RunResult.RetryableFailure.class, name = "retryableFailure"),
+  })
+  public sealed interface RunResult {
+    record Success(byte[] value) implements RunResult {}
+
+    record TerminalFailure(int code, String message) implements RunResult {}
+
+    record RetryableFailure(int code, String message) implements RunResult {}
+  }
+
+  public record VmProposeRunCompletionParameters(
+      int handle,
+      RunResult result,
+      long attemptDurationMillis,
+      @Nullable WasmRetryPolicy retryPolicy) {}
+
+  public record WasmRetryPolicy(
+      long initialIntervalMillis,
+      float factor,
+      @Nullable Long maxIntervalMillis,
+      @Nullable Integer maxAttempts,
+      @Nullable Long maxDurationMillis) {}
+
+  public record VmSysCreateSignalHandleParameters(String name) {}
+
+  public record VmSysCompleteSignalParameters(
+      String target, String name, NonEmptyValueParam result) {}
+
+  public record VmSysWriteOutputParameters(NonEmptyValueParam result) {}
+
+  // =========================================================================
+  // Result value types returned to WasmStateMachineImpl
+  // =========================================================================
+
+  public record Input(
+      String invocationId,
+      long randomSeed,
+      String key,
+      List<Map.Entry<String, String>> headers,
+      byte[] body) {}
+
+  public record CallHandleResult(int invocationIdHandle, int resultHandle) {}
+
+  public record AwakeableResult(int signalHandle, String awakeableId) {}
+
+  private int callWithHandleReturn(
+      SharedCoreInstance.QuadFunction<SharedCoreWasm_ModuleExports, Integer, Integer, Integer, Long>
+          func,
+      Object input) {
+    var ret =
+        instance.callCborVmFunction(
+            (exports, ptr, len) -> func.apply(exports, vmPtr, ptr, len), input, HandleReturn.class);
+    if (ret instanceof HandleReturn.Failure f) throw vmError(f.code, f.message);
+    return ((HandleReturn.Ok) ret).handle();
+  }
+
+  private int callWithHandleReturn(BiFunction<SharedCoreWasm_ModuleExports, Integer, Long> func) {
+    var ret =
+        instance.callCborVmFunction(exports -> func.apply(exports, vmPtr), HandleReturn.class);
+    if (ret instanceof HandleReturn.Failure f) throw vmError(f.code, f.message);
+    return ((HandleReturn.Ok) ret).handle();
+  }
+
+  private void callWithEmptyReturn(
+      SharedCoreInstance.QuadFunction<SharedCoreWasm_ModuleExports, Integer, Integer, Integer, Long>
+          func,
+      Object input) {
+    var ret =
+        instance.callCborVmFunction(
+            (exports, ptr, len) -> func.apply(exports, vmPtr, ptr, len), input, EmptyReturn.class);
+    if (ret instanceof EmptyReturn.Failure f) throw vmError(f.code, f.message);
+  }
+
+  private void callWithEmptyReturn(BiFunction<SharedCoreWasm_ModuleExports, Integer, Long> func) {
+    var ret = instance.callCborVmFunction(exports -> func.apply(exports, vmPtr), EmptyReturn.class);
+    if (ret instanceof EmptyReturn.Failure f) throw vmError(f.code, f.message);
+  }
+
+  private static RuntimeException vmError(int code, String message) {
+    return new RuntimeException("VM error " + code + ": " + message);
+  }
+
+  private static List<String[]> toHeaderList(@Nullable List<Map.Entry<String, String>> headers) {
+    if (headers == null || headers.isEmpty()) return Collections.emptyList();
+    List<String[]> r = new ArrayList<>(headers.size());
+    for (Map.Entry<String, String> e : headers) r.add(new String[] {e.getKey(), e.getValue()});
+    return r;
+  }
+}

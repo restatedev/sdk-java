@@ -11,8 +11,6 @@ package dev.restate.sdk.core;
 import dev.restate.common.function.ThrowingFunction;
 import dev.restate.sdk.common.AbortedExecutionException;
 import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.core.statemachine.NotificationValue;
-import dev.restate.sdk.core.statemachine.StateMachine;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
