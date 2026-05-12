@@ -1038,7 +1038,7 @@ struct VmSysCompleteAwakeableParameters {
 
 /// Combined success/failure union used by awakeable, promise, write_output, signal.
 #[derive(Deserialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
+#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 enum NonEmptyValueParam {
     Success {
         #[serde(with = "serde_bytes")]
@@ -1142,7 +1142,7 @@ struct VmProposeRunCompletionParameters {
 }
 
 #[derive(Deserialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
+#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 enum RunResult {
     Success {
         #[serde(with = "serde_bytes")]
@@ -1194,7 +1194,7 @@ struct VmSysWriteOutputParameters {
 // Each return type has a `from_err` helper matching Go's `.into()` from Failure conversions.
 
 #[derive(Serialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
+#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 enum VmNewReturn {
     Ok { pointer: u32 },
     Failure { code: u32, message: String },
@@ -1210,7 +1210,7 @@ impl VmNewReturn {
 
 /// Equivalent to Go's GenericEmptyReturn.
 #[derive(Serialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
+#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 enum EmptyReturn {
     Ok,
     Failure { code: u32, message: String },
@@ -1218,14 +1218,14 @@ enum EmptyReturn {
 
 /// Equivalent to Go's SimpleSysAsyncResultReturn.
 #[derive(Serialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
+#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 enum HandleReturn {
     Ok { handle: u32 },
     Failure { code: u32, message: String },
 }
 
 #[derive(Serialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
+#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 enum TakeOutputReturn {
     Buffer {
         #[serde(with = "serde_bytes")]
@@ -1235,7 +1235,7 @@ enum TakeOutputReturn {
 }
 
 #[derive(Serialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
+#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 enum IsReadyReturn {
     Ok { ready: bool },
     Failure { code: u32, message: String },
@@ -1258,7 +1258,7 @@ struct ResponseHeadReturn {
 }
 
 #[derive(Serialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
+#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 enum DoProgressReturn {
     AnyCompleted,
     WaitingExternalProgress,
@@ -1278,7 +1278,7 @@ impl DoProgressReturn {
 
 /// Notification value (the payload of a completed handle).
 #[derive(Serialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
+#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 enum NotificationValue {
     Void,
     Success {
@@ -1313,7 +1313,7 @@ impl From<Value> for NotificationValue {
 }
 
 #[derive(Serialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
+#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 enum TakeNotificationReturn {
     NotReady,
     Value { value: NotificationValue },
@@ -1342,7 +1342,7 @@ struct WasmInput {
 }
 
 #[derive(Serialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
+#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 enum SysInputReturn {
     Ok { input: WasmInput },
     Failure { code: u32, message: String },
@@ -1357,7 +1357,7 @@ impl SysInputReturn {
 }
 
 #[derive(Serialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
+#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 enum AwakeableReturn {
     Ok { id: String, handle: u32 },
     Failure { code: u32, message: String },
@@ -1372,7 +1372,7 @@ impl AwakeableReturn {
 }
 
 #[derive(Serialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
+#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 enum SysCallReturn {
     Ok {
         invocation_id_handle: u32,
