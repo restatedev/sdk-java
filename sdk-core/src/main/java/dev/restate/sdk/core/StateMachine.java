@@ -45,6 +45,10 @@ public interface StateMachine extends Flow.Processor<Slice, Slice> {
 
   void onExternalProgress(Runnable runnable);
 
+  // --- Output pump (mirrors TS OutputPump.awaitNextProgress — drains ONE chunk)
+
+  void pumpOutput();
+
   // --- Async results
 
   sealed interface DoProgressResponse {

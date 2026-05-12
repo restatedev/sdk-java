@@ -108,17 +108,16 @@ final class WasmStateMachineImpl implements StateMachine {
         });
   }
 
-  private void pumpOutput() {
+  @Override
+  public void pumpOutput() {
     if (outputSubscriber == null) {
       return;
     }
-    while (true) {
-      Optional<byte[]> chunk = vm.takeOutput();
-      if (chunk.isEmpty()) {
-        return;
-      }
-      outputSubscriber.onNext(Slice.wrap(chunk.get()));
+    byte[] chunk = vm.takeOutput();
+    if (chunk.length == 0) {
+      return;
     }
+    outputSubscriber.onNext(Slice.wrap(chunk));
   }
 
   private void checkReadyToExecute() {
@@ -171,14 +170,12 @@ final class WasmStateMachineImpl implements StateMachine {
     if (result instanceof SharedCoreVM.DoProgressResult.AnyCompleted) {
       return DoProgressResponse.AnyCompleted.INSTANCE;
     } else if (result instanceof SharedCoreVM.DoProgressResult.WaitExternalProgress) {
-      pumpOutput();
       return DoProgressResponse.WaitExternalProgress.INSTANCE;
     } else if (result instanceof SharedCoreVM.DoProgressResult.CancelSignalReceived) {
       return DoProgressResponse.CancelSignalReceived.INSTANCE;
     } else if (result instanceof SharedCoreVM.DoProgressResult.ExecuteRun r) {
       return new DoProgressResponse.ExecuteRun(r.handle());
     } else if (result instanceof SharedCoreVM.DoProgressResult.Suspended) {
-      pumpOutput();
       ExceptionUtils.sneakyThrow(AbortedExecutionException.INSTANCE);
     }
     throw new IllegalStateException("Unknown DoProgressResult: " + result);
@@ -419,7 +416,7 @@ final class WasmStateMachineImpl implements StateMachine {
   public void end() {
     try {
       vm.sysEnd();
-      pumpOutput();
+      this.pumpOutput();
     } finally {
       if (outputSubscriber != null) {
         outputSubscriber.onComplete();

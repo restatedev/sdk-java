@@ -114,16 +114,14 @@ public final class SharedCoreVM implements AutoCloseable {
         new VmNotifyError(message, stacktrace, delayOverrideMillis));
   }
 
-  public Optional<byte[]> takeOutput() {
+  public byte[] takeOutput() {
     if (closed) {
-      return Optional.empty();
+      return new byte[0];
     }
     LOG.trace("[vm=0x{}] takeOutput()", Integer.toHexString(vmPtr));
 
-    var ret =
-        instance.callCborVmFunction(exports -> exports.vmTakeOutput(vmPtr), TakeOutputReturn.class);
-    if (ret instanceof TakeOutputReturn.Eof) return Optional.empty();
-    return Optional.of(((TakeOutputReturn.Buffer) ret).bytes());
+    var ptr = instance.getExports().vmTakeOutput(vmPtr);
+    return instance.readAndFree(ptr);
   }
 
   public String getResponseContentType() {
@@ -581,17 +579,6 @@ public final class SharedCoreVM implements AutoCloseable {
     record Ok(int handle) implements HandleReturn {}
 
     record Failure(int code, String message) implements HandleReturn {}
-  }
-
-  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
-  @JsonSubTypes({
-    @JsonSubTypes.Type(value = TakeOutputReturn.Buffer.class, name = "buffer"),
-    @JsonSubTypes.Type(value = TakeOutputReturn.Eof.class, name = "eof"),
-  })
-  public sealed interface TakeOutputReturn {
-    record Buffer(byte[] bytes) implements TakeOutputReturn {}
-
-    record Eof() implements TakeOutputReturn {}
   }
 
   @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")

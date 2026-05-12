@@ -252,8 +252,11 @@ fn vm_notify_error(rc_vm: &Rc<RefCell<WasmVM>>, input: VmNotifyError) {
 #[export_name = "vm_take_output"]
 pub unsafe extern "C" fn _vm_take_output(vm_pointer: *const RefCell<WasmVM>) -> u64 {
     let rc_vm = vm_ptr_to_rc(vm_pointer);
-    let res: TakeOutputReturn = VM::take_output(&mut rc_vm.borrow_mut().vm).into();
-    output_to_ptr(res)
+    let res: Vec<u8> = match VM::take_output(&mut rc_vm.borrow_mut().vm) {
+        TakeOutputResult::Buffer(b) => b.to_vec(),
+        TakeOutputResult::EOF => Vec::default(),
+    };
+    vec_to_ptr(res)
 }
 
 #[export_name = "vm_is_ready_to_execute"]
@@ -1226,16 +1229,6 @@ enum HandleReturn {
 
 #[derive(Serialize)]
 #[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
-enum TakeOutputReturn {
-    Buffer {
-        #[serde(with = "serde_bytes")]
-        bytes: Vec<u8>,
-    },
-    Eof,
-}
-
-#[derive(Serialize)]
-#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 enum IsReadyReturn {
     Ok { ready: bool },
     Failure { code: u32, message: String },
@@ -1414,15 +1407,6 @@ impl From<Result<NotificationHandle, Error>> for HandleReturn {
                 code: e.code() as u32,
                 message: e.to_string(),
             },
-        }
-    }
-}
-
-impl From<TakeOutputResult> for TakeOutputReturn {
-    fn from(value: TakeOutputResult) -> Self {
-        match value {
-            TakeOutputResult::Buffer(b) => TakeOutputReturn::Buffer { bytes: b.to_vec() },
-            TakeOutputResult::EOF => TakeOutputReturn::Eof,
         }
     }
 }

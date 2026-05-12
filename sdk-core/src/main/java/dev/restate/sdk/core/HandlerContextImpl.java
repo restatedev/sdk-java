@@ -362,8 +362,7 @@ class HandlerContextImpl implements HandlerContextInternal {
 
   @Override
   public void pollAsyncResult(AsyncResultInternal<?> asyncResult) {
-    // We use the separate function for the recursion,
-    // as there's no need to jump back and forth between threads again.
+    this.stateMachine.pumpOutput();
     this.pollAsyncResultInner(asyncResult);
   }
 
@@ -400,10 +399,12 @@ class HandlerContextImpl implements HandlerContextInternal {
       if (response instanceof StateMachine.DoProgressResponse.AnyCompleted) {
         // Let it loop now
       } else if (response instanceof StateMachine.DoProgressResponse.WaitExternalProgress) {
+        this.stateMachine.pumpOutput();
         this.stateMachine.onExternalProgress(() -> this.pollAsyncResultInner(asyncResult));
         return;
       } else if (response instanceof StateMachine.DoProgressResponse.CancelSignalReceived) {
         asyncResult.tryCancel();
+        return;
       } else if (response instanceof StateMachine.DoProgressResponse.ExecuteRun) {
         triggerScheduledRun(((StateMachine.DoProgressResponse.ExecuteRun) response).handle());
         // Let it loop now
