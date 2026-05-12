@@ -33,8 +33,6 @@ class HandlerContextImpl implements HandlerContextInternal {
 
   private static final Logger LOG = LogManager.getLogger(HandlerContextImpl.class);
 
-  private static final int CANCEL_HANDLE = 1;
-
   private final HandlerRequest handlerRequest;
   private final StateMachine stateMachine;
   private final @Nullable String objectKey;

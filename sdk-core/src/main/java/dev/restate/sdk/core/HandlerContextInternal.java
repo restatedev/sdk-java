@@ -49,6 +49,8 @@ interface HandlerContextInternal extends HandlerContext {
 
   void close();
 
+  void fail(Throwable throwable);
+
   // -- State machine introspection (used by logging propagator)
 
   /**
