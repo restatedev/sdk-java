@@ -12,6 +12,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
+import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.endpoint.HeadersAccessor;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -64,8 +65,7 @@ public final class SharedCoreVM implements AutoCloseable {
                     .collect(Collectors.toList())),
             VmNewReturn.class);
     if (newVmReturn instanceof VmNewReturn.Failure f) {
-      throw new RuntimeException(
-          "Failed to create state machine: " + f.code() + ": " + f.message());
+      throw new ProtocolException("Failed to create state machine: " + f.message(), f.code);
     }
     int vmPtr = ((VmNewReturn.Ok) newVmReturn).pointer();
     return new SharedCoreVM(instance, vmPtr);
@@ -825,8 +825,8 @@ public final class SharedCoreVM implements AutoCloseable {
     if (ret instanceof EmptyReturn.Failure f) throw vmError(f.code, f.message);
   }
 
-  private static RuntimeException vmError(int code, String message) {
-    return new RuntimeException("VM error " + code + ": " + message);
+  private static ProtocolException vmError(int code, String message) {
+    return new ProtocolException(message, code);
   }
 
   private static List<String[]> toHeaderList(@Nullable List<Map.Entry<String, String>> headers) {

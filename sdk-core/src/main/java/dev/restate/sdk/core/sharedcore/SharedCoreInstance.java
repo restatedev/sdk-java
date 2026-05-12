@@ -17,6 +17,7 @@ import com.dylibso.chicory.runtime.Memory;
 import com.dylibso.chicory.wasm.WasmModule;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.dataformat.cbor.databind.CBORMapper;
+import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.sharedcore.generated.SharedCoreWasmMachine;
 import java.io.IOException;
 import java.util.function.Function;
@@ -79,7 +80,7 @@ class SharedCoreInstance {
     try {
       return CBOR.readValue(retBytes, outputClazz);
     } catch (IOException e) {
-      throw new RuntimeException("Failed to decode CBOR", e);
+      throw new ProtocolException("Failed to decode CBOR", ProtocolException.INTERNAL_CODE, e);
     }
   }
 
@@ -96,7 +97,7 @@ class SharedCoreInstance {
     try {
       cbor = CBOR.writeValueAsBytes(input);
     } catch (JsonProcessingException e) {
-      throw new RuntimeException("Failed to encode CBOR", e);
+      throw new ProtocolException("Failed to encode CBOR", ProtocolException.INTERNAL_CODE, e);
     }
     int ptr = write(cbor);
     return new BufferPointer(ptr, cbor.length);

@@ -16,7 +16,7 @@ public class ProtocolException extends RuntimeException {
   static final int NOT_FOUND_CODE = 404;
   public static final int UNSUPPORTED_MEDIA_TYPE_CODE = 415;
   public static final int INTERNAL_CODE = 500;
-  public static final int UNSUPPORTED_FEATURE = 573;
+  @Deprecated public static final int UNSUPPORTED_FEATURE = 573;
 
   private final int code;
 
@@ -43,6 +43,7 @@ public class ProtocolException extends RuntimeException {
         "Cannot find handler '" + serviceName + "/" + handlerName + "'", NOT_FOUND_CODE);
   }
 
+  @Deprecated
   public static ProtocolException idempotencyKeyIsEmpty() {
     return new ProtocolException(
         "The provided idempotency key is empty.",

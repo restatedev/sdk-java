@@ -225,7 +225,7 @@ checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
 [[package]]
 name = "restate-sdk-shared-core"
 version = "0.10.0"
-source = "git+https://github.com/restatedev/sdk-shared-core?branch=awaiting_on#7a42d8dd867aca782acd28c8e0f7a0a735e17604"
+source = "git+https://github.com/restatedev/sdk-shared-core?branch=main#d8a42ecceab6e7874138b6316e128a09f2de76d1"
 dependencies = [
  "base64",
  "bytes",

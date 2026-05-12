@@ -382,7 +382,7 @@ class HandlerContextImpl implements HandlerContextInternal {
 
       // Now let's take the unprocessed leaves
       List<Integer> uncompletedLeaves = asyncResult.uncompletedLeaves().toList();
-      if (uncompletedLeaves.size() == 1) {
+      if (uncompletedLeaves.isEmpty()) {
         // Nothing else to do!
         return;
       }
