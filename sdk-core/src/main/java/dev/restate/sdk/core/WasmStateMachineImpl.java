@@ -112,11 +112,13 @@ final class WasmStateMachineImpl implements StateMachine {
     if (outputSubscriber == null) {
       return;
     }
-    Optional<byte[]> chunk = vm.takeOutput();
-    if (chunk.isEmpty()) {
-      return;
+    while (true) {
+      Optional<byte[]> chunk = vm.takeOutput();
+      if (chunk.isEmpty()) {
+        return;
+      }
+      outputSubscriber.onNext(Slice.wrap(chunk.get()));
     }
-    outputSubscriber.onNext(Slice.wrap(chunk.get()));
   }
 
   private void checkReadyToExecute() {
@@ -162,10 +164,6 @@ final class WasmStateMachineImpl implements StateMachine {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // StateMachine — async results
-  // ---------------------------------------------------------------------------
-
   @Override
   public DoProgressResponse doProgress(List<Integer> handles) {
     int[] arr = handles.stream().mapToInt(Integer::intValue).toArray();
@@ -181,7 +179,7 @@ final class WasmStateMachineImpl implements StateMachine {
       return new DoProgressResponse.ExecuteRun(r.handle());
     } else if (result instanceof SharedCoreVM.DoProgressResult.Suspended) {
       pumpOutput();
-      return DoProgressResponse.WaitExternalProgress.INSTANCE;
+      ExceptionUtils.sneakyThrow(AbortedExecutionException.INSTANCE);
     }
     throw new IllegalStateException("Unknown DoProgressResult: " + result);
   }
