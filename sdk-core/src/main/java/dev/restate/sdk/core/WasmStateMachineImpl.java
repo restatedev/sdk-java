@@ -13,6 +13,8 @@ import dev.restate.common.Target;
 import dev.restate.sdk.common.*;
 import dev.restate.sdk.core.sharedcore.SharedCoreVM;
 import dev.restate.sdk.endpoint.HeadersAccessor;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -59,6 +61,14 @@ final class WasmStateMachineImpl implements StateMachine {
 
   @Override
   public void onError(Throwable throwable) {
+    try {
+      String message =
+          throwable.getMessage() != null ? throwable.getMessage() : throwable.getClass().getName();
+      vm.notifyError(message, stacktraceToString(throwable), null);
+      pumpOutput();
+    } catch (Throwable ignored) {
+      // ignore errors from notifyError — we're already in error handling
+    }
     if (!waitForReadyFuture.isDone()) {
       waitForReadyFuture.completeExceptionally(throwable);
     }
@@ -194,7 +204,11 @@ final class WasmStateMachineImpl implements StateMachine {
     } else if (raw instanceof SharedCoreVM.NotificationValue.Success s) {
       return new NotificationValue.Success(Slice.wrap(s.value()));
     } else if (raw instanceof SharedCoreVM.NotificationValue.Failure f) {
-      return new NotificationValue.Failure(new TerminalException(f.code(), f.message()));
+      Map<String, String> meta = new LinkedHashMap<>();
+      if (f.metadata() != null) {
+        for (String[] pair : f.metadata()) meta.put(pair[0], pair[1]);
+      }
+      return new NotificationValue.Failure(new TerminalException(f.code(), f.message(), meta));
     } else if (raw instanceof SharedCoreVM.NotificationValue.StateKeys sk) {
       return new NotificationValue.StateKeys(sk.keys());
     } else if (raw instanceof SharedCoreVM.NotificationValue.InvocationId id) {
@@ -300,7 +314,8 @@ final class WasmStateMachineImpl implements StateMachine {
 
   @Override
   public void completeAwakeable(String awakeableId, TerminalException exception) {
-    vm.sysCompleteAwakeableFailure(awakeableId, exception.getCode(), exception.getMessage());
+    vm.sysCompleteAwakeableFailure(
+        awakeableId, exception.getCode(), exception.getMessage(), toMetaList(exception));
   }
 
   @Override
@@ -317,7 +332,11 @@ final class WasmStateMachineImpl implements StateMachine {
   public void completeSignal(
       String targetInvocationId, String signalName, TerminalException exception) {
     vm.sysCompleteSignalFailure(
-        targetInvocationId, signalName, exception.getCode(), exception.getMessage());
+        targetInvocationId,
+        signalName,
+        exception.getCode(),
+        exception.getMessage(),
+        toMetaList(exception));
   }
 
   @Override
@@ -337,7 +356,8 @@ final class WasmStateMachineImpl implements StateMachine {
 
   @Override
   public int promiseComplete(String key, TerminalException exception) {
-    return vm.sysPromiseCompleteFailure(key, exception.getCode(), exception.getMessage());
+    return vm.sysPromiseCompleteFailure(
+        key, exception.getCode(), exception.getMessage(), toMetaList(exception));
   }
 
   @Override
@@ -359,12 +379,13 @@ final class WasmStateMachineImpl implements StateMachine {
       @Nullable RetryPolicy retryPolicy) {
     SharedCoreVM.WasmRetryPolicy rp = toWasmRetryPolicy(retryPolicy);
     if (exception instanceof TerminalException te) {
-      vm.proposeRunCompletionTerminalFailure(handle, te.getCode(), te.getMessage());
+      vm.proposeRunCompletionTerminalFailure(handle, te.getCode(), te.getMessage(), toMetaList(te));
     } else {
       vm.proposeRunCompletionRetryableFailure(
           handle,
           500,
           exception.getMessage() != null ? exception.getMessage() : exception.getClass().getName(),
+          stacktraceToString(exception),
           attemptDuration.toMillis(),
           rp);
     }
@@ -393,7 +414,7 @@ final class WasmStateMachineImpl implements StateMachine {
 
   @Override
   public void writeOutput(TerminalException exception) {
-    vm.sysWriteOutputFailure(exception.getCode(), exception.getMessage());
+    vm.sysWriteOutputFailure(exception.getCode(), exception.getMessage(), toMetaList(exception));
   }
 
   @Override
@@ -434,5 +455,20 @@ final class WasmStateMachineImpl implements StateMachine {
         retryPolicy.getMaxDelay() != null ? retryPolicy.getMaxDelay().toMillis() : null,
         retryPolicy.getMaxAttempts(),
         retryPolicy.getMaxDuration() != null ? retryPolicy.getMaxDuration().toMillis() : null);
+  }
+
+  private static @Nullable List<String[]> toMetaList(TerminalException exception) {
+    Map<String, String> meta = exception.getMetadata();
+    if (meta == null || meta.isEmpty()) return null;
+    List<String[]> r = new ArrayList<>(meta.size());
+    for (Map.Entry<String, String> e : meta.entrySet())
+      r.add(new String[] {e.getKey(), e.getValue()});
+    return r;
+  }
+
+  private static String stacktraceToString(Throwable t) {
+    StringWriter sw = new StringWriter();
+    t.printStackTrace(new PrintWriter(sw));
+    return sw.toString();
   }
 }

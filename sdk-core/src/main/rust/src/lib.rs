@@ -239,11 +239,14 @@ pub unsafe extern "C" fn _vm_notify_error(
 }
 
 fn vm_notify_error(rc_vm: &Rc<RefCell<WasmVM>>, input: VmNotifyError) {
-    VM::notify_error(
-        &mut rc_vm.borrow_mut().vm,
-        Error::new(500u16, Cow::Owned(input.message)).with_stacktrace(input.stacktrace),
-        None,
-    )
+    let mut error = Error::new(500u16, Cow::Owned(input.message));
+    if let Some(st) = input.stacktrace {
+        error = error.with_stacktrace(st);
+    }
+    if let Some(delay) = input.delay_override_millis {
+        error = error.with_next_retry_delay_override(Duration::from_millis(delay));
+    }
+    VM::notify_error(&mut rc_vm.borrow_mut().vm, error, None)
 }
 
 #[export_name = "vm_take_output"]
@@ -762,17 +765,23 @@ fn vm_propose_run_completion(
 ) -> EmptyReturn {
     let run_exit_result = match input.result {
         RunResult::Success { value } => RunExitResult::Success(Bytes::from(value)),
-        RunResult::TerminalFailure { code, message } => {
+        RunResult::TerminalFailure { code, message, metadata } => {
             RunExitResult::TerminalFailure(TerminalFailure {
                 code: code as u16,
                 message,
-                metadata: vec![],
+                metadata: metadata.unwrap_or_default(),
             })
         }
-        RunResult::RetryableFailure { code, message } => RunExitResult::RetryableFailure {
-            attempt_duration: Duration::from_millis(input.attempt_duration_millis),
-            error: Error::new(code as u16, message),
-        },
+        RunResult::RetryableFailure { code, message, stacktrace } => {
+            let mut error = Error::new(code as u16, message);
+            if let Some(st) = stacktrace {
+                error = error.with_stacktrace(st);
+            }
+            RunExitResult::RetryableFailure {
+                attempt_duration: Duration::from_millis(input.attempt_duration_millis),
+                error,
+            }
+        }
     };
 
     let retry_policy = match input.retry_policy {
@@ -977,9 +986,13 @@ struct VmNewParameters {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct VmNotifyError {
     message: String,
-    stacktrace: String,
+    #[serde(default)]
+    stacktrace: Option<String>,
+    #[serde(default)]
+    delay_override_millis: Option<u64>,
 }
 
 /// Flat list of handles — Rust converts to FirstCompleted(handles.map(Single)) internally.
@@ -1034,6 +1047,8 @@ enum NonEmptyValueParam {
     Failure {
         code: u32,
         message: String,
+        #[serde(default)]
+        metadata: Option<Vec<(String, String)>>,
     },
 }
 
@@ -1041,11 +1056,11 @@ impl From<NonEmptyValueParam> for NonEmptyValue {
     fn from(p: NonEmptyValueParam) -> Self {
         match p {
             NonEmptyValueParam::Success { value } => NonEmptyValue::Success(Bytes::from(value)),
-            NonEmptyValueParam::Failure { code, message } => {
+            NonEmptyValueParam::Failure { code, message, metadata } => {
                 NonEmptyValue::Failure(TerminalFailure {
                     code: code as u16,
                     message,
-                    metadata: vec![],
+                    metadata: metadata.unwrap_or_default(),
                 })
             }
         }
@@ -1136,10 +1151,14 @@ enum RunResult {
     TerminalFailure {
         code: u32,
         message: String,
+        #[serde(default)]
+        metadata: Option<Vec<(String, String)>>,
     },
     RetryableFailure {
         code: u32,
         message: String,
+        #[serde(default)]
+        stacktrace: Option<String>,
     },
 }
 
@@ -1269,6 +1288,7 @@ enum NotificationValue {
     Failure {
         code: u16,
         message: String,
+        metadata: Vec<(String, String)>,
     },
     StateKeys {
         keys: Vec<String>,
@@ -1283,8 +1303,8 @@ impl From<Value> for NotificationValue {
         match v {
             Value::Void => NotificationValue::Void,
             Value::Success(b) => NotificationValue::Success { value: b.to_vec() },
-            Value::Failure(TerminalFailure { code, message, .. }) => {
-                NotificationValue::Failure { code, message }
+            Value::Failure(TerminalFailure { code, message, metadata }) => {
+                NotificationValue::Failure { code, message, metadata }
             }
             Value::StateKeys(keys) => NotificationValue::StateKeys { keys },
             Value::InvocationId(id) => NotificationValue::InvocationId { id },

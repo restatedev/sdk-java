@@ -103,6 +103,17 @@ public final class SharedCoreVM implements AutoCloseable {
     instance.getExports().vmNotifyInputClosed(vmPtr);
   }
 
+  public void notifyError(
+      String message, @Nullable String stacktrace, @Nullable Long delayOverrideMillis) {
+    if (closed) {
+      return;
+    }
+    LOG.trace("[vm=0x{}] notifyError()", Integer.toHexString(vmPtr));
+    instance.callCborVmFunction(
+        (exports, ptr, len) -> exports.vmNotifyError(vmPtr, ptr, len),
+        new VmNotifyError(message, stacktrace, delayOverrideMillis));
+  }
+
   public Optional<byte[]> takeOutput() {
     if (closed) {
       return Optional.empty();
@@ -334,7 +345,12 @@ public final class SharedCoreVM implements AutoCloseable {
   }
 
   public void sysCompleteAwakeableFailure(String id, int code, String message) {
-    sysCompleteAwakeable(id, new NonEmptyValueParam.Failure(code, message));
+    sysCompleteAwakeable(id, new NonEmptyValueParam.Failure(code, message, null));
+  }
+
+  public void sysCompleteAwakeableFailure(
+      String id, int code, String message, @Nullable List<String[]> metadata) {
+    sysCompleteAwakeable(id, new NonEmptyValueParam.Failure(code, message, metadata));
   }
 
   public int sysCreateSignalHandle(String signalName) {
@@ -360,7 +376,16 @@ public final class SharedCoreVM implements AutoCloseable {
   }
 
   public void sysCompleteSignalFailure(String target, String signalName, int code, String message) {
-    sysCompleteSignal(target, signalName, new NonEmptyValueParam.Failure(code, message));
+    sysCompleteSignal(target, signalName, new NonEmptyValueParam.Failure(code, message, null));
+  }
+
+  public void sysCompleteSignalFailure(
+      String target,
+      String signalName,
+      int code,
+      String message,
+      @Nullable List<String[]> metadata) {
+    sysCompleteSignal(target, signalName, new NonEmptyValueParam.Failure(code, message, metadata));
   }
 
   public int sysPromiseGet(String key) {
@@ -391,7 +416,12 @@ public final class SharedCoreVM implements AutoCloseable {
   }
 
   public int sysPromiseCompleteFailure(String key, int code, String message) {
-    return sysPromiseComplete(key, new NonEmptyValueParam.Failure(code, message));
+    return sysPromiseComplete(key, new NonEmptyValueParam.Failure(code, message, null));
+  }
+
+  public int sysPromiseCompleteFailure(
+      String key, int code, String message, @Nullable List<String[]> metadata) {
+    return sysPromiseComplete(key, new NonEmptyValueParam.Failure(code, message, metadata));
   }
 
   public int sysRun(String name) {
@@ -411,20 +441,22 @@ public final class SharedCoreVM implements AutoCloseable {
         new VmProposeRunCompletionParameters(handle, new RunResult.Success(value), 0L, null));
   }
 
-  public void proposeRunCompletionTerminalFailure(int handle, int code, String message) {
+  public void proposeRunCompletionTerminalFailure(
+      int handle, int code, String message, @Nullable List<String[]> metadata) {
     LOG.trace("[vm=0x{}] proposeRunCompletionTerminalFailure()", Integer.toHexString(vmPtr));
     verifyNotClosed();
 
     callWithEmptyReturn(
         SharedCoreWasm_ModuleExports::vmProposeRunCompletion,
         new VmProposeRunCompletionParameters(
-            handle, new RunResult.TerminalFailure(code, message), 0L, null));
+            handle, new RunResult.TerminalFailure(code, message, metadata), 0L, null));
   }
 
   public void proposeRunCompletionRetryableFailure(
       int handle,
       int code,
       String message,
+      @Nullable String stacktrace,
       long attemptDurationMillis,
       @Nullable WasmRetryPolicy retryPolicy) {
     LOG.trace("[vm=0x{}] proposeRunCompletionRetryableFailure()", Integer.toHexString(vmPtr));
@@ -434,7 +466,7 @@ public final class SharedCoreVM implements AutoCloseable {
         SharedCoreWasm_ModuleExports::vmProposeRunCompletion,
         new VmProposeRunCompletionParameters(
             handle,
-            new RunResult.RetryableFailure(code, message),
+            new RunResult.RetryableFailure(code, message, stacktrace),
             attemptDurationMillis,
             retryPolicy));
   }
@@ -479,7 +511,11 @@ public final class SharedCoreVM implements AutoCloseable {
   }
 
   public void sysWriteOutputFailure(int code, String message) {
-    sysWriteOutput(new NonEmptyValueParam.Failure(code, message));
+    sysWriteOutput(new NonEmptyValueParam.Failure(code, message, null));
+  }
+
+  public void sysWriteOutputFailure(int code, String message, @Nullable List<String[]> metadata) {
+    sysWriteOutput(new NonEmptyValueParam.Failure(code, message, metadata));
   }
 
   public void sysEnd() {
@@ -615,7 +651,8 @@ public final class SharedCoreVM implements AutoCloseable {
 
     record Success(byte[] value) implements NotificationValue {}
 
-    record Failure(int code, String message) implements NotificationValue {}
+    record Failure(int code, String message, @Nullable List<String[]> metadata)
+        implements NotificationValue {}
 
     record StateKeys(List<String> keys) implements NotificationValue {}
 
@@ -685,6 +722,9 @@ public final class SharedCoreVM implements AutoCloseable {
   // Field names match Rust struct field names after camelCase renaming.
   // =========================================================================
 
+  public record VmNotifyError(
+      String message, @Nullable String stacktrace, @Nullable Long delayOverrideMillis) {}
+
   public record VmNewParameters(List<String[]> headers) {}
 
   public record VmDoProgressParameters(int[] handles) {}
@@ -707,7 +747,8 @@ public final class SharedCoreVM implements AutoCloseable {
   public sealed interface NonEmptyValueParam {
     record Success(byte[] value) implements NonEmptyValueParam {}
 
-    record Failure(int code, String message) implements NonEmptyValueParam {}
+    record Failure(int code, String message, @Nullable List<String[]> metadata)
+        implements NonEmptyValueParam {}
   }
 
   public record VmSysCompleteAwakeableParameters(String id, NonEmptyValueParam result) {}
@@ -752,9 +793,11 @@ public final class SharedCoreVM implements AutoCloseable {
   public sealed interface RunResult {
     record Success(byte[] value) implements RunResult {}
 
-    record TerminalFailure(int code, String message) implements RunResult {}
+    record TerminalFailure(int code, String message, @Nullable List<String[]> metadata)
+        implements RunResult {}
 
-    record RetryableFailure(int code, String message) implements RunResult {}
+    record RetryableFailure(int code, String message, @Nullable String stacktrace)
+        implements RunResult {}
   }
 
   public record VmProposeRunCompletionParameters(

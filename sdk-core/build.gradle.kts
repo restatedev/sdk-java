@@ -221,7 +221,9 @@ tasks {
   withType<org.gradle.jvm.tasks.Jar>().configureEach {
     dependsOn(generateJsonSchema2Pojo, generateWasmMarker)
   }
-  withType<AbstractDokkaTask>().configureEach { dependsOn(generateJsonSchema2Pojo, generateWasmMarker) }
+  withType<AbstractDokkaTask>().configureEach {
+    dependsOn(generateJsonSchema2Pojo, generateWasmMarker)
+  }
 }
 
 ksp {
