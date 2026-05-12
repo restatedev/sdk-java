@@ -35,29 +35,15 @@ import org.jspecify.annotations.Nullable;
 public final class SharedCoreVM implements AutoCloseable {
 
   private static final Logger LOG = LogManager.getLogger(SharedCoreVM.class);
-  //  private static final Cleaner CLEANER = Cleaner.create();
 
   private final SharedCoreInstance instance;
   private final int vmPtr;
-
-  //  private final Cleaner.Cleanable cleanable;
-  //
-  //  private record CleanState(SharedCoreWasm_ModuleExports exports, int vmPtr) implements Runnable
-  // {
-  //    @Override
-  //    public void run() {
-  //      try {
-  //        exports.vmFree(vmPtr);
-  //      } catch (Exception e) {
-  //        LOG.warn("[restate] Failed to free WASM VM pointer", e);
-  //      }
-  //    }
-  //  }
+  private boolean closed;
 
   private SharedCoreVM(SharedCoreInstance instance, int vmPtr) {
     this.instance = instance;
     this.vmPtr = vmPtr;
-    //    this.cleanable = CLEANER.register(this, new CleanState(instance.getExports(), vmPtr));
+    this.closed = false;
   }
 
   // -------------------------------------------------------------------------
@@ -65,8 +51,8 @@ public final class SharedCoreVM implements AutoCloseable {
   // -------------------------------------------------------------------------
 
   public static SharedCoreVM create(HeadersAccessor headersAccessor) {
-    // TODO sort out here if we wanna do any sort of caching or whatnot
-    SharedCoreInstance instance = SharedCoreInstance.create();
+    LOG.trace("create()");
+    SharedCoreInstance instance = SharedCoreInstance.get();
 
     var newVmReturn =
         instance.callCborVmFunction(
@@ -85,29 +71,44 @@ public final class SharedCoreVM implements AutoCloseable {
     return new SharedCoreVM(instance, vmPtr);
   }
 
-  // -------------------------------------------------------------------------
-  // AutoCloseable
-  // -------------------------------------------------------------------------
-
   @Override
   public void close() {
-    //    cleanable.clean();
+    if (!closed) {
+      LOG.trace("[vm=0x{}] close()", Integer.toHexString(vmPtr));
+      instance.getExports().vmFree(vmPtr);
+      closed = true;
+    }
   }
 
-  // -------------------------------------------------------------------------
-  // Input / output
-  // -------------------------------------------------------------------------
+  private void verifyNotClosed() {
+    if (closed) {
+      throw new IllegalStateException("Attempting to use the VM when is closed");
+    }
+  }
 
   public void notifyInput(byte[] bytes) {
+    if (closed) {
+      return;
+    }
+    LOG.trace("[vm=0x{}] notifyInput()", Integer.toHexString(vmPtr));
     var bufferPtr = instance.write(bytes);
     instance.getExports().vmNotifyInput(vmPtr, bufferPtr, bytes.length);
   }
 
   public void notifyInputClosed() {
+    if (closed) {
+      return;
+    }
+    LOG.trace("[vm=0x{}] notifyInputClosed()", Integer.toHexString(vmPtr));
     instance.getExports().vmNotifyInputClosed(vmPtr);
   }
 
   public Optional<byte[]> takeOutput() {
+    if (closed) {
+      return Optional.empty();
+    }
+    LOG.trace("[vm=0x{}] takeOutput()", Integer.toHexString(vmPtr));
+
     var ret =
         instance.callCborVmFunction(exports -> exports.vmTakeOutput(vmPtr), TakeOutputReturn.class);
     if (ret instanceof TakeOutputReturn.Eof) return Optional.empty();
@@ -115,6 +116,9 @@ public final class SharedCoreVM implements AutoCloseable {
   }
 
   public String getResponseContentType() {
+    LOG.trace("[vm=0x{}] getResponseContentType()", Integer.toHexString(vmPtr));
+    verifyNotClosed();
+
     // TODO change this to just return headers back bro
     var ret =
         instance.callCborVmFunction(
@@ -127,6 +131,9 @@ public final class SharedCoreVM implements AutoCloseable {
   }
 
   public boolean isReadyToExecute() {
+    LOG.trace("[vm=0x{}] isReadyToExecute()", Integer.toHexString(vmPtr));
+    verifyNotClosed();
+
     var ret =
         instance.callCborVmFunction(
             exports -> exports.vmIsReadyToExecute(vmPtr), IsReadyReturn.class);
@@ -135,14 +142,16 @@ public final class SharedCoreVM implements AutoCloseable {
   }
 
   public boolean isCompleted(int handle) {
+    LOG.trace("[vm=0x{}] isCompleted()", Integer.toHexString(vmPtr));
+    verifyNotClosed();
+
     return instance.getExports().vmIsCompleted(vmPtr, handle) != 0L;
   }
 
-  // -------------------------------------------------------------------------
-  // Progress
-  // -------------------------------------------------------------------------
-
   public DoProgressResult doProgress(int[] handles) {
+    LOG.trace("[vm=0x{}] doProgress()", Integer.toHexString(vmPtr));
+    verifyNotClosed();
+
     var ret =
         instance.callCborVmFunction(
             (exports, ptr, len) -> exports.vmDoProgress(vmPtr, ptr, len),
@@ -160,11 +169,10 @@ public final class SharedCoreVM implements AutoCloseable {
     throw vmError(f.code, f.message);
   }
 
-  // -------------------------------------------------------------------------
-  // Notifications
-  // -------------------------------------------------------------------------
-
   public @Nullable NotificationValue takeNotification(int handle) {
+    LOG.trace("[vm=0x{}] takeNotification()", Integer.toHexString(vmPtr));
+    verifyNotClosed();
+
     var ret =
         instance.callCborVmFunction(
             exports -> exports.vmTakeNotification(vmPtr, handle), TakeNotificationReturn.class);
@@ -175,11 +183,10 @@ public final class SharedCoreVM implements AutoCloseable {
     throw vmError(f.code, f.message);
   }
 
-  // -------------------------------------------------------------------------
-  // sys_input
-  // -------------------------------------------------------------------------
-
   public Input sysInput() {
+    LOG.trace("[vm=0x{}] sysInput()", Integer.toHexString(vmPtr));
+    verifyNotClosed();
+
     var ret =
         instance.callCborVmFunction(exports -> exports.vmSysInput(vmPtr), SysInputReturn.class);
     if (ret instanceof SysInputReturn.Failure f) throw vmError(f.code(), f.message());
@@ -197,25 +204,40 @@ public final class SharedCoreVM implements AutoCloseable {
   // -------------------------------------------------------------------------
 
   public int sysStateGet(String key) {
+    LOG.trace("[vm=0x{}] sysStateGet()", Integer.toHexString(vmPtr));
+    verifyNotClosed();
+
     return callWithHandleReturn(
         SharedCoreWasm_ModuleExports::vmSysStateGet, new VmSysStateGetParameters(key));
   }
 
   public int sysStateGetKeys() {
+    LOG.trace("[vm=0x{}] sysStateGetKeys()", Integer.toHexString(vmPtr));
+    verifyNotClosed();
+
     return callWithHandleReturn(SharedCoreWasm_ModuleExports::vmSysStateGetKeys);
   }
 
   public void sysStateSet(String key, byte[] value) {
+    LOG.trace("[vm=0x{}] sysStateSet()", Integer.toHexString(vmPtr));
+    verifyNotClosed();
+
     callWithEmptyReturn(
         SharedCoreWasm_ModuleExports::vmSysStateSet, new VmSysStateSetParameters(key, value));
   }
 
   public void sysStateClear(String key) {
+    LOG.trace("[vm=0x{}] sysStateClear()", Integer.toHexString(vmPtr));
+    verifyNotClosed();
+
     callWithEmptyReturn(
         SharedCoreWasm_ModuleExports::vmSysStateClear, new VmSysStateClearParameters(key));
   }
 
   public void sysStateClearAll() {
+    LOG.trace("[vm=0x{}] sysStateClearAll()", Integer.toHexString(vmPtr));
+    verifyNotClosed();
+
     callWithEmptyReturn(SharedCoreWasm_ModuleExports::vmSysStateClearAll);
   }
 
@@ -224,6 +246,9 @@ public final class SharedCoreVM implements AutoCloseable {
   // -------------------------------------------------------------------------
 
   public int sysSleep(long durationMillis, @Nullable String name) {
+    LOG.trace("[vm=0x{}] sysSleep()", Integer.toHexString(vmPtr));
+    verifyNotClosed();
+
     long now = System.currentTimeMillis();
     return callWithHandleReturn(
         SharedCoreWasm_ModuleExports::vmSysSleep,
@@ -241,6 +266,9 @@ public final class SharedCoreVM implements AutoCloseable {
       byte[] payload,
       @Nullable String idempotencyKey,
       @Nullable List<Map.Entry<String, String>> extraHeaders) {
+    LOG.trace("[vm=0x{}] sysCall()", Integer.toHexString(vmPtr));
+    verifyNotClosed();
+
     var ret =
         instance.callCborVmFunction(
             (exports, ptr, len) -> exports.vmSysCall(vmPtr, ptr, len),
@@ -260,6 +288,9 @@ public final class SharedCoreVM implements AutoCloseable {
       @Nullable String idempotencyKey,
       @Nullable List<Map.Entry<String, String>> extraHeaders,
       @Nullable Long delayMillis) {
+    LOG.trace("[vm=0x{}] sysSend()", Integer.toHexString(vmPtr));
+    verifyNotClosed();
+
     Long executionTime = delayMillis != null ? System.currentTimeMillis() + delayMillis : null;
     return callWithHandleReturn(
         SharedCoreWasm_ModuleExports::vmSysSend,
@@ -278,6 +309,9 @@ public final class SharedCoreVM implements AutoCloseable {
   // -------------------------------------------------------------------------
 
   public AwakeableResult sysAwakeable() {
+    LOG.trace("[vm=0x{}] sysAwakeable()", Integer.toHexString(vmPtr));
+    verifyNotClosed();
+
     AwakeableReturn ret =
         instance.callCborVmFunction(
             (exports) -> exports.vmSysAwakeable(vmPtr), AwakeableReturn.class);
@@ -287,6 +321,9 @@ public final class SharedCoreVM implements AutoCloseable {
   }
 
   public void sysCompleteAwakeable(String id, NonEmptyValueParam result) {
+    LOG.trace("[vm=0x{}] sysCompleteAwakeable()", Integer.toHexString(vmPtr));
+    verifyNotClosed();
+
     callWithEmptyReturn(
         SharedCoreWasm_ModuleExports::vmSysCompleteAwakeable,
         new VmSysCompleteAwakeableParameters(id, result));
@@ -300,17 +337,19 @@ public final class SharedCoreVM implements AutoCloseable {
     sysCompleteAwakeable(id, new NonEmptyValueParam.Failure(code, message));
   }
 
-  // -------------------------------------------------------------------------
-  // Signals
-  // -------------------------------------------------------------------------
-
   public int sysCreateSignalHandle(String signalName) {
+    LOG.trace("[vm=0x{}] sysCreateSignalHandle()", Integer.toHexString(vmPtr));
+    verifyNotClosed();
+
     return callWithHandleReturn(
         SharedCoreWasm_ModuleExports::vmSysCreateSignalHandle,
         new VmSysCreateSignalHandleParameters(signalName));
   }
 
   public void sysCompleteSignal(String target, String signalName, NonEmptyValueParam result) {
+    LOG.trace("[vm=0x{}] sysCompleteSignal()", Integer.toHexString(vmPtr));
+    verifyNotClosed();
+
     callWithEmptyReturn(
         SharedCoreWasm_ModuleExports::vmSysCompleteSignal,
         new VmSysCompleteSignalParameters(target, signalName, result));
@@ -324,21 +363,24 @@ public final class SharedCoreVM implements AutoCloseable {
     sysCompleteSignal(target, signalName, new NonEmptyValueParam.Failure(code, message));
   }
 
-  // -------------------------------------------------------------------------
-  // Promises
-  // -------------------------------------------------------------------------
-
   public int sysPromiseGet(String key) {
+    LOG.trace("[vm=0x{}] sysPromiseGet()", Integer.toHexString(vmPtr));
+    verifyNotClosed();
+
     return callWithHandleReturn(
         SharedCoreWasm_ModuleExports::vmSysPromiseGet, new VmSysPromiseGetParameters(key));
   }
 
   public int sysPromisePeek(String key) {
+    LOG.trace("[vm=0x{}] sysPromisePeek()", Integer.toHexString(vmPtr));
+    verifyNotClosed();
+
     return callWithHandleReturn(
         SharedCoreWasm_ModuleExports::vmSysPromisePeek, new VmSysPromisePeekParameters(key));
   }
 
   public int sysPromiseComplete(String key, NonEmptyValueParam result) {
+    LOG.trace("[vm=0x{}] sysPromiseComplete()", Integer.toHexString(vmPtr));
     return callWithHandleReturn(
         SharedCoreWasm_ModuleExports::vmSysPromiseComplete,
         new VmSysPromiseCompleteParameters(key, result));
@@ -352,22 +394,27 @@ public final class SharedCoreVM implements AutoCloseable {
     return sysPromiseComplete(key, new NonEmptyValueParam.Failure(code, message));
   }
 
-  // -------------------------------------------------------------------------
-  // Run
-  // -------------------------------------------------------------------------
-
   public int sysRun(String name) {
+    LOG.trace("[vm=0x{}] sysRun()", Integer.toHexString(vmPtr));
+    verifyNotClosed();
+
     return callWithHandleReturn(
         SharedCoreWasm_ModuleExports::vmSysRun, new VmSysRunParameters(name));
   }
 
   public void proposeRunCompletionSuccess(int handle, byte[] value) {
+    LOG.trace("[vm=0x{}] proposeRunCompletionSuccess()", Integer.toHexString(vmPtr));
+    verifyNotClosed();
+
     callWithEmptyReturn(
         SharedCoreWasm_ModuleExports::vmProposeRunCompletion,
         new VmProposeRunCompletionParameters(handle, new RunResult.Success(value), 0L, null));
   }
 
   public void proposeRunCompletionTerminalFailure(int handle, int code, String message) {
+    LOG.trace("[vm=0x{}] proposeRunCompletionTerminalFailure()", Integer.toHexString(vmPtr));
+    verifyNotClosed();
+
     callWithEmptyReturn(
         SharedCoreWasm_ModuleExports::vmProposeRunCompletion,
         new VmProposeRunCompletionParameters(
@@ -380,6 +427,9 @@ public final class SharedCoreVM implements AutoCloseable {
       String message,
       long attemptDurationMillis,
       @Nullable WasmRetryPolicy retryPolicy) {
+    LOG.trace("[vm=0x{}] proposeRunCompletionRetryableFailure()", Integer.toHexString(vmPtr));
+    verifyNotClosed();
+
     callWithEmptyReturn(
         SharedCoreWasm_ModuleExports::vmProposeRunCompletion,
         new VmProposeRunCompletionParameters(
@@ -389,33 +439,37 @@ public final class SharedCoreVM implements AutoCloseable {
             retryPolicy));
   }
 
-  // -------------------------------------------------------------------------
-  // Invocation control
-  // -------------------------------------------------------------------------
-
   public void sysCancelInvocation(String invocationId) {
+    LOG.trace("[vm=0x{}] sysCancelInvocation()", Integer.toHexString(vmPtr));
+    verifyNotClosed();
+
     callWithEmptyReturn(
         SharedCoreWasm_ModuleExports::vmSysCancelInvocation,
         new VmSysCancelInvocation(invocationId));
   }
 
   public int sysAttachInvocation(String invocationId) {
+    LOG.trace("[vm=0x{}] sysAttachInvocation()", Integer.toHexString(vmPtr));
+    verifyNotClosed();
+
     return callWithHandleReturn(
         SharedCoreWasm_ModuleExports::vmSysAttachInvocation,
         new VmSysAttachInvocation(invocationId));
   }
 
   public int sysGetInvocationOutput(String invocationId) {
+    LOG.trace("[vm=0x{}] sysGetInvocationOutput()", Integer.toHexString(vmPtr));
+    verifyNotClosed();
+
     return callWithHandleReturn(
         SharedCoreWasm_ModuleExports::vmSysGetInvocationOutput,
         new VmSysGetInvocationOutput(invocationId));
   }
 
-  // -------------------------------------------------------------------------
-  // Output / end
-  // -------------------------------------------------------------------------
-
   public void sysWriteOutput(NonEmptyValueParam result) {
+    LOG.trace("[vm=0x{}] sysWriteOutput()", Integer.toHexString(vmPtr));
+    verifyNotClosed();
+
     callWithEmptyReturn(
         SharedCoreWasm_ModuleExports::vmSysWriteOutput, new VmSysWriteOutputParameters(result));
   }
@@ -429,6 +483,9 @@ public final class SharedCoreVM implements AutoCloseable {
   }
 
   public void sysEnd() {
+    LOG.trace("[vm=0x{}] sysEnd()", Integer.toHexString(vmPtr));
+    verifyNotClosed();
+
     callWithEmptyReturn(SharedCoreWasm_ModuleExports::vmSysEnd);
   }
 
