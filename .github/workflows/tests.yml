@@ -27,6 +27,11 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          target: wasm32-unknown-unknown
+
       - name: Pull Restate docker image
         run: docker pull ghcr.io/restatedev/restate:main
 
@@ -54,6 +59,10 @@ jobs:
           java-version: '21'
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          target: wasm32-unknown-unknown
 
       - name: Build Javadocs
         run: gradle :sdk-aggregated-javadocs:javadoc
