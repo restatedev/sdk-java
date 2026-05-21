@@ -86,12 +86,14 @@ class FakeHandlerContext implements HandlerContext {
     return true;
   }
 
+  @Deprecated
   @Override
   public CompletableFuture<Void> writeOutput(Slice slice) {
     throw new UnsupportedOperationException(
         "FakeHandlerContext doesn't currently support mocking this operation");
   }
 
+  @Deprecated
   @Override
   public CompletableFuture<Void> writeOutput(TerminalException e) {
     throw e;

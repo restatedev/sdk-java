@@ -12,6 +12,7 @@ import dev.restate.common.Output;
 import dev.restate.common.Slice;
 import dev.restate.common.Target;
 import dev.restate.sdk.common.*;
+import dev.restate.sdk.core.sharedcore.StateMachine;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
 import dev.restate.sdk.endpoint.definition.HandlerType;
 import dev.restate.sdk.endpoint.definition.ServiceType;
@@ -31,14 +32,24 @@ final class ExecutorSwitchingHandlerContextImpl extends HandlerContextImpl {
   private final Executor coreExecutor;
 
   ExecutorSwitchingHandlerContextImpl(
+      StateMachine vm,
+      ExternalProgressChannel externalProgressChannel,
+      Consumer<Slice> outputSink,
       String fullyQualifiedHandlerName,
       ServiceType serviceType,
       @Nullable HandlerType handlerType,
-      StateMachine stateMachine,
       Context otelContext,
       StateMachine.Input input,
       Executor coreExecutor) {
-    super(fullyQualifiedHandlerName, serviceType, handlerType, stateMachine, otelContext, input);
+    super(
+        vm,
+        externalProgressChannel,
+        outputSink,
+        fullyQualifiedHandlerName,
+        serviceType,
+        handlerType,
+        otelContext,
+        input);
     this.coreExecutor = coreExecutor;
   }
 
@@ -170,21 +181,18 @@ final class ExecutorSwitchingHandlerContextImpl extends HandlerContextImpl {
     coreExecutor.execute(() -> super.pollAsyncResult(asyncResult));
   }
 
+  @Deprecated
   @Override
   public CompletableFuture<Void> writeOutput(Slice value) {
     return CompletableFuture.supplyAsync(() -> super.writeOutput(value), coreExecutor)
         .thenCompose(Function.identity());
   }
 
+  @Deprecated
   @Override
   public CompletableFuture<Void> writeOutput(TerminalException throwable) {
     return CompletableFuture.supplyAsync(() -> super.writeOutput(throwable), coreExecutor)
         .thenCompose(Function.identity());
-  }
-
-  @Override
-  public void close() {
-    coreExecutor.execute(super::close);
   }
 
   @Override

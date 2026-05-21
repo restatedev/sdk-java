@@ -15,8 +15,8 @@
 use bytes::Bytes;
 use restate_sdk_shared_core::{
     AttachInvocationTarget, AwaitResponse, CoreVM, Error, Header, HeaderMap, NonEmptyValue,
-    NotificationHandle, PayloadOptions, ResponseHead, RetryPolicy, RunExitResult, TakeOutputResult,
-    Target, TerminalFailure, UnresolvedFuture, VMOptions, Value, Version, VM,
+    NotificationHandle, PayloadOptions, ResponseHead, RetryPolicy, RunExitResult, State,
+    TakeOutputResult, Target, TerminalFailure, UnresolvedFuture, VMOptions, Value, Version, VM,
 };
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -243,9 +243,6 @@ fn vm_notify_error(rc_vm: &Rc<RefCell<WasmVM>>, input: VmNotifyError) {
     if let Some(st) = input.stacktrace {
         error = error.with_stacktrace(st);
     }
-    if let Some(delay) = input.delay_override_millis {
-        error = error.with_next_retry_delay_override(Duration::from_millis(delay));
-    }
     VM::notify_error(&mut rc_vm.borrow_mut().vm, error, None)
 }
 
@@ -273,18 +270,13 @@ fn vm_is_ready_to_execute(rc_vm: &Rc<RefCell<WasmVM>>) -> IsReadyReturn {
     }
 }
 
-#[export_name = "vm_is_completed"]
-pub unsafe extern "C" fn _vm_is_completed(vm_pointer: *const RefCell<WasmVM>, handle: u32) -> u64 {
+#[export_name = "vm_state"]
+pub unsafe extern "C" fn _vm_state(vm_pointer: *const RefCell<WasmVM>) -> u32 {
     let rc_vm = vm_ptr_to_rc(vm_pointer);
-    let result = VM::is_completed(&rc_vm.borrow().vm, NotificationHandle::from(handle));
-    result as u64
-}
-
-#[export_name = "vm_is_processing"]
-pub unsafe extern "C" fn _vm_is_processing(vm_pointer: *const RefCell<WasmVM>) -> u64 {
-    let rc_vm = vm_ptr_to_rc(vm_pointer);
-    let result = VM::is_processing(&rc_vm.borrow().vm);
-    result as u64
+    let state: State = tracing::dispatcher::with_default(&tracing::Dispatch::none(), || {
+        VM::state(&rc_vm.borrow().vm)
+    });
+    state as u8 as u32
 }
 
 #[export_name = "vm_do_progress"]
@@ -343,7 +335,6 @@ fn vm_take_notification(
         Ok(Some(v)) => TakeNotificationReturn::Value {
             value: NotificationValue::from(v),
         },
-        Err(e) if e.is_suspended_error() => TakeNotificationReturn::Suspended,
         Err(e) => TakeNotificationReturn::from_err(e),
     }
 }
@@ -357,7 +348,6 @@ pub unsafe extern "C" fn _vm_sys_input(vm_pointer: *const RefCell<WasmVM>) -> u6
 
 fn vm_sys_input(rc_vm: &Rc<RefCell<WasmVM>>) -> SysInputReturn {
     let mut vm = rc_vm.borrow_mut();
-    let protocol_version = vm.vm.get_response_head().version;
     match VM::sys_input(&mut vm.vm) {
         Ok(input) => SysInputReturn::Ok {
             input: WasmInput {
@@ -370,7 +360,6 @@ fn vm_sys_input(rc_vm: &Rc<RefCell<WasmVM>>) -> SysInputReturn {
                     .collect(),
                 input: input.input.to_vec(),
                 random_seed: input.random_seed as i64,
-                should_use_random_seed: protocol_version >= Version::V6,
             },
         },
         Err(e) => SysInputReturn::from_err(e),
@@ -545,6 +534,8 @@ fn vm_sys_call(rc_vm: &Rc<RefCell<WasmVM>>, input: VmSysCallParameters) -> SysCa
             handler: input.handler,
             key: input.key,
             idempotency_key: input.idempotency_key,
+            scope: None,
+            limit_key: None,
             headers: input
                 .headers
                 .into_iter()
@@ -586,6 +577,8 @@ fn vm_sys_send(rc_vm: &Rc<RefCell<WasmVM>>, input: VmSysSendParameters) -> Handl
             handler: input.handler,
             key: input.key,
             idempotency_key: input.idempotency_key,
+            scope: None,
+            limit_key: None,
             headers: input
                 .headers
                 .into_iter()
@@ -768,14 +761,20 @@ fn vm_propose_run_completion(
 ) -> EmptyReturn {
     let run_exit_result = match input.result {
         RunResult::Success { value } => RunExitResult::Success(Bytes::from(value)),
-        RunResult::TerminalFailure { code, message, metadata } => {
-            RunExitResult::TerminalFailure(TerminalFailure {
-                code: code as u16,
-                message,
-                metadata: metadata.unwrap_or_default(),
-            })
-        }
-        RunResult::RetryableFailure { code, message, stacktrace } => {
+        RunResult::TerminalFailure {
+            code,
+            message,
+            metadata,
+        } => RunExitResult::TerminalFailure(TerminalFailure {
+            code: code as u16,
+            message,
+            metadata: metadata.unwrap_or_default(),
+        }),
+        RunResult::RetryableFailure {
+            code,
+            message,
+            stacktrace,
+        } => {
             let mut error = Error::new(code as u16, message);
             if let Some(st) = stacktrace {
                 error = error.with_stacktrace(st);
@@ -795,6 +794,7 @@ fn vm_propose_run_completion(
             max_interval: rp.max_interval_millis.map(Duration::from_millis),
             max_attempts: rp.max_attempts,
             max_duration: rp.max_duration_millis.map(Duration::from_millis),
+            on_max_attempts: Default::default(),
         },
     };
 
@@ -994,8 +994,6 @@ struct VmNotifyError {
     message: String,
     #[serde(default)]
     stacktrace: Option<String>,
-    #[serde(default)]
-    delay_override_millis: Option<u64>,
 }
 
 /// Flat list of handles — Rust converts to FirstCompleted(handles.map(Single)) internally.
@@ -1041,7 +1039,11 @@ struct VmSysCompleteAwakeableParameters {
 
 /// Combined success/failure union used by awakeable, promise, write_output, signal.
 #[derive(Deserialize)]
-#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 enum NonEmptyValueParam {
     Success {
         #[serde(with = "serde_bytes")]
@@ -1059,13 +1061,15 @@ impl From<NonEmptyValueParam> for NonEmptyValue {
     fn from(p: NonEmptyValueParam) -> Self {
         match p {
             NonEmptyValueParam::Success { value } => NonEmptyValue::Success(Bytes::from(value)),
-            NonEmptyValueParam::Failure { code, message, metadata } => {
-                NonEmptyValue::Failure(TerminalFailure {
-                    code: code as u16,
-                    message,
-                    metadata: metadata.unwrap_or_default(),
-                })
-            }
+            NonEmptyValueParam::Failure {
+                code,
+                message,
+                metadata,
+            } => NonEmptyValue::Failure(TerminalFailure {
+                code: code as u16,
+                message,
+                metadata: metadata.unwrap_or_default(),
+            }),
         }
     }
 }
@@ -1145,7 +1149,11 @@ struct VmProposeRunCompletionParameters {
 }
 
 #[derive(Deserialize)]
-#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 enum RunResult {
     Success {
         #[serde(with = "serde_bytes")]
@@ -1197,7 +1205,11 @@ struct VmSysWriteOutputParameters {
 // Each return type has a `from_err` helper matching Go's `.into()` from Failure conversions.
 
 #[derive(Serialize)]
-#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 enum VmNewReturn {
     Ok { pointer: u32 },
     Failure { code: u32, message: String },
@@ -1213,7 +1225,11 @@ impl VmNewReturn {
 
 /// Equivalent to Go's GenericEmptyReturn.
 #[derive(Serialize)]
-#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 enum EmptyReturn {
     Ok,
     Failure { code: u32, message: String },
@@ -1221,14 +1237,22 @@ enum EmptyReturn {
 
 /// Equivalent to Go's SimpleSysAsyncResultReturn.
 #[derive(Serialize)]
-#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 enum HandleReturn {
     Ok { handle: u32 },
     Failure { code: u32, message: String },
 }
 
 #[derive(Serialize)]
-#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 enum IsReadyReturn {
     Ok { ready: bool },
     Failure { code: u32, message: String },
@@ -1251,7 +1275,11 @@ struct ResponseHeadReturn {
 }
 
 #[derive(Serialize)]
-#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 enum DoProgressReturn {
     AnyCompleted,
     WaitingExternalProgress,
@@ -1271,7 +1299,11 @@ impl DoProgressReturn {
 
 /// Notification value (the payload of a completed handle).
 #[derive(Serialize)]
-#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 enum NotificationValue {
     Void,
     Success {
@@ -1296,9 +1328,15 @@ impl From<Value> for NotificationValue {
         match v {
             Value::Void => NotificationValue::Void,
             Value::Success(b) => NotificationValue::Success { value: b.to_vec() },
-            Value::Failure(TerminalFailure { code, message, metadata }) => {
-                NotificationValue::Failure { code, message, metadata }
-            }
+            Value::Failure(TerminalFailure {
+                code,
+                message,
+                metadata,
+            }) => NotificationValue::Failure {
+                code,
+                message,
+                metadata,
+            },
             Value::StateKeys(keys) => NotificationValue::StateKeys { keys },
             Value::InvocationId(id) => NotificationValue::InvocationId { id },
         }
@@ -1306,11 +1344,14 @@ impl From<Value> for NotificationValue {
 }
 
 #[derive(Serialize)]
-#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 enum TakeNotificationReturn {
     NotReady,
     Value { value: NotificationValue },
-    Suspended,
     Failure { code: u32, message: String },
 }
 impl TakeNotificationReturn {
@@ -1331,11 +1372,14 @@ struct WasmInput {
     #[serde(with = "serde_bytes")]
     input: Vec<u8>,
     random_seed: i64,
-    should_use_random_seed: bool,
 }
 
 #[derive(Serialize)]
-#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 enum SysInputReturn {
     Ok { input: WasmInput },
     Failure { code: u32, message: String },
@@ -1350,7 +1394,11 @@ impl SysInputReturn {
 }
 
 #[derive(Serialize)]
-#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 enum AwakeableReturn {
     Ok { id: String, handle: u32 },
     Failure { code: u32, message: String },
@@ -1365,7 +1413,11 @@ impl AwakeableReturn {
 }
 
 #[derive(Serialize)]
-#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 enum SysCallReturn {
     Ok {
         invocation_id_handle: u32,

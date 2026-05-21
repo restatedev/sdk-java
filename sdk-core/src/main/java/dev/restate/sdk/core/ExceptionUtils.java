@@ -53,7 +53,7 @@ public final class ExceptionUtils {
     return findCause(throwable, t -> t instanceof ProtocolException);
   }
 
-  public static boolean containsSuspendedException(Throwable throwable) {
+  public static boolean containsAbortedExecutionException(Throwable throwable) {
     return findCause(throwable, t -> t == AbortedExecutionException.INSTANCE).isPresent();
   }
 

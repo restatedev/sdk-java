@@ -12,13 +12,18 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
+import dev.restate.common.Slice;
+import dev.restate.common.Target;
+import dev.restate.sdk.common.AbortedExecutionException;
+import dev.restate.sdk.common.RetryPolicy;
+import dev.restate.sdk.common.TerminalException;
+import dev.restate.sdk.core.InvocationState;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.endpoint.HeadersAccessor;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.time.Duration;
+import java.util.*;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -33,25 +38,25 @@ import org.jspecify.annotations.Nullable;
  * <p>Mirrors sdk-go/internal/statemachine/wasm.go. Every WASM function returns {@code u64 = (ptr <<
  * 32) | len} pointing to CBOR. Response types match the Rust output DTOs 1:1.
  */
-public final class SharedCoreVM implements AutoCloseable {
+public final class StateMachine implements AutoCloseable {
 
-  private static final Logger LOG = LogManager.getLogger(SharedCoreVM.class);
+  private static final Logger LOG = LogManager.getLogger(StateMachine.class);
 
   private final SharedCoreInstance instance;
   private final int vmPtr;
-  private boolean closed;
+  private boolean freed;
 
-  private SharedCoreVM(SharedCoreInstance instance, int vmPtr) {
+  private StateMachine(SharedCoreInstance instance, int vmPtr) {
     this.instance = instance;
     this.vmPtr = vmPtr;
-    this.closed = false;
+    this.freed = false;
   }
 
   // -------------------------------------------------------------------------
   // Factory
   // -------------------------------------------------------------------------
 
-  public static SharedCoreVM create(HeadersAccessor headersAccessor) {
+  public static StateMachine create(HeadersAccessor headersAccessor) {
     LOG.trace("create()");
     SharedCoreInstance instance = SharedCoreInstance.get();
 
@@ -68,26 +73,26 @@ public final class SharedCoreVM implements AutoCloseable {
       throw new ProtocolException("Failed to create state machine: " + f.message(), f.code);
     }
     int vmPtr = ((VmNewReturn.Ok) newVmReturn).pointer();
-    return new SharedCoreVM(instance, vmPtr);
+    return new StateMachine(instance, vmPtr);
   }
 
   @Override
   public void close() {
-    if (!closed) {
+    if (!freed) {
       LOG.trace("[vm=0x{}] close()", Integer.toHexString(vmPtr));
       instance.getExports().vmFree(vmPtr);
-      closed = true;
+      freed = true;
     }
   }
 
-  private void verifyNotClosed() {
-    if (closed) {
-      throw new IllegalStateException("Attempting to use the VM when is closed");
+  private void verifyNotFreed() {
+    if (freed) {
+      AbortedExecutionException.sneakyThrow();
     }
   }
 
   public void notifyInput(byte[] bytes) {
-    if (closed) {
+    if (freed) {
       return;
     }
     LOG.trace("[vm=0x{}] notifyInput()", Integer.toHexString(vmPtr));
@@ -96,26 +101,25 @@ public final class SharedCoreVM implements AutoCloseable {
   }
 
   public void notifyInputClosed() {
-    if (closed) {
+    if (freed) {
       return;
     }
     LOG.trace("[vm=0x{}] notifyInputClosed()", Integer.toHexString(vmPtr));
     instance.getExports().vmNotifyInputClosed(vmPtr);
   }
 
-  public void notifyError(
-      String message, @Nullable String stacktrace, @Nullable Long delayOverrideMillis) {
-    if (closed) {
+  public void notifyError(Throwable throwable) {
+    if (freed) {
       return;
     }
     LOG.trace("[vm=0x{}] notifyError()", Integer.toHexString(vmPtr));
     instance.callCborVmFunction(
         (exports, ptr, len) -> exports.vmNotifyError(vmPtr, ptr, len),
-        new VmNotifyError(message, stacktrace, delayOverrideMillis));
+        new VmNotifyError(throwable.getMessage(), stacktraceToString(throwable)));
   }
 
   public byte[] takeOutput() {
-    if (closed) {
+    if (freed) {
       return new byte[0];
     }
     LOG.trace("[vm=0x{}] takeOutput()", Integer.toHexString(vmPtr));
@@ -126,9 +130,8 @@ public final class SharedCoreVM implements AutoCloseable {
 
   public String getResponseContentType() {
     LOG.trace("[vm=0x{}] getResponseContentType()", Integer.toHexString(vmPtr));
-    verifyNotClosed();
+    verifyNotFreed();
 
-    // TODO change this to just return headers back bro
     var ret =
         instance.callCborVmFunction(
             exports -> exports.vmGetResponseHead(vmPtr), ResponseHeadReturn.class);
@@ -141,7 +144,7 @@ public final class SharedCoreVM implements AutoCloseable {
 
   public boolean isReadyToExecute() {
     LOG.trace("[vm=0x{}] isReadyToExecute()", Integer.toHexString(vmPtr));
-    verifyNotClosed();
+    verifyNotFreed();
 
     var ret =
         instance.callCborVmFunction(
@@ -150,16 +153,17 @@ public final class SharedCoreVM implements AutoCloseable {
     return ((IsReadyReturn.Ok) ret).ready();
   }
 
-  public boolean isCompleted(int handle) {
-    LOG.trace("[vm=0x{}] isCompleted()", Integer.toHexString(vmPtr));
-    verifyNotClosed();
-
-    return instance.getExports().vmIsCompleted(vmPtr, handle) != 0L;
+  public InvocationState state() {
+    if (freed) {
+      return InvocationState.CLOSED;
+    }
+    int ordinal = instance.getExports().vmState(vmPtr);
+    return InvocationState.values()[ordinal];
   }
 
-  public DoProgressResult doProgress(int[] handles) {
+  public DoProgressResult doProgress(List<Integer> handles) {
     LOG.trace("[vm=0x{}] doProgress()", Integer.toHexString(vmPtr));
-    verifyNotClosed();
+    verifyNotFreed();
 
     var ret =
         instance.callCborVmFunction(
@@ -180,13 +184,12 @@ public final class SharedCoreVM implements AutoCloseable {
 
   public @Nullable NotificationValue takeNotification(int handle) {
     LOG.trace("[vm=0x{}] takeNotification()", Integer.toHexString(vmPtr));
-    verifyNotClosed();
+    verifyNotFreed();
 
     var ret =
         instance.callCborVmFunction(
             exports -> exports.vmTakeNotification(vmPtr, handle), TakeNotificationReturn.class);
     if (ret instanceof TakeNotificationReturn.NotReady) return null;
-    if (ret instanceof TakeNotificationReturn.Suspended) return null;
     if (ret instanceof TakeNotificationReturn.Value v) return v.value();
     TakeNotificationReturn.Failure f = (TakeNotificationReturn.Failure) ret;
     throw vmError(f.code, f.message);
@@ -194,18 +197,12 @@ public final class SharedCoreVM implements AutoCloseable {
 
   public Input sysInput() {
     LOG.trace("[vm=0x{}] sysInput()", Integer.toHexString(vmPtr));
-    verifyNotClosed();
+    verifyNotFreed();
 
     var ret =
         instance.callCborVmFunction(exports -> exports.vmSysInput(vmPtr), SysInputReturn.class);
     if (ret instanceof SysInputReturn.Failure f) throw vmError(f.code(), f.message());
-    WasmInput w = ((SysInputReturn.Ok) ret).input();
-    List<Map.Entry<String, String>> hdrs = new ArrayList<>();
-    if (w.headers() != null) {
-      for (String[] pair : w.headers()) hdrs.add(Map.entry(pair[0], pair[1]));
-    }
-    return new Input(
-        w.invocationId(), w.randomSeed(), w.key(), Collections.unmodifiableList(hdrs), w.input());
+    return ((SysInputReturn.Ok) ret).input();
   }
 
   // -------------------------------------------------------------------------
@@ -214,7 +211,7 @@ public final class SharedCoreVM implements AutoCloseable {
 
   public int sysStateGet(String key) {
     LOG.trace("[vm=0x{}] sysStateGet()", Integer.toHexString(vmPtr));
-    verifyNotClosed();
+    verifyNotFreed();
 
     return callWithHandleReturn(
         SharedCoreWasm_ModuleExports::vmSysStateGet, new VmSysStateGetParameters(key));
@@ -222,22 +219,23 @@ public final class SharedCoreVM implements AutoCloseable {
 
   public int sysStateGetKeys() {
     LOG.trace("[vm=0x{}] sysStateGetKeys()", Integer.toHexString(vmPtr));
-    verifyNotClosed();
+    verifyNotFreed();
 
     return callWithHandleReturn(SharedCoreWasm_ModuleExports::vmSysStateGetKeys);
   }
 
-  public void sysStateSet(String key, byte[] value) {
+  public void sysStateSet(String key, Slice value) {
     LOG.trace("[vm=0x{}] sysStateSet()", Integer.toHexString(vmPtr));
-    verifyNotClosed();
+    verifyNotFreed();
 
     callWithEmptyReturn(
-        SharedCoreWasm_ModuleExports::vmSysStateSet, new VmSysStateSetParameters(key, value));
+        SharedCoreWasm_ModuleExports::vmSysStateSet,
+        new VmSysStateSetParameters(key, value.toByteArray()));
   }
 
   public void sysStateClear(String key) {
     LOG.trace("[vm=0x{}] sysStateClear()", Integer.toHexString(vmPtr));
-    verifyNotClosed();
+    verifyNotFreed();
 
     callWithEmptyReturn(
         SharedCoreWasm_ModuleExports::vmSysStateClear, new VmSysStateClearParameters(key));
@@ -245,7 +243,7 @@ public final class SharedCoreVM implements AutoCloseable {
 
   public void sysStateClearAll() {
     LOG.trace("[vm=0x{}] sysStateClearAll()", Integer.toHexString(vmPtr));
-    verifyNotClosed();
+    verifyNotFreed();
 
     callWithEmptyReturn(SharedCoreWasm_ModuleExports::vmSysStateClearAll);
   }
@@ -254,62 +252,64 @@ public final class SharedCoreVM implements AutoCloseable {
   // Sleep
   // -------------------------------------------------------------------------
 
-  public int sysSleep(long durationMillis, @Nullable String name) {
+  public int sysSleep(Duration duration, @Nullable String name) {
     LOG.trace("[vm=0x{}] sysSleep()", Integer.toHexString(vmPtr));
-    verifyNotClosed();
+    verifyNotFreed();
 
     long now = System.currentTimeMillis();
     return callWithHandleReturn(
         SharedCoreWasm_ModuleExports::vmSysSleep,
-        new VmSysSleepParameters(name != null ? name : "", now + durationMillis, now));
+        new VmSysSleepParameters(name != null ? name : "", now + duration.toMillis(), now));
   }
 
   // -------------------------------------------------------------------------
   // Call / Send
   // -------------------------------------------------------------------------
 
-  public CallHandleResult sysCall(
-      String service,
-      String handler,
-      @Nullable String key,
-      byte[] payload,
+  public SysCallReturn.Ok sysCall(
+      Target target,
+      Slice payload,
       @Nullable String idempotencyKey,
-      @Nullable List<Map.Entry<String, String>> extraHeaders) {
+      @Nullable Collection<Map.Entry<String, String>> headers) {
     LOG.trace("[vm=0x{}] sysCall()", Integer.toHexString(vmPtr));
-    verifyNotClosed();
+    verifyNotFreed();
 
     var ret =
         instance.callCborVmFunction(
             (exports, ptr, len) -> exports.vmSysCall(vmPtr, ptr, len),
             new VmSysCallParameters(
-                service, handler, key, idempotencyKey, toHeaderList(extraHeaders), payload),
+                target.getService(),
+                target.getHandler(),
+                target.getKey(),
+                idempotencyKey,
+                toHeaderList(headers),
+                payload.toByteArray()),
             SysCallReturn.class);
-    if (ret instanceof SysCallReturn.Failure f) throw vmError(f.code(), f.message());
-    SysCallReturn.Ok ok = (SysCallReturn.Ok) ret;
-    return new CallHandleResult(ok.invocationIdHandle(), ok.resultHandle());
+    if (ret instanceof SysCallReturn.Failure f) {
+      throw vmError(f.code(), f.message());
+    }
+    return (SysCallReturn.Ok) ret;
   }
 
   public int sysSend(
-      String service,
-      String handler,
-      @Nullable String key,
-      byte[] payload,
+      Target target,
+      Slice payload,
       @Nullable String idempotencyKey,
-      @Nullable List<Map.Entry<String, String>> extraHeaders,
-      @Nullable Long delayMillis) {
+      @Nullable Collection<Map.Entry<String, String>> headers,
+      @Nullable Duration delay) {
     LOG.trace("[vm=0x{}] sysSend()", Integer.toHexString(vmPtr));
-    verifyNotClosed();
+    verifyNotFreed();
 
-    Long executionTime = delayMillis != null ? System.currentTimeMillis() + delayMillis : null;
+    Long executionTime = delay != null ? System.currentTimeMillis() + delay.toMillis() : null;
     return callWithHandleReturn(
         SharedCoreWasm_ModuleExports::vmSysSend,
         new VmSysSendParameters(
-            service,
-            handler,
-            key,
+            target.getService(),
+            target.getHandler(),
+            target.getKey(),
             idempotencyKey,
-            toHeaderList(extraHeaders),
-            payload,
+            toHeaderList(headers),
+            payload.toByteArray(),
             executionTime));
   }
 
@@ -317,78 +317,66 @@ public final class SharedCoreVM implements AutoCloseable {
   // Awakeables
   // -------------------------------------------------------------------------
 
-  public AwakeableResult sysAwakeable() {
+  public AwakeableReturn.Ok sysAwakeable() {
     LOG.trace("[vm=0x{}] sysAwakeable()", Integer.toHexString(vmPtr));
-    verifyNotClosed();
+    verifyNotFreed();
 
     AwakeableReturn ret =
         instance.callCborVmFunction(
             (exports) -> exports.vmSysAwakeable(vmPtr), AwakeableReturn.class);
-    if (ret instanceof AwakeableReturn.Failure f) throw vmError(f.code(), f.message());
-    AwakeableReturn.Ok ok = (AwakeableReturn.Ok) ret;
-    return new AwakeableResult(ok.handle(), ok.id());
+    if (ret instanceof AwakeableReturn.Failure f) {
+      throw vmError(f.code(), f.message());
+    }
+    return (AwakeableReturn.Ok) ret;
   }
 
-  public void sysCompleteAwakeable(String id, NonEmptyValueParam result) {
+  public void sysCompleteAwakeableWithSuccess(String id, Slice payload) {
+    sysCompleteAwakeable(id, new NonEmptyValueParam.Success(payload));
+  }
+
+  public void sysCompleteAwakeableWithFailure(String id, TerminalException reason) {
+    sysCompleteAwakeable(id, new NonEmptyValueParam.Failure(reason));
+  }
+
+  private void sysCompleteAwakeable(String id, NonEmptyValueParam result) {
     LOG.trace("[vm=0x{}] sysCompleteAwakeable()", Integer.toHexString(vmPtr));
-    verifyNotClosed();
+    verifyNotFreed();
 
     callWithEmptyReturn(
         SharedCoreWasm_ModuleExports::vmSysCompleteAwakeable,
         new VmSysCompleteAwakeableParameters(id, result));
   }
 
-  public void sysCompleteAwakeableSuccess(String id, byte[] value) {
-    sysCompleteAwakeable(id, new NonEmptyValueParam.Success(value));
-  }
-
-  public void sysCompleteAwakeableFailure(String id, int code, String message) {
-    sysCompleteAwakeable(id, new NonEmptyValueParam.Failure(code, message, null));
-  }
-
-  public void sysCompleteAwakeableFailure(
-      String id, int code, String message, @Nullable List<String[]> metadata) {
-    sysCompleteAwakeable(id, new NonEmptyValueParam.Failure(code, message, metadata));
-  }
-
   public int sysCreateSignalHandle(String signalName) {
     LOG.trace("[vm=0x{}] sysCreateSignalHandle()", Integer.toHexString(vmPtr));
-    verifyNotClosed();
+    verifyNotFreed();
 
     return callWithHandleReturn(
         SharedCoreWasm_ModuleExports::vmSysCreateSignalHandle,
         new VmSysCreateSignalHandleParameters(signalName));
   }
 
-  public void sysCompleteSignal(String target, String signalName, NonEmptyValueParam result) {
+  public void sysCompleteSignalWithSuccess(String target, String signalName, Slice slice) {
+    sysCompleteSignal(target, signalName, new NonEmptyValueParam.Success(slice));
+  }
+
+  public void sysCompleteSignalWithFailure(
+      String target, String signalName, TerminalException reason) {
+    sysCompleteSignal(target, signalName, new NonEmptyValueParam.Failure(reason));
+  }
+
+  private void sysCompleteSignal(String target, String signalName, NonEmptyValueParam result) {
     LOG.trace("[vm=0x{}] sysCompleteSignal()", Integer.toHexString(vmPtr));
-    verifyNotClosed();
+    verifyNotFreed();
 
     callWithEmptyReturn(
         SharedCoreWasm_ModuleExports::vmSysCompleteSignal,
         new VmSysCompleteSignalParameters(target, signalName, result));
   }
 
-  public void sysCompleteSignalSuccess(String target, String signalName, byte[] value) {
-    sysCompleteSignal(target, signalName, new NonEmptyValueParam.Success(value));
-  }
-
-  public void sysCompleteSignalFailure(String target, String signalName, int code, String message) {
-    sysCompleteSignal(target, signalName, new NonEmptyValueParam.Failure(code, message, null));
-  }
-
-  public void sysCompleteSignalFailure(
-      String target,
-      String signalName,
-      int code,
-      String message,
-      @Nullable List<String[]> metadata) {
-    sysCompleteSignal(target, signalName, new NonEmptyValueParam.Failure(code, message, metadata));
-  }
-
   public int sysPromiseGet(String key) {
     LOG.trace("[vm=0x{}] sysPromiseGet()", Integer.toHexString(vmPtr));
-    verifyNotClosed();
+    verifyNotFreed();
 
     return callWithHandleReturn(
         SharedCoreWasm_ModuleExports::vmSysPromiseGet, new VmSysPromiseGetParameters(key));
@@ -396,7 +384,7 @@ public final class SharedCoreVM implements AutoCloseable {
 
   public int sysPromisePeek(String key) {
     LOG.trace("[vm=0x{}] sysPromisePeek()", Integer.toHexString(vmPtr));
-    verifyNotClosed();
+    verifyNotFreed();
 
     return callWithHandleReturn(
         SharedCoreWasm_ModuleExports::vmSysPromisePeek, new VmSysPromisePeekParameters(key));
@@ -409,69 +397,62 @@ public final class SharedCoreVM implements AutoCloseable {
         new VmSysPromiseCompleteParameters(key, result));
   }
 
-  public int sysPromiseCompleteSuccess(String key, byte[] value) {
+  public int sysPromiseCompleteWithSuccess(String key, Slice value) {
     return sysPromiseComplete(key, new NonEmptyValueParam.Success(value));
   }
 
-  public int sysPromiseCompleteFailure(String key, int code, String message) {
-    return sysPromiseComplete(key, new NonEmptyValueParam.Failure(code, message, null));
-  }
-
-  public int sysPromiseCompleteFailure(
-      String key, int code, String message, @Nullable List<String[]> metadata) {
-    return sysPromiseComplete(key, new NonEmptyValueParam.Failure(code, message, metadata));
+  public int sysPromiseCompleteWithFailure(String key, TerminalException reason) {
+    return sysPromiseComplete(key, new NonEmptyValueParam.Failure(reason));
   }
 
   public int sysRun(String name) {
     LOG.trace("[vm=0x{}] sysRun()", Integer.toHexString(vmPtr));
-    verifyNotClosed();
+    verifyNotFreed();
 
     return callWithHandleReturn(
         SharedCoreWasm_ModuleExports::vmSysRun, new VmSysRunParameters(name));
   }
 
-  public void proposeRunCompletionSuccess(int handle, byte[] value) {
+  public void proposeRunCompletionWithSuccess(int handle, Slice value) {
     LOG.trace("[vm=0x{}] proposeRunCompletionSuccess()", Integer.toHexString(vmPtr));
-    verifyNotClosed();
-
-    callWithEmptyReturn(
-        SharedCoreWasm_ModuleExports::vmProposeRunCompletion,
-        new VmProposeRunCompletionParameters(handle, new RunResult.Success(value), 0L, null));
-  }
-
-  public void proposeRunCompletionTerminalFailure(
-      int handle, int code, String message, @Nullable List<String[]> metadata) {
-    LOG.trace("[vm=0x{}] proposeRunCompletionTerminalFailure()", Integer.toHexString(vmPtr));
-    verifyNotClosed();
+    verifyNotFreed();
 
     callWithEmptyReturn(
         SharedCoreWasm_ModuleExports::vmProposeRunCompletion,
         new VmProposeRunCompletionParameters(
-            handle, new RunResult.TerminalFailure(code, message, metadata), 0L, null));
+            handle, new RunResult.Success(value.toByteArray()), 0L, null));
+  }
+
+  public void proposeRunCompletionTerminalFailure(int handle, TerminalException terminalException) {
+    LOG.trace("[vm=0x{}] proposeRunCompletionTerminalFailure()", Integer.toHexString(vmPtr));
+    verifyNotFreed();
+
+    callWithEmptyReturn(
+        SharedCoreWasm_ModuleExports::vmProposeRunCompletion,
+        new VmProposeRunCompletionParameters(
+            handle, new RunResult.TerminalFailure(terminalException), 0L, null));
   }
 
   public void proposeRunCompletionRetryableFailure(
       int handle,
-      int code,
-      String message,
-      @Nullable String stacktrace,
-      long attemptDurationMillis,
-      @Nullable WasmRetryPolicy retryPolicy) {
+      Throwable throwable,
+      Duration attemptDuration,
+      @Nullable RetryPolicy retryPolicy) {
     LOG.trace("[vm=0x{}] proposeRunCompletionRetryableFailure()", Integer.toHexString(vmPtr));
-    verifyNotClosed();
+    verifyNotFreed();
 
     callWithEmptyReturn(
         SharedCoreWasm_ModuleExports::vmProposeRunCompletion,
         new VmProposeRunCompletionParameters(
             handle,
-            new RunResult.RetryableFailure(code, message, stacktrace),
-            attemptDurationMillis,
-            retryPolicy));
+            new RunResult.RetryableFailure(throwable),
+            attemptDuration.toMillis(),
+            retryPolicy != null ? new WasmRetryPolicy(retryPolicy) : null));
   }
 
   public void sysCancelInvocation(String invocationId) {
     LOG.trace("[vm=0x{}] sysCancelInvocation()", Integer.toHexString(vmPtr));
-    verifyNotClosed();
+    verifyNotFreed();
 
     callWithEmptyReturn(
         SharedCoreWasm_ModuleExports::vmSysCancelInvocation,
@@ -480,7 +461,7 @@ public final class SharedCoreVM implements AutoCloseable {
 
   public int sysAttachInvocation(String invocationId) {
     LOG.trace("[vm=0x{}] sysAttachInvocation()", Integer.toHexString(vmPtr));
-    verifyNotClosed();
+    verifyNotFreed();
 
     return callWithHandleReturn(
         SharedCoreWasm_ModuleExports::vmSysAttachInvocation,
@@ -489,7 +470,7 @@ public final class SharedCoreVM implements AutoCloseable {
 
   public int sysGetInvocationOutput(String invocationId) {
     LOG.trace("[vm=0x{}] sysGetInvocationOutput()", Integer.toHexString(vmPtr));
-    verifyNotClosed();
+    verifyNotFreed();
 
     return callWithHandleReturn(
         SharedCoreWasm_ModuleExports::vmSysGetInvocationOutput,
@@ -498,27 +479,23 @@ public final class SharedCoreVM implements AutoCloseable {
 
   public void sysWriteOutput(NonEmptyValueParam result) {
     LOG.trace("[vm=0x{}] sysWriteOutput()", Integer.toHexString(vmPtr));
-    verifyNotClosed();
+    verifyNotFreed();
 
     callWithEmptyReturn(
         SharedCoreWasm_ModuleExports::vmSysWriteOutput, new VmSysWriteOutputParameters(result));
   }
 
-  public void sysWriteOutputSuccess(byte[] value) {
+  public void sysWriteOutputWithSuccess(Slice value) {
     sysWriteOutput(new NonEmptyValueParam.Success(value));
   }
 
-  public void sysWriteOutputFailure(int code, String message) {
-    sysWriteOutput(new NonEmptyValueParam.Failure(code, message, null));
-  }
-
-  public void sysWriteOutputFailure(int code, String message, @Nullable List<String[]> metadata) {
-    sysWriteOutput(new NonEmptyValueParam.Failure(code, message, metadata));
+  public void sysWriteOutputWithFailure(TerminalException exception) {
+    sysWriteOutput(new NonEmptyValueParam.Failure(exception));
   }
 
   public void sysEnd() {
     LOG.trace("[vm=0x{}] sysEnd()", Integer.toHexString(vmPtr));
-    verifyNotClosed();
+    verifyNotFreed();
 
     callWithEmptyReturn(SharedCoreWasm_ModuleExports::vmSysEnd);
   }
@@ -553,7 +530,7 @@ public final class SharedCoreVM implements AutoCloseable {
     @JsonSubTypes.Type(value = VmNewReturn.Ok.class, name = "ok"),
     @JsonSubTypes.Type(value = VmNewReturn.Failure.class, name = "failure"),
   })
-  public sealed interface VmNewReturn {
+  sealed interface VmNewReturn {
     record Ok(int pointer) implements VmNewReturn {}
 
     record Failure(int code, String message) implements VmNewReturn {}
@@ -564,7 +541,7 @@ public final class SharedCoreVM implements AutoCloseable {
     @JsonSubTypes.Type(value = EmptyReturn.Ok.class, name = "ok"),
     @JsonSubTypes.Type(value = EmptyReturn.Failure.class, name = "failure"),
   })
-  public sealed interface EmptyReturn {
+  sealed interface EmptyReturn {
     record Ok() implements EmptyReturn {}
 
     record Failure(int code, String message) implements EmptyReturn {}
@@ -575,7 +552,7 @@ public final class SharedCoreVM implements AutoCloseable {
     @JsonSubTypes.Type(value = HandleReturn.Ok.class, name = "ok"),
     @JsonSubTypes.Type(value = HandleReturn.Failure.class, name = "failure"),
   })
-  public sealed interface HandleReturn {
+  sealed interface HandleReturn {
     record Ok(int handle) implements HandleReturn {}
 
     record Failure(int code, String message) implements HandleReturn {}
@@ -586,14 +563,13 @@ public final class SharedCoreVM implements AutoCloseable {
     @JsonSubTypes.Type(value = IsReadyReturn.Ok.class, name = "ok"),
     @JsonSubTypes.Type(value = IsReadyReturn.Failure.class, name = "failure"),
   })
-  public sealed interface IsReadyReturn {
+  sealed interface IsReadyReturn {
     record Ok(boolean ready) implements IsReadyReturn {}
 
     record Failure(int code, String message) implements IsReadyReturn {}
   }
 
-  /** Plain struct — mirrors Go's VmGetResponseHeadReturn (no Ok/Failure wrapper). */
-  public record ResponseHeadReturn(int statusCode, List<String[]> headers) {}
+  record ResponseHeadReturn(int statusCode, List<String[]> headers) {}
 
   @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
   @JsonSubTypes({
@@ -636,10 +612,23 @@ public final class SharedCoreVM implements AutoCloseable {
 
     record Void() implements NotificationValue {}
 
-    record Success(byte[] value) implements NotificationValue {}
+    record Success(byte[] value) implements NotificationValue {
+      public Slice slice() {
+        return Slice.wrap(value);
+      }
+    }
 
     record Failure(int code, String message, @Nullable List<String[]> metadata)
-        implements NotificationValue {}
+        implements NotificationValue {
+      public TerminalException terminalException() {
+        return new TerminalException(
+            code,
+            message,
+            metadata != null
+                ? metadata.stream().collect(Collectors.toMap(e -> e[0], e -> e[1]))
+                : null);
+      }
+    }
 
     record StateKeys(List<String> keys) implements NotificationValue {}
 
@@ -650,7 +639,6 @@ public final class SharedCoreVM implements AutoCloseable {
   @JsonSubTypes({
     @JsonSubTypes.Type(value = TakeNotificationReturn.NotReady.class, name = "notReady"),
     @JsonSubTypes.Type(value = TakeNotificationReturn.Value.class, name = "value"),
-    @JsonSubTypes.Type(value = TakeNotificationReturn.Suspended.class, name = "suspended"),
     @JsonSubTypes.Type(value = TakeNotificationReturn.Failure.class, name = "failure"),
   })
   public sealed interface TakeNotificationReturn {
@@ -658,18 +646,19 @@ public final class SharedCoreVM implements AutoCloseable {
 
     record Value(NotificationValue value) implements TakeNotificationReturn {}
 
-    record Suspended() implements TakeNotificationReturn {}
-
     record Failure(int code, String message) implements TakeNotificationReturn {}
   }
 
-  public record WasmInput(
-      String invocationId,
-      String key,
-      List<String[]> headers,
-      byte[] input,
-      long randomSeed,
-      boolean shouldUseRandomSeed) {}
+  public record Input(
+      String invocationId, String key, List<String[]> headers, byte[] input, long randomSeed) {
+    public Map<String, String> headersAsMap() {
+      Map<String, String> orderedHeaders = new LinkedHashMap<>();
+      if (this.headers() != null) {
+        for (var e : this.headers()) orderedHeaders.put(e[0], e[1]);
+      }
+      return Collections.unmodifiableMap(orderedHeaders);
+    }
+  }
 
   @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
   @JsonSubTypes({
@@ -677,7 +666,7 @@ public final class SharedCoreVM implements AutoCloseable {
     @JsonSubTypes.Type(value = SysInputReturn.Failure.class, name = "failure"),
   })
   public sealed interface SysInputReturn {
-    record Ok(WasmInput input) implements SysInputReturn {}
+    record Ok(Input input) implements SysInputReturn {}
 
     record Failure(int code, String message) implements SysInputReturn {}
   }
@@ -709,12 +698,11 @@ public final class SharedCoreVM implements AutoCloseable {
   // Field names match Rust struct field names after camelCase renaming.
   // =========================================================================
 
-  public record VmNotifyError(
-      String message, @Nullable String stacktrace, @Nullable Long delayOverrideMillis) {}
+  record VmNotifyError(String message, @Nullable String stacktrace) {}
 
-  public record VmNewParameters(List<String[]> headers) {}
+  record VmNewParameters(List<String[]> headers) {}
 
-  public record VmDoProgressParameters(int[] handles) {}
+  public record VmDoProgressParameters(List<Integer> handles) {}
 
   public record VmSysStateGetParameters(String key) {}
 
@@ -732,10 +720,23 @@ public final class SharedCoreVM implements AutoCloseable {
     @JsonSubTypes.Type(value = NonEmptyValueParam.Failure.class, name = "failure"),
   })
   public sealed interface NonEmptyValueParam {
-    record Success(byte[] value) implements NonEmptyValueParam {}
+    record Success(byte[] value) implements NonEmptyValueParam {
+      public Success(Slice slice) {
+        this(slice.toByteArray());
+      }
+    }
 
     record Failure(int code, String message, @Nullable List<String[]> metadata)
-        implements NonEmptyValueParam {}
+        implements NonEmptyValueParam {
+      public Failure(TerminalException exception) {
+        this(
+            exception.getCode(),
+            exception.getMessage(),
+            exception.getMetadata().entrySet().stream()
+                .map(e -> new String[] {e.getKey(), e.getValue()})
+                .collect(Collectors.toList()));
+      }
+    }
   }
 
   public record VmSysCompleteAwakeableParameters(String id, NonEmptyValueParam result) {}
@@ -778,13 +779,30 @@ public final class SharedCoreVM implements AutoCloseable {
     @JsonSubTypes.Type(value = RunResult.RetryableFailure.class, name = "retryableFailure"),
   })
   public sealed interface RunResult {
-    record Success(byte[] value) implements RunResult {}
+    record Success(byte[] value) implements RunResult {
+      public Success(Slice slice) {
+        this(slice.toByteArray());
+      }
+    }
 
     record TerminalFailure(int code, String message, @Nullable List<String[]> metadata)
-        implements RunResult {}
+        implements RunResult {
+      public TerminalFailure(TerminalException exception) {
+        this(
+            exception.getCode(),
+            exception.getMessage(),
+            exception.getMetadata().entrySet().stream()
+                .map(e -> new String[] {e.getKey(), e.getValue()})
+                .collect(Collectors.toList()));
+      }
+    }
 
     record RetryableFailure(int code, String message, @Nullable String stacktrace)
-        implements RunResult {}
+        implements RunResult {
+      public RetryableFailure(Throwable exception) {
+        this(500, exception.getMessage(), stacktraceToString(exception));
+      }
+    }
   }
 
   public record VmProposeRunCompletionParameters(
@@ -798,7 +816,16 @@ public final class SharedCoreVM implements AutoCloseable {
       float factor,
       @Nullable Long maxIntervalMillis,
       @Nullable Integer maxAttempts,
-      @Nullable Long maxDurationMillis) {}
+      @Nullable Long maxDurationMillis) {
+    public WasmRetryPolicy(RetryPolicy retryPolicy) {
+      this(
+          retryPolicy.getInitialDelay().toMillis(),
+          retryPolicy.getExponentiationFactor(),
+          retryPolicy.getMaxDelay() != null ? retryPolicy.getMaxDelay().toMillis() : null,
+          retryPolicy.getMaxAttempts(),
+          retryPolicy.getMaxDuration() != null ? retryPolicy.getMaxDuration().toMillis() : null);
+    }
+  }
 
   public record VmSysCreateSignalHandleParameters(String name) {}
 
@@ -806,21 +833,6 @@ public final class SharedCoreVM implements AutoCloseable {
       String target, String name, NonEmptyValueParam result) {}
 
   public record VmSysWriteOutputParameters(NonEmptyValueParam result) {}
-
-  // =========================================================================
-  // Result value types returned to WasmStateMachineImpl
-  // =========================================================================
-
-  public record Input(
-      String invocationId,
-      long randomSeed,
-      String key,
-      List<Map.Entry<String, String>> headers,
-      byte[] body) {}
-
-  public record CallHandleResult(int invocationIdHandle, int resultHandle) {}
-
-  public record AwakeableResult(int signalHandle, String awakeableId) {}
 
   private int callWithHandleReturn(
       SharedCoreInstance.QuadFunction<SharedCoreWasm_ModuleExports, Integer, Integer, Integer, Long>
@@ -859,10 +871,15 @@ public final class SharedCoreVM implements AutoCloseable {
     return new ProtocolException(message, code);
   }
 
-  private static List<String[]> toHeaderList(@Nullable List<Map.Entry<String, String>> headers) {
+  private static List<String[]> toHeaderList(
+      @Nullable Collection<Map.Entry<String, String>> headers) {
     if (headers == null || headers.isEmpty()) return Collections.emptyList();
-    List<String[]> r = new ArrayList<>(headers.size());
-    for (Map.Entry<String, String> e : headers) r.add(new String[] {e.getKey(), e.getValue()});
-    return r;
+    return headers.stream().map(e -> new String[] {e.getKey(), e.getValue()}).toList();
+  }
+
+  private static String stacktraceToString(Throwable t) {
+    StringWriter sw = new StringWriter();
+    t.printStackTrace(new PrintWriter(sw));
+    return sw.toString();
   }
 }

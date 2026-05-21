@@ -11,6 +11,7 @@ package dev.restate.sdk.core;
 import dev.restate.common.function.ThrowingFunction;
 import dev.restate.sdk.common.AbortedExecutionException;
 import dev.restate.sdk.common.TerminalException;
+import dev.restate.sdk.core.sharedcore.StateMachine;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -21,7 +22,12 @@ abstract class AsyncResults {
 
   @FunctionalInterface
   interface Completer<T> {
-    void complete(NotificationValue value, CompletableFuture<T> future);
+    void complete(StateMachine.NotificationValue value, CompletableFuture<T> future);
+  }
+
+  @FunctionalInterface
+  interface NotificationReader {
+    java.util.Optional<StateMachine.NotificationValue> take(int handle);
   }
 
   private AsyncResults() {}
@@ -46,7 +52,7 @@ abstract class AsyncResults {
 
     void tryCancel();
 
-    void tryComplete(StateMachine stateMachine);
+    void tryComplete(NotificationReader reader);
 
     CompletableFuture<T> publicFuture();
 
@@ -109,9 +115,9 @@ abstract class AsyncResults {
     }
 
     @Override
-    public void tryComplete(StateMachine stateMachine) {
-      stateMachine
-          .takeNotification(handle)
+    public void tryComplete(NotificationReader reader) {
+      reader
+          .take(handle)
           .ifPresent(
               value -> {
                 try {
@@ -159,8 +165,8 @@ abstract class AsyncResults {
     }
 
     @Override
-    public void tryComplete(StateMachine stateMachine) {
-      asyncResult.tryComplete(stateMachine);
+    public void tryComplete(NotificationReader reader) {
+      asyncResult.tryComplete(reader);
     }
 
     @Override
@@ -273,8 +279,8 @@ abstract class AsyncResults {
     }
 
     @Override
-    public void tryComplete(StateMachine stateMachine) {
-      asyncResults.forEach(ar -> ar.tryComplete(stateMachine));
+    public void tryComplete(NotificationReader reader) {
+      asyncResults.forEach(ar -> ar.tryComplete(reader));
       for (int i = 0; i < asyncResults.size(); i++) {
         if (asyncResults.get(i).isDone()) {
           publicFuture.complete(i);
@@ -320,8 +326,8 @@ abstract class AsyncResults {
     }
 
     @Override
-    public void tryComplete(StateMachine stateMachine) {
-      asyncResults.forEach(ar -> ar.tryComplete(stateMachine));
+    public void tryComplete(NotificationReader reader) {
+      asyncResults.forEach(ar -> ar.tryComplete(reader));
       asyncResults.stream()
           .filter(ar -> ar.publicFuture().isCompletedExceptionally())
           .findFirst()

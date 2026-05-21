@@ -11,6 +11,7 @@ package dev.restate.sdk.core;
 import dev.restate.common.Slice;
 import dev.restate.sdk.core.generated.manifest.EndpointManifestSchema;
 import dev.restate.sdk.core.generated.manifest.Service;
+import dev.restate.sdk.core.sharedcore.StateMachine;
 import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.endpoint.definition.HandlerDefinition;
@@ -177,9 +178,6 @@ public final class EndpointRequestHandler {
       loggingContextSetter.set(LoggingContextSetter.INVOCATION_ID_KEY, invocationIdHeader);
     }
 
-    // Instantiate state machine
-    StateMachine stateMachine = StateMachine.init(headersAccessor, loggingContextSetter);
-
     // Resolve the service method definition
     ServiceDefinition svc = this.endpoint.resolveService(serviceName);
     if (svc == null) {
@@ -190,7 +188,7 @@ public final class EndpointRequestHandler {
       throw ProtocolException.methodNotFound(serviceName, handlerName);
     }
 
-    // Parse OTEL context and generate span
+    // Parse OTEL context
     final io.opentelemetry.context.Context otelContext =
         this.endpoint
             .getOpenTelemetry()
@@ -199,25 +197,16 @@ public final class EndpointRequestHandler {
             .extract(
                 io.opentelemetry.context.Context.current(), headersAccessor, OTEL_HEADERS_GETTER);
 
-    // Generate the span
-    //    Span span =
-    //        tracer
-    //            .spanBuilder("Invoke handler")
-    //            .setSpanKind(SpanKind.SERVER)
-    //            .setParent(otelContext)
-    //            .startSpan();
-
     // Setup logging context
     loggingContextSetter.set(
         LoggingContextSetter.INVOCATION_TARGET_KEY, fullyQualifiedServiceMethod);
 
     return new RequestProcessorImpl(
+        StateMachine.create(headersAccessor),
         fullyQualifiedServiceMethod,
-        stateMachine,
         svc.getServiceType(),
         handler,
         otelContext,
-        loggingContextSetter,
         coreExecutor);
   }
 
