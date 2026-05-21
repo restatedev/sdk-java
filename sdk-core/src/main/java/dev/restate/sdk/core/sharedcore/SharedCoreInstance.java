@@ -29,13 +29,11 @@ import org.apache.logging.log4j.Logger;
 class SharedCoreInstance {
 
   private static final Logger LOG = LogManager.getLogger(SharedCoreInstance.class);
-  private static final CBORMapper CBOR = CBORMapper.builder()
+  private static final CBORMapper CBOR =
+      CBORMapper.builder()
           .defaultPropertyInclusion(
-                  JsonInclude.Value.construct(
-                          JsonInclude.Include.NON_NULL,
-                          JsonInclude.Include.NON_NULL
-                  )
-          )
+              JsonInclude.Value.construct(
+                  JsonInclude.Include.NON_NULL, JsonInclude.Include.NON_NULL))
           .build();
   private static final WasmModule WASM_MODULE =
       dev.restate.sdk.core.sharedcore.generated.SharedCoreWasm.load();

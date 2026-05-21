@@ -39,6 +39,16 @@ val compileRustToWasm by
       outputs.file(wasmFile)
     }
 
+val cargoFmt by
+    tasks.registering(Exec::class) {
+      group = "formatting"
+      description = "Format the Rust WASM wrapper crate with cargo fmt"
+      workingDir = rustSrcDir
+      commandLine("cargo", "fmt")
+    }
+
+tasks.matching { it.name == "spotlessApply" }.configureEach { dependsOn(cargoFmt) }
+
 val copyWasm by
     tasks.registering(Copy::class) {
       group = "build"
