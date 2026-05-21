@@ -1082,8 +1082,11 @@ impl From<NonEmptyValueParam> for NonEmptyValue {
 struct VmSysCallParameters {
     service: String,
     handler: String,
+    #[serde(default)]
     key: Option<String>,
+    #[serde(default)]
     idempotency_key: Option<String>,
+    #[serde(default)]
     headers: Vec<(String, String)>,
     #[serde(with = "serde_bytes")]
     input: Vec<u8>,
@@ -1094,11 +1097,15 @@ struct VmSysCallParameters {
 struct VmSysSendParameters {
     service: String,
     handler: String,
+    #[serde(default)]
     key: Option<String>,
+    #[serde(default)]
     idempotency_key: Option<String>,
+    #[serde(default)]
     headers: Vec<(String, String)>,
     #[serde(with = "serde_bytes")]
     input: Vec<u8>,
+    #[serde(default)]
     execution_time_since_unix_epoch_millis: Option<u64>,
 }
 
@@ -1148,6 +1155,7 @@ struct VmProposeRunCompletionParameters {
     handle: u32,
     result: RunResult,
     attempt_duration_millis: u64,
+    #[serde(default)]
     retry_policy: Option<WasmRetryPolicy>,
 }
 
@@ -1181,8 +1189,11 @@ enum RunResult {
 struct WasmRetryPolicy {
     initial_interval_millis: u64,
     factor: f32,
+    #[serde(default)]
     max_interval_millis: Option<u64>,
+    #[serde(default)]
     max_attempts: Option<u32>,
+    #[serde(default)]
     max_duration_millis: Option<u64>,
 }
 

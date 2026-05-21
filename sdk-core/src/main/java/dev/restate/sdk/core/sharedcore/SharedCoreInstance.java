@@ -15,6 +15,7 @@ import com.dylibso.chicory.runtime.ImportValues;
 import com.dylibso.chicory.runtime.Instance;
 import com.dylibso.chicory.runtime.Memory;
 import com.dylibso.chicory.wasm.WasmModule;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.dataformat.cbor.databind.CBORMapper;
 import dev.restate.sdk.core.ProtocolException;
@@ -28,7 +29,14 @@ import org.apache.logging.log4j.Logger;
 class SharedCoreInstance {
 
   private static final Logger LOG = LogManager.getLogger(SharedCoreInstance.class);
-  private static final CBORMapper CBOR = CBORMapper.builder().build();
+  private static final CBORMapper CBOR = CBORMapper.builder()
+          .defaultPropertyInclusion(
+                  JsonInclude.Value.construct(
+                          JsonInclude.Include.NON_NULL,
+                          JsonInclude.Include.NON_NULL
+                  )
+          )
+          .build();
   private static final WasmModule WASM_MODULE =
       dev.restate.sdk.core.sharedcore.generated.SharedCoreWasm.load();
   private static final ThreadLocal<SharedCoreInstance> THREAD_LOCAL =
