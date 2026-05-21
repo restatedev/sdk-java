@@ -16,7 +16,7 @@ use bytes::Bytes;
 use restate_sdk_shared_core::{
     AttachInvocationTarget, AwaitResponse, CoreVM, Error, Header, HeaderMap, NonEmptyValue,
     NotificationHandle, PayloadOptions, ResponseHead, RetryPolicy, RunExitResult, State,
-    TakeOutputResult, Target, TerminalFailure, UnresolvedFuture, VMOptions, Value, Version, VM,
+    TakeOutputResult, Target, TerminalFailure, UnresolvedFuture, VMOptions, Value, VM,
 };
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -273,10 +273,13 @@ fn vm_is_ready_to_execute(rc_vm: &Rc<RefCell<WasmVM>>) -> IsReadyReturn {
 #[export_name = "vm_state"]
 pub unsafe extern "C" fn _vm_state(vm_pointer: *const RefCell<WasmVM>) -> u32 {
     let rc_vm = vm_ptr_to_rc(vm_pointer);
-    let state: State = tracing::dispatcher::with_default(&tracing::Dispatch::none(), || {
-        VM::state(&rc_vm.borrow().vm)
-    });
+    // We need to make sure we don't log stuff here, because this method is called by the java logger
+    let state = tracing::dispatcher::with_default(&tracing::Dispatch::none(), || vm_state(&rc_vm));
     state as u8 as u32
+}
+
+fn vm_state(rc_vm: &Rc<RefCell<WasmVM>>) -> State {
+    VM::state(&rc_vm.borrow().vm)
 }
 
 #[export_name = "vm_do_progress"]
