@@ -300,7 +300,8 @@ public final class StateMachine implements AutoCloseable {
     LOG.trace("[vm=0x{}] sysSend()", Integer.toHexString(vmPtr));
     verifyNotFreed();
 
-    Long executionTime = delay != null ? System.currentTimeMillis() + delay.toMillis() : null;
+    Long executionTime =
+        (delay != null && !delay.isZero()) ? System.currentTimeMillis() + delay.toMillis() : null;
     return callWithHandleReturn(
         SharedCoreWasm_ModuleExports::vmSysSend,
         new VmSysSendParameters(
