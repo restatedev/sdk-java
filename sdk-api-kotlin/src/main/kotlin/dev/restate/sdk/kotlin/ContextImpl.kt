@@ -123,7 +123,7 @@ internal constructor(
               )
               .await()
 
-      object : BaseInvocationHandle<Res>(handlerContext, responseSerde) {
+      object : BaseInvocationHandle<Res>(this, responseSerde) {
         override suspend fun invocationId(): String = invocationIdAsyncResult.poll().await()
       }
     }
@@ -134,7 +134,7 @@ internal constructor(
       responseTypeTag: TypeTag<Res>,
   ): InvocationHandle<Res> =
       resolveSerde<Res>(responseTypeTag).let { responseSerde ->
-        object : BaseInvocationHandle<Res>(handlerContext, responseSerde) {
+        object : BaseInvocationHandle<Res>(this, responseSerde) {
           override suspend fun invocationId(): String = invocationId
         }
       }
@@ -191,6 +191,14 @@ internal constructor(
 
   override fun awakeableHandle(id: String): AwakeableHandle {
     return AwakeableHandleImpl(this, id)
+  }
+
+  override suspend fun <T : Any> signal(name: String, typeTag: TypeTag<T>): DurableFuture<T> {
+    checkNotInsideRun()
+    val serde: Serde<T> = resolveSerde(typeTag)
+    return SingleDurableFutureImpl(handlerContext.signal(name).await()).simpleMap {
+      serde.deserialize(it)
+    }
   }
 
   override fun random(): RestateRandom {

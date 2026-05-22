@@ -161,23 +161,22 @@ public final class StateMachine implements AutoCloseable {
     return InvocationState.values()[ordinal];
   }
 
-  public DoProgressResult doProgress(List<Integer> handles) {
-    LOG.trace("[vm=0x{}] doProgress()", Integer.toHexString(vmPtr));
+  public AwaitResult doAwait(UnresolvedFuture future) {
+    LOG.trace("[vm=0x{}] doAwait()", Integer.toHexString(vmPtr));
     verifyNotFreed();
 
     var ret =
         instance.callCborVmFunction(
             (exports, ptr, len) -> exports.vmDoProgress(vmPtr, ptr, len),
-            new VmDoProgressParameters(handles),
+            new VmDoProgressParameters(future),
             DoProgressReturn.class);
-    if (ret instanceof DoProgressReturn.AnyCompleted) return DoProgressResult.ANY_COMPLETED;
+    if (ret instanceof DoProgressReturn.AnyCompleted) return AwaitResult.ANY_COMPLETED;
     if (ret instanceof DoProgressReturn.WaitingExternalProgress)
-      return DoProgressResult.WAIT_EXTERNAL_PROGRESS;
+      return AwaitResult.WAIT_EXTERNAL_PROGRESS;
     if (ret instanceof DoProgressReturn.CancelSignalReceived)
-      return DoProgressResult.CANCEL_SIGNAL_RECEIVED;
-    if (ret instanceof DoProgressReturn.ExecuteRun r)
-      return new DoProgressResult.ExecuteRun(r.handle());
-    if (ret instanceof DoProgressReturn.Suspended) return DoProgressResult.SUSPENDED;
+      return AwaitResult.CANCEL_SIGNAL_RECEIVED;
+    if (ret instanceof DoProgressReturn.ExecuteRun r) return new AwaitResult.ExecuteRun(r.handle());
+    if (ret instanceof DoProgressReturn.Suspended) return AwaitResult.SUSPENDED;
     DoProgressReturn.Failure f = (DoProgressReturn.Failure) ret;
     throw vmError(f.code, f.message);
   }
@@ -505,21 +504,53 @@ public final class StateMachine implements AutoCloseable {
   // Result types (returned to callers of this class)
   // =========================================================================
 
-  public sealed interface DoProgressResult {
-    DoProgressResult ANY_COMPLETED = new AnyCompleted();
-    DoProgressResult WAIT_EXTERNAL_PROGRESS = new WaitExternalProgress();
-    DoProgressResult CANCEL_SIGNAL_RECEIVED = new CancelSignalReceived();
-    DoProgressResult SUSPENDED = new Suspended();
+  public sealed interface AwaitResult {
+    AwaitResult ANY_COMPLETED = new AnyCompleted();
+    AwaitResult WAIT_EXTERNAL_PROGRESS = new WaitExternalProgress();
+    AwaitResult CANCEL_SIGNAL_RECEIVED = new CancelSignalReceived();
+    AwaitResult SUSPENDED = new Suspended();
 
-    record AnyCompleted() implements DoProgressResult {}
+    record AnyCompleted() implements AwaitResult {}
 
-    record WaitExternalProgress() implements DoProgressResult {}
+    record WaitExternalProgress() implements AwaitResult {}
 
-    record ExecuteRun(int handle) implements DoProgressResult {}
+    record ExecuteRun(int handle) implements AwaitResult {}
 
-    record CancelSignalReceived() implements DoProgressResult {}
+    record CancelSignalReceived() implements AwaitResult {}
 
-    record Suspended() implements DoProgressResult {}
+    record Suspended() implements AwaitResult {}
+  }
+
+  /**
+   * Tree-shaped await point. Mirrors the Rust {@code restate_sdk_shared_core::UnresolvedFuture}
+   * 1:1, so the runtime sees the actual combinator semantics in {@code AwaitingOnMessage} / {@code
+   * SuspensionMessage}.
+   */
+  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
+  @JsonSubTypes({
+    @JsonSubTypes.Type(value = UnresolvedFuture.Single.class, name = "single"),
+    @JsonSubTypes.Type(value = UnresolvedFuture.FirstCompleted.class, name = "firstCompleted"),
+    @JsonSubTypes.Type(value = UnresolvedFuture.AllCompleted.class, name = "allCompleted"),
+    @JsonSubTypes.Type(
+        value = UnresolvedFuture.FirstSucceededOrAllFailed.class,
+        name = "firstSucceededOrAllFailed"),
+    @JsonSubTypes.Type(
+        value = UnresolvedFuture.AllSucceededOrFirstFailed.class,
+        name = "allSucceededOrFirstFailed"),
+    @JsonSubTypes.Type(value = UnresolvedFuture.Unknown.class, name = "unknown"),
+  })
+  public sealed interface UnresolvedFuture {
+    record Single(int handle) implements UnresolvedFuture {}
+
+    record FirstCompleted(List<UnresolvedFuture> children) implements UnresolvedFuture {}
+
+    record AllCompleted(List<UnresolvedFuture> children) implements UnresolvedFuture {}
+
+    record FirstSucceededOrAllFailed(List<UnresolvedFuture> children) implements UnresolvedFuture {}
+
+    record AllSucceededOrFirstFailed(List<UnresolvedFuture> children) implements UnresolvedFuture {}
+
+    record Unknown(List<UnresolvedFuture> children) implements UnresolvedFuture {}
   }
 
   // =========================================================================
@@ -703,7 +734,7 @@ public final class StateMachine implements AutoCloseable {
 
   record VmNewParameters(List<String[]> headers) {}
 
-  public record VmDoProgressParameters(List<Integer> handles) {}
+  public record VmDoProgressParameters(UnresolvedFuture future) {}
 
   public record VmSysStateGetParameters(String key) {}
 

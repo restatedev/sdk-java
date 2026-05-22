@@ -12,11 +12,12 @@ import dev.restate.common.function.ThrowingFunction;
 import dev.restate.sdk.common.AbortedExecutionException;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.sharedcore.StateMachine;
+import dev.restate.sdk.core.sharedcore.StateMachine.UnresolvedFuture;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 
 abstract class AsyncResults {
 
@@ -56,7 +57,11 @@ abstract class AsyncResults {
 
     CompletableFuture<T> publicFuture();
 
-    Stream<Integer> uncompletedLeaves();
+    /**
+     * Tree representation of what this result is still awaiting on. Returns {@code null} when
+     * already done — callers must guard with {@link #isDone()}.
+     */
+    @Nullable UnresolvedFuture uncompletedFuture();
 
     HandlerContextInternal ctx();
   }
@@ -130,11 +135,11 @@ abstract class AsyncResults {
     }
 
     @Override
-    public Stream<Integer> uncompletedLeaves() {
+    public @Nullable UnresolvedFuture uncompletedFuture() {
       if (publicFuture.isDone()) {
-        return Stream.empty();
+        return null;
       }
-      return Stream.of(handle);
+      return new UnresolvedFuture.Single(handle);
     }
 
     @Override
@@ -170,8 +175,13 @@ abstract class AsyncResults {
     }
 
     @Override
-    public Stream<Integer> uncompletedLeaves() {
-      return asyncResult.uncompletedLeaves();
+    public @Nullable UnresolvedFuture uncompletedFuture() {
+      if (isDone()) {
+        return null;
+      }
+      UnresolvedFuture inner = asyncResult.uncompletedFuture();
+      // Mapper is arbitrary user code; we can't promise any specific combinator semantics.
+      return inner != null ? new UnresolvedFuture.Unknown(List.of(inner)) : null;
     }
 
     @Override
@@ -290,11 +300,15 @@ abstract class AsyncResults {
     }
 
     @Override
-    public Stream<Integer> uncompletedLeaves() {
+    public @Nullable UnresolvedFuture uncompletedFuture() {
       if (isDone()) {
-        return Stream.empty();
+        return null;
       }
-      return asyncResults.stream().flatMap(AsyncResultInternal::uncompletedLeaves);
+      return new UnresolvedFuture.FirstCompleted(
+          asyncResults.stream()
+              .map(AsyncResultInternal::uncompletedFuture)
+              .filter(Objects::nonNull)
+              .toList());
     }
 
     @Override
@@ -342,11 +356,15 @@ abstract class AsyncResults {
     }
 
     @Override
-    public Stream<Integer> uncompletedLeaves() {
+    public @Nullable UnresolvedFuture uncompletedFuture() {
       if (isDone()) {
-        return Stream.empty();
+        return null;
       }
-      return asyncResults.stream().flatMap(AsyncResultInternal::uncompletedLeaves);
+      return new UnresolvedFuture.AllSucceededOrFirstFailed(
+          asyncResults.stream()
+              .map(AsyncResultInternal::uncompletedFuture)
+              .filter(Objects::nonNull)
+              .toList());
     }
 
     @Override

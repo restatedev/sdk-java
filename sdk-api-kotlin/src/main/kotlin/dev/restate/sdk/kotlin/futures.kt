@@ -191,9 +191,12 @@ internal constructor(
 
 internal abstract class BaseInvocationHandle<Res>
 internal constructor(
-    private val handlerContext: HandlerContext,
+    private val contextImpl: ContextImpl,
     private val responseSerde: Serde<Res>,
 ) : InvocationHandle<Res> {
+  private val handlerContext: HandlerContext
+    get() = contextImpl.handlerContext
+
   override suspend fun cancel() {
     checkNotInsideRun()
     val ignored = handlerContext.cancelInvocation(invocationId()).await()
@@ -213,6 +216,11 @@ internal constructor(
     return SingleDurableFutureImpl(handlerContext.getInvocationOutput(invocationId()).await())
         .simpleMap { it.map { responseSerde.deserialize(it) } }
         .await()
+  }
+
+  override suspend fun signal(name: String): SignalHandle {
+    val resolvedId = invocationId()
+    return SignalHandleImpl(contextImpl, resolvedId, name)
   }
 }
 
@@ -234,6 +242,24 @@ internal class AwakeableHandleImpl(val contextImpl: ContextImpl, val id: String)
   override suspend fun reject(reason: String) {
     checkNotInsideRun()
     contextImpl.handlerContext.rejectAwakeable(id, TerminalException(reason)).await()
+  }
+}
+
+internal class SignalHandleImpl(
+    val contextImpl: ContextImpl,
+    val invocationId: String,
+    val name: String,
+) : SignalHandle {
+  override suspend fun <T : Any> resolve(typeTag: TypeTag<T>, payload: T) {
+    checkNotInsideRun()
+    contextImpl.handlerContext
+        .resolveSignal(invocationId, name, contextImpl.resolveAndSerialize(typeTag, payload))
+        .await()
+  }
+
+  override suspend fun reject(reason: String) {
+    checkNotInsideRun()
+    contextImpl.handlerContext.rejectSignal(invocationId, name, TerminalException(reason)).await()
   }
 }
 

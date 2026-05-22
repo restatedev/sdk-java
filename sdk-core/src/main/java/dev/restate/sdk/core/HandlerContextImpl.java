@@ -341,6 +341,29 @@ class HandlerContextImpl implements HandlerContextInternal {
   }
 
   @Override
+  public CompletableFuture<AsyncResult<Slice>> signal(String name) {
+    return catchExceptions(
+        () ->
+            AsyncResults.single(
+                this,
+                this.stateMachine.sysCreateSignalHandle(name),
+                HandlerContextImpl::parseSuccessOrFailure));
+  }
+
+  @Override
+  public CompletableFuture<Void> resolveSignal(String invocationId, String name, Slice payload) {
+    return this.catchExceptions(
+        () -> this.stateMachine.sysCompleteSignalWithSuccess(invocationId, name, payload));
+  }
+
+  @Override
+  public CompletableFuture<Void> rejectSignal(
+      String invocationId, String name, TerminalException reason) {
+    return this.catchExceptions(
+        () -> this.stateMachine.sysCompleteSignalWithFailure(invocationId, name, reason));
+  }
+
+  @Override
   public CompletableFuture<Void> cancelInvocation(String invocationId) {
     return this.catchExceptions(() -> this.stateMachine.sysCancelInvocation(invocationId));
   }
@@ -402,34 +425,34 @@ class HandlerContextImpl implements HandlerContextInternal {
       // Let's start by trying to complete it
       asyncResult.tryComplete(this::takeNotification);
 
-      // Now let's take the unprocessed leaves
-      List<Integer> uncompletedLeaves = asyncResult.uncompletedLeaves().toList();
-      if (uncompletedLeaves.isEmpty()) {
+      // Build the tree of what we're still awaiting on
+      StateMachine.UnresolvedFuture future = asyncResult.uncompletedFuture();
+      if (future == null) {
         // Nothing else to do!
         return;
       }
 
       // Not ready yet, let's try to do some progress
-      StateMachine.DoProgressResult response;
+      StateMachine.AwaitResult response;
       try {
-        response = this.stateMachine.doProgress(uncompletedLeaves);
+        response = this.stateMachine.doAwait(future);
       } catch (Throwable e) {
         this.failWithoutContextSwitch(e);
         asyncResult.publicFuture().completeExceptionally(AbortedExecutionException.INSTANCE);
         return;
       }
 
-      if (response instanceof StateMachine.DoProgressResult.AnyCompleted) {
+      if (response instanceof StateMachine.AwaitResult.AnyCompleted) {
         // Let it loop now
-      } else if (response instanceof StateMachine.DoProgressResult.WaitExternalProgress) {
+      } else if (response instanceof StateMachine.AwaitResult.WaitExternalProgress) {
         this.pumpOutput();
         this.externalProgressChannel.awaitNext(() -> this.pollAsyncResultInner(asyncResult));
         return;
-      } else if (response instanceof StateMachine.DoProgressResult.CancelSignalReceived) {
+      } else if (response instanceof StateMachine.AwaitResult.CancelSignalReceived) {
         asyncResult.tryCancel();
         return;
-      } else if (response instanceof StateMachine.DoProgressResult.ExecuteRun) {
-        triggerScheduledRun(((StateMachine.DoProgressResult.ExecuteRun) response).handle());
+      } else if (response instanceof StateMachine.AwaitResult.ExecuteRun) {
+        triggerScheduledRun(((StateMachine.AwaitResult.ExecuteRun) response).handle());
         // Let it loop now
       }
     }

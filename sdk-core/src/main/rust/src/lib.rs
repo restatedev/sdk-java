@@ -16,7 +16,7 @@ use bytes::Bytes;
 use restate_sdk_shared_core::{
     AttachInvocationTarget, AwaitResponse, CoreVM, Error, Header, HeaderMap, NonEmptyValue,
     NotificationHandle, PayloadOptions, ResponseHead, RetryPolicy, RunExitResult, State,
-    TakeOutputResult, Target, TerminalFailure, UnresolvedFuture, VMOptions, Value, VM,
+    TakeOutputResult, Target, TerminalFailure, VMOptions, Value, VM,
 };
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -295,17 +295,7 @@ pub unsafe extern "C" fn _vm_do_progress(
 }
 
 fn vm_do_progress(rc_vm: &Rc<RefCell<WasmVM>>, input: VmDoProgressParameters) -> DoProgressReturn {
-    match VM::do_await(
-        &mut rc_vm.borrow_mut().vm,
-        UnresolvedFuture::FirstCompleted(
-            input
-                .handles
-                .into_iter()
-                .map(NotificationHandle::from)
-                .map(UnresolvedFuture::Single)
-                .collect(),
-        ),
-    ) {
+    match VM::do_await(&mut rc_vm.borrow_mut().vm, input.future.into()) {
         Ok(AwaitResponse::AnyCompleted) => DoProgressReturn::AnyCompleted,
         Ok(AwaitResponse::WaitingExternalProgress { .. }) => {
             DoProgressReturn::WaitingExternalProgress
@@ -999,10 +989,52 @@ struct VmNotifyError {
     stacktrace: Option<String>,
 }
 
-/// Flat list of handles — Rust converts to FirstCompleted(handles.map(Single)) internally.
 #[derive(Deserialize)]
 struct VmDoProgressParameters {
-    handles: Vec<u32>,
+    future: UnresolvedFuture,
+}
+
+/// Tree-shaped await point. Mirrors `restate_sdk_shared_core::UnresolvedFuture` 1:1
+/// and carries the original combinator semantics from the SDK to the core VM, so
+/// the runtime sees the right combinator in `AwaitingOnMessage` / `SuspensionMessage`.
+#[derive(Deserialize)]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+enum UnresolvedFuture {
+    Single { handle: u32 },
+    FirstCompleted { children: Vec<UnresolvedFuture> },
+    AllCompleted { children: Vec<UnresolvedFuture> },
+    FirstSucceededOrAllFailed { children: Vec<UnresolvedFuture> },
+    AllSucceededOrFirstFailed { children: Vec<UnresolvedFuture> },
+    Unknown { children: Vec<UnresolvedFuture> },
+}
+
+impl From<UnresolvedFuture> for restate_sdk_shared_core::UnresolvedFuture {
+    fn from(value: UnresolvedFuture) -> Self {
+        use restate_sdk_shared_core::UnresolvedFuture as Core;
+        let map_children = |children: Vec<UnresolvedFuture>| -> Vec<Core> {
+            children.into_iter().map(Into::into).collect()
+        };
+        match value {
+            UnresolvedFuture::Single { handle } => Core::Single(NotificationHandle::from(handle)),
+            UnresolvedFuture::FirstCompleted { children } => {
+                Core::FirstCompleted(map_children(children))
+            }
+            UnresolvedFuture::AllCompleted { children } => {
+                Core::AllCompleted(map_children(children))
+            }
+            UnresolvedFuture::FirstSucceededOrAllFailed { children } => {
+                Core::FirstSucceededOrAllFailed(map_children(children))
+            }
+            UnresolvedFuture::AllSucceededOrFirstFailed { children } => {
+                Core::AllSucceededOrFirstFailed(map_children(children))
+            }
+            UnresolvedFuture::Unknown { children } => Core::Unknown(map_children(children)),
+        }
+    }
 }
 
 #[derive(Deserialize)]

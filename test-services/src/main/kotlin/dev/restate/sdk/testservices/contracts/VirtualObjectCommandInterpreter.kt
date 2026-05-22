@@ -32,6 +32,18 @@ interface VirtualObjectCommandInterpreter {
   @SerialName("runThrowTerminalException")
   data class RunThrowTerminalException(val reason: String) : AwaitableCommand
 
+  // This is serialized as `{"type": "runReturns", ...}`
+  // Executes a ctx.run side effect that returns the given value.
+  @Serializable
+  @SerialName("runReturns")
+  data class RunReturns(val value: String) : AwaitableCommand
+
+  // This is serialized as `{"type": "createSignal", ...}`
+  // Awaits a named signal on the current invocation.
+  @Serializable
+  @SerialName("createSignal")
+  data class CreateSignal(val signalName: String) : AwaitableCommand
+
   @Serializable sealed interface Command
 
   // Returns the index of the one that completed first successfully
@@ -46,6 +58,27 @@ interface VirtualObjectCommandInterpreter {
 
   // Returns the result
   @Serializable @SerialName("awaitOne") data class AwaitOne(val command: AwaitableCommand) : Command
+
+  // Promise.any — returns the value of the first command to succeed.
+  // Throws with the last error if all commands fail.
+  @Serializable
+  @SerialName("awaitFirstSucceededOrAllFailed")
+  data class AwaitFirstSucceededOrAllFailed(val commands: List<AwaitableCommand>) : Command
+
+  // Promise.race — returns the value of the first command to settle (success or failure).
+  @Serializable
+  @SerialName("awaitFirstCompleted")
+  data class AwaitFirstCompleted(val commands: List<AwaitableCommand>) : Command
+
+  // Promise.all — pipe-joined values of all commands. Throws on first failure.
+  @Serializable
+  @SerialName("awaitAllSucceededOrFirstFailed")
+  data class AwaitAllSucceededOrFirstFailed(val commands: List<AwaitableCommand>) : Command
+
+  // Promise.allSettled — pipe-joined "ok:val" / "err:reason" entries. Never throws.
+  @Serializable
+  @SerialName("awaitAllCompleted")
+  data class AwaitAllCompleted(val commands: List<AwaitableCommand>) : Command
 
   // This is serialized as `{"type": "awaitAwakeableOrTimeout", ...}`
   // The timeout throws a terminal error with "await-timeout" string in it

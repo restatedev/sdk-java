@@ -162,6 +162,27 @@ final class ExecutorSwitchingHandlerContextImpl extends HandlerContextImpl {
   }
 
   @Override
+  public CompletableFuture<AsyncResult<Slice>> signal(String name) {
+    return CompletableFuture.supplyAsync(() -> super.signal(name), coreExecutor)
+        .thenCompose(Function.identity());
+  }
+
+  @Override
+  public CompletableFuture<Void> resolveSignal(String invocationId, String name, Slice payload) {
+    return CompletableFuture.supplyAsync(
+            () -> super.resolveSignal(invocationId, name, payload), coreExecutor)
+        .thenCompose(Function.identity());
+  }
+
+  @Override
+  public CompletableFuture<Void> rejectSignal(
+      String invocationId, String name, TerminalException reason) {
+    return CompletableFuture.supplyAsync(
+            () -> super.rejectSignal(invocationId, name, reason), coreExecutor)
+        .thenCompose(Function.identity());
+  }
+
+  @Override
   public void proposeRunSuccess(int runHandle, Slice toWrite) {
     coreExecutor.execute(() -> super.proposeRunSuccess(runHandle, toWrite));
   }
