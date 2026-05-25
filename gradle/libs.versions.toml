@@ -216,7 +216,7 @@
 [plugins]
   aggregate-javadoc = 'io.freefair.aggregate-javadoc:8.14'
   dependency-license-report = 'com.github.jk1.dependency-license-report:2.9'
-  dokka = 'org.jetbrains.dokka:1.9.20'
+  dokka = 'org.jetbrains.dokka:2.1.0'
   jib = 'com.google.cloud.tools.jib:3.4.5'
   jsonschema2pojo = 'org.jsonschema2pojo:1.2.2'
   nexus-publish = 'io.github.gradle-nexus.publish-plugin:1.3.0'
