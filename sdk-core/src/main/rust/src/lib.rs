@@ -15,8 +15,8 @@
 use bytes::Bytes;
 use restate_sdk_shared_core::{
     AttachInvocationTarget, AwaitResponse, CoreVM, Error, Header, HeaderMap, NonEmptyValue,
-    NotificationHandle, PayloadOptions, ResponseHead, RetryPolicy, RunExitResult, State,
-    TakeOutputResult, Target, TerminalFailure, VMOptions, Value, VM,
+    NotificationHandle, PayloadOptions, ResponseHead, RetryPolicy, RunExitResult, TakeOutputResult,
+    Target, TerminalFailure, VMOptions, Value, VM,
 };
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -270,18 +270,6 @@ fn vm_is_ready_to_execute(rc_vm: &Rc<RefCell<WasmVM>>) -> IsReadyReturn {
     }
 }
 
-#[export_name = "vm_state"]
-pub unsafe extern "C" fn _vm_state(vm_pointer: *const RefCell<WasmVM>) -> u32 {
-    let rc_vm = vm_ptr_to_rc(vm_pointer);
-    // We need to make sure we don't log stuff here, because this method is called by the java logger
-    let state = tracing::dispatcher::with_default(&tracing::Dispatch::none(), || vm_state(&rc_vm));
-    state as u8 as u32
-}
-
-fn vm_state(rc_vm: &Rc<RefCell<WasmVM>>) -> State {
-    VM::state(&rc_vm.borrow().vm)
-}
-
 #[export_name = "vm_do_progress"]
 pub unsafe extern "C" fn _vm_do_progress(
     vm_pointer: *const RefCell<WasmVM>,
@@ -341,7 +329,9 @@ pub unsafe extern "C" fn _vm_sys_input(vm_pointer: *const RefCell<WasmVM>) -> u6
 
 fn vm_sys_input(rc_vm: &Rc<RefCell<WasmVM>>) -> SysInputReturn {
     let mut vm = rc_vm.borrow_mut();
-    match VM::sys_input(&mut vm.vm) {
+    let result = VM::sys_input(&mut vm.vm);
+    let state = VM::state(&vm.vm) as u8 as u32;
+    match result {
         Ok(input) => SysInputReturn::Ok {
             input: WasmInput {
                 invocation_id: input.invocation_id,
@@ -354,8 +344,9 @@ fn vm_sys_input(rc_vm: &Rc<RefCell<WasmVM>>) -> SysInputReturn {
                 input: input.input.to_vec(),
                 random_seed: input.random_seed as i64,
             },
+            state,
         },
-        Err(e) => SysInputReturn::from_err(e),
+        Err(e) => SysInputReturn::from_err(e, state),
     }
 }
 
@@ -372,12 +363,9 @@ pub unsafe extern "C" fn _vm_sys_state_get(
 }
 
 fn vm_sys_state_get(rc_vm: &Rc<RefCell<WasmVM>>, input: VmSysStateGetParameters) -> HandleReturn {
-    VM::sys_state_get(
-        &mut rc_vm.borrow_mut().vm,
-        input.key,
-        PayloadOptions::default(),
-    )
-    .into()
+    let mut vm = rc_vm.borrow_mut();
+    let result = VM::sys_state_get(&mut vm.vm, input.key, PayloadOptions::default());
+    HandleReturn::from_result(result, VM::state(&vm.vm) as u8 as u32)
 }
 
 #[export_name = "vm_sys_state_get_keys"]
@@ -388,7 +376,9 @@ pub unsafe extern "C" fn _vm_sys_state_get_keys(vm_pointer: *const RefCell<WasmV
 }
 
 fn vm_sys_state_get_keys(rc_vm: &Rc<RefCell<WasmVM>>) -> HandleReturn {
-    VM::sys_state_get_keys(&mut rc_vm.borrow_mut().vm).into()
+    let mut vm = rc_vm.borrow_mut();
+    let result = VM::sys_state_get_keys(&mut vm.vm);
+    HandleReturn::from_result(result, VM::state(&vm.vm) as u8 as u32)
 }
 
 #[export_name = "vm_sys_state_set"]
@@ -404,13 +394,14 @@ pub unsafe extern "C" fn _vm_sys_state_set(
 }
 
 fn vm_sys_state_set(rc_vm: &Rc<RefCell<WasmVM>>, input: VmSysStateSetParameters) -> EmptyReturn {
-    VM::sys_state_set(
-        &mut rc_vm.borrow_mut().vm,
+    let mut vm = rc_vm.borrow_mut();
+    let result = VM::sys_state_set(
+        &mut vm.vm,
         input.key,
         Bytes::from(input.value),
         PayloadOptions::default(),
-    )
-    .into()
+    );
+    EmptyReturn::from_result(result, VM::state(&vm.vm) as u8 as u32)
 }
 
 #[export_name = "vm_sys_state_clear"]
@@ -429,7 +420,9 @@ fn vm_sys_state_clear(
     rc_vm: &Rc<RefCell<WasmVM>>,
     input: VmSysStateClearParameters,
 ) -> EmptyReturn {
-    VM::sys_state_clear(&mut rc_vm.borrow_mut().vm, input.key).into()
+    let mut vm = rc_vm.borrow_mut();
+    let result = VM::sys_state_clear(&mut vm.vm, input.key);
+    EmptyReturn::from_result(result, VM::state(&vm.vm) as u8 as u32)
 }
 
 #[export_name = "vm_sys_state_clear_all"]
@@ -440,7 +433,9 @@ pub unsafe extern "C" fn _vm_sys_state_clear_all(vm_pointer: *const RefCell<Wasm
 }
 
 fn vm_sys_state_clear_all(rc_vm: &Rc<RefCell<WasmVM>>) -> EmptyReturn {
-    VM::sys_state_clear_all(&mut rc_vm.borrow_mut().vm).into()
+    let mut vm = rc_vm.borrow_mut();
+    let result = VM::sys_state_clear_all(&mut vm.vm);
+    EmptyReturn::from_result(result, VM::state(&vm.vm) as u8 as u32)
 }
 
 #[export_name = "vm_sys_sleep"]
@@ -456,13 +451,14 @@ pub unsafe extern "C" fn _vm_sys_sleep(
 }
 
 fn vm_sys_sleep(rc_vm: &Rc<RefCell<WasmVM>>, input: VmSysSleepParameters) -> HandleReturn {
-    VM::sys_sleep(
-        &mut rc_vm.borrow_mut().vm,
+    let mut vm = rc_vm.borrow_mut();
+    let result = VM::sys_sleep(
+        &mut vm.vm,
         input.name,
         Duration::from_millis(input.wake_up_time_since_unix_epoch_millis),
         Some(Duration::from_millis(input.now_since_unix_epoch_millis)),
-    )
-    .into()
+    );
+    HandleReturn::from_result(result, VM::state(&vm.vm) as u8 as u32)
 }
 
 #[export_name = "vm_sys_awakeable"]
@@ -473,12 +469,16 @@ pub unsafe extern "C" fn _vm_sys_awakeable(vm_pointer: *const RefCell<WasmVM>) -
 }
 
 fn vm_sys_awakeable(rc_vm: &Rc<RefCell<WasmVM>>) -> AwakeableReturn {
-    match VM::sys_awakeable(&mut rc_vm.borrow_mut().vm) {
+    let mut vm = rc_vm.borrow_mut();
+    let result = VM::sys_awakeable(&mut vm.vm);
+    let state = VM::state(&vm.vm) as u8 as u32;
+    match result {
         Ok((awakeable_id, handle)) => AwakeableReturn::Ok {
             id: awakeable_id,
             handle: handle.into(),
+            state,
         },
-        Err(e) => AwakeableReturn::from_err(e),
+        Err(e) => AwakeableReturn::from_err(e, state),
     }
 }
 
@@ -498,13 +498,14 @@ fn vm_sys_complete_awakeable(
     rc_vm: &Rc<RefCell<WasmVM>>,
     input: VmSysCompleteAwakeableParameters,
 ) -> EmptyReturn {
-    VM::sys_complete_awakeable(
-        &mut rc_vm.borrow_mut().vm,
+    let mut vm = rc_vm.borrow_mut();
+    let result = VM::sys_complete_awakeable(
+        &mut vm.vm,
         input.id,
         input.result.into(),
         PayloadOptions::default(),
-    )
-    .into()
+    );
+    EmptyReturn::from_result(result, VM::state(&vm.vm) as u8 as u32)
 }
 
 #[export_name = "vm_sys_call"]
@@ -520,8 +521,9 @@ pub unsafe extern "C" fn _vm_sys_call(
 }
 
 fn vm_sys_call(rc_vm: &Rc<RefCell<WasmVM>>, input: VmSysCallParameters) -> SysCallReturn {
-    match VM::sys_call(
-        &mut rc_vm.borrow_mut().vm,
+    let mut vm = rc_vm.borrow_mut();
+    let result = VM::sys_call(
+        &mut vm.vm,
         Target {
             service: input.service,
             handler: input.handler,
@@ -541,12 +543,15 @@ fn vm_sys_call(rc_vm: &Rc<RefCell<WasmVM>>, input: VmSysCallParameters) -> SysCa
         Bytes::from(input.input),
         None,
         PayloadOptions::default(),
-    ) {
+    );
+    let state = VM::state(&vm.vm) as u8 as u32;
+    match result {
         Ok(call_handle) => SysCallReturn::Ok {
             invocation_id_handle: call_handle.invocation_id_notification_handle.into(),
             result_handle: call_handle.call_notification_handle.into(),
+            state,
         },
-        Err(e) => SysCallReturn::from_err(e),
+        Err(e) => SysCallReturn::from_err(e, state),
     }
 }
 
@@ -563,8 +568,9 @@ pub unsafe extern "C" fn _vm_sys_send(
 }
 
 fn vm_sys_send(rc_vm: &Rc<RefCell<WasmVM>>, input: VmSysSendParameters) -> HandleReturn {
-    VM::sys_send(
-        &mut rc_vm.borrow_mut().vm,
+    let mut vm = rc_vm.borrow_mut();
+    let result = VM::sys_send(
+        &mut vm.vm,
         Target {
             service: input.service,
             handler: input.handler,
@@ -588,8 +594,8 @@ fn vm_sys_send(rc_vm: &Rc<RefCell<WasmVM>>, input: VmSysSendParameters) -> Handl
         None,
         PayloadOptions::default(),
     )
-    .map(|s| s.invocation_id_notification_handle)
-    .into()
+    .map(|s| s.invocation_id_notification_handle);
+    HandleReturn::from_result(result, VM::state(&vm.vm) as u8 as u32)
 }
 
 #[export_name = "vm_sys_cancel_invocation"]
@@ -608,7 +614,9 @@ fn vm_sys_cancel_invocation(
     rc_vm: &Rc<RefCell<WasmVM>>,
     input: VmSysCancelInvocation,
 ) -> EmptyReturn {
-    VM::sys_cancel_invocation(&mut rc_vm.borrow_mut().vm, input.invocation_id).into()
+    let mut vm = rc_vm.borrow_mut();
+    let result = VM::sys_cancel_invocation(&mut vm.vm, input.invocation_id);
+    EmptyReturn::from_result(result, VM::state(&vm.vm) as u8 as u32)
 }
 
 #[export_name = "vm_sys_attach_invocation"]
@@ -627,11 +635,12 @@ fn vm_sys_attach_invocation(
     rc_vm: &Rc<RefCell<WasmVM>>,
     input: VmSysAttachInvocation,
 ) -> HandleReturn {
-    VM::sys_attach_invocation(
-        &mut rc_vm.borrow_mut().vm,
+    let mut vm = rc_vm.borrow_mut();
+    let result = VM::sys_attach_invocation(
+        &mut vm.vm,
         AttachInvocationTarget::InvocationId(input.invocation_id),
-    )
-    .into()
+    );
+    HandleReturn::from_result(result, VM::state(&vm.vm) as u8 as u32)
 }
 
 #[export_name = "vm_sys_get_invocation_output"]
@@ -650,11 +659,12 @@ fn vm_sys_get_invocation_output(
     rc_vm: &Rc<RefCell<WasmVM>>,
     input: VmSysGetInvocationOutput,
 ) -> HandleReturn {
-    VM::sys_get_invocation_output(
-        &mut rc_vm.borrow_mut().vm,
+    let mut vm = rc_vm.borrow_mut();
+    let result = VM::sys_get_invocation_output(
+        &mut vm.vm,
         AttachInvocationTarget::InvocationId(input.invocation_id),
-    )
-    .into()
+    );
+    HandleReturn::from_result(result, VM::state(&vm.vm) as u8 as u32)
 }
 
 #[export_name = "vm_sys_promise_get"]
@@ -673,7 +683,9 @@ fn vm_sys_promise_get(
     rc_vm: &Rc<RefCell<WasmVM>>,
     input: VmSysPromiseGetParameters,
 ) -> HandleReturn {
-    VM::sys_get_promise(&mut rc_vm.borrow_mut().vm, input.key).into()
+    let mut vm = rc_vm.borrow_mut();
+    let result = VM::sys_get_promise(&mut vm.vm, input.key);
+    HandleReturn::from_result(result, VM::state(&vm.vm) as u8 as u32)
 }
 
 #[export_name = "vm_sys_promise_peek"]
@@ -692,7 +704,9 @@ fn vm_sys_promise_peek(
     rc_vm: &Rc<RefCell<WasmVM>>,
     input: VmSysPromisePeekParameters,
 ) -> HandleReturn {
-    VM::sys_peek_promise(&mut rc_vm.borrow_mut().vm, input.key).into()
+    let mut vm = rc_vm.borrow_mut();
+    let result = VM::sys_peek_promise(&mut vm.vm, input.key);
+    HandleReturn::from_result(result, VM::state(&vm.vm) as u8 as u32)
 }
 
 #[export_name = "vm_sys_promise_complete"]
@@ -711,13 +725,14 @@ fn vm_sys_promise_complete(
     rc_vm: &Rc<RefCell<WasmVM>>,
     input: VmSysPromiseCompleteParameters,
 ) -> HandleReturn {
-    VM::sys_complete_promise(
-        &mut rc_vm.borrow_mut().vm,
+    let mut vm = rc_vm.borrow_mut();
+    let result = VM::sys_complete_promise(
+        &mut vm.vm,
         input.id,
         input.result.into(),
         PayloadOptions::default(),
-    )
-    .into()
+    );
+    HandleReturn::from_result(result, VM::state(&vm.vm) as u8 as u32)
 }
 
 #[export_name = "vm_sys_run"]
@@ -733,7 +748,9 @@ pub unsafe extern "C" fn _vm_sys_run(
 }
 
 fn vm_sys_run(rc_vm: &Rc<RefCell<WasmVM>>, input: VmSysRunParameters) -> HandleReturn {
-    VM::sys_run(&mut rc_vm.borrow_mut().vm, input.name).into()
+    let mut vm = rc_vm.borrow_mut();
+    let result = VM::sys_run(&mut vm.vm, input.name);
+    HandleReturn::from_result(result, VM::state(&vm.vm) as u8 as u32)
 }
 
 #[export_name = "vm_propose_run_completion"]
@@ -791,13 +808,14 @@ fn vm_propose_run_completion(
         },
     };
 
-    VM::propose_run_completion(
-        &mut rc_vm.borrow_mut().vm,
+    let mut vm = rc_vm.borrow_mut();
+    let result = VM::propose_run_completion(
+        &mut vm.vm,
         input.handle.into(),
         run_exit_result,
         retry_policy,
-    )
-    .into()
+    );
+    EmptyReturn::from_result(result, VM::state(&vm.vm) as u8 as u32)
 }
 
 // Java SDK-specific: signals (not in Go SDK yet)
@@ -818,7 +836,9 @@ fn vm_sys_create_signal_handle(
     rc_vm: &Rc<RefCell<WasmVM>>,
     input: VmSysCreateSignalHandleParameters,
 ) -> HandleReturn {
-    VM::create_signal_handle(&mut rc_vm.borrow_mut().vm, input.name).into()
+    let mut vm = rc_vm.borrow_mut();
+    let result = VM::create_signal_handle(&mut vm.vm, input.name);
+    HandleReturn::from_result(result, VM::state(&vm.vm) as u8 as u32)
 }
 
 #[export_name = "vm_sys_complete_signal"]
@@ -837,13 +857,9 @@ fn vm_sys_complete_signal(
     rc_vm: &Rc<RefCell<WasmVM>>,
     input: VmSysCompleteSignalParameters,
 ) -> EmptyReturn {
-    VM::sys_complete_signal(
-        &mut rc_vm.borrow_mut().vm,
-        input.target,
-        input.name,
-        input.result.into(),
-    )
-    .into()
+    let mut vm = rc_vm.borrow_mut();
+    let result = VM::sys_complete_signal(&mut vm.vm, input.target, input.name, input.result.into());
+    EmptyReturn::from_result(result, VM::state(&vm.vm) as u8 as u32)
 }
 
 #[export_name = "vm_sys_write_output"]
@@ -862,12 +878,9 @@ fn vm_sys_write_output(
     rc_vm: &Rc<RefCell<WasmVM>>,
     input: VmSysWriteOutputParameters,
 ) -> EmptyReturn {
-    VM::sys_write_output(
-        &mut rc_vm.borrow_mut().vm,
-        input.result.into(),
-        PayloadOptions::default(),
-    )
-    .into()
+    let mut vm = rc_vm.borrow_mut();
+    let result = VM::sys_write_output(&mut vm.vm, input.result.into(), PayloadOptions::default());
+    EmptyReturn::from_result(result, VM::state(&vm.vm) as u8 as u32)
 }
 
 #[export_name = "vm_sys_end"]
@@ -878,7 +891,9 @@ pub unsafe extern "C" fn _vm_sys_end(vm_pointer: *const RefCell<WasmVM>) -> u64 
 }
 
 fn vm_sys_end(rc_vm: &Rc<RefCell<WasmVM>>) -> EmptyReturn {
-    VM::sys_end(&mut rc_vm.borrow_mut().vm).into()
+    let mut vm = rc_vm.borrow_mut();
+    let result = VM::sys_end(&mut vm.vm);
+    EmptyReturn::from_result(result, VM::state(&vm.vm) as u8 as u32)
 }
 
 #[export_name = "vm_free"]
@@ -1277,8 +1292,14 @@ impl VmNewReturn {
     rename_all_fields = "camelCase"
 )]
 enum EmptyReturn {
-    Ok,
-    Failure { code: u32, message: String },
+    Ok {
+        state: u32,
+    },
+    Failure {
+        code: u32,
+        message: String,
+        state: u32,
+    },
 }
 
 /// Equivalent to Go's SimpleSysAsyncResultReturn.
@@ -1289,8 +1310,15 @@ enum EmptyReturn {
     rename_all_fields = "camelCase"
 )]
 enum HandleReturn {
-    Ok { handle: u32 },
-    Failure { code: u32, message: String },
+    Ok {
+        handle: u32,
+        state: u32,
+    },
+    Failure {
+        code: u32,
+        message: String,
+        state: u32,
+    },
 }
 
 #[derive(Serialize)]
@@ -1427,14 +1455,22 @@ struct WasmInput {
     rename_all_fields = "camelCase"
 )]
 enum SysInputReturn {
-    Ok { input: WasmInput },
-    Failure { code: u32, message: String },
+    Ok {
+        input: WasmInput,
+        state: u32,
+    },
+    Failure {
+        code: u32,
+        message: String,
+        state: u32,
+    },
 }
 impl SysInputReturn {
-    fn from_err(e: Error) -> Self {
+    fn from_err(e: Error, state: u32) -> Self {
         Self::Failure {
             code: e.code() as u32,
             message: e.to_string(),
+            state,
         }
     }
 }
@@ -1446,14 +1482,23 @@ impl SysInputReturn {
     rename_all_fields = "camelCase"
 )]
 enum AwakeableReturn {
-    Ok { id: String, handle: u32 },
-    Failure { code: u32, message: String },
+    Ok {
+        id: String,
+        handle: u32,
+        state: u32,
+    },
+    Failure {
+        code: u32,
+        message: String,
+        state: u32,
+    },
 }
 impl AwakeableReturn {
-    fn from_err(e: Error) -> Self {
+    fn from_err(e: Error, state: u32) -> Self {
         Self::Failure {
             code: e.code() as u32,
             message: e.to_string(),
+            state,
         }
     }
 }
@@ -1468,42 +1513,48 @@ enum SysCallReturn {
     Ok {
         invocation_id_handle: u32,
         result_handle: u32,
+        state: u32,
     },
     Failure {
         code: u32,
         message: String,
+        state: u32,
     },
 }
 impl SysCallReturn {
-    fn from_err(e: Error) -> Self {
+    fn from_err(e: Error, state: u32) -> Self {
         Self::Failure {
             code: e.code() as u32,
             message: e.to_string(),
+            state,
         }
     }
 }
 
-// --------- From impls (enable `.into()` in inner functions, like Go's `into()` on pb types)
-
-impl From<Result<(), Error>> for EmptyReturn {
-    fn from(value: Result<(), Error>) -> Self {
+impl EmptyReturn {
+    fn from_result(value: Result<(), Error>, state: u32) -> Self {
         match value {
-            Ok(()) => EmptyReturn::Ok,
+            Ok(()) => EmptyReturn::Ok { state },
             Err(e) => EmptyReturn::Failure {
                 code: e.code() as u32,
                 message: e.to_string(),
+                state,
             },
         }
     }
 }
 
-impl From<Result<NotificationHandle, Error>> for HandleReturn {
-    fn from(value: Result<NotificationHandle, Error>) -> Self {
+impl HandleReturn {
+    fn from_result(value: Result<NotificationHandle, Error>, state: u32) -> Self {
         match value {
-            Ok(h) => HandleReturn::Ok { handle: h.into() },
+            Ok(h) => HandleReturn::Ok {
+                handle: h.into(),
+                state,
+            },
             Err(e) => HandleReturn::Failure {
                 code: e.code() as u32,
                 message: e.to_string(),
+                state,
             },
         }
     }

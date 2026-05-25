@@ -46,6 +46,12 @@ public final class StateMachine implements AutoCloseable {
   private final int vmPtr;
   private boolean freed;
 
+  /**
+   * Volatile mirror of the VM's invocation state, updated on the state-machine thread after every
+   * sys_* call via the piggybacked state ordinal in the response.
+   */
+  private volatile InvocationState cachedState = InvocationState.WAITING_START;
+
   private StateMachine(SharedCoreInstance instance, int vmPtr) {
     this.instance = instance;
     this.vmPtr = vmPtr;
@@ -82,6 +88,7 @@ public final class StateMachine implements AutoCloseable {
       LOG.trace("[vm=0x{}] close()", Integer.toHexString(vmPtr));
       instance.getExports().vmFree(vmPtr);
       freed = true;
+      cachedState = InvocationState.CLOSED;
     }
   }
 
@@ -115,7 +122,9 @@ public final class StateMachine implements AutoCloseable {
     LOG.trace("[vm=0x{}] notifyError()", Integer.toHexString(vmPtr));
     instance.callCborVmFunction(
         (exports, ptr, len) -> exports.vmNotifyError(vmPtr, ptr, len),
-        new VmNotifyError(throwable.getMessage(), stacktraceToString(throwable)));
+        new VmNotifyError(formatThrowableMessage(throwable), formatThrowableStackTrace(throwable)));
+    // notifyError transitions the VM to CLOSED; reflect that in the cached state.
+    cachedState = InvocationState.CLOSED;
   }
 
   public byte[] takeOutput() {
@@ -153,12 +162,13 @@ public final class StateMachine implements AutoCloseable {
     return ((IsReadyReturn.Ok) ret).ready();
   }
 
+  /**
+   * Returns a snapshot of the VM's invocation state. Cheap volatile read — safe to call from any
+   * thread; the cached value is kept in sync by every sys_* call (piggybacked on the response) and
+   * by {@link #close()}.
+   */
   public InvocationState state() {
-    if (freed) {
-      return InvocationState.CLOSED;
-    }
-    int ordinal = instance.getExports().vmState(vmPtr);
-    return InvocationState.values()[ordinal];
+    return cachedState;
   }
 
   public AwaitResult doAwait(UnresolvedFuture future) {
@@ -200,6 +210,7 @@ public final class StateMachine implements AutoCloseable {
 
     var ret =
         instance.callCborVmFunction(exports -> exports.vmSysInput(vmPtr), SysInputReturn.class);
+    notifyStateUpdate(ret);
     if (ret instanceof SysInputReturn.Failure f) throw vmError(f.code(), f.message());
     return ((SysInputReturn.Ok) ret).input();
   }
@@ -284,6 +295,7 @@ public final class StateMachine implements AutoCloseable {
                 toHeaderList(headers),
                 payload.toByteArray()),
             SysCallReturn.class);
+    notifyStateUpdate(ret);
     if (ret instanceof SysCallReturn.Failure f) {
       throw vmError(f.code(), f.message());
     }
@@ -324,6 +336,7 @@ public final class StateMachine implements AutoCloseable {
     AwakeableReturn ret =
         instance.callCborVmFunction(
             (exports) -> exports.vmSysAwakeable(vmPtr), AwakeableReturn.class);
+    notifyStateUpdate(ret);
     if (ret instanceof AwakeableReturn.Failure f) {
       throw vmError(f.code(), f.message());
     }
@@ -415,7 +428,10 @@ public final class StateMachine implements AutoCloseable {
 
   public void proposeRunCompletionWithSuccess(int handle, Slice value) {
     LOG.trace("[vm=0x{}] proposeRunCompletionSuccess()", Integer.toHexString(vmPtr));
-    verifyNotFreed();
+    if (freed) {
+      LOG.trace("Going to ignore completion for handle {} because state machine is closed", handle);
+      return;
+    }
 
     callWithEmptyReturn(
         SharedCoreWasm_ModuleExports::vmProposeRunCompletion,
@@ -425,7 +441,10 @@ public final class StateMachine implements AutoCloseable {
 
   public void proposeRunCompletionTerminalFailure(int handle, TerminalException terminalException) {
     LOG.trace("[vm=0x{}] proposeRunCompletionTerminalFailure()", Integer.toHexString(vmPtr));
-    verifyNotFreed();
+    if (freed) {
+      LOG.trace("Going to ignore completion for handle {} because state machine is closed", handle);
+      return;
+    }
 
     callWithEmptyReturn(
         SharedCoreWasm_ModuleExports::vmProposeRunCompletion,
@@ -439,7 +458,10 @@ public final class StateMachine implements AutoCloseable {
       Duration attemptDuration,
       @Nullable RetryPolicy retryPolicy) {
     LOG.trace("[vm=0x{}] proposeRunCompletionRetryableFailure()", Integer.toHexString(vmPtr));
-    verifyNotFreed();
+    if (freed) {
+      LOG.trace("Going to ignore completion for handle {} because state machine is closed", handle);
+      return;
+    }
 
     callWithEmptyReturn(
         SharedCoreWasm_ModuleExports::vmProposeRunCompletion,
@@ -573,10 +595,10 @@ public final class StateMachine implements AutoCloseable {
     @JsonSubTypes.Type(value = EmptyReturn.Ok.class, name = "ok"),
     @JsonSubTypes.Type(value = EmptyReturn.Failure.class, name = "failure"),
   })
-  sealed interface EmptyReturn {
-    record Ok() implements EmptyReturn {}
+  sealed interface EmptyReturn extends WithState {
+    record Ok(int state) implements EmptyReturn {}
 
-    record Failure(int code, String message) implements EmptyReturn {}
+    record Failure(int code, String message, int state) implements EmptyReturn {}
   }
 
   @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
@@ -584,10 +606,19 @@ public final class StateMachine implements AutoCloseable {
     @JsonSubTypes.Type(value = HandleReturn.Ok.class, name = "ok"),
     @JsonSubTypes.Type(value = HandleReturn.Failure.class, name = "failure"),
   })
-  sealed interface HandleReturn {
-    record Ok(int handle) implements HandleReturn {}
+  sealed interface HandleReturn extends WithState {
+    record Ok(int handle, int state) implements HandleReturn {}
 
-    record Failure(int code, String message) implements HandleReturn {}
+    record Failure(int code, String message, int state) implements HandleReturn {}
+  }
+
+  /**
+   * Common interface for every sys_* response type — the Rust side piggybacks the current {@link
+   * InvocationState} ordinal so the Java side can update its cached state without an extra wasm
+   * call.
+   */
+  interface WithState {
+    int state();
   }
 
   @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
@@ -697,10 +728,10 @@ public final class StateMachine implements AutoCloseable {
     @JsonSubTypes.Type(value = SysInputReturn.Ok.class, name = "ok"),
     @JsonSubTypes.Type(value = SysInputReturn.Failure.class, name = "failure"),
   })
-  public sealed interface SysInputReturn {
-    record Ok(Input input) implements SysInputReturn {}
+  public sealed interface SysInputReturn extends WithState {
+    record Ok(Input input, int state) implements SysInputReturn {}
 
-    record Failure(int code, String message) implements SysInputReturn {}
+    record Failure(int code, String message, int state) implements SysInputReturn {}
   }
 
   @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
@@ -708,10 +739,10 @@ public final class StateMachine implements AutoCloseable {
     @JsonSubTypes.Type(value = AwakeableReturn.Ok.class, name = "ok"),
     @JsonSubTypes.Type(value = AwakeableReturn.Failure.class, name = "failure"),
   })
-  public sealed interface AwakeableReturn {
-    record Ok(String id, int handle) implements AwakeableReturn {}
+  public sealed interface AwakeableReturn extends WithState {
+    record Ok(String id, int handle, int state) implements AwakeableReturn {}
 
-    record Failure(int code, String message) implements AwakeableReturn {}
+    record Failure(int code, String message, int state) implements AwakeableReturn {}
   }
 
   @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
@@ -719,10 +750,10 @@ public final class StateMachine implements AutoCloseable {
     @JsonSubTypes.Type(value = SysCallReturn.Ok.class, name = "ok"),
     @JsonSubTypes.Type(value = SysCallReturn.Failure.class, name = "failure"),
   })
-  public sealed interface SysCallReturn {
-    record Ok(int invocationIdHandle, int resultHandle) implements SysCallReturn {}
+  public sealed interface SysCallReturn extends WithState {
+    record Ok(int invocationIdHandle, int resultHandle, int state) implements SysCallReturn {}
 
-    record Failure(int code, String message) implements SysCallReturn {}
+    record Failure(int code, String message, int state) implements SysCallReturn {}
   }
 
   // =========================================================================
@@ -832,7 +863,7 @@ public final class StateMachine implements AutoCloseable {
     record RetryableFailure(int code, String message, @Nullable String stacktrace)
         implements RunResult {
       public RetryableFailure(Throwable exception) {
-        this(500, exception.getMessage(), stacktraceToString(exception));
+        this(500, exception.getMessage(), formatThrowableStackTrace(exception));
       }
     }
   }
@@ -866,6 +897,11 @@ public final class StateMachine implements AutoCloseable {
 
   public record VmSysWriteOutputParameters(NonEmptyValueParam result) {}
 
+  /** Updates the cached state from the piggybacked ordinal on a sys_* response. */
+  private void notifyStateUpdate(WithState ret) {
+    this.cachedState = InvocationState.values()[ret.state()];
+  }
+
   private int callWithHandleReturn(
       SharedCoreInstance.QuadFunction<SharedCoreWasm_ModuleExports, Integer, Integer, Integer, Long>
           func,
@@ -873,6 +909,7 @@ public final class StateMachine implements AutoCloseable {
     var ret =
         instance.callCborVmFunction(
             (exports, ptr, len) -> func.apply(exports, vmPtr, ptr, len), input, HandleReturn.class);
+    notifyStateUpdate(ret);
     if (ret instanceof HandleReturn.Failure f) throw vmError(f.code, f.message);
     return ((HandleReturn.Ok) ret).handle();
   }
@@ -880,6 +917,7 @@ public final class StateMachine implements AutoCloseable {
   private int callWithHandleReturn(BiFunction<SharedCoreWasm_ModuleExports, Integer, Long> func) {
     var ret =
         instance.callCborVmFunction(exports -> func.apply(exports, vmPtr), HandleReturn.class);
+    notifyStateUpdate(ret);
     if (ret instanceof HandleReturn.Failure f) throw vmError(f.code, f.message);
     return ((HandleReturn.Ok) ret).handle();
   }
@@ -891,11 +929,13 @@ public final class StateMachine implements AutoCloseable {
     var ret =
         instance.callCborVmFunction(
             (exports, ptr, len) -> func.apply(exports, vmPtr, ptr, len), input, EmptyReturn.class);
+    notifyStateUpdate(ret);
     if (ret instanceof EmptyReturn.Failure f) throw vmError(f.code, f.message);
   }
 
   private void callWithEmptyReturn(BiFunction<SharedCoreWasm_ModuleExports, Integer, Long> func) {
     var ret = instance.callCborVmFunction(exports -> func.apply(exports, vmPtr), EmptyReturn.class);
+    notifyStateUpdate(ret);
     if (ret instanceof EmptyReturn.Failure f) throw vmError(f.code, f.message);
   }
 
@@ -909,7 +949,13 @@ public final class StateMachine implements AutoCloseable {
     return headers.stream().map(e -> new String[] {e.getKey(), e.getValue()}).toList();
   }
 
-  private static String stacktraceToString(Throwable t) {
+  private static String formatThrowableMessage(Throwable throwable) {
+    String message = throwable.getMessage();
+    if (message == null) return throwable.getClass().getName();
+    return message;
+  }
+
+  private static String formatThrowableStackTrace(Throwable t) {
     StringWriter sw = new StringWriter();
     t.printStackTrace(new PrintWriter(sw));
     return sw.toString();

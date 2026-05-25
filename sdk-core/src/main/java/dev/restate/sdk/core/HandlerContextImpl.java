@@ -423,7 +423,14 @@ class HandlerContextImpl implements HandlerContextInternal {
       }
 
       // Let's start by trying to complete it
+      try {
       asyncResult.tryComplete(this::takeNotification);
+    } catch (Throwable e) {
+        // This can happen if the state machine was closed in the meantime.
+      failWithoutContextSwitch(e);
+      asyncResult.publicFuture().completeExceptionally(AbortedExecutionException.INSTANCE);
+      return;
+    }
 
       // Build the tree of what we're still awaiting on
       StateMachine.UnresolvedFuture future = asyncResult.uncompletedFuture();
@@ -465,6 +472,7 @@ class HandlerContextImpl implements HandlerContextInternal {
   @Override
   public void proposeRunSuccess(int runHandle, Slice toWrite) {
     try {
+      // TODO this fails here when you propose a run but the state machine was already closed!!!
       this.stateMachine.proposeRunCompletionWithSuccess(runHandle, toWrite);
     } catch (Exception e) {
       this.failWithoutContextSwitch(e);

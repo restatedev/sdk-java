@@ -122,11 +122,10 @@ final class RequestProcessorImpl implements RequestProcessor {
 
     try {
       stateMachine.notifyInput(slice.toByteArray());
+      onInputEvent();
     } catch (Throwable e) {
       onError(e);
     }
-
-    onInputEvent();
   }
 
   // This is a generic error handling when things go south at any point
@@ -134,7 +133,7 @@ final class RequestProcessorImpl implements RequestProcessor {
   public void onError(Throwable throwable) {
     if (state == State.CLOSED) return;
 
-    // TODO add good logging here consistent with previous logging stuff
+    LOG.warn("Invocation failed", throwable);
     try {
       stateMachine.notifyError(throwable);
     } catch (Throwable ignored) {
@@ -148,11 +147,11 @@ final class RequestProcessorImpl implements RequestProcessor {
     if (state == State.CLOSED) return;
     try {
       stateMachine.notifyInputClosed();
+      onInputEvent();
     } catch (Throwable e) {
       onError(e);
       return;
     }
-    onInputEvent();
 
     // We don't need it anymore
     cancelInputSubscription();
@@ -189,16 +188,22 @@ final class RequestProcessorImpl implements RequestProcessor {
     // Cancel input subscription if still there
     cancelInputSubscription();
 
-    // Pump remaining output and close output subscriber
+    // Pump remaining output
+   byte[] chunk;
     if (outputSubscriber != null) {
-      byte[] chunk = stateMachine.takeOutput();
-      if (chunk.length > 0) outputSubscriber.onNext(Slice.wrap(chunk));
-      outputSubscriber.onComplete();
-      outputSubscriber = null;
+      chunk = stateMachine.takeOutput();
+    } else {
+      chunk = new byte[0];
     }
 
+    // Close state machine
     this.state = State.CLOSED;
     stateMachine.close();
+
+    // Send final bits and close output subscriber
+    if (chunk.length > 0) outputSubscriber.onNext(Slice.wrap(chunk));
+    outputSubscriber.onComplete();
+    outputSubscriber = null;
   }
 
   private void onUserCodeResult(@Nullable Slice slice, @Nullable Throwable throwable) {
@@ -240,13 +245,7 @@ final class RequestProcessorImpl implements RequestProcessor {
     state = State.RUNNING_HANDLER;
 
     // Get vm input
-    StateMachine.Input stateMachineInput;
-    try {
-      stateMachineInput = stateMachine.sysInput();
-    } catch (Throwable e) {
-      onError(e);
-      return;
-    }
+    StateMachine.Input stateMachineInput = stateMachine.sysInput();
 
     HandlerContextImpl ctx =
         syscallsExecutor != null
