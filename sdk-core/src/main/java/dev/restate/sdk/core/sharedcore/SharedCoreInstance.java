@@ -18,6 +18,7 @@ import com.dylibso.chicory.wasm.WasmModule;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.dataformat.cbor.databind.CBORMapper;
+import dev.restate.common.Slice;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.sharedcore.generated.SharedCoreWasmMachine;
 import java.io.IOException;
@@ -42,19 +43,29 @@ class SharedCoreInstance {
 
   private final Memory memory;
   private final SharedCoreWasm_ModuleExports exports;
+  private final HostBufferRegistry registry;
 
-  private SharedCoreInstance(Memory memory, SharedCoreWasm_ModuleExports exports) {
+  private SharedCoreInstance(
+      Memory memory, SharedCoreWasm_ModuleExports exports, HostBufferRegistry registry) {
     this.memory = memory;
     this.exports = exports;
+    this.registry = registry;
   }
 
   static SharedCoreInstance get() {
     return THREAD_LOCAL.get();
   }
 
+  HostBufferRegistry registry() {
+    return registry;
+  }
+
   private static SharedCoreInstance create() {
+    HostBufferRegistry registry = new HostBufferRegistry();
     ImportValues importValues =
-        ImportValues.builder().addFunction(SharedCoreImports.INSTANCE.toHostFunctions()).build();
+        ImportValues.builder()
+            .addFunction(new SharedCoreImports(registry).toHostFunctions())
+            .build();
 
     Instance instance =
         Instance.builder(WASM_MODULE)
@@ -66,7 +77,7 @@ class SharedCoreInstance {
     SharedCoreWasm_ModuleExports exp = new SharedCoreWasm_ModuleExports(instance);
 
     exp.init(toWasmLevel(LOG.getLevel()));
-    return new SharedCoreInstance(mem, exp);
+    return new SharedCoreInstance(mem, exp, registry);
   }
 
   public SharedCoreWasm_ModuleExports getExports() {
@@ -169,12 +180,20 @@ class SharedCoreInstance {
     }
   }
 
+  /**
+   * WASM host imports bound to one {@link SharedCoreInstance}'s {@link HostBufferRegistry}.
+   *
+   * <p>Single-threaded: this object is touched only from the thread that owns the surrounding
+   * {@link SharedCoreInstance}.
+   */
   @HostModule("env")
   static final class SharedCoreImports {
 
-    private SharedCoreImports() {}
+    private final HostBufferRegistry registry;
 
-    public static final SharedCoreImports INSTANCE = new SharedCoreImports();
+    SharedCoreImports(HostBufferRegistry registry) {
+      this.registry = registry;
+    }
 
     @WasmExport
     public void log(Memory memory, int level, int ptr, int len) {
@@ -183,6 +202,31 @@ class SharedCoreInstance {
       }
       String message = memory.readString(ptr, len);
       LOG.atLevel(toLog4jLevel(level)).log(message);
+    }
+
+    @WasmExport
+    public void host_buffer_retain(int id) {
+      registry.retain(id);
+    }
+
+    @WasmExport
+    public void host_buffer_release(int id) {
+      registry.release(id);
+    }
+
+    @WasmExport
+    public void host_buffer_read_into(Memory memory, int id, int offset, int len, int dstPtr) {
+      if (len <= 0) {
+        return;
+      }
+      byte[] tmp = new byte[len];
+      registry.readInto(id, offset, len, tmp, 0);
+      memory.write(dstPtr, tmp);
+    }
+
+    @WasmExport
+    public int host_buffer_eq(int aId, int aOff, int aLen, int bId, int bOff, int bLen) {
+      return registry.eq(aId, aOff, aLen, bId, bOff, bLen) ? 1 : 0;
     }
 
     public HostFunction[] toHostFunctions() {

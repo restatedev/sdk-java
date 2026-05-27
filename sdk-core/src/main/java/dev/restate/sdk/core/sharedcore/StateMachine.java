@@ -44,6 +44,7 @@ public final class StateMachine implements AutoCloseable {
 
   private final SharedCoreInstance instance;
   private final int vmPtr;
+  private final HostBufferRegistry registry;
   private boolean freed;
 
   /**
@@ -52,9 +53,10 @@ public final class StateMachine implements AutoCloseable {
    */
   private volatile InvocationState cachedState = InvocationState.WAITING_START;
 
-  private StateMachine(SharedCoreInstance instance, int vmPtr) {
+  private StateMachine(SharedCoreInstance instance, int vmPtr, HostBufferRegistry registry) {
     this.instance = instance;
     this.vmPtr = vmPtr;
+    this.registry = registry;
     this.freed = false;
   }
 
@@ -79,13 +81,19 @@ public final class StateMachine implements AutoCloseable {
       throw new ProtocolException("Failed to create state machine: " + f.message(), f.code);
     }
     int vmPtr = ((VmNewReturn.Ok) newVmReturn).pointer();
-    return new StateMachine(instance, vmPtr);
+    return new StateMachine(instance, vmPtr, instance.registry());
   }
 
   @Override
   public void close() {
     if (!freed) {
       LOG.trace("[vm=0x{}] close()", Integer.toHexString(vmPtr));
+      // vmFree drops all of Rust's HostBufferHandles, each of which calls
+      // host_buffer_release back into the registry — by the time vmFree
+      // returns, every entry this VM owned is released. The registry
+      // itself outlives this StateMachine (it's owned by the
+      // SharedCoreInstance) and is reused by subsequent StateMachines on
+      // the same thread.
       instance.getExports().vmFree(vmPtr);
       freed = true;
       cachedState = InvocationState.CLOSED;
@@ -98,13 +106,16 @@ public final class StateMachine implements AutoCloseable {
     }
   }
 
-  public void notifyInput(byte[] bytes) {
+  public void notifyInput(Slice slice) {
     if (freed) {
       return;
     }
     LOG.trace("[vm=0x{}] notifyInput()", Integer.toHexString(vmPtr));
-    var bufferPtr = instance.write(bytes);
-    instance.getExports().vmNotifyInput(vmPtr, bufferPtr, bytes.length);
+    // Register the Slice directly; Rust takes over the refcount-share
+    // via from_parts. The Slice must outlive the registration —
+    // contract of the caller.
+    int id = registry.register(slice);
+    instance.getExports().vmNotifyInput(vmPtr, id, 0, slice.readableBytes());
   }
 
   public void notifyInputClosed() {
@@ -127,14 +138,53 @@ public final class StateMachine implements AutoCloseable {
     cachedState = InvocationState.CLOSED;
   }
 
-  public byte[] takeOutput() {
+  /**
+   * Drain the next buffer from the VM's output queue. Returns {@code null} when no buffer is
+   * currently available (call again later) or the stream has ended. Callers typically loop until
+   * {@code null} to drain everything currently queued.
+   */
+  public @Nullable Slice takeOutput() {
     if (freed) {
-      return new byte[0];
+      return null;
     }
     LOG.trace("[vm=0x{}] takeOutput()", Integer.toHexString(vmPtr));
 
-    var ptr = instance.getExports().vmTakeOutput(vmPtr);
-    return instance.readAndFree(ptr);
+    var ret =
+        instance.callCborVmFunction(exports -> exports.vmTakeOutput(vmPtr), TakeOutputReturn.class);
+    if (ret instanceof TakeOutputReturn.None) {
+      return null;
+    }
+    BufferParam buf = ((TakeOutputReturn.Buffer) ret).buffer();
+    return toSlice(buf);
+  }
+
+  /**
+   * Convert a {@link BufferParam} returned by Rust into a {@link Slice}. {@link
+   * BufferParam.InMemory} wraps its byte[]; {@link BufferParam.Host} pulls a sub-Slice from the
+   * registry and releases the refcount share (the sub-Slice pins the underlying storage so the
+   * bytes stay reachable after release); {@link BufferParam.Materialised} hands back its Slice.
+   */
+  private Slice toSlice(BufferParam buf) {
+    if (buf instanceof BufferParam.InMemory inMemory) {
+      return Slice.wrap(inMemory.value());
+    }
+    if (buf instanceof BufferParam.Materialised m) {
+      return m.slice();
+    }
+    BufferParam.Host host = (BufferParam.Host) buf;
+    Slice sub = registry.slice(host.id(), host.offset(), host.len());
+    registry.release(host.id());
+    return sub;
+  }
+
+  /**
+   * Build a {@link BufferParam.Host} by registering {@code slice} with the host buffer registry.
+   * The returned handle carries one refcount-share (Java's), which the caller transfers to Rust by
+   * passing it across the WASM ABI.
+   */
+  private BufferParam.Host registerSlice(Slice slice) {
+    int id = registry.register(slice);
+    return new BufferParam.Host(id, 0, slice.readableBytes());
   }
 
   public String getResponseContentType() {
@@ -199,7 +249,13 @@ public final class StateMachine implements AutoCloseable {
         instance.callCborVmFunction(
             exports -> exports.vmTakeNotification(vmPtr, handle), TakeNotificationReturn.class);
     if (ret instanceof TakeNotificationReturn.NotReady) return null;
-    if (ret instanceof TakeNotificationReturn.Value v) return v.value();
+    if (ret instanceof TakeNotificationReturn.Value v) {
+      NotificationValue value = v.value();
+      if (value instanceof NotificationValue.Success success) {
+        return new NotificationValue.Success(materialise(success.value()));
+      }
+      return value;
+    }
     TakeNotificationReturn.Failure f = (TakeNotificationReturn.Failure) ret;
     throw vmError(f.code, f.message);
   }
@@ -212,7 +268,20 @@ public final class StateMachine implements AutoCloseable {
         instance.callCborVmFunction(exports -> exports.vmSysInput(vmPtr), SysInputReturn.class);
     notifyStateUpdate(ret);
     if (ret instanceof SysInputReturn.Failure f) throw vmError(f.code(), f.message());
-    return ((SysInputReturn.Ok) ret).input();
+    Input wire = ((SysInputReturn.Ok) ret).input();
+    BufferParam materialised = materialise(wire.input());
+    return new Input(
+        wire.invocationId(), wire.key(), wire.headers(), materialised, wire.randomSeed());
+  }
+
+  /**
+   * Wrap a Host {@link BufferParam} into a {@link BufferParam.Materialised} carrying the
+   * registry's sub-Slice (zero-copy); {@link BufferParam.InMemory} passes through unchanged. Thin
+   * wrapper over {@link #toSlice}, used by {@link #sysInput} and {@link #takeNotification} which
+   * keep the value as a {@code BufferParam} inside their result records.
+   */
+  private BufferParam materialise(BufferParam buf) {
+    return buf instanceof BufferParam.Host ? new BufferParam.Materialised(toSlice(buf)) : buf;
   }
 
   // -------------------------------------------------------------------------
@@ -240,7 +309,7 @@ public final class StateMachine implements AutoCloseable {
 
     callWithEmptyReturn(
         SharedCoreWasm_ModuleExports::vmSysStateSet,
-        new VmSysStateSetParameters(key, value.toByteArray()));
+        new VmSysStateSetParameters(key, registerSlice(value)));
   }
 
   public void sysStateClear(String key) {
@@ -293,7 +362,7 @@ public final class StateMachine implements AutoCloseable {
                 target.getKey(),
                 idempotencyKey,
                 toHeaderList(headers),
-                payload.toByteArray()),
+                registerSlice(payload)),
             SysCallReturn.class);
     notifyStateUpdate(ret);
     if (ret instanceof SysCallReturn.Failure f) {
@@ -321,7 +390,7 @@ public final class StateMachine implements AutoCloseable {
             target.getKey(),
             idempotencyKey,
             toHeaderList(headers),
-            payload.toByteArray(),
+            registerSlice(payload),
             executionTime));
   }
 
@@ -344,7 +413,7 @@ public final class StateMachine implements AutoCloseable {
   }
 
   public void sysCompleteAwakeableWithSuccess(String id, Slice payload) {
-    sysCompleteAwakeable(id, new NonEmptyValueParam.Success(payload));
+    sysCompleteAwakeable(id, new NonEmptyValueParam.Success(registerSlice(payload)));
   }
 
   public void sysCompleteAwakeableWithFailure(String id, TerminalException reason) {
@@ -370,7 +439,7 @@ public final class StateMachine implements AutoCloseable {
   }
 
   public void sysCompleteSignalWithSuccess(String target, String signalName, Slice slice) {
-    sysCompleteSignal(target, signalName, new NonEmptyValueParam.Success(slice));
+    sysCompleteSignal(target, signalName, new NonEmptyValueParam.Success(registerSlice(slice)));
   }
 
   public void sysCompleteSignalWithFailure(
@@ -411,7 +480,7 @@ public final class StateMachine implements AutoCloseable {
   }
 
   public int sysPromiseCompleteWithSuccess(String key, Slice value) {
-    return sysPromiseComplete(key, new NonEmptyValueParam.Success(value));
+    return sysPromiseComplete(key, new NonEmptyValueParam.Success(registerSlice(value)));
   }
 
   public int sysPromiseCompleteWithFailure(String key, TerminalException reason) {
@@ -436,7 +505,7 @@ public final class StateMachine implements AutoCloseable {
     callWithEmptyReturn(
         SharedCoreWasm_ModuleExports::vmProposeRunCompletion,
         new VmProposeRunCompletionParameters(
-            handle, new RunResult.Success(value.toByteArray()), 0L, null));
+            handle, new RunResult.Success(registerSlice(value)), 0L, null));
   }
 
   public void proposeRunCompletionTerminalFailure(int handle, TerminalException terminalException) {
@@ -508,7 +577,7 @@ public final class StateMachine implements AutoCloseable {
   }
 
   public void sysWriteOutputWithSuccess(Slice value) {
-    sysWriteOutput(new NonEmptyValueParam.Success(value));
+    sysWriteOutput(new NonEmptyValueParam.Success(registerSlice(value)));
   }
 
   public void sysWriteOutputWithFailure(TerminalException exception) {
@@ -520,6 +589,49 @@ public final class StateMachine implements AutoCloseable {
     verifyNotFreed();
 
     callWithEmptyReturn(SharedCoreWasm_ModuleExports::vmSysEnd);
+  }
+
+  // =========================================================================
+  // Buffer ABI — wire shape for payloads crossing the WASM boundary.
+  // Mirrors Rust's `BufferAbi` enum (sdk-core/src/main/rust/src/lib.rs).
+  //
+  // Refcount semantics across the boundary:
+  //   - Java→Rust: Java has already called `registry.register()` and is
+  //     transferring the refcount-share via the (id, offset, len) tuple.
+  //     Rust calls `HostBufferHandle::from_parts` (no retain).
+  //   - Rust→Java: Rust `mem::forget`s its handle to transfer the share to
+  //     Java. Java must `registry.release(id)` when done.
+  // =========================================================================
+
+  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
+  @JsonSubTypes({
+    @JsonSubTypes.Type(value = BufferParam.InMemory.class, name = "inMemory"),
+    @JsonSubTypes.Type(value = BufferParam.Host.class, name = "host"),
+  })
+  public sealed interface BufferParam {
+    record InMemory(byte[] value) implements BufferParam {}
+
+    record Host(int id, int offset, int len) implements BufferParam {}
+
+    /**
+     * Post-materialisation variant carrying a {@link Slice} view over the registered bytes.
+     * Internal — never appears in CBOR (no {@code @JsonSubTypes} entry); {@link
+     * #materialise(BufferParam)} produces it after pulling the Slice straight from the registry
+     * and releasing the refcount share. Subsequent reads ({@code Input.slice()},
+     * {@code NotificationValue.Success.slice()}) just hand back this Slice.
+     */
+    record Materialised(Slice slice) implements BufferParam {}
+  }
+
+  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
+  @JsonSubTypes({
+    @JsonSubTypes.Type(value = TakeOutputReturn.Buffer.class, name = "buffer"),
+    @JsonSubTypes.Type(value = TakeOutputReturn.None.class, name = "none"),
+  })
+  public sealed interface TakeOutputReturn {
+    record Buffer(BufferParam buffer) implements TakeOutputReturn {}
+
+    record None() implements TakeOutputReturn {}
   }
 
   // =========================================================================
@@ -661,7 +773,15 @@ public final class StateMachine implements AutoCloseable {
     record Failure(int code, String message) implements DoProgressReturn {}
   }
 
-  /** Notification value payload — matches Rust {@code NotificationValue}. */
+  /**
+   * Notification value payload — matches Rust {@code NotificationValue}.
+   *
+   * <p>{@link Success#value} is a {@link BufferParam}: CBOR delivers it as either {@link
+   * BufferParam.InMemory} or {@link BufferParam.Host}. {@link #takeNotification} materialises any
+   * {@code Host} variant into {@link BufferParam.Materialised} (a zero-copy sub-Slice from the
+   * registry, with the refcount share released) before returning to user code, so callers can
+   * always unwrap via {@link Success#slice}.
+   */
   @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
   @JsonSubTypes({
     @JsonSubTypes.Type(value = NotificationValue.Void.class, name = "void"),
@@ -675,9 +795,17 @@ public final class StateMachine implements AutoCloseable {
 
     record Void() implements NotificationValue {}
 
-    record Success(byte[] value) implements NotificationValue {
+    record Success(BufferParam value) implements NotificationValue {
       public Slice slice() {
-        return Slice.wrap(value);
+        if (value instanceof BufferParam.InMemory im) {
+          return Slice.wrap(im.value());
+        }
+        if (value instanceof BufferParam.Materialised m) {
+          return m.slice();
+        }
+        throw new IllegalStateException(
+            "NotificationValue.Success must be materialised before slice() — "
+                + "StateMachine.takeNotification() handles that automatically");
       }
     }
 
@@ -712,14 +840,33 @@ public final class StateMachine implements AutoCloseable {
     record Failure(int code, String message) implements TakeNotificationReturn {}
   }
 
+  /**
+   * Invocation input — returned from {@link #sysInput()}. {@code input} is a {@link BufferParam};
+   * {@link #sysInput()} materialises any {@code Host} variant into {@link BufferParam.Materialised}
+   * (zero-copy sub-Slice from the registry) before returning, so callers can always unwrap via
+   * {@link #slice()}.
+   */
   public record Input(
-      String invocationId, String key, List<String[]> headers, byte[] input, long randomSeed) {
+      String invocationId, String key, List<String[]> headers, BufferParam input, long randomSeed) {
     public Map<String, String> headersAsMap() {
       Map<String, String> orderedHeaders = new LinkedHashMap<>();
       if (this.headers() != null) {
         for (var e : this.headers()) orderedHeaders.put(e[0], e[1]);
       }
       return Collections.unmodifiableMap(orderedHeaders);
+    }
+
+    /** Unwrap the input payload as a {@link Slice}. Only valid after materialisation. */
+    public Slice slice() {
+      if (input instanceof BufferParam.InMemory im) {
+        return Slice.wrap(im.value());
+      }
+      if (input instanceof BufferParam.Materialised m) {
+        return m.slice();
+      }
+      throw new IllegalStateException(
+          "Input.input must be materialised before slice() — "
+              + "StateMachine.sysInput() handles that automatically");
     }
   }
 
@@ -769,7 +916,7 @@ public final class StateMachine implements AutoCloseable {
 
   public record VmSysStateGetParameters(String key) {}
 
-  public record VmSysStateSetParameters(String key, byte[] value) {}
+  public record VmSysStateSetParameters(String key, BufferParam value) {}
 
   public record VmSysStateClearParameters(String key) {}
 
@@ -783,11 +930,7 @@ public final class StateMachine implements AutoCloseable {
     @JsonSubTypes.Type(value = NonEmptyValueParam.Failure.class, name = "failure"),
   })
   public sealed interface NonEmptyValueParam {
-    record Success(byte[] value) implements NonEmptyValueParam {
-      public Success(Slice slice) {
-        this(slice.toByteArray());
-      }
-    }
+    record Success(BufferParam value) implements NonEmptyValueParam {}
 
     record Failure(int code, String message, @Nullable List<String[]> metadata)
         implements NonEmptyValueParam {
@@ -810,7 +953,7 @@ public final class StateMachine implements AutoCloseable {
       @Nullable String key,
       @Nullable String idempotencyKey,
       List<String[]> headers,
-      byte[] input) {}
+      BufferParam input) {}
 
   public record VmSysSendParameters(
       String service,
@@ -818,7 +961,7 @@ public final class StateMachine implements AutoCloseable {
       @Nullable String key,
       @Nullable String idempotencyKey,
       List<String[]> headers,
-      byte[] input,
+      BufferParam input,
       @Nullable Long executionTimeSinceUnixEpochMillis) {}
 
   public record VmSysCancelInvocation(String invocationId) {}
@@ -842,11 +985,7 @@ public final class StateMachine implements AutoCloseable {
     @JsonSubTypes.Type(value = RunResult.RetryableFailure.class, name = "retryableFailure"),
   })
   public sealed interface RunResult {
-    record Success(byte[] value) implements RunResult {
-      public Success(Slice slice) {
-        this(slice.toByteArray());
-      }
-    }
+    record Success(BufferParam value) implements RunResult {}
 
     record TerminalFailure(int code, String message, @Nullable List<String[]> metadata)
         implements RunResult {

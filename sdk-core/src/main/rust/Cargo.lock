@@ -30,16 +30,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e748733b7cbc798e1434b6ac524f0c1ff2ab456fe201501e6497c8417a4fc33"
 
 [[package]]
-name = "bytes-utils"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7dafe3a8757b027e2be6e4e5601ed563c55989fcf1546e933c66c8eb3a058d35"
-dependencies = [
- "bytes",
- "either",
-]
-
-[[package]]
 name = "cfg-if"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -225,13 +215,12 @@ checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
 [[package]]
 name = "restate-sdk-shared-core"
 version = "0.10.0"
-source = "git+https://github.com/restatedev/sdk-shared-core?rev=ea9e3bbc1fa1194be624b04de514d9d7d5dfee50#ea9e3bbc1fa1194be624b04de514d9d7d5dfee50"
 dependencies = [
  "base64",
  "bytes",
- "bytes-utils",
  "pastey",
  "prost",
+ "restate-wire-derive",
  "serde",
  "strum",
  "thiserror",
@@ -250,6 +239,17 @@ dependencies = [
  "serde_bytes",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "restate-wire-derive"
+version = "0.10.0"
+dependencies = [
+ "anyhow",
+ "itertools",
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

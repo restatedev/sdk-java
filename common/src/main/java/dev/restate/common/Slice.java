@@ -28,6 +28,16 @@ public interface Slice {
 
   byte[] toByteArray();
 
+  /**
+   * Returns a Slice over the sub-range {@code [offset, offset + length)} of this Slice. Shares
+   * storage with this Slice — no copy.
+   */
+  default Slice slice(int offset, int length) {
+    ByteBuffer view = asReadOnlyByteBuffer();
+    view.position(offset).limit(offset + length);
+    return Slice.wrap(view.slice());
+  }
+
   /** Wrap a {@link ByteBuffer}. This will not copy the buffer. */
   static Slice wrap(ByteBuffer byteBuffer) {
     return new Slice() {
@@ -59,6 +69,11 @@ public interface Slice {
       @Override
       public void copyTo(ByteBuffer buffer) {
         buffer.put(byteBuffer.slice());
+      }
+
+      @Override
+      public Slice slice(int offset, int length) {
+        return wrap(byteBuffer.slice(offset, length));
       }
 
       @Override

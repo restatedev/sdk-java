@@ -121,7 +121,7 @@ final class RequestProcessorImpl implements RequestProcessor {
     if (state == State.CLOSED) return;
 
     try {
-      stateMachine.notifyInput(slice.toByteArray());
+      stateMachine.notifyInput(slice);
       onInputEvent();
     } catch (Throwable e) {
       onError(e);
@@ -188,22 +188,22 @@ final class RequestProcessorImpl implements RequestProcessor {
     // Cancel input subscription if still there
     cancelInputSubscription();
 
-    // Pump remaining output
-   byte[] chunk;
+    // Drain any remaining output before the VM is freed
     if (outputSubscriber != null) {
-      chunk = stateMachine.takeOutput();
-    } else {
-      chunk = new byte[0];
+      Slice chunk;
+      while ((chunk = stateMachine.takeOutput()) != null) {
+        outputSubscriber.onNext(chunk);
+      }
     }
 
     // Close state machine
     this.state = State.CLOSED;
     stateMachine.close();
 
-    // Send final bits and close output subscriber
-    if (chunk.length > 0) outputSubscriber.onNext(Slice.wrap(chunk));
-    outputSubscriber.onComplete();
-    outputSubscriber = null;
+    if (outputSubscriber != null) {
+      outputSubscriber.onComplete();
+      outputSubscriber = null;
+    }
   }
 
   private void onUserCodeResult(@Nullable Slice slice, @Nullable Throwable throwable) {

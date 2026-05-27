@@ -14,9 +14,9 @@
 
 use bytes::Bytes;
 use restate_sdk_shared_core::{
-    AttachInvocationTarget, AwaitResponse, CoreVM, Error, Header, HeaderMap, NonEmptyValue,
-    NotificationHandle, PayloadOptions, ResponseHead, RetryPolicy, RunExitResult, TakeOutputResult,
-    Target, TerminalFailure, VMOptions, Value, VM,
+    AttachInvocationTarget, AwaitResponse, Buffer, CoreVM, Error, Header, HeaderMap,
+    HostBufferHandle, HostBufferRegistry, NonEmptyValue, NotificationHandle, PayloadOptions,
+    ResponseHead, RetryPolicy, RunExitResult, Target, TerminalFailure, VMOptions, Value, VM,
 };
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -25,6 +25,7 @@ use std::convert::Infallible;
 use std::io::Write;
 use std::mem::MaybeUninit;
 use std::rc::Rc;
+use std::sync::Arc;
 use std::time::Duration;
 use tracing::level_filters::LevelFilter;
 use tracing::{Level, Subscriber};
@@ -163,10 +164,115 @@ fn log_subscriber(level: AbiLogLevel) -> impl Subscriber + Send + Sync + 'static
     Registry::default().with(fmt_layer)
 }
 
+// --------- Host buffer ABI
+//
+// `BufferAbi` is the on-wire (CBOR) shape used to carry user payloads
+// across the WASM boundary in both directions. `InMemory` carries inline
+// bytes; `Host` carries a (id, offset, len) handle into the Java-side
+// `HostBufferRegistry`.
+//
+// Refcount semantics across the boundary:
+//   - When Java SENDS a `Host` variant to Rust (input DTO), Java has
+//     already called `register()` and is transferring the refcount-share.
+//     Rust calls `HostBufferHandle::from_parts` (no retain) to materialise
+//     the handle.
+//   - When Rust RETURNS a `Host` variant to Java (output DTO), the Rust
+//     handle is `mem::forget`'d so its `Drop` doesn't fire; Java now owns
+//     the refcount-share and must call `release(id)` when done.
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+enum BufferAbi {
+    InMemory {
+        #[serde(with = "serde_bytes")]
+        value: Vec<u8>,
+    },
+    Host {
+        id: u32,
+        offset: u32,
+        len: u32,
+    },
+}
+
+impl BufferAbi {
+    /// Convert an incoming `BufferAbi` (Java→Rust) into a shared-core
+    /// `Buffer`. For `Host`, reconstitutes the handle via `from_parts`
+    /// against the per-VM registry — the refcount-share transfers in.
+    fn into_buffer(self, registry: &Arc<dyn HostBufferRegistry>) -> Buffer {
+        match self {
+            BufferAbi::InMemory { value } => Buffer::InMemory(Bytes::from(value)),
+            BufferAbi::Host { id, offset, len } => Buffer::Host(HostBufferHandle::from_parts(
+                registry.clone(),
+                id,
+                offset,
+                len,
+            )),
+        }
+    }
+
+    /// Convert an outgoing `Buffer` (Rust→Java) into a `BufferAbi`. For
+    /// `Host`, transfers the refcount-share out via `mem::forget`.
+    fn from_buffer(buf: Buffer) -> Self {
+        match buf {
+            Buffer::InMemory(b) => BufferAbi::InMemory { value: b.to_vec() },
+            Buffer::Host(h) => {
+                let (id, offset, len) = (h.id(), h.offset(), h.len());
+                std::mem::forget(h);
+                BufferAbi::Host { id, offset, len }
+            }
+        }
+    }
+}
+
+// --------- Host buffer registry (WASM bridge → Java)
+
+/// Rust-side implementor of [`HostBufferRegistry`] that forwards every
+/// call across the WASM boundary to the Java-side registry. The Java
+/// side owns one registry per `SharedCoreInstance` and resolves it
+/// directly via the imports object, so the WASM call doesn't need to
+/// carry a vm/registry identifier.
+struct WasmHostBufferRegistry;
+
+impl HostBufferRegistry for WasmHostBufferRegistry {
+    fn retain(&self, handle: &HostBufferHandle) {
+        unsafe { _host_buffer_retain(handle.id()) }
+    }
+
+    fn release(&self, handle: &HostBufferHandle) {
+        unsafe { _host_buffer_release(handle.id()) }
+    }
+
+    fn read_into(&self, handle: &HostBufferHandle, view_offset: usize, len: usize, dst: &mut [u8]) {
+        let absolute_offset = handle.offset() + view_offset as u32;
+        unsafe {
+            _host_buffer_read_into(
+                handle.id(),
+                absolute_offset,
+                len as u32,
+                dst.as_mut_ptr() as u32,
+            );
+        }
+    }
+
+    fn eq(&self, a: &HostBufferHandle, b: &HostBufferHandle) -> bool {
+        unsafe {
+            _host_buffer_eq(a.id(), a.offset(), a.len(), b.id(), b.offset(), b.len()) != 0
+        }
+    }
+}
+
 // --------- VM
 
 pub struct WasmVM {
     vm: CoreVM,
+    /// Host buffer registry that forwards across the WASM boundary. The
+    /// Rust-side adapter is stateless ([`WasmHostBufferRegistry`]); the
+    /// real state lives on the Java side, owned by `SharedCoreInstance`.
+    registry: Arc<dyn HostBufferRegistry>,
 }
 
 pub struct WasmHeaders(Vec<(String, String)>);
@@ -192,15 +298,20 @@ pub unsafe extern "C" fn _vm_new(ptr: *mut u8, len: usize) -> u64 {
 }
 
 fn vm_new(input: VmNewParameters) -> VmNewReturn {
-    match CoreVM::new(WasmHeaders(input.headers), VMOptions::default()) {
-        Ok(vm) => {
-            let wasm_vm = WasmVM { vm };
-            VmNewReturn::Ok {
-                pointer: Rc::into_raw(Rc::new(RefCell::new(wasm_vm))) as u32,
-            }
-        }
-        Err(e) => VmNewReturn::from_err(e),
-    }
+    let core_vm = match CoreVM::new(WasmHeaders(input.headers), VMOptions::default()) {
+        Ok(vm) => vm,
+        Err(e) => return VmNewReturn::from_err(e),
+    };
+    let wasm_vm = WasmVM {
+        vm: core_vm,
+        registry: Arc::new(WasmHostBufferRegistry) as Arc<dyn HostBufferRegistry>,
+    };
+    let rc = Rc::new(RefCell::new(wasm_vm));
+    let raw = Rc::as_ptr(&rc) as u32;
+    // Consume the Rc into a raw pointer — the returned pointer holds the
+    // live share. `vm_free` later does the matching `Rc::from_raw`.
+    let _ = Rc::into_raw(rc);
+    VmNewReturn::Ok { pointer: raw }
 }
 
 #[export_name = "vm_get_response_head"]
@@ -213,12 +324,14 @@ pub unsafe extern "C" fn _vm_get_response_head(vm_pointer: *const RefCell<WasmVM
 #[export_name = "vm_notify_input"]
 pub unsafe extern "C" fn _vm_notify_input(
     vm_pointer: *const RefCell<WasmVM>,
-    ptr: *mut u8,
-    len: usize,
+    id: u32,
+    offset: u32,
+    len: u32,
 ) {
     let rc_vm = vm_ptr_to_rc(vm_pointer);
-    let input = ptr_to_vec(ptr, len);
-    VM::notify_input(&mut rc_vm.borrow_mut().vm, input.into());
+    let registry = rc_vm.borrow().registry.clone();
+    let handle = HostBufferHandle::from_parts(registry, id, offset, len);
+    VM::notify_input(&mut rc_vm.borrow_mut().vm, Buffer::Host(handle));
 }
 
 #[export_name = "vm_notify_input_closed"]
@@ -249,11 +362,13 @@ fn vm_notify_error(rc_vm: &Rc<RefCell<WasmVM>>, input: VmNotifyError) {
 #[export_name = "vm_take_output"]
 pub unsafe extern "C" fn _vm_take_output(vm_pointer: *const RefCell<WasmVM>) -> u64 {
     let rc_vm = vm_ptr_to_rc(vm_pointer);
-    let res: Vec<u8> = match VM::take_output(&mut rc_vm.borrow_mut().vm) {
-        TakeOutputResult::Buffer(b) => b.to_vec(),
-        TakeOutputResult::EOF => Vec::default(),
+    let res = match VM::take_output_next(&mut rc_vm.borrow_mut().vm) {
+        Some(buffer) => TakeOutputReturn::Buffer {
+            buffer: BufferAbi::from_buffer(buffer),
+        },
+        None => TakeOutputReturn::None,
     };
-    vec_to_ptr(res)
+    output_to_ptr(res)
 }
 
 #[export_name = "vm_is_ready_to_execute"]
@@ -341,7 +456,7 @@ fn vm_sys_input(rc_vm: &Rc<RefCell<WasmVM>>) -> SysInputReturn {
                     .into_iter()
                     .map(|h| (h.key.into_owned(), h.value.into_owned()))
                     .collect(),
-                input: input.input.to_vec(),
+                input: BufferAbi::from_buffer(input.input),
                 random_seed: input.random_seed as i64,
             },
             state,
@@ -394,13 +509,10 @@ pub unsafe extern "C" fn _vm_sys_state_set(
 }
 
 fn vm_sys_state_set(rc_vm: &Rc<RefCell<WasmVM>>, input: VmSysStateSetParameters) -> EmptyReturn {
+    let registry = rc_vm.borrow().registry.clone();
+    let value = input.value.into_buffer(&registry);
     let mut vm = rc_vm.borrow_mut();
-    let result = VM::sys_state_set(
-        &mut vm.vm,
-        input.key,
-        Bytes::from(input.value),
-        PayloadOptions::default(),
-    );
+    let result = VM::sys_state_set(&mut vm.vm, input.key, value, PayloadOptions::default());
     EmptyReturn::from_result(result, VM::state(&vm.vm) as u8 as u32)
 }
 
@@ -498,13 +610,10 @@ fn vm_sys_complete_awakeable(
     rc_vm: &Rc<RefCell<WasmVM>>,
     input: VmSysCompleteAwakeableParameters,
 ) -> EmptyReturn {
+    let registry = rc_vm.borrow().registry.clone();
+    let value = input.result.into_non_empty_value(&registry);
     let mut vm = rc_vm.borrow_mut();
-    let result = VM::sys_complete_awakeable(
-        &mut vm.vm,
-        input.id,
-        input.result.into(),
-        PayloadOptions::default(),
-    );
+    let result = VM::sys_complete_awakeable(&mut vm.vm, input.id, value, PayloadOptions::default());
     EmptyReturn::from_result(result, VM::state(&vm.vm) as u8 as u32)
 }
 
@@ -521,6 +630,8 @@ pub unsafe extern "C" fn _vm_sys_call(
 }
 
 fn vm_sys_call(rc_vm: &Rc<RefCell<WasmVM>>, input: VmSysCallParameters) -> SysCallReturn {
+    let registry = rc_vm.borrow().registry.clone();
+    let call_input = input.input.into_buffer(&registry);
     let mut vm = rc_vm.borrow_mut();
     let result = VM::sys_call(
         &mut vm.vm,
@@ -540,7 +651,7 @@ fn vm_sys_call(rc_vm: &Rc<RefCell<WasmVM>>, input: VmSysCallParameters) -> SysCa
                 })
                 .collect(),
         },
-        Bytes::from(input.input),
+        call_input,
         None,
         PayloadOptions::default(),
     );
@@ -568,6 +679,8 @@ pub unsafe extern "C" fn _vm_sys_send(
 }
 
 fn vm_sys_send(rc_vm: &Rc<RefCell<WasmVM>>, input: VmSysSendParameters) -> HandleReturn {
+    let registry = rc_vm.borrow().registry.clone();
+    let send_input = input.input.into_buffer(&registry);
     let mut vm = rc_vm.borrow_mut();
     let result = VM::sys_send(
         &mut vm.vm,
@@ -587,7 +700,7 @@ fn vm_sys_send(rc_vm: &Rc<RefCell<WasmVM>>, input: VmSysSendParameters) -> Handl
                 })
                 .collect(),
         },
-        Bytes::from(input.input),
+        send_input,
         input
             .execution_time_since_unix_epoch_millis
             .map(Duration::from_millis),
@@ -725,13 +838,10 @@ fn vm_sys_promise_complete(
     rc_vm: &Rc<RefCell<WasmVM>>,
     input: VmSysPromiseCompleteParameters,
 ) -> HandleReturn {
+    let registry = rc_vm.borrow().registry.clone();
+    let value = input.result.into_non_empty_value(&registry);
     let mut vm = rc_vm.borrow_mut();
-    let result = VM::sys_complete_promise(
-        &mut vm.vm,
-        input.id,
-        input.result.into(),
-        PayloadOptions::default(),
-    );
+    let result = VM::sys_complete_promise(&mut vm.vm, input.id, value, PayloadOptions::default());
     HandleReturn::from_result(result, VM::state(&vm.vm) as u8 as u32)
 }
 
@@ -769,8 +879,9 @@ fn vm_propose_run_completion(
     rc_vm: &Rc<RefCell<WasmVM>>,
     input: VmProposeRunCompletionParameters,
 ) -> EmptyReturn {
+    let registry = rc_vm.borrow().registry.clone();
     let run_exit_result = match input.result {
-        RunResult::Success { value } => RunExitResult::Success(Bytes::from(value)),
+        RunResult::Success { value } => RunExitResult::Success(value.into_buffer(&registry)),
         RunResult::TerminalFailure {
             code,
             message,
@@ -857,8 +968,10 @@ fn vm_sys_complete_signal(
     rc_vm: &Rc<RefCell<WasmVM>>,
     input: VmSysCompleteSignalParameters,
 ) -> EmptyReturn {
+    let registry = rc_vm.borrow().registry.clone();
+    let value = input.result.into_non_empty_value(&registry);
     let mut vm = rc_vm.borrow_mut();
-    let result = VM::sys_complete_signal(&mut vm.vm, input.target, input.name, input.result.into());
+    let result = VM::sys_complete_signal(&mut vm.vm, input.target, input.name, value);
     EmptyReturn::from_result(result, VM::state(&vm.vm) as u8 as u32)
 }
 
@@ -878,8 +991,10 @@ fn vm_sys_write_output(
     rc_vm: &Rc<RefCell<WasmVM>>,
     input: VmSysWriteOutputParameters,
 ) -> EmptyReturn {
+    let registry = rc_vm.borrow().registry.clone();
+    let value = input.result.into_non_empty_value(&registry);
     let mut vm = rc_vm.borrow_mut();
-    let result = VM::sys_write_output(&mut vm.vm, input.result.into(), PayloadOptions::default());
+    let result = VM::sys_write_output(&mut vm.vm, value, PayloadOptions::default());
     EmptyReturn::from_result(result, VM::state(&vm.vm) as u8 as u32)
 }
 
@@ -920,6 +1035,32 @@ fn log(level: AbiLogLevel, message: &str) {
 extern "C" {
     #[link_name = "log"]
     fn _log(level: u32, ptr: u32, size: u32);
+
+    /// Increment the refcount of host buffer `id` in the registry.
+    #[link_name = "host_buffer_retain"]
+    fn _host_buffer_retain(id: u32);
+
+    /// Decrement the refcount of host buffer `id`. When the refcount
+    /// reaches zero, Java frees the buffer.
+    #[link_name = "host_buffer_release"]
+    fn _host_buffer_release(id: u32);
+
+    /// Copy `len` bytes from `registry[id][offset..offset+len]` into WASM
+    /// linear memory at `dst_ptr`.
+    #[link_name = "host_buffer_read_into"]
+    fn _host_buffer_read_into(id: u32, offset: u32, len: u32, dst_ptr: u32);
+
+    /// Byte-equality between two views (offset+len pairs) of registered
+    /// buffers. Returns 1 if equal, 0 otherwise.
+    #[link_name = "host_buffer_eq"]
+    fn _host_buffer_eq(
+        a_id: u32,
+        a_offset: u32,
+        a_len: u32,
+        b_id: u32,
+        b_offset: u32,
+        b_len: u32,
+    ) -> u32;
 }
 
 // --------- Unsafe memory helpers
@@ -1062,8 +1203,7 @@ struct VmSysStateGetParameters {
 #[serde(rename_all = "camelCase")]
 struct VmSysStateSetParameters {
     key: String,
-    #[serde(with = "serde_bytes")]
-    value: Vec<u8>,
+    value: BufferAbi,
 }
 
 #[derive(Deserialize)]
@@ -1096,8 +1236,7 @@ struct VmSysCompleteAwakeableParameters {
 )]
 enum NonEmptyValueParam {
     Success {
-        #[serde(with = "serde_bytes")]
-        value: Vec<u8>,
+        value: BufferAbi,
     },
     Failure {
         code: u32,
@@ -1107,10 +1246,12 @@ enum NonEmptyValueParam {
     },
 }
 
-impl From<NonEmptyValueParam> for NonEmptyValue {
-    fn from(p: NonEmptyValueParam) -> Self {
-        match p {
-            NonEmptyValueParam::Success { value } => NonEmptyValue::Success(Bytes::from(value)),
+impl NonEmptyValueParam {
+    fn into_non_empty_value(self, registry: &Arc<dyn HostBufferRegistry>) -> NonEmptyValue {
+        match self {
+            NonEmptyValueParam::Success { value } => {
+                NonEmptyValue::Success(value.into_buffer(registry))
+            }
             NonEmptyValueParam::Failure {
                 code,
                 message,
@@ -1135,8 +1276,7 @@ struct VmSysCallParameters {
     idempotency_key: Option<String>,
     #[serde(default)]
     headers: Vec<(String, String)>,
-    #[serde(with = "serde_bytes")]
-    input: Vec<u8>,
+    input: BufferAbi,
 }
 
 #[derive(Deserialize)]
@@ -1150,8 +1290,7 @@ struct VmSysSendParameters {
     idempotency_key: Option<String>,
     #[serde(default)]
     headers: Vec<(String, String)>,
-    #[serde(with = "serde_bytes")]
-    input: Vec<u8>,
+    input: BufferAbi,
     #[serde(default)]
     execution_time_since_unix_epoch_millis: Option<u64>,
 }
@@ -1214,8 +1353,7 @@ struct VmProposeRunCompletionParameters {
 )]
 enum RunResult {
     Success {
-        #[serde(with = "serde_bytes")]
-        value: Vec<u8>,
+        value: BufferAbi,
     },
     TerminalFailure {
         code: u32,
@@ -1282,6 +1420,19 @@ impl VmNewReturn {
             message: e.to_string(),
         }
     }
+}
+
+#[derive(Serialize)]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+enum TakeOutputReturn {
+    /// One drained buffer from the output queue. May be inline or host.
+    Buffer { buffer: BufferAbi },
+    /// The output queue is empty.
+    None,
 }
 
 /// Equivalent to Go's GenericEmptyReturn.
@@ -1381,8 +1532,7 @@ impl DoProgressReturn {
 enum NotificationValue {
     Void,
     Success {
-        #[serde(with = "serde_bytes")]
-        value: Vec<u8>,
+        value: BufferAbi,
     },
     Failure {
         code: u16,
@@ -1401,7 +1551,9 @@ impl From<Value> for NotificationValue {
     fn from(v: Value) -> Self {
         match v {
             Value::Void => NotificationValue::Void,
-            Value::Success(b) => NotificationValue::Success { value: b.to_vec() },
+            Value::Success(b) => NotificationValue::Success {
+                value: BufferAbi::from_buffer(b),
+            },
             Value::Failure(TerminalFailure {
                 code,
                 message,
@@ -1443,8 +1595,7 @@ struct WasmInput {
     invocation_id: String,
     key: String,
     headers: Vec<(String, String)>,
-    #[serde(with = "serde_bytes")]
-    input: Vec<u8>,
+    input: BufferAbi,
     random_seed: i64,
 }
 

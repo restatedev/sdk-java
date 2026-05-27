@@ -63,7 +63,7 @@ class HandlerContextImpl implements HandlerContextInternal {
         new HandlerRequest(
             new InvocationIdImpl(input.invocationId(), input.randomSeed()),
             otelContext,
-            Slice.wrap(input.input()),
+            input.slice(),
             input.headersAsMap());
     this.objectKey = input.key() != null && !input.key().isEmpty() ? input.key() : null;
     this.fullyQualifiedHandlerName = fullyQualifiedHandlerName;
@@ -424,13 +424,13 @@ class HandlerContextImpl implements HandlerContextInternal {
 
       // Let's start by trying to complete it
       try {
-      asyncResult.tryComplete(this::takeNotification);
-    } catch (Throwable e) {
+        asyncResult.tryComplete(this::takeNotification);
+      } catch (Throwable e) {
         // This can happen if the state machine was closed in the meantime.
-      failWithoutContextSwitch(e);
-      asyncResult.publicFuture().completeExceptionally(AbortedExecutionException.INSTANCE);
-      return;
-    }
+        failWithoutContextSwitch(e);
+        asyncResult.publicFuture().completeExceptionally(AbortedExecutionException.INSTANCE);
+        return;
+      }
 
       // Build the tree of what we're still awaiting on
       StateMachine.UnresolvedFuture future = asyncResult.uncompletedFuture();
@@ -523,8 +523,10 @@ class HandlerContextImpl implements HandlerContextInternal {
   }
 
   private void pumpOutput() {
-    byte[] chunk = stateMachine.takeOutput();
-    if (chunk.length > 0) outputSink.accept(Slice.wrap(chunk));
+    Slice chunk;
+    while ((chunk = stateMachine.takeOutput()) != null) {
+      outputSink.accept(chunk);
+    }
   }
 
   @Override
