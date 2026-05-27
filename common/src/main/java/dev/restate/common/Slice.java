@@ -78,7 +78,12 @@ public interface Slice {
 
       @Override
       public byte[] toByteArray() {
-        if (byteBuffer.hasArray()) {
+        // Only the no-offset / no-limit case can return the backing array
+        // directly — otherwise array() would expose bytes outside the view.
+        if (byteBuffer.hasArray()
+            && byteBuffer.arrayOffset() == 0
+            && byteBuffer.position() == 0
+            && byteBuffer.remaining() == byteBuffer.array().length) {
           return byteBuffer.array();
         }
 

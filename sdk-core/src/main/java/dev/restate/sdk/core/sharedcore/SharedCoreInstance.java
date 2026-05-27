@@ -22,6 +22,7 @@ import dev.restate.common.Slice;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.sharedcore.generated.SharedCoreWasmMachine;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.function.Function;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -189,7 +190,11 @@ class SharedCoreInstance {
   @HostModule("env")
   static final class SharedCoreImports {
 
+    /** Max size we'll keep around in {@link #directScratch}; anything bigger goes one-shot. */
+    private static final int DIRECT_SCRATCH_MAX = 64 * 1024;
+
     private final HostBufferRegistry registry;
+    private byte[] directScratch = new byte[0];
 
     SharedCoreImports(HostBufferRegistry registry) {
       this.registry = registry;
@@ -219,9 +224,25 @@ class SharedCoreInstance {
       if (len <= 0) {
         return;
       }
-      byte[] tmp = new byte[len];
-      registry.readInto(id, offset, len, tmp, 0);
-      memory.write(dstPtr, tmp);
+      ByteBuffer bb = registry.slice(id, offset, len).asReadOnlyByteBuffer();
+      if (bb.hasArray()) {
+        memory.write(dstPtr, bb.array(), bb.arrayOffset() + bb.position(), bb.remaining());
+      } else {
+        // Direct buffer: no backing array. Use a cached scratch byte[] to
+        // avoid allocating per call; oversize requests go one-shot so a
+        // single spike doesn't pin a huge buffer forever.
+        byte[] tmp;
+        if (len > DIRECT_SCRATCH_MAX) {
+          tmp = new byte[len];
+        } else {
+          if (directScratch.length < len) {
+            directScratch = new byte[len];
+          }
+          tmp = directScratch;
+        }
+        bb.get(tmp, 0, len);
+        memory.write(dstPtr, tmp, 0, len);
+      }
     }
 
     @WasmExport

@@ -1551,9 +1551,19 @@ impl From<Value> for NotificationValue {
     fn from(v: Value) -> Self {
         match v {
             Value::Void => NotificationValue::Void,
-            Value::Success(b) => NotificationValue::Success {
-                value: BufferAbi::from_buffer(b),
-            },
+            Value::Success(b) => {
+                tracing::trace!(
+                    "NotificationValue::Success buffer variant: {}, len={}",
+                    match &b {
+                        Buffer::InMemory(_) => "InMemory",
+                        Buffer::Host(_) => "Host",
+                    },
+                    b.len()
+                );
+                NotificationValue::Success {
+                    value: BufferAbi::from_buffer(b),
+                }
+            }
             Value::Failure(TerminalFailure {
                 code,
                 message,

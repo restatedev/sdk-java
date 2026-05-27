@@ -10,6 +10,8 @@ package dev.restate.sdk.core.sharedcore;
 
 import dev.restate.common.Slice;
 import java.util.HashMap;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * Java-side mirror of the shared-core {@code HostBufferRegistry} trait.
@@ -26,6 +28,8 @@ import java.util.HashMap;
  * touched from the single thread that drives that instance.
  */
 final class HostBufferRegistry {
+
+  private static final Logger LOG = LogManager.getLogger(HostBufferRegistry.class);
 
   private static final class Entry {
     final Slice slice;
@@ -44,6 +48,7 @@ final class HostBufferRegistry {
   int register(Slice slice) {
     int id = nextId++;
     entries.put(id, new Entry(slice));
+    LOG.trace("register(len={}) -> id={}", slice.readableBytes(), id);
     return id;
   }
 
@@ -53,6 +58,7 @@ final class HostBufferRegistry {
       throw new IllegalStateException("retain on unknown host buffer id " + id);
     }
     e.refcount++;
+    LOG.trace("retain(id={}) -> refcount={}", id, e.refcount);
   }
 
   void release(int id) {
@@ -60,10 +66,15 @@ final class HostBufferRegistry {
     if (e == null) {
       // Tolerate double-release; shared-core's drop semantics guarantee
       // exactly-once but be defensive across the WASM boundary.
+      LOG.trace("release(id={}) -> entry already gone", id);
       return;
     }
-    if (--e.refcount == 0) {
+    int newCount = --e.refcount;
+    if (newCount == 0) {
       entries.remove(id);
+      LOG.trace("release(id={}) -> refcount=0, dropped", id);
+    } else {
+      LOG.trace("release(id={}) -> refcount={}", id, newCount);
     }
   }
 
@@ -79,6 +90,12 @@ final class HostBufferRegistry {
     if (e == null) {
       throw new IllegalStateException("slice on unknown host buffer id " + id);
     }
+    LOG.trace(
+        "slice(id={}, offset={}, len={}) over entry of len={}",
+        id,
+        offset,
+        len,
+        e.slice.readableBytes());
     return e.slice.slice(offset, len);
   }
 
@@ -88,10 +105,24 @@ final class HostBufferRegistry {
     if (e == null) {
       throw new IllegalStateException("read_into on unknown host buffer id " + id);
     }
+    LOG.trace(
+        "readInto(id={}, offset={}, len={}) over entry of len={}",
+        id,
+        offset,
+        len,
+        e.slice.readableBytes());
     e.slice.slice(offset, len).copyTo(dst, dstOffset);
   }
 
   boolean eq(int aId, int aOff, int aLen, int bId, int bOff, int bLen) {
+    LOG.trace(
+        "eq(aId={}, aOff={}, aLen={}, bId={}, bOff={}, bLen={})",
+        aId,
+        aOff,
+        aLen,
+        bId,
+        bOff,
+        bLen);
     if (aLen != bLen) return false;
     Entry a = entries.get(aId);
     Entry b = entries.get(bId);
