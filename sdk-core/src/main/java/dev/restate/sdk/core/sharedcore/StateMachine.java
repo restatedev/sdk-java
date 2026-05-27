@@ -159,10 +159,17 @@ public final class StateMachine implements AutoCloseable {
   }
 
   /**
-   * Convert a {@link BufferParam} returned by Rust into a {@link Slice}. {@link
-   * BufferParam.InMemory} wraps its byte[]; {@link BufferParam.Host} pulls a sub-Slice from the
-   * registry and releases the refcount share (the sub-Slice pins the underlying storage so the
-   * bytes stay reachable after release); {@link BufferParam.Materialised} hands back its Slice.
+   * Convert a {@link BufferParam} returned by Rust into a {@link Slice}.
+   *
+   * <ul>
+   *   <li>{@link BufferParam.InMemory} wraps its byte[].
+   *   <li>{@link BufferParam.Host} pulls a sub-Slice from the registry and releases the
+   *       refcount share (the sub-Slice pins the underlying storage so the bytes stay reachable
+   *       after release).
+   *   <li>{@link BufferParam.HostMulti} concatenates the segments into a fresh byte[] (one heap
+   *       allocation), releases each segment's refcount-share, and wraps the byte[] in a Slice.
+   *   <li>{@link BufferParam.Materialised} hands back its Slice.
+   * </ul>
    */
   private Slice toSlice(BufferParam buf) {
     if (buf instanceof BufferParam.InMemory inMemory) {
@@ -170,6 +177,20 @@ public final class StateMachine implements AutoCloseable {
     }
     if (buf instanceof BufferParam.Materialised m) {
       return m.slice();
+    }
+    if (buf instanceof BufferParam.HostMulti multi) {
+      int total = 0;
+      for (BufferParam.HostSegment seg : multi.segments()) {
+        total += seg.len();
+      }
+      byte[] out = new byte[total];
+      int dstOff = 0;
+      for (BufferParam.HostSegment seg : multi.segments()) {
+        registry.readInto(seg.id(), seg.offset(), seg.len(), out, dstOff);
+        dstOff += seg.len();
+        registry.release(seg.id());
+      }
+      return Slice.wrap(out);
     }
     BufferParam.Host host = (BufferParam.Host) buf;
     Slice sub = registry.slice(host.id(), host.offset(), host.len());
@@ -275,13 +296,17 @@ public final class StateMachine implements AutoCloseable {
   }
 
   /**
-   * Wrap a Host {@link BufferParam} into a {@link BufferParam.Materialised} carrying the
-   * registry's sub-Slice (zero-copy); {@link BufferParam.InMemory} passes through unchanged. Thin
-   * wrapper over {@link #toSlice}, used by {@link #sysInput} and {@link #takeNotification} which
-   * keep the value as a {@code BufferParam} inside their result records.
+   * Wrap a host-backed {@link BufferParam} ({@link BufferParam.Host} or {@link
+   * BufferParam.HostMulti}) into a {@link BufferParam.Materialised} carrying the resulting Slice.
+   * {@link BufferParam.InMemory} passes through unchanged. Thin wrapper over {@link #toSlice},
+   * used by {@link #sysInput} and {@link #takeNotification} which keep the value as a {@code
+   * BufferParam} inside their result records.
    */
   private BufferParam materialise(BufferParam buf) {
-    return buf instanceof BufferParam.Host ? new BufferParam.Materialised(toSlice(buf)) : buf;
+    if (buf instanceof BufferParam.Host || buf instanceof BufferParam.HostMulti) {
+      return new BufferParam.Materialised(toSlice(buf));
+    }
+    return buf;
   }
 
   // -------------------------------------------------------------------------
@@ -607,11 +632,22 @@ public final class StateMachine implements AutoCloseable {
   @JsonSubTypes({
     @JsonSubTypes.Type(value = BufferParam.InMemory.class, name = "inMemory"),
     @JsonSubTypes.Type(value = BufferParam.Host.class, name = "host"),
+    @JsonSubTypes.Type(value = BufferParam.HostMulti.class, name = "hostMulti"),
   })
   public sealed interface BufferParam {
     record InMemory(byte[] value) implements BufferParam {}
 
     record Host(int id, int offset, int len) implements BufferParam {}
+
+    /**
+     * Multi-segment host buffer — used when the Rust decoder coalesces a body that spans multiple
+     * input chunks. Materialised once on the Java heap by {@link #toSlice(BufferParam)}; each
+     * segment's refcount-share is released after its bytes are copied into the result byte[].
+     */
+    record HostMulti(List<HostSegment> segments) implements BufferParam {}
+
+    /** Per-segment record for {@link HostMulti}. Mirrors Rust's {@code HostSegmentAbi}. */
+    record HostSegment(int id, int offset, int len) {}
 
     /**
      * Post-materialisation variant carrying a {@link Slice} view over the registered bytes.

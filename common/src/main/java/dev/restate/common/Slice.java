@@ -58,7 +58,8 @@ public interface Slice {
 
       @Override
       public void copyTo(byte[] target, int targetOffset) {
-        byteBuffer.slice().get(target, targetOffset, target.length);
+        ByteBuffer view = byteBuffer.slice();
+        view.get(target, targetOffset, view.remaining());
       }
 
       @Override

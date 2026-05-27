@@ -16,7 +16,8 @@ use bytes::Bytes;
 use restate_sdk_shared_core::{
     AttachInvocationTarget, AwaitResponse, Buffer, CoreVM, Error, Header, HeaderMap,
     HostBufferHandle, HostBufferRegistry, NonEmptyValue, NotificationHandle, PayloadOptions,
-    ResponseHead, RetryPolicy, RunExitResult, Target, TerminalFailure, VMOptions, Value, VM,
+    ResponseHead, RetryPolicy, RunExitResult, Segment, Target, TerminalFailure, VMOptions, Value,
+    VM,
 };
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -169,7 +170,10 @@ fn log_subscriber(level: AbiLogLevel) -> impl Subscriber + Send + Sync + 'static
 // `BufferAbi` is the on-wire (CBOR) shape used to carry user payloads
 // across the WASM boundary in both directions. `InMemory` carries inline
 // bytes; `Host` carries a (id, offset, len) handle into the Java-side
-// `HostBufferRegistry`.
+// `HostBufferRegistry`. `HostMulti` carries an ordered list of
+// host-buffer segments — used when the decoder coalesced a body that
+// spanned multiple input chunks; the Java side materialises it once on
+// the heap and releases each segment.
 //
 // Refcount semantics across the boundary:
 //   - When Java SENDS a `Host` variant to Rust (input DTO), Java has
@@ -179,6 +183,17 @@ fn log_subscriber(level: AbiLogLevel) -> impl Subscriber + Send + Sync + 'static
 //   - When Rust RETURNS a `Host` variant to Java (output DTO), the Rust
 //     handle is `mem::forget`'d so its `Drop` doesn't fire; Java now owns
 //     the refcount-share and must call `release(id)` when done.
+//   - `HostMulti` follows the same protocol per segment: every
+//     `(id, offset, len)` in the segment list is one transferred
+//     refcount-share that the receiving side must eventually release.
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct HostSegmentAbi {
+    id: u32,
+    offset: u32,
+    len: u32,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(
@@ -196,12 +211,18 @@ enum BufferAbi {
         offset: u32,
         len: u32,
     },
+    HostMulti {
+        segments: Vec<HostSegmentAbi>,
+    },
 }
 
 impl BufferAbi {
     /// Convert an incoming `BufferAbi` (Java→Rust) into a shared-core
     /// `Buffer`. For `Host`, reconstitutes the handle via `from_parts`
     /// against the per-VM registry — the refcount-share transfers in.
+    /// For `HostMulti`, reconstitutes a multi-segment handle via
+    /// `from_segments_no_retain` — every segment's refcount-share
+    /// transfers in.
     fn into_buffer(self, registry: &Arc<dyn HostBufferRegistry>) -> Buffer {
         match self {
             BufferAbi::InMemory { value } => Buffer::InMemory(Bytes::from(value)),
@@ -211,18 +232,51 @@ impl BufferAbi {
                 offset,
                 len,
             )),
+            BufferAbi::HostMulti { segments } => {
+                let segs: Vec<Segment> = segments
+                    .into_iter()
+                    .map(|s| Segment {
+                        id: s.id,
+                        offset: s.offset,
+                        len: s.len,
+                    })
+                    .collect();
+                Buffer::Host(HostBufferHandle::from_segments_no_retain(
+                    registry.clone(),
+                    segs,
+                ))
+            }
         }
     }
 
     /// Convert an outgoing `Buffer` (Rust→Java) into a `BufferAbi`. For
-    /// `Host`, transfers the refcount-share out via `mem::forget`.
+    /// `Host` / `HostMulti`, transfers the refcount-share out via
+    /// `mem::forget`.
     fn from_buffer(buf: Buffer) -> Self {
         match buf {
             Buffer::InMemory(b) => BufferAbi::InMemory { value: b.to_vec() },
             Buffer::Host(h) => {
-                let (id, offset, len) = (h.id(), h.offset(), h.len());
+                let segs = h.segments();
+                let abi = if segs.len() == 1 {
+                    let s = segs[0];
+                    BufferAbi::Host {
+                        id: s.id,
+                        offset: s.offset,
+                        len: s.len,
+                    }
+                } else {
+                    let segments = segs
+                        .iter()
+                        .map(|s| HostSegmentAbi {
+                            id: s.id,
+                            offset: s.offset,
+                            len: s.len,
+                        })
+                        .collect();
+                    BufferAbi::HostMulti { segments }
+                };
                 std::mem::forget(h);
-                BufferAbi::Host { id, offset, len }
+                abi
             }
         }
     }
@@ -238,30 +292,30 @@ impl BufferAbi {
 struct WasmHostBufferRegistry;
 
 impl HostBufferRegistry for WasmHostBufferRegistry {
-    fn retain(&self, handle: &HostBufferHandle) {
-        unsafe { _host_buffer_retain(handle.id()) }
+    fn retain(&self, id: u32) {
+        unsafe { _host_buffer_retain(id) }
     }
 
-    fn release(&self, handle: &HostBufferHandle) {
-        unsafe { _host_buffer_release(handle.id()) }
+    fn release(&self, id: u32) {
+        unsafe { _host_buffer_release(id) }
     }
 
-    fn read_into(&self, handle: &HostBufferHandle, view_offset: usize, len: usize, dst: &mut [u8]) {
-        let absolute_offset = handle.offset() + view_offset as u32;
+    fn read_into(&self, id: u32, offset: u32, len: u32, dst: &mut [u8]) {
         unsafe {
-            _host_buffer_read_into(
-                handle.id(),
-                absolute_offset,
-                len as u32,
-                dst.as_mut_ptr() as u32,
-            );
+            _host_buffer_read_into(id, offset, len, dst.as_mut_ptr() as u32);
         }
     }
 
-    fn eq(&self, a: &HostBufferHandle, b: &HostBufferHandle) -> bool {
-        unsafe {
-            _host_buffer_eq(a.id(), a.offset(), a.len(), b.id(), b.offset(), b.len()) != 0
-        }
+    fn eq(
+        &self,
+        a_id: u32,
+        a_offset: u32,
+        a_len: u32,
+        b_id: u32,
+        b_offset: u32,
+        b_len: u32,
+    ) -> bool {
+        unsafe { _host_buffer_eq(a_id, a_offset, a_len, b_id, b_offset, b_len) != 0 }
     }
 }
 
