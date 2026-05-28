@@ -128,10 +128,15 @@ class StateMachineImpl implements StateMachine {
       boolean shouldTriggerInputListener = this.messageDecoder.isNextAvailable();
       InvocationInput invocationInput = this.messageDecoder.next();
       while (invocationInput != null) {
-        LOG.trace(
-            "Received input message {} {}",
-            invocationInput.message().getClass(),
-            invocationInput.message());
+        if (invocationInput.message().getSerializedSize() < 1024) {
+          LOG.trace(
+              "Received input message {} {}",
+              invocationInput.message().getClass(),
+              invocationInput.message());
+        } else {
+          LOG.trace(
+              "Received input message {} with large payload", invocationInput.message().getClass());
+        }
 
         this.stateContext
             .getCurrentState()
