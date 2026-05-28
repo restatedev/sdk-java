@@ -82,7 +82,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
     checkNotInsideRun();
     return DurableFuture.fromAsyncResult(
             Util.awaitCompletableFuture(handlerContext.get(key.name())), serviceExecutor)
-        .mapWithoutExecutor(opt -> opt.map(serdeFactory.create(key.serdeInfo())::deserialize))
+        .map(opt -> opt.map(serdeFactory.create(key.serdeInfo())::deserialize))
         .await();
   }
 
@@ -273,7 +273,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
     return DurableFuture.fromAsyncResult(
             Util.awaitCompletableFuture(handlerContext.submitRun(name, runClosure)),
             serviceExecutor)
-        .mapWithoutExecutor(serde::deserialize);
+        .map(serde::deserialize);
   }
 
   private <T> void executeRunAction(
@@ -355,7 +355,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
     Serde<T> serde = serdeFactory.create(typeTag);
     AsyncResult<Slice> result = Util.awaitCompletableFuture(handlerContext.signal(name));
     return DurableFuture.fromAsyncResult(result, serviceExecutor)
-        .mapWithoutExecutor(serde::deserialize);
+        .map(serde::deserialize);
   }
 
   @Override
@@ -371,7 +371,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
         checkNotInsideRun();
         AsyncResult<Slice> result = Util.awaitCompletableFuture(handlerContext.promise(key.name()));
         return DurableFuture.fromAsyncResult(result, serviceExecutor)
-            .mapWithoutExecutor(serdeFactory.create(key.serdeInfo())::deserialize);
+            .map(serdeFactory.create(key.serdeInfo())::deserialize);
       }
 
       @Override
