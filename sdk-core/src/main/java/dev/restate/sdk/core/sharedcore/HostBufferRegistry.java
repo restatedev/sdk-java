@@ -31,7 +31,8 @@ final class HostBufferRegistry {
 
   private static final Logger LOG = LogManager.getLogger(HostBufferRegistry.class);
 
-  private static final class Entry {
+  // Package-private so tests in the same package can inspect refcount.
+  static final class Entry {
     final Slice slice;
     int refcount;
 
@@ -116,13 +117,7 @@ final class HostBufferRegistry {
 
   boolean eq(int aId, int aOff, int aLen, int bId, int bOff, int bLen) {
     LOG.trace(
-        "eq(aId={}, aOff={}, aLen={}, bId={}, bOff={}, bLen={})",
-        aId,
-        aOff,
-        aLen,
-        bId,
-        bOff,
-        bLen);
+        "eq(aId={}, aOff={}, aLen={}, bId={}, bOff={}, bLen={})", aId, aOff, aLen, bId, bOff, bLen);
     if (aLen != bLen) return false;
     Entry a = entries.get(aId);
     Entry b = entries.get(bId);
@@ -132,5 +127,4 @@ final class HostBufferRegistry {
         .asReadOnlyByteBuffer()
         .equals(b.slice.slice(bOff, bLen).asReadOnlyByteBuffer());
   }
-
 }

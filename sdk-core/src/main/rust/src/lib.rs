@@ -188,30 +188,35 @@ fn log_subscriber(level: AbiLogLevel) -> impl Subscriber + Send + Sync + 'static
 //     refcount-share that the receiving side must eventually release.
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct HostSegmentAbi {
+    #[serde(rename = "a")]
     id: u32,
+    #[serde(rename = "b")]
     offset: u32,
+    #[serde(rename = "c")]
     len: u32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(
-    tag = "type",
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase"
-)]
+#[serde(tag = "t")]
 enum BufferAbi {
+    #[serde(rename = "a")]
     InMemory {
-        #[serde(with = "serde_bytes")]
+        #[serde(with = "serde_bytes", rename = "a")]
         value: Vec<u8>,
     },
+    #[serde(rename = "b")]
     Host {
+        #[serde(rename = "a")]
         id: u32,
+        #[serde(rename = "b")]
         offset: u32,
+        #[serde(rename = "c")]
         len: u32,
     },
+    #[serde(rename = "c")]
     HostMulti {
+        #[serde(rename = "a")]
         segments: Vec<HostSegmentAbi>,
     },
 }
@@ -466,27 +471,114 @@ fn vm_do_progress(rc_vm: &Rc<RefCell<WasmVM>>, input: VmDoProgressParameters) ->
     }
 }
 
+// vm_take_notification has a hand-rolled binary encoding instead of CBOR.
+// This is the hottest path (called per notification), and Jackson's per-call
+// parser setup + ciborium's enum dispatch dominated the flamegraph. The
+// format below is mirrored 1:1 in the Java decoder
+// (StateMachine.decodeTakeNotification). All multi-byte ints are little-endian
+// (cheap on x86, no byte-swap in Java).
+//
+// The three nested enum levels (TakeNotificationReturn → NotificationValue →
+// BufferAbi) are flattened into a single discriminant byte — every reachable
+// terminal outcome gets its own tag. One read per notification on the Java
+// side, no nested switches.
+//
+//   u8 tag:
+//     0 = NotReady (no payload, decoder returns null)
+//     1 = Void (no payload)
+//     2 = SuccessInMemory (u32 len, len bytes)
+//     3 = SuccessHost (u32 id, u32 offset, u32 len) — Java materialises from registry
+//     4 = SuccessHostMulti (u32 seg_count, count*(u32 id, u32 offset, u32 len))
+//     5 = NotificationFailure (u16 code, u32 msg_len, msg bytes,
+//                              u32 meta_count, count*(u32 k_len, k, u32 v_len, v))
+//     6 = StateKeys (u32 count, count*(u32 len, bytes))
+//     7 = InvocationId (u32 len, bytes)
+//     8 = VmFailure (u16 code, u32 msg_len, msg bytes) — decoder throws ProtocolException
+//
+// SuccessHost / SuccessHostMulti `mem::forget` their HostBufferHandles — Java
+// owns the refcount-share and must release.
+
 #[export_name = "vm_take_notification"]
 pub unsafe extern "C" fn _vm_take_notification(
     vm_pointer: *const RefCell<WasmVM>,
     handle: u32,
 ) -> u64 {
     let rc_vm = vm_ptr_to_rc(vm_pointer);
-    let res = vm_take_notification(&rc_vm, NotificationHandle::from(handle));
-    output_to_ptr(res)
+    let result =
+        VM::take_notification(&mut rc_vm.borrow_mut().vm, NotificationHandle::from(handle));
+    let mut buf = Vec::with_capacity(16);
+    encode_take_notification(&mut buf, result);
+    vec_to_ptr(buf)
 }
 
-fn vm_take_notification(
-    rc_vm: &Rc<RefCell<WasmVM>>,
-    handle: NotificationHandle,
-) -> TakeNotificationReturn {
-    match VM::take_notification(&mut rc_vm.borrow_mut().vm, handle) {
-        Ok(None) => TakeNotificationReturn::NotReady,
-        Ok(Some(v)) => TakeNotificationReturn::Value {
-            value: NotificationValue::from(v),
-        },
-        Err(e) => TakeNotificationReturn::from_err(e),
+fn encode_take_notification(buf: &mut Vec<u8>, result: Result<Option<Value>, Error>) {
+    match result {
+        Ok(None) => buf.push(0),
+        Ok(Some(Value::Void)) => buf.push(1),
+        Ok(Some(Value::Success(Buffer::InMemory(bytes)))) => {
+            buf.push(2);
+            buf.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
+            buf.extend_from_slice(&bytes);
+        }
+        Ok(Some(Value::Success(Buffer::Host(h)))) => {
+            let segs = h.segments();
+            if segs.len() == 1 {
+                buf.push(3);
+                let s = segs[0];
+                buf.extend_from_slice(&s.id.to_le_bytes());
+                buf.extend_from_slice(&s.offset.to_le_bytes());
+                buf.extend_from_slice(&s.len.to_le_bytes());
+            } else {
+                buf.push(4);
+                buf.extend_from_slice(&(segs.len() as u32).to_le_bytes());
+                for s in segs {
+                    buf.extend_from_slice(&s.id.to_le_bytes());
+                    buf.extend_from_slice(&s.offset.to_le_bytes());
+                    buf.extend_from_slice(&s.len.to_le_bytes());
+                }
+            }
+            // Transfer refcount-share to Java: host_buffer_release runs when
+            // Java is done with the (id, offset, len) tuple.
+            std::mem::forget(h);
+        }
+        Ok(Some(Value::Failure(TerminalFailure {
+            code,
+            message,
+            metadata,
+        }))) => {
+            buf.push(5);
+            buf.extend_from_slice(&code.to_le_bytes());
+            encode_str(buf, &message);
+            buf.extend_from_slice(&(metadata.len() as u32).to_le_bytes());
+            for (k, v) in metadata {
+                encode_str(buf, &k);
+                encode_str(buf, &v);
+            }
+        }
+        Ok(Some(Value::StateKeys(keys))) => {
+            buf.push(6);
+            buf.extend_from_slice(&(keys.len() as u32).to_le_bytes());
+            for k in keys {
+                encode_str(buf, &k);
+            }
+        }
+        Ok(Some(Value::InvocationId(id))) => {
+            buf.push(7);
+            encode_str(buf, &id);
+        }
+        Err(e) => {
+            buf.push(8);
+            buf.extend_from_slice(&e.code().to_le_bytes());
+            encode_str(buf, &e.to_string());
+        }
     }
+}
+
+#[inline]
+fn encode_str(buf: &mut Vec<u8>, s: &str) {
+    let bytes = s.as_bytes();
+    buf.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
+    buf.extend_from_slice(bytes);
 }
 
 #[export_name = "vm_sys_input"]
@@ -1186,20 +1278,21 @@ unsafe fn deallocate(ptr: *mut u8, size: usize) {
 // --------- Input DTOs (Java → Rust, CBOR maps with camelCase keys)
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(transparent)]
 struct VmNewParameters {
     headers: Vec<(String, String)>,
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct VmNotifyError {
+    #[serde(rename = "a")]
     message: String,
-    #[serde(default)]
+    #[serde(default, rename = "b")]
     stacktrace: Option<String>,
 }
 
 #[derive(Deserialize)]
+#[serde(transparent)]
 struct VmDoProgressParameters {
     future: UnresolvedFuture,
 }
@@ -1208,18 +1301,38 @@ struct VmDoProgressParameters {
 /// and carries the original combinator semantics from the SDK to the core VM, so
 /// the runtime sees the right combinator in `AwaitingOnMessage` / `SuspensionMessage`.
 #[derive(Deserialize)]
-#[serde(
-    tag = "type",
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase"
-)]
+#[serde(tag = "t")]
 enum UnresolvedFuture {
-    Single { handle: u32 },
-    FirstCompleted { children: Vec<UnresolvedFuture> },
-    AllCompleted { children: Vec<UnresolvedFuture> },
-    FirstSucceededOrAllFailed { children: Vec<UnresolvedFuture> },
-    AllSucceededOrFirstFailed { children: Vec<UnresolvedFuture> },
-    Unknown { children: Vec<UnresolvedFuture> },
+    #[serde(rename = "a")]
+    Single {
+        #[serde(rename = "a")]
+        handle: u32,
+    },
+    #[serde(rename = "b")]
+    FirstCompleted {
+        #[serde(rename = "a")]
+        children: Vec<UnresolvedFuture>,
+    },
+    #[serde(rename = "c")]
+    AllCompleted {
+        #[serde(rename = "a")]
+        children: Vec<UnresolvedFuture>,
+    },
+    #[serde(rename = "d")]
+    FirstSucceededOrAllFailed {
+        #[serde(rename = "a")]
+        children: Vec<UnresolvedFuture>,
+    },
+    #[serde(rename = "e")]
+    AllSucceededOrFirstFailed {
+        #[serde(rename = "a")]
+        children: Vec<UnresolvedFuture>,
+    },
+    #[serde(rename = "f")]
+    Unknown {
+        #[serde(rename = "a")]
+        children: Vec<UnresolvedFuture>,
+    },
 }
 
 impl From<UnresolvedFuture> for restate_sdk_shared_core::UnresolvedFuture {
@@ -1248,54 +1361,60 @@ impl From<UnresolvedFuture> for restate_sdk_shared_core::UnresolvedFuture {
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(transparent)]
 struct VmSysStateGetParameters {
     key: String,
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct VmSysStateSetParameters {
+    #[serde(rename = "a")]
     key: String,
+    #[serde(rename = "b")]
     value: BufferAbi,
 }
 
 #[derive(Deserialize)]
+#[serde(transparent)]
 struct VmSysStateClearParameters {
     key: String,
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct VmSysSleepParameters {
+    #[serde(rename = "a")]
     name: String,
+    #[serde(rename = "b")]
     wake_up_time_since_unix_epoch_millis: u64,
+    #[serde(rename = "c")]
     now_since_unix_epoch_millis: u64,
 }
 
 /// Combined success/failure for awakeable completion (mirrors Go's single endpoint).
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct VmSysCompleteAwakeableParameters {
+    #[serde(rename = "a")]
     id: String,
+    #[serde(rename = "b")]
     result: NonEmptyValueParam,
 }
 
 /// Combined success/failure union used by awakeable, promise, write_output, signal.
 #[derive(Deserialize)]
-#[serde(
-    tag = "type",
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase"
-)]
+#[serde(tag = "t")]
 enum NonEmptyValueParam {
+    #[serde(rename = "a")]
     Success {
+        #[serde(rename = "a")]
         value: BufferAbi,
     },
+    #[serde(rename = "b")]
     Failure {
+        #[serde(rename = "a")]
         code: u32,
+        #[serde(rename = "b")]
         message: String,
-        #[serde(default)]
+        #[serde(default, rename = "c")]
         metadata: Option<Vec<(String, String)>>,
     },
 }
@@ -1320,136 +1439,155 @@ impl NonEmptyValueParam {
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct VmSysCallParameters {
+    #[serde(rename = "a")]
     service: String,
+    #[serde(rename = "b")]
     handler: String,
-    #[serde(default)]
+    #[serde(default, rename = "c")]
     key: Option<String>,
-    #[serde(default)]
+    #[serde(default, rename = "d")]
     idempotency_key: Option<String>,
-    #[serde(default)]
+    #[serde(default, rename = "e")]
     headers: Vec<(String, String)>,
+    #[serde(rename = "f")]
     input: BufferAbi,
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct VmSysSendParameters {
+    #[serde(rename = "a")]
     service: String,
+    #[serde(rename = "b")]
     handler: String,
-    #[serde(default)]
+    #[serde(default, rename = "c")]
     key: Option<String>,
-    #[serde(default)]
+    #[serde(default, rename = "d")]
     idempotency_key: Option<String>,
-    #[serde(default)]
+    #[serde(default, rename = "e")]
     headers: Vec<(String, String)>,
+    #[serde(rename = "f")]
     input: BufferAbi,
-    #[serde(default)]
+    #[serde(default, rename = "g")]
     execution_time_since_unix_epoch_millis: Option<u64>,
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(transparent)]
 struct VmSysCancelInvocation {
     invocation_id: String,
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(transparent)]
 struct VmSysAttachInvocation {
     invocation_id: String,
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(transparent)]
 struct VmSysGetInvocationOutput {
     invocation_id: String,
 }
 
 #[derive(Deserialize)]
+#[serde(transparent)]
 struct VmSysPromiseGetParameters {
     key: String,
 }
 
 #[derive(Deserialize)]
+#[serde(transparent)]
 struct VmSysPromisePeekParameters {
     key: String,
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct VmSysPromiseCompleteParameters {
+    #[serde(rename = "a")]
     id: String,
+    #[serde(rename = "b")]
     result: NonEmptyValueParam,
 }
 
 #[derive(Deserialize)]
+#[serde(transparent)]
 struct VmSysRunParameters {
     name: String,
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct VmProposeRunCompletionParameters {
+    #[serde(rename = "a")]
     handle: u32,
+    #[serde(rename = "b")]
     result: RunResult,
+    #[serde(rename = "c")]
     attempt_duration_millis: u64,
-    #[serde(default)]
+    #[serde(default, rename = "d")]
     retry_policy: Option<WasmRetryPolicy>,
 }
 
 #[derive(Deserialize)]
-#[serde(
-    tag = "type",
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase"
-)]
+#[serde(tag = "t")]
 enum RunResult {
+    #[serde(rename = "a")]
     Success {
+        #[serde(rename = "a")]
         value: BufferAbi,
     },
+    #[serde(rename = "b")]
     TerminalFailure {
+        #[serde(rename = "a")]
         code: u32,
+        #[serde(rename = "b")]
         message: String,
-        #[serde(default)]
+        #[serde(default, rename = "c")]
         metadata: Option<Vec<(String, String)>>,
     },
+    #[serde(rename = "c")]
     RetryableFailure {
+        #[serde(rename = "a")]
         code: u32,
+        #[serde(rename = "b")]
         message: String,
-        #[serde(default)]
+        #[serde(default, rename = "c")]
         stacktrace: Option<String>,
     },
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct WasmRetryPolicy {
+    #[serde(rename = "a")]
     initial_interval_millis: u64,
+    #[serde(rename = "b")]
     factor: f32,
-    #[serde(default)]
+    #[serde(default, rename = "c")]
     max_interval_millis: Option<u64>,
-    #[serde(default)]
+    #[serde(default, rename = "d")]
     max_attempts: Option<u32>,
-    #[serde(default)]
+    #[serde(default, rename = "e")]
     max_duration_millis: Option<u64>,
 }
 
 #[derive(Deserialize)]
+#[serde(transparent)]
 struct VmSysCreateSignalHandleParameters {
     name: String,
 }
 
 #[derive(Deserialize)]
 struct VmSysCompleteSignalParameters {
+    #[serde(rename = "a")]
     target: String,
+    #[serde(rename = "b")]
     name: String,
+    #[serde(rename = "c")]
     result: NonEmptyValueParam,
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(transparent)]
 struct VmSysWriteOutputParameters {
     result: NonEmptyValueParam,
 }
@@ -1458,14 +1596,20 @@ struct VmSysWriteOutputParameters {
 // Each return type has a `from_err` helper matching Go's `.into()` from Failure conversions.
 
 #[derive(Serialize)]
-#[serde(
-    tag = "type",
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase"
-)]
+#[serde(tag = "t")]
 enum VmNewReturn {
-    Ok { pointer: u32 },
-    Failure { code: u32, message: String },
+    #[serde(rename = "a")]
+    Ok {
+        #[serde(rename = "a")]
+        pointer: u32,
+    },
+    #[serde(rename = "b")]
+    Failure {
+        #[serde(rename = "a")]
+        code: u32,
+        #[serde(rename = "b")]
+        message: String,
+    },
 }
 impl VmNewReturn {
     fn from_err(e: Error) -> Self {
@@ -1477,64 +1621,76 @@ impl VmNewReturn {
 }
 
 #[derive(Serialize)]
-#[serde(
-    tag = "type",
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase"
-)]
+#[serde(tag = "t")]
 enum TakeOutputReturn {
     /// One drained buffer from the output queue. May be inline or host.
-    Buffer { buffer: BufferAbi },
+    #[serde(rename = "a")]
+    Buffer {
+        #[serde(rename = "a")]
+        buffer: BufferAbi,
+    },
     /// The output queue is empty.
+    #[serde(rename = "b")]
     None,
 }
 
 /// Equivalent to Go's GenericEmptyReturn.
 #[derive(Serialize)]
-#[serde(
-    tag = "type",
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase"
-)]
+#[serde(tag = "t")]
 enum EmptyReturn {
+    #[serde(rename = "a")]
     Ok {
+        #[serde(rename = "a")]
         state: u32,
     },
+    #[serde(rename = "b")]
     Failure {
+        #[serde(rename = "a")]
         code: u32,
+        #[serde(rename = "b")]
         message: String,
+        #[serde(rename = "c")]
         state: u32,
     },
 }
 
 /// Equivalent to Go's SimpleSysAsyncResultReturn.
 #[derive(Serialize)]
-#[serde(
-    tag = "type",
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase"
-)]
+#[serde(tag = "t")]
 enum HandleReturn {
+    #[serde(rename = "a")]
     Ok {
+        #[serde(rename = "a")]
         handle: u32,
+        #[serde(rename = "b")]
         state: u32,
     },
+    #[serde(rename = "b")]
     Failure {
+        #[serde(rename = "a")]
         code: u32,
+        #[serde(rename = "b")]
         message: String,
+        #[serde(rename = "c")]
         state: u32,
     },
 }
 
 #[derive(Serialize)]
-#[serde(
-    tag = "type",
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase"
-)]
+#[serde(tag = "t")]
 enum IsReadyReturn {
-    Ok { ready: bool },
-    Failure { code: u32, message: String },
+    #[serde(rename = "a")]
+    Ok {
+        #[serde(rename = "a")]
+        ready: bool,
+    },
+    #[serde(rename = "b")]
+    Failure {
+        #[serde(rename = "a")]
+        code: u32,
+        #[serde(rename = "b")]
+        message: String,
+    },
 }
 impl IsReadyReturn {
     fn from_err(e: Error) -> Self {
@@ -1547,25 +1703,36 @@ impl IsReadyReturn {
 
 /// Plain struct (no Ok/Failure wrapper) — mirrors Go's VmGetResponseHeadReturn.
 #[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
 struct ResponseHeadReturn {
+    #[serde(rename = "a")]
     status_code: u32,
+    #[serde(rename = "b")]
     headers: Vec<(String, String)>,
 }
 
 #[derive(Serialize)]
-#[serde(
-    tag = "type",
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase"
-)]
+#[serde(tag = "t")]
 enum DoProgressReturn {
+    #[serde(rename = "a")]
     AnyCompleted,
+    #[serde(rename = "b")]
     WaitingExternalProgress,
-    ExecuteRun { handle: u32 },
+    #[serde(rename = "c")]
+    ExecuteRun {
+        #[serde(rename = "a")]
+        handle: u32,
+    },
+    #[serde(rename = "d")]
     CancelSignalReceived,
+    #[serde(rename = "e")]
     Suspended,
-    Failure { code: u32, message: String },
+    #[serde(rename = "f")]
+    Failure {
+        #[serde(rename = "a")]
+        code: u32,
+        #[serde(rename = "b")]
+        message: String,
+    },
 }
 impl DoProgressReturn {
     fn from_err(e: Error) -> Self {
@@ -1576,107 +1743,37 @@ impl DoProgressReturn {
     }
 }
 
-/// Notification value (the payload of a completed handle).
 #[derive(Serialize)]
-#[serde(
-    tag = "type",
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase"
-)]
-enum NotificationValue {
-    Void,
-    Success {
-        value: BufferAbi,
-    },
-    Failure {
-        code: u16,
-        message: String,
-        metadata: Vec<(String, String)>,
-    },
-    StateKeys {
-        keys: Vec<String>,
-    },
-    InvocationId {
-        id: String,
-    },
-}
-
-impl From<Value> for NotificationValue {
-    fn from(v: Value) -> Self {
-        match v {
-            Value::Void => NotificationValue::Void,
-            Value::Success(b) => {
-                tracing::trace!(
-                    "NotificationValue::Success buffer variant: {}, len={}",
-                    match &b {
-                        Buffer::InMemory(_) => "InMemory",
-                        Buffer::Host(_) => "Host",
-                    },
-                    b.len()
-                );
-                NotificationValue::Success {
-                    value: BufferAbi::from_buffer(b),
-                }
-            }
-            Value::Failure(TerminalFailure {
-                code,
-                message,
-                metadata,
-            }) => NotificationValue::Failure {
-                code,
-                message,
-                metadata,
-            },
-            Value::StateKeys(keys) => NotificationValue::StateKeys { keys },
-            Value::InvocationId(id) => NotificationValue::InvocationId { id },
-        }
-    }
-}
-
-#[derive(Serialize)]
-#[serde(
-    tag = "type",
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase"
-)]
-enum TakeNotificationReturn {
-    NotReady,
-    Value { value: NotificationValue },
-    Failure { code: u32, message: String },
-}
-impl TakeNotificationReturn {
-    fn from_err(e: Error) -> Self {
-        Self::Failure {
-            code: e.code() as u32,
-            message: e.to_string(),
-        }
-    }
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
 struct WasmInput {
+    #[serde(rename = "a")]
     invocation_id: String,
+    #[serde(rename = "b")]
     key: String,
+    #[serde(rename = "c")]
     headers: Vec<(String, String)>,
+    #[serde(rename = "d")]
     input: BufferAbi,
+    #[serde(rename = "e")]
     random_seed: i64,
 }
 
 #[derive(Serialize)]
-#[serde(
-    tag = "type",
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase"
-)]
+#[serde(tag = "t")]
 enum SysInputReturn {
+    #[serde(rename = "a")]
     Ok {
+        #[serde(rename = "a")]
         input: WasmInput,
+        #[serde(rename = "b")]
         state: u32,
     },
+    #[serde(rename = "b")]
     Failure {
+        #[serde(rename = "a")]
         code: u32,
+        #[serde(rename = "b")]
         message: String,
+        #[serde(rename = "c")]
         state: u32,
     },
 }
@@ -1691,20 +1788,24 @@ impl SysInputReturn {
 }
 
 #[derive(Serialize)]
-#[serde(
-    tag = "type",
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase"
-)]
+#[serde(tag = "t")]
 enum AwakeableReturn {
+    #[serde(rename = "a")]
     Ok {
+        #[serde(rename = "a")]
         id: String,
+        #[serde(rename = "b")]
         handle: u32,
+        #[serde(rename = "c")]
         state: u32,
     },
+    #[serde(rename = "b")]
     Failure {
+        #[serde(rename = "a")]
         code: u32,
+        #[serde(rename = "b")]
         message: String,
+        #[serde(rename = "c")]
         state: u32,
     },
 }
@@ -1719,20 +1820,24 @@ impl AwakeableReturn {
 }
 
 #[derive(Serialize)]
-#[serde(
-    tag = "type",
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase"
-)]
+#[serde(tag = "t")]
 enum SysCallReturn {
+    #[serde(rename = "a")]
     Ok {
+        #[serde(rename = "a")]
         invocation_id_handle: u32,
+        #[serde(rename = "b")]
         result_handle: u32,
+        #[serde(rename = "c")]
         state: u32,
     },
+    #[serde(rename = "b")]
     Failure {
+        #[serde(rename = "a")]
         code: u32,
+        #[serde(rename = "b")]
         message: String,
+        #[serde(rename = "c")]
         state: u32,
     },
 }

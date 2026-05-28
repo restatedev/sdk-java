@@ -18,7 +18,6 @@ import com.dylibso.chicory.wasm.WasmModule;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.dataformat.cbor.databind.CBORMapper;
-import dev.restate.common.Slice;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.sharedcore.generated.SharedCoreWasmMachine;
 import java.io.IOException;

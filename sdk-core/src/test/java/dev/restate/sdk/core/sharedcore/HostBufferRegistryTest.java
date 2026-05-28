@@ -31,6 +31,19 @@ class HostBufferRegistryTest {
   }
 
   @Test
+  void idsAreNotReusedAfterRelease() {
+    var reg = new HostBufferRegistry();
+    int id1 = reg.register(Slice.wrap("a".getBytes()));
+    reg.release(id1);
+    int id2 = reg.register(Slice.wrap("b".getBytes()));
+    // Don't reuse — Rust may still hold a stale handle from a prior failed
+    // decode path; reusing ids would alias bytes across handles.
+    assertThat(id2).isGreaterThan(id1);
+    reg.release(id2);
+    assertThat(reg.entries).isEmpty();
+  }
+
+  @Test
   void releaseDropsEntryOnlyWhenRefcountHitsZero() {
     var reg = new HostBufferRegistry();
     int id = reg.register(Slice.wrap("abc".getBytes()));
@@ -59,6 +72,19 @@ class HostBufferRegistryTest {
   }
 
   @Test
+  void sliceOnUnknownIdThrows() {
+    var reg = new HostBufferRegistry();
+    assertThatThrownBy(() -> reg.slice(99, 0, 0)).isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void readIntoOnUnknownIdThrows() {
+    var reg = new HostBufferRegistry();
+    assertThatThrownBy(() -> reg.readInto(99, 0, 3, new byte[3], 0))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
   void readIntoRespectsOffset() {
     var reg = new HostBufferRegistry();
     int id = reg.register(Slice.wrap("abcdefgh".getBytes()));
@@ -75,11 +101,53 @@ class HostBufferRegistryTest {
   }
 
   @Test
+  void readIntoRespectsDstOffset() {
+    var reg = new HostBufferRegistry();
+    int id = reg.register(Slice.wrap("abcdef".getBytes()));
+
+    byte[] dst = new byte[8];
+    // Pre-fill with marker bytes so we can see exactly which range was overwritten.
+    java.util.Arrays.fill(dst, (byte) '_');
+    reg.readInto(id, 1, 3, dst, 2);
+    assertThat(new String(dst)).isEqualTo("__bcd___");
+
+    reg.release(id);
+  }
+
+  @Test
+  void sliceReturnsAZeroCopySubviewSharingStorage() {
+    byte[] backing = "abcdefgh".getBytes();
+    var reg = new HostBufferRegistry();
+    int id = reg.register(Slice.wrap(backing));
+
+    Slice sub = reg.slice(id, 2, 4);
+    assertThat(sub.readableBytes()).isEqualTo(4);
+    assertThat(new String(sub.toByteArray())).isEqualTo("cdef");
+
+    reg.release(id);
+  }
+
+  @Test
+  void subSliceRemainsReadableAfterReleasingTheRegistryEntry() {
+    // This is the property the BufferParam.Host path in StateMachine.toSlice
+    // relies on: register → slice → release, then the caller keeps reading
+    // from the sub-Slice. The sub-Slice's ByteBuffer pins the backing storage.
+    var reg = new HostBufferRegistry();
+    int id = reg.register(Slice.wrap("hello world".getBytes()));
+
+    Slice sub = reg.slice(id, 0, 5);
+    reg.release(id);
+    assertThat(reg.entries).isEmpty();
+
+    // sub still reads correctly
+    assertThat(new String(sub.toByteArray())).isEqualTo("hello");
+  }
+
+  @Test
   void eqComparesByteRangesAndShortCircuitsOnLengthMismatch() {
     var reg = new HostBufferRegistry();
     int idA = reg.register(Slice.wrap("hello world".getBytes())); // 11 bytes
-    int idB =
-        reg.register(Slice.wrap("xxhello world".getBytes())); // 13 bytes, match at offset 2
+    int idB = reg.register(Slice.wrap("xxhello world".getBytes())); // 13 bytes, match at offset 2
 
     // Equal ranges, different offsets
     assertThat(reg.eq(idA, 0, 11, idB, 2, 11)).isTrue();
@@ -89,8 +157,51 @@ class HostBufferRegistryTest {
     assertThat(reg.eq(idA, 0, 5, idA, 6, 5)).isFalse();
     // Self-equality
     assertThat(reg.eq(idA, 0, 11, idA, 0, 11)).isTrue();
+    // Zero-length compares always equal (regardless of offsets)
+    assertThat(reg.eq(idA, 0, 0, idB, 5, 0)).isTrue();
 
     reg.release(idA);
     reg.release(idB);
+  }
+
+  @Test
+  void eqOnUnknownIdReturnsFalse() {
+    // Tolerated rather than throwing — eq comparisons happen during replay,
+    // sometimes against stale handles in degenerate flows.
+    var reg = new HostBufferRegistry();
+    int id = reg.register(Slice.wrap("abc".getBytes()));
+    assertThat(reg.eq(id, 0, 3, 999, 0, 3)).isFalse();
+    assertThat(reg.eq(999, 0, 3, id, 0, 3)).isFalse();
+    reg.release(id);
+  }
+
+  @Test
+  void emptySliceRoundTripsWithoutCrashing() {
+    var reg = new HostBufferRegistry();
+    int id = reg.register(Slice.wrap(new byte[0]));
+
+    // Zero-length read with empty dst byte[] is a no-op.
+    reg.readInto(id, 0, 0, new byte[0], 0);
+    Slice sub = reg.slice(id, 0, 0);
+    assertThat(sub.readableBytes()).isEqualTo(0);
+
+    reg.release(id);
+    assertThat(reg.entries).isEmpty();
+  }
+
+  @Test
+  void manyRegistersFollowedByManyReleasesDrainsCompletely() {
+    var reg = new HostBufferRegistry();
+    int[] ids = new int[64];
+    for (int i = 0; i < ids.length; i++) {
+      ids[i] = reg.register(Slice.wrap(("entry-" + i).getBytes()));
+    }
+    assertThat(reg.entries).hasSize(64);
+
+    // Release out of order to ensure no hidden order assumptions.
+    for (int i = ids.length - 1; i >= 0; i--) {
+      reg.release(ids[i]);
+    }
+    assertThat(reg.entries).isEmpty();
   }
 }
