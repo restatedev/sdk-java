@@ -66,9 +66,7 @@ class HandlerContextImpl implements HandlerContextInternal {
             input.body(),
             input.headers(),
             serviceName,
-            handlerName,
-            serviceType,
-            handlerType);
+            handlerName);
     this.attemptHeaders = attemptHeaders;
     this.objectKey = input.key();
     this.stateMachine = stateMachine;

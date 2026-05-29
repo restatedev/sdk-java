@@ -20,8 +20,6 @@ import dev.restate.sdk.core.ExceptionUtils;
 import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
-import dev.restate.sdk.endpoint.definition.HandlerType;
-import dev.restate.sdk.endpoint.definition.ServiceType;
 import io.opentelemetry.context.Context;
 import java.time.Duration;
 import java.util.Collection;
@@ -69,9 +67,7 @@ class FakeHandlerContext implements HandlerContext {
         Slice.EMPTY,
         expectations.requestHeaders(),
         "FakeService",
-        "fakeHandler",
-        ServiceType.SERVICE,
-        HandlerType.SHARED);
+        "fakeHandler");
   }
 
   @Override
