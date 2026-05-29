@@ -8,14 +8,12 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.interceptor.opentelemetry;
 
-import static dev.restate.sdk.interceptor.opentelemetry.OpenTelemetryAttributes.HEADERS_GETTER;
-import static dev.restate.sdk.interceptor.opentelemetry.OpenTelemetryAttributes.W3C_TRACE_CONTEXT_PROPAGATOR;
+import static dev.restate.sdk.interceptor.opentelemetry.OpenTelemetryHelpers.*;
 
 import dev.restate.sdk.interceptor.HandlerInterceptor;
 import dev.restate.sdk.interceptor.RunInterceptor;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
@@ -54,27 +52,16 @@ public final class OpenTelemetryInterceptorFactory
     if (openTelemetry == OpenTelemetry.noop()) {
       return null;
     }
-    Tracer tracer = openTelemetry.getTracer(OpenTelemetryAttributes.INSTRUMENTATION_NAME);
+    Tracer tracer = openTelemetry.getTracer(OpenTelemetryHelpers.INSTRUMENTATION_NAME);
 
     return (ctx, next) -> {
-      String target = ctx.request().serviceName() + "/" + ctx.request().handlerName();
-      Context parent =
-          W3C_TRACE_CONTEXT_PROPAGATOR.extract(
-              Context.current(), ctx.attemptHeaders(), HEADERS_GETTER);
-      Span span =
-          tracer
-              .spanBuilder("attempt " + target)
-              .setSpanKind(SpanKind.SERVER)
-              .setParent(parent)
-              .setAttribute(
-                  OpenTelemetryAttributes.INVOCATION_ID, ctx.request().invocationId().toString())
-              .setAttribute(OpenTelemetryAttributes.INVOCATION_TARGET, target)
-              .startSpan();
+      Context parent = extractHandlerContext(ctx.attemptHeaders());
+      Span span = OpenTelemetryHelpers.startHandlerSpan(tracer, parent, ctx.request());
       try (Scope ignored = parent.with(span).makeCurrent()) {
         next.proceed();
         span.setStatus(StatusCode.OK);
       } catch (Throwable t) {
-        span.setStatus(StatusCode.ERROR, t.getMessage() == null ? "" : t.getMessage());
+        span.setStatus(StatusCode.ERROR);
         span.recordException(t);
         throw t;
       } finally {
@@ -88,22 +75,16 @@ public final class OpenTelemetryInterceptorFactory
     if (openTelemetry == OpenTelemetry.noop()) {
       return null;
     }
-    Tracer tracer = openTelemetry.getTracer(OpenTelemetryAttributes.INSTRUMENTATION_NAME);
+    Tracer tracer = openTelemetry.getTracer(OpenTelemetryHelpers.INSTRUMENTATION_NAME);
 
     return (runCtx, next) -> {
-      String name = runCtx.runName() != null ? runCtx.runName() : "run";
       Context parent = Context.current();
-      Span runSpan =
-          tracer
-              .spanBuilder("run (" + name + ")")
-              .setParent(parent)
-              .setAttribute(OpenTelemetryAttributes.RUN_NAME, name)
-              .startSpan();
+      Span runSpan = OpenTelemetryHelpers.startRunSpan(tracer, parent, runCtx.runName());
       try (Scope ignored = parent.with(runSpan).makeCurrent()) {
         next.proceed();
         runSpan.setStatus(StatusCode.OK);
       } catch (Throwable t) {
-        runSpan.setStatus(StatusCode.ERROR, t.getMessage() == null ? "" : t.getMessage());
+        runSpan.setStatus(StatusCode.ERROR);
         runSpan.recordException(t);
         throw t;
       } finally {

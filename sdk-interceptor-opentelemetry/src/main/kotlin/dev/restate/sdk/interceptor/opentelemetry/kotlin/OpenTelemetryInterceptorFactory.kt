@@ -8,11 +8,10 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.interceptor.opentelemetry.kotlin
 
-import dev.restate.sdk.interceptor.opentelemetry.OpenTelemetryAttributes.*
+import dev.restate.sdk.interceptor.opentelemetry.OpenTelemetryHelpers.*
 import dev.restate.sdk.kotlin.interceptor.HandlerInterceptor
 import dev.restate.sdk.kotlin.interceptor.RunInterceptor
 import io.opentelemetry.api.OpenTelemetry
-import io.opentelemetry.api.trace.SpanKind
 import io.opentelemetry.api.trace.StatusCode
 import io.opentelemetry.context.Context
 import io.opentelemetry.extension.kotlin.asContextElement
@@ -34,21 +33,8 @@ class OpenTelemetryInterceptorFactory(private val openTelemetry: OpenTelemetry) 
     val tracer = openTelemetry.getTracer(INSTRUMENTATION_NAME)
 
     return HandlerInterceptor { ctx, next ->
-      val target = "${ctx.request.serviceName()}/${ctx.request.handlerName()}"
-      val parent =
-          W3C_TRACE_CONTEXT_PROPAGATOR.extract(
-              Context.current(),
-              ctx.attemptHeaders,
-              HEADERS_GETTER,
-          )
-      val span =
-          tracer
-              .spanBuilder("attempt $target")
-              .setSpanKind(SpanKind.SERVER)
-              .setParent(parent)
-              .setAttribute(INVOCATION_ID, ctx.request.invocationId().toString())
-              .setAttribute(INVOCATION_TARGET, target)
-              .startSpan()
+      val parent = extractHandlerContext(ctx.attemptHeaders)
+      val span = startHandlerSpan(tracer, parent, ctx.request)
       try {
         withContext(parent.with(span).asContextElement()) { next() }
         span.setStatus(StatusCode.OK)
@@ -67,14 +53,8 @@ class OpenTelemetryInterceptorFactory(private val openTelemetry: OpenTelemetry) 
     val tracer = openTelemetry.getTracer(INSTRUMENTATION_NAME)
 
     return RunInterceptor { runCtx, next ->
-      val name = runCtx.runName ?: "run"
       val parent = Context.current()
-      val span =
-          tracer
-              .spanBuilder("run ($name)")
-              .setParent(parent)
-              .setAttribute(RUN_NAME, name)
-              .startSpan()
+      val span = startRunSpan(tracer, parent, runCtx.runName)
       try {
         withContext(parent.with(span).asContextElement()) { next() }
         span.setStatus(StatusCode.OK)
