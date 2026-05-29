@@ -7,7 +7,7 @@ class {{generatedClassSimpleName}}: dev.restate.sdk.endpoint.definition.ServiceD
             check(overrideHandlerOptions is dev.restate.sdk.kotlin.HandlerRunner.Options)
             overrideHandlerOptions as dev.restate.sdk.kotlin.HandlerRunner.Options
         } else {
-            dev.restate.sdk.kotlin.HandlerRunner.Options.DEFAULT
+            dev.restate.sdk.kotlin.HandlerRunner.Options()
         }
 
         return dev.restate.sdk.endpoint.definition.ServiceDefinition.of(
