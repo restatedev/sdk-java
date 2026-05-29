@@ -78,8 +78,8 @@ public class MicrometerObservationTest {
         .that()
         .hasBeenStarted()
         .hasBeenStopped()
-        .hasLowCardinalityKeyValue("restate.service", "greeter")
-        .hasLowCardinalityKeyValue("restate.handler", "greet");
+        .hasContextualNameEqualTo("attempt greeter/greet")
+        .hasHighCardinalityKeyValue("restate.invocation.target", "greeter/greet");
   }
 
   @Configuration

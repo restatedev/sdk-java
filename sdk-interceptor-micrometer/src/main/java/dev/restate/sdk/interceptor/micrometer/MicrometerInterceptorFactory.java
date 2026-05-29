@@ -8,6 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.interceptor.micrometer;
 
+import static dev.restate.sdk.interceptor.micrometer.MicrometerHelpers.*;
+
 import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.interceptor.HandlerInterceptor;
 import dev.restate.sdk.interceptor.RunInterceptor;
@@ -21,22 +23,16 @@ import org.jspecify.annotations.Nullable;
  * HandlerInterceptor.Factory} and {@link RunInterceptor.Factory} so a single registration covers
  * both invocation- and run-level observations.
  *
- * <ul>
- *   <li>Per invocation: opens a {@code restate.invocation} observation with standard {@code
- *       restate.service}, {@code restate.handler}, {@code restate.handler.type}, {@code
- *       restate.invocation.id}, and {@code restate.invocation.target} key-values.
- *   <li>Per {@code ctx.run(name, ...)} call: opens a {@code restate.run} child observation with the
- *       {@code restate.run.name} key-value.
- * </ul>
+ * <p>Spans produced through the Micrometer → tracing bridge mirror those emitted by {@code
+ * sdk-interceptor-opentelemetry}: {@code attempt <target>} for the handler and {@code run (<name>)}
+ * for each {@code ctx.run}, with {@code restate.invocation.id}, {@code restate.invocation.target},
+ * and {@code restate.run.name} attributes.
  *
  * <p>Observation scope is thread-local; intended for the Java handler runner. Kotlin coroutine
  * handlers should use the Kotlin variant in this module.
  */
 public final class MicrometerInterceptorFactory
     implements HandlerInterceptor.Factory, RunInterceptor.Factory {
-
-  static final String INVOCATION_OBSERVATION = "restate.invocation";
-  static final String RUN_OBSERVATION = "restate.run";
 
   private final ObservationRegistry registry;
 
@@ -52,26 +48,8 @@ public final class MicrometerInterceptorFactory
     }
 
     return (ctx, next) -> {
-      String target = ctx.request().serviceName() + "/" + ctx.request().handlerName();
-      // Use a ReceiverContext so any PropagatingReceiverTracingObservationHandler registered on
-      // the registry (Spring Boot auto-configures one when micrometer-tracing is present) reads
-      // the W3C / B3 trace context out of the attempt headers and parents this span accordingly.
-      ReceiverContext<HeadersAccessor> recvCtx = new ReceiverContext<>(HeadersAccessor::get);
-      recvCtx.setCarrier(ctx.attemptHeaders());
-      Observation observation =
-          Observation.createNotStarted(INVOCATION_OBSERVATION, () -> recvCtx, registry)
-              .contextualName("restate " + target)
-              .lowCardinalityKeyValue("restate.service", ctx.request().serviceName())
-              .lowCardinalityKeyValue("restate.handler", ctx.request().handlerName())
-              .lowCardinalityKeyValue(
-                  "restate.handler.type",
-                  ctx.request().handlerType() == null
-                      ? "UNKNOWN"
-                      : ctx.request().handlerType().name())
-              .highCardinalityKeyValue(
-                  "restate.invocation.id", ctx.request().invocationId().toString())
-              .highCardinalityKeyValue("restate.invocation.target", target)
-              .start();
+      ReceiverContext<HeadersAccessor> recvCtx = headersReceiverContext(ctx.attemptHeaders());
+      Observation observation = startHandlerObservation(registry, recvCtx, ctx.request());
       try (Observation.Scope ignored = observation.openScope()) {
         next.proceed();
       } catch (Throwable t) {
@@ -90,12 +68,7 @@ public final class MicrometerInterceptorFactory
     }
 
     return (runCtx, next) -> {
-      String name = runCtx.runName() != null ? runCtx.runName() : "run";
-      Observation observation =
-          Observation.createNotStarted(RUN_OBSERVATION, registry)
-              .contextualName("restate run " + name)
-              .lowCardinalityKeyValue("restate.run.name", name)
-              .start();
+      Observation observation = startRunObservation(registry, runCtx.runName());
       try (Observation.Scope ignored = observation.openScope()) {
         next.proceed();
       } catch (Throwable t) {
