@@ -20,6 +20,7 @@ dependencies {
   api(project(":client-kotlin"))
   api(project(":sdk-serde-kotlinx"))
   api(project(":sdk-spring-boot"))
+  api(project(":sdk-interceptor-micrometer"))
 
   // Spring boot starter for kotlin dependencies brought in here for convenience
   api(libs.spring.boot.starter)
@@ -33,6 +34,7 @@ dependencies {
   testImplementation(project(":sdk-core"))
   testImplementation(libs.jackson.annotations)
   testImplementation(libs.jackson.databind)
+  testImplementation(libs.micrometer.observation.test)
   testRuntimeOnly(libs.junit.platform.launcher)
 }
 
