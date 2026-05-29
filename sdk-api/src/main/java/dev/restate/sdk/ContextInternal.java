@@ -18,6 +18,7 @@ public class ContextInternal {
   @org.jetbrains.annotations.ApiStatus.Internal
   public static WorkflowContext createContext(
       HandlerContext handlerContext, Executor serviceExecutor, SerdeFactory serdeFactory) {
-    return new ContextImpl(handlerContext, serviceExecutor, serdeFactory);
+    return new ContextImpl(
+        handlerContext, serviceExecutor, serdeFactory, (ctx, next) -> next.proceed());
   }
 }

@@ -5,7 +5,7 @@ public class {{generatedClassSimpleName}} implements dev.restate.sdk.endpoint.de
 
     @java.lang.Override
     public dev.restate.sdk.endpoint.definition.ServiceDefinition create({{originalClassFqcn}} bindableService, dev.restate.sdk.endpoint.definition.HandlerRunner.Options overrideHandlerOptions) {
-        dev.restate.sdk.HandlerRunner.Options handlerRunnerOptions = dev.restate.sdk.HandlerRunner.Options.DEFAULT;
+        dev.restate.sdk.HandlerRunner.Options handlerRunnerOptions = new dev.restate.sdk.HandlerRunner.Options();
         if (overrideHandlerOptions != null) {
             if (overrideHandlerOptions instanceof dev.restate.sdk.HandlerRunner.Options) {
                 handlerRunnerOptions = (dev.restate.sdk.HandlerRunner.Options)overrideHandlerOptions;
