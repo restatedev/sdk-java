@@ -17,11 +17,15 @@ import dev.restate.sdk.common.InvocationId;
 import dev.restate.sdk.common.RetryPolicy;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.ExceptionUtils;
+import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
+import dev.restate.sdk.endpoint.definition.HandlerType;
+import dev.restate.sdk.endpoint.definition.ServiceType;
 import io.opentelemetry.context.Context;
 import java.time.Duration;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -63,7 +67,16 @@ class FakeHandlerContext implements HandlerContext {
         },
         Context.root(),
         Slice.EMPTY,
-        expectations.requestHeaders());
+        expectations.requestHeaders(),
+        "FakeService",
+        "fakeHandler",
+        ServiceType.SERVICE,
+        HandlerType.SHARED);
+  }
+
+  @Override
+  public HeadersAccessor attemptHeaders() {
+    return HeadersAccessor.wrap(Collections.emptyMap());
   }
 
   @Override

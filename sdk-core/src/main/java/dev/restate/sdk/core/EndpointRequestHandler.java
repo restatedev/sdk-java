@@ -193,6 +193,7 @@ public final class EndpointRequestHandler {
     }
 
     // Parse OTEL context and generate span
+    @SuppressWarnings("removal")
     final io.opentelemetry.context.Context otelContext =
         this.endpoint
             .getOpenTelemetry()
@@ -201,24 +202,18 @@ public final class EndpointRequestHandler {
             .extract(
                 io.opentelemetry.context.Context.current(), headersAccessor, OTEL_HEADERS_GETTER);
 
-    // Generate the span
-    //    Span span =
-    //        tracer
-    //            .spanBuilder("Invoke handler")
-    //            .setSpanKind(SpanKind.SERVER)
-    //            .setParent(otelContext)
-    //            .startSpan();
-
     // Setup logging context
     loggingContextSetter.set(
         LoggingContextSetter.INVOCATION_TARGET_KEY, fullyQualifiedServiceMethod);
 
     return new RequestProcessorImpl(
-        fullyQualifiedServiceMethod,
+        serviceName,
+        handlerName,
         stateMachine,
         svc.getServiceType(),
         handler,
         otelContext,
+        headersAccessor,
         loggingContextSetter,
         coreExecutor);
   }
