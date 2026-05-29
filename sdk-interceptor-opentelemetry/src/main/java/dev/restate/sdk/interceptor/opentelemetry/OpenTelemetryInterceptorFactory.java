@@ -8,7 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.interceptor.opentelemetry;
 
-import dev.restate.sdk.endpoint.HeadersAccessor;
+import static dev.restate.sdk.interceptor.opentelemetry.OpenTelemetryAttributes.HEADERS_GETTER;
+import static dev.restate.sdk.interceptor.opentelemetry.OpenTelemetryAttributes.W3C_TRACE_CONTEXT_PROPAGATOR;
+
 import dev.restate.sdk.interceptor.HandlerInterceptor;
 import dev.restate.sdk.interceptor.RunInterceptor;
 import io.opentelemetry.api.OpenTelemetry;
@@ -18,8 +20,6 @@ import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
-import io.opentelemetry.context.propagation.TextMapGetter;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -43,20 +43,6 @@ import org.jspecify.annotations.Nullable;
 public final class OpenTelemetryInterceptorFactory
     implements HandlerInterceptor.Factory, RunInterceptor.Factory {
 
-  static final TextMapGetter<HeadersAccessor> HEADERS_GETTER =
-      new TextMapGetter<>() {
-        @Override
-        public Iterable<String> keys(HeadersAccessor carrier) {
-          return carrier.keys();
-        }
-
-        @Nullable
-        @Override
-        public String get(@Nullable HeadersAccessor carrier, @NonNull String key) {
-          return carrier == null ? null : carrier.get(key);
-        }
-      };
-
   private final OpenTelemetry openTelemetry;
 
   public OpenTelemetryInterceptorFactory(OpenTelemetry openTelemetry) {
@@ -73,10 +59,8 @@ public final class OpenTelemetryInterceptorFactory
     return (ctx, next) -> {
       String target = ctx.request().serviceName() + "/" + ctx.request().handlerName();
       Context parent =
-          openTelemetry
-              .getPropagators()
-              .getTextMapPropagator()
-              .extract(Context.current(), ctx.attemptHeaders(), HEADERS_GETTER);
+          W3C_TRACE_CONTEXT_PROPAGATOR.extract(
+              Context.current(), ctx.attemptHeaders(), HEADERS_GETTER);
       Span span =
           tracer
               .spanBuilder("attempt " + target)

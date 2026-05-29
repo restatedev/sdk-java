@@ -7,6 +7,7 @@ description = "Restate SDK OpenTelemetry tracing interceptor (Java + Kotlin)"
 
 dependencies {
   compileOnly(libs.jspecify)
+  compileOnly(libs.jetbrains.annotations)
 
   // Both API flavors are compile-only. Consumers bring in whichever they're using.
   compileOnly(project(":sdk-api"))

@@ -8,18 +8,13 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.interceptor.opentelemetry.kotlin
 
-import dev.restate.sdk.endpoint.HeadersAccessor
-import dev.restate.sdk.interceptor.opentelemetry.OpenTelemetryAttributes.INSTRUMENTATION_NAME
-import dev.restate.sdk.interceptor.opentelemetry.OpenTelemetryAttributes.INVOCATION_ID
-import dev.restate.sdk.interceptor.opentelemetry.OpenTelemetryAttributes.INVOCATION_TARGET
-import dev.restate.sdk.interceptor.opentelemetry.OpenTelemetryAttributes.RUN_NAME
+import dev.restate.sdk.interceptor.opentelemetry.OpenTelemetryAttributes.*
 import dev.restate.sdk.kotlin.interceptor.HandlerInterceptor
 import dev.restate.sdk.kotlin.interceptor.RunInterceptor
 import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.api.trace.SpanKind
 import io.opentelemetry.api.trace.StatusCode
 import io.opentelemetry.context.Context
-import io.opentelemetry.context.propagation.TextMapGetter
 import io.opentelemetry.extension.kotlin.asContextElement
 import kotlinx.coroutines.withContext
 
@@ -34,15 +29,6 @@ import kotlinx.coroutines.withContext
 class OpenTelemetryInterceptorFactory(private val openTelemetry: OpenTelemetry) :
     HandlerInterceptor.Factory, RunInterceptor.Factory {
 
-  companion object {
-    private val HEADERS_GETTER: TextMapGetter<HeadersAccessor> =
-        object : TextMapGetter<HeadersAccessor> {
-          override fun keys(carrier: HeadersAccessor): Iterable<String> = carrier.keys()
-
-          override fun get(carrier: HeadersAccessor?, key: String): String? = carrier?.get(key)
-        }
-  }
-
   override fun createHandlerInterceptor(): HandlerInterceptor? {
     if (openTelemetry == OpenTelemetry.noop()) return null
     val tracer = openTelemetry.getTracer(INSTRUMENTATION_NAME)
@@ -50,7 +36,7 @@ class OpenTelemetryInterceptorFactory(private val openTelemetry: OpenTelemetry) 
     return HandlerInterceptor { ctx, next ->
       val target = "${ctx.request.serviceName()}/${ctx.request.handlerName()}"
       val parent =
-          openTelemetry.propagators.textMapPropagator.extract(
+          W3C_TRACE_CONTEXT_PROPAGATOR.extract(
               Context.current(),
               ctx.attemptHeaders,
               HEADERS_GETTER,
