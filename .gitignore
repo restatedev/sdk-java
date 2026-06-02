@@ -38,3 +38,6 @@ kls_database.db
 .kotlin
 
 .restate
+
+# Ignore local claude settings
+.claude/settings.local.json
