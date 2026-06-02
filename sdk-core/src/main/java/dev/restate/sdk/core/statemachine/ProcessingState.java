@@ -117,7 +117,11 @@ final class ProcessingState implements State {
         this.processCompletableCommand(
             runCmd, CommandAccessor.RUN, new int[] {completionId}, stateContext)[0];
 
-    LOG.trace("Enqueued run notification for {} with id {}.", notificationHandle, notificationId);
+    LOG.trace(
+        "[{}] Enqueued run notification for {} with id {}.",
+        stateContext.getStartInfo().debugId(),
+        notificationHandle,
+        notificationId);
     runState.insertRunToExecute(
         notificationHandle,
         stateContext.getJournal().lastCommandMetadata().index(),
@@ -289,13 +293,17 @@ final class ProcessingState implements State {
 
     TerminalException terminalExceptionToWrite = null;
     if (runException instanceof TerminalException) {
-      LOG.trace("The run completed with a terminal exception");
+      LOG.trace(
+          "[{}] The run completed with a terminal exception",
+          stateContext.getStartInfo().debugId());
       terminalExceptionToWrite = (TerminalException) runException;
     } else if (retryPolicy != null
         && ((retryPolicy.getMaxAttempts() != null && retryPolicy.getMaxAttempts() <= retryCount)
             || (retryPolicy.getMaxDuration() != null
                 && retryPolicy.getMaxDuration().compareTo(retryLoopDuration) <= 0))) {
-      LOG.trace("The run completed with a retryable exception and attempts were exhausted");
+      LOG.trace(
+          "[{}] The run completed with a retryable exception and attempts were exhausted",
+          stateContext.getStartInfo().debugId());
       // We need to convert it to TerminalException
       terminalExceptionToWrite = new TerminalException(runException.toString());
     } else {
@@ -339,7 +347,8 @@ final class ProcessingState implements State {
       StateContext stateContext) {
     if (!stateContext.maybeWriteMessageOut(messageBuilder.build())) {
       LOG.warn(
-          "Cannot write proposed completion for run with handle {} because the output stream was already closed.",
+          "[{}] Cannot write proposed completion for run with handle {} because the output stream was already closed.",
+          stateContext.getStartInfo().debugId(),
           handle);
     }
   }

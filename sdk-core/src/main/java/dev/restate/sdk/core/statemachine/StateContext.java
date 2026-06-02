@@ -13,6 +13,7 @@ import dev.restate.sdk.core.EndpointRequestHandler;
 import dev.restate.sdk.core.generated.protocol.Protocol;
 import java.util.Objects;
 import java.util.concurrent.Flow;
+import org.jspecify.annotations.Nullable;
 
 final class StateContext {
 
@@ -65,6 +66,10 @@ final class StateContext {
 
   StartInfo getStartInfo() {
     return Objects.requireNonNull(startInfo, "The state machine should be initialized");
+  }
+
+  @Nullable StartInfo maybeGetStartInfo() {
+    return startInfo;
   }
 
   public void markInputClosed() {

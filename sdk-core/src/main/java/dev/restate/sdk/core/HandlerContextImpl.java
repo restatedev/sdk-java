@@ -40,6 +40,7 @@ class HandlerContextImpl implements HandlerContextInternal {
   private static final int CANCEL_HANDLE = 1;
 
   private final HandlerRequest handlerRequest;
+  private final String invocationId;
   private final StateMachine stateMachine;
   private final @Nullable String objectKey;
   private final String fullyQualifiedHandlerName;
@@ -58,6 +59,7 @@ class HandlerContextImpl implements HandlerContextInternal {
       StateMachine.Input input) {
     this.handlerRequest =
         new HandlerRequest(input.invocationId(), otelContext, input.body(), input.headers());
+    this.invocationId = input.invocationId().toString();
     this.objectKey = input.key();
     this.stateMachine = stateMachine;
     this.fullyQualifiedHandlerName = fullyQualifiedHandlerName;
@@ -387,7 +389,9 @@ class HandlerContextImpl implements HandlerContextInternal {
       // Let's look for the cancellation notification
       var cancellationNotification = this.stateMachine.takeNotification(CANCEL_HANDLE);
       if (cancellationNotification.isPresent()) {
-        LOG.info("Detected cancellation signal! Will start cancelling child invocations");
+        LOG.info(
+            "[{}] Detected cancellation signal! Will start cancelling child invocations",
+            this.invocationId);
 
         // Let's wait to cancel all
         @SuppressWarnings({"rawtypes", "unchecked"})
@@ -401,7 +405,7 @@ class HandlerContextImpl implements HandlerContextInternal {
                     // Already handled
                     return;
                   }
-                  LOG.info("All child invocation ids retrieved");
+                  LOG.info("[{}] All child invocation ids retrieved", this.invocationId);
                   try {
                     for (var invocationIdAr : this.invocationIdsToCancel) {
                       this.stateMachine.cancelInvocation(
@@ -481,17 +485,28 @@ class HandlerContextImpl implements HandlerContextInternal {
         Objects.requireNonNull(
             this.scheduledRuns.get(handle), "The given handle doesn't exist, this is an SDK bug");
     var startTime = Instant.now();
+    LOG.debug("[{}] Run with handle {} starting execution", this.invocationId, handle);
     consumer.accept(
         new RunCompleter() {
           @Override
           public void proposeSuccess(Slice toWrite) {
+            LOG.debug(
+                "[{}] Run with handle {} completed successfully in {}",
+                invocationId,
+                handle,
+                Duration.between(startTime, Instant.now()));
             proposeRunSuccess(handle, toWrite);
           }
 
           @Override
           public void proposeFailure(Throwable toWrite, @Nullable RetryPolicy retryPolicy) {
-            proposeRunFailure(
-                handle, toWrite, Duration.between(startTime, Instant.now()), retryPolicy);
+            Duration attemptDuration = Duration.between(startTime, Instant.now());
+            LOG.debug(
+                "[{}] Run with handle {} completed with failure in {}",
+                invocationId,
+                handle,
+                attemptDuration);
+            proposeRunFailure(handle, toWrite, attemptDuration, retryPolicy);
           }
         });
   }

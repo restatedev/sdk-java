@@ -63,6 +63,11 @@ class StateMachineImpl implements StateMachine {
     this.stateContext = new StateContext(loggingContextSetter, serviceProtocolVersion);
   }
 
+  private String invId() {
+    StartInfo si = this.stateContext.maybeGetStartInfo();
+    return si == null ? "?" : si.debugId();
+  }
+
   // -- Few callbacks
 
   @Override
@@ -122,7 +127,7 @@ class StateMachineImpl implements StateMachine {
   @Override
   public void onNext(Slice slice) {
     try {
-      LOG.trace("Received input slice");
+      LOG.trace("[{}] Received input slice", invId());
       this.messageDecoder.offer(slice);
 
       boolean shouldTriggerInputListener = this.messageDecoder.isNextAvailable();
@@ -130,12 +135,15 @@ class StateMachineImpl implements StateMachine {
       while (invocationInput != null) {
         if (invocationInput.message().getSerializedSize() < 1024) {
           LOG.trace(
-              "Received input message {} {}",
+              "[{}] Received input message {} {}",
+              invId(),
               invocationInput.message().getClass(),
               invocationInput.message());
         } else {
           LOG.trace(
-              "Received input message {} with large payload", invocationInput.message().getClass());
+              "[{}] Received input message {} with large payload",
+              invId(),
+              invocationInput.message().getClass());
         }
 
         this.stateContext
@@ -163,7 +171,7 @@ class StateMachineImpl implements StateMachine {
 
   @Override
   public void onComplete() {
-    LOG.trace("Input publisher closed");
+    LOG.trace("[{}] Input publisher closed", invId());
     try {
       this.stateContext.getCurrentState().onInputClosed(this.stateContext);
     } catch (Throwable e) {
@@ -204,19 +212,19 @@ class StateMachineImpl implements StateMachine {
 
   @Override
   public int stateGet(String key) {
-    LOG.debug("Executing 'Get state {}'", key);
+    LOG.debug("[{}] Executing 'Get state {}'", invId(), key);
     return this.stateContext.getCurrentState().processStateGetCommand(key, this.stateContext);
   }
 
   @Override
   public int stateGetKeys() {
-    LOG.debug("Executing 'Get state keys'");
+    LOG.debug("[{}] Executing 'Get state keys'", invId());
     return this.stateContext.getCurrentState().processStateGetKeysCommand(this.stateContext);
   }
 
   @Override
   public void stateSet(String key, Slice bytes) {
-    LOG.debug("Executing 'Set state {}'", key);
+    LOG.debug("[{}] Executing 'Set state {}'", invId(), key);
     ByteString keyBuffer = ByteString.copyFromUtf8(key);
     this.stateContext.getEagerState().set(keyBuffer, bytes);
     this.stateContext
@@ -232,7 +240,7 @@ class StateMachineImpl implements StateMachine {
 
   @Override
   public void stateClear(String key) {
-    LOG.debug("Executing 'Clear state {}'", key);
+    LOG.debug("[{}] Executing 'Clear state {}'", invId(), key);
     ByteString keyBuffer = ByteString.copyFromUtf8(key);
     this.stateContext.getEagerState().clear(keyBuffer);
     this.stateContext
@@ -245,7 +253,7 @@ class StateMachineImpl implements StateMachine {
 
   @Override
   public void stateClearAll() {
-    LOG.debug("Executing 'Clear all state'");
+    LOG.debug("[{}] Executing 'Clear all state'", invId());
     this.stateContext.getEagerState().clearAll();
     this.stateContext
         .getCurrentState()
@@ -257,7 +265,7 @@ class StateMachineImpl implements StateMachine {
 
   @Override
   public int sleep(Duration duration, @Nullable String name) {
-    LOG.debug("Executing 'Sleeping for {}'", duration);
+    LOG.debug("[{}] Executing 'Sleeping for {}'", invId(), duration);
     var completionId = this.stateContext.getJournal().nextCompletionNotificationId();
 
     var sleepCommandBuilder =
@@ -282,7 +290,7 @@ class StateMachineImpl implements StateMachine {
       Slice payload,
       @Nullable String idempotencyKey,
       @Nullable Collection<Map.Entry<String, String>> headers) {
-    LOG.debug("Executing 'Call {}'", target);
+    LOG.debug("[{}] Executing 'Call {}'", invId(), target);
     if (idempotencyKey != null && idempotencyKey.isBlank()) {
       throw ProtocolException.idempotencyKeyIsEmpty();
     }
@@ -333,9 +341,9 @@ class StateMachineImpl implements StateMachine {
       @Nullable Collection<Map.Entry<String, String>> headers,
       @Nullable Duration delay) {
     if (delay != null && !delay.isZero()) {
-      LOG.debug("Executing 'Delayed send {} with delay {}'", target, delay);
+      LOG.debug("[{}] Executing 'Delayed send {} with delay {}'", invId(), target, delay);
     } else {
-      LOG.debug("Executing 'Send {}'", target);
+      LOG.debug("[{}] Executing 'Send {}'", invId(), target);
     }
     if (idempotencyKey != null && idempotencyKey.isBlank()) {
       throw ProtocolException.idempotencyKeyIsEmpty();
@@ -378,7 +386,7 @@ class StateMachineImpl implements StateMachine {
 
   @Override
   public Awakeable awakeable() {
-    LOG.debug("Executing 'Create awakeable'");
+    LOG.debug("[{}] Executing 'Create awakeable'", invId());
 
     var signalId = this.stateContext.getJournal().nextSignalNotificationId();
 
@@ -395,7 +403,7 @@ class StateMachineImpl implements StateMachine {
 
   @Override
   public void completeAwakeable(String awakeableId, Slice value) {
-    LOG.debug("Executing 'Complete awakeable {} with success'", awakeableId);
+    LOG.debug("[{}] Executing 'Complete awakeable {} with success'", invId(), awakeableId);
     completeAwakeable(
         awakeableId,
         builder ->
@@ -405,7 +413,7 @@ class StateMachineImpl implements StateMachine {
 
   @Override
   public void completeAwakeable(String awakeableId, TerminalException exception) {
-    LOG.debug("Executing 'Complete awakeable {} with failure'", awakeableId);
+    LOG.debug("[{}] Executing 'Complete awakeable {} with failure'", invId(), awakeableId);
     verifyErrorMetadataFeatureSupport(exception);
     completeAwakeable(awakeableId, builder -> builder.setFailure(toProtocolFailure(exception)));
   }
@@ -423,7 +431,7 @@ class StateMachineImpl implements StateMachine {
 
   @Override
   public int createSignalHandle(String signalName) {
-    LOG.debug("Executing 'Create signal handle {}'", signalName);
+    LOG.debug("[{}] Executing 'Create signal handle {}'", invId(), signalName);
 
     return this.stateContext
         .getCurrentState()
@@ -433,7 +441,8 @@ class StateMachineImpl implements StateMachine {
   @Override
   public void completeSignal(String targetInvocationId, String signalName, Slice value) {
     LOG.debug(
-        "Executing 'Complete signal {} to invocation {} with success'",
+        "[{}] Executing 'Complete signal {} to invocation {} with success'",
+        invId(),
         signalName,
         targetInvocationId);
     this.completeSignal(
@@ -448,7 +457,8 @@ class StateMachineImpl implements StateMachine {
   public void completeSignal(
       String targetInvocationId, String signalName, TerminalException exception) {
     LOG.debug(
-        "Executing 'Complete signal {} to invocation {} with failure'",
+        "[{}] Executing 'Complete signal {} to invocation {} with failure'",
+        invId(),
         signalName,
         targetInvocationId);
     verifyErrorMetadataFeatureSupport(exception);
@@ -476,7 +486,7 @@ class StateMachineImpl implements StateMachine {
 
   @Override
   public int promiseGet(String key) {
-    LOG.debug("Executing 'Await promise {}'", key);
+    LOG.debug("[{}] Executing 'Await promise {}'", invId(), key);
     var completionId = this.stateContext.getJournal().nextCompletionNotificationId();
     return this.stateContext.getCurrentState()
         .processCompletableCommand(
@@ -491,7 +501,7 @@ class StateMachineImpl implements StateMachine {
 
   @Override
   public int promisePeek(String key) {
-    LOG.debug("Executing 'Peek promise {}'", key);
+    LOG.debug("[{}] Executing 'Peek promise {}'", invId(), key);
     var completionId = this.stateContext.getJournal().nextCompletionNotificationId();
     return this.stateContext.getCurrentState()
         .processCompletableCommand(
@@ -506,7 +516,7 @@ class StateMachineImpl implements StateMachine {
 
   @Override
   public int promiseComplete(String key, Slice value) {
-    LOG.debug("Executing 'Complete promise {} with success'", key);
+    LOG.debug("[{}] Executing 'Complete promise {} with success'", invId(), key);
     return this.promiseComplete(
         key,
         builder ->
@@ -516,7 +526,7 @@ class StateMachineImpl implements StateMachine {
 
   @Override
   public int promiseComplete(String key, TerminalException exception) {
-    LOG.debug("Executing 'Complete promise {} with failure'", key);
+    LOG.debug("[{}] Executing 'Complete promise {} with failure'", invId(), key);
     verifyErrorMetadataFeatureSupport(exception);
     return this.promiseComplete(
         key, builder -> builder.setCompletionFailure(toProtocolFailure(exception)));
@@ -542,13 +552,13 @@ class StateMachineImpl implements StateMachine {
 
   @Override
   public int run(String name) {
-    LOG.debug("Executing 'Created run {}'", name);
+    LOG.debug("[{}] Executing 'Created run {}'", invId(), name);
     return this.stateContext.getCurrentState().processRunCommand(name, this.stateContext);
   }
 
   @Override
   public void proposeRunCompletion(int handle, Slice value) {
-    LOG.debug("Executing 'Run completed with success'");
+    LOG.debug("[{}] Executing 'Run completed with success'", invId());
     try {
       this.stateContext.getCurrentState().proposeRunCompletion(handle, value, this.stateContext);
     } catch (Throwable e) {
@@ -564,7 +574,7 @@ class StateMachineImpl implements StateMachine {
       Throwable exception,
       Duration attemptDuration,
       @Nullable RetryPolicy retryPolicy) {
-    LOG.debug("Executing 'Run completed with failure'");
+    LOG.debug("[{}] Executing 'Run completed with failure'", invId());
     if (exception instanceof TerminalException) {
       verifyErrorMetadataFeatureSupport((TerminalException) exception);
     }
@@ -581,7 +591,7 @@ class StateMachineImpl implements StateMachine {
 
   @Override
   public void cancelInvocation(String targetInvocationId) {
-    LOG.debug("Executing 'Cancel invocation {}'", targetInvocationId);
+    LOG.debug("[{}] Executing 'Cancel invocation {}'", invId(), targetInvocationId);
     this.stateContext
         .getCurrentState()
         .processNonCompletableCommand(
@@ -596,7 +606,7 @@ class StateMachineImpl implements StateMachine {
 
   @Override
   public int attachInvocation(String invocationId) {
-    LOG.debug("Executing 'Attach invocation {}'", invocationId);
+    LOG.debug("[{}] Executing 'Attach invocation {}'", invId(), invocationId);
     var completionId = this.stateContext.getJournal().nextCompletionNotificationId();
     return this.stateContext.getCurrentState()
         .processCompletableCommand(
@@ -611,7 +621,7 @@ class StateMachineImpl implements StateMachine {
 
   @Override
   public int getInvocationOutput(String invocationId) {
-    LOG.debug("Executing 'Get invocation output {}'", invocationId);
+    LOG.debug("[{}] Executing 'Get invocation output {}'", invId(), invocationId);
     var completionId = this.stateContext.getJournal().nextCompletionNotificationId();
     return this.stateContext.getCurrentState()
         .processCompletableCommand(
@@ -626,7 +636,7 @@ class StateMachineImpl implements StateMachine {
 
   @Override
   public void writeOutput(Slice value) {
-    LOG.debug("Executing 'Write invocation output with success'");
+    LOG.debug("[{}] Executing 'Write invocation output with success'", invId());
     this.stateContext
         .getCurrentState()
         .processNonCompletableCommand(
@@ -639,7 +649,7 @@ class StateMachineImpl implements StateMachine {
 
   @Override
   public void writeOutput(TerminalException exception) {
-    LOG.debug("Executing 'Write invocation output with failure'");
+    LOG.debug("[{}] Executing 'Write invocation output with failure'", invId());
     verifyErrorMetadataFeatureSupport(exception);
     this.stateContext
         .getCurrentState()
