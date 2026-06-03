@@ -36,14 +36,11 @@ dependencies {
   implementation(libs.spring.boot)
   implementation(libs.spring.boot.starter.logging)
 
-  // Optional — when present (via sdk-spring-boot-starter / sdk-spring-boot-kotlin-starter),
-  // these enable building per-language HandlerRunner.Options. We reference them only from isolated
-  // helper classes that are gated on Class.forName presence checks, so missing runtime deps don't
-  // break endpoint construction. Micrometer (sdk-interceptor-micrometer + micrometer-observation)
-  // is loaded purely reflectively in OptionsSupport.loadMicrometerFactory, so it doesn't need a
-  // compile-time reference here.
+  // Optional dependencies to load tracing-related stuff.
   compileOnly(project(":sdk-api"))
   compileOnly(project(":sdk-api-kotlin"))
+  compileOnly(libs.micrometer.java11)
+
   // In principle kotlin won't need this, but it's needed by the SDK core anyway, so we just import
   // this in.
   implementation(libs.spring.boot.starter.json)

@@ -39,6 +39,7 @@ dependencies {
   testImplementation(project(":sdk-serde-jackson"))
   testImplementation(project(":sdk-testing"))
   testImplementation(libs.micrometer.observation.test)
+  testImplementation(libs.micrometer.java11)
   testRuntimeOnly(libs.junit.platform.launcher)
 }
 

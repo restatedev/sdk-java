@@ -123,6 +123,12 @@
     [libraries.opentelemetry-sdk-testing.version]
       ref = 'opentelemetry'
 
+  [libraries.micrometer-java11]
+    module = 'io.micrometer:micrometer-java11'
+
+    [libraries.micrometer-java11.version]
+      ref = 'micrometer'
+
   [libraries.micrometer-observation]
     module = 'io.micrometer:micrometer-observation'
 
