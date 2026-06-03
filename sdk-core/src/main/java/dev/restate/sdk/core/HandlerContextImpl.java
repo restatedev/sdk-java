@@ -434,13 +434,13 @@ class HandlerContextImpl implements HandlerContextInternal {
 
       // Let's start by trying to complete it
       try {
-      asyncResult.tryComplete(this::takeNotification);
-    } catch (Throwable e) {
+        asyncResult.tryComplete(this::takeNotification);
+      } catch (Throwable e) {
         // This can happen if the state machine was closed in the meantime.
-      failWithoutContextSwitch(e);
-      asyncResult.publicFuture().completeExceptionally(AbortedExecutionException.INSTANCE);
-      return;
-    }
+        failWithoutContextSwitch(e);
+        asyncResult.publicFuture().completeExceptionally(AbortedExecutionException.INSTANCE);
+        return;
+      }
 
       // Build the tree of what we're still awaiting on
       StateMachine.UnresolvedFuture future = asyncResult.uncompletedFuture();

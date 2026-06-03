@@ -64,7 +64,7 @@ public final class StateMachine implements AutoCloseable {
 
   public static StateMachine create(HeadersAccessor headersAccessor) {
     LOG.trace("create()");
-    SharedCoreInstance instance = SharedCoreInstance.get();
+    SharedCoreInstance instance = SharedCoreInstance.borrow();
 
     var newVmReturn =
         instance.callCborVmFunction(
@@ -86,9 +86,14 @@ public final class StateMachine implements AutoCloseable {
   public void close() {
     if (!freed) {
       LOG.trace("[vm=0x{}] close()", Integer.toHexString(vmPtr));
-      instance.getExports().vmFree(vmPtr);
+      try {
+        instance.getExports().vmFree(vmPtr);
+      } catch (Throwable e) {
+        LOG.warn("[vm=0x{}] failed to close VM", vmPtr, e);
+      }
       freed = true;
       cachedState = InvocationState.CLOSED;
+      SharedCoreInstance.release(instance);
     }
   }
 

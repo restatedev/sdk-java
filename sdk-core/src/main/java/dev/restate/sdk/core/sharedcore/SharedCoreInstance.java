@@ -21,6 +21,7 @@ import com.fasterxml.jackson.dataformat.cbor.databind.CBORMapper;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.sharedcore.generated.SharedCoreWasmMachine;
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.function.Function;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -37,8 +38,16 @@ class SharedCoreInstance {
           .build();
   private static final WasmModule WASM_MODULE =
       dev.restate.sdk.core.sharedcore.generated.SharedCoreWasm.load();
-  private static final ThreadLocal<SharedCoreInstance> THREAD_LOCAL =
-      ThreadLocal.withInitial(SharedCoreInstance::create);
+
+  // Per-thread pool of warm instances. Chicory memory only grows; we recycle small instances and
+  // evict ones whose linear memory has ballooned past the threshold so the JVM can reclaim it.
+  // Each WASM page is 64 KiB. Default 256 pages = 16 MiB.
+  private static final int EVICTION_PAGES_THRESHOLD =
+      Integer.getInteger("restate.sharedcore.evictionPagesThreshold", 256);
+  private static final int MAX_IDLE_INSTANCES =
+      Integer.getInteger("restate.sharedcore.maxIdleInstances", 10);
+  private static final ThreadLocal<ArrayDeque<SharedCoreInstance>> POOL =
+      ThreadLocal.withInitial(() -> new ArrayDeque<>(MAX_IDLE_INSTANCES));
 
   private final Memory memory;
   private final SharedCoreWasm_ModuleExports exports;
@@ -48,8 +57,33 @@ class SharedCoreInstance {
     this.exports = exports;
   }
 
-  static SharedCoreInstance get() {
-    return THREAD_LOCAL.get();
+  /**
+   * Borrow an instance from the calling thread's pool, creating a fresh one if the pool is empty.
+   */
+  static SharedCoreInstance borrow() {
+    SharedCoreInstance instance = POOL.get().pollFirst();
+    return instance != null ? instance : create();
+  }
+
+  /**
+   * Return an instance to the calling thread's pool. The instance is dropped (and its WASM memory
+   * reclaimed by the GC) if it has grown past {@link #EVICTION_PAGES_THRESHOLD} or if the pool is
+   * already at {@link #MAX_IDLE_INSTANCES}. Caller must have already freed any VMs they allocated
+   * on this instance via {@code vmFree}.
+   */
+  static void release(SharedCoreInstance instance) {
+    ArrayDeque<SharedCoreInstance> pool = POOL.get();
+    int pages = instance.memory.pages();
+    if (pages > EVICTION_PAGES_THRESHOLD || pool.size() >= MAX_IDLE_INSTANCES) {
+      LOG.trace(
+          "Evicting SharedCoreInstance (pages={}, threshold={}, poolSize={}, maxIdle={})",
+          pages,
+          EVICTION_PAGES_THRESHOLD,
+          pool.size(),
+          MAX_IDLE_INSTANCES);
+      return;
+    }
+    pool.addFirst(instance);
   }
 
   private static SharedCoreInstance create() {

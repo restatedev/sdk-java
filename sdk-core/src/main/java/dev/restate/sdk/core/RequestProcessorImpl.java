@@ -199,7 +199,7 @@ final class RequestProcessorImpl implements RequestProcessor {
     cancelInputSubscription();
 
     // Pump remaining output
-   byte[] chunk;
+    byte[] chunk;
     if (outputSubscriber != null) {
       chunk = stateMachine.takeOutput();
     } else {
