@@ -17,6 +17,7 @@ import dev.restate.sdk.common.StateKey;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
+import dev.restate.sdk.interceptor.RunContextPropagator;
 import dev.restate.sdk.interceptor.RunInterceptor;
 import dev.restate.serde.Serde;
 import dev.restate.serde.SerdeFactory;
@@ -28,6 +29,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -40,17 +42,20 @@ class ContextImpl implements ObjectContext, WorkflowContext {
   private final SerdeFactory serdeFactory;
   private final RestateRandom random;
   private final RunInterceptor runInterceptor;
+  private final RunContextPropagator runContextPropagator;
 
   ContextImpl(
       HandlerContext handlerContext,
       Executor serviceExecutor,
       SerdeFactory serdeFactory,
-      RunInterceptor runInterceptor) {
+      RunInterceptor runInterceptor,
+      RunContextPropagator runContextPropagator) {
     this.handlerContext = handlerContext;
     this.serviceExecutor = serviceExecutor;
     this.serdeFactory = serdeFactory;
     this.random = new RestateRandom(this.request().invocationId().toRandomSeed());
     this.runInterceptor = runInterceptor;
+    this.runContextPropagator = runContextPropagator;
   }
 
   static void checkNotInsideRun() {
@@ -229,20 +234,25 @@ class ContextImpl implements ObjectContext, WorkflowContext {
       String name, TypeTag<T> typeTag, RetryPolicy retryPolicy, ThrowingSupplier<T> action) {
     checkNotInsideRun();
     Serde<T> serde = serdeFactory.create(typeTag);
+
+    // Capture thread local state here
+    RunContextPropagator.CapturedContext capturedContext = runContextPropagator.capture();
+
+    // Run closure will run the action using the serviceExecutor.
+    // The capturedContext dance here is to propagate thread locals.
+    Consumer<HandlerContext.RunCompleter> runClosure =
+        runCompleter ->
+            serviceExecutor.execute(
+                capturedContext.wrap(
+                    () -> executeRunAction(name, serde, retryPolicy, action, runCompleter)));
+
     return DurableFuture.fromAsyncResult(
-            Util.awaitCompletableFuture(
-                handlerContext.submitRun(
-                    name,
-                    runCompleter ->
-                        serviceExecutor.execute(
-                            () ->
-                                executeRunClosure(
-                                    name, serde, retryPolicy, action, runCompleter)))),
+            Util.awaitCompletableFuture(handlerContext.submitRun(name, runClosure)),
             serviceExecutor)
         .mapWithoutExecutor(serde::deserialize);
   }
 
-  private <T> void executeRunClosure(
+  private <T> void executeRunAction(
       @Nullable String name,
       Serde<T> serde,
       RetryPolicy retryPolicy,
@@ -250,7 +260,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
       HandlerContext.RunCompleter runCompleter) {
     AtomicReference<Slice> resultHolder = new AtomicReference<>();
 
-    RunInterceptor.Next closure =
+    RunInterceptor.Next userAction =
         () -> {
           INSIDE_RUN.set(Boolean.TRUE);
           try {
@@ -271,7 +281,8 @@ class ContextImpl implements ObjectContext, WorkflowContext {
         };
 
     try {
-      runInterceptor.aroundRun(new RunInterceptor.Context(handlerContext.request(), name), closure);
+      runInterceptor.aroundRun(
+          new RunInterceptor.Context(handlerContext.request(), name), userAction);
       runCompleter.proposeSuccess(resultHolder.get());
     } catch (Throwable t) {
       runCompleter.proposeFailure(t, retryPolicy);

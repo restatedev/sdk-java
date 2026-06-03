@@ -28,8 +28,8 @@ import org.jspecify.annotations.Nullable;
  * for each {@code ctx.run}, with {@code restate.invocation.id}, {@code restate.invocation.target},
  * and {@code restate.run.name} attributes.
  *
- * <p>Observation scope is thread-local; intended for the Java handler runner. Kotlin coroutine
- * handlers should use the Kotlin variant in this module.
+ * <p>Observation scope is thread-local. Use with {@link MicrometerRunContextPropagator} (registered
+ * via SPI by default) to propagate spans to run closures.
  */
 public final class MicrometerInterceptorFactory
     implements HandlerInterceptor.Factory, RunInterceptor.Factory {

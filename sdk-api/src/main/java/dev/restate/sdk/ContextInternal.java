@@ -19,6 +19,10 @@ public class ContextInternal {
   public static WorkflowContext createContext(
       HandlerContext handlerContext, Executor serviceExecutor, SerdeFactory serdeFactory) {
     return new ContextImpl(
-        handlerContext, serviceExecutor, serdeFactory, (ctx, next) -> next.proceed());
+        handlerContext,
+        serviceExecutor,
+        serdeFactory,
+        (ctx, next) -> next.proceed(),
+        () -> runnable -> runnable);
   }
 }

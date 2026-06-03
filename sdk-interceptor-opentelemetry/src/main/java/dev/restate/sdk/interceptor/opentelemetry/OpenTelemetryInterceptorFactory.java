@@ -34,9 +34,8 @@ import org.jspecify.annotations.Nullable;
  *       {@code restate.run.name} attribute.
  * </ul>
  *
- * <p>This Java variant uses thread-local OTEL scope via {@link Scope#close()}. Kotlin coroutine
- * handlers should use the suspend variant in this module to keep the OTEL context across
- * suspensions.
+ * <p>Scopes are thread-local. Use with {@link OpenTelemetryRunContextPropagator} (registered via
+ * SPI by default) to propagate spans to run closures.
  */
 public final class OpenTelemetryInterceptorFactory
     implements HandlerInterceptor.Factory, RunInterceptor.Factory {

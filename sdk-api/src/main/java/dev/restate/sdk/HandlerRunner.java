@@ -13,6 +13,7 @@ import dev.restate.common.function.*;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
 import dev.restate.sdk.interceptor.HandlerInterceptor;
+import dev.restate.sdk.interceptor.RunContextPropagator;
 import dev.restate.sdk.interceptor.RunInterceptor;
 import dev.restate.sdk.internal.ContextThreadLocal;
 import dev.restate.serde.Serde;
@@ -41,6 +42,7 @@ public class HandlerRunner<REQ, RES>
   private final Executor executor;
   private final HandlerInterceptor handlerInterceptor;
   private final RunInterceptor runInterceptor;
+  private final RunContextPropagator runContextPropagator;
 
   private static final Logger LOG = LogManager.getLogger(HandlerRunner.class);
 
@@ -56,6 +58,7 @@ public class HandlerRunner<REQ, RES>
     this.handlerInterceptor =
         HandlerInterceptor.Factory.combine(opts.handlerInterceptorFactories());
     this.runInterceptor = RunInterceptor.Factory.combine(opts.runInterceptorFactories());
+    this.runContextPropagator = RunContextPropagator.combine(opts.runContextPropagators());
   }
 
   @Override
@@ -85,7 +88,12 @@ public class HandlerRunner<REQ, RES>
         () -> {
           // Any context switching, if necessary, will be done by ResolvedEndpointHandler
           Context ctx =
-              new ContextImpl(handlerContext, serviceExecutor, contextSerdeFactory, runInterceptor);
+              new ContextImpl(
+                  handlerContext,
+                  serviceExecutor,
+                  contextSerdeFactory,
+                  runInterceptor,
+                  runContextPropagator);
 
           AtomicReference<Slice> resultHolder = new AtomicReference<>();
 
@@ -208,6 +216,8 @@ public class HandlerRunner<REQ, RES>
         loadSpiHandlerFactories();
     private static final List<RunInterceptor.Factory> DEFAULT_RUN_INTERCEPTOR_FACTORIES =
         loadSpiRunFactories();
+    private static final List<RunContextPropagator> DEFAULT_RUN_CONTEXT_PROPAGATORS =
+        loadSpiRunContextPropagators();
 
     /**
      * @deprecated Create a new instance of Options instead.
@@ -218,22 +228,26 @@ public class HandlerRunner<REQ, RES>
     private Executor executor;
     private ArrayList<HandlerInterceptor.Factory> handlerInterceptorFactories;
     private ArrayList<RunInterceptor.Factory> runInterceptorFactories;
+    private ArrayList<RunContextPropagator> runContextPropagators;
 
     /** Create new options, check {@link Options} for the defaults documentation. */
     public Options() {
       this(
           DEFAULT_EXECUTOR,
           DEFAULT_HANDLER_INTERCEPTOR_FACTORIES,
-          DEFAULT_RUN_INTERCEPTOR_FACTORIES);
+          DEFAULT_RUN_INTERCEPTOR_FACTORIES,
+          DEFAULT_RUN_CONTEXT_PROPAGATORS);
     }
 
     private Options(
         Executor executor,
         List<HandlerInterceptor.Factory> handlerInterceptorFactories,
-        List<RunInterceptor.Factory> runInterceptorFactories) {
+        List<RunInterceptor.Factory> runInterceptorFactories,
+        List<RunContextPropagator> runContextPropagators) {
       this.executor = executor;
       this.handlerInterceptorFactories = new ArrayList<>(handlerInterceptorFactories);
       this.runInterceptorFactories = new ArrayList<>(runInterceptorFactories);
+      this.runContextPropagators = new ArrayList<>(runContextPropagators);
     }
 
     /**
@@ -244,7 +258,10 @@ public class HandlerRunner<REQ, RES>
      */
     public static Options withExecutor(Executor executor) {
       return new Options(
-          executor, DEFAULT_HANDLER_INTERCEPTOR_FACTORIES, DEFAULT_RUN_INTERCEPTOR_FACTORIES);
+          executor,
+          DEFAULT_HANDLER_INTERCEPTOR_FACTORIES,
+          DEFAULT_RUN_INTERCEPTOR_FACTORIES,
+          DEFAULT_RUN_CONTEXT_PROPAGATORS);
     }
 
     /**
@@ -300,6 +317,28 @@ public class HandlerRunner<REQ, RES>
       return this;
     }
 
+    /**
+     * Append a {@link RunContextPropagator}. Propagators capture thread-local state at {@link
+     * Restate#run} submission and restore it around the closure execution on the worker thread. The
+     * first registered propagator captures/restores outermost.
+     *
+     * @return self for fluency
+     */
+    public Options addRunContextPropagator(RunContextPropagator propagator) {
+      this.runContextPropagators.add(propagator);
+      return this;
+    }
+
+    /**
+     * Overwrite the {@link RunContextPropagator} list.
+     *
+     * @return self for fluency
+     */
+    public Options setRunContextPropagators(List<RunContextPropagator> newPropagators) {
+      this.runContextPropagators = new ArrayList<>(newPropagators);
+      return this;
+    }
+
     public Executor executor() {
       return executor;
     }
@@ -310,6 +349,10 @@ public class HandlerRunner<REQ, RES>
 
     public List<RunInterceptor.Factory> runInterceptorFactories() {
       return Objects.requireNonNullElse(runInterceptorFactories, List.of());
+    }
+
+    public List<RunContextPropagator> runContextPropagators() {
+      return Objects.requireNonNullElse(runContextPropagators, List.of());
     }
 
     private static ExecutorService createDefaultExecutor() {
@@ -336,6 +379,12 @@ public class HandlerRunner<REQ, RES>
     private static List<RunInterceptor.Factory> loadSpiRunFactories() {
       List<RunInterceptor.Factory> list = new ArrayList<>();
       ServiceLoader.load(RunInterceptor.Factory.class).forEach(list::add);
+      return list;
+    }
+
+    private static List<RunContextPropagator> loadSpiRunContextPropagators() {
+      List<RunContextPropagator> list = new ArrayList<>();
+      ServiceLoader.load(RunContextPropagator.class).forEach(list::add);
       return list;
     }
   }
