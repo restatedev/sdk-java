@@ -11,13 +11,14 @@ package dev.restate.sdk.kotlin
 import dev.restate.common.Slice
 import dev.restate.sdk.common.TerminalException
 import dev.restate.sdk.endpoint.definition.HandlerContext
+import dev.restate.sdk.kotlin.HandlerRunner.Options.Companion.DEFAULT
 import dev.restate.sdk.kotlin.interceptor.HandlerInterceptor
 import dev.restate.sdk.kotlin.interceptor.RunInterceptor
 import dev.restate.sdk.kotlin.internal.RestateContextElement
 import dev.restate.serde.Serde
 import dev.restate.serde.SerdeFactory
 import io.opentelemetry.extension.kotlin.asContextElement
-import java.util.ServiceLoader
+import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.CoroutineContext
@@ -48,7 +49,7 @@ internal constructor(
      */
     fun <REQ, RES, CTX : Context> of(
         contextSerdeFactory: SerdeFactory,
-        options: Options = Options.DEFAULT,
+        options: Options = Options(),
         runner: suspend (CTX, REQ) -> RES,
     ): HandlerRunner<REQ, RES, CTX> {
       return HandlerRunner(runner, contextSerdeFactory, options)
@@ -60,7 +61,7 @@ internal constructor(
      */
     fun <RES, CTX : Context> of(
         contextSerdeFactory: SerdeFactory,
-        options: Options = Options.DEFAULT,
+        options: Options = Options(),
         runner: suspend (CTX) -> RES,
     ): HandlerRunner<Unit, RES, CTX> {
       return HandlerRunner({ ctx: CTX, _: Unit -> runner(ctx) }, contextSerdeFactory, options)
@@ -72,7 +73,7 @@ internal constructor(
      */
     fun <REQ, CTX : Context> ofEmptyReturn(
         contextSerdeFactory: SerdeFactory,
-        options: Options = Options.DEFAULT,
+        options: Options = Options(),
         runner: suspend (CTX, REQ) -> Unit,
     ): HandlerRunner<REQ, Unit, CTX> {
       return HandlerRunner(
@@ -91,7 +92,7 @@ internal constructor(
      */
     fun <CTX : Context> ofEmptyReturn(
         contextSerdeFactory: SerdeFactory,
-        options: Options = Options.DEFAULT,
+        options: Options = Options(),
         runner: suspend (CTX) -> Unit,
     ): HandlerRunner<Unit, Unit, CTX> {
       return HandlerRunner(
@@ -194,6 +195,10 @@ internal constructor(
       private val SPI_RUN_FACTORIES: List<RunInterceptor.Factory> =
           ServiceLoader.load(RunInterceptor.Factory::class.java).toList()
 
+      @kotlin.Deprecated(
+          message = "Replace it with constructing Options() instead.",
+          replaceWith = ReplaceWith("Options()"),
+      )
       val DEFAULT: Options = Options()
     }
   }
