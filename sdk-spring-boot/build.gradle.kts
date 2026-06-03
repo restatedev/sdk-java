@@ -35,6 +35,12 @@ dependencies {
 
   implementation(libs.spring.boot)
   implementation(libs.spring.boot.starter.logging)
+
+  // Optional dependencies to load tracing-related stuff.
+  compileOnly(project(":sdk-api"))
+  compileOnly(project(":sdk-api-kotlin"))
+  compileOnly(libs.micrometer.java11)
+
   // In principle kotlin won't need this, but it's needed by the SDK core anyway, so we just import
   // this in.
   implementation(libs.spring.boot.starter.json)

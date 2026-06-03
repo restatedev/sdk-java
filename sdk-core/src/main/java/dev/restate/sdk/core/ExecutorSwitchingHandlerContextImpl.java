@@ -13,6 +13,7 @@ import dev.restate.common.Slice;
 import dev.restate.common.Target;
 import dev.restate.sdk.common.*;
 import dev.restate.sdk.core.statemachine.StateMachine;
+import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
 import dev.restate.sdk.endpoint.definition.HandlerType;
 import dev.restate.sdk.endpoint.definition.ServiceType;
@@ -32,14 +33,24 @@ final class ExecutorSwitchingHandlerContextImpl extends HandlerContextImpl {
   private final Executor coreExecutor;
 
   ExecutorSwitchingHandlerContextImpl(
-      String fullyQualifiedHandlerName,
+      String serviceName,
+      String handlerName,
       ServiceType serviceType,
       @Nullable HandlerType handlerType,
       StateMachine stateMachine,
       Context otelContext,
+      HeadersAccessor attemptHeaders,
       StateMachine.Input input,
       Executor coreExecutor) {
-    super(fullyQualifiedHandlerName, serviceType, handlerType, stateMachine, otelContext, input);
+    super(
+        serviceName,
+        handlerName,
+        serviceType,
+        handlerType,
+        stateMachine,
+        otelContext,
+        attemptHeaders,
+        input);
     this.coreExecutor = coreExecutor;
   }
 

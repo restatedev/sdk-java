@@ -18,6 +18,7 @@ import dev.restate.sdk.core.AsyncResults.AsyncResultInternal;
 import dev.restate.sdk.core.statemachine.InvocationState;
 import dev.restate.sdk.core.statemachine.NotificationValue;
 import dev.restate.sdk.core.statemachine.StateMachine;
+import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
 import dev.restate.sdk.endpoint.definition.HandlerType;
 import dev.restate.sdk.endpoint.definition.ServiceType;
@@ -40,9 +41,9 @@ class HandlerContextImpl implements HandlerContextInternal {
   private static final int CANCEL_HANDLE = 1;
 
   private final HandlerRequest handlerRequest;
+  private final HeadersAccessor attemptHeaders;
   private final StateMachine stateMachine;
   private final @Nullable String objectKey;
-  private final String fullyQualifiedHandlerName;
   private final ServiceType serviceType;
   private final @Nullable HandlerType handlerType;
 
@@ -50,17 +51,25 @@ class HandlerContextImpl implements HandlerContextInternal {
   private final HashMap<Integer, Consumer<RunCompleter>> scheduledRuns;
 
   HandlerContextImpl(
-      String fullyQualifiedHandlerName,
+      String serviceName,
+      String handlerName,
       ServiceType serviceType,
       @Nullable HandlerType handlerType,
       StateMachine stateMachine,
       Context otelContext,
+      HeadersAccessor attemptHeaders,
       StateMachine.Input input) {
     this.handlerRequest =
-        new HandlerRequest(input.invocationId(), otelContext, input.body(), input.headers());
+        new HandlerRequest(
+            input.invocationId(),
+            otelContext,
+            input.body(),
+            input.headers(),
+            serviceName,
+            handlerName);
+    this.attemptHeaders = attemptHeaders;
     this.objectKey = input.key();
     this.stateMachine = stateMachine;
-    this.fullyQualifiedHandlerName = fullyQualifiedHandlerName;
     this.serviceType = serviceType;
     this.handlerType = handlerType;
     this.invocationIdsToCancel = new ArrayList<>();
@@ -111,6 +120,11 @@ class HandlerContextImpl implements HandlerContextInternal {
   }
 
   @Override
+  public HeadersAccessor attemptHeaders() {
+    return this.attemptHeaders;
+  }
+
+  @Override
   public boolean canReadState() {
     return serviceType == ServiceType.VIRTUAL_OBJECT || serviceType == ServiceType.WORKFLOW;
   }
@@ -132,7 +146,7 @@ class HandlerContextImpl implements HandlerContextInternal {
 
   @Override
   public String getFullyQualifiedMethodName() {
-    return this.fullyQualifiedHandlerName;
+    return this.handlerRequest.serviceName() + "/" + this.handlerRequest.handlerName();
   }
 
   @Override

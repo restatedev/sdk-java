@@ -12,6 +12,7 @@ import dev.restate.common.Slice;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.statemachine.InvocationState;
 import dev.restate.sdk.core.statemachine.StateMachine;
+import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.endpoint.definition.HandlerDefinition;
 import dev.restate.sdk.endpoint.definition.ServiceType;
 import io.opentelemetry.context.Context;
@@ -27,28 +28,34 @@ final class RequestProcessorImpl implements RequestProcessor {
 
   private static final Logger LOG = LogManager.getLogger(RequestProcessorImpl.class);
 
-  private final String fullyQualifiedHandlerName;
+  private final String serviceName;
+  private final String handlerName;
   private final StateMachine stateMachine;
   private final ServiceType serviceType;
   private final HandlerDefinition<Object, Object> handlerDefinition;
   private final Context otelContext;
+  private final HeadersAccessor attemptHeaders;
   private final EndpointRequestHandler.LoggingContextSetter loggingContextSetter;
   private final Executor syscallsExecutor;
   private final AtomicReference<Runnable> onHandlerTaskCancellation;
 
   @SuppressWarnings("unchecked")
   RequestProcessorImpl(
-      String fullyQualifiedHandlerName,
+      String serviceName,
+      String handlerName,
       StateMachine stateMachine,
       ServiceType serviceType,
       HandlerDefinition<?, ?> handlerDefinition,
       Context otelContext,
+      HeadersAccessor attemptHeaders,
       EndpointRequestHandler.LoggingContextSetter loggingContextSetter,
       Executor syscallExecutor) {
-    this.fullyQualifiedHandlerName = fullyQualifiedHandlerName;
+    this.serviceName = serviceName;
+    this.handlerName = handlerName;
     this.stateMachine = stateMachine;
     this.serviceType = serviceType;
     this.otelContext = otelContext;
+    this.attemptHeaders = attemptHeaders;
     this.loggingContextSetter = loggingContextSetter;
     this.handlerDefinition = (HandlerDefinition<Object, Object>) handlerDefinition;
     this.syscallsExecutor = syscallExecutor;
@@ -147,19 +154,23 @@ final class RequestProcessorImpl implements RequestProcessor {
     HandlerContextInternal contextInternal =
         this.syscallsExecutor != null
             ? new ExecutorSwitchingHandlerContextImpl(
-                fullyQualifiedHandlerName,
+                serviceName,
+                handlerName,
                 serviceType,
                 handlerDefinition.getHandlerType(),
                 stateMachine,
                 otelContext,
+                attemptHeaders,
                 input,
                 this.syscallsExecutor)
             : new HandlerContextImpl(
-                fullyQualifiedHandlerName,
+                serviceName,
+                handlerName,
                 serviceType,
                 handlerDefinition.getHandlerType(),
                 stateMachine,
                 otelContext,
+                attemptHeaders,
                 input);
 
     CompletableFuture<Slice> userCodeFuture =

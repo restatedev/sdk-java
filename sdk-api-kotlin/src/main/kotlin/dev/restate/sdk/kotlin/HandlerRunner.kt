@@ -11,10 +11,14 @@ package dev.restate.sdk.kotlin
 import dev.restate.common.Slice
 import dev.restate.sdk.common.TerminalException
 import dev.restate.sdk.endpoint.definition.HandlerContext
+import dev.restate.sdk.kotlin.HandlerRunner.Options.Companion.DEFAULT
+import dev.restate.sdk.kotlin.interceptor.HandlerInterceptor
+import dev.restate.sdk.kotlin.interceptor.RunInterceptor
 import dev.restate.sdk.kotlin.internal.RestateContextElement
 import dev.restate.serde.Serde
 import dev.restate.serde.SerdeFactory
 import io.opentelemetry.extension.kotlin.asContextElement
+import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.CoroutineContext
@@ -29,8 +33,12 @@ class HandlerRunner<REQ, RES, CTX : Context>
 internal constructor(
     private val runner: suspend (CTX, REQ) -> RES,
     private val contextSerdeFactory: SerdeFactory,
-    private val options: Options,
+    options: Options,
 ) : dev.restate.sdk.endpoint.definition.HandlerRunner<REQ, RES> {
+  private val coroutineContext = options.coroutineContext
+  private val handlerInterceptor =
+      HandlerInterceptor.Factory.combine(options.handlerInterceptorFactories)
+  private val runInterceptor = RunInterceptor.Factory.combine(options.runInterceptorFactories)
 
   companion object {
     private val LOG = LogManager.getLogger(HandlerRunner::class.java)
@@ -41,7 +49,7 @@ internal constructor(
      */
     fun <REQ, RES, CTX : Context> of(
         contextSerdeFactory: SerdeFactory,
-        options: Options = Options.DEFAULT,
+        options: Options = Options(),
         runner: suspend (CTX, REQ) -> RES,
     ): HandlerRunner<REQ, RES, CTX> {
       return HandlerRunner(runner, contextSerdeFactory, options)
@@ -53,7 +61,7 @@ internal constructor(
      */
     fun <RES, CTX : Context> of(
         contextSerdeFactory: SerdeFactory,
-        options: Options = Options.DEFAULT,
+        options: Options = Options(),
         runner: suspend (CTX) -> RES,
     ): HandlerRunner<Unit, RES, CTX> {
       return HandlerRunner({ ctx: CTX, _: Unit -> runner(ctx) }, contextSerdeFactory, options)
@@ -65,7 +73,7 @@ internal constructor(
      */
     fun <REQ, CTX : Context> ofEmptyReturn(
         contextSerdeFactory: SerdeFactory,
-        options: Options = Options.DEFAULT,
+        options: Options = Options(),
         runner: suspend (CTX, REQ) -> Unit,
     ): HandlerRunner<REQ, Unit, CTX> {
       return HandlerRunner(
@@ -84,7 +92,7 @@ internal constructor(
      */
     fun <CTX : Context> ofEmptyReturn(
         contextSerdeFactory: SerdeFactory,
-        options: Options = Options.DEFAULT,
+        options: Options = Options(),
         runner: suspend (CTX) -> Unit,
     ): HandlerRunner<Unit, Unit, CTX> {
       return HandlerRunner(
@@ -104,56 +112,62 @@ internal constructor(
       responseSerde: Serde<RES>,
       onClosedInvocationStreamHook: AtomicReference<Runnable>,
   ): CompletableFuture<Slice> {
-    val ctx: Context = ContextImpl(handlerContext, contextSerdeFactory)
+    // Interceptor chains were combined once when Options was constructed; reuse them here.
+    val ctx: Context = ContextImpl(handlerContext, contextSerdeFactory, runInterceptor)
 
     val scope =
         CoroutineScope(
-            options.coroutineContext +
+            coroutineContext +
                 RestateContextElement(ctx) +
                 dev.restate.sdk.endpoint.definition.HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL
                     .asContextElement(handlerContext) +
+                // TODO(tracing-plumbing): deprecate, superseded by sdk-interceptor-opentelemetry
                 handlerContext.request().openTelemetryContext()!!.asContextElement()
         )
 
     val completableFuture = CompletableFuture<Slice>()
     val job =
         scope.launch {
-          val serializedResult: Slice
+          val resultHolder = AtomicReference(Slice.EMPTY)
 
-          try {
+          val userBlock: suspend () -> Unit = {
             // Parse input
-            val req: REQ
-            try {
-              req = requestSerde.deserialize(handlerContext.request().body())
-            } catch (e: Throwable) {
-              LOG.warn("Error deserializing request", e)
-              completableFuture.completeExceptionally(
+            val req: REQ =
+                try {
+                  requestSerde.deserialize(handlerContext.request().body())
+                } catch (e: Exception) {
+                  LOG.warn("Error deserializing request", e)
                   throw TerminalException(
                       TerminalException.BAD_REQUEST_CODE,
                       "Cannot deserialize request: " + e.message,
                   )
-              )
-              return@launch
-            }
+                }
 
-            // Execute user code
+            // Execute user code. AbortedExecutionException (Throwable, not Exception)
+            // propagates naturally through this suspend frame.
             @Suppress("UNCHECKED_CAST") val res: RES = runner(ctx as CTX, req)
 
             // Serialize output
             try {
-              serializedResult = responseSerde.serialize(res)
-            } catch (e: Throwable) {
+              resultHolder.set(responseSerde.serialize(res))
+            } catch (e: Exception) {
               LOG.warn("Error when serializing response", e)
-              completableFuture.completeExceptionally(e)
-              return@launch
+              throw e
             }
-          } catch (e: Throwable) {
-            completableFuture.completeExceptionally(e)
-            return@launch
           }
 
-          // Complete callback
-          completableFuture.complete(serializedResult)
+          try {
+            handlerInterceptor.aroundHandler(
+                HandlerInterceptor.Context(
+                    handlerContext.request(),
+                    handlerContext.attemptHeaders(),
+                ),
+                userBlock,
+            )
+            completableFuture.complete(resultHolder.get())
+          } catch (t: Throwable) {
+            completableFuture.completeExceptionally(t)
+          }
         }
     onClosedInvocationStreamHook.set { job.cancel() }
 
@@ -162,12 +176,30 @@ internal constructor(
 
   /**
    * [dev.restate.sdk.kotlin.HandlerRunner] options. You can override the default options to
-   * configure the [CoroutineContext] to run the handler.
+   * configure the [CoroutineContext] to run the handler, and to register interceptor factories.
+   *
+   * [DEFAULT] picks up any [HandlerInterceptor.Factory] and [RunInterceptor.Factory] registered via
+   * [java.util.ServiceLoader] on the classpath.
    */
-  data class Options(val coroutineContext: CoroutineContext) :
-      dev.restate.sdk.endpoint.definition.HandlerRunner.Options {
+  class Options(
+      var coroutineContext: CoroutineContext = Dispatchers.Default,
+      var handlerInterceptorFactories: MutableList<HandlerInterceptor.Factory> =
+          SPI_HANDLER_FACTORIES.toMutableList(),
+      var runInterceptorFactories: MutableList<RunInterceptor.Factory> =
+          SPI_RUN_FACTORIES.toMutableList(),
+  ) : dev.restate.sdk.endpoint.definition.HandlerRunner.Options {
+
     companion object {
-      val DEFAULT: Options = Options(Dispatchers.Default)
+      private val SPI_HANDLER_FACTORIES: List<HandlerInterceptor.Factory> =
+          ServiceLoader.load(HandlerInterceptor.Factory::class.java).toList()
+      private val SPI_RUN_FACTORIES: List<RunInterceptor.Factory> =
+          ServiceLoader.load(RunInterceptor.Factory::class.java).toList()
+
+      @kotlin.Deprecated(
+          message = "Replace it with constructing Options() instead.",
+          replaceWith = ReplaceWith("Options()"),
+      )
+      val DEFAULT: Options = Options()
     }
   }
 }

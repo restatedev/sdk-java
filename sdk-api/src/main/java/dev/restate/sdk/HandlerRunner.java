@@ -12,11 +12,17 @@ import dev.restate.common.Slice;
 import dev.restate.common.function.*;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
+import dev.restate.sdk.interceptor.HandlerInterceptor;
+import dev.restate.sdk.interceptor.RunContextPropagator;
+import dev.restate.sdk.interceptor.RunInterceptor;
 import dev.restate.sdk.internal.ContextThreadLocal;
 import dev.restate.serde.Serde;
 import dev.restate.serde.SerdeFactory;
 import io.opentelemetry.context.Scope;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
+import java.util.ServiceLoader;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -33,7 +39,10 @@ public class HandlerRunner<REQ, RES>
     implements dev.restate.sdk.endpoint.definition.HandlerRunner<REQ, RES> {
   private final ThrowingBiFunction<Context, REQ, RES> runner;
   private final SerdeFactory contextSerdeFactory;
-  private final Options options;
+  private final Executor executor;
+  private final HandlerInterceptor handlerInterceptor;
+  private final RunInterceptor runInterceptor;
+  private final RunContextPropagator runContextPropagator;
 
   private static final Logger LOG = LogManager.getLogger(HandlerRunner.class);
 
@@ -44,7 +53,12 @@ public class HandlerRunner<REQ, RES>
     //noinspection unchecked
     this.runner = (ThrowingBiFunction<Context, REQ, RES>) runner;
     this.contextSerdeFactory = contextSerdeFactory;
-    this.options = (options != null) ? options : Options.DEFAULT;
+    var opts = (options != null) ? options : Options.DEFAULT;
+    this.executor = opts.executor;
+    this.handlerInterceptor =
+        HandlerInterceptor.Factory.combine(opts.handlerInterceptorFactories());
+    this.runInterceptor = RunInterceptor.Factory.combine(opts.runInterceptorFactories());
+    this.runContextPropagator = RunContextPropagator.combine(opts.runContextPropagators());
   }
 
   @Override
@@ -58,9 +72,10 @@ public class HandlerRunner<REQ, RES>
     // Wrap the executor for setting/unsetting the thread local
     Executor serviceExecutor =
         runnable ->
-            options.executor.execute(
+            executor.execute(
                 () -> {
                   HANDLER_CONTEXT_THREAD_LOCAL.set(handlerContext);
+                  // TODO(tracing-plumbing): deprecate, superseded by sdk-interceptor-opentelemetry
                   try (Scope ignored =
                       handlerContext.request().openTelemetryContext().makeCurrent()) {
                     runnable.run();
@@ -68,57 +83,68 @@ public class HandlerRunner<REQ, RES>
                     HANDLER_CONTEXT_THREAD_LOCAL.remove();
                   }
                 });
+
     serviceExecutor.execute(
         () -> {
           // Any context switching, if necessary, will be done by ResolvedEndpointHandler
-          Context ctx = new ContextImpl(handlerContext, serviceExecutor, contextSerdeFactory);
+          Context ctx =
+              new ContextImpl(
+                  handlerContext,
+                  serviceExecutor,
+                  contextSerdeFactory,
+                  runInterceptor,
+                  runContextPropagator);
 
-          // Parse input
-          REQ req;
+          AtomicReference<Slice> resultHolder = new AtomicReference<>();
+
+          HandlerInterceptor.Next userBlock =
+              () -> {
+                // Parse input
+                REQ req;
+                try {
+                  req = requestSerde.deserialize(handlerContext.request().body());
+                } catch (Throwable e) {
+                  LOG.warn("Cannot deserialize input", e);
+                  throw new TerminalException(
+                      TerminalException.BAD_REQUEST_CODE,
+                      "Cannot deserialize input: " + e.getMessage());
+                }
+
+                // Execute user code. The user runner declares throws Throwable so we
+                // sneaky-throw any non-Exception throwables (Errors,
+                // AbortedExecutionException) to propagate them through Next.proceed()
+                // which is declared throws Exception.
+                RES res;
+                try {
+                  ContextThreadLocal.setContext(ctx);
+                  res = this.runner.apply(ctx, req);
+                } catch (Throwable t1) {
+                  sneakyThrow(t1);
+                  return;
+                } finally {
+                  ContextThreadLocal.clearContext();
+                }
+
+                // Serialize output
+                try {
+                  resultHolder.set(responseSerde.serialize(res));
+                } catch (Throwable e) {
+                  LOG.warn("Cannot serialize output", e);
+                  throw new TerminalException(
+                      TerminalException.INTERNAL_SERVER_ERROR_CODE,
+                      "Cannot serialize output: " + e.getMessage());
+                }
+              };
+
           try {
-            req = requestSerde.deserialize(handlerContext.request().body());
-          } catch (Throwable e) {
-            LOG.warn("Cannot deserialize input", e);
-            returnFuture.completeExceptionally(
-                new TerminalException(
-                    TerminalException.BAD_REQUEST_CODE,
-                    "Cannot deserialize input: " + e.getMessage()));
-            return;
+            handlerInterceptor.aroundHandler(
+                new HandlerInterceptor.Context(
+                    handlerContext.request(), handlerContext.attemptHeaders()),
+                userBlock);
+            returnFuture.complete(resultHolder.get());
+          } catch (Throwable t) {
+            returnFuture.completeExceptionally(t);
           }
-
-          // Execute user code
-          RES res = null;
-          Throwable error = null;
-          try {
-            ContextThreadLocal.setContext(ctx);
-            res = this.runner.apply(ctx, req);
-          } catch (Throwable e) {
-            error = e;
-          } finally {
-            ContextThreadLocal.clearContext();
-          }
-
-          // If error, just return now
-          if (error != null) {
-            returnFuture.completeExceptionally(error);
-            return;
-          }
-
-          // Serialize output
-          Slice serializedResult;
-          try {
-            serializedResult = responseSerde.serialize(res);
-          } catch (Throwable e) {
-            LOG.warn("Cannot serialize output", e);
-            returnFuture.completeExceptionally(
-                new TerminalException(
-                    TerminalException.INTERNAL_SERVER_ERROR_CODE,
-                    "Cannot serialize output: " + e.getMessage()));
-            return;
-          }
-
-          // Complete callback
-          returnFuture.complete(serializedResult);
         });
 
     return returnFuture;
@@ -171,26 +197,57 @@ public class HandlerRunner<REQ, RES>
   }
 
   /**
-   * {@link HandlerRunner} options. You can override the default options to configure the executor
-   * where to run the handlers.
+   * {@link HandlerRunner} options, to configure the executor to use to run your services, and the
+   * interceptors.
    *
-   * <p>You can run on virtual threads by using the executor {@code
-   * Executors.newVirtualThreadPerTaskExecutor()}.
+   * <p>By default, executor will be configured to use virtual threads on Java 21+, or fallback to
+   * {@link Executors#newCachedThreadPool()} for Java &lt; 21. The bounded pool is shared among all
+   * {@link HandlerRunner} instances, and is used by {@link Restate#run}/{@link Context#run} as
+   * well.
+   *
+   * <p>{@link HandlerInterceptor.Factory} and {@link RunInterceptor.Factory} registered via SPI are
+   * also loaded by default.
    */
   public static final class Options
       implements dev.restate.sdk.endpoint.definition.HandlerRunner.Options {
+
+    private static final Executor DEFAULT_EXECUTOR = createDefaultExecutor();
+    private static final List<HandlerInterceptor.Factory> DEFAULT_HANDLER_INTERCEPTOR_FACTORIES =
+        loadSpiHandlerFactories();
+    private static final List<RunInterceptor.Factory> DEFAULT_RUN_INTERCEPTOR_FACTORIES =
+        loadSpiRunFactories();
+    private static final List<RunContextPropagator> DEFAULT_RUN_CONTEXT_PROPAGATORS =
+        loadSpiRunContextPropagators();
+
     /**
-     * Default options will use virtual threads on Java 21+, or fallback to {@link
-     * Executors#newCachedThreadPool()} for Java &lt; 21. The bounded pool is shared among all
-     * {@link HandlerRunner} instances, and is used by {@link Restate#run}/{@link Context#run} as
-     * well.
+     * @deprecated Create a new instance of Options instead.
      */
-    public static final Options DEFAULT = new Options(createDefaultExecutor());
+    @Deprecated(forRemoval = true)
+    public static final Options DEFAULT = new Options();
 
-    private final Executor executor;
+    private Executor executor;
+    private ArrayList<HandlerInterceptor.Factory> handlerInterceptorFactories;
+    private ArrayList<RunInterceptor.Factory> runInterceptorFactories;
+    private ArrayList<RunContextPropagator> runContextPropagators;
 
-    private Options(Executor executor) {
+    /** Create new options, check {@link Options} for the defaults documentation. */
+    public Options() {
+      this(
+          DEFAULT_EXECUTOR,
+          DEFAULT_HANDLER_INTERCEPTOR_FACTORIES,
+          DEFAULT_RUN_INTERCEPTOR_FACTORIES,
+          DEFAULT_RUN_CONTEXT_PROPAGATORS);
+    }
+
+    private Options(
+        Executor executor,
+        List<HandlerInterceptor.Factory> handlerInterceptorFactories,
+        List<RunInterceptor.Factory> runInterceptorFactories,
+        List<RunContextPropagator> runContextPropagators) {
       this.executor = executor;
+      this.handlerInterceptorFactories = new ArrayList<>(handlerInterceptorFactories);
+      this.runInterceptorFactories = new ArrayList<>(runInterceptorFactories);
+      this.runContextPropagators = new ArrayList<>(runContextPropagators);
     }
 
     /**
@@ -200,7 +257,102 @@ public class HandlerRunner<REQ, RES>
      * Context#run} as well.
      */
     public static Options withExecutor(Executor executor) {
-      return new Options(executor);
+      return new Options(
+          executor,
+          DEFAULT_HANDLER_INTERCEPTOR_FACTORIES,
+          DEFAULT_RUN_INTERCEPTOR_FACTORIES,
+          DEFAULT_RUN_CONTEXT_PROPAGATORS);
+    }
+
+    /**
+     * Set the given {@code executor} as the handler executor.
+     *
+     * <p>The given executor is used for running the handler code, and {@link Restate#run}/{@link
+     * Context#run} as well.
+     *
+     * @return self for fluency
+     */
+    public Options setExecutor(Executor executor) {
+      this.executor = executor;
+      return this;
+    }
+
+    /**
+     * Append a {@link HandlerInterceptor.Factory} to the factories, as innermost in the chain.
+     *
+     * @return self for fluency
+     */
+    public Options addHandlerInterceptorFactory(HandlerInterceptor.Factory factory) {
+      this.handlerInterceptorFactories.add(factory);
+      return this;
+    }
+
+    /**
+     * Append a {@link RunInterceptor.Factory} to the factories, as innermost in the chain.
+     *
+     * @return self for fluency
+     */
+    public Options addRunInterceptorFactory(RunInterceptor.Factory factory) {
+      this.runInterceptorFactories.add(factory);
+      return this;
+    }
+
+    /**
+     * Overwrite the {@link HandlerInterceptor.Factory} chain with a new chain.
+     *
+     * @return self for fluency
+     */
+    public Options setHandlerInterceptorFactories(List<HandlerInterceptor.Factory> newFactories) {
+      this.handlerInterceptorFactories = new ArrayList<>(newFactories);
+      return this;
+    }
+
+    /**
+     * Overwrite the {@link RunInterceptor.Factory} chain with a new chain.
+     *
+     * @return self for fluency
+     */
+    public Options setRunInterceptorFactories(List<RunInterceptor.Factory> newFactories) {
+      this.runInterceptorFactories = new ArrayList<>(newFactories);
+      return this;
+    }
+
+    /**
+     * Append a {@link RunContextPropagator}. Propagators capture thread-local state at {@link
+     * Restate#run} submission and restore it around the closure execution on the worker thread. The
+     * first registered propagator captures/restores outermost.
+     *
+     * @return self for fluency
+     */
+    public Options addRunContextPropagator(RunContextPropagator propagator) {
+      this.runContextPropagators.add(propagator);
+      return this;
+    }
+
+    /**
+     * Overwrite the {@link RunContextPropagator} list.
+     *
+     * @return self for fluency
+     */
+    public Options setRunContextPropagators(List<RunContextPropagator> newPropagators) {
+      this.runContextPropagators = new ArrayList<>(newPropagators);
+      return this;
+    }
+
+    public Executor executor() {
+      return executor;
+    }
+
+    public List<HandlerInterceptor.Factory> handlerInterceptorFactories() {
+      return Objects.requireNonNullElse(handlerInterceptorFactories, List.of());
+    }
+
+    public List<RunInterceptor.Factory> runInterceptorFactories() {
+      return Objects.requireNonNullElse(runInterceptorFactories, List.of());
+    }
+
+    public List<RunContextPropagator> runContextPropagators() {
+      return Objects.requireNonNullElse(runContextPropagators, List.of());
     }
 
     private static ExecutorService createDefaultExecutor() {
@@ -217,11 +369,34 @@ public class HandlerRunner<REQ, RES>
         return Executors.newCachedThreadPool();
       }
     }
+
+    private static List<HandlerInterceptor.Factory> loadSpiHandlerFactories() {
+      List<HandlerInterceptor.Factory> list = new ArrayList<>();
+      ServiceLoader.load(HandlerInterceptor.Factory.class).forEach(list::add);
+      return list;
+    }
+
+    private static List<RunInterceptor.Factory> loadSpiRunFactories() {
+      List<RunInterceptor.Factory> list = new ArrayList<>();
+      ServiceLoader.load(RunInterceptor.Factory.class).forEach(list::add);
+      return list;
+    }
+
+    private static List<RunContextPropagator> loadSpiRunContextPropagators() {
+      List<RunContextPropagator> list = new ArrayList<>();
+      ServiceLoader.load(RunContextPropagator.class).forEach(list::add);
+      return list;
+    }
   }
 
   static HandlerContext getHandlerContext() {
     return Objects.requireNonNull(
         dev.restate.sdk.endpoint.definition.HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL.get(),
         "Restate methods must be invoked from within a Restate handler");
+  }
+
+  @SuppressWarnings("unchecked")
+  private static <E extends Throwable> void sneakyThrow(Throwable t) throws E {
+    throw (E) t;
   }
 }

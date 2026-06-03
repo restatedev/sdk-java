@@ -20,19 +20,32 @@ public final class HandlerRequest {
   private final Context otelContext;
   private final Slice body;
   private final Map<String, String> headers;
+  private final String serviceName;
+  private final String handlerName;
 
   public HandlerRequest(
-      InvocationId invocationId, Context otelContext, Slice body, Map<String, String> headers) {
+      InvocationId invocationId,
+      Context otelContext,
+      Slice body,
+      Map<String, String> headers,
+      String serviceName,
+      String handlerName) {
     this.invocationId = invocationId;
     this.otelContext = otelContext;
     this.body = body;
     this.headers = headers;
+    this.serviceName = serviceName;
+    this.handlerName = handlerName;
   }
 
   public InvocationId invocationId() {
     return invocationId;
   }
 
+  /**
+   * @deprecated Use the new {@code sdk-interceptor-opentelemetry} module instead
+   */
+  @Deprecated(forRemoval = true)
   public Context openTelemetryContext() {
     return otelContext;
   }
@@ -53,6 +66,16 @@ public final class HandlerRequest {
     return headers;
   }
 
+  /** Name of the service being invoked. */
+  public String serviceName() {
+    return serviceName;
+  }
+
+  /** Name of the handler being invoked. */
+  public String handlerName() {
+    return handlerName;
+  }
+
   @Override
   public boolean equals(Object obj) {
     if (obj == this) return true;
@@ -61,12 +84,14 @@ public final class HandlerRequest {
     return Objects.equals(this.invocationId, that.invocationId)
         && Objects.equals(this.otelContext, that.otelContext)
         && Objects.equals(this.body, that.body)
-        && Objects.equals(this.headers, that.headers);
+        && Objects.equals(this.headers, that.headers)
+        && Objects.equals(this.serviceName, that.serviceName)
+        && Objects.equals(this.handlerName, that.handlerName);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(invocationId, otelContext, body, headers);
+    return Objects.hash(invocationId, otelContext, body, headers, serviceName, handlerName);
   }
 
   @Override
@@ -74,6 +99,12 @@ public final class HandlerRequest {
     return "HandlerRequest["
         + "invocationId="
         + invocationId
+        + ", "
+        + "serviceName="
+        + serviceName
+        + ", "
+        + "handlerName="
+        + handlerName
         + ", "
         + "otelContext="
         + otelContext

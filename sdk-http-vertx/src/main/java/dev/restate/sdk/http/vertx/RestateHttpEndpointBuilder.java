@@ -76,6 +76,7 @@ public class RestateHttpEndpointBuilder {
    */
   @Deprecated(since = "2.0", forRemoval = true)
   public RestateHttpEndpointBuilder withOpenTelemetry(OpenTelemetry openTelemetry) {
+    //noinspection removal
     this.endpointBuilder.withOpenTelemetry(openTelemetry);
     return this;
   }

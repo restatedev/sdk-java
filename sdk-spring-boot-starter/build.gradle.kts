@@ -23,6 +23,7 @@ dependencies {
   api(project(":sdk-api"), excludeJackson)
   api(project(":client"), excludeJackson)
   api(project(":sdk-serde-jackson"), excludeJackson)
+  api(project(":sdk-interceptor-micrometer"))
   runtimeOnly(project(":bytebuddy-proxy-support")) { isTransitive = true }
 
   // Spring boot starter brought in here for convenience
@@ -37,6 +38,8 @@ dependencies {
   testImplementation(libs.jackson.databind)
   testImplementation(project(":sdk-serde-jackson"))
   testImplementation(project(":sdk-testing"))
+  testImplementation(libs.micrometer.observation.test)
+  testImplementation(libs.micrometer.java11)
   testRuntimeOnly(libs.junit.platform.launcher)
 }
 

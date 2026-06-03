@@ -33,6 +33,8 @@ include(
     "sdk-api-kotlin-gen",
     "sdk-spring-boot",
     "sdk-fake-api",
+    "sdk-interceptor-opentelemetry",
+    "sdk-interceptor-micrometer",
 
     // Other modules we don't publish
     "examples",

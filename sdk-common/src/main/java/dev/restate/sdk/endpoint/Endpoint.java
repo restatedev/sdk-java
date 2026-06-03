@@ -124,10 +124,9 @@ public final class Endpoint {
     }
 
     /**
-     * Set the {@link OpenTelemetry} implementation for tracing and metrics.
-     *
-     * @see OpenTelemetry
+     * @deprecated Use the new {@code sdk-interceptor-opentelemetry} module instead
      */
+    @Deprecated(forRemoval = true)
     public Builder withOpenTelemetry(OpenTelemetry openTelemetry) {
       this.openTelemetry = openTelemetry;
       return this;
@@ -237,6 +236,10 @@ public final class Endpoint {
     return this.services.values().stream();
   }
 
+  /**
+   * @deprecated Use the new {@code sdk-interceptor-opentelemetry} module instead
+   */
+  @Deprecated(forRemoval = true)
   public OpenTelemetry getOpenTelemetry() {
     return openTelemetry;
   }

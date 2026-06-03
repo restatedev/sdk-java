@@ -12,6 +12,7 @@ import dev.restate.common.Output;
 import dev.restate.common.Slice;
 import dev.restate.common.Target;
 import dev.restate.sdk.common.*;
+import dev.restate.sdk.endpoint.HeadersAccessor;
 import java.time.Duration;
 import java.util.*;
 import java.util.List;
@@ -28,6 +29,12 @@ public interface HandlerContext {
   String objectKey();
 
   HandlerRequest request();
+
+  /**
+   * Restate-protocol-level HTTP headers received on the current invocation attempt. Differs across
+   * retries.
+   */
+  HeadersAccessor attemptHeaders();
 
   boolean canReadState();
 

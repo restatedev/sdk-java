@@ -16,6 +16,7 @@ import dev.restate.sdk.common.HandlerRequest
 import dev.restate.sdk.common.StateKey
 import dev.restate.sdk.common.TerminalException
 import dev.restate.sdk.endpoint.definition.HandlerContext
+import dev.restate.sdk.kotlin.interceptor.RunInterceptor
 import dev.restate.sdk.kotlin.internal.InsideRunElement
 import dev.restate.sdk.kotlin.internal.InsideRunElement.Key.checkNotInsideRun
 import dev.restate.serde.Serde
@@ -32,6 +33,7 @@ internal class ContextImpl
 internal constructor(
     internal val handlerContext: HandlerContext,
     internal val contextSerdeFactory: SerdeFactory,
+    internal val runInterceptor: RunInterceptor = RunInterceptor { _, next -> next() },
 ) : WorkflowContext {
 
   internal val random: RestateRandom =
@@ -168,14 +170,19 @@ internal constructor(
         handlerContext
             .submitRun(name) { completer ->
               scope.launch {
-                val result: Slice?
+                val resultHolder = java.util.concurrent.atomic.AtomicReference<Slice>()
+
+                val closure: suspend () -> Unit = { resultHolder.set(serde.serialize(block())) }
+
                 try {
-                  result = serde.serialize(block())
-                } catch (e: Throwable) {
-                  completer.proposeFailure(e, javaRetryPolicy)
-                  return@launch
+                  runInterceptor.aroundRun(
+                      RunInterceptor.Context(handlerContext.request(), name),
+                      closure,
+                  )
+                  completer.proposeSuccess(resultHolder.get())
+                } catch (t: Throwable) {
+                  completer.proposeFailure(t, javaRetryPolicy)
                 }
-                completer.proposeSuccess(result)
               }
             }
             .await()

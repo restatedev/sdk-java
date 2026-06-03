@@ -13,6 +13,7 @@ import dev.restate.sdk.annotation.*
 import dev.restate.sdk.endpoint.definition.*
 import dev.restate.sdk.endpoint.definition.HandlerRunner
 import dev.restate.sdk.kotlin.*
+import dev.restate.sdk.kotlin.HandlerRunner.Options
 import dev.restate.serde.Serde
 import dev.restate.serde.SerdeFactory
 import dev.restate.serde.kotlinx.KotlinSerializationSerdeFactory
@@ -39,11 +40,8 @@ internal class ReflectionServiceDefinitionFactory : ServiceDefinitionFactory<Any
       serviceInstance: Any,
       overrideHandlerOptions: HandlerRunner.Options?,
   ): ServiceDefinition {
-    val handlerRunnerOptions: dev.restate.sdk.kotlin.HandlerRunner.Options?
-    if (
-        overrideHandlerOptions == null ||
-            overrideHandlerOptions is dev.restate.sdk.kotlin.HandlerRunner.Options
-    ) {
+    val handlerRunnerOptions: Options?
+    if (overrideHandlerOptions == null || overrideHandlerOptions is Options) {
       handlerRunnerOptions = overrideHandlerOptions
     } else {
       throw IllegalArgumentException(
@@ -127,7 +125,7 @@ internal class ReflectionServiceDefinitionFactory : ServiceDefinitionFactory<Any
       serviceName: String,
       serviceType: ServiceType,
       serdeFactory: SerdeFactory,
-      overrideHandlerOptions: dev.restate.sdk.kotlin.HandlerRunner.Options?,
+      overrideHandlerOptions: Options?,
   ): HandlerDefinition<*, *> {
     val handlerInfo: ReflectionUtils.HandlerInfo =
         ReflectionUtils.mustHaveHandlerAnnotation(kFunction.javaMethod!!)
@@ -226,11 +224,11 @@ internal class ReflectionServiceDefinitionFactory : ServiceDefinitionFactory<Any
       kFunction: KFunction<*>,
       parameterCount: Int,
       serdeFactory: SerdeFactory,
-      overrideHandlerOptions: dev.restate.sdk.kotlin.HandlerRunner.Options?,
+      overrideHandlerOptions: Options?,
   ): dev.restate.sdk.kotlin.HandlerRunner<Any?, Any?, Context> {
     return dev.restate.sdk.kotlin.HandlerRunner.of(
         serdeFactory,
-        overrideHandlerOptions ?: dev.restate.sdk.kotlin.HandlerRunner.Options.DEFAULT,
+        overrideHandlerOptions ?: Options(),
     ) { _, input ->
       try {
         if (parameterCount == 0) {

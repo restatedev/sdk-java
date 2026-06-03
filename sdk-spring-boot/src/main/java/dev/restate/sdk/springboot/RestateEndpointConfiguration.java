@@ -15,7 +15,6 @@ import dev.restate.sdk.endpoint.definition.HandlerDefinition;
 import dev.restate.sdk.endpoint.definition.HandlerRunner;
 import dev.restate.sdk.endpoint.definition.InvocationRetryPolicy;
 import dev.restate.sdk.endpoint.definition.ServiceDefinition;
-import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
@@ -23,6 +22,7 @@ import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -33,20 +33,16 @@ import org.springframework.core.annotation.AnnotatedElementUtils;
 @EnableConfigurationProperties({RestateEndpointProperties.class, RestateComponentsProperties.class})
 public class RestateEndpointConfiguration {
 
-  // Cached reflection method for HandlerRunner.Options.withExecutor(Executor)
-  private static final Method WITH_EXECUTOR_METHOD;
+  /** Language-specific options support, resolved at class-load time. */
+  private static final OptionsSupport JAVA_SUPPORT =
+      isClassPresent("dev.restate.sdk.HandlerRunner")
+          ? loadSupport("dev.restate.sdk.springboot.JavaOptionsSupport")
+          : nopOptionsSupport("java");
 
-  static {
-    Method method;
-    try {
-      Class<?> optionsClass = Class.forName("dev.restate.sdk.HandlerRunner$Options");
-      method = optionsClass.getMethod("withExecutor", Executor.class);
-    } catch (ClassNotFoundException | NoSuchMethodException e) {
-      // Leave it null, it will fail if being used
-      method = null;
-    }
-    WITH_EXECUTOR_METHOD = method;
-  }
+  private static final OptionsSupport KOTLIN_SUPPORT =
+      isClassPresent("dev.restate.sdk.kotlin.HandlerRunner")
+          ? loadSupport("dev.restate.sdk.springboot.KotlinOptionsSupport")
+          : nopOptionsSupport("kotlin");
 
   private final Logger logger = LoggerFactory.getLogger(getClass());
 
@@ -81,9 +77,14 @@ public class RestateEndpointConfiguration {
               .collect(Collectors.joining(", ", "[", "]")));
     }
 
-    // Create default handler runner options, if available
-    HandlerRunner.Options javaRunnerOptions =
-        createHandlerRunnerOptions(applicationContext, restateComponentsProperties.getExecutor());
+    // Resolve the ObservationRegistry if present in classpath.
+    Object observationRegistry = lookupObservationRegistry(applicationContext);
+
+    // Default executor
+    Executor defaultExecutor =
+        restateComponentsProperties.getExecutor() != null
+            ? applicationContext.getBean(restateComponentsProperties.getExecutor(), Executor.class)
+            : null;
 
     // Build the Endpoint object
     var builder = Endpoint.builder();
@@ -93,7 +94,8 @@ public class RestateEndpointConfiguration {
       var serviceInstance = serviceNameAndBean.getValue().getValue();
       var isKotlinClass = ReflectionUtils.isKotlinClass(restateServiceDefinitionClazz);
 
-      var handlerOptions = javaRunnerOptions;
+      String specificExecutor = null;
+
       // Apply global defaults first, per-service config layered on top
       Consumer<ServiceDefinition.Configurator> configurator =
           conf -> configureServiceDefaults(conf, restateComponentsProperties);
@@ -107,8 +109,7 @@ public class RestateEndpointConfiguration {
                     + serviceName
                     + " implemented with Kotlin. This is currently not supported, you can set the executor only for Restate java components.");
           }
-          handlerOptions =
-              createHandlerRunnerOptions(applicationContext, componentProperties.getExecutor());
+          specificExecutor = componentProperties.getExecutor();
         }
         final var finalComponentProperties = componentProperties;
         configurator =
@@ -132,16 +133,27 @@ public class RestateEndpointConfiguration {
                       + serviceName
                       + " implemented with Kotlin. This is currently not supported, you can set the executor only for Restate java components.");
             }
-            handlerOptions =
-                createHandlerRunnerOptions(
-                    applicationContext, componentPropertiesBean.getExecutor());
+            specificExecutor = componentPropertiesBean.getExecutor();
           }
           configurator =
               combine(configurator, conf -> configureService(conf, componentPropertiesBean));
         }
       }
 
-      builder.bind(serviceInstance, isKotlinClass ? null : handlerOptions, configurator);
+      // Prepare HandlerRunner options
+      OptionsSupport support = isKotlinClass ? KOTLIN_SUPPORT : JAVA_SUPPORT;
+      HandlerRunner.Options handlerOptions = support.createOptions();
+      if (specificExecutor != null) {
+        support.setExecutor(
+            handlerOptions, applicationContext.getBean(specificExecutor, Executor.class));
+      } else if (defaultExecutor != null) {
+        support.setExecutor(handlerOptions, defaultExecutor);
+      }
+      if (observationRegistry != null) {
+        support.setMicrometerTracing(handlerOptions, observationRegistry);
+      }
+
+      builder.bind(serviceInstance, handlerOptions, configurator);
     }
     if (restateEndpointProperties.isEnablePreviewContext()) {
       builder = builder.enablePreviewContext();
@@ -298,21 +310,56 @@ public class RestateEndpointConfiguration {
     };
   }
 
-  private static HandlerRunner.@Nullable Options createHandlerRunnerOptions(
-      ApplicationContext applicationContext, @Nullable String beanExecutorName) {
-    if (beanExecutorName == null) {
+  private static OptionsSupport nopOptionsSupport(String module) {
+    return new OptionsSupport() {
+      @Override
+      public HandlerRunner.Options createOptions() {
+        throw new IllegalStateException(
+            "Could not correctly load handler options for service built using " + module);
+      }
+
+      @Override
+      public void setExecutor(HandlerRunner.@Nullable Options opts, Executor executor) {}
+
+      @Override
+      public void setMicrometerTracing(HandlerRunner.@Nullable Options opts, Object registry) {}
+    };
+  }
+
+  private static boolean isClassPresent(String name) {
+    try {
+      Class.forName(name, false, RestateEndpointConfiguration.class.getClassLoader());
+      return true;
+    } catch (ClassNotFoundException | LinkageError e) {
+      return false;
+    }
+  }
+
+  private static OptionsSupport loadSupport(String supportClassName) {
+    try {
+      return (OptionsSupport)
+          Class.forName(supportClassName).getDeclaredConstructor().newInstance();
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException(
+          "Failed to load OptionsSupport implementation " + supportClassName, e);
+    }
+  }
+
+  private static @Nullable Object lookupObservationRegistry(ApplicationContext ctx) {
+    Class<?> registryClass;
+    try {
+      registryClass =
+          Class.forName(
+              "io.micrometer.observation.ObservationRegistry",
+              false,
+              RestateEndpointConfiguration.class.getClassLoader());
+    } catch (ClassNotFoundException | LinkageError e) {
       return null;
     }
-    if (WITH_EXECUTOR_METHOD == null) {
-      throw new IllegalStateException(
-          "sdk-api module not found. The executor option is only supported for Java services.");
-    }
-    Executor executor = applicationContext.getBean(beanExecutorName, Executor.class);
-
     try {
-      return (HandlerRunner.Options) WITH_EXECUTOR_METHOD.invoke(null, executor);
-    } catch (ReflectiveOperationException e) {
-      throw new IllegalStateException("Failed to create HandlerRunner.Options", e);
+      return ctx.getBean(registryClass);
+    } catch (NoSuchBeanDefinitionException e) {
+      return null;
     }
   }
 }
