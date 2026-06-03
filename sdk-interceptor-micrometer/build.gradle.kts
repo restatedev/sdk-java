@@ -19,12 +19,4 @@ dependencies {
 
   // Kotlin-only runtime deps.
   compileOnly(libs.kotlinx.coroutines.core)
-
-  implementation(libs.log4j.api)
-
-  testImplementation(libs.junit.jupiter)
-  testImplementation(libs.assertj)
-  testImplementation(libs.kotlinx.coroutines.test)
-  testImplementation(libs.micrometer.observation.test)
-  testRuntimeOnly(libs.junit.platform.launcher)
 }
