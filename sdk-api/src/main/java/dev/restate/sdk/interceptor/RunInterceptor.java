@@ -27,16 +27,19 @@ import org.jspecify.annotations.Nullable;
  * The interceptor sees user code throwables and serialization failures unchanged. Whatever the
  * outermost interceptor rethrows is what Restate's retry machinery sees.
  */
+@org.jetbrains.annotations.ApiStatus.Experimental
 @FunctionalInterface
 public interface RunInterceptor {
   void aroundRun(Context context, Next next) throws Exception;
 
   /** Advances the interceptor chain. Must be called exactly once from {@link #aroundRun}. */
+  @org.jetbrains.annotations.ApiStatus.Experimental
   interface Next {
     void proceed() throws Exception;
   }
 
   /** Per-{@code ctx.run} call context exposed to a {@link RunInterceptor}. */
+  @org.jetbrains.annotations.ApiStatus.Experimental
   record Context(HandlerRequest request, @Nullable String runName) {}
 
   /**
@@ -46,6 +49,7 @@ public interface RunInterceptor {
    * explicitly via {@link
    * dev.restate.sdk.HandlerRunner.Options#addRunInterceptorFactory(RunInterceptor.Factory)}.
    */
+  @org.jetbrains.annotations.ApiStatus.Experimental
   @FunctionalInterface
   interface Factory {
     /**

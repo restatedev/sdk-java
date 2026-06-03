@@ -45,6 +45,7 @@ import java.util.stream.Stream;
  * dev.restate.sdk.HandlerRunner.Options#addRunContextPropagator(RunContextPropagator)}. They apply
  * to every {@link Restate#run} execution, including retries.
  */
+@org.jetbrains.annotations.ApiStatus.Experimental
 @FunctionalInterface
 public interface RunContextPropagator {
 
@@ -52,6 +53,7 @@ public interface RunContextPropagator {
   CapturedContext capture();
 
   /** Thread-local state captured by {@link #capture}. */
+  @org.jetbrains.annotations.ApiStatus.Experimental
   @FunctionalInterface
   interface CapturedContext {
     /**

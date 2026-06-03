@@ -64,11 +64,13 @@ import org.jspecify.annotations.Nullable;
  * state machine and produce non-deterministic behavior. <b>If you catch it, rethrow it as it
  * is.</b>
  */
+@org.jetbrains.annotations.ApiStatus.Experimental
 @FunctionalInterface
 public interface HandlerInterceptor {
   void aroundHandler(Context context, Next next) throws Exception;
 
   /** Advances the interceptor chain. Must be called exactly once from {@link #aroundHandler}. */
+  @org.jetbrains.annotations.ApiStatus.Experimental
   interface Next {
     void proceed() throws Exception;
   }
@@ -81,6 +83,7 @@ public interface HandlerInterceptor {
    * @param attemptHeaders Restate-protocol-level HTTP headers received on the current attempt (e.g.
    *     {@code traceparent}, {@code x-restate-invocation-id}). Differs across retries.
    */
+  @org.jetbrains.annotations.ApiStatus.Experimental
   record Context(HandlerRequest request, HeadersAccessor attemptHeaders) {}
 
   /**
@@ -90,6 +93,7 @@ public interface HandlerInterceptor {
    * explicitly via {@link
    * dev.restate.sdk.HandlerRunner.Options#addHandlerInterceptorFactory(Factory)}.
    */
+  @org.jetbrains.annotations.ApiStatus.Experimental
   @FunctionalInterface
   interface Factory {
     /**

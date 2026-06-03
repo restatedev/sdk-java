@@ -39,6 +39,7 @@ import dev.restate.sdk.kotlin.runBlock
  * execution attempt during journal replay and suspension. Remapping it will corrupt the state
  * machine and produce non-deterministic behavior. **If you catch it, rethrow it as it is.**
  */
+@org.jetbrains.annotations.ApiStatus.Experimental
 fun interface HandlerInterceptor {
   suspend fun aroundHandler(context: Context, next: suspend () -> Unit)
 
@@ -50,6 +51,7 @@ fun interface HandlerInterceptor {
    * @property attemptHeaders Restate-protocol-level HTTP headers received on the current attempt
    *   (e.g. `traceparent`, `x-restate-invocation-id`). Differs across retries. Unmodifiable.
    */
+  @org.jetbrains.annotations.ApiStatus.Experimental
   data class Context(val request: HandlerRequest, val attemptHeaders: HeadersAccessor)
 
   /**
@@ -58,6 +60,7 @@ fun interface HandlerInterceptor {
    * Factories are discovered via SPI or registered explicitly via
    * [dev.restate.sdk.kotlin.HandlerRunner.Options.handlerInterceptorFactories].
    */
+  @org.jetbrains.annotations.ApiStatus.Experimental
   fun interface Factory {
     /**
      * Create [HandlerInterceptor].
@@ -103,10 +106,12 @@ fun interface HandlerInterceptor {
  * The interceptor sees user code throwables and serialization failures unchanged. Whatever the
  * outermost interceptor rethrows is what Restate's retry machinery sees.
  */
+@org.jetbrains.annotations.ApiStatus.Experimental
 fun interface RunInterceptor {
   suspend fun aroundRun(context: Context, next: suspend () -> Unit)
 
   /** Per-`ctx.run` call context exposed to a [RunInterceptor]. */
+  @org.jetbrains.annotations.ApiStatus.Experimental
   data class Context(val request: HandlerRequest, val runName: String?)
 
   /**
@@ -115,6 +120,7 @@ fun interface RunInterceptor {
    * Factories are discovered via SPI or registered explicitly via
    * [dev.restate.sdk.kotlin.HandlerRunner.Options.runInterceptorFactories].
    */
+  @org.jetbrains.annotations.ApiStatus.Experimental
   fun interface Factory {
     /**
      * Create [RunInterceptor].
