@@ -288,7 +288,7 @@ This library follows [Semantic Versioning](https://semver.org/).
 
 The compatibility with Restate is described in the following table:
 
-| Restate Server\sdk-java | < 2.0            | 2.0 - 2.1 | 2.2 - 2.3        | 2.4 - 2.7        |
+| Restate Server\sdk-java | < 2.0            | 2.0 - 2.1 | 2.2 - 2.3        | 2.4 - 2.8        |
 |-------------------------|------------------|-----------|------------------|------------------|
 | < 1.3                   | ✅                | ❌         | ❌                | ❌                |
 | 1.3                     | ✅                | ✅         | ✅ <sup>(1)</sup> | ✅ <sup>(2)</sup> |
