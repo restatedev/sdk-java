@@ -14,9 +14,9 @@
 
 use bytes::Bytes;
 use restate_sdk_shared_core::{
-    AttachInvocationTarget, AwaitResponse, CoreVM, Error, Header, HeaderMap, NonEmptyValue,
-    NotificationHandle, PayloadOptions, ResponseHead, RetryPolicy, RunExitResult, TakeOutputResult,
-    Target, TerminalFailure, VMOptions, Value, VM,
+    AttachInvocationTarget, AwaitResponse, AwakeableHandle, CoreVM, Error, Header, HeaderMap,
+    NonEmptyValue, NotificationHandle, PayloadOptions, ResponseHead, RetryPolicy, RunExitResult,
+    RunHandle, TakeOutputResult, Target, TerminalFailure, VMOptions, Value, VM,
 };
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -535,8 +535,8 @@ fn vm_sys_awakeable(rc_vm: &Rc<RefCell<WasmVM>>) -> AwakeableReturn {
     let result = VM::sys_awakeable(&mut vm.vm);
     let state = VM::state(&vm.vm) as u8 as u32;
     match result {
-        Ok((awakeable_id, handle)) => AwakeableReturn::Ok {
-            id: awakeable_id,
+        Ok(AwakeableHandle { id, handle }) => AwakeableReturn::Ok {
+            id,
             handle: handle.into(),
             state,
         },
@@ -809,10 +809,18 @@ pub unsafe extern "C" fn _vm_sys_run(
     output_to_ptr(res)
 }
 
-fn vm_sys_run(rc_vm: &Rc<RefCell<WasmVM>>, input: VmSysRunParameters) -> HandleReturn {
+fn vm_sys_run(rc_vm: &Rc<RefCell<WasmVM>>, input: VmSysRunParameters) -> RunReturn {
     let mut vm = rc_vm.borrow_mut();
     let result = VM::sys_run(&mut vm.vm, input.name);
-    HandleReturn::from_result(result, VM::state(&vm.vm) as u8 as u32)
+    let state = VM::state(&vm.vm) as u8 as u32;
+    match result {
+        Ok(RunHandle { replayed, handle }) => RunReturn::Ok {
+            replayed,
+            handle: handle.into(),
+            state,
+        },
+        Err(e) => RunReturn::from_err(e, state),
+    }
 }
 
 #[export_name = "vm_propose_run_completion"]
@@ -1569,6 +1577,38 @@ enum AwakeableReturn {
     },
 }
 impl AwakeableReturn {
+    fn from_err(e: Error, state: u32) -> Self {
+        Self::Failure {
+            code: e.code() as u32,
+            message: e.to_string(),
+            state,
+        }
+    }
+}
+
+#[derive(Serialize)]
+#[serde(tag = "t")]
+enum RunReturn {
+    #[serde(rename = "a")]
+    Ok {
+        #[serde(rename = "a")]
+        replayed: bool,
+        #[serde(rename = "b")]
+        handle: u32,
+        #[serde(rename = "c")]
+        state: u32,
+    },
+    #[serde(rename = "b")]
+    Failure {
+        #[serde(rename = "a")]
+        code: u32,
+        #[serde(rename = "b")]
+        message: String,
+        #[serde(rename = "c")]
+        state: u32,
+    },
+}
+impl RunReturn {
     fn from_err(e: Error, state: u32) -> Self {
         Self::Failure {
             code: e.code() as u32,

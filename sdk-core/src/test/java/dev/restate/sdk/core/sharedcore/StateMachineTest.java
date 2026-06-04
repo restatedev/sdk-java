@@ -142,7 +142,7 @@ class StateMachineTest {
       assertThat(sm.isReadyToExecute()).isTrue();
       sm.sysInput();
 
-      int runHandle = sm.sysRun("my-run");
+      int runHandle = sm.sysRun("my-run").handle();
       // doAwait drives the VM until it's ready to ExecuteRun the handle.
       AwaitResult awaitResult = sm.doAwait(new StateMachine.UnresolvedFuture.Single(runHandle));
       assertThat(awaitResult).isInstanceOf(AwaitResult.ExecuteRun.class);
@@ -166,7 +166,7 @@ class StateMachineTest {
       assertThat(sm.isReadyToExecute()).isTrue();
       sm.sysInput();
 
-      int runHandle = sm.sysRun("my-run");
+      int runHandle = sm.sysRun("my-run").handle();
       sm.doAwait(new StateMachine.UnresolvedFuture.Single(runHandle));
 
       RetryPolicy retryPolicy =
@@ -190,7 +190,7 @@ class StateMachineTest {
       assertThat(sm.isReadyToExecute()).isTrue();
       sm.sysInput();
 
-      int runHandle = sm.sysRun("my-run");
+      int runHandle = sm.sysRun("my-run").handle();
       sm.doAwait(new StateMachine.UnresolvedFuture.Single(runHandle));
 
       sm.proposeRunCompletionTerminalFailure(runHandle, new TerminalException(500, "boom"));

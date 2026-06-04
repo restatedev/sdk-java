@@ -280,9 +280,12 @@ class HandlerContextImpl implements HandlerContextInternal {
       @Nullable String name, Consumer<RunCompleter> closure) {
     return catchExceptions(
         () -> {
-          int runHandle = this.stateMachine.sysRun(name);
-          this.scheduledRuns.put(runHandle, closure);
-          return AsyncResults.single(this, runHandle, HandlerContextImpl::parseSuccessOrFailure);
+          StateMachine.RunReturn.Ok run = this.stateMachine.sysRun(name);
+          if (!run.replayed()) {
+            // Retain the run closure only if the run wasn't replayed.
+            this.scheduledRuns.put(run.handle(), closure);
+          }
+          return AsyncResults.single(this, run.handle(), HandlerContextImpl::parseSuccessOrFailure);
         });
   }
 

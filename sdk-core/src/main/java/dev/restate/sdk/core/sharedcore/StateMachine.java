@@ -483,12 +483,20 @@ public final class StateMachine implements AutoCloseable {
     return sysPromiseComplete(key, new NonEmptyValueParam.Failure(reason));
   }
 
-  public int sysRun(String name) {
+  public RunReturn.Ok sysRun(String name) {
     LOG.trace("[vm=0x{}] sysRun()", Integer.toHexString(vmPtr));
     verifyNotFreed();
 
-    return callWithHandleReturn(
-        SharedCoreWasm_ModuleExports::vmSysRun, new VmSysRunParameters(name));
+    RunReturn ret =
+        instance.callCborVmFunction(
+            (exports, ptr, len) -> exports.vmSysRun(vmPtr, ptr, len),
+            new VmSysRunParameters(name),
+            RunReturn.class);
+    notifyStateUpdate(ret);
+    if (ret instanceof RunReturn.Failure f) {
+      throw vmError(f.code(), f.message());
+    }
+    return (RunReturn.Ok) ret;
   }
 
   public void proposeRunCompletionWithSuccess(int handle, Slice value) {
@@ -815,6 +823,25 @@ public final class StateMachine implements AutoCloseable {
         @JsonProperty("b") String message,
         @JsonProperty("c") int state)
         implements AwakeableReturn {}
+  }
+
+  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "t")
+  @JsonSubTypes({
+    @JsonSubTypes.Type(value = RunReturn.Ok.class, name = "a"),
+    @JsonSubTypes.Type(value = RunReturn.Failure.class, name = "b"),
+  })
+  public sealed interface RunReturn extends WithState {
+    record Ok(
+        @JsonProperty("a") boolean replayed,
+        @JsonProperty("b") int handle,
+        @JsonProperty("c") int state)
+        implements RunReturn {}
+
+    record Failure(
+        @JsonProperty("a") int code,
+        @JsonProperty("b") String message,
+        @JsonProperty("c") int state)
+        implements RunReturn {}
   }
 
   @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "t")
