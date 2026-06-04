@@ -8,10 +8,12 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core.sharedcore;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
+import com.fasterxml.jackson.annotation.JsonValue;
 import dev.restate.common.Slice;
 import dev.restate.common.Target;
 import dev.restate.sdk.common.AbortedExecutionException;
@@ -200,13 +202,71 @@ public final class StateMachine implements AutoCloseable {
     LOG.trace("[vm=0x{}] takeNotification()", Integer.toHexString(vmPtr));
     verifyNotFreed();
 
-    var ret =
-        instance.callCborVmFunction(
-            exports -> exports.vmTakeNotification(vmPtr, handle), TakeNotificationReturn.class);
-    if (ret instanceof TakeNotificationReturn.NotReady) return null;
-    if (ret instanceof TakeNotificationReturn.Value v) return v.value();
-    TakeNotificationReturn.Failure f = (TakeNotificationReturn.Failure) ret;
-    throw vmError(f.code, f.message);
+    // Hand-rolled binary decode: bypasses Jackson on the hot path. The Rust
+    // side encodes a compact discriminant-prefixed format (see the comment
+    // above `vm_take_notification` in sdk-core/src/main/rust/src/lib.rs).
+    long packed = instance.getExports().vmTakeNotification(vmPtr, handle);
+    byte[] bytes = instance.readAndFree(packed);
+    return decodeTakeNotification(bytes);
+  }
+
+  // Package-private for direct unit testing with synthetic byte sequences
+  // (StateMachineTest can't easily fixture a real V7 run completion). Wire
+  // format is documented in detail above `vm_take_notification` in
+  // sdk-core/src/main/rust/src/lib.rs.
+  static @Nullable NotificationValue decodeTakeNotification(byte[] bytes) {
+    java.nio.ByteBuffer buf =
+        java.nio.ByteBuffer.wrap(bytes).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+    byte tag = buf.get();
+    return switch (tag) {
+      case 0 -> null; // NotReady
+      case 1 -> NotificationValue.VOID;
+      case 2 -> {
+        // Success
+        int len = buf.getInt();
+        byte[] data = new byte[len];
+        buf.get(data);
+        yield new NotificationValue.Success(data);
+      }
+      case 5 -> {
+        // NotificationFailure
+        int code = Short.toUnsignedInt(buf.getShort());
+        String message = readString(buf);
+        int metaCount = buf.getInt();
+        List<String[]> metadata;
+        if (metaCount == 0) {
+          metadata = null;
+        } else {
+          metadata = new ArrayList<>(metaCount);
+          for (int i = 0; i < metaCount; i++) {
+            metadata.add(new String[] {readString(buf), readString(buf)});
+          }
+        }
+        yield new NotificationValue.Failure(code, message, metadata);
+      }
+      case 6 -> {
+        int count = buf.getInt();
+        List<String> keys = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) keys.add(readString(buf));
+        yield new NotificationValue.StateKeys(keys);
+      }
+      case 7 -> new NotificationValue.InvocationId(readString(buf));
+      case 8 -> {
+        // VmFailure
+        int code = Short.toUnsignedInt(buf.getShort());
+        String message = readString(buf);
+        throw vmError(code, message);
+      }
+      default -> throw new IllegalStateException("Unknown takeNotification tag: " + tag);
+    };
+  }
+
+  private static String readString(java.nio.ByteBuffer buf) {
+    int len = buf.getInt();
+    if (len == 0) return "";
+    byte[] data = new byte[len];
+    buf.get(data);
+    return new String(data, java.nio.charset.StandardCharsets.UTF_8);
   }
 
   public Input sysInput() {
@@ -553,68 +613,79 @@ public final class StateMachine implements AutoCloseable {
    * 1:1, so the runtime sees the actual combinator semantics in {@code AwaitingOnMessage} / {@code
    * SuspensionMessage}.
    */
-  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
+  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "t")
   @JsonSubTypes({
-    @JsonSubTypes.Type(value = UnresolvedFuture.Single.class, name = "single"),
-    @JsonSubTypes.Type(value = UnresolvedFuture.FirstCompleted.class, name = "firstCompleted"),
-    @JsonSubTypes.Type(value = UnresolvedFuture.AllCompleted.class, name = "allCompleted"),
-    @JsonSubTypes.Type(
-        value = UnresolvedFuture.FirstSucceededOrAllFailed.class,
-        name = "firstSucceededOrAllFailed"),
-    @JsonSubTypes.Type(
-        value = UnresolvedFuture.AllSucceededOrFirstFailed.class,
-        name = "allSucceededOrFirstFailed"),
-    @JsonSubTypes.Type(value = UnresolvedFuture.Unknown.class, name = "unknown"),
+    @JsonSubTypes.Type(value = UnresolvedFuture.Single.class, name = "a"),
+    @JsonSubTypes.Type(value = UnresolvedFuture.FirstCompleted.class, name = "b"),
+    @JsonSubTypes.Type(value = UnresolvedFuture.AllCompleted.class, name = "c"),
+    @JsonSubTypes.Type(value = UnresolvedFuture.FirstSucceededOrAllFailed.class, name = "d"),
+    @JsonSubTypes.Type(value = UnresolvedFuture.AllSucceededOrFirstFailed.class, name = "e"),
+    @JsonSubTypes.Type(value = UnresolvedFuture.Unknown.class, name = "f"),
   })
   public sealed interface UnresolvedFuture {
-    record Single(int handle) implements UnresolvedFuture {}
+    record Single(@JsonProperty("a") int handle) implements UnresolvedFuture {}
 
-    record FirstCompleted(List<UnresolvedFuture> children) implements UnresolvedFuture {}
+    record FirstCompleted(@JsonProperty("a") List<UnresolvedFuture> children)
+        implements UnresolvedFuture {}
 
-    record AllCompleted(List<UnresolvedFuture> children) implements UnresolvedFuture {}
+    record AllCompleted(@JsonProperty("a") List<UnresolvedFuture> children)
+        implements UnresolvedFuture {}
 
-    record FirstSucceededOrAllFailed(List<UnresolvedFuture> children) implements UnresolvedFuture {}
+    record FirstSucceededOrAllFailed(@JsonProperty("a") List<UnresolvedFuture> children)
+        implements UnresolvedFuture {}
 
-    record AllSucceededOrFirstFailed(List<UnresolvedFuture> children) implements UnresolvedFuture {}
+    record AllSucceededOrFirstFailed(@JsonProperty("a") List<UnresolvedFuture> children)
+        implements UnresolvedFuture {}
 
-    record Unknown(List<UnresolvedFuture> children) implements UnresolvedFuture {}
+    record Unknown(@JsonProperty("a") List<UnresolvedFuture> children)
+        implements UnresolvedFuture {}
   }
 
   // =========================================================================
   // CBOR response types (decoded from WASM responses)
   // =========================================================================
 
-  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
+  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "t")
   @JsonSubTypes({
-    @JsonSubTypes.Type(value = VmNewReturn.Ok.class, name = "ok"),
-    @JsonSubTypes.Type(value = VmNewReturn.Failure.class, name = "failure"),
+    @JsonSubTypes.Type(value = VmNewReturn.Ok.class, name = "a"),
+    @JsonSubTypes.Type(value = VmNewReturn.Failure.class, name = "b"),
   })
   sealed interface VmNewReturn {
-    record Ok(int pointer) implements VmNewReturn {}
+    record Ok(@JsonProperty("a") int pointer) implements VmNewReturn {}
 
-    record Failure(int code, String message) implements VmNewReturn {}
+    record Failure(@JsonProperty("a") int code, @JsonProperty("b") String message)
+        implements VmNewReturn {}
   }
 
-  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
+  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "t")
   @JsonSubTypes({
-    @JsonSubTypes.Type(value = EmptyReturn.Ok.class, name = "ok"),
-    @JsonSubTypes.Type(value = EmptyReturn.Failure.class, name = "failure"),
+    @JsonSubTypes.Type(value = EmptyReturn.Ok.class, name = "a"),
+    @JsonSubTypes.Type(value = EmptyReturn.Failure.class, name = "b"),
   })
   sealed interface EmptyReturn extends WithState {
-    record Ok(int state) implements EmptyReturn {}
+    record Ok(@JsonProperty("a") int state) implements EmptyReturn {}
 
-    record Failure(int code, String message, int state) implements EmptyReturn {}
+    record Failure(
+        @JsonProperty("a") int code,
+        @JsonProperty("b") String message,
+        @JsonProperty("c") int state)
+        implements EmptyReturn {}
   }
 
-  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
+  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "t")
   @JsonSubTypes({
-    @JsonSubTypes.Type(value = HandleReturn.Ok.class, name = "ok"),
-    @JsonSubTypes.Type(value = HandleReturn.Failure.class, name = "failure"),
+    @JsonSubTypes.Type(value = HandleReturn.Ok.class, name = "a"),
+    @JsonSubTypes.Type(value = HandleReturn.Failure.class, name = "b"),
   })
   sealed interface HandleReturn extends WithState {
-    record Ok(int handle, int state) implements HandleReturn {}
+    record Ok(@JsonProperty("a") int handle, @JsonProperty("b") int state)
+        implements HandleReturn {}
 
-    record Failure(int code, String message, int state) implements HandleReturn {}
+    record Failure(
+        @JsonProperty("a") int code,
+        @JsonProperty("b") String message,
+        @JsonProperty("c") int state)
+        implements HandleReturn {}
   }
 
   /**
@@ -626,55 +697,50 @@ public final class StateMachine implements AutoCloseable {
     int state();
   }
 
-  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
+  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "t")
   @JsonSubTypes({
-    @JsonSubTypes.Type(value = IsReadyReturn.Ok.class, name = "ok"),
-    @JsonSubTypes.Type(value = IsReadyReturn.Failure.class, name = "failure"),
+    @JsonSubTypes.Type(value = IsReadyReturn.Ok.class, name = "a"),
+    @JsonSubTypes.Type(value = IsReadyReturn.Failure.class, name = "b"),
   })
   sealed interface IsReadyReturn {
-    record Ok(boolean ready) implements IsReadyReturn {}
+    record Ok(@JsonProperty("a") boolean ready) implements IsReadyReturn {}
 
-    record Failure(int code, String message) implements IsReadyReturn {}
+    record Failure(@JsonProperty("a") int code, @JsonProperty("b") String message)
+        implements IsReadyReturn {}
   }
 
-  record ResponseHeadReturn(int statusCode, List<String[]> headers) {}
+  record ResponseHeadReturn(
+      @JsonProperty("a") int statusCode, @JsonProperty("b") List<String[]> headers) {}
 
-  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
+  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "t")
   @JsonSubTypes({
-    @JsonSubTypes.Type(value = DoProgressReturn.AnyCompleted.class, name = "anyCompleted"),
-    @JsonSubTypes.Type(
-        value = DoProgressReturn.WaitingExternalProgress.class,
-        name = "waitingExternalProgress"),
-    @JsonSubTypes.Type(value = DoProgressReturn.ExecuteRun.class, name = "executeRun"),
-    @JsonSubTypes.Type(
-        value = DoProgressReturn.CancelSignalReceived.class,
-        name = "cancelSignalReceived"),
-    @JsonSubTypes.Type(value = DoProgressReturn.Suspended.class, name = "suspended"),
-    @JsonSubTypes.Type(value = DoProgressReturn.Failure.class, name = "failure"),
+    @JsonSubTypes.Type(value = DoProgressReturn.AnyCompleted.class, name = "a"),
+    @JsonSubTypes.Type(value = DoProgressReturn.WaitingExternalProgress.class, name = "b"),
+    @JsonSubTypes.Type(value = DoProgressReturn.ExecuteRun.class, name = "c"),
+    @JsonSubTypes.Type(value = DoProgressReturn.CancelSignalReceived.class, name = "d"),
+    @JsonSubTypes.Type(value = DoProgressReturn.Suspended.class, name = "e"),
+    @JsonSubTypes.Type(value = DoProgressReturn.Failure.class, name = "f"),
   })
   public sealed interface DoProgressReturn {
     record AnyCompleted() implements DoProgressReturn {}
 
     record WaitingExternalProgress() implements DoProgressReturn {}
 
-    record ExecuteRun(int handle) implements DoProgressReturn {}
+    record ExecuteRun(@JsonProperty("a") int handle) implements DoProgressReturn {}
 
     record CancelSignalReceived() implements DoProgressReturn {}
 
     record Suspended() implements DoProgressReturn {}
 
-    record Failure(int code, String message) implements DoProgressReturn {}
+    record Failure(@JsonProperty("a") int code, @JsonProperty("b") String message)
+        implements DoProgressReturn {}
   }
 
-  /** Notification value payload — matches Rust {@code NotificationValue}. */
-  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
-  @JsonSubTypes({
-    @JsonSubTypes.Type(value = NotificationValue.Void.class, name = "void"),
-    @JsonSubTypes.Type(value = NotificationValue.Success.class, name = "success"),
-    @JsonSubTypes.Type(value = NotificationValue.Failure.class, name = "failure"),
-    @JsonSubTypes.Type(value = NotificationValue.StateKeys.class, name = "stateKeys"),
-    @JsonSubTypes.Type(value = NotificationValue.InvocationId.class, name = "invocationId"),
-  })
+  /**
+   * Notification value payload (the payload of a completed handle). Decoded by {@link
+   * #decodeTakeNotification(byte[])} from the hand-rolled binary format — never crosses the
+   * boundary as CBOR.
+   */
   public sealed interface NotificationValue {
     NotificationValue VOID = new Void();
 
@@ -703,22 +769,12 @@ public final class StateMachine implements AutoCloseable {
     record InvocationId(String id) implements NotificationValue {}
   }
 
-  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
-  @JsonSubTypes({
-    @JsonSubTypes.Type(value = TakeNotificationReturn.NotReady.class, name = "notReady"),
-    @JsonSubTypes.Type(value = TakeNotificationReturn.Value.class, name = "value"),
-    @JsonSubTypes.Type(value = TakeNotificationReturn.Failure.class, name = "failure"),
-  })
-  public sealed interface TakeNotificationReturn {
-    record NotReady() implements TakeNotificationReturn {}
-
-    record Value(NotificationValue value) implements TakeNotificationReturn {}
-
-    record Failure(int code, String message) implements TakeNotificationReturn {}
-  }
-
   public record Input(
-      String invocationId, String key, List<String[]> headers, byte[] input, long randomSeed) {
+      @JsonProperty("a") String invocationId,
+      @JsonProperty("b") String key,
+      @JsonProperty("c") List<String[]> headers,
+      @JsonProperty("d") byte[] input,
+      @JsonProperty("e") long randomSeed) {
     public Map<String, String> headersAsMap() {
       Map<String, String> orderedHeaders = new LinkedHashMap<>();
       if (this.headers() != null) {
@@ -728,73 +784,99 @@ public final class StateMachine implements AutoCloseable {
     }
   }
 
-  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
+  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "t")
   @JsonSubTypes({
-    @JsonSubTypes.Type(value = SysInputReturn.Ok.class, name = "ok"),
-    @JsonSubTypes.Type(value = SysInputReturn.Failure.class, name = "failure"),
+    @JsonSubTypes.Type(value = SysInputReturn.Ok.class, name = "a"),
+    @JsonSubTypes.Type(value = SysInputReturn.Failure.class, name = "b"),
   })
   public sealed interface SysInputReturn extends WithState {
-    record Ok(Input input, int state) implements SysInputReturn {}
+    record Ok(@JsonProperty("a") Input input, @JsonProperty("b") int state)
+        implements SysInputReturn {}
 
-    record Failure(int code, String message, int state) implements SysInputReturn {}
+    record Failure(
+        @JsonProperty("a") int code,
+        @JsonProperty("b") String message,
+        @JsonProperty("c") int state)
+        implements SysInputReturn {}
   }
 
-  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
+  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "t")
   @JsonSubTypes({
-    @JsonSubTypes.Type(value = AwakeableReturn.Ok.class, name = "ok"),
-    @JsonSubTypes.Type(value = AwakeableReturn.Failure.class, name = "failure"),
+    @JsonSubTypes.Type(value = AwakeableReturn.Ok.class, name = "a"),
+    @JsonSubTypes.Type(value = AwakeableReturn.Failure.class, name = "b"),
   })
   public sealed interface AwakeableReturn extends WithState {
-    record Ok(String id, int handle, int state) implements AwakeableReturn {}
+    record Ok(
+        @JsonProperty("a") String id, @JsonProperty("b") int handle, @JsonProperty("c") int state)
+        implements AwakeableReturn {}
 
-    record Failure(int code, String message, int state) implements AwakeableReturn {}
+    record Failure(
+        @JsonProperty("a") int code,
+        @JsonProperty("b") String message,
+        @JsonProperty("c") int state)
+        implements AwakeableReturn {}
   }
 
-  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
+  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "t")
   @JsonSubTypes({
-    @JsonSubTypes.Type(value = SysCallReturn.Ok.class, name = "ok"),
-    @JsonSubTypes.Type(value = SysCallReturn.Failure.class, name = "failure"),
+    @JsonSubTypes.Type(value = SysCallReturn.Ok.class, name = "a"),
+    @JsonSubTypes.Type(value = SysCallReturn.Failure.class, name = "b"),
   })
   public sealed interface SysCallReturn extends WithState {
-    record Ok(int invocationIdHandle, int resultHandle, int state) implements SysCallReturn {}
+    record Ok(
+        @JsonProperty("a") int invocationIdHandle,
+        @JsonProperty("b") int resultHandle,
+        @JsonProperty("c") int state)
+        implements SysCallReturn {}
 
-    record Failure(int code, String message, int state) implements SysCallReturn {}
+    record Failure(
+        @JsonProperty("a") int code,
+        @JsonProperty("b") String message,
+        @JsonProperty("c") int state)
+        implements SysCallReturn {}
   }
 
   // =========================================================================
-  // Input DTOs (Java → Rust, CBOR maps with camelCase keys)
-  // Field names match Rust struct field names after camelCase renaming.
+  // Input DTOs (Java → Rust, CBOR with single-char keys to minimize wire size)
+  // Key letters match the Rust-side serde renames 1:1.
   // =========================================================================
 
-  record VmNotifyError(String message, @Nullable String stacktrace) {}
+  record VmNotifyError(
+      @JsonProperty("a") String message, @JsonProperty("b") @Nullable String stacktrace) {}
 
-  record VmNewParameters(List<String[]> headers) {}
+  record VmNewParameters(@JsonValue List<String[]> headers) {}
 
-  public record VmDoProgressParameters(UnresolvedFuture future) {}
+  public record VmDoProgressParameters(@JsonValue UnresolvedFuture future) {}
 
-  public record VmSysStateGetParameters(String key) {}
+  public record VmSysStateGetParameters(@JsonValue String key) {}
 
-  public record VmSysStateSetParameters(String key, byte[] value) {}
+  public record VmSysStateSetParameters(
+      @JsonProperty("a") String key, @JsonProperty("b") byte[] value) {}
 
-  public record VmSysStateClearParameters(String key) {}
+  public record VmSysStateClearParameters(@JsonValue String key) {}
 
   public record VmSysSleepParameters(
-      String name, long wakeUpTimeSinceUnixEpochMillis, long nowSinceUnixEpochMillis) {}
+      @JsonProperty("a") String name,
+      @JsonProperty("b") long wakeUpTimeSinceUnixEpochMillis,
+      @JsonProperty("c") long nowSinceUnixEpochMillis) {}
 
   /** Combined success/failure union — matches Rust {@code NonEmptyValueParam}. */
-  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
+  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "t")
   @JsonSubTypes({
-    @JsonSubTypes.Type(value = NonEmptyValueParam.Success.class, name = "success"),
-    @JsonSubTypes.Type(value = NonEmptyValueParam.Failure.class, name = "failure"),
+    @JsonSubTypes.Type(value = NonEmptyValueParam.Success.class, name = "a"),
+    @JsonSubTypes.Type(value = NonEmptyValueParam.Failure.class, name = "b"),
   })
   public sealed interface NonEmptyValueParam {
-    record Success(byte[] value) implements NonEmptyValueParam {
+    record Success(@JsonProperty("a") byte[] value) implements NonEmptyValueParam {
       public Success(Slice slice) {
         this(slice.toByteArray());
       }
     }
 
-    record Failure(int code, String message, @Nullable List<String[]> metadata)
+    record Failure(
+        @JsonProperty("a") int code,
+        @JsonProperty("b") String message,
+        @JsonProperty("c") @Nullable List<String[]> metadata)
         implements NonEmptyValueParam {
       public Failure(TerminalException exception) {
         this(
@@ -807,53 +889,58 @@ public final class StateMachine implements AutoCloseable {
     }
   }
 
-  public record VmSysCompleteAwakeableParameters(String id, NonEmptyValueParam result) {}
+  public record VmSysCompleteAwakeableParameters(
+      @JsonProperty("a") String id, @JsonProperty("b") NonEmptyValueParam result) {}
 
   public record VmSysCallParameters(
-      String service,
-      String handler,
-      @Nullable String key,
-      @Nullable String idempotencyKey,
-      List<String[]> headers,
-      byte[] input) {}
+      @JsonProperty("a") String service,
+      @JsonProperty("b") String handler,
+      @JsonProperty("c") @Nullable String key,
+      @JsonProperty("d") @Nullable String idempotencyKey,
+      @JsonProperty("e") List<String[]> headers,
+      @JsonProperty("f") byte[] input) {}
 
   public record VmSysSendParameters(
-      String service,
-      String handler,
-      @Nullable String key,
-      @Nullable String idempotencyKey,
-      List<String[]> headers,
-      byte[] input,
-      @Nullable Long executionTimeSinceUnixEpochMillis) {}
+      @JsonProperty("a") String service,
+      @JsonProperty("b") String handler,
+      @JsonProperty("c") @Nullable String key,
+      @JsonProperty("d") @Nullable String idempotencyKey,
+      @JsonProperty("e") List<String[]> headers,
+      @JsonProperty("f") byte[] input,
+      @JsonProperty("g") @Nullable Long executionTimeSinceUnixEpochMillis) {}
 
-  public record VmSysCancelInvocation(String invocationId) {}
+  public record VmSysCancelInvocation(@JsonValue String invocationId) {}
 
-  public record VmSysAttachInvocation(String invocationId) {}
+  public record VmSysAttachInvocation(@JsonValue String invocationId) {}
 
-  public record VmSysGetInvocationOutput(String invocationId) {}
+  public record VmSysGetInvocationOutput(@JsonValue String invocationId) {}
 
-  public record VmSysPromiseGetParameters(String key) {}
+  public record VmSysPromiseGetParameters(@JsonValue String key) {}
 
-  public record VmSysPromisePeekParameters(String key) {}
+  public record VmSysPromisePeekParameters(@JsonValue String key) {}
 
-  public record VmSysPromiseCompleteParameters(String id, NonEmptyValueParam result) {}
+  public record VmSysPromiseCompleteParameters(
+      @JsonProperty("a") String id, @JsonProperty("b") NonEmptyValueParam result) {}
 
-  public record VmSysRunParameters(String name) {}
+  public record VmSysRunParameters(@JsonValue String name) {}
 
-  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type")
+  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "t")
   @JsonSubTypes({
-    @JsonSubTypes.Type(value = RunResult.Success.class, name = "success"),
-    @JsonSubTypes.Type(value = RunResult.TerminalFailure.class, name = "terminalFailure"),
-    @JsonSubTypes.Type(value = RunResult.RetryableFailure.class, name = "retryableFailure"),
+    @JsonSubTypes.Type(value = RunResult.Success.class, name = "a"),
+    @JsonSubTypes.Type(value = RunResult.TerminalFailure.class, name = "b"),
+    @JsonSubTypes.Type(value = RunResult.RetryableFailure.class, name = "c"),
   })
   public sealed interface RunResult {
-    record Success(byte[] value) implements RunResult {
+    record Success(@JsonProperty("a") byte[] value) implements RunResult {
       public Success(Slice slice) {
         this(slice.toByteArray());
       }
     }
 
-    record TerminalFailure(int code, String message, @Nullable List<String[]> metadata)
+    record TerminalFailure(
+        @JsonProperty("a") int code,
+        @JsonProperty("b") String message,
+        @JsonProperty("c") @Nullable List<String[]> metadata)
         implements RunResult {
       public TerminalFailure(TerminalException exception) {
         this(
@@ -865,7 +952,10 @@ public final class StateMachine implements AutoCloseable {
       }
     }
 
-    record RetryableFailure(int code, String message, @Nullable String stacktrace)
+    record RetryableFailure(
+        @JsonProperty("a") int code,
+        @JsonProperty("b") String message,
+        @JsonProperty("c") @Nullable String stacktrace)
         implements RunResult {
       public RetryableFailure(Throwable exception) {
         this(500, exception.getMessage(), formatThrowableStackTrace(exception));
@@ -874,17 +964,17 @@ public final class StateMachine implements AutoCloseable {
   }
 
   public record VmProposeRunCompletionParameters(
-      int handle,
-      RunResult result,
-      long attemptDurationMillis,
-      @Nullable WasmRetryPolicy retryPolicy) {}
+      @JsonProperty("a") int handle,
+      @JsonProperty("b") RunResult result,
+      @JsonProperty("c") long attemptDurationMillis,
+      @JsonProperty("d") @Nullable WasmRetryPolicy retryPolicy) {}
 
   public record WasmRetryPolicy(
-      long initialIntervalMillis,
-      float factor,
-      @Nullable Long maxIntervalMillis,
-      @Nullable Integer maxAttempts,
-      @Nullable Long maxDurationMillis) {
+      @JsonProperty("a") long initialIntervalMillis,
+      @JsonProperty("b") float factor,
+      @JsonProperty("c") @Nullable Long maxIntervalMillis,
+      @JsonProperty("d") @Nullable Integer maxAttempts,
+      @JsonProperty("e") @Nullable Long maxDurationMillis) {
     public WasmRetryPolicy(RetryPolicy retryPolicy) {
       this(
           retryPolicy.getInitialDelay().toMillis(),
@@ -895,12 +985,14 @@ public final class StateMachine implements AutoCloseable {
     }
   }
 
-  public record VmSysCreateSignalHandleParameters(String name) {}
+  public record VmSysCreateSignalHandleParameters(@JsonValue String name) {}
 
   public record VmSysCompleteSignalParameters(
-      String target, String name, NonEmptyValueParam result) {}
+      @JsonProperty("a") String target,
+      @JsonProperty("b") String name,
+      @JsonProperty("c") NonEmptyValueParam result) {}
 
-  public record VmSysWriteOutputParameters(NonEmptyValueParam result) {}
+  public record VmSysWriteOutputParameters(@JsonValue NonEmptyValueParam result) {}
 
   /** Updates the cached state from the piggybacked ordinal on a sys_* response. */
   private void notifyStateUpdate(WithState ret) {
