@@ -215,6 +215,7 @@ checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
 [[package]]
 name = "restate-sdk-shared-core"
 version = "0.10.0"
+source = "git+https://github.com/restatedev/sdk-shared-core?rev=f24d7f2787ca1d93c013bba801f203fbad45a523#f24d7f2787ca1d93c013bba801f203fbad45a523"
 dependencies = [
  "base64",
  "bytes",
@@ -244,6 +245,7 @@ dependencies = [
 [[package]]
 name = "restate-wire-derive"
 version = "0.10.0"
+source = "git+https://github.com/restatedev/sdk-shared-core?rev=f24d7f2787ca1d93c013bba801f203fbad45a523#f24d7f2787ca1d93c013bba801f203fbad45a523"
 dependencies = [
  "anyhow",
  "itertools",

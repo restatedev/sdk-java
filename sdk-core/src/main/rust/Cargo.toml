@@ -7,7 +7,7 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-restate-sdk-shared-core = { path = "../../../../../../worktrees/sdk-shared-core-host-memory-2", features = ["tracing_pretty"] }
+restate-sdk-shared-core = { git = "https://github.com/restatedev/sdk-shared-core", rev = "f24d7f2787ca1d93c013bba801f203fbad45a523", features = ["tracing_pretty"] }
 bytes = "1"
 serde = { version = "1", features = ["derive"] }
 serde_bytes = "0.11"
