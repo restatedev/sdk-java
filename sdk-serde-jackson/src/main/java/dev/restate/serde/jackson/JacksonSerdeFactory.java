@@ -86,7 +86,7 @@ public class JacksonSerdeFactory implements SerdeFactory {
       public T deserialize(@NonNull Slice value) {
         try {
           return mapper.readValue(
-                  new ByteBufferBackedInputStream(value.asReadOnlyByteBuffer()), constructedType);
+              new ByteBufferBackedInputStream(value.asReadOnlyByteBuffer()), constructedType);
         } catch (IOException e) {
           sneakyThrow(e);
           return null;

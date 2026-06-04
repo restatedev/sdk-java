@@ -10,8 +10,8 @@ package dev.restate.sdk.core;
 
 import dev.restate.common.Slice;
 import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.core.sharedcore.StateMachine;
+import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.endpoint.definition.HandlerDefinition;
 import dev.restate.sdk.endpoint.definition.ServiceType;
 import io.opentelemetry.context.Context;
@@ -59,9 +59,9 @@ final class RequestProcessorImpl implements RequestProcessor {
 
   @SuppressWarnings("unchecked")
   RequestProcessorImpl(
+      StateMachine stateMachine,
       String serviceName,
       String handlerName,
-      StateMachine stateMachine,
       ServiceType serviceType,
       HandlerDefinition<?, ?> handlerDefinition,
       Context otelContext,
@@ -260,32 +260,27 @@ final class RequestProcessorImpl implements RequestProcessor {
     HandlerContextImpl ctx =
         syscallsExecutor != null
             ? new ExecutorSwitchingHandlerContextImpl(
-                serviceName,
-                handlerName,
                 stateMachine,
                 externalProgressChannel,
                 this::onNextOutputSlice,
-                fullyQualifiedHandlerName,
+                serviceName,
+                handlerName,
                 serviceType,
                 handlerDefinition.getHandlerType(),
                 otelContext,
                 attemptHeaders,
-                input,
-                this.syscallsExecutor)
                 stateMachineInput,
-                syscallsExecutor)
+                this.syscallsExecutor)
             : new HandlerContextImpl(
-                serviceName,
-                handlerName,
                 stateMachine,
                 externalProgressChannel,
                 this::onNextOutputSlice,
-                fullyQualifiedHandlerName,
+                serviceName,
+                handlerName,
                 serviceType,
                 handlerDefinition.getHandlerType(),
                 otelContext,
                 attemptHeaders,
-                input);
                 stateMachineInput);
 
     CompletableFuture<Slice> handlerResultFut =

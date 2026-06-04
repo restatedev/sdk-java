@@ -203,9 +203,9 @@ public final class EndpointRequestHandler {
         LoggingContextSetter.INVOCATION_TARGET_KEY, fullyQualifiedServiceMethod);
 
     return new RequestProcessorImpl(
+        StateMachine.create(headersAccessor),
         serviceName,
         handlerName,
-            StateMachine.create(headersAccessor),
         svc.getServiceType(),
         handler,
         otelContext,

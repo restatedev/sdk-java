@@ -40,7 +40,7 @@ class HandlerContextImpl implements HandlerContextInternal {
   private final Consumer<Slice> outputSink;
 
   private final HandlerRequest handlerRequest;
-    private final HeadersAccessor attemptHeaders;
+  private final HeadersAccessor attemptHeaders;
   private final @Nullable String objectKey;
   private final ServiceType serviceType;
   private final @Nullable HandlerType handlerType;
@@ -48,7 +48,7 @@ class HandlerContextImpl implements HandlerContextInternal {
   private final HashMap<Integer, Consumer<RunCompleter>> scheduledRuns;
 
   HandlerContextImpl(
-      StateMachine stateMachine,
+      StateMachine vm,
       ExternalProgressChannel externalProgressChannel,
       Consumer<Slice> outputSink,
       String serviceName,
@@ -58,7 +58,7 @@ class HandlerContextImpl implements HandlerContextInternal {
       Context otelContext,
       HeadersAccessor attemptHeaders,
       StateMachine.Input input) {
-    this.stateMachine = stateMachine;
+    this.stateMachine = vm;
     this.externalProgressChannel = externalProgressChannel;
     this.outputSink = outputSink;
 

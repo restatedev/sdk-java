@@ -44,9 +44,10 @@ final class ExecutorSwitchingHandlerContextImpl extends HandlerContextImpl {
       HeadersAccessor attemptHeaders,
       StateMachine.Input input,
       Executor coreExecutor) {
-    super(        vm,
-            externalProgressChannel,
-            outputSink,
+    super(
+        vm,
+        externalProgressChannel,
+        outputSink,
         serviceName,
         handlerName,
         serviceType,

@@ -354,8 +354,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
     checkNotInsideRun();
     Serde<T> serde = serdeFactory.create(typeTag);
     AsyncResult<Slice> result = Util.awaitCompletableFuture(handlerContext.signal(name));
-    return DurableFuture.fromAsyncResult(result, serviceExecutor)
-        .map(serde::deserialize);
+    return DurableFuture.fromAsyncResult(result, serviceExecutor).map(serde::deserialize);
   }
 
   @Override
