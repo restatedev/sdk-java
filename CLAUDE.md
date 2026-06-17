@@ -20,7 +20,7 @@ This is the **Restate Java/Kotlin SDK** (`dev.restate`), a polyglot JVM SDK for 
 ./gradlew spotlessApply            # Auto-format all code
 ./gradlew spotlessCheck            # Check formatting (runs in CI)
 ./gradlew :sdk-aggregated-javadocs:javadoc  # Generate Java docs
-./gradlew :dokkaHtmlMultiModule    # Generate Kotlin docs
+./gradlew :dokkaGenerate           # Generate aggregated Kotlin docs (Dokka Gradle plugin v2)
 ```
 
 ### Before Submitting Changes

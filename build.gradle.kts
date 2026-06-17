@@ -9,23 +9,6 @@ plugins {
   id(libs.plugins.spotless.get().pluginId) apply false
 }
 
-// Dokka is bringing in jackson unshaded, and it's messing up other plugins, so we override those
-// here!
-buildscript {
-  dependencies {
-    classpath("com.fasterxml.jackson.core:jackson-core:2.17.1")
-    classpath("com.fasterxml.jackson.core:jackson-databind:2.17.1")
-    classpath("com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.17.1")
-    classpath("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.17.1")
-    classpath("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.1")
-    classpath("org.jetbrains.dokka:dokka-gradle-plugin:1.9.20") {
-      exclude("com.fasterxml.jackson")
-      exclude("com.fasterxml.jackson.dataformat")
-      exclude("com.fasterxml.jackson.module")
-    }
-  }
-}
-
 val restateVersion = libs.versions.restate.get()
 
 allprojects {
@@ -72,10 +55,13 @@ allprojects {
   }
 }
 
-// Dokka configuration
-subprojects
-    .filter {
-      !setOf(
+// Dokka configuration (Dokka Gradle plugin v2). The root project is the aggregator: each
+// documented module applies the Dokka plugin and is declared as a `dokka(project(...))`
+// dependency, then `./gradlew :dokkaGenerate` produces the aggregated HTML under build/dokka/html.
+val dokkaDocumentedProjects =
+    subprojects.filter {
+      it.name !in
+          setOf(
               "sdk-api",
               "sdk-api-gen",
               "sdk-fake-api",
@@ -84,9 +70,11 @@ subprojects
               "admin-client",
               "test-services",
           )
-          .contains(it.name)
     }
-    .forEach { p -> p.plugins.apply("org.jetbrains.dokka") }
+
+dokkaDocumentedProjects.forEach { p -> p.plugins.apply("org.jetbrains.dokka") }
+
+dependencies { dokkaDocumentedProjects.forEach { add("dokka", project(it.path)) } }
 
 nexusPublishing {
   repositories {

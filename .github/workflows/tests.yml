@@ -58,7 +58,7 @@ jobs:
       - name: Build Javadocs
         run: gradle :sdk-aggregated-javadocs:javadoc
       - name: Build Kotlin docs
-        run: gradle :dokkaHtmlMultiModule
+        run: gradle :dokkaGenerate
 
   event_file:
     name: "Event File"

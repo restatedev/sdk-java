@@ -35,10 +35,10 @@ jobs:
       - name: Build Javadocs
         run: gradle :sdk-aggregated-javadocs:javadoc
       - name: Build Kotlin docs
-        run: gradle :dokkaHtmlMultiModule
+        run: gradle :dokkaGenerate
 
       - name: Move stuff around
-        run: mkdir _site && mv ./sdk-aggregated-javadocs/build/docs/javadoc _site/javadocs && mv ./build/dokka/htmlMultiModule _site/ktdocs
+        run: mkdir _site && mv ./sdk-aggregated-javadocs/build/docs/javadoc _site/javadocs && mv ./build/dokka/html _site/ktdocs
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
