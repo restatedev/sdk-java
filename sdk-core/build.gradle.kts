@@ -1,5 +1,5 @@
 import org.gradle.kotlin.dsl.withType
-import org.jetbrains.dokka.gradle.AbstractDokkaTask
+import org.jetbrains.dokka.gradle.tasks.DokkaGenerateTask
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
@@ -131,7 +131,7 @@ tasks {
   withType<org.gradle.jvm.tasks.Jar>().configureEach {
     dependsOn(generateJsonSchema2Pojo, generateProto)
   }
-  withType<AbstractDokkaTask>().configureEach { dependsOn(generateJsonSchema2Pojo, generateProto) }
+  withType<DokkaGenerateTask>().configureEach { dependsOn(generateJsonSchema2Pojo, generateProto) }
 
   getByName("jar") {
     enabled = false
