@@ -347,6 +347,28 @@ class HandlerContextImpl implements HandlerContextInternal {
   }
 
   @Override
+  public CompletableFuture<AsyncResult<Slice>> signal(String name) {
+    return catchExceptions(
+        () ->
+            AsyncResults.single(
+                this,
+                this.stateMachine.createSignalHandle(name),
+                HandlerContextImpl::parseSuccessOrFailure));
+  }
+
+  @Override
+  public CompletableFuture<Void> resolveSignal(String invocationId, String name, Slice payload) {
+    return this.catchExceptions(
+        () -> this.stateMachine.completeSignal(invocationId, name, payload));
+  }
+
+  @Override
+  public CompletableFuture<Void> rejectSignal(
+      String invocationId, String name, TerminalException reason) {
+    return this.catchExceptions(() -> this.stateMachine.completeSignal(invocationId, name, reason));
+  }
+
+  @Override
   public CompletableFuture<Void> cancelInvocation(String invocationId) {
     return this.catchExceptions(() -> this.stateMachine.cancelInvocation(invocationId));
   }

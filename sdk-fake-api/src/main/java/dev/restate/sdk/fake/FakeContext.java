@@ -106,6 +106,11 @@ public class FakeContext
   }
 
   @Override
+  public <T> DurableFuture<T> signal(String name, TypeTag<T> typeTag) {
+    return inner.signal(name, typeTag);
+  }
+
+  @Override
   public RestateRandom random() {
     return inner.random();
   }
