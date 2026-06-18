@@ -190,24 +190,23 @@ abstract class AsyncResults {
                 try {
                   failureMapper
                       .apply((TerminalException) throwable)
-                      .whenCompleteAsync(
+                      .whenComplete(
                           (u, mapperT) -> {
                             if (ExceptionUtils.isTerminalException(mapperT)) {
                               downstreamFuture.completeExceptionally(mapperT);
                             } else if (mapperT != null) {
-                              ctx.failWithoutContextSwitch(mapperT);
+                              ctx.fail(ExceptionUtils.unwrapCompletionException(mapperT));
                               downstreamFuture.completeExceptionally(
                                   AbortedExecutionException.INSTANCE);
                             } else {
                               downstreamFuture.complete(u);
                             }
-                          },
-                          ctx.stateMachineExecutor());
+                          });
                 } catch (Throwable mapperT) {
                   if (ExceptionUtils.isTerminalException(mapperT)) {
                     downstreamFuture.completeExceptionally(mapperT);
                   } else {
-                    ctx.failWithoutContextSwitch(mapperT);
+                    ctx.fail(ExceptionUtils.unwrapCompletionException(mapperT));
                     downstreamFuture.completeExceptionally(AbortedExecutionException.INSTANCE);
                   }
                 }
@@ -223,24 +222,23 @@ abstract class AsyncResults {
                 try {
                   successMapper
                       .apply(t)
-                      .whenCompleteAsync(
+                      .whenComplete(
                           (u, mapperT) -> {
                             if (ExceptionUtils.isTerminalException(mapperT)) {
                               downstreamFuture.completeExceptionally(mapperT);
                             } else if (mapperT != null) {
-                              ctx.failWithoutContextSwitch(mapperT);
+                              ctx.fail(ExceptionUtils.unwrapCompletionException(mapperT));
                               downstreamFuture.completeExceptionally(
                                   AbortedExecutionException.INSTANCE);
                             } else {
                               downstreamFuture.complete(u);
                             }
-                          },
-                          ctx.stateMachineExecutor());
+                          });
                 } catch (Throwable mapperT) {
                   if (ExceptionUtils.isTerminalException(mapperT)) {
                     downstreamFuture.completeExceptionally(mapperT);
                   } else {
-                    ctx.failWithoutContextSwitch(mapperT);
+                    ctx.fail(ExceptionUtils.unwrapCompletionException(mapperT));
                     downstreamFuture.completeExceptionally(AbortedExecutionException.INSTANCE);
                   }
                 }

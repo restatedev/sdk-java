@@ -51,7 +51,8 @@ public class JavaAPITests extends TestRunner {
         new UserFailuresTest(),
         new RandomTest(),
         new CodegenTest(),
-        new ReflectionTest());
+        new ReflectionTest(),
+        new SerdeThreadTrampoliningTest());
   }
 
   public static <T, R> TestInvocationBuilder testDefinitionForService(

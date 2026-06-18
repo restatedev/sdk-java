@@ -27,7 +27,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
@@ -152,11 +151,6 @@ class HandlerContextImpl implements HandlerContextInternal {
   @Override
   public InvocationState getInvocationState() {
     return this.stateMachine.state();
-  }
-
-  @Override
-  public Executor stateMachineExecutor() {
-    return Runnable::run;
   }
 
   @Override
