@@ -23,7 +23,6 @@ import io.github.smiley4.schemakenerator.jsonschema.jsonDsl.array
 import io.github.smiley4.schemakenerator.serialization.SerializationSteps.analyzeTypeUsingKotlinxSerialization
 import io.github.smiley4.schemakenerator.serialization.SerializationSteps.initial
 import io.github.smiley4.schemakenerator.serialization.SerializationSteps.renameMembers
-import kotlin.collections.set
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
@@ -67,7 +66,7 @@ object DefaultJsonSchemaFactory : KotlinSerializationSerdeFactory.JsonSchemaFact
                 // Add $schema
                 rootNode.properties.put(
                     "\$schema",
-                    JsonTextValue("https://json-schema.org/draft/2020-12/schema"),
+                  JsonTextValue("https://json-schema.org/draft/2020-12/schema"),
                 )
                 // Add $defs
                 val definitions =
@@ -109,7 +108,7 @@ object DefaultJsonSchemaFactory : KotlinSerializationSerdeFactory.JsonSchemaFact
                 (schema.json as JsonObject).properties["title"] == null
         ) {
           (schema.json as JsonObject).properties["title"] =
-              JsonTextValue(TitleBuilder.BUILDER_SIMPLE(schema.typeData, this.typeDataById))
+            JsonTextValue(TitleBuilder.BUILDER_SIMPLE(schema.typeData, this.typeDataById))
         }
       }
     }
@@ -126,8 +125,10 @@ object DefaultJsonSchemaFactory : KotlinSerializationSerdeFactory.JsonSchemaFact
   private fun JsonObject.fixRefsPrefix(rootDefinition: String) {
     this.properties.computeIfPresent("\$ref") { key, node ->
       if (node is JsonTextValue) {
-        if (node.value.startsWith(rootDefinition)) {
-          JsonTextValue("#/" + node.value.removePrefix(rootDefinition))
+        if (node.value == rootDefinition) {
+          JsonTextValue("#/")
+        } else if (node.value.startsWith("$rootDefinition/")) {
+          JsonTextValue("#/" + node.value.removePrefix("$rootDefinition/"))
         } else {
           JsonTextValue("#/\$defs/" + node.value.removePrefix("#/definitions/"))
         }
