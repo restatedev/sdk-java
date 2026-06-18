@@ -13,6 +13,7 @@ import static dev.restate.serde.jackson.JacksonSerdes.sneakyThrow;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.util.ByteBufferBackedInputStream;
 import com.github.victools.jsonschema.generator.SchemaGenerator;
 import dev.restate.common.Slice;
 import dev.restate.serde.Serde;
@@ -84,7 +85,8 @@ public class JacksonSerdeFactory implements SerdeFactory {
       @Override
       public T deserialize(@NonNull Slice value) {
         try {
-          return mapper.readValue(value.toByteArray(), constructedType);
+          return mapper.readValue(
+              new ByteBufferBackedInputStream(value.asReadOnlyByteBuffer()), constructedType);
         } catch (IOException e) {
           sneakyThrow(e);
           return null;
