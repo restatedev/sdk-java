@@ -11,7 +11,7 @@ package dev.restate.sdk.core;
 import com.google.protobuf.MessageLite;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
-import dev.restate.sdk.core.statemachine.NotificationId;
+import dev.restate.sdk.core.legacy.NotificationId;
 import java.util.List;
 import java.util.Map;
 

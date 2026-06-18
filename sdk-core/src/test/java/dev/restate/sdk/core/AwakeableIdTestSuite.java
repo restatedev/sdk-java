@@ -8,11 +8,15 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
+import static dev.restate.sdk.core.legacy.ProtoUtils.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
+import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 import com.google.protobuf.ByteString;
 import dev.restate.sdk.core.TestDefinitions.TestDefinition;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
+import dev.restate.sdk.core.generated.protocol.Protocol;
 import java.nio.ByteBuffer;
 import java.util.Base64;
 import java.util.UUID;
@@ -32,15 +36,32 @@ public abstract class AwakeableIdTestSuite implements TestSuite {
     expectedAwakeableId.put(serializedId);
     expectedAwakeableId.putInt(17);
     expectedAwakeableId.flip();
-    String base64ExpectedAwakeableId =
+    String base64ExpectedAwakeableIdWithPadding =
         "sign_1" + Base64.getUrlEncoder().encodeToString(expectedAwakeableId.array());
+    String base64ExpectedAwakeableIdWithoutPadding =
+        "sign_1"
+            + Base64.getUrlEncoder().withoutPadding().encodeToString(expectedAwakeableId.array());
 
     return Stream.of(
         returnAwakeableId()
             .withInput(
                 startMessage(1).setDebugId(debugId).setId(ByteString.copyFrom(serializedId)),
                 inputCmd())
-            .expectingOutput(outputCmd(base64ExpectedAwakeableId), END_MESSAGE));
+            .assertingOutput(
+                msgs -> {
+                  assertThat(msgs).hasSize(2);
+
+                  assertThat(msgs)
+                      .element(0)
+                      .asInstanceOf(type(Protocol.OutputCommandMessage.class))
+                      .extracting(Protocol.OutputCommandMessage::getValue)
+                      .extracting(Protocol.Value::getContent)
+                      .extracting(ByteString::toStringUtf8, STRING)
+                      .containsAnyOf(
+                          base64ExpectedAwakeableIdWithPadding,
+                          base64ExpectedAwakeableIdWithoutPadding);
+                  assertThat(msgs).element(1).isEqualTo(END_MESSAGE);
+                }));
   }
 
   private byte[] serializeUUID(UUID uuid) {

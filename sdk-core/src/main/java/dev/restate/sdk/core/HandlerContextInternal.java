@@ -11,7 +11,6 @@ package dev.restate.sdk.core;
 import dev.restate.common.Slice;
 import dev.restate.sdk.common.RetryPolicy;
 import dev.restate.sdk.core.AsyncResults.AsyncResultInternal;
-import dev.restate.sdk.core.statemachine.InvocationState;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
 import java.time.Duration;
@@ -47,7 +46,7 @@ interface HandlerContextInternal extends HandlerContext {
 
   // -- Lifecycle methods
 
-  void close();
+  void fail(Throwable throwable);
 
   // -- State machine introspection (used by logging propagator)
 
@@ -56,7 +55,7 @@ interface HandlerContextInternal extends HandlerContext {
    */
   String getFullyQualifiedMethodName();
 
-  InvocationState getInvocationState();
+  StateMachine.InvocationState getInvocationState();
 
   void failWithoutContextSwitch(Throwable throwable);
 }

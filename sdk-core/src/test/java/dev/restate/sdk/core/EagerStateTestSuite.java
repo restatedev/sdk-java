@@ -10,7 +10,7 @@ package dev.restate.sdk.core;
 
 import static dev.restate.sdk.core.TestDefinitions.*;
 import static dev.restate.sdk.core.generated.protocol.Protocol.*;
-import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
+import static dev.restate.sdk.core.legacy.ProtoUtils.*;
 import static org.assertj.core.api.AssertionsForClassTypes.entry;
 
 import com.google.protobuf.MessageLite;

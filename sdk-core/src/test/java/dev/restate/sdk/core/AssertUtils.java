@@ -20,8 +20,8 @@ import dev.restate.sdk.core.generated.manifest.EndpointManifestSchema;
 import dev.restate.sdk.core.generated.manifest.Handler;
 import dev.restate.sdk.core.generated.manifest.Service;
 import dev.restate.sdk.core.generated.protocol.Protocol;
-import dev.restate.sdk.core.statemachine.InvocationInput;
-import dev.restate.sdk.core.statemachine.MessageDecoder;
+import dev.restate.sdk.core.legacy.InvocationInput;
+import dev.restate.sdk.core.legacy.MessageDecoder;
 import dev.restate.sdk.endpoint.Endpoint;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,14 +53,19 @@ public class AssertUtils {
     return errorMessage(
         msg ->
             assertThat(msg)
-                .returns(e.getMessage(), Protocol.ErrorMessage::getMessage)
+                .satisfies(
+                    errMsg -> {
+                      assertThat(errMsg)
+                          .extracting(Protocol.ErrorMessage::getMessage, STRING)
+                          .contains(e.getMessage());
+                    })
                 .returns(
                     TerminalException.INTERNAL_SERVER_ERROR_CODE, Protocol.ErrorMessage::getCode)
                 .extracting(Protocol.ErrorMessage::getStacktrace, STRING)
                 .startsWith(e.getClass().getName()));
   }
 
-  public static Consumer<? super MessageLite> errorDescriptionStartingWith(String str) {
+  public static Consumer<? super MessageLite> errorMessageStacktraceStartingWith(String str) {
     return errorMessage(
         msg ->
             assertThat(msg)
@@ -68,13 +73,8 @@ public class AssertUtils {
                 .startsWith(str));
   }
 
-  public static Consumer<? super MessageLite> protocolExceptionErrorMessage(int code) {
-    return errorMessage(
-        msg ->
-            assertThat(msg)
-                .returns(code, Protocol.ErrorMessage::getCode)
-                .extracting(Protocol.ErrorMessage::getStacktrace, STRING)
-                .startsWith(ProtocolException.class.getCanonicalName()));
+  public static Consumer<? super MessageLite> errorMessageCodeEquals(int code) {
+    return errorMessage(msg -> assertThat(msg).returns(code, Protocol.ErrorMessage::getCode));
   }
 
   public static EndpointManifestSchemaAssert assertThatDiscovery(Object... services) {
@@ -94,8 +94,7 @@ public class AssertUtils {
     return new EndpointManifestSchemaAssert(
         new EndpointManifest(endpoint.getServiceDefinitions(), true)
             .manifest(
-                DiscoveryProtocol.MAX_SERVICE_DISCOVERY_PROTOCOL_VERSION,
-                EndpointManifestSchema.ProtocolMode.BIDI_STREAM),
+                DiscoveryProtocol.Version.MAX, EndpointManifestSchema.ProtocolMode.BIDI_STREAM),
         EndpointManifestSchemaAssert.class);
   }
 

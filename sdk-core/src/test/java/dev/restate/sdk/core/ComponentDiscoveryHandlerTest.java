@@ -38,8 +38,7 @@ class ComponentDiscoveryHandlerTest {
 
     EndpointManifestSchema manifest =
         deploymentManifest.manifest(
-            DiscoveryProtocol.MAX_SERVICE_DISCOVERY_PROTOCOL_VERSION,
-            EndpointManifestSchema.ProtocolMode.REQUEST_RESPONSE);
+            DiscoveryProtocol.Version.MAX, EndpointManifestSchema.ProtocolMode.REQUEST_RESPONSE);
 
     assertThat(manifest.getServices()).extracting(Service::getName).containsOnly("MyGreeter");
     assertThat(manifest.getProtocolMode())

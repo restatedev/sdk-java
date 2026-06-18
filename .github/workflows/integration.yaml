@@ -1,30 +1,6 @@
-name: Integration
+name: Integration (external)
 
-# Controls when the workflow will run
 on:
-  pull_request:
-  push:
-    branches:
-      - main
-  schedule:
-    - cron: '0 */6 * * *' # Every 6 hours
-  workflow_dispatch:
-    inputs:
-      restateCommit:
-        description: 'restate commit'
-        required: false
-        default: ''
-        type: string
-      restateImage:
-        description: 'restate image, superseded by restate commit'
-        required: false
-        default: 'ghcr.io/restatedev/restate:main'
-        type: string
-      serviceImage:
-        description: "service image, if provided it will skip building the image from sdk main branch"
-        required: false
-        default: ""
-        type: string
   workflow_call:
     inputs:
       restateCommit:
@@ -71,12 +47,12 @@ jobs:
       actions: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           repository: restatedev/sdk-java
 
       - name: Set up Docker containerd snapshotter
-        uses: docker/setup-docker-action@v4
+        uses: docker/setup-docker-action@v5
         with:
           version: "v28.5.2"
           set-host: true
@@ -93,13 +69,13 @@ jobs:
       # We must use download-artifact to get artifacts created during *this* workflow run, ie by workflow call
       - name: Download restate snapshot from in-progress workflow
         if: ${{ inputs.restateCommit != '' && github.event_name != 'workflow_dispatch' }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: restate.tar
       # In the workflow dispatch case where the artifact was created in a previous run, we can download as normal
       - name: Download restate snapshot from completed workflow
         if: ${{ inputs.restateCommit != '' && github.event_name == 'workflow_dispatch' }}
-        uses: dawidd6/action-download-artifact@v3
+        uses: dawidd6/action-download-artifact@v21
         with:
           repo: restatedev/restate
           workflow: ci.yml
@@ -114,18 +90,24 @@ jobs:
 
       - name: Setup Java
         if: ${{ inputs.serviceImage == '' }}
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
-          java-version: '21'
+          java-version: '25'
 
       - name: Setup Gradle
         if: ${{ inputs.serviceImage == '' }}
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Install Rust toolchain
+        if: ${{ inputs.serviceImage == '' }}
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache-workspaces: sdk-core/src/main/rust
 
       - name: Build restatedev/test-services-java image
         if: ${{ inputs.serviceImage == '' }}
-        run: ./gradlew -Djib.console=plain :test-services:jibDockerBuild
+        run: ./gradlew -Djib.console=plain :test-services:jibDockerBuild -PtestServicesJre=${{ matrix.jreVersion }}
 
       # Pre-emptively pull the test-services image to avoid affecting execution time
       - name: Pull test services image
@@ -138,6 +120,6 @@ jobs:
         uses: restatedev/e2e/sdk-tests@v2.1
         with:
           envVars: ${{ inputs.envVars }}
-          testArtifactOutput: ${{ inputs.testArtifactOutput != '' && inputs.testArtifactOutput || 'sdk-java-integration-test-report' }}
+          testArtifactOutput: ${{ inputs.testArtifactOutput != '' && format('{0}-jre{1}', inputs.testArtifactOutput, matrix.jreVersion) || format('sdk-java-jre{0}-integration-test-report', matrix.jreVersion) }}
           restateContainerImage: ${{ inputs.restateCommit != '' && 'localhost/restatedev/restate-commit-download:latest' || (inputs.restateImage != '' && inputs.restateImage || 'ghcr.io/restatedev/restate:main') }}
           serviceContainerImage: ${{ inputs.serviceImage != '' && inputs.serviceImage || 'restatedev/test-services-java' }}
