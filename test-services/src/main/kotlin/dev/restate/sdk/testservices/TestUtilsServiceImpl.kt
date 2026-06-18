@@ -12,7 +12,6 @@ import dev.restate.sdk.kotlin.*
 import dev.restate.sdk.testservices.contracts.*
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.time.Duration.Companion.milliseconds
 
 class TestUtilsServiceImpl : TestUtilsService {
   override suspend fun echo(input: String): String {
@@ -32,12 +31,6 @@ class TestUtilsServiceImpl : TestUtilsService {
     return input
   }
 
-  override suspend fun sleepConcurrently(millisDuration: List<Long>) {
-    val timers = millisDuration.map { timer("${it.milliseconds}ms", it.milliseconds) }.toList()
-
-    timers.awaitAll()
-  }
-
   override suspend fun countExecutedSideEffects(increments: Int): Int {
     val invokedSideEffects = AtomicInteger(0)
 
@@ -50,5 +43,13 @@ class TestUtilsServiceImpl : TestUtilsService {
 
   override suspend fun cancelInvocation(invocationId: String) {
     invocationHandle<Unit>(invocationId).cancel()
+  }
+
+  override suspend fun resolveSignal(req: TestUtilsService.ResolveSignalRequest) {
+    invocationHandle<Unit>(req.invocationId).signal(req.signalName).resolve(req.value)
+  }
+
+  override suspend fun rejectSignal(req: TestUtilsService.RejectSignalRequest) {
+    invocationHandle<Unit>(req.invocationId).signal(req.signalName).reject(req.reason)
   }
 }
