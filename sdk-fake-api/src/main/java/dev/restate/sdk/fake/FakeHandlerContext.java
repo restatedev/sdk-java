@@ -256,6 +256,25 @@ class FakeHandlerContext implements HandlerContext {
   }
 
   @Override
+  public CompletableFuture<AsyncResult<Slice>> signal(String name) {
+    throw new UnsupportedOperationException(
+        "FakeHandlerContext doesn't currently support mocking this operation");
+  }
+
+  @Override
+  public CompletableFuture<Void> resolveSignal(String invocationId, String name, Slice payload) {
+    throw new UnsupportedOperationException(
+        "FakeHandlerContext doesn't currently support mocking this operation");
+  }
+
+  @Override
+  public CompletableFuture<Void> rejectSignal(
+      String invocationId, String name, TerminalException reason) {
+    throw new UnsupportedOperationException(
+        "FakeHandlerContext doesn't currently support mocking this operation");
+  }
+
+  @Override
   public CompletableFuture<Void> cancelInvocation(String s) {
     throw new UnsupportedOperationException(
         "FakeHandlerContext doesn't currently support mocking this operation");

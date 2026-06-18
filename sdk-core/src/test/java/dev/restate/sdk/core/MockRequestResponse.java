@@ -41,7 +41,14 @@ public final class MockRequestResponse implements TestExecutor {
 
   @Override
   public void executeTest(TestDefinition definition) {
-    Executor syscallsExecutor = Executors.newSingleThreadExecutor();
+    Executor syscallsExecutor =
+        Executors.newSingleThreadExecutor(
+            runnable -> {
+              Thread t = new Thread(runnable, "coreExecutor");
+              if (t.isDaemon()) t.setDaemon(false);
+              if (t.getPriority() != Thread.NORM_PRIORITY) t.setPriority(Thread.NORM_PRIORITY);
+              return t;
+            });
 
     ServiceDefinition serviceDefinition = definition.getServiceDefinition();
 

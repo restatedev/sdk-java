@@ -27,7 +27,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
@@ -152,11 +151,6 @@ class HandlerContextImpl implements HandlerContextInternal {
   @Override
   public InvocationState getInvocationState() {
     return this.stateMachine.state();
-  }
-
-  @Override
-  public Executor stateMachineExecutor() {
-    return Runnable::run;
   }
 
   @Override
@@ -344,6 +338,28 @@ class HandlerContextImpl implements HandlerContextInternal {
                 this,
                 this.stateMachine.promiseComplete(key, reason),
                 HandlerContextImpl::parseEmptyOrFailure));
+  }
+
+  @Override
+  public CompletableFuture<AsyncResult<Slice>> signal(String name) {
+    return catchExceptions(
+        () ->
+            AsyncResults.single(
+                this,
+                this.stateMachine.createSignalHandle(name),
+                HandlerContextImpl::parseSuccessOrFailure));
+  }
+
+  @Override
+  public CompletableFuture<Void> resolveSignal(String invocationId, String name, Slice payload) {
+    return this.catchExceptions(
+        () -> this.stateMachine.completeSignal(invocationId, name, payload));
+  }
+
+  @Override
+  public CompletableFuture<Void> rejectSignal(
+      String invocationId, String name, TerminalException reason) {
+    return this.catchExceptions(() -> this.stateMachine.completeSignal(invocationId, name, reason));
   }
 
   @Override

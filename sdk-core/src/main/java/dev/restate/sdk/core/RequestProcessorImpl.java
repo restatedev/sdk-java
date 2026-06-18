@@ -200,7 +200,7 @@ final class RequestProcessorImpl implements RequestProcessor {
 
   private CompletableFuture<Void> end(
       HandlerContextInternal contextInternal, @Nullable Throwable exception) {
-    if (exception == null || ExceptionUtils.containsSuspendedException(exception)) {
+    if (exception == null || ExceptionUtils.containsAbortedExecutionException(exception)) {
       contextInternal.close();
     } else if (contextInternal.getInvocationState() != InvocationState.CLOSED) {
       if (ExceptionUtils.isTerminalException(exception)) {

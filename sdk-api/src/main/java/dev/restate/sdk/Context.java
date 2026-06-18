@@ -479,6 +479,36 @@ public interface Context {
   AwakeableHandle awakeableHandle(String id);
 
   /**
+   * Create a {@link DurableFuture} waiting on a named signal targeting the current invocation.
+   *
+   * <p>Signals are identified by {@code (invocationId, name)}. The resolution can arrive before or
+   * after the handler starts waiting on the signal — there's no need to pre-register.
+   *
+   * <p>Another invocation can resolve or reject the signal using {@link
+   * SignalHandle#resolve(TypeTag, Object)} / {@link SignalHandle#reject(String)}.
+   *
+   * @param name the signal name.
+   * @param clazz the response type to use for deserializing the signal result. When using generic
+   *     types, use {@link #signal(String, TypeTag)} instead.
+   * @return a {@link DurableFuture} that resolves to the signal value (or rejects with a {@link
+   *     TerminalException}).
+   */
+  default <T> DurableFuture<T> signal(String name, Class<T> clazz) {
+    return signal(name, TypeTag.of(clazz));
+  }
+
+  /**
+   * Create a {@link DurableFuture} waiting on a named signal targeting the current invocation.
+   *
+   * @param name the signal name.
+   * @param typeTag the response type tag to use for deserializing the signal result.
+   * @return a {@link DurableFuture} that resolves to the signal value (or rejects with a {@link
+   *     TerminalException}).
+   * @see #signal(String, Class)
+   */
+  <T> DurableFuture<T> signal(String name, TypeTag<T> typeTag);
+
+  /**
    * Returns a deterministic random.
    *
    * @see RestateRandom

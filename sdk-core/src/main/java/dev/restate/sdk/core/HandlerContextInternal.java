@@ -16,7 +16,6 @@ import dev.restate.sdk.endpoint.definition.AsyncResult;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
 import java.time.Duration;
 import java.util.List;
-import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 
@@ -58,8 +57,6 @@ interface HandlerContextInternal extends HandlerContext {
   String getFullyQualifiedMethodName();
 
   InvocationState getInvocationState();
-
-  Executor stateMachineExecutor();
 
   void failWithoutContextSwitch(Throwable throwable);
 }

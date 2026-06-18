@@ -11,10 +11,28 @@ package dev.restate.sdk.core;
 import dev.restate.sdk.common.AbortedExecutionException;
 import dev.restate.sdk.common.TerminalException;
 import java.util.Optional;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Predicate;
 
 public final class ExceptionUtils {
   private ExceptionUtils() {}
+
+  /**
+   * Unwrap the {@link CompletionException}/{@link ExecutionException} wrappers introduced by the
+   * {@link java.util.concurrent.CompletableFuture} machinery, returning the underlying cause. The
+   * reported error message and stacktrace should reflect the user-thrown exception, not the
+   * executor plumbing.
+   */
+  public static Throwable unwrapCompletionException(Throwable throwable) {
+    Throwable current = throwable;
+    while ((current instanceof CompletionException || current instanceof ExecutionException)
+        && current.getCause() != null
+        && current.getCause() != current) {
+      current = current.getCause();
+    }
+    return current;
+  }
 
   @SuppressWarnings("unchecked")
   public static <E extends Throwable> void sneakyThrow(Throwable e) throws E {
@@ -53,7 +71,7 @@ public final class ExceptionUtils {
     return findCause(throwable, t -> t instanceof ProtocolException);
   }
 
-  public static boolean containsSuspendedException(Throwable throwable) {
+  public static boolean containsAbortedExecutionException(Throwable throwable) {
     return findCause(throwable, t -> t == AbortedExecutionException.INSTANCE).isPresent();
   }
 

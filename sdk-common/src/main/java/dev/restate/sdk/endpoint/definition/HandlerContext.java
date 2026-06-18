@@ -106,6 +106,17 @@ public interface HandlerContext {
 
   CompletableFuture<AsyncResult<Void>> rejectPromise(String key, TerminalException reason);
 
+  // ----- Named signals
+  //
+  // Signals are identified by (invocationId, name). Unlike awakeables, signals do not need to be
+  // pre-registered: the resolution can arrive before or after the handler starts waiting.
+
+  CompletableFuture<AsyncResult<Slice>> signal(String name);
+
+  CompletableFuture<Void> resolveSignal(String invocationId, String name, Slice payload);
+
+  CompletableFuture<Void> rejectSignal(String invocationId, String name, TerminalException reason);
+
   CompletableFuture<Void> cancelInvocation(String invocationId);
 
   CompletableFuture<AsyncResult<Slice>> attachInvocation(String invocationId);
