@@ -21,6 +21,7 @@ final class RequestImpl<Req, Res> implements WorkflowRequest<Req, Res> {
   private final TypeTag<Res> resTypeTag;
   private final Req request;
   @Nullable private final String idempotencyKey;
+  @Nullable private final String limitKey;
   @Nullable private final LinkedHashMap<String, String> headers;
 
   RequestImpl(
@@ -29,12 +30,14 @@ final class RequestImpl<Req, Res> implements WorkflowRequest<Req, Res> {
       TypeTag<Res> resTypeTag,
       Req request,
       @Nullable String idempotencyKey,
+      @Nullable String limitKey,
       @Nullable LinkedHashMap<String, String> headers) {
     this.target = target;
     this.reqTypeTag = reqTypeTag;
     this.resTypeTag = resTypeTag;
     this.request = request;
     this.idempotencyKey = idempotencyKey;
+    this.limitKey = limitKey;
     this.headers = headers;
   }
 
@@ -64,6 +67,11 @@ final class RequestImpl<Req, Res> implements WorkflowRequest<Req, Res> {
   }
 
   @Override
+  public @Nullable String getLimitKey() {
+    return limitKey;
+  }
+
+  @Override
   public Map<String, String> getHeaders() {
     if (this.headers == null) {
       return Map.of();
@@ -77,6 +85,7 @@ final class RequestImpl<Req, Res> implements WorkflowRequest<Req, Res> {
     private final TypeTag<Res> resTypeTag;
     private final Req request;
     @Nullable private String idempotencyKey;
+    @Nullable private String limitKey;
     @Nullable private LinkedHashMap<String, String> headers;
 
     Builder(
@@ -85,12 +94,14 @@ final class RequestImpl<Req, Res> implements WorkflowRequest<Req, Res> {
         TypeTag<Res> resTypeTag,
         Req request,
         @Nullable String idempotencyKey,
+        @Nullable String limitKey,
         @Nullable LinkedHashMap<String, String> headers) {
       this.target = target;
       this.reqTypeTag = reqTypeTag;
       this.resTypeTag = resTypeTag;
       this.request = request;
       this.idempotencyKey = idempotencyKey;
+      this.limitKey = limitKey;
       this.headers = headers;
     }
 
@@ -178,6 +189,22 @@ final class RequestImpl<Req, Res> implements WorkflowRequest<Req, Res> {
     }
 
     @Override
+    public Builder<Req, Res> limitKey(@Nullable String limitKey) {
+      this.limitKey = limitKey;
+      return this;
+    }
+
+    @Override
+    public @Nullable String getLimitKey() {
+      return limitKey;
+    }
+
+    @Override
+    public Builder<Req, Res> setLimitKey(@Nullable String limitKey) {
+      return limitKey(limitKey);
+    }
+
+    @Override
     public @Nullable Map<String, String> getHeaders() {
       return headers;
     }
@@ -206,6 +233,7 @@ final class RequestImpl<Req, Res> implements WorkflowRequest<Req, Res> {
           this.resTypeTag,
           this.request,
           this.idempotencyKey,
+          this.limitKey,
           this.headers);
     }
   }
@@ -218,6 +246,7 @@ final class RequestImpl<Req, Res> implements WorkflowRequest<Req, Res> {
         this.resTypeTag,
         this.request,
         this.idempotencyKey,
+        this.limitKey,
         this.headers);
   }
 
@@ -229,12 +258,13 @@ final class RequestImpl<Req, Res> implements WorkflowRequest<Req, Res> {
         && Objects.equals(resTypeTag, that.getResponseTypeTag())
         && Objects.equals(request, that.getRequest())
         && Objects.equals(idempotencyKey, that.getIdempotencyKey())
+        && Objects.equals(limitKey, that.getLimitKey())
         && Objects.equals(headers, that.getHeaders());
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(target, reqTypeTag, resTypeTag, request, idempotencyKey, headers);
+    return Objects.hash(target, reqTypeTag, resTypeTag, request, idempotencyKey, limitKey, headers);
   }
 
   @Override
@@ -250,6 +280,9 @@ final class RequestImpl<Req, Res> implements WorkflowRequest<Req, Res> {
         + request
         + ", idempotencyKey='"
         + idempotencyKey
+        + '\''
+        + ", limitKey='"
+        + limitKey
         + '\''
         + ", headers="
         + headers

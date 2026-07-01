@@ -29,14 +29,21 @@ final class ClientServiceHandleImpl<SVC> implements ClientServiceHandle<SVC> {
   private final Class<SVC> clazz;
   private final String serviceName;
   private final @Nullable String key;
+  private final @Nullable String scope;
 
   private MethodInfoCollector<SVC> methodInfoCollector;
 
   ClientServiceHandleImpl(Client innerClient, Class<SVC> clazz, @Nullable String key) {
+    this(innerClient, clazz, key, null);
+  }
+
+  ClientServiceHandleImpl(
+      Client innerClient, Class<SVC> clazz, @Nullable String key, @Nullable String scope) {
     this.innerClient = innerClient;
     this.clazz = clazz;
     this.serviceName = ReflectionUtils.extractServiceName(clazz);
     this.key = key;
+    this.scope = scope;
   }
 
   @SuppressWarnings("unchecked")
@@ -46,6 +53,7 @@ final class ClientServiceHandleImpl<SVC> implements ClientServiceHandle<SVC> {
     MethodInfo methodInfo = getMethodInfoCollector().resolve(s, input);
     return innerClient.callAsync(
         toRequest(
+            scope,
             serviceName,
             key,
             methodInfo.getHandlerName(),
@@ -62,6 +70,7 @@ final class ClientServiceHandleImpl<SVC> implements ClientServiceHandle<SVC> {
     MethodInfo methodInfo = getMethodInfoCollector().resolve(s, input);
     return innerClient.callAsync(
         toRequest(
+            scope,
             serviceName,
             key,
             methodInfo.getHandlerName(),
@@ -78,6 +87,7 @@ final class ClientServiceHandleImpl<SVC> implements ClientServiceHandle<SVC> {
     MethodInfo methodInfo = getMethodInfoCollector().resolve(s);
     return innerClient.callAsync(
         toRequest(
+            scope,
             serviceName,
             key,
             methodInfo.getHandlerName(),
@@ -93,6 +103,7 @@ final class ClientServiceHandleImpl<SVC> implements ClientServiceHandle<SVC> {
     MethodInfo methodInfo = getMethodInfoCollector().resolve(s);
     return innerClient.callAsync(
         toRequest(
+            scope,
             serviceName,
             key,
             methodInfo.getHandlerName(),
@@ -109,6 +120,7 @@ final class ClientServiceHandleImpl<SVC> implements ClientServiceHandle<SVC> {
     MethodInfo methodInfo = getMethodInfoCollector().resolve(s, input);
     return innerClient.sendAsync(
         toRequest(
+            scope,
             serviceName,
             key,
             methodInfo.getHandlerName(),
@@ -126,6 +138,7 @@ final class ClientServiceHandleImpl<SVC> implements ClientServiceHandle<SVC> {
     MethodInfo methodInfo = getMethodInfoCollector().resolve(s, input);
     return innerClient.sendAsync(
         toRequest(
+            scope,
             serviceName,
             key,
             methodInfo.getHandlerName(),
@@ -143,6 +156,7 @@ final class ClientServiceHandleImpl<SVC> implements ClientServiceHandle<SVC> {
     MethodInfo methodInfo = getMethodInfoCollector().resolve(s);
     return innerClient.sendAsync(
         toRequest(
+            scope,
             serviceName,
             key,
             methodInfo.getHandlerName(),
@@ -159,6 +173,7 @@ final class ClientServiceHandleImpl<SVC> implements ClientServiceHandle<SVC> {
     MethodInfo methodInfo = getMethodInfoCollector().resolve(s);
     return innerClient.sendAsync(
         toRequest(
+            scope,
             serviceName,
             key,
             methodInfo.getHandlerName(),

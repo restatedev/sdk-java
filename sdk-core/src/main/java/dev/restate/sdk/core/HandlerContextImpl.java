@@ -66,6 +66,9 @@ class HandlerContextImpl implements HandlerContextInternal {
             otelContext,
             input.input(),
             input.headersAsMap(),
+            input.scope(),
+            input.limitKey(),
+            input.idempotencyKey(),
             serviceName,
             handlerName);
     this.attemptHeaders = attemptHeaders;
@@ -225,12 +228,13 @@ class HandlerContextImpl implements HandlerContextInternal {
       Target target,
       Slice parameter,
       @Nullable String idempotencyKey,
+      @Nullable String limitKey,
       @Nullable Collection<Map.Entry<String, String>> headers) {
     return catchExceptions(
         () -> {
-          // scope/limitKey are not yet surfaced by the public API; pass null for now.
           StateMachine.CallHandle callHandle =
-              this.stateMachine.call(target, parameter, idempotencyKey, null, null, headers);
+              this.stateMachine.call(
+                  target, parameter, idempotencyKey, target.getScope(), limitKey, headers);
 
           AsyncResultInternal<String> invocationIdAsyncResult =
               AsyncResults.single(this, callHandle.invocationIdHandle(), invocationIdCompleter());
@@ -248,13 +252,14 @@ class HandlerContextImpl implements HandlerContextInternal {
       Target target,
       Slice parameter,
       @Nullable String idempotencyKey,
+      @Nullable String limitKey,
       @Nullable Collection<Map.Entry<String, String>> headers,
       @Nullable Duration delay) {
     return catchExceptions(
         () -> {
-          // scope/limitKey are not yet surfaced by the public API; pass null for now.
           int sendHandle =
-              this.stateMachine.send(target, parameter, idempotencyKey, null, null, headers, delay);
+              this.stateMachine.send(
+                  target, parameter, idempotencyKey, target.getScope(), limitKey, headers, delay);
 
           return AsyncResults.single(this, sendHandle, invocationIdCompleter());
         });

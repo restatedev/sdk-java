@@ -272,6 +272,108 @@ val <Res> SendResponse<Res>.sendStatus: SendResponse.SendStatus
   get() = this.sendStatus()
 
 /**
+ * **PREVIEW:** Returns a [ScopedKotlinClient] that routes all outgoing calls within the given
+ * scope.
+ *
+ * **NOTE:** This API is in preview and is not enabled by default. To use it in restate-server 1.7,
+ * enable the flow control and protocol v7 experimental features, via
+ * `RESTATE_EXPERIMENTAL_ENABLE_PROTOCOL_V7=true` and `RESTATE_EXPERIMENTAL_ENABLE_VQUEUES=true`.
+ * These can be enabled only on **new clusters**, for more info check out
+ * https://docs.restate.dev/services/flow-control#enabling-flow-control. If these experimental
+ * features aren't enabled, the call fails with a retryable error and keeps retrying until they are.
+ *
+ * A scope is a sub-grouping of resources (invocations, virtual object instances, workflow
+ * instances, concurrency limits) within the Restate cluster. It becomes part of the target identity
+ * tuple:
+ * - `scope, service, handler, idempotencyKey?`
+ * - `scope, virtualObject, objectKey, handler, idempotencyKey?`
+ * - `scope, workflow, workflowKey, handler`
+ *
+ * Under the hood, the scope contributes to the partition key, so all resources in a scope get
+ * co-located by the restate-server.
+ *
+ * Omitting the scope (i.e. using the regular `service` / `workflow` methods) is equivalent to
+ * calling with no scope, which is the existing behavior.
+ *
+ * The scope key must consist only of `[a-zA-Z0-9_.-]` characters, with `1 <= length <= 36` chars.
+ *
+ * Example usage:
+ * ```kotlin
+ * // Route a call into a named scope
+ * client.scope("tenant-123").service<MyService>().process(payload)
+ * ```
+ *
+ * @param scopeKey the scope identifier
+ * @see <a
+ *   href="https://docs.restate.dev/services/flow-control">https://docs.restate.dev/services/flow-control</a>
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+fun Client.scope(scopeKey: String): ScopedKotlinClient = ScopedKotlinClient(this, scopeKey)
+
+/**
+ * **PREVIEW:** A client for making RPC calls within a specific scope.
+ *
+ * Obtain an instance via [Client.scope].
+ *
+ * @see Client.scope
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+class ScopedKotlinClient
+@PublishedApi
+internal constructor(
+    @PublishedApi internal val client: Client,
+    @PublishedApi internal val scopeKey: String,
+) {
+  /** @see Client.service */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  inline fun <reified SVC : Any> service(): SVC {
+    return service(client, SVC::class.java, scopeKey)
+  }
+
+  /** @see Client.virtualObject */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  inline fun <reified SVC : Any> virtualObject(key: String): SVC {
+    return virtualObject(client, SVC::class.java, key, scopeKey)
+  }
+
+  /** @see Client.workflow */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  inline fun <reified SVC : Any> workflow(key: String): SVC {
+    return workflow(client, SVC::class.java, key, scopeKey)
+  }
+
+  /** @see Client.toService */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  inline fun <reified SVC : Any> toService(): KClientRequestBuilder<SVC> {
+    ReflectionUtils.mustHaveServiceAnnotation(SVC::class.java)
+    require(ReflectionUtils.isKotlinClass(SVC::class.java)) {
+      "Using Java classes with Kotlin's API is not supported"
+    }
+    return KClientRequestBuilder(client, SVC::class.java, null, scopeKey)
+  }
+
+  /** @see Client.toVirtualObject */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  inline fun <reified SVC : Any> toVirtualObject(key: String): KClientRequestBuilder<SVC> {
+    ReflectionUtils.mustHaveVirtualObjectAnnotation(SVC::class.java)
+    require(ReflectionUtils.isKotlinClass(SVC::class.java)) {
+      "Using Java classes with Kotlin's API is not supported"
+    }
+    return KClientRequestBuilder(client, SVC::class.java, key, scopeKey)
+  }
+
+  /** @see Client.toWorkflow */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  inline fun <reified SVC : Any> toWorkflow(key: String): KClientRequestBuilder<SVC> {
+    ReflectionUtils.mustHaveWorkflowAnnotation(SVC::class.java)
+    require(ReflectionUtils.isKotlinClass(SVC::class.java)) {
+      "Using Java classes with Kotlin's API is not supported"
+    }
+    return KClientRequestBuilder(client, SVC::class.java, key, scopeKey)
+  }
+}
+
+/**
  * Create a proxy client for a Restate service.
  *
  * Example usage:
@@ -329,7 +431,7 @@ inline fun <reified SVC : Any> Client.workflow(key: String): SVC {
  * @return a proxy that intercepts method calls and executes them via the client
  */
 @PublishedApi
-internal fun <SVC : Any> service(client: Client, clazz: Class<SVC>): SVC {
+internal fun <SVC : Any> service(client: Client, clazz: Class<SVC>, scope: String? = null): SVC {
   ReflectionUtils.mustHaveServiceAnnotation(clazz)
   require(ReflectionUtils.isKotlinClass(clazz)) {
     "Using Java classes with Kotlin's API is not supported"
@@ -337,7 +439,7 @@ internal fun <SVC : Any> service(client: Client, clazz: Class<SVC>): SVC {
 
   val serviceName = ReflectionUtils.extractServiceName(clazz)
   return ProxySupport.createProxy(clazz) { invocation ->
-    val request = invocation.captureInvocation(serviceName, null).toRequest()
+    val request = invocation.captureInvocation(serviceName, null, scope).toRequest()
     @Suppress("UNCHECKED_CAST") val continuation = invocation.arguments.last() as Continuation<Any?>
 
     // Start a coroutine that calls the client and resumes the continuation
@@ -356,7 +458,12 @@ internal fun <SVC : Any> service(client: Client, clazz: Class<SVC>): SVC {
  * @return a proxy that intercepts method calls and executes them via the client
  */
 @PublishedApi
-internal fun <SVC : Any> virtualObject(client: Client, clazz: Class<SVC>, key: String): SVC {
+internal fun <SVC : Any> virtualObject(
+    client: Client,
+    clazz: Class<SVC>,
+    key: String,
+    scope: String? = null,
+): SVC {
   ReflectionUtils.mustHaveVirtualObjectAnnotation(clazz)
   require(ReflectionUtils.isKotlinClass(clazz)) {
     "Using Java classes with Kotlin's API is not supported"
@@ -364,7 +471,7 @@ internal fun <SVC : Any> virtualObject(client: Client, clazz: Class<SVC>, key: S
 
   val serviceName = ReflectionUtils.extractServiceName(clazz)
   return ProxySupport.createProxy(clazz) { invocation ->
-    val request = invocation.captureInvocation(serviceName, key).toRequest()
+    val request = invocation.captureInvocation(serviceName, key, scope).toRequest()
     @Suppress("UNCHECKED_CAST") val continuation = invocation.arguments.last() as Continuation<Any?>
 
     // Start a coroutine that calls the client and resumes the continuation
@@ -383,7 +490,12 @@ internal fun <SVC : Any> virtualObject(client: Client, clazz: Class<SVC>, key: S
  * @return a proxy that intercepts method calls and executes them via the client
  */
 @PublishedApi
-internal fun <SVC : Any> workflow(client: Client, clazz: Class<SVC>, key: String): SVC {
+internal fun <SVC : Any> workflow(
+    client: Client,
+    clazz: Class<SVC>,
+    key: String,
+    scope: String? = null,
+): SVC {
   ReflectionUtils.mustHaveWorkflowAnnotation(clazz)
   require(ReflectionUtils.isKotlinClass(clazz)) {
     "Using Java classes with Kotlin's API is not supported"
@@ -391,7 +503,7 @@ internal fun <SVC : Any> workflow(client: Client, clazz: Class<SVC>, key: String
 
   val serviceName = ReflectionUtils.extractServiceName(clazz)
   return ProxySupport.createProxy(clazz) { invocation ->
-    val request = invocation.captureInvocation(serviceName, key).toRequest()
+    val request = invocation.captureInvocation(serviceName, key, scope).toRequest()
     @Suppress("UNCHECKED_CAST") val continuation = invocation.arguments.last() as Continuation<Any?>
 
     // Start a coroutine that calls the client and resumes the continuation
@@ -414,6 +526,7 @@ internal constructor(
     private val client: Client,
     private val clazz: Class<SVC>,
     private val key: String?,
+    private val scope: String? = null,
 ) {
   /**
    * Create a request by invoking a method on the target.
@@ -428,7 +541,7 @@ internal constructor(
   suspend fun <Res> request(block: suspend SVC.() -> Res): KClientRequest<Any?, Res> {
     return KClientRequestImpl(
         client,
-        RequestCaptureProxy(clazz, key).capture(block as suspend SVC.() -> Any?).toRequest(),
+        RequestCaptureProxy(clazz, key, scope).capture(block as suspend SVC.() -> Any?).toRequest(),
     )
         as KClientRequest<Any?, Res>
   }

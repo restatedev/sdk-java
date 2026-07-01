@@ -9,6 +9,7 @@ description = "Common types used by different Restate Java modules"
 
 dependencies {
   compileOnly(libs.jspecify)
+  compileOnly(libs.jetbrains.annotations)
 
   implementation(libs.log4j.api)
 

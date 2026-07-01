@@ -844,6 +844,20 @@ val HandlerRequest.bodyAsByteBuffer: ByteBuffer
   get() = this.bodyAsBodyBuffer()
 val HandlerRequest.headers: Map<String, String>
   get() = this.headers()
+/** **PREVIEW:** The scope key with which this invocation was submitted, if any. */
+@get:org.jetbrains.annotations.ApiStatus.Experimental
+val HandlerRequest.scope: String?
+  get() = this.scope()
+
+/** **PREVIEW:** The limit key with which this invocation was submitted, if any. */
+@get:org.jetbrains.annotations.ApiStatus.Experimental
+val HandlerRequest.limitKey: String?
+  get() = this.limitKey()
+
+/** The idempotency key with which this invocation was submitted, if any. */
+@get:org.jetbrains.annotations.ApiStatus.Experimental
+val HandlerRequest.idempotencyKey: String?
+  get() = this.idempotencyKey()
 
 // =============================================================================
 // Free-floating API functions for the reflection-based API
@@ -1467,6 +1481,81 @@ private class KRequestImpl<Req, Res>(private val request: Request<Req, Res>) :
 }
 
 /**
+ * **PREVIEW:** Returns a [KScope] that routes all outgoing calls within the given scope.
+ *
+ * **NOTE:** This API is in preview and is not enabled by default. To use it in restate-server 1.7,
+ * enable the flow control and protocol v7 experimental features, via
+ * `RESTATE_EXPERIMENTAL_ENABLE_PROTOCOL_V7=true` and `RESTATE_EXPERIMENTAL_ENABLE_VQUEUES=true`.
+ * These can be enabled only on **new clusters**, for more info check out
+ * https://docs.restate.dev/services/flow-control#enabling-flow-control. If these experimental
+ * features aren't enabled, the call fails with a retryable error and keeps retrying until they are.
+ *
+ * A scope is a sub-grouping of resources (invocations, virtual object instances, workflow
+ * instances, concurrency limits) within the Restate cluster. It becomes part of the target identity
+ * tuple:
+ * - `scope, service, handler, idempotencyKey?`
+ * - `scope, virtualObject, objectKey, handler, idempotencyKey?`
+ * - `scope, workflow, workflowKey, handler`
+ *
+ * Under the hood, the scope contributes to the partition key, so all resources in a scope get
+ * co-located by the restate-server.
+ *
+ * Omitting the scope (i.e. using the regular `service` / `workflow` methods) is equivalent to
+ * calling with no scope, which is the existing behavior.
+ *
+ * The scope key must consist only of `[a-zA-Z0-9_.-]` characters, with `1 <= length <= 36` chars.
+ *
+ * Example usage:
+ * ```kotlin
+ * @Handler
+ * suspend fun myHandler(): String {
+ *     // Route a call into a named scope
+ *     val greeter = scope("tenant-123").service<Greeter>()
+ *     val response = greeter.greet("Alice")
+ *     return "Got: $response"
+ * }
+ * ```
+ *
+ * @param scopeKey the scope identifier
+ * @see <a
+ *   href="https://docs.restate.dev/services/flow-control">https://docs.restate.dev/services/flow-control</a>
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+fun scope(scopeKey: String): KScope = KScope(scopeKey)
+
+/**
+ * **PREVIEW:** A context for making RPC calls within a specific scope.
+ *
+ * Obtain an instance via [scope].
+ *
+ * @see scope
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+class KScope
+@PublishedApi
+internal constructor(
+    @PublishedApi internal val scopeKey: String,
+) {
+  /** @see service */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  suspend inline fun <reified SVC : Any> service(): SVC {
+    return service(SVC::class.java, scopeKey)
+  }
+
+  /** @see virtualObject */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  suspend inline fun <reified SVC : Any> virtualObject(key: String): SVC {
+    return virtualObject(SVC::class.java, key, scopeKey)
+  }
+
+  /** @see workflow */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  suspend inline fun <reified SVC : Any> workflow(key: String): SVC {
+    return workflow(SVC::class.java, key, scopeKey)
+  }
+}
+
+/**
  * Create a proxy client for a Restate service.
  *
  * This creates a proxy that allows calling service methods directly. The proxy intercepts method
@@ -1521,7 +1610,7 @@ suspend inline fun <reified SVC : Any> workflow(key: String): SVC {
 }
 
 @PublishedApi
-internal fun <SVC : Any> service(clazz: Class<SVC>): SVC {
+internal fun <SVC : Any> service(clazz: Class<SVC>, scope: String? = null): SVC {
   ReflectionUtils.mustHaveServiceAnnotation(clazz)
   require(ReflectionUtils.isKotlinClass(clazz)) {
     "Using Java classes with Kotlin's API is not supported"
@@ -1529,7 +1618,7 @@ internal fun <SVC : Any> service(clazz: Class<SVC>): SVC {
   val serviceName = ReflectionUtils.extractServiceName(clazz)
 
   return ProxySupport.createProxy(clazz) { invocation ->
-    val request = invocation.captureInvocation(serviceName, null).toRequest()
+    val request = invocation.captureInvocation(serviceName, null, scope).toRequest()
 
     // Last argument is the continuation for suspend functions
     @Suppress("UNCHECKED_CAST") val continuation = invocation.arguments.last() as Continuation<Any?>
@@ -1542,7 +1631,7 @@ internal fun <SVC : Any> service(clazz: Class<SVC>): SVC {
 }
 
 @PublishedApi
-internal fun <SVC : Any> virtualObject(clazz: Class<SVC>, key: String): SVC {
+internal fun <SVC : Any> virtualObject(clazz: Class<SVC>, key: String, scope: String? = null): SVC {
   ReflectionUtils.mustHaveVirtualObjectAnnotation(clazz)
   require(ReflectionUtils.isKotlinClass(clazz)) {
     "Using Java classes with Kotlin's API is not supported"
@@ -1550,7 +1639,7 @@ internal fun <SVC : Any> virtualObject(clazz: Class<SVC>, key: String): SVC {
   val serviceName = ReflectionUtils.extractServiceName(clazz)
 
   return ProxySupport.createProxy(clazz) { invocation ->
-    val request = invocation.captureInvocation(serviceName, key).toRequest()
+    val request = invocation.captureInvocation(serviceName, key, scope).toRequest()
 
     // Last argument is the continuation for suspend functions
     @Suppress("UNCHECKED_CAST") val continuation = invocation.arguments.last() as Continuation<Any?>
@@ -1563,7 +1652,7 @@ internal fun <SVC : Any> virtualObject(clazz: Class<SVC>, key: String): SVC {
 }
 
 @PublishedApi
-internal fun <SVC : Any> workflow(clazz: Class<SVC>, key: String): SVC {
+internal fun <SVC : Any> workflow(clazz: Class<SVC>, key: String, scope: String? = null): SVC {
   ReflectionUtils.mustHaveWorkflowAnnotation(clazz)
   require(ReflectionUtils.isKotlinClass(clazz)) {
     "Using Java classes with Kotlin's API is not supported"
@@ -1571,7 +1660,7 @@ internal fun <SVC : Any> workflow(clazz: Class<SVC>, key: String): SVC {
   val serviceName = ReflectionUtils.extractServiceName(clazz)
 
   return ProxySupport.createProxy(clazz) { invocation ->
-    val request = invocation.captureInvocation(serviceName, key).toRequest()
+    val request = invocation.captureInvocation(serviceName, key, scope).toRequest()
 
     // Last argument is the continuation for suspend functions
     @Suppress("UNCHECKED_CAST") val continuation = invocation.arguments.last() as Continuation<Any?>

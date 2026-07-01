@@ -160,6 +160,14 @@ public class ProtocolException extends RuntimeException {
     return new ProtocolException(sb.toString(), JOURNAL_MISMATCH_CODE);
   }
 
+  public static ProtocolException scopeOrLimitKeyUnsupported() {
+    return new ProtocolException(
+        "Scope and limit key are not supported by the legacy state machine, which negotiates at most"
+            + " service protocol version V6. These features require the new state machine"
+            + " and service protocol V7, available on JDK 23+.",
+        UNSUPPORTED_FEATURE);
+  }
+
   public static ProtocolException unsupportedFeature(
       String featureName,
       Protocol.ServiceProtocolVersion requiredVersion,

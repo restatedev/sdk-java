@@ -46,6 +46,7 @@ data class CapturedInvocation(
 fun ProxyFactory.MethodInvocation.captureInvocation(
     serviceName: String,
     key: String?,
+    scope: String? = null,
 ): CapturedInvocation {
   val handlerInfo = ReflectionUtils.mustHaveHandlerAnnotation(method)
   val handlerName = handlerInfo.name
@@ -73,12 +74,7 @@ fun ProxyFactory.MethodInvocation.captureInvocation(
           kFunction.findAnnotation<Raw>(),
       )
 
-  val target =
-      if (key != null) {
-        Target.virtualObject(serviceName, key, handlerName)
-      } else {
-        Target.service(serviceName, handlerName)
-      }
+  val target = Target.virtualObject(scope, serviceName, key, handlerName)
 
   // For suspend functions, arguments are: [input?, continuation]
   // Extract the input (first argument, excluding continuation)
