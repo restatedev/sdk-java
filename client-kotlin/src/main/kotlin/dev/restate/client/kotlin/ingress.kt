@@ -283,7 +283,6 @@ val <Res> SendResponse<Res>.sendStatus: SendResponse.SendStatus
  * @param SVC the service class annotated with @Service
  * @return a proxy client to invoke the service
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 inline fun <reified SVC : Any> Client.service(): SVC {
   return service(this, SVC::class.java)
 }
@@ -301,7 +300,6 @@ inline fun <reified SVC : Any> Client.service(): SVC {
  * @param key the key identifying the specific virtual object instance
  * @return a proxy client to invoke the virtual object
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 inline fun <reified SVC : Any> Client.virtualObject(key: String): SVC {
   return virtualObject(this, SVC::class.java, key)
 }
@@ -319,7 +317,6 @@ inline fun <reified SVC : Any> Client.virtualObject(key: String): SVC {
  * @param key the key identifying the specific workflow instance
  * @return a proxy client to invoke the workflow
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 inline fun <reified SVC : Any> Client.workflow(key: String): SVC {
   return workflow(this, SVC::class.java, key)
 }
@@ -411,7 +408,6 @@ internal fun <SVC : Any> workflow(client: Client, clazz: Class<SVC>, key: String
  *
  * @param SVC the service/virtual object/workflow class
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 class KClientRequestBuilder<SVC : Any>
 @PublishedApi
 internal constructor(
@@ -452,7 +448,6 @@ internal constructor(
  * @param Req the request type
  * @param Res the response type
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 interface KClientRequest<Req, Res> : Request<Req, Res> {
 
   /**
@@ -492,7 +487,6 @@ interface KClientRequest<Req, Res> : Request<Req, Res> {
  * @param SVC the service class annotated with @Service
  * @return a builder for creating typed requests
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 inline fun <reified SVC : Any> Client.toService(): KClientRequestBuilder<SVC> {
   ReflectionUtils.mustHaveServiceAnnotation(SVC::class.java)
   require(ReflectionUtils.isKotlinClass(SVC::class.java)) {
@@ -515,7 +509,6 @@ inline fun <reified SVC : Any> Client.toService(): KClientRequestBuilder<SVC> {
  * @param key the key identifying the specific virtual object instance
  * @return a builder for creating typed requests
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 inline fun <reified SVC : Any> Client.toVirtualObject(key: String): KClientRequestBuilder<SVC> {
   ReflectionUtils.mustHaveVirtualObjectAnnotation(SVC::class.java)
   require(ReflectionUtils.isKotlinClass(SVC::class.java)) {
@@ -538,7 +531,6 @@ inline fun <reified SVC : Any> Client.toVirtualObject(key: String): KClientReque
  * @param key the key identifying the specific workflow instance
  * @return a builder for creating typed requests
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 inline fun <reified SVC : Any> Client.toWorkflow(key: String): KClientRequestBuilder<SVC> {
   ReflectionUtils.mustHaveWorkflowAnnotation(SVC::class.java)
   require(ReflectionUtils.isKotlinClass(SVC::class.java)) {

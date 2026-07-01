@@ -6,6 +6,8 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
+@file:Suppress("DEPRECATION") // Intentionally exercises the deprecated codegen/Context API.
+
 package dev.restate.sdk.core.kotlinapi
 
 import dev.restate.common.Slice

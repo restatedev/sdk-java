@@ -13,6 +13,7 @@ import java.util.Objects;
 
 @org.jetbrains.annotations.ApiStatus.Internal
 @org.jetbrains.annotations.ApiStatus.Experimental
+@SuppressWarnings("deprecation")
 public final class ContextThreadLocal {
   public static final ThreadLocal<Context> CONTEXT_THREAD_LOCAL = new ThreadLocal<>();
 

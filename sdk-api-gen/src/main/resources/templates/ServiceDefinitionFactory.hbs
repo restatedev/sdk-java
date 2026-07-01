@@ -1,6 +1,13 @@
 {{#if originalClassPkg}}package {{originalClassPkg}};{{/if}}
 
-/** Service definition factory to bind {@link {{originalClassFqcn}} } **/
+/**
+ * Service definition factory to bind {@link {{originalClassFqcn}} }
+ *
+ * @deprecated The Restate codegen API is deprecated; migrate to the reflection-based API. See the
+ *     migration guide: https://github.com/restatedev/sdk-java/blob/main/MIGRATION.md
+ **/
+@Deprecated
+@SuppressWarnings("deprecation")
 public class {{generatedClassSimpleName}} implements dev.restate.sdk.endpoint.definition.ServiceDefinitionFactory<{{originalClassFqcn}}> {
 
     @java.lang.Override

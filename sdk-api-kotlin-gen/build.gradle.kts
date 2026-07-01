@@ -4,7 +4,8 @@ plugins {
   alias(libs.plugins.ksp)
 }
 
-description = "Restate SDK API Kotlin Gen"
+description =
+    "Restate SDK API Kotlin Gen (DEPRECATED: the KSP code-generator/codegen API is deprecated in favor of the reflection-based API; see https://github.com/restatedev/sdk-java/blob/main/MIGRATION.md)"
 
 dependencies {
   compileOnly(libs.jspecify)

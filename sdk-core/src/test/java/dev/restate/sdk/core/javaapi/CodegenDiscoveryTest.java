@@ -19,6 +19,7 @@ import dev.restate.sdk.core.generated.manifest.Service;
 import dev.restate.sdk.endpoint.Endpoint;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("deprecation") // Intentionally exercises the deprecated codegen/Context API.
 public class CodegenDiscoveryTest {
 
   @Test

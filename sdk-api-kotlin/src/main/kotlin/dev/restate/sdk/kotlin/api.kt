@@ -6,6 +6,8 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
+@file:Suppress("DEPRECATION")
+
 package dev.restate.sdk.kotlin
 
 import dev.restate.common.InvocationOptions
@@ -46,6 +48,10 @@ import kotlinx.coroutines.currentCoroutineContext
  * NOTE: This interface MUST NOT be accessed concurrently since it can lead to different orderings
  * of user actions, corrupting the execution of the invocation.
  */
+@Deprecated(
+    "The Context-parameter programming model is superseded by the reflection-based API. Rather than accepting a Context (or its subtypes) as a handler parameter, use the top-level functions (e.g. runBlock { }, state(), awakeable()). See the migration guide: https://github.com/restatedev/sdk-java/blob/main/MIGRATION.md",
+    level = DeprecationLevel.WARNING,
+)
 sealed interface Context {
 
   fun request(): HandlerRequest
@@ -364,6 +370,10 @@ suspend inline fun <reified T : Any> Context.signal(name: String): DurableFuture
  * This interface can be used only within shared handlers of virtual objects. It extends [Context]
  * adding access to the virtual object instance key-value state storage.
  */
+@Deprecated(
+    "The Context-parameter programming model is superseded by the reflection-based API. Rather than accepting a SharedObjectContext parameter, use state() and objectKey() inside the handler. See the migration guide: https://github.com/restatedev/sdk-java/blob/main/MIGRATION.md",
+    level = DeprecationLevel.WARNING,
+)
 sealed interface SharedObjectContext : Context {
 
   /** @return the key of this object */
@@ -398,6 +408,10 @@ suspend inline fun <reified T : Any> SharedObjectContext.get(key: String): T? {
  * This interface can be used only within exclusive handlers of virtual objects. It extends
  * [Context] adding access to the virtual object instance key-value state storage.
  */
+@Deprecated(
+    "The Context-parameter programming model is superseded by the reflection-based API. Rather than accepting an ObjectContext parameter, use state() (which supports both reads and writes) inside the handler. See the migration guide: https://github.com/restatedev/sdk-java/blob/main/MIGRATION.md",
+    level = DeprecationLevel.WARNING,
+)
 sealed interface ObjectContext : SharedObjectContext {
 
   /**
@@ -433,6 +447,10 @@ suspend inline fun <reified T : Any> ObjectContext.set(key: String, value: T) {
  * @see Context
  * @see SharedObjectContext
  */
+@Deprecated(
+    "The Context-parameter programming model is superseded by the reflection-based API. Rather than accepting a SharedWorkflowContext parameter, use promise(), promiseHandle() and state() inside the handler. See the migration guide: https://github.com/restatedev/sdk-java/blob/main/MIGRATION.md",
+    level = DeprecationLevel.WARNING,
+)
 sealed interface SharedWorkflowContext : SharedObjectContext {
   /**
    * Create a [DurablePromise] for the given key.
@@ -463,6 +481,10 @@ sealed interface SharedWorkflowContext : SharedObjectContext {
  * @see Context
  * @see ObjectContext
  */
+@Deprecated(
+    "The Context-parameter programming model is superseded by the reflection-based API. Rather than accepting a WorkflowContext parameter, use promise(), promiseHandle() and state() inside the handler. See the migration guide: https://github.com/restatedev/sdk-java/blob/main/MIGRATION.md",
+    level = DeprecationLevel.WARNING,
+)
 sealed interface WorkflowContext : SharedWorkflowContext, ObjectContext
 
 class RestateRandom(seed: Long) : Random() {
@@ -848,7 +870,6 @@ val HandlerRequest.headers: Map<String, String>
  *
  * @throws IllegalStateException if called outside of a Restate handler
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 suspend fun context(): Context {
   val element =
       currentCoroutineContext()[dev.restate.sdk.kotlin.internal.RestateContextElement]
@@ -862,7 +883,6 @@ suspend fun context(): Context {
  * @throws IllegalStateException if called outside of a Restate handler
  * @see Context.request
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 suspend fun request(): HandlerRequest {
   return context().request()
 }
@@ -873,7 +893,6 @@ suspend fun request(): HandlerRequest {
  * @throws IllegalStateException if called outside of a Restate handler
  * @see Context.random
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 suspend fun random(): RestateRandom {
   return context().random()
 }
@@ -884,13 +903,11 @@ suspend fun random(): RestateRandom {
  * @see RestateClock.now
  */
 @ExperimentalTime
-@org.jetbrains.annotations.ApiStatus.Experimental
 fun clock(): RestateClock {
   return RestateClockImpl
 }
 
 @ExperimentalTime
-@org.jetbrains.annotations.ApiStatus.Experimental
 interface RestateClock {
   /**
    * Returns the current time as a deterministic [Instant].
@@ -907,7 +924,6 @@ interface RestateClock {
 }
 
 @ExperimentalTime
-@org.jetbrains.annotations.ApiStatus.Experimental
 private object RestateClockImpl : RestateClock {
   override suspend fun now(): Instant {
     return context().instantNow()
@@ -920,7 +936,6 @@ private object RestateClockImpl : RestateClock {
  * @see RestateClock.now
  */
 @ExperimentalTime
-@get:org.jetbrains.annotations.ApiStatus.Experimental
 val Clock.Companion.Restate: RestateClock
   get() = clock()
 
@@ -931,7 +946,6 @@ val Clock.Companion.Restate: RestateClock
  * @throws IllegalStateException if called outside of a Restate handler
  * @see Context.sleep
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 suspend fun sleep(duration: Duration) {
   context().sleep(duration)
 }
@@ -944,7 +958,6 @@ suspend fun sleep(duration: Duration) {
  * @throws IllegalStateException if called outside of a Restate handler
  * @see Context.timer
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 suspend fun timer(name: String = "", duration: Duration): DurableFuture<Unit> {
   return context().timer(duration, name)
 }
@@ -959,7 +972,6 @@ suspend fun timer(name: String = "", duration: Duration): DurableFuture<Unit> {
  * @throws IllegalStateException if called outside of a Restate handler
  * @see Context.runBlock
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 suspend inline fun <reified T : Any> runBlock(
     name: String = "",
     retryPolicy: RetryPolicy? = null,
@@ -978,7 +990,6 @@ suspend inline fun <reified T : Any> runBlock(
  * @throws IllegalStateException if called outside of a Restate handler
  * @see Context.runAsync
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 suspend inline fun <reified T : Any> runAsync(
     name: String = "",
     retryPolicy: RetryPolicy? = null,
@@ -994,7 +1005,6 @@ suspend inline fun <reified T : Any> runAsync(
  * @throws IllegalStateException if called outside of a Restate handler
  * @see Context.awakeable
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 suspend inline fun <reified T : Any> awakeable(): Awakeable<T> {
   return context().awakeable(typeTag<T>())
 }
@@ -1010,7 +1020,6 @@ suspend inline fun <reified T : Any> awakeable(): Awakeable<T> {
  * @return the [Awakeable] to await on.
  * @see Awakeable
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 suspend fun <T : Any> awakeable(typeTag: TypeTag<T>): Awakeable<T> {
   return context().awakeable(typeTag)
 }
@@ -1021,7 +1030,6 @@ suspend fun <T : Any> awakeable(typeTag: TypeTag<T>): Awakeable<T> {
  * @throws IllegalStateException if called outside of a Restate handler
  * @see Context.awakeableHandle
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 suspend fun awakeableHandle(id: String): AwakeableHandle {
   return context().awakeableHandle(id)
 }
@@ -1032,7 +1040,6 @@ suspend fun awakeableHandle(id: String): AwakeableHandle {
  * @throws IllegalStateException if called outside of a Restate handler
  * @see Context.signal
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 suspend inline fun <reified T : Any> signal(name: String): DurableFuture<T> {
   return context().signal(name, typeTag<T>())
 }
@@ -1044,7 +1051,6 @@ suspend inline fun <reified T : Any> signal(name: String): DurableFuture<T> {
  * @throws IllegalStateException if called outside of a Restate handler
  * @see Context.invocationHandle
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 suspend inline fun <reified R : Any?> invocationHandle(invocationId: String): InvocationHandle<R> {
   return context().invocationHandle(invocationId, typeTag<R>())
 }
@@ -1056,7 +1062,6 @@ suspend inline fun <reified R : Any?> invocationHandle(invocationId: String): In
  * @throws IllegalStateException if called from a regular Service handler or outside of a Restate
  *   handler
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 suspend fun objectKey(): String {
   val ctx = context()
   val handlerContext =
@@ -1080,7 +1085,6 @@ suspend fun objectKey(): String {
  * @throws IllegalStateException if called from a regular Service handler, or from a virtual object
  *   handler, or outside of a Restate handler
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 suspend fun workflowKey(): String {
   val ctx = context()
   val handlerContext =
@@ -1104,7 +1108,6 @@ suspend fun workflowKey(): String {
  * @throws IllegalStateException if called from a regular Service handler or outside of a Restate
  *   handler
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 suspend fun state(): KotlinState {
   val ctx = context()
   val handlerContext =
@@ -1128,7 +1131,6 @@ suspend fun state(): KotlinState {
  *   handler
  * @see SharedWorkflowContext.promise
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 suspend fun <T : Any> promise(key: DurablePromiseKey<T>): DurablePromise<T> {
   val ctx = context()
   val handlerContext =
@@ -1152,7 +1154,6 @@ suspend fun <T : Any> promise(key: DurablePromiseKey<T>): DurablePromise<T> {
  *   handler
  * @see SharedWorkflowContext.promiseHandle
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 suspend fun <T : Any> promiseHandle(key: DurablePromiseKey<T>): DurablePromiseHandle<T> {
   val ctx = context()
   val handlerContext =
@@ -1193,7 +1194,6 @@ suspend fun <T : Any> promiseHandle(key: DurablePromiseKey<T>): DurablePromiseHa
  * }
  * ```
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 interface KotlinState {
   /**
    * Gets the state stored under key, deserializing the raw value using the [StateKey.serdeInfo].
@@ -1202,7 +1202,7 @@ interface KotlinState {
    * @return the value containing the stored state deserialized, or null if not set.
    * @throws RuntimeException when the state cannot be deserialized.
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental suspend fun <T : Any> get(key: StateKey<T>): T?
+  suspend fun <T : Any> get(key: StateKey<T>): T?
 
   /**
    * Sets the given value under the given key, serializing the value using the [StateKey.serdeInfo].
@@ -1211,7 +1211,6 @@ interface KotlinState {
    * @param value to store under the given key.
    * @throws IllegalStateException if called from a Shared handler
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   suspend fun <T : Any> set(key: StateKey<T>, value: T)
 
   /**
@@ -1220,21 +1219,21 @@ interface KotlinState {
    * @param key identifying the state to clear.
    * @throws IllegalStateException if called from a Shared handler
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental suspend fun clear(key: StateKey<*>)
+  suspend fun clear(key: StateKey<*>)
 
   /**
    * Clears all the state of this virtual object instance key-value state storage.
    *
    * @throws IllegalStateException if called from a Shared handler
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental suspend fun clearAll()
+  suspend fun clearAll()
 
   /**
    * Gets all the known state keys for this virtual object instance.
    *
    * @return the immutable collection of known state keys.
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental suspend fun keys(): Collection<String>
+  suspend fun keys(): Collection<String>
 }
 
 /**
@@ -1243,7 +1242,6 @@ interface KotlinState {
  * @param key the name of the state key.
  * @return the value containing the stored state deserialized, or null if not set.
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 suspend inline fun <reified T : Any> KotlinState.get(key: String): T? {
   return this.get(StateKey.of<T>(key, typeTag<T>()))
 }
@@ -1255,7 +1253,6 @@ suspend inline fun <reified T : Any> KotlinState.get(key: String): T? {
  * @param value to store under the given key.
  * @throws IllegalStateException if called from a Shared handler
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 suspend inline fun <reified T : Any> KotlinState.set(key: String, value: T) {
   this.set(StateKey.of<T>(key, typeTag<T>()), value)
 }
@@ -1312,7 +1309,6 @@ private class KotlinStateImpl(
  * @param Req the request type
  * @param Res the response type
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 interface KRequest<Req, Res> : Request<Req, Res> {
 
   /**
@@ -1321,7 +1317,6 @@ interface KRequest<Req, Res> : Request<Req, Res> {
    * @param block builder block for options
    * @return a new request with the configured options
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   fun options(block: InvocationOptions.Builder.() -> Unit): KRequest<Req, Res>
 
   /**
@@ -1329,7 +1324,7 @@ interface KRequest<Req, Res> : Request<Req, Res> {
    *
    * @return a [CallDurableFuture] that will contain the response
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental suspend fun call(): CallDurableFuture<Res>
+  suspend fun call(): CallDurableFuture<Res>
 
   /**
    * Send the request without waiting for the response.
@@ -1337,7 +1332,6 @@ interface KRequest<Req, Res> : Request<Req, Res> {
    * @param delay optional delay before the invocation is executed
    * @return an [InvocationHandle] to interact with the sent request
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   suspend fun send(delay: Duration? = null): InvocationHandle<Res>
 }
 
@@ -1348,7 +1342,6 @@ interface KRequest<Req, Res> : Request<Req, Res> {
  *
  * @param SVC the service/virtual object/workflow class
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 class KRequestBuilder<SVC : Any>
 @PublishedApi
 internal constructor(
@@ -1391,7 +1384,6 @@ internal constructor(
  * @param SVC the service class annotated with @Service
  * @return a builder for creating typed requests
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 inline fun <reified SVC : Any> toService(): KRequestBuilder<SVC> {
   ReflectionUtils.mustHaveServiceAnnotation(SVC::class.java)
   require(ReflectionUtils.isKotlinClass(SVC::class.java)) {
@@ -1419,7 +1411,6 @@ inline fun <reified SVC : Any> toService(): KRequestBuilder<SVC> {
  * @param key the key identifying the specific virtual object instance
  * @return a builder for creating typed requests
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 inline fun <reified SVC : Any> toVirtualObject(key: String): KRequestBuilder<SVC> {
   ReflectionUtils.mustHaveVirtualObjectAnnotation(SVC::class.java)
   require(ReflectionUtils.isKotlinClass(SVC::class.java)) {
@@ -1447,7 +1438,6 @@ inline fun <reified SVC : Any> toVirtualObject(key: String): KRequestBuilder<SVC
  * @param key the key identifying the specific workflow instance
  * @return a builder for creating typed requests
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 inline fun <reified SVC : Any> toWorkflow(key: String): KRequestBuilder<SVC> {
   ReflectionUtils.mustHaveWorkflowAnnotation(SVC::class.java)
   require(ReflectionUtils.isKotlinClass(SVC::class.java)) {
@@ -1495,7 +1485,6 @@ private class KRequestImpl<Req, Res>(private val request: Request<Req, Res>) :
  * @param SVC the service class annotated with @Service
  * @return a proxy client to invoke the service
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 suspend inline fun <reified SVC : Any> service(): SVC {
   return service(SVC::class.java)
 }
@@ -1516,7 +1505,6 @@ suspend inline fun <reified SVC : Any> service(): SVC {
  * @param key the key identifying the specific virtual object instance
  * @return a proxy client to invoke the virtual object
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 suspend inline fun <reified SVC : Any> virtualObject(key: String): SVC {
   return virtualObject(SVC::class.java, key)
 }
@@ -1528,7 +1516,6 @@ suspend inline fun <reified SVC : Any> virtualObject(key: String): SVC {
  * @param key the key identifying the specific workflow instance
  * @return a proxy client to invoke the workflow
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 suspend inline fun <reified SVC : Any> workflow(key: String): SVC {
   return workflow(SVC::class.java, key)
 }

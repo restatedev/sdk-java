@@ -25,6 +25,7 @@ import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
+import javax.tools.Diagnostic;
 import javax.tools.FileObject;
 import javax.tools.StandardLocation;
 
@@ -35,6 +36,7 @@ public class ServiceProcessor extends AbstractProcessor {
   private HandlebarsTemplateEngine clientCodegen;
   private HandlebarsTemplateEngine handlersCodegen;
   private AnnotationProcessingOptions options;
+  private boolean deprecationWarningEmitted = false;
 
   private static final Set<String> RESERVED_METHOD_NAMES =
       Set.of("send", "submit", "workflowHandle");
@@ -110,6 +112,19 @@ public class ServiceProcessor extends AbstractProcessor {
                                 Map.entry(
                                     (Element) e, converter.fromTypeElement(metaAnnotation, e))))
             .collect(Collectors.toList());
+
+    if (!parsedServices.isEmpty() && !deprecationWarningEmitted) {
+      deprecationWarningEmitted = true;
+      processingEnv
+          .getMessager()
+          .printMessage(
+              Diagnostic.Kind.WARNING,
+              "The Restate annotation-processor (codegen) API is deprecated and will be removed in a"
+                  + " future release. Migrate to the reflection-based API: drop the sdk-api-gen"
+                  + " dependency, remove the Context parameters from your @Handler methods and use"
+                  + " the static dev.restate.sdk.Restate methods instead. See the migration guide:"
+                  + " https://github.com/restatedev/sdk-java/blob/main/MIGRATION.md");
+    }
 
     Filer filer = processingEnv.getFiler();
 

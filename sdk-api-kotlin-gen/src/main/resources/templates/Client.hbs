@@ -8,6 +8,8 @@ import dev.restate.common.Target
 import kotlin.time.Duration
 import dev.restate.client.kotlin.*
 
+@Deprecated("The Restate codegen API is deprecated; migrate to the reflection-based API. See https://github.com/restatedev/sdk-java/blob/main/MIGRATION.md")
+@Suppress("DEPRECATION")
 object {{generatedClassSimpleName}} {
 
     fun fromContext(ctx: Context{{#isKeyed}}, key: String{{/isKeyed}}): ContextClient {

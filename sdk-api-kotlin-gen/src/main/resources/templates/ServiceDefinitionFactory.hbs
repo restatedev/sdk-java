@@ -1,5 +1,7 @@
 {{#if originalClassPkg}}package {{originalClassPkg}}{{/if}}
 
+@Deprecated("The Restate codegen API is deprecated; migrate to the reflection-based API. See https://github.com/restatedev/sdk-java/blob/main/MIGRATION.md")
+@Suppress("DEPRECATION")
 class {{generatedClassSimpleName}}: dev.restate.sdk.endpoint.definition.ServiceDefinitionFactory<{{originalClassFqcn}}> {
 
     override fun create(bindableService: {{originalClassFqcn}}, overrideHandlerOptions: dev.restate.sdk.endpoint.definition.HandlerRunner.Options?): dev.restate.sdk.endpoint.definition.ServiceDefinition {

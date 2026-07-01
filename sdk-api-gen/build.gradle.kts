@@ -4,7 +4,8 @@ plugins {
   `library-publishing-conventions`
 }
 
-description = "Restate SDK API Gen"
+description =
+    "Restate SDK API Gen (DEPRECATED: the annotation-processor/codegen API is deprecated in favor of the reflection-based API; see https://github.com/restatedev/sdk-java/blob/main/MIGRATION.md)"
 
 dependencies {
   compileOnly(libs.jspecify)

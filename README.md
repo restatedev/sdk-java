@@ -43,15 +43,13 @@ Scaffold a project using the build tool of your choice. For example, with Gradle
 gradle init --type java-application
 ```
 
-Add the annotation processor dependency [sdk-api-gen](sdk-api-gen), and then, depending on whether you want to deploy using HTTP or Lambda, use the appropriate dependency:
+Depending on whether you want to deploy using HTTP or Lambda, add the appropriate dependency:
 
 ```kotlin
-annotationProcessor("dev.restate:sdk-api-gen:2.7.0")
-
 // For HTTP services
-implementation("dev.restate:sdk-java-http:2.7.0")
+implementation("dev.restate:sdk-java-http:2.8.0")
 // For Lambda services
-// implementation("dev.restate:sdk-java-lambda:2.7.0")
+// implementation("dev.restate:sdk-java-lambda:2.8.0")
 ```
 
 ### Setup a project (Kotlin)
@@ -62,23 +60,13 @@ Scaffold a project using the build tool of your choice. For example, with Gradle
 gradle init --type kotlin-application
 ```
 
-Add the [Kotlin symbol processing](https://kotlinlang.org/docs/ksp-quickstart.html#use-your-own-processor-in-a-project) plugin:
-
-```
-plugins {
-    id("com.google.devtools.ksp") version "2.2.10-2.0.2"
-}
-```
-
-Add the ksp dependency [sdk-api-gen](sdk-api-kotlin-gen), and then, depending on whether you want to deploy using HTTP or Lambda, use the appropriate dependency:
+Depending on whether you want to deploy using HTTP or Lambda, add the appropriate dependency:
 
 ```kotlin
-ksp("dev.restate:sdk-api-kotlin-gen:2.7.0")
-
 // For HTTP services
-implementation("dev.restate:sdk-kotlin-http:2.7.0")
+implementation("dev.restate:sdk-kotlin-http:2.8.0")
 // For Lambda services
-// implementation("dev.restate:sdk-kotlin-lambda:2.7.0")
+// implementation("dev.restate:sdk-kotlin-lambda:2.8.0")
 ```
 
 ### Implement your first Restate component (Java)
@@ -86,7 +74,7 @@ implementation("dev.restate:sdk-kotlin-http:2.7.0")
 Implement your first virtual object in a new class, for example:
 
 ```java
-import dev.restate.sdk.ObjectContext;
+import dev.restate.sdk.Restate;
 import dev.restate.sdk.annotation.Handler;
 import dev.restate.sdk.annotation.VirtualObject;
 import dev.restate.sdk.common.StateKey;
@@ -97,9 +85,10 @@ public class Greeter {
   private static final StateKey<Long> COUNT = StateKey.of("total", Long.class);
 
   @Handler
-  public String greet(ObjectContext ctx, String name) {
-    long count = ctx.get(COUNT).orElse(0L);
-    ctx.set(COUNT, count + 1);
+  public String greet(String name) {
+    var state = Restate.state();
+    long count = state.get(COUNT).orElse(0L);
+    state.set(COUNT, count + 1);
 
     return String.format("Hello %s for the %d time!", name, count);
   }
@@ -123,9 +112,10 @@ class Greeter {
   }
 
   @Handler
-  suspend fun greet(context: ObjectContext, name: String): String {
-    val count = context.get(COUNT) ?: 0L
-    context.set(COUNT, count + 1)
+  suspend fun greet(name: String): String {
+    val state = state()
+    val count = state.get(COUNT) ?: 0L
+    state.set(COUNT, count + 1)
     return "Hello $name for the $count time!"
   }
 }
@@ -212,7 +202,7 @@ You can now upload the generated Jar in AWS Lambda, and configure `MyLambdaHandl
 
 The SDK uses log4j2 as logging facade, to configure it add the file `resources/log4j2.properties`:
 
-```
+```properties
 # Set to debug or trace if log4j initialization is failing
 status = warn
 
@@ -250,37 +240,6 @@ The SDK injects the following additional metadata to the logging context that ca
 The dependencies `sdk-java-http`, `sdk-java-lambda`, `sdk-kotlin-http` and `sdk-kotlin-lambda` bring in `log4j-core` by default, but you can easily exclude/override that if you need to.
 
 When assembling fat-jars, make sure to enable merging META-INF/services files. For more info, see https://github.com/apache/logging-log4j2/issues/2099.
-
-#### Tracing with OpenTelemetry
-
-The SDK automatically propagates the OpenTelemetry `Context` from the `restate-server` into your handler. You can use that to create custom spans.
-
-To configure the `OpenTelemetry` that should be used by the SDK to publish traces, configure it in the `Endpoint.Builder` object.
-
-For example, to set up tracing using environment variables, add the following modules to your dependencies:
-
-```
-implementation("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure:1.38.0")
-implementation("io.opentelemetry:opentelemetry-exporter-otlp:1.38.0")
-```
-
-And then configure it in the endpoint builder:
-
-```java
-.withOpenTelemetry(AutoConfiguredOpenTelemetrySdk.initialize().getOpenTelemetrySdk())
-```
-
-By exporting the following environment variables the OpenTelemetry SDK will be automatically configured to push traces:
-
-```shell
-export OTEL_SERVICE_NAME=my-service
-export OTEL_TRACES_SAMPLER=always_on
-export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://localhost:14250
-```
-
-Please refer to the [Opentelemetry manual instrumentation documentation](https://opentelemetry.io/docs/instrumentation/java/manual/#manual-instrumentation-setup) and the [autoconfigure documentation](https://github.com/open-telemetry/opentelemetry-java/blob/main/sdk-extensions/autoconfigure/README.md) for more info. 
-
-See https://docs.restate.dev/operate/monitoring/tracing to configure Restate tracing.
 
 ## Versions
 

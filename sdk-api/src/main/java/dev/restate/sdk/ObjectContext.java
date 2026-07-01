@@ -20,7 +20,12 @@ import org.jspecify.annotations.NonNull;
  * orderings of user actions, corrupting the execution of the invocation.
  *
  * @see Context
+ * @deprecated The {@code Context}-parameter programming model is superseded by the reflection-based
+ *     API. Rather than accepting an {@code ObjectContext} parameter, use {@code Restate.state()}
+ *     (which supports both reads and writes) inside the handler. See the <a
+ *     href="https://github.com/restatedev/sdk-java/blob/main/MIGRATION.md">migration guide</a>.
  */
+@Deprecated(since = "2.9", forRemoval = true)
 public interface ObjectContext extends SharedObjectContext {
   /**
    * Clears the state stored under key.

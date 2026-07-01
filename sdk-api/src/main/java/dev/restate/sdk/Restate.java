@@ -78,12 +78,11 @@ import org.jspecify.annotations.NonNull;
  *
  * @see Context
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
+@SuppressWarnings("deprecation")
 public final class Restate {
   /**
    * @see Context#request()
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static HandlerRequest request() {
     return Context.current().request();
   }
@@ -94,7 +93,6 @@ public final class Restate {
    * @see RestateRandom
    * @see Context#random()
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static RestateRandom random() {
     return Context.current().random();
   }
@@ -109,7 +107,6 @@ public final class Restate {
    * @return the recorded {@link Instant}
    * @see Instant#now()
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static Instant instantNow() {
     return Context.current().instantNow();
   }
@@ -117,7 +114,6 @@ public final class Restate {
   /**
    * @see Context#invocationHandle(String, TypeTag)
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static <R> InvocationHandle<R> invocationHandle(
       String invocationId, TypeTag<R> responseTypeTag) {
     return Context.current().invocationHandle(invocationId, responseTypeTag);
@@ -131,7 +127,6 @@ public final class Restate {
    * @param responseClazz The response class.
    * @see Context#invocationHandle(String, Class)
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static <R> InvocationHandle<R> invocationHandle(
       String invocationId, Class<R> responseClazz) {
     return Context.current().invocationHandle(invocationId, responseClazz);
@@ -142,7 +137,6 @@ public final class Restate {
    *
    * @see Context#invocationHandle(String)
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static InvocationHandle<Slice> invocationHandle(String invocationId) {
     return Context.current().invocationHandle(invocationId);
   }
@@ -153,7 +147,6 @@ public final class Restate {
    * @param duration for which to sleep.
    * @see Context#sleep(Duration)
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static void sleep(Duration duration) {
     Context.current().sleep(duration);
   }
@@ -166,7 +159,6 @@ public final class Restate {
    * @param duration for which to sleep.
    * @see Context#timer(String, Duration)
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static DurableFuture<Void> timer(String name, Duration duration) {
     return Context.current().timer(name, duration);
   }
@@ -198,7 +190,6 @@ public final class Restate {
    * @return value of the run operation.
    * @see Context#run(String, Class, ThrowingSupplier)
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static <T> T run(String name, Class<T> clazz, ThrowingSupplier<T> action)
       throws TerminalException {
     return Context.current().run(name, clazz, action);
@@ -215,7 +206,6 @@ public final class Restate {
    * @see RetryPolicy
    * @see Context#run(String, TypeTag, RetryPolicy, ThrowingSupplier)
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static <T> T run(
       String name, TypeTag<T> typeTag, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
       throws TerminalException {
@@ -233,7 +223,6 @@ public final class Restate {
    * @see RetryPolicy
    * @see Context#run(String, Class, RetryPolicy, ThrowingSupplier)
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static <T> T run(
       String name, Class<T> clazz, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
       throws TerminalException {
@@ -248,7 +237,6 @@ public final class Restate {
    * @see #run(String, Class, ThrowingSupplier)
    * @see Context#run(String, TypeTag, ThrowingSupplier)
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static <T> T run(String name, TypeTag<T> typeTag, ThrowingSupplier<T> action)
       throws TerminalException {
     return Context.current().run(name, typeTag, action);
@@ -266,7 +254,6 @@ public final class Restate {
    * @see RetryPolicy
    * @see Context#run(String, RetryPolicy, ThrowingRunnable)
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static void run(String name, RetryPolicy retryPolicy, ThrowingRunnable runnable)
       throws TerminalException {
     Context.current().run(name, retryPolicy, runnable);
@@ -278,7 +265,6 @@ public final class Restate {
    * @see #run(String, Class, ThrowingSupplier)
    * @see Context#run(String, ThrowingRunnable)
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static void run(String name, ThrowingRunnable runnable) throws TerminalException {
     Context.current().run(name, runnable);
   }
@@ -290,7 +276,6 @@ public final class Restate {
    * @see #run(String, Class, ThrowingSupplier)
    * @see Context#runAsync(String, Class, ThrowingSupplier)
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static <T> DurableFuture<T> runAsync(
       String name, Class<T> clazz, ThrowingSupplier<T> action) throws TerminalException {
     return Context.current().runAsync(name, clazz, action);
@@ -304,7 +289,6 @@ public final class Restate {
    * @see #runAsync(String, Class, ThrowingSupplier)
    * @see Context#runAsync(String, TypeTag, ThrowingSupplier)
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static <T> DurableFuture<T> runAsync(
       String name, TypeTag<T> typeTag, ThrowingSupplier<T> action) throws TerminalException {
     return Context.current().runAsync(name, typeTag, action);
@@ -321,7 +305,6 @@ public final class Restate {
    * @see RetryPolicy
    * @see Context#runAsync(String, Class, RetryPolicy, ThrowingSupplier)
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static <T> DurableFuture<T> runAsync(
       String name, Class<T> clazz, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
       throws TerminalException {
@@ -339,7 +322,6 @@ public final class Restate {
    * @see RetryPolicy
    * @see Context#runAsync(String, TypeTag, RetryPolicy, ThrowingSupplier)
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static <T> DurableFuture<T> runAsync(
       String name, TypeTag<T> typeTag, RetryPolicy retryPolicy, ThrowingSupplier<T> action)
       throws TerminalException {
@@ -358,7 +340,6 @@ public final class Restate {
    * @see RetryPolicy
    * @see Context#runAsync(String, RetryPolicy, ThrowingRunnable)
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static DurableFuture<Void> runAsync(
       String name, RetryPolicy retryPolicy, ThrowingRunnable runnable) throws TerminalException {
     return Context.current().runAsync(name, retryPolicy, runnable);
@@ -369,7 +350,6 @@ public final class Restate {
    *
    * @see Context#runAsync(String, ThrowingRunnable)
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static DurableFuture<Void> runAsync(String name, ThrowingRunnable runnable)
       throws TerminalException {
     return Context.current().runAsync(name, runnable);
@@ -389,7 +369,6 @@ public final class Restate {
    * @see Awakeable
    * @see Context#awakeable(Class)
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static <T> Awakeable<T> awakeable(Class<T> clazz) {
     return Context.current().awakeable(clazz);
   }
@@ -407,7 +386,6 @@ public final class Restate {
    * @see Awakeable
    * @see Context#awakeable(TypeTag)
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static <T> Awakeable<T> awakeable(TypeTag<T> typeTag) {
     return Context.current().awakeable(typeTag);
   }
@@ -420,13 +398,53 @@ public final class Restate {
    * @see Awakeable
    * @see Context#awakeableHandle(String)
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static AwakeableHandle awakeableHandle(String id) {
     return Context.current().awakeableHandle(id);
   }
 
   /**
-   * <b>EXPERIMENTAL API:</b> Simple API to invoke a Restate service.
+   * Create a {@link DurableFuture} waiting on a named signal targeting the current invocation.
+   *
+   * <p>Signals are identified by {@code (invocationId, name)}. The resolution can arrive before or
+   * after the handler starts waiting on the signal — there's no need to pre-register.
+   *
+   * @param name the signal name.
+   * @param clazz the response type to use for deserializing the signal result. When using generic
+   *     types, use {@link #signal(String, TypeTag)} instead.
+   * @return a {@link DurableFuture} that resolves to the signal value (or rejects with a {@link
+   *     TerminalException}).
+   * @see Context#signal(String, Class)
+   */
+  public static <T> DurableFuture<T> signal(String name, Class<T> clazz) {
+    return Context.current().signal(name, clazz);
+  }
+
+  /**
+   * Create a {@link DurableFuture} waiting on a named signal targeting the current invocation.
+   *
+   * @param name the signal name.
+   * @param typeTag the response type tag to use for deserializing the signal result.
+   * @return a {@link DurableFuture} that resolves to the signal value (or rejects with a {@link
+   *     TerminalException}).
+   * @see Context#signal(String, TypeTag)
+   */
+  public static <T> DurableFuture<T> signal(String name, TypeTag<T> typeTag) {
+    return Context.current().signal(name, typeTag);
+  }
+
+  /**
+   * Causes the start of a timer for the given duration. You can await on the timer end by invoking
+   * {@link DurableFuture#await()}.
+   *
+   * @param duration for which to sleep.
+   * @see Context#timer(Duration)
+   */
+  public static DurableFuture<Void> timer(Duration duration) {
+    return Context.current().timer(duration);
+  }
+
+  /**
+   * Simple API to invoke a Restate service.
    *
    * <p>Create a proxy client that allows calling service methods directly and synchronously. This
    * is the recommended approach for straightforward request-response interactions.
@@ -442,7 +460,6 @@ public final class Restate {
    * @param clazz the service class annotated with {@link Service}
    * @return a proxy client to invoke the service
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static <SVC> SVC service(Class<SVC> clazz) {
     ReflectionUtils.mustHaveServiceAnnotation(clazz);
     String serviceName = ReflectionUtils.extractServiceName(clazz);
@@ -464,7 +481,7 @@ public final class Restate {
   }
 
   /**
-   * <b>EXPERIMENTAL API:</b> Advanced API to invoke a Restate service with full control.
+   * Advanced API to invoke a Restate service with full control.
    *
    * <p>Create a handle that provides advanced invocation capabilities including:
    *
@@ -493,14 +510,13 @@ public final class Restate {
    * @param clazz the service class annotated with {@link Service}
    * @return a handle to invoke the service with advanced options
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static <SVC> ServiceHandle<SVC> serviceHandle(Class<SVC> clazz) {
     ReflectionUtils.mustHaveServiceAnnotation(clazz);
     return new ServiceHandleImpl<>(clazz, null);
   }
 
   /**
-   * <b>EXPERIMENTAL API:</b> Simple API to invoke a Restate Virtual Object.
+   * Simple API to invoke a Restate Virtual Object.
    *
    * <p>Create a proxy client that allows calling virtual object methods directly and synchronously.
    * This is the recommended approach for straightforward request-response interactions.
@@ -518,7 +534,6 @@ public final class Restate {
    * @param key the key identifying the specific virtual object instance
    * @return a proxy client to invoke the virtual object
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static <SVC> SVC virtualObject(Class<SVC> clazz, String key) {
     ReflectionUtils.mustHaveVirtualObjectAnnotation(clazz);
     String serviceName = ReflectionUtils.extractServiceName(clazz);
@@ -540,7 +555,7 @@ public final class Restate {
   }
 
   /**
-   * <b>EXPERIMENTAL API:</b> Advanced API to invoke a Restate Virtual Object with full control.
+   * Advanced API to invoke a Restate Virtual Object with full control.
    *
    * <p>Create a handle that provides advanced invocation capabilities including:
    *
@@ -570,14 +585,13 @@ public final class Restate {
    * @param key the key identifying the specific virtual object instance
    * @return a handle to invoke the virtual object with advanced options
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static <SVC> ServiceHandle<SVC> virtualObjectHandle(Class<SVC> clazz, String key) {
     ReflectionUtils.mustHaveVirtualObjectAnnotation(clazz);
     return new ServiceHandleImpl<>(clazz, key);
   }
 
   /**
-   * <b>EXPERIMENTAL API:</b> Simple API to invoke a Restate Workflow.
+   * Simple API to invoke a Restate Workflow.
    *
    * <p>Create a proxy client that allows calling workflow methods directly and synchronously. This
    * is the recommended approach for straightforward request-response interactions.
@@ -595,7 +609,6 @@ public final class Restate {
    * @param key the key identifying the specific workflow instance
    * @return a proxy client to invoke the workflow
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static <SVC> SVC workflow(Class<SVC> clazz, String key) {
     ReflectionUtils.mustHaveWorkflowAnnotation(clazz);
     String serviceName = ReflectionUtils.extractServiceName(clazz);
@@ -617,7 +630,7 @@ public final class Restate {
   }
 
   /**
-   * <b>EXPERIMENTAL API:</b> Advanced API to invoke a Restate Workflow with full control.
+   * Advanced API to invoke a Restate Workflow with full control.
    *
    * <p>Create a handle that provides advanced invocation capabilities including:
    *
@@ -647,63 +660,55 @@ public final class Restate {
    * @param key the key identifying the specific workflow instance
    * @return a handle to invoke the workflow with advanced options
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static <SVC> ServiceHandle<SVC> workflowHandle(Class<SVC> clazz, String key) {
     ReflectionUtils.mustHaveWorkflowAnnotation(clazz);
     return new ServiceHandleImpl<>(clazz, key);
   }
 
-  /** <b>EXPERIMENTAL API:</b> Interface to interact with this Virtual Object/Workflow state. */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Interface to interact with this Virtual Object/Workflow state. */
   public interface State {
 
     /**
-     * <b>EXPERIMENTAL API:</b> Gets the state stored under key, deserializing the raw value using
-     * the {@link Serde} in the {@link StateKey}.
+     * Gets the state stored under key, deserializing the raw value using the {@link Serde} in the
+     * {@link StateKey}.
      *
      * @param key identifying the state to get and its type.
      * @return an {@link Optional} containing the stored state deserialized or an empty {@link
      *     Optional} if not set yet.
      * @throws RuntimeException when the state cannot be deserialized.
      */
-    @org.jetbrains.annotations.ApiStatus.Experimental
     <T> Optional<T> get(StateKey<T> key);
 
     /**
-     * <b>EXPERIMENTAL API:</b> Sets the given value under the given key, serializing the value
-     * using the {@link Serde} in the {@link StateKey}.
+     * Sets the given value under the given key, serializing the value using the {@link Serde} in
+     * the {@link StateKey}.
      *
      * @param key identifying the value to store and its type.
      * @param value to store under the given key. MUST NOT be null.
      * @throws IllegalStateException if called from a Shared handler
      */
-    @org.jetbrains.annotations.ApiStatus.Experimental
     <T> void set(StateKey<T> key, @NonNull T value);
 
     /**
-     * <b>EXPERIMENTAL API:</b> Clears the state stored under key.
+     * Clears the state stored under key.
      *
      * @param key identifying the state to clear.
      * @throws IllegalStateException if called from a Shared handler
      */
-    @org.jetbrains.annotations.ApiStatus.Experimental
     void clear(StateKey<?> key);
 
     /**
-     * <b>EXPERIMENTAL API:</b> Gets all the known state keys for this virtual object instance.
+     * Gets all the known state keys for this virtual object instance.
      *
      * @return the immutable collection of known state keys.
      */
-    @org.jetbrains.annotations.ApiStatus.Experimental
     Collection<String> getAllKeys();
 
     /**
-     * <b>EXPERIMENTAL API:</b> Clears all the state of this virtual object instance key-value state
-     * storage
+     * Clears all the state of this virtual object instance key-value state storage
      *
      * @throws IllegalStateException if called from a Shared handler
      */
-    @org.jetbrains.annotations.ApiStatus.Experimental
     void clearAll();
   }
 
@@ -749,12 +754,9 @@ public final class Restate {
       };
 
   /**
-   * <b>EXPERIMENTAL API</b>
-   *
    * @return this Virtual Object/Workflow key
    * @throws IllegalStateException if called from a regular Service handler.
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static String key() {
     var handlerContext = HandlerRunner.getHandlerContext();
 
@@ -767,12 +769,11 @@ public final class Restate {
   }
 
   /**
-   * <b>EXPERIMENTAL API:</b> Access to this Virtual Object/Workflow state.
+   * Access to this Virtual Object/Workflow state.
    *
    * @return {@link State} for this Virtual Object/Workflow
    * @throws IllegalStateException if called from a regular Service handler.
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static State state() {
     var handlerContext = HandlerRunner.getHandlerContext();
 
@@ -784,7 +785,7 @@ public final class Restate {
   }
 
   /**
-   * <b>EXPERIMENTAL API:</b> Create a {@link DurablePromise} for the given key.
+   * Create a {@link DurablePromise} for the given key.
    *
    * <p>You can use this feature to implement interaction between different workflow handlers, e.g.
    * to send a signal from a shared handler to the workflow handler.
@@ -793,7 +794,6 @@ public final class Restate {
    * @see DurablePromise
    * @throws IllegalStateException if called from a non-Workflow handler
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static <T> DurablePromise<T> promise(DurablePromiseKey<T> key) {
     var handlerContext = HandlerRunner.getHandlerContext();
 
@@ -807,14 +807,13 @@ public final class Restate {
   }
 
   /**
-   * <b>EXPERIMENTAL API:</b> Create a new {@link DurablePromiseHandle} for the provided key. You
-   * can use it to {@link DurablePromiseHandle#resolve(Object)} or {@link
-   * DurablePromiseHandle#reject(String)} the given {@link DurablePromise}.
+   * Create a new {@link DurablePromiseHandle} for the provided key. You can use it to {@link
+   * DurablePromiseHandle#resolve(Object)} or {@link DurablePromiseHandle#reject(String)} the given
+   * {@link DurablePromise}.
    *
    * @see DurablePromise
    * @throws IllegalStateException if called from a non-Workflow handler
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   public static <T> DurablePromiseHandle<T> promiseHandle(DurablePromiseKey<T> key) {
     var handlerContext = HandlerRunner.getHandlerContext();
 

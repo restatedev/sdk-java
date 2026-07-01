@@ -20,7 +20,13 @@ import dev.restate.sdk.common.DurablePromiseKey;
  *
  * @see Context
  * @see SharedObjectContext
+ * @deprecated The {@code Context}-parameter programming model is superseded by the reflection-based
+ *     API. Rather than accepting a {@code SharedWorkflowContext} parameter, use {@code
+ *     Restate.promise(...)}, {@code Restate.promiseHandle(...)} and {@code Restate.state()} inside
+ *     the handler. See the <a
+ *     href="https://github.com/restatedev/sdk-java/blob/main/MIGRATION.md">migration guide</a>.
  */
+@Deprecated(since = "2.9", forRemoval = true)
 public interface SharedWorkflowContext extends SharedObjectContext {
   /**
    * Create a {@link DurablePromise} for the given key.
