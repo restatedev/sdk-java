@@ -12,6 +12,7 @@ description = "Common interfaces of the Restate SDK"
 
 dependencies {
   compileOnly(libs.jspecify)
+  compileOnly(libs.jetbrains.annotations)
 
   api(libs.opentelemetry.api)
   api(project(":common"))

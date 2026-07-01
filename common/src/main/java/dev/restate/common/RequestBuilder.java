@@ -26,6 +26,24 @@ public interface RequestBuilder<Req, Res> extends Request<Req, Res> {
   RequestBuilder<Req, Res> setIdempotencyKey(@Nullable String idempotencyKey);
 
   /**
+   * <b>PREVIEW:</b> Limit key to use within the scope. Requires {@code scope} to be set (see {@link
+   * Target#scoped(String)}).
+   *
+   * @param limitKey Limit key to attach in the request.
+   * @return this instance, so the builder can be used fluently.
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  RequestBuilder<Req, Res> limitKey(@Nullable String limitKey);
+
+  /**
+   * <b>PREVIEW.</b>
+   *
+   * @param limitKey Limit key to attach in the request.
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  RequestBuilder<Req, Res> setLimitKey(@Nullable String limitKey);
+
+  /**
    * Append this header to the list of configured headers.
    *
    * @param key header key

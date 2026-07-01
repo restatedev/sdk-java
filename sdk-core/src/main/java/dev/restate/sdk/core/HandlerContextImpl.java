@@ -64,6 +64,9 @@ class HandlerContextImpl implements HandlerContextInternal {
             otelContext,
             input.body(),
             input.headers(),
+            null,
+            null,
+            null,
             serviceName,
             handlerName);
     this.attemptHeaders = attemptHeaders;
@@ -223,9 +226,16 @@ class HandlerContextImpl implements HandlerContextInternal {
       Target target,
       Slice parameter,
       @Nullable String idempotencyKey,
+      @Nullable String limitKey,
       @Nullable Collection<Map.Entry<String, String>> headers) {
     return catchExceptions(
         () -> {
+          if (target.getScope() != null || limitKey != null) {
+            // TODO wire this up with the new state machine
+            throw new ProtocolException(
+                "Scope and limit key are not supported in protocol v6", 573);
+          }
+
           StateMachine.CallHandle callHandle =
               this.stateMachine.call(target, parameter, idempotencyKey, headers);
 
@@ -246,10 +256,17 @@ class HandlerContextImpl implements HandlerContextInternal {
       Target target,
       Slice parameter,
       @Nullable String idempotencyKey,
+      @Nullable String limitKey,
       @Nullable Collection<Map.Entry<String, String>> headers,
       @Nullable Duration delay) {
     return catchExceptions(
         () -> {
+          if (target.getScope() != null || limitKey != null) {
+            // TODO wire this up with the new state machine
+            throw new ProtocolException(
+                "Scope and limit key are not supported in protocol v6", 573);
+          }
+
           int sendHandle =
               this.stateMachine.send(target, parameter, idempotencyKey, headers, delay);
 

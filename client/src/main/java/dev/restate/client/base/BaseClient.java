@@ -64,7 +64,7 @@ public abstract class BaseClient implements Client {
     Serde<Req> reqSerde = this.serdeFactory.create(request.getRequestTypeTag());
     Serde<Res> resSerde = this.serdeFactory.create(request.getResponseTypeTag());
 
-    URI requestUri = toRequestURI(request.getTarget(), false, null);
+    URI requestUri = toRequestURI(request.getTarget(), false, null, request.getLimitKey());
     Stream<Map.Entry<String, String>> headersStream =
         Stream.concat(
             baseOptions.headers().entrySet().stream(),
@@ -92,7 +92,7 @@ public abstract class BaseClient implements Client {
       Request<Req, Res> request, @Nullable Duration delay) {
     Serde<Req> reqSerde = this.serdeFactory.create(request.getRequestTypeTag());
 
-    URI requestUri = toRequestURI(request.getTarget(), true, delay);
+    URI requestUri = toRequestURI(request.getTarget(), true, delay, request.getLimitKey());
     Stream<Map.Entry<String, String>> headersStream =
         Stream.concat(
             baseOptions.headers().entrySet().stream(),
@@ -435,13 +435,29 @@ public abstract class BaseClient implements Client {
     return builder.toString();
   }
 
-  private URI toRequestURI(Target target, boolean isSend, @Nullable Duration delay) {
+  private URI toRequestURI(
+      Target target, boolean isSend, @Nullable Duration delay, @Nullable String limitKey) {
     StringBuilder builder = new StringBuilder(targetToURI(target));
     if (isSend) {
       builder.append("/send");
     }
+    String separator = "?";
+    if (target.getScope() != null) {
+      builder
+          .append(separator)
+          .append("scope=")
+          .append(URLEncoder.encode(target.getScope(), StandardCharsets.UTF_8));
+      separator = "&";
+    }
+    if (limitKey != null) {
+      builder
+          .append(separator)
+          .append("limitKey=")
+          .append(URLEncoder.encode(limitKey, StandardCharsets.UTF_8));
+      separator = "&";
+    }
     if (delay != null && !delay.isZero() && !delay.isNegative()) {
-      builder.append("?delay=").append(delay);
+      builder.append(separator).append("delay=").append(delay);
     }
 
     return this.baseUri.resolve(builder.toString());

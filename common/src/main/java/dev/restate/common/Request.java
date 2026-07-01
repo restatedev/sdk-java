@@ -74,6 +74,15 @@ public interface Request<Req, Res> {
   @Nullable String getIdempotencyKey();
 
   /**
+   * <b>PREVIEW:</b> Limit key to use within the scope. Requires {@code scope} to be set.
+   *
+   * @return the limit key
+   * @see Target#scoped(String)
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  @Nullable String getLimitKey();
+
+  /**
    * @return the request headers
    */
   @Nullable Map<String, String> getHeaders();

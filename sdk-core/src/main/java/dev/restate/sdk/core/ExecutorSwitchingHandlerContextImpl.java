@@ -95,9 +95,10 @@ final class ExecutorSwitchingHandlerContextImpl extends HandlerContextImpl {
       Target target,
       Slice parameter,
       @Nullable String idempotencyKey,
+      @Nullable String limitKey,
       @Nullable Collection<Map.Entry<String, String>> headers) {
     return CompletableFuture.supplyAsync(
-            () -> super.call(target, parameter, idempotencyKey, headers), coreExecutor)
+            () -> super.call(target, parameter, idempotencyKey, limitKey, headers), coreExecutor)
         .thenCompose(Function.identity());
   }
 
@@ -106,10 +107,12 @@ final class ExecutorSwitchingHandlerContextImpl extends HandlerContextImpl {
       Target target,
       Slice parameter,
       @Nullable String idempotencyKey,
+      @Nullable String limitKey,
       @Nullable Collection<Map.Entry<String, String>> headers,
       @Nullable Duration delay) {
     return CompletableFuture.supplyAsync(
-            () -> super.send(target, parameter, idempotencyKey, headers, delay), coreExecutor)
+            () -> super.send(target, parameter, idempotencyKey, limitKey, headers, delay),
+            coreExecutor)
         .thenCompose(Function.identity());
   }
 
