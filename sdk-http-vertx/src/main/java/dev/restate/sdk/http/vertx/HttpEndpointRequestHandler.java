@@ -20,10 +20,10 @@ import io.netty.util.AsciiString;
 import io.reactiverse.contextual.logging.ContextualData;
 import io.vertx.core.Context;
 import io.vertx.core.Handler;
+import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.http.HttpVersion;
-import io.vertx.core.http.impl.HttpServerRequestInternal;
 import java.net.URI;
 import java.util.concurrent.Executor;
 import org.apache.logging.log4j.LogManager;
@@ -50,7 +50,9 @@ public class HttpEndpointRequestHandler implements Handler<HttpServerRequest> {
   @Override
   public void handle(HttpServerRequest request) {
     URI uri = URI.create(request.uri());
-    Context vertxCurrentContext = ((HttpServerRequestInternal) request).context();
+    // The handler is dispatched by Vert.x on the request's event-loop context, so the current
+    // context is the same instance as ((HttpServerRequestInternal) request).context().
+    Context vertxCurrentContext = Vertx.currentContext();
 
     RequestProcessor requestProcessor;
     try {
