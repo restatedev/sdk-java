@@ -1,0 +1,71 @@
+{
+  "groups": [
+    {
+      "name": "restate",
+      "type": "dev.restate.sdk.springboot.RestateComponentsProperties",
+      "sourceType": "dev.restate.sdk.springboot.RestateComponentsProperties"
+    },
+    {
+      "name": "restate.client",
+      "type": "dev.restate.sdk.springboot.RestateClientProperties",
+      "sourceType": "dev.restate.sdk.springboot.RestateClientProperties"
+    },
+    {
+      "name": "restate.sdk",
+      "type": "dev.restate.sdk.springboot.RestateEndpointProperties",
+      "sourceType": "dev.restate.sdk.springboot.RestateEndpointProperties"
+    },
+    {
+      "name": "restate.sdk.http",
+      "type": "dev.restate.sdk.springboot.RestateHttpServerProperties",
+      "sourceType": "dev.restate.sdk.springboot.RestateHttpServerProperties"
+    }
+  ],
+  "properties": [
+    {
+      "name": "restate.client.base-uri",
+      "type": "java.lang.String",
+      "sourceType": "dev.restate.sdk.springboot.RestateClientProperties",
+      "defaultValue": "http:\/\/localhost:8080"
+    },
+    {
+      "name": "restate.client.headers",
+      "type": "java.util.Map<java.lang.String,java.lang.String>",
+      "sourceType": "dev.restate.sdk.springboot.RestateClientProperties"
+    },
+    {
+      "name": "restate.components",
+      "type": "java.util.Map<java.lang.String,dev.restate.sdk.springboot.RestateComponentProperties>",
+      "sourceType": "dev.restate.sdk.springboot.RestateComponentsProperties"
+    },
+    {
+      "name": "restate.executor",
+      "type": "java.lang.String",
+      "sourceType": "dev.restate.sdk.springboot.RestateComponentsProperties"
+    },
+    {
+      "name": "restate.sdk.enable-preview-context",
+      "type": "java.lang.Boolean",
+      "sourceType": "dev.restate.sdk.springboot.RestateEndpointProperties",
+      "defaultValue": false
+    },
+    {
+      "name": "restate.sdk.http.disable-bidirectional-streaming",
+      "type": "java.lang.Boolean",
+      "sourceType": "dev.restate.sdk.springboot.RestateHttpServerProperties",
+      "defaultValue": false
+    },
+    {
+      "name": "restate.sdk.http.port",
+      "type": "java.lang.Integer",
+      "sourceType": "dev.restate.sdk.springboot.RestateHttpServerProperties",
+      "defaultValue": 9080
+    },
+    {
+      "name": "restate.sdk.identity-key",
+      "type": "java.lang.String",
+      "sourceType": "dev.restate.sdk.springboot.RestateEndpointProperties"
+    }
+  ],
+  "hints": []
+}

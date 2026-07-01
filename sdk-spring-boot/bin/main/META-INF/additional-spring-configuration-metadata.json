@@ -1,0 +1,15 @@
+{
+  "hints": [
+    {
+      "name": "restate.executor",
+      "providers": [
+        {
+          "name": "spring-bean-reference",
+          "parameters": {
+            "target": "java.util.concurrent.Executor"
+          }
+        }
+      ]
+    }
+  ]
+}

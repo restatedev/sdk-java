@@ -138,6 +138,36 @@ public class ReflectionTest implements TestSuite {
                 END_MESSAGE),
         testInvocation(CustomSerde::new, "greet")
             .withInput(startMessage(1), inputCmd(MySerdeFactory.SERDE, "input"))
-            .expectingOutput(outputCmd(MySerdeFactory.SERDE, "OUTPUT"), END_MESSAGE));
+            .expectingOutput(outputCmd(MySerdeFactory.SERDE, "OUTPUT"), END_MESSAGE),
+        testInvocation(ServiceWithInterface::new, "callInterface")
+            .withInput(startMessage(1), inputCmd("Francesco"), callCompletion(2, "Hello Francesco"))
+            .onlyBidiStream()
+            .expectingOutput(
+                callCmd(1, 2, Target.service("MyGreeter", "greet"), "Francesco"),
+                outputCmd("Hello Francesco"),
+                END_MESSAGE),
+        testInvocation(ServiceWithInterface::new, "callInterfaceHandle")
+            .withInput(startMessage(1), inputCmd("Francesco"), callCompletion(2, "Hello Francesco"))
+            .onlyBidiStream()
+            .expectingOutput(
+                callCmd(1, 2, Target.service("MyGreeterHandle", "greet"), "Francesco"),
+                outputCmd("Hello Francesco"),
+                END_MESSAGE),
+        testInvocation(RouterService::new, "route")
+            .withInput(
+                startMessage(1), inputCmd("ServiceA"), callCompletion(2, "Hello from A, world"))
+            .onlyBidiStream()
+            .expectingOutput(
+                callCmd(1, 2, Target.service("ServiceA", "greet"), "world"),
+                outputCmd("Hello from A, world"),
+                END_MESSAGE),
+        testInvocation(RouterService::new, "route")
+            .withInput(
+                startMessage(1), inputCmd("ServiceB"), callCompletion(2, "Hello from B, world"))
+            .onlyBidiStream()
+            .expectingOutput(
+                callCmd(1, 2, Target.service("ServiceB", "greet"), "world"),
+                outputCmd("Hello from B, world"),
+                END_MESSAGE));
   }
 }

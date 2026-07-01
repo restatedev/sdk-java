@@ -11,7 +11,9 @@ package dev.restate.sdk;
 import static dev.restate.common.reflections.RestateUtils.toRequest;
 
 import dev.restate.common.InvocationOptions;
-import dev.restate.common.reflections.*;
+import dev.restate.common.reflections.MethodInfo;
+import dev.restate.common.reflections.MethodInfoCollector;
+import dev.restate.common.reflections.ReflectionUtils;
 import dev.restate.serde.Serde;
 import dev.restate.serde.TypeTag;
 import java.time.Duration;
@@ -31,8 +33,12 @@ final class ServiceHandleImpl<SVC> implements ServiceHandle<SVC> {
   private MethodInfoCollector<SVC> methodInfoCollector;
 
   ServiceHandleImpl(Class<SVC> clazz, @Nullable String key) {
+    this(clazz, ReflectionUtils.extractServiceName(clazz), key);
+  }
+
+  ServiceHandleImpl(Class<SVC> clazz, String serviceName, @Nullable String key) {
     this.clazz = clazz;
-    this.serviceName = ReflectionUtils.extractServiceName(clazz);
+    this.serviceName = serviceName;
     this.key = key;
   }
 

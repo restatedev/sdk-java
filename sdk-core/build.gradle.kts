@@ -118,6 +118,11 @@ tasks {
             "dev.restate.sdk.core.javaapi.reflections.RawInputOutput",
             "dev.restate.sdk.core.javaapi.reflections.RawService",
             "dev.restate.sdk.core.javaapi.reflections.ServiceGreeter",
+            "dev.restate.sdk.core.javaapi.reflections.ServiceWithInterface",
+            "dev.restate.sdk.core.javaapi.reflections.ExternalInterface",
+            "dev.restate.sdk.core.javaapi.reflections.ServiceA",
+            "dev.restate.sdk.core.javaapi.reflections.ServiceB",
+            "dev.restate.sdk.core.javaapi.reflections.RouterService",
         )
 
     options.compilerArgs.addAll(
