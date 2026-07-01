@@ -71,19 +71,9 @@ public final class FfmStateMachine implements StateMachine {
     // Load the native library BEFORE SharedCoreNative is class-initialized so its
     // SymbolLookup.loaderLookup() resolves the vm_* symbols.
     NativeLibraryLoader.ensureLoaded();
-    SharedCoreNative.init(defaultLogLevel());
-  }
-
-  private static int defaultLogLevel() {
-    // 0 trace, 1 debug, 2 info, 3 warn, 4 error
-    String level = System.getProperty("dev.restate.sharedcore.loglevel", "INFO");
-    return switch (level.trim().toUpperCase(java.util.Locale.ROOT)) {
-      case "TRACE" -> 0;
-      case "DEBUG" -> 1;
-      case "WARN" -> 3;
-      case "ERROR" -> 4;
-      default -> 2;
-    };
+    // Install the native tracing subscriber: filter at the host's configured level (so disabled
+    // callsites short-circuit in the core) and forward surviving events to Log4j2 via an upcall.
+    SharedCoreNative.init(NativeLogging.abiLevel(), NativeLogging.callbackStub());
   }
 
   public FfmStateMachine(HeadersAccessor headersAccessor) {

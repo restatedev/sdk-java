@@ -202,8 +202,6 @@ sealed interface State
   }
 
   default void end(StateContext stateContext) {
-    LOG.info("Invocation ended");
-
     stateContext.writeMessageOut(Protocol.EndMessage.getDefaultInstance());
     stateContext.getStateHolder().transition(new ClosedState());
 

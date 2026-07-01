@@ -221,7 +221,7 @@ final class RequestProcessorImpl implements RequestProcessor {
     try {
       if (throwable != null) {
         if (throwable instanceof TerminalException) {
-          LOG.info("Invocation completed with terminal error", throwable);
+          LOG.info("Invocation ended with terminal error", throwable);
           stateMachine.writeOutput((TerminalException) throwable);
           stateMachine.end();
         } else if (ExceptionUtils.containsAbortedExecutionException(throwable)) {
@@ -233,6 +233,7 @@ final class RequestProcessorImpl implements RequestProcessor {
       } else {
         stateMachine.writeOutput(Objects.requireNonNullElse(slice, Slice.EMPTY));
         stateMachine.end();
+        LOG.info("Invocation ended successfully");
       }
     } catch (Throwable e) {
       // Error happened when trying to write the final bits
@@ -249,6 +250,7 @@ final class RequestProcessorImpl implements RequestProcessor {
 
   private void startHandler() {
     state = State.RUNNING_HANDLER;
+    LOG.info("Invocation started");
 
     // Get vm input
     StateMachine.Input stateMachineInput = stateMachine.input();

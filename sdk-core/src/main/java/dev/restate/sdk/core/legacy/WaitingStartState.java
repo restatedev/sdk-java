@@ -46,9 +46,6 @@ final class WaitingStartState implements State {
                 : null));
     stateContext.setEagerState(new EagerState(startMessage));
 
-    // Tracing and logging setup
-    LOG.info("Start invocation");
-
     // Execute state transition
     stateContext.getStateHolder().transition(new WaitingReplayEntriesState());
   }
