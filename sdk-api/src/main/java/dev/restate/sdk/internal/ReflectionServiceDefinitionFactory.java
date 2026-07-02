@@ -27,8 +27,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 
-@org.jetbrains.annotations.ApiStatus.Experimental
 @org.jetbrains.annotations.ApiStatus.Internal
+@SuppressWarnings("deprecation")
 public final class ReflectionServiceDefinitionFactory implements ServiceDefinitionFactory<Object> {
 
   private volatile SerdeFactory cachedDefaultSerdeFactory;

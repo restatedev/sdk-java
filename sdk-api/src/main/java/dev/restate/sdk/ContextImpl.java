@@ -33,6 +33,7 @@ import java.util.function.Consumer;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+@SuppressWarnings("deprecation")
 class ContextImpl implements ObjectContext, WorkflowContext {
 
   private static final ThreadLocal<Boolean> INSIDE_RUN = new ThreadLocal<>();

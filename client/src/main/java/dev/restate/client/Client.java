@@ -532,7 +532,7 @@ public interface Client {
   }
 
   /**
-   * <b>EXPERIMENTAL API:</b> Simple API to invoke a Restate service from the ingress.
+   * Simple API to invoke a Restate service from the ingress.
    *
    * <p>Create a proxy client that allows calling service methods directly and synchronously,
    * returning just the output (not wrapped in {@link Response}). This is the recommended approach
@@ -552,7 +552,6 @@ public interface Client {
    * @param clazz the service class annotated with {@link Service}
    * @return a proxy client to invoke the service
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   default <SVC> SVC service(Class<SVC> clazz) {
     ReflectionUtils.mustHaveServiceAnnotation(clazz);
     if (ReflectionUtils.isKotlinClass(clazz)) {
@@ -576,8 +575,7 @@ public interface Client {
   }
 
   /**
-   * <b>EXPERIMENTAL API:</b> Advanced API to invoke a Restate service from the ingress with full
-   * control.
+   * Advanced API to invoke a Restate service from the ingress with full control.
    *
    * <p>Create a handle that provides advanced invocation capabilities including:
    *
@@ -592,11 +590,11 @@ public interface Client {
    * Client client = Client.connect("http://localhost:8080");
    *
    * // Use call() with method reference and wait for the result
-   * Response<GreetingResponse> response = client.serviceHandle(Greeter.class)
+   * Response<GreetingResponse> response = client.toService(Greeter.class)
    *   .call(Greeter::greet, new Greeting("Alice"));
    *
    * // Use send() for one-way invocation without waiting
-   * SendResponse<GreetingResponse> sendResponse = client.serviceHandle(Greeter.class)
+   * SendResponse<GreetingResponse> sendResponse = client.toService(Greeter.class)
    *   .send(Greeter::greet, new Greeting("Alice"));
    * }</pre>
    *
@@ -606,8 +604,7 @@ public interface Client {
    * @param clazz the service class annotated with {@link Service}
    * @return a handle to invoke the service with advanced options
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
-  default <SVC> ClientServiceHandle<SVC> serviceHandle(Class<SVC> clazz) {
+  default <SVC> ClientServiceHandle<SVC> toService(Class<SVC> clazz) {
     ReflectionUtils.mustHaveServiceAnnotation(clazz);
     if (ReflectionUtils.isKotlinClass(clazz)) {
       throw new IllegalArgumentException("Using Kotlin classes with Java's API is not supported");
@@ -616,7 +613,15 @@ public interface Client {
   }
 
   /**
-   * <b>EXPERIMENTAL API:</b> Simple API to invoke a Restate Virtual Object from the ingress.
+   * @deprecated Renamed to {@link #toService(Class)}.
+   */
+  @Deprecated(since = "2.9", forRemoval = true)
+  default <SVC> ClientServiceHandle<SVC> serviceHandle(Class<SVC> clazz) {
+    return toService(clazz);
+  }
+
+  /**
+   * Simple API to invoke a Restate Virtual Object from the ingress.
    *
    * <p>Create a proxy client that allows calling virtual object methods directly and synchronously,
    * returning just the output (not wrapped in {@link Response}). This is the recommended approach
@@ -630,14 +635,13 @@ public interface Client {
    * }</pre>
    *
    * <p>For advanced use cases requiring asynchronous request handling, access to {@link Response}
-   * metadata, or invocation options (such as idempotency keys), use {@link
-   * #virtualObjectHandle(Class, String)} instead.
+   * metadata, or invocation options (such as idempotency keys), use {@link #toVirtualObject(Class,
+   * String)} instead.
    *
    * @param clazz the virtual object class annotated with {@link VirtualObject}
    * @param key the key identifying the specific virtual object instance
    * @return a proxy client to invoke the virtual object
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   default <SVC> SVC virtualObject(Class<SVC> clazz, String key) {
     ReflectionUtils.mustHaveVirtualObjectAnnotation(clazz);
     if (ReflectionUtils.isKotlinClass(clazz)) {
@@ -661,8 +665,7 @@ public interface Client {
   }
 
   /**
-   * <b>EXPERIMENTAL API:</b> Advanced API to invoke a Restate Virtual Object from the ingress with
-   * full control.
+   * Advanced API to invoke a Restate Virtual Object from the ingress with full control.
    *
    * <p>Create a handle that provides advanced invocation capabilities including:
    *
@@ -677,11 +680,11 @@ public interface Client {
    * Client client = Client.connect("http://localhost:8080");
    *
    * // Use call() with method reference and wait for the result
-   * Response<Integer> response = client.virtualObjectHandle(Counter.class, "my-counter")
+   * Response<Integer> response = client.toVirtualObject(Counter.class, "my-counter")
    *   .call(Counter::increment);
    *
    * // Use send() for one-way invocation without waiting
-   * SendResponse<Integer> sendResponse = client.virtualObjectHandle(Counter.class, "my-counter")
+   * SendResponse<Integer> sendResponse = client.toVirtualObject(Counter.class, "my-counter")
    *   .send(Counter::increment);
    * }</pre>
    *
@@ -692,8 +695,7 @@ public interface Client {
    * @param key the key identifying the specific virtual object instance
    * @return a handle to invoke the virtual object with advanced options
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
-  default <SVC> ClientServiceHandle<SVC> virtualObjectHandle(Class<SVC> clazz, String key) {
+  default <SVC> ClientServiceHandle<SVC> toVirtualObject(Class<SVC> clazz, String key) {
     ReflectionUtils.mustHaveVirtualObjectAnnotation(clazz);
     if (ReflectionUtils.isKotlinClass(clazz)) {
       throw new IllegalArgumentException("Using Kotlin classes with Java's API is not supported");
@@ -702,7 +704,15 @@ public interface Client {
   }
 
   /**
-   * <b>EXPERIMENTAL API:</b> Simple API to invoke a Restate Workflow from the ingress.
+   * @deprecated Renamed to {@link #toVirtualObject(Class, String)}.
+   */
+  @Deprecated(since = "2.9", forRemoval = true)
+  default <SVC> ClientServiceHandle<SVC> virtualObjectHandle(Class<SVC> clazz, String key) {
+    return toVirtualObject(clazz, key);
+  }
+
+  /**
+   * Simple API to invoke a Restate Workflow from the ingress.
    *
    * <p>Create a proxy client that allows calling workflow methods directly and synchronously,
    * returning just the output (not wrapped in {@link Response}). This is the recommended approach
@@ -716,14 +726,13 @@ public interface Client {
    * }</pre>
    *
    * <p>For advanced use cases requiring asynchronous request handling, access to {@link Response}
-   * metadata, or invocation options (such as idempotency keys), use {@link #workflowHandle(Class,
+   * metadata, or invocation options (such as idempotency keys), use {@link #toWorkflow(Class,
    * String)} instead.
    *
    * @param clazz the workflow class annotated with {@link Workflow}
    * @param key the key identifying the specific workflow instance
    * @return a proxy client to invoke the workflow
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   default <SVC> SVC workflow(Class<SVC> clazz, String key) {
     ReflectionUtils.mustHaveWorkflowAnnotation(clazz);
     if (ReflectionUtils.isKotlinClass(clazz)) {
@@ -747,8 +756,7 @@ public interface Client {
   }
 
   /**
-   * <b>EXPERIMENTAL API:</b> Advanced API to invoke a Restate Workflow from the ingress with full
-   * control.
+   * Advanced API to invoke a Restate Workflow from the ingress with full control.
    *
    * <p>Create a handle that provides advanced invocation capabilities including:
    *
@@ -763,11 +771,11 @@ public interface Client {
    * Client client = Client.connect("http://localhost:8080");
    *
    * // Use call() with method reference and wait for the result
-   * Response<OrderResult> response = client.workflowHandle(OrderWorkflow.class, "order-123")
+   * Response<OrderResult> response = client.toWorkflow(OrderWorkflow.class, "order-123")
    *   .call(OrderWorkflow::start, new OrderRequest(...));
    *
    * // Use send() for one-way invocation without waiting
-   * SendResponse<OrderResult> sendResponse = client.workflowHandle(OrderWorkflow.class, "order-123")
+   * SendResponse<OrderResult> sendResponse = client.toWorkflow(OrderWorkflow.class, "order-123")
    *   .send(OrderWorkflow::start, new OrderRequest(...));
    * }</pre>
    *
@@ -778,13 +786,20 @@ public interface Client {
    * @param key the key identifying the specific workflow instance
    * @return a handle to invoke the workflow with advanced options
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
-  default <SVC> ClientServiceHandle<SVC> workflowHandle(Class<SVC> clazz, String key) {
+  default <SVC> ClientServiceHandle<SVC> toWorkflow(Class<SVC> clazz, String key) {
     ReflectionUtils.mustHaveWorkflowAnnotation(clazz);
     if (ReflectionUtils.isKotlinClass(clazz)) {
       throw new IllegalArgumentException("Using Kotlin classes with Java's API is not supported");
     }
     return new ClientServiceHandleImpl<>(this, clazz, key);
+  }
+
+  /**
+   * @deprecated Renamed to {@link #toWorkflow(Class, String)}.
+   */
+  @Deprecated(since = "2.9", forRemoval = true)
+  default <SVC> ClientServiceHandle<SVC> workflowHandle(Class<SVC> clazz, String key) {
+    return toWorkflow(clazz, key);
   }
 
   /**

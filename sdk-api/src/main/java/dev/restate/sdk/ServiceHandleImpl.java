@@ -21,6 +21,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
 
+@SuppressWarnings("deprecation")
 final class ServiceHandleImpl<SVC> implements ServiceHandle<SVC> {
 
   private final Class<SVC> clazz;

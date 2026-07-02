@@ -60,7 +60,14 @@ import java.time.Instant;
  *
  * This interface <b>MUST NOT</b> be accessed concurrently since it can lead to different orderings
  * of user actions, corrupting the execution of the invocation.
+ *
+ * @deprecated The {@code Context}-parameter programming model is superseded by the reflection-based
+ *     API. Rather than accepting a {@code Context} (or its subtypes) as a handler parameter, use
+ *     the static methods on {@link Restate} (e.g. {@code Restate.run(...)}, {@code
+ *     Restate.state()}, {@code Restate.awakeable(...)}). See the <a
+ *     href="https://github.com/restatedev/sdk-java/blob/main/MIGRATION.md">migration guide</a>.
  */
+@Deprecated(since = "2.9", forRemoval = true)
 public interface Context {
 
   HandlerRequest request();

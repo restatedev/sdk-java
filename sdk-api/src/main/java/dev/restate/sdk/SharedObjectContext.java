@@ -21,7 +21,12 @@ import java.util.Optional;
  * orderings of user actions, corrupting the execution of the invocation.
  *
  * @see Context
+ * @deprecated The {@code Context}-parameter programming model is superseded by the reflection-based
+ *     API. Rather than accepting a {@code SharedObjectContext} parameter, use {@code
+ *     Restate.state()} and {@code Restate.key()} inside the handler. See the <a
+ *     href="https://github.com/restatedev/sdk-java/blob/main/MIGRATION.md">migration guide</a>.
  */
+@Deprecated(since = "2.9", forRemoval = true)
 public interface SharedObjectContext extends Context {
   /**
    * @return the key of this object

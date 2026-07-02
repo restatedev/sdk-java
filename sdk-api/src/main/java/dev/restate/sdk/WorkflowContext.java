@@ -18,5 +18,11 @@ package dev.restate.sdk;
  *
  * @see Context
  * @see ObjectContext
+ * @deprecated The {@code Context}-parameter programming model is superseded by the reflection-based
+ *     API. Rather than accepting a {@code WorkflowContext} parameter, use {@code
+ *     Restate.promise(...)}, {@code Restate.promiseHandle(...)} and {@code Restate.state()} inside
+ *     the handler. See the <a
+ *     href="https://github.com/restatedev/sdk-java/blob/main/MIGRATION.md">migration guide</a>.
  */
+@Deprecated(since = "2.9", forRemoval = true)
 public interface WorkflowContext extends SharedWorkflowContext, ObjectContext {}

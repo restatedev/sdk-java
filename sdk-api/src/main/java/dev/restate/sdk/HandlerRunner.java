@@ -35,6 +35,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * Adapter class for {@link dev.restate.sdk.endpoint.definition.HandlerRunner} to use the Java API.
  */
+@SuppressWarnings("deprecation")
 public class HandlerRunner<REQ, RES>
     implements dev.restate.sdk.endpoint.definition.HandlerRunner<REQ, RES> {
   private final ThrowingBiFunction<Context, REQ, RES> runner;

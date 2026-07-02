@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Stream;
 
+@SuppressWarnings("deprecation") // Intentionally exercises the deprecated codegen/Context API.
 public class CodegenTest implements TestSuite {
 
   @Service

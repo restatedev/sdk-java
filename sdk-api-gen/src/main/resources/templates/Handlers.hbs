@@ -1,7 +1,13 @@
 {{#if originalClassPkg}}package {{originalClassPkg}};{{/if}}
 
-/** Handler request factories for {@link {{originalClassFqcn}} } **/
-@SuppressWarnings("unchecked")
+/**
+ * Handler request factories for {@link {{originalClassFqcn}} }
+ *
+ * @deprecated The Restate codegen API is deprecated; migrate to the reflection-based API. See the
+ *     migration guide: https://github.com/restatedev/sdk-java/blob/main/MIGRATION.md
+ **/
+@Deprecated
+@SuppressWarnings({"unchecked", "deprecation"})
 public final class {{generatedClassSimpleName}} {
 
     private {{generatedClassSimpleName}}() {}

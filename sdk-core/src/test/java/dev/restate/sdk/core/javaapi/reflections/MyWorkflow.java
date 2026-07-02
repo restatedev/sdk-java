@@ -19,8 +19,7 @@ public class MyWorkflow {
 
   @Workflow
   public void run(String myInput) {
-    Restate.workflowHandle(MyWorkflow.class, Restate.key())
-        .send(MyWorkflow::sharedHandler, myInput);
+    Restate.toWorkflow(MyWorkflow.class, Restate.key()).send(MyWorkflow::sharedHandler, myInput);
   }
 
   @Handler

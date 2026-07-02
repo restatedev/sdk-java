@@ -1,5 +1,7 @@
 {{#if originalClassPkg}}package {{originalClassPkg}}{{/if}}
 
+@Deprecated("The Restate codegen API is deprecated; migrate to the reflection-based API. See https://github.com/restatedev/sdk-java/blob/main/MIGRATION.md")
+@Suppress("DEPRECATION")
 object {{generatedClassSimpleName}} {
 
     {{#handlers}}

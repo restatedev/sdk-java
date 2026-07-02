@@ -72,6 +72,8 @@ class ServiceProcessor(
           RESERVED_METHOD_NAMES,
       )
 
+  private var deprecationWarningEmitted = false
+
   @OptIn(KspExperimental::class)
   override fun process(resolver: Resolver): List<KSAnnotated> {
     val converter =
@@ -101,6 +103,17 @@ class ServiceProcessor(
               (it.second to serviceModel!!)
             }
             .toList()
+
+    if (services.isNotEmpty() && !deprecationWarningEmitted) {
+      deprecationWarningEmitted = true
+      logger.warn(
+          "The Restate KSP code-generator (codegen) API is deprecated and will be removed in a " +
+              "future release. Migrate to the reflection-based API: drop the sdk-api-kotlin-gen " +
+              "dependency, remove the Context parameters from your @Handler methods and use the " +
+              "top-level functions in dev.restate.sdk.kotlin instead. See the migration guide: " +
+              "https://github.com/restatedev/sdk-java/blob/main/MIGRATION.md"
+      )
+    }
 
     // Run code generation
     for (service in services) {

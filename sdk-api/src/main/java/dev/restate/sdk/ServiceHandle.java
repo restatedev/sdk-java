@@ -16,10 +16,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * <b>EXPERIMENTAL API:</b> This interface is part of the new reflection-based API and may change in
- * future releases.
- *
- * <p>Advanced API handle for invoking Restate services, virtual objects, or workflows with full
+ * Advanced API handle for invoking Restate services, virtual objects, or workflows with full
  * control. This handle provides advanced invocation capabilities including:
  *
  * <ul>
@@ -33,17 +30,17 @@ import java.util.function.Function;
  *
  * <pre>{@code
  * // 1. Use call() with method reference and await the result
- * GreetingResponse response = Restate.serviceHandle(Greeter.class)
+ * GreetingResponse response = Restate.toService(Greeter.class)
  *   .call(Greeter::greet, new Greeting("Alice"))
  *   .await();
  *
  * // 2. Use send() for one-way invocation without waiting
- * InvocationHandle<GreetingResponse> handle = Restate.serviceHandle(Greeter.class)
+ * InvocationHandle<GreetingResponse> handle = Restate.toService(Greeter.class)
  *   .send(Greeter::greet, new Greeting("Alice"));
  * }</pre>
  *
- * <p>Create instances using {@link Restate#serviceHandle(Class)}, {@link
- * Restate#virtualObjectHandle(Class, String)}, or {@link Restate#workflowHandle(Class, String)}.
+ * <p>Create instances using {@link Restate#toService(Class)}, {@link Restate#toVirtualObject(Class,
+ * String)}, or {@link Restate#toWorkflow(Class, String)}.
  *
  * <p>For simple synchronous request-response interactions, consider using the simple proxy API
  * instead: {@link Restate#service(Class)}, {@link Restate#virtualObject(Class, String)}, or {@link
@@ -51,10 +48,9 @@ import java.util.function.Function;
  *
  * @param <SVC> the service interface type
  */
-@org.jetbrains.annotations.ApiStatus.Experimental
 public interface ServiceHandle<SVC> {
   /**
-   * <b>EXPERIMENTAL API:</b> Invoke a service method with input and return a future for the result.
+   * Invoke a service method with input and return a future for the result.
    *
    * <pre>{@code
    * // Call with method reference and input
@@ -67,13 +63,12 @@ public interface ServiceHandle<SVC> {
    * @param input the input parameter to pass to the method
    * @return a {@link DurableFuture} wrapping the result
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   default <I, O> DurableFuture<O> call(BiFunction<SVC, I, O> methodReference, I input) {
     return call(methodReference, input, InvocationOptions.DEFAULT);
   }
 
   /**
-   * <b>EXPERIMENTAL API:</b> Like {@link #call(BiFunction, Object)}, with invocation options.
+   * Like {@link #call(BiFunction, Object)}, with invocation options.
    *
    * <pre>{@code
    * // Call with custom options
@@ -85,41 +80,32 @@ public interface ServiceHandle<SVC> {
    *   .await();
    * }</pre>
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   default <I, O> DurableFuture<O> call(
       BiFunction<SVC, I, O> methodReference, I input, InvocationOptions.Builder options) {
     return call(methodReference, input, options.build());
   }
 
-  /** <b>EXPERIMENTAL API:</b> Like {@link #call(BiFunction, Object)}, with invocation options. */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #call(BiFunction, Object)}, with invocation options. */
   <I, O> DurableFuture<O> call(
       BiFunction<SVC, I, O> methodReference, I input, InvocationOptions options);
 
-  /**
-   * <b>EXPERIMENTAL API:</b> Like {@link #call(BiFunction, Object)}, for methods without a return
-   * value.
-   */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #call(BiFunction, Object)}, for methods without a return value. */
   default <I> DurableFuture<Void> call(BiConsumer<SVC, I> methodReference, I input) {
     return call(methodReference, input, InvocationOptions.DEFAULT);
   }
 
-  /** <b>EXPERIMENTAL API:</b> Like {@link #call(BiConsumer, Object)}, with invocation options. */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #call(BiConsumer, Object)}, with invocation options. */
   default <I> DurableFuture<Void> call(
       BiConsumer<SVC, I> methodReference, I input, InvocationOptions.Builder options) {
     return call(methodReference, input, options.build());
   }
 
-  /** <b>EXPERIMENTAL API:</b> Like {@link #call(BiConsumer, Object)}, with invocation options. */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #call(BiConsumer, Object)}, with invocation options. */
   <I> DurableFuture<Void> call(
       BiConsumer<SVC, I> methodReference, I input, InvocationOptions options);
 
   /**
-   * <b>EXPERIMENTAL API:</b> Invoke a service method without input and return a future for the
-   * result.
+   * Invoke a service method without input and return a future for the result.
    *
    * <pre>{@code
    * // Call method without input
@@ -128,44 +114,35 @@ public interface ServiceHandle<SVC> {
    *   .await();
    * }</pre>
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   default <O> DurableFuture<O> call(Function<SVC, O> methodReference) {
     return call(methodReference, InvocationOptions.DEFAULT);
   }
 
-  /** <b>EXPERIMENTAL API:</b> Like {@link #call(Function)}, with invocation options. */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #call(Function)}, with invocation options. */
   default <O> DurableFuture<O> call(
       Function<SVC, O> methodReference, InvocationOptions.Builder options) {
     return call(methodReference, options.build());
   }
 
-  /** <b>EXPERIMENTAL API:</b> Like {@link #call(Function)}, with invocation options. */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #call(Function)}, with invocation options. */
   <O> DurableFuture<O> call(Function<SVC, O> methodReference, InvocationOptions options);
 
-  /**
-   * <b>EXPERIMENTAL API:</b> Like {@link #call(BiFunction, Object)}, for methods without input or
-   * return value.
-   */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #call(BiFunction, Object)}, for methods without input or return value. */
   default DurableFuture<Void> call(Consumer<SVC> methodReference) {
     return call(methodReference, InvocationOptions.DEFAULT);
   }
 
-  /** <b>EXPERIMENTAL API:</b> Like {@link #call(Consumer)}, with invocation options. */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #call(Consumer)}, with invocation options. */
   default DurableFuture<Void> call(
       Consumer<SVC> methodReference, InvocationOptions.Builder options) {
     return call(methodReference, options.build());
   }
 
-  /** <b>EXPERIMENTAL API:</b> Like {@link #call(Consumer)}, with invocation options. */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #call(Consumer)}, with invocation options. */
   DurableFuture<Void> call(Consumer<SVC> methodReference, InvocationOptions options);
 
   /**
-   * <b>EXPERIMENTAL API:</b> Send a one-way invocation without waiting for the response.
+   * Send a one-way invocation without waiting for the response.
    *
    * <pre>{@code
    * // Send without waiting for response
@@ -182,37 +159,29 @@ public interface ServiceHandle<SVC> {
    * @param input the input parameter to pass to the method
    * @return an {@link InvocationHandle} for the invocation
    */
-  @org.jetbrains.annotations.ApiStatus.Experimental
   default <I, O> InvocationHandle<O> send(BiFunction<SVC, I, O> methodReference, I input) {
     return send(methodReference, input, InvocationOptions.DEFAULT);
   }
 
-  /** <b>EXPERIMENTAL API:</b> Like {@link #send(BiFunction, Object)}, with invocation options. */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #send(BiFunction, Object)}, with invocation options. */
   default <I, O> InvocationHandle<O> send(
       BiFunction<SVC, I, O> methodReference, I input, InvocationOptions.Builder options) {
     return send(methodReference, input, options.build());
   }
 
-  /** <b>EXPERIMENTAL API:</b> Like {@link #send(BiFunction, Object)}, with invocation options. */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #send(BiFunction, Object)}, with invocation options. */
   default <I, O> InvocationHandle<O> send(
       BiFunction<SVC, I, O> methodReference, I input, InvocationOptions options) {
     return send(methodReference, input, null, options);
   }
 
-  /** <b>EXPERIMENTAL API:</b> Like {@link #send(BiFunction, Object)}, with a delay. */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #send(BiFunction, Object)}, with a delay. */
   default <I, O> InvocationHandle<O> send(
       BiFunction<SVC, I, O> methodReference, I input, Duration delay) {
     return send(methodReference, input, delay, InvocationOptions.DEFAULT);
   }
 
-  /**
-   * <b>EXPERIMENTAL API:</b> Like {@link #send(BiFunction, Object)}, with a delay and invocation
-   * options.
-   */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #send(BiFunction, Object)}, with a delay and invocation options. */
   default <I, O> InvocationHandle<O> send(
       BiFunction<SVC, I, O> methodReference,
       I input,
@@ -221,49 +190,34 @@ public interface ServiceHandle<SVC> {
     return send(methodReference, input, delay, options.build());
   }
 
-  /**
-   * <b>EXPERIMENTAL API:</b> Like {@link #send(BiFunction, Object)}, with a delay and invocation
-   * options.
-   */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #send(BiFunction, Object)}, with a delay and invocation options. */
   <I, O> InvocationHandle<O> send(
       BiFunction<SVC, I, O> methodReference, I input, Duration delay, InvocationOptions options);
 
-  /**
-   * <b>EXPERIMENTAL API:</b> Like {@link #send(BiFunction, Object)}, for methods without a return
-   * value.
-   */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #send(BiFunction, Object)}, for methods without a return value. */
   default <I> InvocationHandle<Void> send(BiConsumer<SVC, I> methodReference, I input) {
     return send(methodReference, input, InvocationOptions.DEFAULT);
   }
 
-  /** <b>EXPERIMENTAL API:</b> Like {@link #send(BiConsumer, Object)}, with invocation options. */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #send(BiConsumer, Object)}, with invocation options. */
   default <I> InvocationHandle<Void> send(
       BiConsumer<SVC, I> methodReference, I input, InvocationOptions.Builder options) {
     return send(methodReference, input, options.build());
   }
 
-  /** <b>EXPERIMENTAL API:</b> Like {@link #send(BiConsumer, Object)}, with invocation options. */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #send(BiConsumer, Object)}, with invocation options. */
   default <I> InvocationHandle<Void> send(
       BiConsumer<SVC, I> methodReference, I input, InvocationOptions options) {
     return send(methodReference, input, null, options);
   }
 
-  /** <b>EXPERIMENTAL API:</b> Like {@link #send(BiConsumer, Object)}, with a delay. */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #send(BiConsumer, Object)}, with a delay. */
   default <I> InvocationHandle<Void> send(
       BiConsumer<SVC, I> methodReference, I input, Duration delay) {
     return send(methodReference, input, delay, InvocationOptions.DEFAULT);
   }
 
-  /**
-   * <b>EXPERIMENTAL API:</b> Like {@link #send(BiConsumer, Object)}, with a delay and invocation
-   * options.
-   */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #send(BiConsumer, Object)}, with a delay and invocation options. */
   default <I> InvocationHandle<Void> send(
       BiConsumer<SVC, I> methodReference,
       I input,
@@ -272,88 +226,69 @@ public interface ServiceHandle<SVC> {
     return send(methodReference, input, delay, options.build());
   }
 
-  /**
-   * <b>EXPERIMENTAL API:</b> Like {@link #send(BiConsumer, Object)}, with a delay and invocation
-   * options.
-   */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #send(BiConsumer, Object)}, with a delay and invocation options. */
   <I> InvocationHandle<Void> send(
       BiConsumer<SVC, I> methodReference, I input, Duration delay, InvocationOptions options);
 
-  /** <b>EXPERIMENTAL API:</b> Like {@link #send(BiFunction, Object)}, for methods without input. */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #send(BiFunction, Object)}, for methods without input. */
   default <O> InvocationHandle<O> send(Function<SVC, O> s) {
     return send(s, InvocationOptions.DEFAULT);
   }
 
-  /** <b>EXPERIMENTAL API:</b> Like {@link #send(Function)}, with invocation options. */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #send(Function)}, with invocation options. */
   default <O> InvocationHandle<O> send(
       Function<SVC, O> methodReference, InvocationOptions.Builder options) {
     return send(methodReference, options.build());
   }
 
-  /** <b>EXPERIMENTAL API:</b> Like {@link #send(Function)}, with invocation options. */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #send(Function)}, with invocation options. */
   default <O> InvocationHandle<O> send(Function<SVC, O> s, InvocationOptions options) {
     return send(s, null, options);
   }
 
-  /** <b>EXPERIMENTAL API:</b> Like {@link #send(Function)}, with a delay. */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #send(Function)}, with a delay. */
   default <O> InvocationHandle<O> send(Function<SVC, O> s, Duration delay) {
     return send(s, delay, InvocationOptions.DEFAULT);
   }
 
-  /** <b>EXPERIMENTAL API:</b> Like {@link #send(Function)}, with a delay and invocation options. */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #send(Function)}, with a delay and invocation options. */
   default <O> InvocationHandle<O> send(
       Function<SVC, O> methodReference, Duration delay, InvocationOptions.Builder options) {
     return send(methodReference, delay, options.build());
   }
 
-  /** <b>EXPERIMENTAL API:</b> Like {@link #send(Function)}, with a delay and invocation options. */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #send(Function)}, with a delay and invocation options. */
   <O> InvocationHandle<O> send(
       Function<SVC, O> methodReference, Duration delay, InvocationOptions options);
 
-  /**
-   * <b>EXPERIMENTAL API:</b> Like {@link #send(BiFunction, Object)}, for methods without input or
-   * return value.
-   */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #send(BiFunction, Object)}, for methods without input or return value. */
   default InvocationHandle<Void> send(Consumer<SVC> methodReference) {
     return send(methodReference, InvocationOptions.DEFAULT);
   }
 
-  /** <b>EXPERIMENTAL API:</b> Like {@link #send(Consumer)}, with invocation options. */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #send(Consumer)}, with invocation options. */
   default InvocationHandle<Void> send(
       Consumer<SVC> methodReference, InvocationOptions.Builder options) {
     return send(methodReference, options.build());
   }
 
-  /** <b>EXPERIMENTAL API:</b> Like {@link #send(Consumer)}, with invocation options. */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #send(Consumer)}, with invocation options. */
   default InvocationHandle<Void> send(Consumer<SVC> methodReference, InvocationOptions options) {
     return send(methodReference, null, options);
   }
 
-  /** <b>EXPERIMENTAL API:</b> Like {@link #send(Consumer)}, with a delay. */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #send(Consumer)}, with a delay. */
   default InvocationHandle<Void> send(Consumer<SVC> methodReference, Duration delay) {
     return send(methodReference, delay, InvocationOptions.DEFAULT);
   }
 
-  /** <b>EXPERIMENTAL API:</b> Like {@link #send(Consumer)}, with a delay and invocation options. */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #send(Consumer)}, with a delay and invocation options. */
   default InvocationHandle<Void> send(
       Consumer<SVC> methodReference, Duration delay, InvocationOptions.Builder options) {
     return send(methodReference, delay, options.build());
   }
 
-  /** <b>EXPERIMENTAL API:</b> Like {@link #send(Consumer)}, with a delay and invocation options. */
-  @org.jetbrains.annotations.ApiStatus.Experimental
+  /** Like {@link #send(Consumer)}, with a delay and invocation options. */
   InvocationHandle<Void> send(
       Consumer<SVC> methodReference, Duration delay, InvocationOptions options);
 }
