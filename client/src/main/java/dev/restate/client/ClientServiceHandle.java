@@ -34,16 +34,16 @@ import java.util.function.Function;
  * Client client = Client.connect("http://localhost:8080");
  *
  * // 1. Use call() with method reference and wait for the result
- * Response<GreetingResponse> response = client.serviceHandle(Greeter.class)
+ * Response<GreetingResponse> response = client.toService(Greeter.class)
  *   .call(Greeter::greet, new Greeting("Alice"));
  *
  * // 2. Use send() for one-way invocation without waiting
- * SendResponse<GreetingResponse> sendResponse = client.serviceHandle(Greeter.class)
+ * SendResponse<GreetingResponse> sendResponse = client.toService(Greeter.class)
  *   .send(Greeter::greet, new Greeting("Alice"));
  * }</pre>
  *
- * <p>Create instances using {@link Client#serviceHandle(Class)}, {@link
- * Client#virtualObjectHandle(Class, String)}, or {@link Client#workflowHandle(Class, String)}.
+ * <p>Create instances using {@link Client#toService(Class)}, {@link Client#toVirtualObject(Class,
+ * String)}, or {@link Client#toWorkflow(Class, String)}.
  *
  * <p>For simple synchronous request-response interactions returning just the output, consider using
  * the simple proxy API instead: {@link Client#service(Class)}, {@link Client#virtualObject(Class,

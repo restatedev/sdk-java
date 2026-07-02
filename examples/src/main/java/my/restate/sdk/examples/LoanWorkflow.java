@@ -84,7 +84,7 @@ public class LoanWorkflow {
     Instant executionTime;
     try {
       executionTime =
-          Restate.serviceHandle(MockBank.class)
+          Restate.toService(MockBank.class)
               .call(
                   MockBank::transfer,
                   new TransferRequest(loanRequest.customerBankAccount(), loanRequest.amount()))
@@ -145,7 +145,7 @@ public class LoanWorkflow {
     LoanWorkflow loanWorkflow = restateClient.workflow(LoanWorkflow.class, "my-loan");
     var handle =
         restateClient
-            .workflowHandle(LoanWorkflow.class, "my-loan")
+            .toWorkflow(LoanWorkflow.class, "my-loan")
             .send(
                 LoanWorkflow::run,
                 new LoanRequest(

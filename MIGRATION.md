@@ -29,12 +29,12 @@ one service at a time.
 | `ctx.key()`                                     | `Restate.key()`                                                                   |
 | `ctx.promise(key)` / `ctx.promiseHandle(key)`   | `Restate.promise(key)` / `Restate.promiseHandle(key)`                             |
 | `ctx.invocationHandle(id, ...)`                 | `Restate.invocationHandle(id, ...)`                                              |
-| Code-generated clients (Service)                | `Restate.service(Class)` / `Restate.serviceHandle(Class)`                         |
-| Code-generated clients (Virtual Object)         | `Restate.virtualObject(Class, key)` / `Restate.virtualObjectHandle(Class, key)`   |
-| Code-generated clients (Workflow)               | `Restate.workflow(Class, key)` / `Restate.workflowHandle(Class, key)`             |
+| Code-generated clients (Service)                | `Restate.service(Class)` / `Restate.toService(Class)`                             |
+| Code-generated clients (Virtual Object)         | `Restate.virtualObject(Class, key)` / `Restate.toVirtualObject(Class, key)`       |
+| Code-generated clients (Workflow)               | `Restate.workflow(Class, key)` / `Restate.toWorkflow(Class, key)`                 |
 
 From **outside** a handler (the ingress client), the equivalents live on `dev.restate.client.Client`:
-`client.service(Class)` / `client.serviceHandle(Class)` / `client.virtualObject(Class, key)` / etc.
+`client.service(Class)` / `client.toService(Class)` / `client.virtualObject(Class, key)` / etc.
 
 ### Kotlin: `Context` API → top-level functions
 
@@ -129,16 +129,16 @@ Restate.virtualObject(Counter.class, "my-key").add(1);
 
 ```java
 // call() with a method reference returns a DurableFuture you can await and/or compose
-int count = Restate.virtualObjectHandle(Counter.class, "my-counter")
+int count = Restate.toVirtualObject(Counter.class, "my-counter")
     .call(Counter::increment)
     .await();
 
 // send() for one-way invocation without waiting
-InvocationHandle<Integer> handle = Restate.virtualObjectHandle(Counter.class, "my-counter")
+InvocationHandle<Integer> handle = Restate.toVirtualObject(Counter.class, "my-counter")
     .send(Counter::increment);
 
 // Invocation options such as an idempotency key
-int idempotentCount = Restate.virtualObjectHandle(Counter.class, "my-counter")
+int idempotentCount = Restate.toVirtualObject(Counter.class, "my-counter")
     .call(Counter::increment, InvocationOptions.idempotencyKey("my-idempotency-key"))
     .await();
 ```

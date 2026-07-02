@@ -455,7 +455,7 @@ public final class Restate {
    * }</pre>
    *
    * <p>For advanced use cases requiring asynchronous request handling, composable futures, or
-   * invocation options (such as idempotency keys), use {@link #serviceHandle(Class)} instead.
+   * invocation options (such as idempotency keys), use {@link #toService(Class)} instead.
    *
    * @param clazz the service class annotated with {@link Service}
    * @return a proxy client to invoke the service
@@ -495,12 +495,12 @@ public final class Restate {
    *
    * <pre>{@code
    * // 1. Use call() with method reference and await the result
-   * GreetingResponse response = Restate.serviceHandle(Greeter.class)
+   * GreetingResponse response = Restate.toService(Greeter.class)
    *   .call(Greeter::greet, new Greeting("Alice"))
    *   .await();
    *
    * // 2. Use send() for one-way invocation without waiting
-   * InvocationHandle<GreetingResponse> handle = Restate.serviceHandle(Greeter.class)
+   * InvocationHandle<GreetingResponse> handle = Restate.toService(Greeter.class)
    *   .send(Greeter::greet, new Greeting("Alice"));
    * }</pre>
    *
@@ -510,9 +510,17 @@ public final class Restate {
    * @param clazz the service class annotated with {@link Service}
    * @return a handle to invoke the service with advanced options
    */
-  public static <SVC> ServiceHandle<SVC> serviceHandle(Class<SVC> clazz) {
+  public static <SVC> ServiceHandle<SVC> toService(Class<SVC> clazz) {
     ReflectionUtils.mustHaveServiceAnnotation(clazz);
     return new ServiceHandleImpl<>(clazz, null);
+  }
+
+  /**
+   * @deprecated Renamed to {@link #toService(Class)}.
+   */
+  @Deprecated(since = "2.9", forRemoval = true)
+  public static <SVC> ServiceHandle<SVC> serviceHandle(Class<SVC> clazz) {
+    return toService(clazz);
   }
 
   /**
@@ -527,7 +535,7 @@ public final class Restate {
    * }</pre>
    *
    * <p>For advanced use cases requiring asynchronous request handling, composable futures, or
-   * invocation options (such as idempotency keys), use {@link #virtualObjectHandle(Class, String)}
+   * invocation options (such as idempotency keys), use {@link #toVirtualObject(Class, String)}
    * instead.
    *
    * @param clazz the virtual object class annotated with {@link VirtualObject}
@@ -569,12 +577,12 @@ public final class Restate {
    *
    * <pre>{@code
    * // 1. Use call() with method reference and await the result
-   * int count = Restate.virtualObjectHandle(Counter.class, "my-counter")
+   * int count = Restate.toVirtualObject(Counter.class, "my-counter")
    *   .call(Counter::increment)
    *   .await();
    *
    * // 2. Use send() for one-way invocation without waiting
-   * InvocationHandle<Integer> handle = Restate.virtualObjectHandle(Counter.class, "my-counter")
+   * InvocationHandle<Integer> handle = Restate.toVirtualObject(Counter.class, "my-counter")
    *   .send(Counter::increment);
    * }</pre>
    *
@@ -585,9 +593,17 @@ public final class Restate {
    * @param key the key identifying the specific virtual object instance
    * @return a handle to invoke the virtual object with advanced options
    */
-  public static <SVC> ServiceHandle<SVC> virtualObjectHandle(Class<SVC> clazz, String key) {
+  public static <SVC> ServiceHandle<SVC> toVirtualObject(Class<SVC> clazz, String key) {
     ReflectionUtils.mustHaveVirtualObjectAnnotation(clazz);
     return new ServiceHandleImpl<>(clazz, key);
+  }
+
+  /**
+   * @deprecated Renamed to {@link #toVirtualObject(Class, String)}.
+   */
+  @Deprecated(since = "2.9", forRemoval = true)
+  public static <SVC> ServiceHandle<SVC> virtualObjectHandle(Class<SVC> clazz, String key) {
+    return toVirtualObject(clazz, key);
   }
 
   /**
@@ -602,8 +618,7 @@ public final class Restate {
    * }</pre>
    *
    * <p>For advanced use cases requiring asynchronous request handling, composable futures, or
-   * invocation options (such as idempotency keys), use {@link #workflowHandle(Class, String)}
-   * instead.
+   * invocation options (such as idempotency keys), use {@link #toWorkflow(Class, String)} instead.
    *
    * @param clazz the workflow class annotated with {@link Workflow}
    * @param key the key identifying the specific workflow instance
@@ -644,12 +659,12 @@ public final class Restate {
    *
    * <pre>{@code
    * // 1. Use call() with method reference and await the result
-   * Restate.workflowHandle(OrderWorkflow.class, "order-123")
+   * Restate.toWorkflow(OrderWorkflow.class, "order-123")
    *   .call(OrderWorkflow::start, new OrderRequest(...))
    *   .await();
    *
    * // 2. Use send() for one-way invocation without waiting
-   * InvocationHandle<Void> handle = Restate.workflowHandle(OrderWorkflow.class, "order-123")
+   * InvocationHandle<Void> handle = Restate.toWorkflow(OrderWorkflow.class, "order-123")
    *   .send(OrderWorkflow::start, new OrderRequest(...));
    * }</pre>
    *
@@ -660,9 +675,17 @@ public final class Restate {
    * @param key the key identifying the specific workflow instance
    * @return a handle to invoke the workflow with advanced options
    */
-  public static <SVC> ServiceHandle<SVC> workflowHandle(Class<SVC> clazz, String key) {
+  public static <SVC> ServiceHandle<SVC> toWorkflow(Class<SVC> clazz, String key) {
     ReflectionUtils.mustHaveWorkflowAnnotation(clazz);
     return new ServiceHandleImpl<>(clazz, key);
+  }
+
+  /**
+   * @deprecated Renamed to {@link #toWorkflow(Class, String)}.
+   */
+  @Deprecated(since = "2.9", forRemoval = true)
+  public static <SVC> ServiceHandle<SVC> workflowHandle(Class<SVC> clazz, String key) {
+    return toWorkflow(clazz, key);
   }
 
   /** Interface to interact with this Virtual Object/Workflow state. */

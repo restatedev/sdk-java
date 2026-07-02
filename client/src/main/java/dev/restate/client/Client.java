@@ -590,11 +590,11 @@ public interface Client {
    * Client client = Client.connect("http://localhost:8080");
    *
    * // Use call() with method reference and wait for the result
-   * Response<GreetingResponse> response = client.serviceHandle(Greeter.class)
+   * Response<GreetingResponse> response = client.toService(Greeter.class)
    *   .call(Greeter::greet, new Greeting("Alice"));
    *
    * // Use send() for one-way invocation without waiting
-   * SendResponse<GreetingResponse> sendResponse = client.serviceHandle(Greeter.class)
+   * SendResponse<GreetingResponse> sendResponse = client.toService(Greeter.class)
    *   .send(Greeter::greet, new Greeting("Alice"));
    * }</pre>
    *
@@ -604,12 +604,20 @@ public interface Client {
    * @param clazz the service class annotated with {@link Service}
    * @return a handle to invoke the service with advanced options
    */
-  default <SVC> ClientServiceHandle<SVC> serviceHandle(Class<SVC> clazz) {
+  default <SVC> ClientServiceHandle<SVC> toService(Class<SVC> clazz) {
     ReflectionUtils.mustHaveServiceAnnotation(clazz);
     if (ReflectionUtils.isKotlinClass(clazz)) {
       throw new IllegalArgumentException("Using Kotlin classes with Java's API is not supported");
     }
     return new ClientServiceHandleImpl<>(this, clazz, null);
+  }
+
+  /**
+   * @deprecated Renamed to {@link #toService(Class)}.
+   */
+  @Deprecated(since = "2.9", forRemoval = true)
+  default <SVC> ClientServiceHandle<SVC> serviceHandle(Class<SVC> clazz) {
+    return toService(clazz);
   }
 
   /**
@@ -627,8 +635,8 @@ public interface Client {
    * }</pre>
    *
    * <p>For advanced use cases requiring asynchronous request handling, access to {@link Response}
-   * metadata, or invocation options (such as idempotency keys), use {@link
-   * #virtualObjectHandle(Class, String)} instead.
+   * metadata, or invocation options (such as idempotency keys), use {@link #toVirtualObject(Class,
+   * String)} instead.
    *
    * @param clazz the virtual object class annotated with {@link VirtualObject}
    * @param key the key identifying the specific virtual object instance
@@ -672,11 +680,11 @@ public interface Client {
    * Client client = Client.connect("http://localhost:8080");
    *
    * // Use call() with method reference and wait for the result
-   * Response<Integer> response = client.virtualObjectHandle(Counter.class, "my-counter")
+   * Response<Integer> response = client.toVirtualObject(Counter.class, "my-counter")
    *   .call(Counter::increment);
    *
    * // Use send() for one-way invocation without waiting
-   * SendResponse<Integer> sendResponse = client.virtualObjectHandle(Counter.class, "my-counter")
+   * SendResponse<Integer> sendResponse = client.toVirtualObject(Counter.class, "my-counter")
    *   .send(Counter::increment);
    * }</pre>
    *
@@ -687,12 +695,20 @@ public interface Client {
    * @param key the key identifying the specific virtual object instance
    * @return a handle to invoke the virtual object with advanced options
    */
-  default <SVC> ClientServiceHandle<SVC> virtualObjectHandle(Class<SVC> clazz, String key) {
+  default <SVC> ClientServiceHandle<SVC> toVirtualObject(Class<SVC> clazz, String key) {
     ReflectionUtils.mustHaveVirtualObjectAnnotation(clazz);
     if (ReflectionUtils.isKotlinClass(clazz)) {
       throw new IllegalArgumentException("Using Kotlin classes with Java's API is not supported");
     }
     return new ClientServiceHandleImpl<>(this, clazz, key);
+  }
+
+  /**
+   * @deprecated Renamed to {@link #toVirtualObject(Class, String)}.
+   */
+  @Deprecated(since = "2.9", forRemoval = true)
+  default <SVC> ClientServiceHandle<SVC> virtualObjectHandle(Class<SVC> clazz, String key) {
+    return toVirtualObject(clazz, key);
   }
 
   /**
@@ -710,7 +726,7 @@ public interface Client {
    * }</pre>
    *
    * <p>For advanced use cases requiring asynchronous request handling, access to {@link Response}
-   * metadata, or invocation options (such as idempotency keys), use {@link #workflowHandle(Class,
+   * metadata, or invocation options (such as idempotency keys), use {@link #toWorkflow(Class,
    * String)} instead.
    *
    * @param clazz the workflow class annotated with {@link Workflow}
@@ -755,11 +771,11 @@ public interface Client {
    * Client client = Client.connect("http://localhost:8080");
    *
    * // Use call() with method reference and wait for the result
-   * Response<OrderResult> response = client.workflowHandle(OrderWorkflow.class, "order-123")
+   * Response<OrderResult> response = client.toWorkflow(OrderWorkflow.class, "order-123")
    *   .call(OrderWorkflow::start, new OrderRequest(...));
    *
    * // Use send() for one-way invocation without waiting
-   * SendResponse<OrderResult> sendResponse = client.workflowHandle(OrderWorkflow.class, "order-123")
+   * SendResponse<OrderResult> sendResponse = client.toWorkflow(OrderWorkflow.class, "order-123")
    *   .send(OrderWorkflow::start, new OrderRequest(...));
    * }</pre>
    *
@@ -770,12 +786,20 @@ public interface Client {
    * @param key the key identifying the specific workflow instance
    * @return a handle to invoke the workflow with advanced options
    */
-  default <SVC> ClientServiceHandle<SVC> workflowHandle(Class<SVC> clazz, String key) {
+  default <SVC> ClientServiceHandle<SVC> toWorkflow(Class<SVC> clazz, String key) {
     ReflectionUtils.mustHaveWorkflowAnnotation(clazz);
     if (ReflectionUtils.isKotlinClass(clazz)) {
       throw new IllegalArgumentException("Using Kotlin classes with Java's API is not supported");
     }
     return new ClientServiceHandleImpl<>(this, clazz, key);
+  }
+
+  /**
+   * @deprecated Renamed to {@link #toWorkflow(Class, String)}.
+   */
+  @Deprecated(since = "2.9", forRemoval = true)
+  default <SVC> ClientServiceHandle<SVC> workflowHandle(Class<SVC> clazz, String key) {
+    return toWorkflow(clazz, key);
   }
 
   /**
