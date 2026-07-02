@@ -20,9 +20,9 @@ import org.jspecify.annotations.Nullable;
 /**
  * Creates the {@link StateMachine} for the current runtime: the Panama/FFM implementation (calling
  * the native shared-core library) on JDK 23+ when that library is available, otherwise the legacy
- * pure-Java implementation.
+ * pure-Java implementation — a deprecated fallback that will be removed in a future release.
  *
- * <p>Set {@code -Ddev.restate.sdk.statemachine.disableFfm=true} to force the pure-Java
+ * <p>Set {@code -Ddev.restate.sdk.statemachine.disableNewCore=true} to force the pure-Java
  * implementation.
  */
 @FunctionalInterface

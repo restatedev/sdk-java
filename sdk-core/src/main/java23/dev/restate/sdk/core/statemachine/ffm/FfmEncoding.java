@@ -220,7 +220,7 @@ final class FfmEncoding {
   // -------------------------------------------------------------------------
 
   /**
-   * Builds a {@link TargetAbi} struct in {@code arena}. String fields are borrowed {@code
+   * Builds a {@code TargetAbi} struct in {@code arena}. String fields are borrowed {@code
    * (ptr,len)}; a null ptr means the optional field is absent. {@code headers} is the encoded
    * header-list blob.
    */
@@ -316,7 +316,7 @@ final class FfmEncoding {
   }
 
   /**
-   * Encodes a {@link TerminalFailure} (see {@code decode_failure}): {@code u16 code, str message,
+   * Encodes a {@code TerminalFailure} (see {@code decode_failure}): {@code u16 code, str message,
    * u32 meta_count, meta_count*(str key, str value)}.
    */
   static byte[] encodeFailure(TerminalException failure) {

@@ -35,24 +35,16 @@ import org.jspecify.annotations.Nullable;
 /**
  * Panama/FFM (JDK 23+) implementation of the canonical {@link StateMachine}, driving the native
  * {@code restate-sdk-shared-core} library through the jextract-generated {@code SharedCoreNative}
- * bindings.
+ * bindings, over the C ABI documented in {@code sdk-core/src/main/rust/src/lib.rs}.
  *
- * <p>The transport is a set of direct FFM downcalls over the typed C ABI documented in {@code
- * sdk-core/src/main/rust/src/lib.rs}: each call writes a typed result struct into a caller-provided
- * out-parameter, piggybacks the current invocation state ordinal, and returns owned {@link Slice}s
- * the caller must copy out and free.
+ * <p>Each call is a direct FFM downcall that writes a typed result struct into a caller-provided
+ * out-parameter (piggybacking the current invocation state) and returns owned {@link Slice}s the
+ * caller copies out and frees; on error it throws a {@link ProtocolException} from the returned
+ * code and message.
  *
- * <p><b>Threading.</b> A given instance is driven by a single thread at a time (no reentrancy), as
- * guaranteed by the contract. {@link #state()} reads a volatile cache and is safe from any thread.
- *
- * <p><b>Per-call lifecycle.</b> Every downcall opens a confined {@link Arena} (try-with-resources)
- * to allocate the out-param struct plus any input payloads / structured blobs (copy-for-now; inputs
- * are copied straight from their {@link Slice} into native memory). After the call we read the
- * typed fields; owned output {@link Slice}s are either copied into a Java {@code byte[]}/{@code
- * String} (which frees the native buffer) or—for hot payloads (notification success values, {@code
- * takeOutput})—handed over zero-copy as a GC-tied {@link MemorySegmentSlice}; we update the cached
- * state and—on {@code ok == 0}—throw a {@link ProtocolException} built from the error code +
- * message.
+ * <p>An instance is driven by a single thread at a time (no reentrancy, per the contract); only
+ * {@link #state()} — a volatile read — is safe from any thread. Each downcall allocates its
+ * out-param and inputs in a confined {@link Arena} for the duration of the call.
  */
 public final class FfmStateMachine implements StateMachine {
 
@@ -91,7 +83,7 @@ public final class FfmStateMachine implements StateMachine {
 
       SharedCoreNative.vm_new(FfmEncoding.foreignBytes(arena, headersBlob), out);
       if (VmNewResult.tag(out) == SharedCoreNative.VmNewResult_Err()) {
-        throw vmError(VmNewResult_Err_Body.error(VmNewResult.err(out)));
+        throw closeVmAndMapError(VmNewResult_Err_Body.error(VmNewResult.err(out)));
       }
       this.vmHandle = VmNewResult_Ok_Body.handle(VmNewResult.ok(out));
     }
@@ -178,7 +170,8 @@ public final class FfmStateMachine implements StateMachine {
       MemorySegment out = IsReadyToExecuteResult.allocate(arena);
       SharedCoreNative.vm_is_ready_to_execute(vmHandle, out);
       if (IsReadyToExecuteResult.tag(out) == SharedCoreNative.IsReadyToExecuteResult_Err()) {
-        throw closedVmError(IsReadyToExecuteResult_Err_Body.error(IsReadyToExecuteResult.err(out)));
+        throw closeVmAndMapError(
+            IsReadyToExecuteResult_Err_Body.error(IsReadyToExecuteResult.err(out)));
       }
       MemorySegment ok = IsReadyToExecuteResult.ok(out);
       return IsReadyToExecuteResult_Ok_Body.value(ok) != 0;
@@ -217,7 +210,7 @@ public final class FfmStateMachine implements StateMachine {
       } else if (tag == SharedCoreNative.AwaitResult_CancelSignalReceived()) {
         return AwaitResult.CANCEL_SIGNAL_RECEIVED;
       } else if (tag == SharedCoreNative.AwaitResult_Err()) {
-        throw closedVmError(
+        throw closeVmAndMapError(
             AwaitResult_Err_Body.error(
                 dev.restate.sdk.core.statemachine.ffm.generated.AwaitResult.err(out)));
       }
@@ -262,7 +255,7 @@ public final class FfmStateMachine implements StateMachine {
                 Notification_InvocationId_Body.id(Notification.invocation_id(out))));
       } else if (tag == SharedCoreNative.Notification_Error()) {
         // Same VmError struct the fallible results' Err arms carry; reuse the shared decoder.
-        throw vmError(Notification_Error_Body.error(Notification.error(out)));
+        throw closeVmAndMapError(Notification_Error_Body.error(Notification.error(out)));
       }
       throw new IllegalStateException("Unknown takeNotification tag: " + tag);
     }
@@ -301,7 +294,7 @@ public final class FfmStateMachine implements StateMachine {
       MemorySegment out = InputResult.allocate(arena);
       SharedCoreNative.vm_sys_input(vmHandle, out);
       if (InputResult.tag(out) == SharedCoreNative.InputResult_Err()) {
-        throw closedVmError(InputResult_Err_Body.error(InputResult.err(out)));
+        throw closeVmAndMapError(InputResult_Err_Body.error(InputResult.err(out)));
       }
       MemorySegment ok = InputResult.ok(out);
       updateState(InputResult_Ok_Body.state(ok));
@@ -451,7 +444,7 @@ public final class FfmStateMachine implements StateMachine {
       MemorySegment out = CallResult.allocate(arena);
       SharedCoreNative.vm_sys_call(vmHandle, args, out);
       if (CallResult.tag(out) == SharedCoreNative.CallResult_Err()) {
-        throw closedVmError(CallResult_Err_Body.error(CallResult.err(out)));
+        throw closeVmAndMapError(CallResult_Err_Body.error(CallResult.err(out)));
       }
       MemorySegment ok = CallResult.ok(out);
       updateState(CallResult_Ok_Body.state(ok));
@@ -494,7 +487,7 @@ public final class FfmStateMachine implements StateMachine {
       MemorySegment out = AwakeableResult.allocate(arena);
       SharedCoreNative.vm_sys_awakeable(vmHandle, out);
       if (AwakeableResult.tag(out) == SharedCoreNative.AwakeableResult_Err()) {
-        throw closedVmError(AwakeableResult_Err_Body.error(AwakeableResult.err(out)));
+        throw closeVmAndMapError(AwakeableResult_Err_Body.error(AwakeableResult.err(out)));
       }
       MemorySegment ok = AwakeableResult.ok(out);
       updateState(AwakeableResult_Ok_Body.state(ok));
@@ -633,7 +626,7 @@ public final class FfmStateMachine implements StateMachine {
       MemorySegment out = RunResult.allocate(arena);
       SharedCoreNative.vm_sys_run(vmHandle, FfmEncoding.foreignUtf8(arena, name), out);
       if (RunResult.tag(out) == SharedCoreNative.RunResult_Err()) {
-        throw closedVmError(RunResult_Err_Body.error(RunResult.err(out)));
+        throw closeVmAndMapError(RunResult_Err_Body.error(RunResult.err(out)));
       }
       MemorySegment ok = RunResult.ok(out);
       updateState(RunResult_Ok_Body.state(ok));
@@ -774,7 +767,7 @@ public final class FfmStateMachine implements StateMachine {
   /** Reads a {@link HandleResult} tagged union: on {@code Ok} update state + return the handle. */
   private int handleResult(MemorySegment out) {
     if (HandleResult.tag(out) == SharedCoreNative.HandleResult_Err()) {
-      throw closedVmError(HandleResult_Err_Body.error(HandleResult.err(out)));
+      throw closeVmAndMapError(HandleResult_Err_Body.error(HandleResult.err(out)));
     }
     MemorySegment ok = HandleResult.ok(out);
     updateState(HandleResult_Ok_Body.state(ok));
@@ -784,7 +777,7 @@ public final class FfmStateMachine implements StateMachine {
   /** Reads an {@link EmptyResult} tagged union: on {@code Ok} update state. */
   private void emptyResult(MemorySegment out) {
     if (EmptyResult.tag(out) == SharedCoreNative.EmptyResult_Err()) {
-      throw closedVmError(EmptyResult_Err_Body.error(EmptyResult.err(out)));
+      throw closeVmAndMapError(EmptyResult_Err_Body.error(EmptyResult.err(out)));
     }
     updateState(EmptyResult_Ok_Body.state(EmptyResult.ok(out)));
   }
@@ -795,22 +788,12 @@ public final class FfmStateMachine implements StateMachine {
     }
   }
 
-  /**
-   * Builds a {@link ProtocolException} from a {@link VmError} struct (copying + freeing message).
-   */
-  private static ProtocolException vmError(MemorySegment errorStruct) {
+  /** Close the VM and map the error */
+  private ProtocolException closeVmAndMapError(MemorySegment errorStruct) {
+    cachedState = InvocationState.CLOSED;
     int code = VmError.code(errorStruct);
     String message = FfmEncoding.takeSliceString(VmError.message(errorStruct));
     return new ProtocolException(message, code);
-  }
-
-  /**
-   * Like {@link #vmError} but also marks the VM closed: an op returning {@code Err} closes the
-   * state machine, and (unlike the legacy flat structs) the error arm carries no state piggyback.
-   */
-  private ProtocolException closedVmError(MemorySegment errorStruct) {
-    cachedState = InvocationState.CLOSED;
-    return vmError(errorStruct);
   }
 
   private void verifyNotFreed() {
