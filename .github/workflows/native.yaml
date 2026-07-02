@@ -1,0 +1,122 @@
+name: Native build
+
+# Cross-compiles the Rust shared-core wrapper (sdk-core/src/main/rust) for every supported
+# platform, smoke-tests the produced library, and uploads it as an artifact. The release pipeline
+# downloads these artifacts and overlays them into the single (uber) sdk-core jar.
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  build:
+    name: "Build native (${{ matrix.target }})"
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # `classifier` is the runtime resource classifier resolved by NativeLibraryLoader and the
+          # subdirectory the release overlay expects: dev/restate/sdk/core/native/<classifier>/.
+          - target: x86_64-unknown-linux-gnu
+            classifier: linux-x86_64
+            runner: ubuntu-latest
+            cross: false
+            rustflags: ""
+          - target: aarch64-unknown-linux-gnu
+            classifier: linux-aarch64
+            runner: ubuntu-latest
+            cross: true
+            rustflags: ""
+          # musl is statically linked by default, which can't produce a cdylib (.so); disabling
+          # crt-static makes the target dynamically linkable so the shared library can be built.
+          - target: x86_64-unknown-linux-musl
+            classifier: linux-x86_64-musl
+            runner: ubuntu-latest
+            cross: true
+            rustflags: "-C target-feature=-crt-static"
+          - target: aarch64-unknown-linux-musl
+            classifier: linux-aarch64-musl
+            runner: ubuntu-latest
+            cross: true
+            rustflags: "-C target-feature=-crt-static"
+          # macOS runners are expensive; comment out the darwin targets to disable them.
+          # x86_64 darwin disabled for now — re-enable if Intel Mac support is needed.
+          # - target: x86_64-apple-darwin
+          #   classifier: darwin-x86_64
+          #   runner: macos-13
+          #   cross: false
+          #   rustflags: ""
+          - target: aarch64-apple-darwin
+            classifier: darwin-aarch64
+            runner: macos-14
+            cross: false
+            rustflags: ""
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          target: ${{ matrix.target }}
+          cache-workspaces: sdk-core/src/main/rust
+          # Segment the cache per target. Otherwise all Linux targets share one cache, and the
+          # native x86_64 job (host glibc 2.39) populates target/release/build with host-compiled
+          # build-script/proc-macro binaries that the `cross` jobs then restore and try to run
+          # inside the older cross container (glibc ~2.31) -> "GLIBC_2.39 not found", build fails.
+          cache-key: ${{ matrix.target }}
+
+      - name: Install cross
+        if: ${{ matrix.cross }}
+        run: cargo install cross --git https://github.com/cross-rs/cross --locked
+
+      - name: Build cdylib
+        working-directory: sdk-core/src/main/rust
+        env:
+          # `cross` forwards RUSTFLAGS into the build container.
+          RUSTFLAGS: ${{ matrix.rustflags }}
+        run: |
+          if [ "${{ matrix.cross }}" = "true" ]; then
+            cross build --release --target ${{ matrix.target }}
+          else
+            cargo build --release --target ${{ matrix.target }}
+          fi
+
+      - name: Locate library
+        id: lib
+        working-directory: sdk-core/src/main/rust
+        run: |
+          dir="target/${{ matrix.target }}/release"
+          file=$(ls "$dir"/librestate_sdk_core.so "$dir"/librestate_sdk_core.dylib 2>/dev/null | head -1)
+          if [ -z "$file" ]; then echo "no library produced for ${{ matrix.target }}"; exit 1; fi
+          echo "path=sdk-core/src/main/rust/$file" >> "$GITHUB_OUTPUT"
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test (exported C symbols present)
+        working-directory: sdk-core/src/main/rust
+        run: |
+          f="${{ steps.lib.outputs.file }}"
+          # Linux uses `nm -D` (no symbol prefix); macOS uses `nm -gU` (leading underscore).
+          if [ "$RUNNER_OS" = "macOS" ]; then list="nm -gU"; pre="_"; else list="nm -D"; pre=""; fi
+          for sym in init vm_new vm_free free_buffer vm_sys_call vm_take_notification; do
+            $list "$f" 2>/dev/null | grep -qE "[ ]${pre}${sym}$" || { echo "missing exported symbol: $sym"; exit 1; }
+          done
+          echo "All expected symbols present in $f"
+
+      # Stage the library into the exact resource layout the sdk-core jar expects, so the release
+      # pipeline can download every artifact with `merge-multiple: true` and hand the reconstructed
+      # tree straight to Gradle via `-PnativeLibsDir`.
+      - name: Stage library into resource layout
+        working-directory: sdk-core/src/main/rust
+        run: |
+          dest="$GITHUB_WORKSPACE/native-staging/dev/restate/sdk/core/native/${{ matrix.classifier }}"
+          mkdir -p "$dest"
+          cp "${{ steps.lib.outputs.file }}" "$dest/"
+
+      - name: Upload native library
+        uses: actions/upload-artifact@v7
+        with:
+          name: native-${{ matrix.classifier }}
+          path: native-staging
+          if-no-files-found: error

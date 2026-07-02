@@ -3,13 +3,15 @@ plugins {
     id("com.diffplug.spotless")
 }
 
-// Configure the java toolchain to use. If not found, it will be downloaded automatically
 java {
-    toolchain { languageVersion = JavaLanguageVersion.of(17) }
+    toolchain { languageVersion = JavaLanguageVersion.of(25) }
 
     withJavadocJar()
     withSourcesJar()
 }
+
+// Compile with Java 17 bytecode compatibility (also gates the JDK API to 17)
+tasks.withType<JavaCompile>().configureEach { options.release = 17 }
 
 tasks.withType<Test> { useJUnitPlatform() }
 

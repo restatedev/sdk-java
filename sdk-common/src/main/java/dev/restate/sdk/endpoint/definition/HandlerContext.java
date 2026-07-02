@@ -47,8 +47,10 @@ public interface HandlerContext {
   // ----- IO
   // Note: These are not supposed to be exposed in the user's facing Context API.
 
+  @Deprecated(forRemoval = true)
   CompletableFuture<Void> writeOutput(Slice value);
 
+  @Deprecated(forRemoval = true)
   CompletableFuture<Void> writeOutput(TerminalException exception);
 
   // ----- State

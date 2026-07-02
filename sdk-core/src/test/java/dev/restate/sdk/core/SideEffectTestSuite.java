@@ -10,7 +10,7 @@ package dev.restate.sdk.core;
 
 import static dev.restate.sdk.core.AssertUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
-import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
+import static dev.restate.sdk.core.legacy.ProtoUtils.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
@@ -19,7 +19,7 @@ import com.google.protobuf.ByteString;
 import dev.restate.sdk.common.RetryPolicy;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
-import dev.restate.sdk.core.statemachine.MessageType;
+import dev.restate.sdk.core.legacy.MessageType;
 import java.time.Duration;
 import java.util.stream.Stream;
 import org.assertj.core.data.Index;

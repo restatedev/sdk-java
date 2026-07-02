@@ -9,11 +9,8 @@
 package dev.restate.sdk.core;
 
 import static dev.restate.sdk.core.DiscoveryProtocol.MANIFEST_OBJECT_MAPPER;
-import static dev.restate.sdk.core.statemachine.ServiceProtocol.MAX_SERVICE_PROTOCOL_VERSION;
-import static dev.restate.sdk.core.statemachine.ServiceProtocol.MIN_SERVICE_PROTOCOL_VERSION;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import dev.restate.sdk.core.generated.discovery.Discovery;
 import dev.restate.sdk.core.generated.manifest.*;
 import dev.restate.sdk.endpoint.definition.*;
 import dev.restate.serde.Serde;
@@ -36,23 +33,22 @@ final class EndpointManifest {
   }
 
   EndpointManifestSchema manifest(
-      Discovery.ServiceDiscoveryProtocolVersion version,
-      EndpointManifestSchema.ProtocolMode protocolMode) {
+      DiscoveryProtocol.Version version, EndpointManifestSchema.ProtocolMode protocolMode) {
     EndpointManifestSchema manifest =
         new EndpointManifestSchema()
             .withProtocolMode(protocolMode)
-            .withMinProtocolVersion((long) MIN_SERVICE_PROTOCOL_VERSION.getNumber())
-            .withMaxProtocolVersion((long) MAX_SERVICE_PROTOCOL_VERSION.getNumber())
+            .withMinProtocolVersion(5L)
+            .withMaxProtocolVersion(StateMachineFactory.maxSupportedProtocolVersion())
             .withServices(this.services);
     // Verify that the user didn't set fields that we don't support in the discovery version we set
     for (var service : manifest.getServices()) {
-      if (version.getNumber() < Discovery.ServiceDiscoveryProtocolVersion.V2.getNumber()) {
+      if (version.getNumber() < DiscoveryProtocol.Version.V2.getNumber()) {
         verifyFieldNotSet(
             "metadata",
             service,
             s -> s.getMetadata() != null && !s.getMetadata().getAdditionalProperties().isEmpty());
       }
-      if (version.getNumber() < Discovery.ServiceDiscoveryProtocolVersion.V3.getNumber()) {
+      if (version.getNumber() < DiscoveryProtocol.Version.V3.getNumber()) {
         verifyFieldNull("idempotency retention", service.getIdempotencyRetention());
         verifyFieldNull("journal retention", service.getJournalRetention());
         verifyFieldNull("inactivity timeout", service.getInactivityTimeout());
@@ -60,7 +56,7 @@ final class EndpointManifest {
         verifyFieldNull("enable lazy state", service.getEnableLazyState());
         verifyFieldNull("ingress private", service.getIngressPrivate());
       }
-      if (version.getNumber() < Discovery.ServiceDiscoveryProtocolVersion.V4.getNumber()) {
+      if (version.getNumber() < DiscoveryProtocol.Version.V4.getNumber()) {
         verifyFieldNull("retry policy initial interval", service.getRetryPolicyInitialInterval());
         verifyFieldNull("retry policy max interval", service.getRetryPolicyMaxInterval());
         verifyFieldNull("retry policy max attempts", service.getRetryPolicyMaxAttempts());
@@ -69,13 +65,13 @@ final class EndpointManifest {
             "retry policy exponentiation factor", service.getRetryPolicyExponentiationFactor());
       }
       for (var handler : service.getHandlers()) {
-        if (version.getNumber() < Discovery.ServiceDiscoveryProtocolVersion.V2.getNumber()) {
+        if (version.getNumber() < DiscoveryProtocol.Version.V2.getNumber()) {
           verifyFieldNotSet(
               "metadata",
               handler,
               h -> h.getMetadata() != null && !h.getMetadata().getAdditionalProperties().isEmpty());
         }
-        if (version.getNumber() < Discovery.ServiceDiscoveryProtocolVersion.V3.getNumber()) {
+        if (version.getNumber() < DiscoveryProtocol.Version.V3.getNumber()) {
           verifyFieldNull("idempotency retention", handler.getIdempotencyRetention());
           verifyFieldNull("journal retention", handler.getJournalRetention());
           verifyFieldNull("inactivity timeout", handler.getInactivityTimeout());
@@ -83,7 +79,7 @@ final class EndpointManifest {
           verifyFieldNull("enable lazy state", handler.getEnableLazyState());
           verifyFieldNull("ingress private", handler.getIngressPrivate());
         }
-        if (version.getNumber() < Discovery.ServiceDiscoveryProtocolVersion.V4.getNumber()) {
+        if (version.getNumber() < DiscoveryProtocol.Version.V4.getNumber()) {
           verifyFieldNull("retry policy initial interval", handler.getRetryPolicyInitialInterval());
           verifyFieldNull("retry policy max interval", handler.getRetryPolicyMaxInterval());
           verifyFieldNull("retry policy max attempts", handler.getRetryPolicyMaxAttempts());

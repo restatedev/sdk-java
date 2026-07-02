@@ -9,7 +9,7 @@
 package dev.restate.sdk.core;
 
 import static dev.restate.sdk.core.AssertUtils.*;
-import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
+import static dev.restate.sdk.core.legacy.ProtoUtils.*;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
 

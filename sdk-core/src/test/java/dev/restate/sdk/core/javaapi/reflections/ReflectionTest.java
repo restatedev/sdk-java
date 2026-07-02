@@ -9,7 +9,7 @@
 package dev.restate.sdk.core.javaapi.reflections;
 
 import static dev.restate.sdk.core.TestDefinitions.testInvocation;
-import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
+import static dev.restate.sdk.core.legacy.ProtoUtils.*;
 
 import dev.restate.common.Target;
 import dev.restate.sdk.core.TestDefinitions;

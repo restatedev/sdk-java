@@ -10,7 +10,7 @@ package dev.restate.sdk.core.vertx
 
 import dev.restate.sdk.core.TestDefinitions.TestDefinition
 import dev.restate.sdk.core.TestDefinitions.TestExecutor
-import dev.restate.sdk.core.statemachine.ProtoUtils
+import dev.restate.sdk.core.legacy.ProtoUtils
 import dev.restate.sdk.endpoint.Endpoint
 import dev.restate.sdk.endpoint.definition.ServiceDefinition
 import dev.restate.sdk.http.vertx.RestateHttpServer
@@ -71,11 +71,11 @@ class RestateHttpServerTestExecutor(private val vertx: Vertx) : TestExecutor {
           .setChunked(true)
           .putHeader(
               HttpHeaders.CONTENT_TYPE,
-              ProtoUtils.serviceProtocolContentTypeHeader(definition.isEnablePreviewContext),
+              ProtoUtils.serviceProtocolContentTypeHeader(),
           )
           .putHeader(
               HttpHeaders.ACCEPT,
-              ProtoUtils.serviceProtocolContentTypeHeader(definition.isEnablePreviewContext),
+              ProtoUtils.serviceProtocolContentTypeHeader(),
           )
       request.sendHead().coAwait()
 

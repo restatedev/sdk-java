@@ -9,10 +9,9 @@
 package dev.restate.sdk.core;
 
 import static dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
-import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
+import static dev.restate.sdk.core.legacy.ProtoUtils.*;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.InstanceOfAssertFactories.LONG;
-import static org.assertj.core.api.InstanceOfAssertFactories.type;
+import static org.assertj.core.api.InstanceOfAssertFactories.*;
 
 import com.google.protobuf.MessageLiteOrBuilder;
 import dev.restate.sdk.core.generated.protocol.Protocol;
@@ -90,7 +89,30 @@ public abstract class SleepTestSuite implements TestDefinitions.TestSuite {
                                             .setWakeUpTime(Instant.now().toEpochMilli())
                                             .setResultCompletionId(i)))
                         .flatMap(Function.identity())))
-            .expectingOutput(suspensionMessage(1, 2, 4, 5, 7, 8, 10))
+            .assertingOutput(
+                msgs -> {
+                  assertThat(msgs).hasSize(1);
+
+                  var suspensionMessageAssert =
+                      assertThat(msgs)
+                          .element(0)
+                          .asInstanceOf(type(Protocol.SuspensionMessage.class));
+
+                  suspensionMessageAssert
+                      .extracting(
+                          Protocol.SuspensionMessage::getWaitingSignalsList, list(Integer.class))
+                      .containsExactlyInAnyOrder(1);
+                  suspensionMessageAssert
+                      .extracting(
+                          Protocol.SuspensionMessage::getWaitingCompletionsList,
+                          list(Integer.class))
+                      .containsExactlyInAnyOrder(1, 2, 4, 5, 7, 8, 10);
+                  suspensionMessageAssert
+                      .extracting(
+                          Protocol.SuspensionMessage::getWaitingNamedSignalsList,
+                          list(String.class))
+                      .isEmpty();
+                })
             .named("Sleep 1000 ms sleep completed"),
         this.sleepGreeter()
             .withInput(

@@ -48,4 +48,18 @@ class UserFailuresTest : UserFailuresTestSuite() {
         ctx.runBlock<Unit> { throw TerminalException(code, message) }
         throw IllegalStateException("Not expected to reach this point")
       }
+
+  override fun sideEffectThrowTerminalExceptionReturningMetadata(): TestInvocationBuilder =
+      testDefinitionForService<Unit, String>("SideEffectThrowTerminalExceptionReturningMetadata") {
+          ctx,
+          _: Unit ->
+        try {
+          ctx.runBlock<Unit> {
+            throw TerminalException(TerminalException.INTERNAL_SERVER_ERROR_CODE)
+          }
+          throw IllegalStateException("Not expected to reach this point")
+        } catch (e: TerminalException) {
+          e.metadata.entries.joinToString(",") { "${it.key}:${it.value}" }
+        }
+      }
 }

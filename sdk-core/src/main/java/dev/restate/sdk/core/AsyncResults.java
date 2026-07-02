@@ -11,19 +11,24 @@ package dev.restate.sdk.core;
 import dev.restate.common.function.ThrowingFunction;
 import dev.restate.sdk.common.AbortedExecutionException;
 import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.core.statemachine.NotificationValue;
-import dev.restate.sdk.core.statemachine.StateMachine;
+import dev.restate.sdk.core.StateMachine.NotificationValue;
+import dev.restate.sdk.core.StateMachine.UnresolvedFuture;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 
 abstract class AsyncResults {
 
   @FunctionalInterface
   interface Completer<T> {
     void complete(NotificationValue value, CompletableFuture<T> future);
+  }
+
+  @FunctionalInterface
+  interface NotificationReader {
+    java.util.Optional<NotificationValue> take(int handle);
   }
 
   private AsyncResults() {}
@@ -48,11 +53,15 @@ abstract class AsyncResults {
 
     void tryCancel();
 
-    void tryComplete(StateMachine stateMachine);
+    void tryComplete(NotificationReader reader);
 
     CompletableFuture<T> publicFuture();
 
-    Stream<Integer> uncompletedLeaves();
+    /**
+     * Tree representation of what this result is still awaiting on. Returns {@code null} when
+     * already done — callers must guard with {@link #isDone()}.
+     */
+    @Nullable UnresolvedFuture uncompletedFuture();
 
     HandlerContextInternal ctx();
   }
@@ -111,9 +120,9 @@ abstract class AsyncResults {
     }
 
     @Override
-    public void tryComplete(StateMachine stateMachine) {
-      stateMachine
-          .takeNotification(handle)
+    public void tryComplete(NotificationReader reader) {
+      reader
+          .take(handle)
           .ifPresent(
               value -> {
                 try {
@@ -126,11 +135,11 @@ abstract class AsyncResults {
     }
 
     @Override
-    public Stream<Integer> uncompletedLeaves() {
+    public @Nullable UnresolvedFuture uncompletedFuture() {
       if (publicFuture.isDone()) {
-        return Stream.empty();
+        return null;
       }
-      return Stream.of(handle);
+      return new UnresolvedFuture.Single(handle);
     }
 
     @Override
@@ -161,13 +170,18 @@ abstract class AsyncResults {
     }
 
     @Override
-    public void tryComplete(StateMachine stateMachine) {
-      asyncResult.tryComplete(stateMachine);
+    public void tryComplete(NotificationReader reader) {
+      asyncResult.tryComplete(reader);
     }
 
     @Override
-    public Stream<Integer> uncompletedLeaves() {
-      return asyncResult.uncompletedLeaves();
+    public @Nullable UnresolvedFuture uncompletedFuture() {
+      if (isDone()) {
+        return null;
+      }
+      UnresolvedFuture inner = asyncResult.uncompletedFuture();
+      // Mapper is arbitrary user code; we can't promise any specific combinator semantics.
+      return inner != null ? new UnresolvedFuture.Unknown(List.of(inner)) : null;
     }
 
     @Override
@@ -273,8 +287,8 @@ abstract class AsyncResults {
     }
 
     @Override
-    public void tryComplete(StateMachine stateMachine) {
-      asyncResults.forEach(ar -> ar.tryComplete(stateMachine));
+    public void tryComplete(NotificationReader reader) {
+      asyncResults.forEach(ar -> ar.tryComplete(reader));
       for (int i = 0; i < asyncResults.size(); i++) {
         if (asyncResults.get(i).isDone()) {
           publicFuture.complete(i);
@@ -284,11 +298,24 @@ abstract class AsyncResults {
     }
 
     @Override
-    public Stream<Integer> uncompletedLeaves() {
+    public @Nullable UnresolvedFuture uncompletedFuture() {
       if (isDone()) {
-        return Stream.empty();
+        return null;
       }
-      return asyncResults.stream().flatMap(AsyncResultInternal::uncompletedLeaves);
+      var children =
+          asyncResults.stream()
+              .map(AsyncResultInternal::uncompletedFuture)
+              .filter(Objects::nonNull)
+              .toList();
+      if (children.isEmpty()) {
+        // Every child is already resolved at the state-machine level, but this combinator's public
+        // future hasn't propagated completion yet (e.g. a child's downstream mapper still has to
+        // run). There is nothing left for the state machine to await: returning a tree here would
+        // make it suspend on no real progress. The public future will complete as the children
+        // propagate and resume the awaiting caller.
+        return null;
+      }
+      return new UnresolvedFuture.FirstCompleted(children);
     }
 
     @Override
@@ -320,8 +347,8 @@ abstract class AsyncResults {
     }
 
     @Override
-    public void tryComplete(StateMachine stateMachine) {
-      asyncResults.forEach(ar -> ar.tryComplete(stateMachine));
+    public void tryComplete(NotificationReader reader) {
+      asyncResults.forEach(ar -> ar.tryComplete(reader));
       asyncResults.stream()
           .filter(ar -> ar.publicFuture().isCompletedExceptionally())
           .findFirst()
@@ -336,11 +363,24 @@ abstract class AsyncResults {
     }
 
     @Override
-    public Stream<Integer> uncompletedLeaves() {
+    public @Nullable UnresolvedFuture uncompletedFuture() {
       if (isDone()) {
-        return Stream.empty();
+        return null;
       }
-      return asyncResults.stream().flatMap(AsyncResultInternal::uncompletedLeaves);
+      var children =
+          asyncResults.stream()
+              .map(AsyncResultInternal::uncompletedFuture)
+              .filter(Objects::nonNull)
+              .toList();
+      if (children.isEmpty()) {
+        // Every child is already resolved at the state-machine level, but this combinator's public
+        // future hasn't propagated completion yet (e.g. a child's downstream mapper still has to
+        // run). There is nothing left for the state machine to await: returning a tree here would
+        // make it suspend on no real progress. The public future will complete as the children
+        // propagate and resume the awaiting caller.
+        return null;
+      }
+      return new UnresolvedFuture.AllSucceededOrFirstFailed(children);
     }
 
     @Override

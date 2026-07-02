@@ -1,0 +1,398 @@
+// Copyright (c) 2023 - Restate Software, Inc., Restate GmbH
+//
+// This file is part of the Restate Java SDK,
+// which is released under the MIT license.
+//
+// You can find a copy of the license in file LICENSE in the root
+// directory of this repository or package, or at
+// https://github.com/restatedev/sdk-java/blob/main/LICENSE
+package dev.restate.sdk.core.legacy;
+
+import static dev.restate.sdk.core.legacy.LegacyStateMachine.CANCEL_SIGNAL_ID;
+
+import com.google.protobuf.ByteString;
+import com.google.protobuf.MessageLite;
+import dev.restate.common.Slice;
+import dev.restate.sdk.common.AbortedExecutionException;
+import dev.restate.sdk.core.ExceptionUtils;
+import dev.restate.sdk.core.ProtocolException;
+import dev.restate.sdk.core.StateMachine;
+import dev.restate.sdk.core.StateMachine.RunResultHandle;
+import dev.restate.sdk.core.generated.protocol.Protocol;
+import java.util.*;
+import java.util.stream.Collectors;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+final class ReplayingState implements State {
+
+  private static final Logger LOG = LogManager.getLogger(ReplayingState.class);
+
+  /**
+   * Comparator for notification IDs in error messages. Orders: completions first (by id), then
+   * named signals (by name), then signal IDs (by id, with cancel signal last).
+   */
+  private static final Comparator<NotificationId> NOTIFICATION_ID_COMPARATOR_FOR_JOURNAL_MISMATCH =
+      Comparator.<NotificationId>comparingInt(
+              id -> {
+                if (id instanceof NotificationId.CompletionId) return 0;
+                if (id instanceof NotificationId.SignalName) return 1;
+                return 2;
+              })
+          .thenComparing(
+              (a, b) -> {
+                if (a instanceof NotificationId.CompletionId ac
+                    && b instanceof NotificationId.CompletionId bc) {
+                  return Integer.compare(ac.id(), bc.id());
+                }
+                if (a instanceof NotificationId.SignalName an
+                    && b instanceof NotificationId.SignalName bn) {
+                  return an.name().compareTo(bn.name());
+                }
+                if (a instanceof NotificationId.SignalId as_
+                    && b instanceof NotificationId.SignalId bs) {
+                  boolean aIsCancel = as_.id() == CANCEL_SIGNAL_ID;
+                  boolean bIsCancel = bs.id() == CANCEL_SIGNAL_ID;
+                  if (aIsCancel != bIsCancel) return aIsCancel ? 1 : -1;
+                  return Integer.compare(as_.id(), bs.id());
+                }
+                return 0;
+              });
+
+  private final Deque<MessageLite> commandsToProcess;
+  private final AsyncResultsState asyncResultsState;
+  private final RunState runState;
+
+  ReplayingState(Deque<MessageLite> commandsToProcess, AsyncResultsState asyncResultsState) {
+    this.commandsToProcess = commandsToProcess;
+    this.asyncResultsState = asyncResultsState;
+    this.runState = new RunState();
+  }
+
+  @Override
+  public void onNewMessage(InvocationInput invocationInput, StateContext stateContext) {
+    if (invocationInput.header().getType().isNotification()) {
+      if (!(invocationInput.message()
+          instanceof Protocol.NotificationTemplate notificationTemplate)) {
+        throw ProtocolException.unexpectedMessage(
+            Protocol.NotificationTemplate.class, invocationInput.message());
+      }
+      this.asyncResultsState.enqueue(notificationTemplate);
+    } else {
+      throw ProtocolException.unexpectedMessage("notification", invocationInput.message());
+    }
+  }
+
+  @Override
+  public DoProgressResponse doProgress(List<Integer> awaitingOn, StateContext stateContext) {
+    if (awaitingOn.stream().anyMatch(this.asyncResultsState::isHandleCompleted)) {
+      return DoProgressResponse.AnyCompleted.INSTANCE;
+    }
+
+    var notificationIds = asyncResultsState.resolveNotificationHandles(awaitingOn);
+    if (notificationIds.isEmpty()) {
+      return DoProgressResponse.AnyCompleted.INSTANCE;
+    }
+
+    if (asyncResultsState.processNextUntilAnyFound(notificationIds)) {
+      return DoProgressResponse.AnyCompleted.INSTANCE;
+    }
+
+    // This assertion proves the user mutated the code, adding an await point.
+    //
+    // During replay, we transition to processing AFTER replaying all COMMANDS.
+    // If we reach this point, none of the previous checks succeeded, meaning we don't have
+    // enough notifications to complete this await point. But if this await cannot be completed
+    // during replay, then no progress should have been made afterward, meaning there should be
+    // no more commands to replay. However, we ARE still replaying, which means there ARE commands
+    // to replay after this await point.
+    //
+    // This contradiction proves the code was mutated: an await must have been added after
+    // the journal was originally created.
+
+    // Prepare error metadata to make it easier to debug
+    Map<NotificationId, String> knownNotificationMetadata = new HashMap<>();
+    CommandRelationship relatedCommand = null;
+
+    // Collect run info
+    for (int handle : awaitingOn) {
+      RunState.Run runInfo = runState.getRunInfo(handle);
+      if (runInfo != null) {
+        var notifId = asyncResultsState.mustResolveNotificationHandle(handle);
+        knownNotificationMetadata.put(
+            notifId,
+            MessageType.RunCommandMessage.name()
+                + " '"
+                + runInfo.commandName()
+                + "' (command index "
+                + runInfo.commandIndex()
+                + ")");
+        relatedCommand =
+            new CommandRelationship.Specific(
+                runInfo.commandIndex(), CommandType.RUN, runInfo.commandName());
+      }
+    }
+
+    // For awakeables and cancellation, add descriptions
+    for (var notifId : notificationIds) {
+      if (notifId instanceof NotificationId.SignalId signalId) {
+        if (signalId.id() == CANCEL_SIGNAL_ID) {
+          knownNotificationMetadata.put(notifId, "Cancellation");
+        } else if (signalId.id() > 16) {
+          knownNotificationMetadata.put(
+              notifId,
+              "Awakeable " + Util.awakeableIdStr(stateContext.getStartInfo().id(), signalId.id()));
+        }
+      }
+    }
+
+    this.hitError(
+        ProtocolException.uncompletedDoProgressDuringReplay(
+            notificationIds.stream()
+                .sorted(NOTIFICATION_ID_COMPARATOR_FOR_JOURNAL_MISMATCH)
+                .collect(Collectors.toList()),
+            knownNotificationMetadata),
+        relatedCommand,
+        null,
+        stateContext);
+    ExceptionUtils.sneakyThrow(AbortedExecutionException.INSTANCE);
+    return null; // unreachable
+  }
+
+  @Override
+  public boolean isCompleted(int handle) {
+    return this.asyncResultsState.isHandleCompleted(handle);
+  }
+
+  @Override
+  public Optional<StateMachine.NotificationValue> takeNotification(
+      int handle, StateContext stateContext) {
+    return this.asyncResultsState.takeHandle(handle);
+  }
+
+  @Override
+  public StateMachine.Input processInputCommand(StateContext stateContext) {
+    stateContext
+        .getJournal()
+        .commandTransition("", Protocol.InputCommandMessage.getDefaultInstance());
+
+    MessageLite actual = takeNextCommandToProcess();
+    if (!(actual instanceof Protocol.InputCommandMessage inputCommandMessage)) {
+      throw ProtocolException.unexpectedMessage(Protocol.InputCommandMessage.class, actual);
+    }
+
+    afterProcessingCommand(stateContext);
+
+    StartInfo startInfo = stateContext.getStartInfo();
+    List<String[]> headers =
+        inputCommandMessage.getHeadersList().stream()
+            .map(h -> new String[] {h.getKey(), h.getValue()})
+            .collect(Collectors.toList());
+
+    return new StateMachine.Input(
+        startInfo.debugId(),
+        startInfo.objectKey(),
+        headers,
+        Slice.wrap(inputCommandMessage.getValue().getContent().toByteArray()),
+        Util.randomSeed(startInfo.debugId(), startInfo.randomSeed()),
+        // scope/limitKey/idempotencyKey are V7-only; the legacy (V6) state machine doesn't carry
+        // them.
+        null,
+        null,
+        null);
+  }
+
+  @Override
+  public RunResultHandle processRunCommand(String name, StateContext stateContext) {
+    var completionId = stateContext.getJournal().nextCompletionNotificationId();
+    var notificationId = new NotificationId.CompletionId(completionId);
+
+    var runCmdBuilder = Protocol.RunCommandMessage.newBuilder().setResultCompletionId(completionId);
+    if (name != null) {
+      runCmdBuilder.setName(name);
+    }
+
+    var notificationHandle =
+        this.processCompletableCommand(
+            runCmdBuilder.build(), CommandAccessor.RUN, new int[] {completionId}, stateContext)[0];
+
+    boolean replayed;
+    if (asyncResultsState.nonDeterministicFindId(notificationId)) {
+      LOG.trace(
+          "Found notification for {} with id {} while replaying, the run closure won't be executed.",
+          notificationHandle,
+          notificationId);
+      replayed = true;
+    } else {
+      LOG.trace(
+          "Run notification for {} with id {} not found while replaying, so we enqueue the run to be executed later.",
+          notificationHandle,
+          notificationId);
+      runState.insertRunToExecute(
+          notificationHandle,
+          stateContext.getJournal().lastCommandMetadata().index(),
+          name != null ? name : "");
+      replayed = false;
+    }
+
+    return new RunResultHandle(replayed, notificationHandle);
+  }
+
+  @Override
+  public <E extends MessageLite> void processNonCompletableCommand(
+      E commandMessage, CommandAccessor<E> commandAccessor, StateContext stateContext) {
+    stateContext
+        .getJournal()
+        .commandTransition(commandAccessor.getName(commandMessage), commandMessage);
+
+    MessageLite actual = takeNextCommandToProcess();
+    try {
+      commandAccessor.checkEntryHeader(
+          stateContext.getJournal().getCommandIndex(), commandMessage, actual);
+    } catch (ProtocolException e) {
+      this.hitError(e, CommandRelationship.Last.INSTANCE, null, stateContext);
+      AbortedExecutionException.sneakyThrow();
+    }
+
+    afterProcessingCommand(stateContext);
+  }
+
+  @Override
+  public <E extends MessageLite> int[] processCompletableCommand(
+      E commandMessage,
+      CommandAccessor<E> commandAccessor,
+      int[] completionIds,
+      StateContext stateContext) {
+    stateContext
+        .getJournal()
+        .commandTransition(commandAccessor.getName(commandMessage), commandMessage);
+    MessageLite actual = takeNextCommandToProcess();
+    try {
+      commandAccessor.checkEntryHeader(
+          stateContext.getJournal().getCommandIndex(), commandMessage, actual);
+    } catch (ProtocolException e) {
+      this.hitError(e, CommandRelationship.Last.INSTANCE, null, stateContext);
+      AbortedExecutionException.sneakyThrow();
+    }
+
+    int[] handles = new int[completionIds.length];
+    for (int i = 0; i < handles.length; i++) {
+      handles[i] =
+          asyncResultsState.createHandleMapping(new NotificationId.CompletionId(completionIds[i]));
+    }
+
+    afterProcessingCommand(stateContext);
+
+    return handles;
+  }
+
+  @Override
+  public int processStateGetCommand(String key, StateContext stateContext) {
+    var completionId = stateContext.getJournal().nextCompletionNotificationId();
+    var handle =
+        asyncResultsState.createHandleMapping(new NotificationId.CompletionId(completionId));
+
+    stateContext
+        .getJournal()
+        .commandTransition("", Protocol.GetEagerStateCommandMessage.getDefaultInstance());
+    MessageLite actual = takeNextCommandToProcess();
+
+    if (actual instanceof Protocol.GetEagerStateCommandMessage eagerStateCommandMessage) {
+      CommandAccessor.GET_EAGER_STATE.checkEntryHeader(
+          stateContext.getJournal().getCommandIndex(),
+          Protocol.GetEagerStateCommandMessage.newBuilder()
+              .setKey(ByteString.copyFromUtf8(key))
+              .build(),
+          actual);
+
+      asyncResultsState.insertReady(
+          new NotificationId.CompletionId(completionId),
+          switch (eagerStateCommandMessage.getResultCase()) {
+            case VOID -> StateMachine.NotificationValue.Empty.INSTANCE;
+            case VALUE ->
+                new StateMachine.NotificationValue.Success(
+                    Util.byteStringToSlice(eagerStateCommandMessage.getValue().getContent()));
+            case RESULT_NOT_SET ->
+                throw ProtocolException.commandMissingField(
+                    Protocol.GetEagerStateCommandMessage.class, "result");
+          });
+
+    } else if (actual instanceof Protocol.GetLazyStateCommandMessage) {
+      CommandAccessor.GET_LAZY_STATE.checkEntryHeader(
+          stateContext.getJournal().getCommandIndex(),
+          Protocol.GetLazyStateCommandMessage.newBuilder()
+              .setKey(ByteString.copyFromUtf8(key))
+              .setResultCompletionId(completionId)
+              .build(),
+          actual);
+    } else {
+      throw ProtocolException.unexpectedMessage("get state", actual);
+    }
+
+    afterProcessingCommand(stateContext);
+
+    return handle;
+  }
+
+  @Override
+  public int processStateGetKeysCommand(StateContext stateContext) {
+    var completionId = stateContext.getJournal().nextCompletionNotificationId();
+    var handle =
+        asyncResultsState.createHandleMapping(new NotificationId.CompletionId(completionId));
+
+    stateContext
+        .getJournal()
+        .commandTransition("", Protocol.GetEagerStateKeysCommandMessage.getDefaultInstance());
+    MessageLite actual = takeNextCommandToProcess();
+
+    if (actual instanceof Protocol.GetEagerStateKeysCommandMessage eagerStateCommandMessage) {
+      CommandAccessor.GET_EAGER_STATE_KEYS.checkEntryHeader(
+          stateContext.getJournal().getCommandIndex(),
+          Protocol.GetEagerStateKeysCommandMessage.getDefaultInstance(),
+          actual);
+
+      asyncResultsState.insertReady(
+          new NotificationId.CompletionId(completionId),
+          new StateMachine.NotificationValue.StateKeys(
+              eagerStateCommandMessage.getValue().getKeysList().stream()
+                  .map(ByteString::toStringUtf8)
+                  .toList()));
+    } else if (actual instanceof Protocol.GetLazyStateKeysCommandMessage) {
+      CommandAccessor.GET_LAZY_STATE_KEYS.checkEntryHeader(
+          stateContext.getJournal().getCommandIndex(),
+          Protocol.GetLazyStateKeysCommandMessage.newBuilder()
+              .setResultCompletionId(completionId)
+              .build(),
+          actual);
+    } else {
+      throw ProtocolException.unexpectedMessage("get state keys", actual);
+    }
+
+    afterProcessingCommand(stateContext);
+
+    return handle;
+  }
+
+  @Override
+  public int createSignalHandle(NotificationId notificationId, StateContext stateContext) {
+    return asyncResultsState.createHandleMapping(notificationId);
+  }
+
+  private void afterProcessingCommand(StateContext stateContext) {
+    if (commandsToProcess.isEmpty()) {
+      stateContext.getStateHolder().transition(new ProcessingState(asyncResultsState, runState));
+    }
+  }
+
+  private MessageLite takeNextCommandToProcess() {
+    if (commandsToProcess.isEmpty()) {
+      throw ProtocolException.commandsToProcessIsEmpty();
+    }
+    return commandsToProcess.removeFirst();
+  }
+
+  @Override
+  public StateMachine.InvocationState getInvocationState() {
+    return StateMachine.InvocationState.REPLAYING;
+  }
+}

@@ -9,16 +9,16 @@
 package dev.restate.sdk.common;
 
 /**
- * This represents a stable identifier created by Restate for this invocation. It can be used as
- * idempotency key when accessing external systems.
+ * This represents a stable identifier created by Restate for this invocation.
  *
  * <p>You can embed it in external system requests by using {@link #toString()}.
  */
 public interface InvocationId {
 
   /**
-   * @return a seed to be used with {@link java.util.Random}.
+   * @deprecated Just use the random provided by the context API.
    */
+  @Deprecated(forRemoval = true)
   long toRandomSeed();
 
   @Override

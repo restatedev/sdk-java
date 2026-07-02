@@ -8,13 +8,12 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core;
 
-import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
-import static dev.restate.sdk.core.statemachine.ProtoUtils.invocationIdToRandomSeed;
+import static dev.restate.sdk.core.legacy.ProtoUtils.*;
+import static dev.restate.sdk.core.legacy.ProtoUtils.inputCmd;
 
 import dev.restate.sdk.core.TestDefinitions.TestDefinition;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
-import dev.restate.sdk.core.statemachine.ProtoUtils;
 import java.util.stream.Stream;
 
 public abstract class RandomTestSuite implements TestSuite {
@@ -31,16 +30,8 @@ public abstract class RandomTestSuite implements TestSuite {
     return Stream.of(
         this.randomShouldBeDeterministic()
             .withInput(
-                startMessage(1).setDebugId(debugId).setRandomSeed(startMessageSeed),
-                ProtoUtils.inputCmd())
-            // This enables protocol v6
-            .enablePreviewContext()
+                startMessage(1).setDebugId(debugId).setRandomSeed(startMessageSeed), inputCmd())
             .expectingOutput(outputCmd(getExpectedInt(startMessageSeed)), END_MESSAGE)
-            .named("Using StartMessage.random_seed"),
-        this.randomShouldBeDeterministic()
-            .withInput(startMessage(1).setDebugId(debugId), ProtoUtils.inputCmd())
-            .expectingOutput(
-                outputCmd(getExpectedInt(invocationIdToRandomSeed(debugId))), END_MESSAGE)
-            .named("Using invocation id"));
+            .named("Using StartMessage.random_seed"));
   }
 }

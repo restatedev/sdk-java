@@ -14,7 +14,7 @@ import dev.restate.sdk.core.TestDefinitions
 import dev.restate.sdk.core.TestDefinitions.TestDefinition
 import dev.restate.sdk.core.TestDefinitions.testInvocation
 import dev.restate.sdk.core.TestSerdes
-import dev.restate.sdk.core.statemachine.ProtoUtils.*
+import dev.restate.sdk.core.legacy.ProtoUtils.*
 import dev.restate.serde.Serde
 import dev.restate.serde.kotlinx.*
 import java.util.stream.Stream

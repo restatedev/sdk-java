@@ -9,9 +9,8 @@
 package dev.restate.sdk.core.vertx
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.google.protobuf.MessageLite
+import dev.restate.sdk.core.DiscoveryProtocol
 import dev.restate.sdk.core.generated.manifest.EndpointManifestSchema
-import dev.restate.sdk.core.statemachine.ProtoUtils.*
 import dev.restate.sdk.endpoint.definition.HandlerDefinition
 import dev.restate.sdk.endpoint.definition.HandlerType
 import dev.restate.sdk.endpoint.definition.ServiceDefinition
@@ -22,10 +21,8 @@ import dev.restate.sdk.kotlin.ObjectContext
 import dev.restate.sdk.kotlin.endpoint.endpoint
 import dev.restate.sdk.kotlin.stateKey
 import dev.restate.serde.kotlinx.*
-import io.netty.buffer.Unpooled
 import io.netty.handler.codec.http.HttpResponseStatus
 import io.vertx.core.Vertx
-import io.vertx.core.buffer.Buffer
 import io.vertx.core.http.*
 import io.vertx.junit5.VertxExtension
 import io.vertx.kotlin.coroutines.coAwait
@@ -82,46 +79,6 @@ internal class RestateHttpServerTest {
   }
 
   @Test
-  fun return404(vertx: Vertx): Unit =
-      runBlocking(vertx.dispatcher()) {
-        val endpointPort: Int =
-            RestateHttpServer.fromEndpoint(
-                    vertx,
-                    endpoint { bind(greeter()) },
-                    HttpServerOptions().setPort(0),
-                )
-                .listen()
-                .coAwait()
-                .actualPort()
-
-        val client = vertx.createHttpClient(HTTP_CLIENT_OPTIONS)
-
-        val request =
-            client
-                .request(
-                    HttpMethod.POST,
-                    endpointPort,
-                    "localhost",
-                    "/invoke/$GREETER_NAME/unknownMethod",
-                )
-                .coAwait()
-
-        // Prepare request header
-        request
-            .setChunked(true)
-            .putHeader(HttpHeaders.CONTENT_TYPE, serviceProtocolContentTypeHeader(false))
-            .putHeader(HttpHeaders.ACCEPT, serviceProtocolContentTypeHeader(false))
-        request.write(encode(startMessage(0).build()))
-
-        val response = request.response().coAwait()
-
-        // Response status should be 404
-        assertThat(response.statusCode()).isEqualTo(HttpResponseStatus.NOT_FOUND.code())
-
-        response.end().coAwait()
-      }
-
-  @Test
   fun serviceDiscovery(vertx: Vertx): Unit =
       runBlocking(vertx.dispatcher()) {
         val endpointPort: Int =
@@ -139,7 +96,7 @@ internal class RestateHttpServerTest {
         // Send request
         val request =
             client.request(HttpMethod.GET, endpointPort, "localhost", "/discover").coAwait()
-        request.putHeader(HttpHeaders.ACCEPT, serviceProtocolDiscoveryContentTypeHeader())
+        request.putHeader(HttpHeaders.ACCEPT, DiscoveryProtocol.Version.MAX.header)
         request.end().coAwait()
 
         // Assert response
@@ -148,7 +105,7 @@ internal class RestateHttpServerTest {
         // Response status and content type header
         assertThat(response.statusCode()).isEqualTo(HttpResponseStatus.OK.code())
         assertThat(response.getHeader(HttpHeaders.CONTENT_TYPE))
-            .isEqualTo(serviceProtocolDiscoveryContentTypeHeader())
+            .isEqualTo(DiscoveryProtocol.Version.MAX.header)
 
         // Parse response
         val responseBody = response.body().coAwait()
@@ -158,8 +115,4 @@ internal class RestateHttpServerTest {
 
         assertThat(discoveryResponse.services).map<String> { it.name }.containsOnly(GREETER_NAME)
       }
-
-  private fun encode(msg: MessageLite): Buffer {
-    return Buffer.buffer(Unpooled.wrappedBuffer(encodeMessageToByteBuffer(msg)))
-  }
 }

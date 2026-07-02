@@ -9,7 +9,7 @@
 package dev.restate.sdk.core.javaapi;
 
 import static dev.restate.sdk.core.TestDefinitions.testInvocation;
-import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
+import static dev.restate.sdk.core.legacy.ProtoUtils.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.restate.common.Target;
