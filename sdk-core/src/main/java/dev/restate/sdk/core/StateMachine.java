@@ -26,13 +26,14 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>This is shaped after the {@code restate-sdk-shared-core} VM trait.
  *
- * <p>It is implemented twice, selected at runtime by {@link StateMachineFactory} based on the JDK
- * version:
+ * <p>It is implemented twice, selected at runtime by {@link StateMachineFactory}:
  *
  * <ul>
- *   <li>a pure-Java implementation (the legacy state machine) used on JDK &lt; 23;
  *   <li>a Panama/FFM implementation calling the native {@code restate-sdk-shared-core} library,
- *       used on JDK 23+.
+ *       used on JDK 23+ — the path that supports the latest Restate features;
+ *   <li>a pure-Java implementation (the legacy state machine) used on JDK &lt; 23, or when the
+ *       native library is unavailable/disabled — a deprecated fallback that will be removed in a
+ *       future release.
  * </ul>
  *
  * <p>Instances of this interface are not thread-safe.

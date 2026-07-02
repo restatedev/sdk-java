@@ -36,7 +36,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
 
-/** Legacy {@link StateMachine} (used on JDK &lt; 23). */
+/**
+ * Legacy pure-Java {@link StateMachine}, used on JDK &lt; 23 or when the native shared-core library
+ * is unavailable/disabled. This is a deprecated fallback that will be removed in a future release;
+ * the native (FFM) state machine is the path that supports the latest Restate features.
+ */
 public final class LegacyStateMachine implements StateMachine {
 
   private static final Logger LOG = LogManager.getLogger(LegacyStateMachine.class);

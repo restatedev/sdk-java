@@ -235,8 +235,8 @@ java --module-path libs --enable-native-access=dev.restate.sdk.core ...
 (`sdk-core` works unchanged on the class path too; the module name is simply ignored there.)
 
 To force the pure-Java state machine instead (no native access needed), set
-`-Ddev.restate.sdk.statemachine.disableFfm=true`. On JDK < 23 the pure-Java state machine is always
-used.
+`-Ddev.restate.sdk.statemachine.disableNewCore=true`. On JDK < 23 the pure-Java state machine is
+always used.
 
 #### Logging
 
