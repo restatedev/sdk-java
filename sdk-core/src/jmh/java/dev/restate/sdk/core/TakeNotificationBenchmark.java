@@ -6,9 +6,10 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-package dev.restate.sdk.core.benchmarks;
+package dev.restate.sdk.core;
 
 import dev.restate.common.Slice;
+import dev.restate.common.Target;
 import dev.restate.sdk.core.StateMachine;
 import dev.restate.sdk.core.legacy.LegacyStateMachine;
 import dev.restate.sdk.core.legacy.ProtoUtils;
@@ -21,22 +22,18 @@ import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
 /**
- * Benchmarks the cost of a single {@code run} round-trip — the FFM argument marshalling, the native
- * downcalls, the Rust-side journal appends, and the result decode — for the sequence a handler
- * driving a {@code ctx.run(...)} performs: schedule the run ({@code run}), make progress on its
- * future ({@code doAwait}, which returns {@code ExecuteRun}), propose the run's completion ({@code
- * proposeRunCompletion}), and drain the buffered output ({@code takeOutput}).
+ * Benchmarks the cost of a single {@code sys_call} — argument marshalling (the FFM {@code
+ * CallArguments} build), the native downcall, the Rust-side decode + {@code VM::sys_call}, and the
+ * result decode. Parameterized over both state machines ({@code ffmStateMachine}) so the FFM
+ * boundary can be read against the pure-Java baseline, and over {@code payloadSize} to see how the
+ * "allocate the payload in Rust (ownership transfer) vs. copy" cost scales with payload size.
  *
- * <p>Shaped exactly like {@link SysCallBenchmark}: parameterized over both state machines ({@code
- * ffmStateMachine}) so the FFM boundary can be read against the pure-Java baseline, and over {@code
- * payloadSize} to see how the "allocate the run result in Rust (ownership transfer) vs. copy" cost
- * scales with payload size.
+ * <p>{@code sys_call} is stateful — each call appends a command + notification handles to the VM's
+ * journal — so we prime a <b>fresh</b> VM per measured op ({@link Level#Invocation}, not measured)
+ * and do a single {@code sys_call} (draining its buffered output via {@code takeOutput}) in the
+ * measured body; the VM is discarded each op, bounding journal growth.
  *
- * <p>{@code run} is stateful — each op appends a command + notification handles to the VM's journal
- * — so we prime a <b>fresh</b> VM per measured op ({@link Level#Invocation}, not measured) and do a
- * single run round-trip in the measured body; the VM is discarded each op, bounding journal growth.
- *
- * <p>Run with {@code ./gradlew :sdk-core:jmh -PjmhArgs="Run"} (JDK 25 toolchain, FFM active).
+ * <p>Run with {@code ./gradlew :sdk-core:jmh -PjmhArgs="SysCall"} (JDK 25 toolchain, FFM active).
  */
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
@@ -44,12 +41,14 @@ import org.openjdk.jmh.infra.Blackhole;
 @Measurement(iterations = 15, time = 1)
 @Fork(1)
 @State(Scope.Thread)
-public class RunBenchmark {
+public class TakeNotificationBenchmark {
 
   // Immutable inputs, computed once.
   private Slice startMessage;
   private Slice inputMessage;
-  private Slice payload;
+  private Slice callMessage;
+  private Slice notificationMessage;
+  private Target target;
   private HeadersAccessor headersAccessor;
 
   @Param({"true", "false"})
@@ -61,12 +60,16 @@ public class RunBenchmark {
 
   @Setup(Level.Trial)
   public void prepareInputs() {
-    startMessage = ProtoUtils.encodeMessageToSlice(ProtoUtils.startMessage(1).build());
-    inputMessage = ProtoUtils.encodeMessageToSlice(ProtoUtils.inputCmd("benchmark-input"));
-    // Random payload of the parameterized length; fixed seed so runs are reproducible.
     byte[] payloadBytes = new byte[payloadSize];
     new Random().nextBytes(payloadBytes);
-    payload = Slice.wrap(payloadBytes);
+
+    target = Target.service("BenchmarkService", "benchmarkHandler");
+
+    startMessage = ProtoUtils.encodeMessageToSlice(ProtoUtils.startMessage(3).build());
+    inputMessage = ProtoUtils.encodeMessageToSlice(ProtoUtils.inputCmd("benchmark-input"));
+    callMessage = ProtoUtils.encodeMessageToSlice(ProtoUtils.callCmd(1, 2, target));
+    notificationMessage =
+        ProtoUtils.encodeMessageToSlice(ProtoUtils.callCompletion(2, Slice.wrap(payloadBytes)));
     headersAccessor =
         HeadersAccessor.wrap(
             Map.of(
@@ -76,20 +79,24 @@ public class RunBenchmark {
   }
 
   @Benchmark
-  public void run(Blackhole bh) {
+  public void takeNotification(Blackhole bh) {
     StateMachine sm =
         ffmStateMachine
             ? new FfmStateMachine(headersAccessor)
             : new LegacyStateMachine(headersAccessor, (i1, i2) -> {});
     sm.notifyInput(startMessage);
     sm.notifyInput(inputMessage);
+    sm.notifyInput(callMessage);
+    sm.notifyInput(notificationMessage);
     sm.notifyInputClosed();
     sm.isReadyToExecute();
+    // Consume input and call
     sm.input();
-    StateMachine.RunResultHandle run = sm.run("benchmark-run");
-    bh.consume(sm.doAwait(new StateMachine.UnresolvedFuture.Single(run.handle())));
-    sm.proposeRunCompletion(run.handle(), payload);
-    bh.consume(sm.takeOutput());
+    StateMachine.CallHandle handle = sm.call(target, Slice.EMPTY, null, null, null, null);
+
+    // Take notification of result handle (which should be present(
+    bh.consume(sm.takeNotification(handle.resultHandle()));
+
     sm.close();
   }
 }

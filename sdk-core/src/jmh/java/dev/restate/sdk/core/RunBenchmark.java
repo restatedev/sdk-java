@@ -6,7 +6,7 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-package dev.restate.sdk.core.benchmarks;
+package dev.restate.sdk.core;
 
 import dev.restate.common.Slice;
 import dev.restate.sdk.core.StateMachine;
@@ -21,21 +21,22 @@ import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
 /**
- * Benchmarks the cost of spinning up a whole invocation from wire bytes to a terminal output — the
- * "initialization" round-trip: construct the VM, feed the {@code start} + {@code input} messages
- * ({@code notifyInput}), close the input stream, gate on {@code isReadyToExecute}, consume the
- * input command ({@code input}), write the output, and {@code end} the invocation, draining the
- * buffered wire output via {@code takeOutput}.
+ * Benchmarks the cost of a single {@code run} round-trip — the FFM argument marshalling, the native
+ * downcalls, the Rust-side journal appends, and the result decode — for the sequence a handler
+ * driving a {@code ctx.run(...)} performs: schedule the run ({@code run}), make progress on its
+ * future ({@code doAwait}, which returns {@code ExecuteRun}), propose the run's completion ({@code
+ * proposeRunCompletion}), and drain the buffered output ({@code takeOutput}).
  *
- * <p>Unlike {@link SysCallBenchmark}, the VM construction is <b>inside</b> the measured body: this
- * is precisely the initialization cost we want, and for the FFM state machine it captures the
- * native {@code new_vm} + {@code Arena} setup. Only {@code close()} (native teardown) is excluded,
- * happening in the non-measured {@link TearDown}. Parameterized over both state machines ({@code
+ * <p>Shaped exactly like {@link SysCallBenchmark}: parameterized over both state machines ({@code
  * ffmStateMachine}) so the FFM boundary can be read against the pure-Java baseline, and over {@code
- * payloadSize} to see how the output-write copy cost scales with payload size.
+ * payloadSize} to see how the "allocate the run result in Rust (ownership transfer) vs. copy" cost
+ * scales with payload size.
  *
- * <p>Run with {@code ./gradlew :sdk-core:jmh -PjmhArgs="Initialization"} (JDK 25 toolchain, FFM
- * active).
+ * <p>{@code run} is stateful — each op appends a command + notification handles to the VM's journal
+ * — so we prime a <b>fresh</b> VM per measured op ({@link Level#Invocation}, not measured) and do a
+ * single run round-trip in the measured body; the VM is discarded each op, bounding journal growth.
+ *
+ * <p>Run with {@code ./gradlew :sdk-core:jmh -PjmhArgs="Run"} (JDK 25 toolchain, FFM active).
  */
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
@@ -43,7 +44,7 @@ import org.openjdk.jmh.infra.Blackhole;
 @Measurement(iterations = 15, time = 1)
 @Fork(1)
 @State(Scope.Thread)
-public class EchoBenchmark {
+public class RunBenchmark {
 
   // Immutable inputs, computed once.
   private Slice startMessage;
@@ -54,7 +55,7 @@ public class EchoBenchmark {
   @Param({"true", "false"})
   boolean ffmStateMachine;
 
-  // Payload size in bytes — exercises how much the output-write copy cost scales with payload size.
+  // Payload size in bytes — exercises how much the copy-vs-transfer cost scales with payload size.
   @Param({"16", "1024", "4096", "16384", "65536"})
   int payloadSize;
 
@@ -75,7 +76,7 @@ public class EchoBenchmark {
   }
 
   @Benchmark
-  public void echo(Blackhole bh) {
+  public void run(Blackhole bh) {
     StateMachine sm =
         ffmStateMachine
             ? new FfmStateMachine(headersAccessor)
@@ -83,10 +84,11 @@ public class EchoBenchmark {
     sm.notifyInput(startMessage);
     sm.notifyInput(inputMessage);
     sm.notifyInputClosed();
-    bh.consume(sm.isReadyToExecute());
-    bh.consume(sm.input());
-    sm.writeOutput(payload);
-    sm.end();
+    sm.isReadyToExecute();
+    sm.input();
+    StateMachine.RunResultHandle run = sm.run("benchmark-run");
+    bh.consume(sm.doAwait(new StateMachine.UnresolvedFuture.Single(run.handle())));
+    sm.proposeRunCompletion(run.handle(), payload);
     bh.consume(sm.takeOutput());
     sm.close();
   }

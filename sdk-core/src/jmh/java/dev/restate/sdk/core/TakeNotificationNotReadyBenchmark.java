@@ -6,7 +6,7 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-package dev.restate.sdk.core.benchmarks;
+package dev.restate.sdk.core;
 
 import dev.restate.common.Slice;
 import dev.restate.common.Target;

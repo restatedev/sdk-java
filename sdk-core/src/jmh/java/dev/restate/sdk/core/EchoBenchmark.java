@@ -6,10 +6,9 @@
 // You can find a copy of the license in file LICENSE in the root
 // directory of this repository or package, or at
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
-package dev.restate.sdk.core.benchmarks;
+package dev.restate.sdk.core;
 
 import dev.restate.common.Slice;
-import dev.restate.common.Target;
 import dev.restate.sdk.core.StateMachine;
 import dev.restate.sdk.core.legacy.LegacyStateMachine;
 import dev.restate.sdk.core.legacy.ProtoUtils;
@@ -22,18 +21,21 @@ import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
 /**
- * Benchmarks the cost of a single {@code sys_call} — argument marshalling (the FFM {@code
- * CallArguments} build), the native downcall, the Rust-side decode + {@code VM::sys_call}, and the
- * result decode. Parameterized over both state machines ({@code ffmStateMachine}) so the FFM
- * boundary can be read against the pure-Java baseline, and over {@code payloadSize} to see how the
- * "allocate the payload in Rust (ownership transfer) vs. copy" cost scales with payload size.
+ * Benchmarks the cost of spinning up a whole invocation from wire bytes to a terminal output — the
+ * "initialization" round-trip: construct the VM, feed the {@code start} + {@code input} messages
+ * ({@code notifyInput}), close the input stream, gate on {@code isReadyToExecute}, consume the
+ * input command ({@code input}), write the output, and {@code end} the invocation, draining the
+ * buffered wire output via {@code takeOutput}.
  *
- * <p>{@code sys_call} is stateful — each call appends a command + notification handles to the VM's
- * journal — so we prime a <b>fresh</b> VM per measured op ({@link Level#Invocation}, not measured)
- * and do a single {@code sys_call} (draining its buffered output via {@code takeOutput}) in the
- * measured body; the VM is discarded each op, bounding journal growth.
+ * <p>Unlike {@link SysCallBenchmark}, the VM construction is <b>inside</b> the measured body: this
+ * is precisely the initialization cost we want, and for the FFM state machine it captures the
+ * native {@code new_vm} + {@code Arena} setup. Only {@code close()} (native teardown) is excluded,
+ * happening in the non-measured {@link TearDown}. Parameterized over both state machines ({@code
+ * ffmStateMachine}) so the FFM boundary can be read against the pure-Java baseline, and over {@code
+ * payloadSize} to see how the output-write copy cost scales with payload size.
  *
- * <p>Run with {@code ./gradlew :sdk-core:jmh -PjmhArgs="SysCall"} (JDK 25 toolchain, FFM active).
+ * <p>Run with {@code ./gradlew :sdk-core:jmh -PjmhArgs="Initialization"} (JDK 25 toolchain, FFM
+ * active).
  */
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
@@ -41,19 +43,18 @@ import org.openjdk.jmh.infra.Blackhole;
 @Measurement(iterations = 15, time = 1)
 @Fork(1)
 @State(Scope.Thread)
-public class SysCallBenchmark {
+public class EchoBenchmark {
 
   // Immutable inputs, computed once.
   private Slice startMessage;
   private Slice inputMessage;
-  private Target target;
   private Slice payload;
   private HeadersAccessor headersAccessor;
 
   @Param({"true", "false"})
   boolean ffmStateMachine;
 
-  // Payload size in bytes — exercises how much the copy-vs-transfer cost scales with payload size.
+  // Payload size in bytes — exercises how much the output-write copy cost scales with payload size.
   @Param({"16", "1024", "4096", "16384", "65536"})
   int payloadSize;
 
@@ -61,7 +62,6 @@ public class SysCallBenchmark {
   public void prepareInputs() {
     startMessage = ProtoUtils.encodeMessageToSlice(ProtoUtils.startMessage(1).build());
     inputMessage = ProtoUtils.encodeMessageToSlice(ProtoUtils.inputCmd("benchmark-input"));
-    target = Target.service("BenchmarkService", "benchmarkHandler");
     // Random payload of the parameterized length; fixed seed so runs are reproducible.
     byte[] payloadBytes = new byte[payloadSize];
     new Random().nextBytes(payloadBytes);
@@ -75,7 +75,7 @@ public class SysCallBenchmark {
   }
 
   @Benchmark
-  public void sysCall(Blackhole bh) {
+  public void echo(Blackhole bh) {
     StateMachine sm =
         ffmStateMachine
             ? new FfmStateMachine(headersAccessor)
@@ -83,13 +83,11 @@ public class SysCallBenchmark {
     sm.notifyInput(startMessage);
     sm.notifyInput(inputMessage);
     sm.notifyInputClosed();
-    sm.isReadyToExecute();
-    sm.input(); // consume the input command -> Processing, ready for sys_call
-
-    // Create a sys call, take output
-    bh.consume(sm.call(target, payload, null, null, null, null));
+    bh.consume(sm.isReadyToExecute());
+    bh.consume(sm.input());
+    sm.writeOutput(payload);
+    sm.end();
     bh.consume(sm.takeOutput());
-
     sm.close();
   }
 }
