@@ -41,31 +41,25 @@ import org.openjdk.jmh.infra.Blackhole;
 @Measurement(iterations = 15, time = 1)
 @Fork(1)
 @State(Scope.Thread)
-public class SysCallBenchmark {
+public class TakeNotificationNotReadyBenchmark {
 
   // Immutable inputs, computed once.
   private Slice startMessage;
   private Slice inputMessage;
+  private Slice callMessage;
   private Target target;
-  private Slice payload;
   private HeadersAccessor headersAccessor;
 
   @Param({"true", "false"})
   boolean ffmStateMachine;
 
-  // Payload size in bytes — exercises how much the copy-vs-transfer cost scales with payload size.
-  @Param({"16", "1024", "4096", "16384", "65536"})
-  int payloadSize;
-
   @Setup(Level.Trial)
   public void prepareInputs() {
-    startMessage = ProtoUtils.encodeMessageToSlice(ProtoUtils.startMessage(1).build());
-    inputMessage = ProtoUtils.encodeMessageToSlice(ProtoUtils.inputCmd("benchmark-input"));
     target = Target.service("BenchmarkService", "benchmarkHandler");
-    // Random payload of the parameterized length; fixed seed so runs are reproducible.
-    byte[] payloadBytes = new byte[payloadSize];
-    new Random().nextBytes(payloadBytes);
-    payload = Slice.wrap(payloadBytes);
+
+    startMessage = ProtoUtils.encodeMessageToSlice(ProtoUtils.startMessage(2).build());
+    inputMessage = ProtoUtils.encodeMessageToSlice(ProtoUtils.inputCmd("benchmark-input"));
+    callMessage = ProtoUtils.encodeMessageToSlice(ProtoUtils.callCmd(1, 2, target));
     headersAccessor =
         HeadersAccessor.wrap(
             Map.of(
@@ -75,20 +69,22 @@ public class SysCallBenchmark {
   }
 
   @Benchmark
-  public void sysCall(Blackhole bh) {
+  public void takeNotificationNotReady(Blackhole bh) {
     StateMachine sm =
         ffmStateMachine
             ? new FfmStateMachine(headersAccessor)
             : new LegacyStateMachine(headersAccessor, (i1, i2) -> {});
     sm.notifyInput(startMessage);
     sm.notifyInput(inputMessage);
+    sm.notifyInput(callMessage);
     sm.notifyInputClosed();
     sm.isReadyToExecute();
-    sm.input(); // consume the input command -> Processing, ready for sys_call
+    // Consume input and call
+    sm.input();
+    StateMachine.CallHandle handle = sm.call(target, Slice.EMPTY, null, null, null, null);
 
-    // Create a sys call, take output
-    bh.consume(sm.call(target, payload, null, null, null, null));
-    bh.consume(sm.takeOutput());
+    // Take notification of result handle (which should be absent)
+    bh.consume(sm.takeNotification(handle.resultHandle()));
 
     sm.close();
   }

@@ -221,51 +221,49 @@ public final class FfmStateMachine implements StateMachine {
   @Override
   public @Nullable NotificationValue takeNotification(int handle) {
     verifyNotFreed();
-    try (Arena arena = Arena.ofConfined()) {
-      MemorySegment out = Notification.allocate(arena);
-      SharedCoreNative.vm_take_notification(vmHandle, handle, out);
-
-      // Tagged union: each branch reads only its own variant's fields (the inactive arms share the
-      // same memory and hold no owned buffers). Success is handed over zero-copy (GC-tied); the
-      // other owned slices are copied out + freed by takeSlice*.
-      int tag = Notification.tag(out);
-      if (tag == SharedCoreNative.Notification_NotReady()) {
-        return null;
-      } else if (tag == SharedCoreNative.Notification_Empty()) {
-        return NotificationValue.Empty.INSTANCE;
-      } else if (tag == SharedCoreNative.Notification_Success()) {
-        return new NotificationValue.Success(
-            FfmEncoding.wrapOwnedSlice(Notification_Success_Body.value(Notification.success(out))));
-      } else if (tag == SharedCoreNative.Notification_TerminalFailure()) {
-        MemorySegment body = Notification.terminal_failure(out);
+    int variant = SharedCoreNative.vm_take_notification(vmHandle, handle);
+    if (variant == SharedCoreNative.NotificationVariant_NotReady()) {
+      return null;
+    } else if (variant == SharedCoreNative.NotificationVariant_Empty()) {
+      return NotificationValue.Empty.INSTANCE;
+    } else if (variant == SharedCoreNative.NotificationVariant_Success()) {
+      try (Arena arena = Arena.ofConfined()) {
+        MemorySegment out = FfmEncoding.allocateSliceStruct(arena);
+        SharedCoreNative.vm_take_notification_success(vmHandle, out);
+        // Handed over zero-copy (GC-tied).
+        return new NotificationValue.Success(FfmEncoding.wrapOwnedSlice(out));
+      }
+    } else if (variant == SharedCoreNative.NotificationVariant_TerminalFailure()) {
+      try (Arena arena = Arena.ofConfined()) {
+        MemorySegment out = AbiTerminalFailure.allocate(arena);
+        SharedCoreNative.vm_take_notification_terminal_failure(vmHandle, out);
         return new NotificationValue.Failure(
             new TerminalException(
-                Notification_TerminalFailure_Body.code(body),
-                FfmEncoding.takeSliceString(Notification_TerminalFailure_Body.message(body)),
-                decodeMetadataMap(
-                    FfmEncoding.takeSliceBytes(Notification_TerminalFailure_Body.metadata(body)))));
-      } else if (tag == SharedCoreNative.Notification_StateKeys()) {
-        return new NotificationValue.StateKeys(
-            decodeStringList(
-                FfmEncoding.takeSliceBytes(
-                    Notification_StateKeys_Body.keys(Notification.state_keys(out)))));
-      } else if (tag == SharedCoreNative.Notification_InvocationId()) {
-        return new NotificationValue.InvocationId(
-            FfmEncoding.takeSliceString(
-                Notification_InvocationId_Body.id(Notification.invocation_id(out))));
-      } else if (tag == SharedCoreNative.Notification_Error()) {
-        // Same VmError struct the fallible results' Err arms carry; reuse the shared decoder.
-        throw closeVmAndMapError(Notification_Error_Body.error(Notification.error(out)));
+                AbiTerminalFailure.code(out),
+                FfmEncoding.takeSliceString(AbiTerminalFailure.message(out)),
+                decodeMetadataMap(FfmEncoding.takeSliceBytes(AbiTerminalFailure.metadata(out)))));
       }
-      throw new IllegalStateException("Unknown takeNotification tag: " + tag);
+    } else if (variant == SharedCoreNative.NotificationVariant_StateKeys()) {
+      try (Arena arena = Arena.ofConfined()) {
+        MemorySegment out = FfmEncoding.allocateSliceStruct(arena);
+        SharedCoreNative.vm_take_notification_state_keys(vmHandle, out);
+        return new NotificationValue.StateKeys(decodeStringList(FfmEncoding.takeSliceBytes(out)));
+      }
+    } else if (variant == SharedCoreNative.NotificationVariant_InvocationId()) {
+      try (Arena arena = Arena.ofConfined()) {
+        MemorySegment out = FfmEncoding.allocateSliceStruct(arena);
+        SharedCoreNative.vm_take_notification_invocation_id(vmHandle, out);
+        return new NotificationValue.InvocationId(FfmEncoding.takeSliceString(out));
+      }
     }
+    throw new IllegalStateException("Unknown notification variant: " + variant);
   }
 
   private static Map<String, String> decodeMetadataMap(byte[] extra) {
-    Map<String, String> metadata = new LinkedHashMap<>();
     if (extra.length == 0) {
-      return metadata;
+      return Map.of();
     }
+    Map<String, String> metadata = new LinkedHashMap<>();
     ByteBuffer buf = ByteBuffer.wrap(extra).order(ByteOrder.LITTLE_ENDIAN);
     int count = buf.getInt();
     for (int i = 0; i < count; i++) {

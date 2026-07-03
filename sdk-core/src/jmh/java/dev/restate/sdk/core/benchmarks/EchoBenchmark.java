@@ -40,19 +40,16 @@ import org.openjdk.jmh.infra.Blackhole;
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @Warmup(iterations = 5, time = 1)
-@Measurement(iterations = 10, time = 1)
-@Fork(2)
+@Measurement(iterations = 15, time = 1)
+@Fork(1)
 @State(Scope.Thread)
-public class InitializationBenchmark {
+public class EchoBenchmark {
 
   // Immutable inputs, computed once.
   private Slice startMessage;
   private Slice inputMessage;
   private Slice payload;
   private HeadersAccessor headersAccessor;
-
-  // The VM built in the measured body, held so TearDown can free it (native close is not measured).
-  private StateMachine sm;
 
   @Param({"true", "false"})
   boolean ffmStateMachine;
@@ -77,17 +74,9 @@ public class InitializationBenchmark {
                 "application/vnd.restate.invocation.v6"));
   }
 
-  @TearDown(Level.Invocation)
-  public void freeVm() {
-    if (sm != null) {
-      sm.close();
-      sm = null;
-    }
-  }
-
   @Benchmark
-  public void initialize(Blackhole bh) {
-    sm =
+  public void echo(Blackhole bh) {
+    StateMachine sm =
         ffmStateMachine
             ? new FfmStateMachine(headersAccessor)
             : new LegacyStateMachine(headersAccessor, (i1, i2) -> {});
@@ -99,5 +88,6 @@ public class InitializationBenchmark {
     sm.writeOutput(payload);
     sm.end();
     bh.consume(sm.takeOutput());
+    sm.close();
   }
 }

@@ -41,8 +41,8 @@ import org.openjdk.jmh.infra.Blackhole;
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @Warmup(iterations = 5, time = 1)
-@Measurement(iterations = 10, time = 1)
-@Fork(2)
+@Measurement(iterations = 15, time = 1)
+@Fork(1)
 @State(Scope.Thread)
 public class RunBenchmark {
 
@@ -51,9 +51,6 @@ public class RunBenchmark {
   private Slice inputMessage;
   private Slice payload;
   private HeadersAccessor headersAccessor;
-
-  // The primed VM, recreated per measured op.
-  private StateMachine sm;
 
   @Param({"true", "false"})
   boolean ffmStateMachine;
@@ -78,9 +75,9 @@ public class RunBenchmark {
                 "application/vnd.restate.invocation.v6"));
   }
 
-  @Setup(Level.Invocation)
-  public void primeVm() {
-    sm =
+  @Benchmark
+  public void run(Blackhole bh) {
+    StateMachine sm =
         ffmStateMachine
             ? new FfmStateMachine(headersAccessor)
             : new LegacyStateMachine(headersAccessor, (i1, i2) -> {});
@@ -88,19 +85,11 @@ public class RunBenchmark {
     sm.notifyInput(inputMessage);
     sm.notifyInputClosed();
     sm.isReadyToExecute();
-    sm.input(); // consume the input command -> Processing, ready for the run
-  }
-
-  @TearDown(Level.Invocation)
-  public void freeVm() {
-    sm.close();
-  }
-
-  @Benchmark
-  public void run(Blackhole bh) {
+    sm.input();
     StateMachine.RunResultHandle run = sm.run("benchmark-run");
     bh.consume(sm.doAwait(new StateMachine.UnresolvedFuture.Single(run.handle())));
     sm.proposeRunCompletion(run.handle(), payload);
     bh.consume(sm.takeOutput());
+    sm.close();
   }
 }

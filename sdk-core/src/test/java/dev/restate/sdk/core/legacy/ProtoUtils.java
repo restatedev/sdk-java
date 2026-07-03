@@ -313,6 +313,16 @@ public class ProtoUtils {
   }
 
   public static Protocol.CallCompletionNotificationMessage.Builder callCompletion(
+      int completionId, Slice result) {
+    return Protocol.CallCompletionNotificationMessage.newBuilder()
+        .setCompletionId(completionId)
+        .setValue(
+            Protocol.Value.newBuilder()
+                .setContent(UnsafeByteOperations.unsafeWrap(result.asReadOnlyByteBuffer()))
+                .build());
+  }
+
+  public static Protocol.CallCompletionNotificationMessage.Builder callCompletion(
       int completionId, Throwable failure) {
     return Protocol.CallCompletionNotificationMessage.newBuilder()
         .setCompletionId(completionId)

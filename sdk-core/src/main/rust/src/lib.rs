@@ -67,6 +67,8 @@ pub extern "C" fn init(level: AbiLogLevel, log_callback: *const c_void) {
 
 pub struct VmHandle {
     vm: CoreVM,
+    notification_scratch: Option<Option<Value>>,
+    last_vm_error_scratch: Option<Error>,
 }
 
 struct Headers(Vec<(String, String)>);
@@ -229,7 +231,13 @@ pub unsafe extern "C" fn _vm_new(headers: ForeignSlice, out: *mut VmNewResult) {
 #[inline]
 fn vm_new(headers_buf: &[u8]) -> Result<Box<VmHandle>, Error> {
     let headers = decode_header_list(headers_buf);
-    CoreVM::new(Headers(headers), VMOptions::default()).map(|vm| Box::new(VmHandle { vm }))
+    CoreVM::new(Headers(headers), VMOptions::default()).map(|vm| {
+        Box::new(VmHandle {
+            vm,
+            notification_scratch: None,
+            last_vm_error_scratch: None,
+        })
+    })
 }
 
 #[no_mangle]
@@ -393,67 +401,71 @@ fn vm_do_await(vm: &mut CoreVM, future_buf: &[u8]) -> AwaitResult {
     }
 }
 
-/// Result of `take_notification` (the hot path), as a tagged union: each variant
-/// carries exactly its own fields (no overloaded `value`/`extra`). `metadata` and
-/// `keys` are still owned `Slice`s holding a little-endian `(u32 count,
-/// count*(u32 len, bytes))` encoding (variable collections can't live inline). The
-/// Java decoder throws on `Error`.
-#[repr(C, u32)]
-pub enum Notification {
+#[repr(C)]
+pub struct AbiTerminalFailure {
+    code: u32,
+    message: Slice,
+    metadata: Slice,
+}
+
+#[repr(u8)]
+pub enum NotificationVariant {
     NotReady,
     Empty,
-    Success {
-        value: Slice,
-    },
-    TerminalFailure {
-        code: u32,
-        message: Slice,
-        metadata: Slice,
-    },
-    StateKeys {
-        keys: Slice,
-    },
-    InvocationId {
-        id: Slice,
-    },
-    /// A VM/protocol error surfaced while resolving the notification. Carries the same
-    /// `VmError` the fallible results' `Err` arms use (nested `#[repr(C)]`, so the layout
-    /// is identical to inlining `code`/`message`); the Java decoder turns it into a
-    /// `ProtocolException` via the shared `vmError` path.
-    Error {
-        error: VmError,
-    },
+    Success,
+    TerminalFailure,
+    StateKeys,
+    InvocationId,
 }
 
 #[export_name = "vm_take_notification"]
 pub unsafe extern "C" fn _vm_take_notification(
     handle: *mut VmHandle,
     notification_handle: u32,
-    out: *mut Notification,
-) {
+) -> NotificationVariant {
     let h = vm_mut(handle);
-    write_out(out, vm_take_notification(&mut h.vm, notification_handle));
+
+    // Parse result
+    let result = vm_take_notification_and_store_in_scratch(&mut h.vm, notification_handle);
+    let notification_variant = match &result {
+        None => NotificationVariant::NotReady,
+        Some(Value::Void) => NotificationVariant::Empty,
+        Some(Value::Success(_)) => NotificationVariant::Success,
+        Some(Value::Failure(_)) => NotificationVariant::TerminalFailure,
+        Some(Value::StateKeys(_)) => NotificationVariant::StateKeys,
+        Some(Value::InvocationId(_)) => NotificationVariant::InvocationId,
+    };
+
+    // Save notification in scratch
+    h.notification_scratch = Some(result);
+
+    notification_variant
 }
 
 #[inline]
-fn vm_take_notification(vm: &mut CoreVM, notification_handle: u32) -> Notification {
-    encode_notification(VM::take_notification(
-        vm,
-        NotificationHandle::from(notification_handle),
-    ))
+fn vm_take_notification_and_store_in_scratch(
+    vm: &mut CoreVM,
+    notification_handle: u32,
+) -> Option<Value> {
+    // Ignoring failures in take_notification is fine: eventually code will get to do_progress, where we propagate errors up!
+    VM::take_notification(vm, NotificationHandle::from(notification_handle)).unwrap_or(None)
 }
 
-fn encode_notification(result: Result<Option<Value>, Error>) -> Notification {
-    match result {
-        Ok(None) => Notification::NotReady,
-        Ok(Some(Value::Void)) => Notification::Empty,
-        // `Vec::from(Bytes)` avoids the copy when the buffer is uniquely owned (the eventual
-        // `shrink_to_fit` in `leak_buffer` is then a no-op); otherwise it is a single copy,
-        // never worse than `to_vec`.
-        Ok(Some(Value::Success(bytes))) => Notification::Success {
-            value: Slice::from_vec(Vec::from(bytes)),
-        },
-        Ok(Some(Value::Failure(TerminalFailure {
+#[export_name = "vm_take_notification_success"]
+pub unsafe extern "C" fn _vm_take_notification_success(handle: *mut VmHandle, out: *mut Slice) {
+    match vm_mut(handle).notification_scratch.take() {
+        Some(Some(Value::Success(bytes))) => write_out(out, Slice::from_bytes(bytes)),
+        _ => panic!("vm_take_notification_success called without a pending Success notification"),
+    }
+}
+
+#[export_name = "vm_take_notification_terminal_failure"]
+pub unsafe extern "C" fn _vm_take_notification_terminal_failure(
+    handle: *mut VmHandle,
+    out: *mut AbiTerminalFailure,
+) {
+    match vm_mut(handle).notification_scratch.take() {
+        Some(Some(Value::Failure(TerminalFailure {
             code,
             message,
             metadata,
@@ -464,28 +476,50 @@ fn encode_notification(result: Result<Option<Value>, Error>) -> Notification {
                 put_str(&mut buf, &k);
                 put_str(&mut buf, &v);
             }
-            Notification::TerminalFailure {
-                code: code as u32,
-                message: Slice::from_vec(message.into_bytes()),
-                metadata: Slice::from_vec(buf),
-            }
+            write_out(
+                out,
+                AbiTerminalFailure {
+                    code: code as u32,
+                    message: Slice::from_string(message),
+                    metadata: Slice::from_vec(buf),
+                },
+            );
         }
-        Ok(Some(Value::StateKeys(keys))) => {
+        _ => panic!(
+            "vm_take_notification_terminal_failure called without a pending TerminalFailure notification"
+        ),
+    }
+}
+
+#[export_name = "vm_take_notification_state_keys"]
+pub unsafe extern "C" fn _vm_take_notification_state_keys(handle: *mut VmHandle, out: *mut Slice) {
+    match vm_mut(handle).notification_scratch.take() {
+        Some(Some(Value::StateKeys(keys))) => {
             let mut buf = Vec::new();
             buf.put_u32_le(keys.len() as u32);
             for k in keys {
                 put_str(&mut buf, &k);
             }
-            Notification::StateKeys {
-                keys: Slice::from_vec(buf),
-            }
+            write_out(out, Slice::from_vec(buf));
         }
-        Ok(Some(Value::InvocationId(id))) => Notification::InvocationId {
-            id: Slice::from_vec(id.into_bytes()),
-        },
-        Err(e) => Notification::Error {
-            error: VmError::of(&e),
-        },
+        _ => {
+            panic!(
+                "vm_take_notification_state_keys called without a pending StateKeys notification"
+            )
+        }
+    }
+}
+
+#[export_name = "vm_take_notification_invocation_id"]
+pub unsafe extern "C" fn _vm_take_notification_invocation_id(
+    handle: *mut VmHandle,
+    out: *mut Slice,
+) {
+    match vm_mut(handle).notification_scratch.take() {
+        Some(Some(Value::InvocationId(id))) => write_out(out, Slice::from_string(id)),
+        _ => panic!(
+            "vm_take_notification_invocation_id called without a pending InvocationId notification"
+        ),
     }
 }
 
