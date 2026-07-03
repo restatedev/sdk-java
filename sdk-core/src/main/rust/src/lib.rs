@@ -240,10 +240,22 @@ fn vm_new(headers_buf: &[u8]) -> Result<Box<VmHandle>, Error> {
     })
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn vm_free(handle: *mut VmHandle) {
+#[export_name = "vm_free"]
+pub unsafe extern "C" fn _vm_free(handle: *mut VmHandle) {
     assert_not_null(handle);
     drop(Box::from_raw(handle));
+}
+
+/// Take the error stashed by the last failing call that packs its result (e.g. a `do_await`
+/// returning `Error`) and write it as a `VmError` into `out`. Panics if none is pending — a
+/// caller-protocol violation, since this must only be called on the error path.
+#[export_name = "vm_take_last_vm_error"]
+pub unsafe extern "C" fn _vm_take_last_vm_error(handle: *mut VmHandle, out: *mut VmError) {
+    let err = vm_mut(handle)
+        .last_vm_error_scratch
+        .take()
+        .expect("vm_take_last_vm_error called without a pending error");
+    write_out(out, VmError::of(&err));
 }
 
 // =========================================================================
@@ -360,45 +372,41 @@ fn vm_is_ready_to_execute(vm: &mut CoreVM) -> IsReadyToExecuteResult {
     }
 }
 
-/// Result of `do_await`, mirroring `AwaitResponse` one variant per arm (plus
-/// `Suspended` for the suspended error and `Err` for any other error). The VM state
-/// is not piggybacked here: the only non-error outcomes all leave the VM live, and the
-/// one state-relevant outcome — `Suspended`, after which the VM is Closed — is recorded
-/// locally by the SDK (which then aborts the user code). `Err` is thrown by the caller.
-#[repr(C, u32)]
-pub enum AwaitResult {
-    AnyCompleted,
-    WaitingExternalProgress,
-    ExecuteRun { run_handle: u32 },
-    CancelSignalReceived,
-    Err { error: VmError },
-}
+/// `do_await` outcome tags.
+pub const AWAIT_VARIANT_ANY_COMPLETED: u32 = 0;
+pub const AWAIT_VARIANT_WAITING_EXTERNAL_PROGRESS: u32 = 1;
+pub const AWAIT_VARIANT_EXECUTE_RUN: u32 = 2;
+pub const AWAIT_VARIANT_CANCEL_SIGNAL_RECEIVED: u32 = 3;
+pub const AWAIT_VARIANT_ERROR: u32 = 4;
 
-/// Input is the encoded await future tree; see `decode_future`.
+/// Make progress on the encoded await future tree (see `decode_future`), returning the outcome
+/// register-packed into a bare `u64`: low 32 bits = variant (`AWAIT_VARIANT_*`), high 32 bits = the
+/// `ExecuteRun` run handle (0 otherwise). No out-param/arena on this hot path. On error the detail is
+/// stashed in `last_vm_error_scratch` and fetched via `vm_take_last_vm_error` (only on the `Error`
+/// variant). `AwaitResponse::Suspended` isn't represented: the SDK records suspension locally and
+/// sneaky-throws.
 #[export_name = "vm_do_await"]
-pub unsafe extern "C" fn _vm_do_await(
-    handle: *mut VmHandle,
-    future: ForeignSlice,
-    out: *mut AwaitResult,
-) {
+pub unsafe extern "C" fn _vm_do_await(handle: *mut VmHandle, future: ForeignSlice) -> u64 {
     let h = vm_mut(handle);
-    write_out(out, vm_do_await(&mut h.vm, future.as_slice()));
+    vm_do_await(h, future.as_slice())
 }
 
 #[inline]
-fn vm_do_await(vm: &mut CoreVM, future_buf: &[u8]) -> AwaitResult {
+fn vm_do_await(h: &mut VmHandle, future_buf: &[u8]) -> u64 {
     let future = decode_future(&mut { future_buf });
-    match VM::do_await(vm, future) {
-        Ok(AwaitResponse::AnyCompleted) => AwaitResult::AnyCompleted,
-        Ok(AwaitResponse::WaitingExternalProgress { .. }) => AwaitResult::WaitingExternalProgress,
-        Ok(AwaitResponse::ExecuteRun(run)) => AwaitResult::ExecuteRun {
-            run_handle: run.into(),
-        },
-        Ok(AwaitResponse::CancelSignalReceived) => AwaitResult::CancelSignalReceived,
-        Err(e) => AwaitResult::Err {
-            error: VmError::of(&e),
-        },
-    }
+    let (variant, run_handle): (u32, u32) = match VM::do_await(&mut h.vm, future) {
+        Ok(AwaitResponse::AnyCompleted) => (AWAIT_VARIANT_ANY_COMPLETED, 0),
+        Ok(AwaitResponse::WaitingExternalProgress { .. }) => {
+            (AWAIT_VARIANT_WAITING_EXTERNAL_PROGRESS, 0)
+        }
+        Ok(AwaitResponse::ExecuteRun(run)) => (AWAIT_VARIANT_EXECUTE_RUN, run.into()),
+        Ok(AwaitResponse::CancelSignalReceived) => (AWAIT_VARIANT_CANCEL_SIGNAL_RECEIVED, 0),
+        Err(e) => {
+            h.last_vm_error_scratch = Some(e);
+            (AWAIT_VARIANT_ERROR, 0)
+        }
+    };
+    (variant as u64) | ((run_handle as u64) << 32)
 }
 
 #[repr(C)]

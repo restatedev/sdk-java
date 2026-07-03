@@ -186,35 +186,41 @@ public final class FfmStateMachine implements StateMachine {
   @Override
   public AwaitResult doAwait(UnresolvedFuture future) {
     verifyNotFreed();
+    long packed;
     try (Arena arena = Arena.ofConfined()) {
       MemorySegment futureSeg = FfmEncoding.foreignBytes(arena, FfmEncoding.encodeFuture(future));
-      // The native binding type is also named AwaitResult; fully qualify it so it doesn't collide
-      // with the StateMachine.AwaitResult we return (inherited into scope as a bare simple name).
-      MemorySegment out =
-          dev.restate.sdk.core.statemachine.ffm.generated.AwaitResult.allocate(arena);
-      SharedCoreNative.vm_do_await(vmHandle, futureSeg, out);
+      packed = SharedCoreNative.vm_do_await(vmHandle, futureSeg);
+    }
 
-      // Tagged union mirroring AwaitResponse one variant per arm. do_await does not piggyback the
-      // VM state: the live outcomes all leave the VM running; suspension closes it, which we record
-      // locally and surface by sneaky-throwing AbortedExecutionException (per the StateMachine
-      // contract) so the driver aborts the user code. Err closes the VM too and is thrown.
-      int tag = dev.restate.sdk.core.statemachine.ffm.generated.AwaitResult.tag(out);
-      if (tag == SharedCoreNative.AwaitResult_AnyCompleted()) {
-        return AwaitResult.ANY_COMPLETED;
-      } else if (tag == SharedCoreNative.AwaitResult_WaitingExternalProgress()) {
-        return AwaitResult.WAIT_EXTERNAL_PROGRESS;
-      } else if (tag == SharedCoreNative.AwaitResult_ExecuteRun()) {
-        return new AwaitResult.ExecuteRun(
-            AwaitResult_ExecuteRun_Body.run_handle(
-                dev.restate.sdk.core.statemachine.ffm.generated.AwaitResult.execute_run(out)));
-      } else if (tag == SharedCoreNative.AwaitResult_CancelSignalReceived()) {
-        return AwaitResult.CANCEL_SIGNAL_RECEIVED;
-      } else if (tag == SharedCoreNative.AwaitResult_Err()) {
-        throw closeVmAndMapError(
-            AwaitResult_Err_Body.error(
-                dev.restate.sdk.core.statemachine.ffm.generated.AwaitResult.err(out)));
-      }
-      throw new IllegalStateException("Unknown do_await tag: " + tag);
+    // Register-packed result (a bare u64, no out-param struct): the low byte is the variant tag,
+    // the
+    // high 32 bits carry the ExecuteRun run handle. On error the core stashed the detail and we
+    // fetch
+    // it via vm_take_last_vm_error. Suspension isn't a variant here — the driver surfaces it by
+    // sneaky-throwing AbortedExecutionException per the StateMachine contract.
+    int variant = (int) packed;
+    if (variant == SharedCoreNative.AWAIT_VARIANT_ANY_COMPLETED()) {
+      return AwaitResult.ANY_COMPLETED;
+    } else if (variant == SharedCoreNative.AWAIT_VARIANT_WAITING_EXTERNAL_PROGRESS()) {
+      return AwaitResult.WAIT_EXTERNAL_PROGRESS;
+    } else if (variant == SharedCoreNative.AWAIT_VARIANT_EXECUTE_RUN()) {
+      return new AwaitResult.ExecuteRun((int) (packed >>> 32));
+    } else if (variant == SharedCoreNative.AWAIT_VARIANT_CANCEL_SIGNAL_RECEIVED()) {
+      return AwaitResult.CANCEL_SIGNAL_RECEIVED;
+    } else if (variant == SharedCoreNative.AWAIT_VARIANT_ERROR()) {
+      throw takeLastVmError();
+    }
+    throw new IllegalStateException("Unknown do_await variant: " + variant);
+  }
+
+  /**
+   * Fetches + maps the error the core stashed on the last failing packed-result call (cold path).
+   */
+  private ProtocolException takeLastVmError() {
+    try (Arena arena = Arena.ofConfined()) {
+      MemorySegment err = VmError.allocate(arena);
+      SharedCoreNative.vm_take_last_vm_error(vmHandle, err);
+      return closeVmAndMapError(err);
     }
   }
 
