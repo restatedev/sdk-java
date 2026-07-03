@@ -16,12 +16,12 @@ import dev.restate.sdk.core.statemachine.ffm.generated.CallArguments;
 import dev.restate.sdk.core.statemachine.ffm.generated.ForeignSlice;
 import dev.restate.sdk.core.statemachine.ffm.generated.SharedCoreNative;
 import dev.restate.sdk.core.statemachine.ffm.generated.Slice;
-import java.io.ByteArrayOutputStream;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SegmentAllocator;
 import java.lang.foreign.ValueLayout;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -401,27 +401,48 @@ final class FfmEncoding {
   // -------------------------------------------------------------------------
 
   private static final class LeBuffer {
-    private final ByteArrayOutputStream out = new ByteArrayOutputStream(64);
+    private byte[] buf;
+    private int pos;
+
+    LeBuffer() {
+      this.buf = new byte[64];
+    }
+
+    /** Ensure room for {@code extra} more bytes, doubling the backing array as needed. */
+    private void ensure(int extra) {
+      int need = pos + extra;
+      if (need > buf.length) {
+        int cap = buf.length;
+        do {
+          cap <<= 1;
+        } while (cap < need);
+        buf = Arrays.copyOf(buf, cap);
+      }
+    }
 
     void putU8(int v) {
-      out.write(v & 0xFF);
+      ensure(1);
+      buf[pos++] = (byte) v;
     }
 
     void putU16(int v) {
-      out.write(v & 0xFF);
-      out.write((v >>> 8) & 0xFF);
+      ensure(2);
+      buf[pos++] = (byte) v;
+      buf[pos++] = (byte) (v >>> 8);
     }
 
     void putU32(int v) {
-      out.write(v & 0xFF);
-      out.write((v >>> 8) & 0xFF);
-      out.write((v >>> 16) & 0xFF);
-      out.write((v >>> 24) & 0xFF);
+      ensure(4);
+      buf[pos++] = (byte) v;
+      buf[pos++] = (byte) (v >>> 8);
+      buf[pos++] = (byte) (v >>> 16);
+      buf[pos++] = (byte) (v >>> 24);
     }
 
     void putU64(long v) {
+      ensure(8);
       for (int i = 0; i < 8; i++) {
-        out.write((int) ((v >>> (8 * i)) & 0xFF));
+        buf[pos++] = (byte) (v >>> (8 * i));
       }
     }
 
@@ -432,11 +453,13 @@ final class FfmEncoding {
     void putStr(String s) {
       byte[] bytes = s.getBytes(StandardCharsets.UTF_8);
       putU32(bytes.length);
-      out.write(bytes, 0, bytes.length);
+      ensure(bytes.length);
+      System.arraycopy(bytes, 0, buf, pos, bytes.length);
+      pos += bytes.length;
     }
 
     byte[] toByteArray() {
-      return out.toByteArray();
+      return Arrays.copyOf(buf, pos);
     }
   }
 }
