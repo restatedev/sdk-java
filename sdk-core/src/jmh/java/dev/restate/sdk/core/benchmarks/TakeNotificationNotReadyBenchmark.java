@@ -16,7 +16,6 @@ import dev.restate.sdk.core.legacy.ProtoUtils;
 import dev.restate.sdk.core.statemachine.ffm.FfmStateMachine;
 import dev.restate.sdk.endpoint.HeadersAccessor;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
