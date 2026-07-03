@@ -37,10 +37,12 @@ import org.jspecify.annotations.Nullable;
  * {@code restate-sdk-shared-core} library through the jextract-generated {@code SharedCoreNative}
  * bindings, over the C ABI documented in {@code sdk-core/src/main/rust/src/lib.rs}.
  *
- * <p>Each call is a direct FFM downcall that writes a typed result struct into a caller-provided
- * out-parameter (piggybacking the current invocation state) and returns owned {@link Slice}s the
- * caller copies out and frees; on error it throws a {@link ProtocolException} from the returned
- * code and message.
+ * <p>Each call is a direct FFM downcall. Results come back either register-packed into the scalar
+ * return value (the invocation state, plus a handle for handle-returning calls) or, when too wide
+ * to pack, written into a caller-provided out-param struct whose first field is the state. Owned
+ * {@link Slice}s are copied out and freed by the caller. On error the state field carries the
+ * {@link SharedCoreNative#ERROR_STATE} sentinel; the detail is then fetched via {@code
+ * vm_take_last_vm_error} and thrown as a {@link ProtocolException}.
  *
  * <p>An instance is driven by a single thread at a time (no reentrancy, per the contract); only
  * {@link #state()} — a volatile read — is safe from any thread. Each downcall allocates its
@@ -56,8 +58,6 @@ public final class FfmStateMachine implements StateMachine {
    * call from the piggybacked {@code state} ordinal in the result struct.
    */
   private volatile InvocationState cachedState = InvocationState.WAITING_START;
-
-  private static final InvocationState[] STATES = InvocationState.values();
 
   static {
     // Load the native library BEFORE SharedCoreNative is class-initialized so its
@@ -297,15 +297,15 @@ public final class FfmStateMachine implements StateMachine {
     try (Arena arena = Arena.ofConfined()) {
       MemorySegment out = InputResult.allocate(arena);
       SharedCoreNative.vm_sys_input(vmHandle, out);
-      if (InputResult.tag(out) == SharedCoreNative.InputResult_Err()) {
-        throw closeVmAndMapError(InputResult_Err_Body.error(InputResult.err(out)));
+      int state = InputResult.state(out);
+      if (state == SharedCoreNative.ERROR_STATE()) {
+        throw takeLastVmError();
       }
-      MemorySegment ok = InputResult.ok(out);
-      updateState(InputResult_Ok_Body.state(ok));
+      updateState(state);
 
       // The handler input payload is handed over zero-copy (GC-tied, freed via free_buffer when the
       // slice is collected) and propagated straight to the user deserialization layer.
-      Slice input = FfmEncoding.wrapOwnedSlice(InputResult_Ok_Body.input(ok));
+      Slice input = FfmEncoding.wrapOwnedSlice(InputResult.input(out));
 
       // Everything else is copied out anyway, so the core packs it into one metadata blob (one
       // alloc
@@ -313,7 +313,7 @@ public final class FfmStateMachine implements StateMachine {
       // invocation_id(str), key(str), headers(u32 count, count*(str,str)), then
       // scope/limit_key/idempotency_key as (u8 present, [str]).
       ByteBuffer meta =
-          ByteBuffer.wrap(FfmEncoding.takeSliceBytes(InputResult_Ok_Body.metadata(ok)))
+          ByteBuffer.wrap(FfmEncoding.takeSliceBytes(InputResult.metadata(out)))
               .order(ByteOrder.LITTLE_ENDIAN);
       long randomSeed = meta.getLong();
       String invocationId = readString(meta);
@@ -358,33 +358,26 @@ public final class FfmStateMachine implements StateMachine {
   public int stateGet(String key) {
     verifyNotFreed();
     try (Arena arena = Arena.ofConfined()) {
-      MemorySegment out = HandleResult.allocate(arena);
-      SharedCoreNative.vm_sys_state_get(vmHandle, FfmEncoding.foreignUtf8(arena, key), out);
-      return handleResult(out);
+      return handleResult(
+          SharedCoreNative.vm_sys_state_get(vmHandle, FfmEncoding.foreignUtf8(arena, key)));
     }
   }
 
   @Override
   public int stateGetKeys() {
     verifyNotFreed();
-    try (Arena arena = Arena.ofConfined()) {
-      MemorySegment out = HandleResult.allocate(arena);
-      SharedCoreNative.vm_sys_state_get_keys(vmHandle, out);
-      return handleResult(out);
-    }
+    return handleResult(SharedCoreNative.vm_sys_state_get_keys(vmHandle));
   }
 
   @Override
   public void stateSet(String key, Slice value) {
     verifyNotFreed();
     try (Arena arena = Arena.ofConfined()) {
-      MemorySegment out = EmptyResult.allocate(arena);
-      SharedCoreNative.vm_sys_state_set(
-          vmHandle,
-          FfmEncoding.foreignUtf8(arena, key),
-          FfmEncoding.transferToSlice(arena, value),
-          out);
-      emptyResult(out);
+      emptyResult(
+          SharedCoreNative.vm_sys_state_set(
+              vmHandle,
+              FfmEncoding.foreignUtf8(arena, key),
+              FfmEncoding.transferToSlice(arena, value)));
     }
   }
 
@@ -392,20 +385,15 @@ public final class FfmStateMachine implements StateMachine {
   public void stateClear(String key) {
     verifyNotFreed();
     try (Arena arena = Arena.ofConfined()) {
-      MemorySegment out = EmptyResult.allocate(arena);
-      SharedCoreNative.vm_sys_state_clear(vmHandle, FfmEncoding.foreignUtf8(arena, key), out);
-      emptyResult(out);
+      emptyResult(
+          SharedCoreNative.vm_sys_state_clear(vmHandle, FfmEncoding.foreignUtf8(arena, key)));
     }
   }
 
   @Override
   public void stateClearAll() {
     verifyNotFreed();
-    try (Arena arena = Arena.ofConfined()) {
-      MemorySegment out = EmptyResult.allocate(arena);
-      SharedCoreNative.vm_sys_state_clear_all(vmHandle, out);
-      emptyResult(out);
-    }
+    emptyResult(SharedCoreNative.vm_sys_state_clear_all(vmHandle));
   }
 
   // -------------------------------------------------------------------------
@@ -417,14 +405,12 @@ public final class FfmStateMachine implements StateMachine {
     verifyNotFreed();
     long now = System.currentTimeMillis();
     try (Arena arena = Arena.ofConfined()) {
-      MemorySegment out = HandleResult.allocate(arena);
-      SharedCoreNative.vm_sys_sleep(
-          vmHandle,
-          FfmEncoding.foreignUtf8(arena, name != null ? name : ""),
-          now + duration.toMillis(),
-          now,
-          out);
-      return handleResult(out);
+      return handleResult(
+          SharedCoreNative.vm_sys_sleep(
+              vmHandle,
+              FfmEncoding.foreignUtf8(arena, name != null ? name : ""),
+              now + duration.toMillis(),
+              now));
     }
   }
 
@@ -447,13 +433,13 @@ public final class FfmStateMachine implements StateMachine {
               arena, target, payload, idempotencyKey, scope, limitKey, headers);
       MemorySegment out = CallResult.allocate(arena);
       SharedCoreNative.vm_sys_call(vmHandle, args, out);
-      if (CallResult.tag(out) == SharedCoreNative.CallResult_Err()) {
-        throw closeVmAndMapError(CallResult_Err_Body.error(CallResult.err(out)));
+      int state = CallResult.state(out);
+      if (state == SharedCoreNative.ERROR_STATE()) {
+        throw takeLastVmError();
       }
-      MemorySegment ok = CallResult.ok(out);
-      updateState(CallResult_Ok_Body.state(ok));
+      updateState(state);
       return new CallHandle(
-          CallResult_Ok_Body.invocation_id_handle(ok), CallResult_Ok_Body.result_handle(ok));
+          CallResult.invocation_id_handle(out), CallResult.result_handle(out));
     }
   }
 
@@ -474,9 +460,7 @@ public final class FfmStateMachine implements StateMachine {
       MemorySegment args =
           FfmEncoding.buildCallArguments(
               arena, target, payload, idempotencyKey, scope, limitKey, headers);
-      MemorySegment out = HandleResult.allocate(arena);
-      SharedCoreNative.vm_sys_send(vmHandle, args, delayMillis, out);
-      return handleResult(out);
+      return handleResult(SharedCoreNative.vm_sys_send(vmHandle, args, delayMillis));
     }
   }
 
@@ -490,14 +474,13 @@ public final class FfmStateMachine implements StateMachine {
     try (Arena arena = Arena.ofConfined()) {
       MemorySegment out = AwakeableResult.allocate(arena);
       SharedCoreNative.vm_sys_awakeable(vmHandle, out);
-      if (AwakeableResult.tag(out) == SharedCoreNative.AwakeableResult_Err()) {
-        throw closeVmAndMapError(AwakeableResult_Err_Body.error(AwakeableResult.err(out)));
+      int state = AwakeableResult.state(out);
+      if (state == SharedCoreNative.ERROR_STATE()) {
+        throw takeLastVmError();
       }
-      MemorySegment ok = AwakeableResult.ok(out);
-      updateState(AwakeableResult_Ok_Body.state(ok));
+      updateState(state);
       return new Awakeable(
-          FfmEncoding.takeSliceString(AwakeableResult_Ok_Body.id(ok)),
-          AwakeableResult_Ok_Body.handle(ok));
+          FfmEncoding.takeSliceString(AwakeableResult.id(out)), AwakeableResult.handle(out));
     }
   }
 
@@ -505,13 +488,11 @@ public final class FfmStateMachine implements StateMachine {
   public void completeAwakeable(String id, Slice payload) {
     verifyNotFreed();
     try (Arena arena = Arena.ofConfined()) {
-      MemorySegment out = EmptyResult.allocate(arena);
-      SharedCoreNative.vm_sys_complete_awakeable_success(
-          vmHandle,
-          FfmEncoding.foreignUtf8(arena, id),
-          FfmEncoding.transferToSlice(arena, payload),
-          out);
-      emptyResult(out);
+      emptyResult(
+          SharedCoreNative.vm_sys_complete_awakeable_success(
+              vmHandle,
+              FfmEncoding.foreignUtf8(arena, id),
+              FfmEncoding.transferToSlice(arena, payload)));
     }
   }
 
@@ -519,13 +500,11 @@ public final class FfmStateMachine implements StateMachine {
   public void completeAwakeable(String id, TerminalException reason) {
     verifyNotFreed();
     try (Arena arena = Arena.ofConfined()) {
-      MemorySegment out = EmptyResult.allocate(arena);
-      SharedCoreNative.vm_sys_complete_awakeable_failure(
-          vmHandle,
-          FfmEncoding.foreignUtf8(arena, id),
-          FfmEncoding.foreignBytes(arena, FfmEncoding.encodeFailure(reason)),
-          out);
-      emptyResult(out);
+      emptyResult(
+          SharedCoreNative.vm_sys_complete_awakeable_failure(
+              vmHandle,
+              FfmEncoding.foreignUtf8(arena, id),
+              FfmEncoding.foreignBytes(arena, FfmEncoding.encodeFailure(reason))));
     }
   }
 
@@ -533,10 +512,9 @@ public final class FfmStateMachine implements StateMachine {
   public int createSignalHandle(String signalName) {
     verifyNotFreed();
     try (Arena arena = Arena.ofConfined()) {
-      MemorySegment out = HandleResult.allocate(arena);
-      SharedCoreNative.vm_sys_create_signal_handle(
-          vmHandle, FfmEncoding.foreignUtf8(arena, signalName), out);
-      return handleResult(out);
+      return handleResult(
+          SharedCoreNative.vm_sys_create_signal_handle(
+              vmHandle, FfmEncoding.foreignUtf8(arena, signalName)));
     }
   }
 
@@ -544,14 +522,12 @@ public final class FfmStateMachine implements StateMachine {
   public void completeSignal(String targetInvocationId, String signalName, Slice value) {
     verifyNotFreed();
     try (Arena arena = Arena.ofConfined()) {
-      MemorySegment out = EmptyResult.allocate(arena);
-      SharedCoreNative.vm_sys_complete_signal_success(
-          vmHandle,
-          FfmEncoding.foreignUtf8(arena, targetInvocationId),
-          FfmEncoding.foreignUtf8(arena, signalName),
-          FfmEncoding.transferToSlice(arena, value),
-          out);
-      emptyResult(out);
+      emptyResult(
+          SharedCoreNative.vm_sys_complete_signal_success(
+              vmHandle,
+              FfmEncoding.foreignUtf8(arena, targetInvocationId),
+              FfmEncoding.foreignUtf8(arena, signalName),
+              FfmEncoding.transferToSlice(arena, value)));
     }
   }
 
@@ -560,14 +536,12 @@ public final class FfmStateMachine implements StateMachine {
       String targetInvocationId, String signalName, TerminalException reason) {
     verifyNotFreed();
     try (Arena arena = Arena.ofConfined()) {
-      MemorySegment out = EmptyResult.allocate(arena);
-      SharedCoreNative.vm_sys_complete_signal_failure(
-          vmHandle,
-          FfmEncoding.foreignUtf8(arena, targetInvocationId),
-          FfmEncoding.foreignUtf8(arena, signalName),
-          FfmEncoding.foreignBytes(arena, FfmEncoding.encodeFailure(reason)),
-          out);
-      emptyResult(out);
+      emptyResult(
+          SharedCoreNative.vm_sys_complete_signal_failure(
+              vmHandle,
+              FfmEncoding.foreignUtf8(arena, targetInvocationId),
+              FfmEncoding.foreignUtf8(arena, signalName),
+              FfmEncoding.foreignBytes(arena, FfmEncoding.encodeFailure(reason))));
     }
   }
 
@@ -575,9 +549,8 @@ public final class FfmStateMachine implements StateMachine {
   public int promiseGet(String key) {
     verifyNotFreed();
     try (Arena arena = Arena.ofConfined()) {
-      MemorySegment out = HandleResult.allocate(arena);
-      SharedCoreNative.vm_sys_promise_get(vmHandle, FfmEncoding.foreignUtf8(arena, key), out);
-      return handleResult(out);
+      return handleResult(
+          SharedCoreNative.vm_sys_promise_get(vmHandle, FfmEncoding.foreignUtf8(arena, key)));
     }
   }
 
@@ -585,9 +558,8 @@ public final class FfmStateMachine implements StateMachine {
   public int promisePeek(String key) {
     verifyNotFreed();
     try (Arena arena = Arena.ofConfined()) {
-      MemorySegment out = HandleResult.allocate(arena);
-      SharedCoreNative.vm_sys_promise_peek(vmHandle, FfmEncoding.foreignUtf8(arena, key), out);
-      return handleResult(out);
+      return handleResult(
+          SharedCoreNative.vm_sys_promise_peek(vmHandle, FfmEncoding.foreignUtf8(arena, key)));
     }
   }
 
@@ -595,13 +567,11 @@ public final class FfmStateMachine implements StateMachine {
   public int promiseComplete(String key, Slice value) {
     verifyNotFreed();
     try (Arena arena = Arena.ofConfined()) {
-      MemorySegment out = HandleResult.allocate(arena);
-      SharedCoreNative.vm_sys_promise_complete_success(
-          vmHandle,
-          FfmEncoding.foreignUtf8(arena, key),
-          FfmEncoding.transferToSlice(arena, value),
-          out);
-      return handleResult(out);
+      return handleResult(
+          SharedCoreNative.vm_sys_promise_complete_success(
+              vmHandle,
+              FfmEncoding.foreignUtf8(arena, key),
+              FfmEncoding.transferToSlice(arena, value)));
     }
   }
 
@@ -609,13 +579,11 @@ public final class FfmStateMachine implements StateMachine {
   public int promiseComplete(String key, TerminalException reason) {
     verifyNotFreed();
     try (Arena arena = Arena.ofConfined()) {
-      MemorySegment out = HandleResult.allocate(arena);
-      SharedCoreNative.vm_sys_promise_complete_failure(
-          vmHandle,
-          FfmEncoding.foreignUtf8(arena, key),
-          FfmEncoding.foreignBytes(arena, FfmEncoding.encodeFailure(reason)),
-          out);
-      return handleResult(out);
+      return handleResult(
+          SharedCoreNative.vm_sys_promise_complete_failure(
+              vmHandle,
+              FfmEncoding.foreignUtf8(arena, key),
+              FfmEncoding.foreignBytes(arena, FfmEncoding.encodeFailure(reason))));
     }
   }
 
@@ -629,12 +597,12 @@ public final class FfmStateMachine implements StateMachine {
     try (Arena arena = Arena.ofConfined()) {
       MemorySegment out = RunResult.allocate(arena);
       SharedCoreNative.vm_sys_run(vmHandle, FfmEncoding.foreignUtf8(arena, name), out);
-      if (RunResult.tag(out) == SharedCoreNative.RunResult_Err()) {
-        throw closeVmAndMapError(RunResult_Err_Body.error(RunResult.err(out)));
+      int state = RunResult.state(out);
+      if (state == SharedCoreNative.ERROR_STATE()) {
+        throw takeLastVmError();
       }
-      MemorySegment ok = RunResult.ok(out);
-      updateState(RunResult_Ok_Body.state(ok));
-      return new RunResultHandle(RunResult_Ok_Body.replayed(ok) != 0, RunResult_Ok_Body.handle(ok));
+      updateState(state);
+      return new RunResultHandle(RunResult.replayed(out) != 0, RunResult.handle(out));
     }
   }
 
@@ -644,10 +612,9 @@ public final class FfmStateMachine implements StateMachine {
       return;
     }
     try (Arena arena = Arena.ofConfined()) {
-      MemorySegment out = EmptyResult.allocate(arena);
-      SharedCoreNative.vm_propose_run_completion_success(
-          vmHandle, handle, FfmEncoding.transferToSlice(arena, value), out);
-      emptyResult(out);
+      emptyResult(
+          SharedCoreNative.vm_propose_run_completion_success(
+              vmHandle, handle, FfmEncoding.transferToSlice(arena, value)));
     }
   }
 
@@ -657,13 +624,11 @@ public final class FfmStateMachine implements StateMachine {
       return;
     }
     try (Arena arena = Arena.ofConfined()) {
-      MemorySegment out = EmptyResult.allocate(arena);
-      SharedCoreNative.vm_propose_run_completion_terminal_failure(
-          vmHandle,
-          handle,
-          FfmEncoding.foreignBytes(arena, FfmEncoding.encodeFailure(terminalException)),
-          out);
-      emptyResult(out);
+      emptyResult(
+          SharedCoreNative.vm_propose_run_completion_terminal_failure(
+              vmHandle,
+              handle,
+              FfmEncoding.foreignBytes(arena, FfmEncoding.encodeFailure(terminalException))));
     }
   }
 
@@ -684,10 +649,9 @@ public final class FfmStateMachine implements StateMachine {
                   formatThrowableMessage(throwable),
                   formatThrowableStackTrace(throwable),
                   retryPolicy));
-      MemorySegment out = EmptyResult.allocate(arena);
-      SharedCoreNative.vm_propose_run_completion_retryable_failure(
-          vmHandle, handle, attemptDuration.toMillis(), paramsSeg, out);
-      emptyResult(out);
+      emptyResult(
+          SharedCoreNative.vm_propose_run_completion_retryable_failure(
+              vmHandle, handle, attemptDuration.toMillis(), paramsSeg));
     }
   }
 
@@ -699,10 +663,9 @@ public final class FfmStateMachine implements StateMachine {
   public void cancelInvocation(String invocationId) {
     verifyNotFreed();
     try (Arena arena = Arena.ofConfined()) {
-      MemorySegment out = EmptyResult.allocate(arena);
-      SharedCoreNative.vm_sys_cancel_invocation(
-          vmHandle, FfmEncoding.foreignUtf8(arena, invocationId), out);
-      emptyResult(out);
+      emptyResult(
+          SharedCoreNative.vm_sys_cancel_invocation(
+              vmHandle, FfmEncoding.foreignUtf8(arena, invocationId)));
     }
   }
 
@@ -710,10 +673,9 @@ public final class FfmStateMachine implements StateMachine {
   public int attachInvocation(String invocationId) {
     verifyNotFreed();
     try (Arena arena = Arena.ofConfined()) {
-      MemorySegment out = HandleResult.allocate(arena);
-      SharedCoreNative.vm_sys_attach_invocation(
-          vmHandle, FfmEncoding.foreignUtf8(arena, invocationId), out);
-      return handleResult(out);
+      return handleResult(
+          SharedCoreNative.vm_sys_attach_invocation(
+              vmHandle, FfmEncoding.foreignUtf8(arena, invocationId)));
     }
   }
 
@@ -721,10 +683,9 @@ public final class FfmStateMachine implements StateMachine {
   public int getInvocationOutput(String invocationId) {
     verifyNotFreed();
     try (Arena arena = Arena.ofConfined()) {
-      MemorySegment out = HandleResult.allocate(arena);
-      SharedCoreNative.vm_sys_get_invocation_output(
-          vmHandle, FfmEncoding.foreignUtf8(arena, invocationId), out);
-      return handleResult(out);
+      return handleResult(
+          SharedCoreNative.vm_sys_get_invocation_output(
+              vmHandle, FfmEncoding.foreignUtf8(arena, invocationId)));
     }
   }
 
@@ -736,10 +697,9 @@ public final class FfmStateMachine implements StateMachine {
   public void writeOutput(Slice value) {
     verifyNotFreed();
     try (Arena arena = Arena.ofConfined()) {
-      MemorySegment out = EmptyResult.allocate(arena);
-      SharedCoreNative.vm_sys_write_output_success(
-          vmHandle, FfmEncoding.transferToSlice(arena, value), out);
-      emptyResult(out);
+      emptyResult(
+          SharedCoreNative.vm_sys_write_output_success(
+              vmHandle, FfmEncoding.transferToSlice(arena, value)));
     }
   }
 
@@ -747,48 +707,59 @@ public final class FfmStateMachine implements StateMachine {
   public void writeOutput(TerminalException exception) {
     verifyNotFreed();
     try (Arena arena = Arena.ofConfined()) {
-      MemorySegment out = EmptyResult.allocate(arena);
-      SharedCoreNative.vm_sys_write_output_failure(
-          vmHandle, FfmEncoding.foreignBytes(arena, FfmEncoding.encodeFailure(exception)), out);
-      emptyResult(out);
+      emptyResult(
+          SharedCoreNative.vm_sys_write_output_failure(
+              vmHandle, FfmEncoding.foreignBytes(arena, FfmEncoding.encodeFailure(exception))));
     }
   }
 
   @Override
   public void end() {
     verifyNotFreed();
-    try (Arena arena = Arena.ofConfined()) {
-      MemorySegment out = EmptyResult.allocate(arena);
-      SharedCoreNative.vm_sys_end(vmHandle, out);
-      emptyResult(out);
-    }
+    emptyResult(SharedCoreNative.vm_sys_end(vmHandle));
   }
 
   // -------------------------------------------------------------------------
   // Result helpers
   // -------------------------------------------------------------------------
 
-  /** Reads a {@link HandleResult} tagged union: on {@code Ok} update state + return the handle. */
-  private int handleResult(MemorySegment out) {
-    if (HandleResult.tag(out) == SharedCoreNative.HandleResult_Err()) {
-      throw closeVmAndMapError(HandleResult_Err_Body.error(HandleResult.err(out)));
+  /**
+   * Decodes a register-packed handle result ({@code u64}): low 32 bits = state (or the {@link
+   * SharedCoreNative#ERROR_STATE} sentinel), high 32 bits = handle. On the error sentinel we fetch +
+   * throw the stashed error; otherwise update the cached state and return the handle.
+   */
+  private int handleResult(long packed) {
+    int state = (int) packed;
+    if (state == SharedCoreNative.ERROR_STATE()) {
+      throw takeLastVmError();
     }
-    MemorySegment ok = HandleResult.ok(out);
-    updateState(HandleResult_Ok_Body.state(ok));
-    return HandleResult_Ok_Body.handle(ok);
+    updateState(state);
+    return (int) (packed >>> 32);
   }
 
-  /** Reads an {@link EmptyResult} tagged union: on {@code Ok} update state. */
-  private void emptyResult(MemorySegment out) {
-    if (EmptyResult.tag(out) == SharedCoreNative.EmptyResult_Err()) {
-      throw closeVmAndMapError(EmptyResult_Err_Body.error(EmptyResult.err(out)));
+  /**
+   * Applies a register-packed empty result (a bare {@code u32}): the new state, or the {@link
+   * SharedCoreNative#ERROR_STATE} sentinel. On the error sentinel we fetch + throw the stashed
+   * error; otherwise update the cached state.
+   */
+  private void emptyResult(int packed) {
+    if (packed == SharedCoreNative.ERROR_STATE()) {
+      throw takeLastVmError();
     }
-    updateState(EmptyResult_Ok_Body.state(EmptyResult.ok(out)));
+    updateState(packed);
   }
 
   private void updateState(int ordinal) {
-    if (ordinal >= 0 && ordinal < STATES.length) {
-      this.cachedState = STATES[ordinal];
+    // `case` labels must be compile-time constants, and the SharedCoreNative.*_STATE() bindings are
+    // method calls, so this can't be a switch — it's an if/else chain like the other decoders.
+    if (ordinal == SharedCoreNative.WAITING_START_STATE()) {
+      this.cachedState = InvocationState.WAITING_START;
+    } else if (ordinal == SharedCoreNative.REPLAYING_STATE()) {
+      this.cachedState = InvocationState.REPLAYING;
+    } else if (ordinal == SharedCoreNative.PROCESSING_STATE()) {
+      this.cachedState = InvocationState.PROCESSING;
+    } else {
+      this.cachedState = InvocationState.CLOSED;
     }
   }
 

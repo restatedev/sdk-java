@@ -26,11 +26,7 @@ pub use mem::{ForeignSlice, Slice};
 
 use crate::logging::init_logging;
 use bytes::{Buf, BufMut, Bytes};
-use restate_sdk_shared_core::{
-    AttachInvocationTarget, AwaitResponse, AwakeableHandle, CoreVM, Error, Header, HeaderMap,
-    NonEmptyValue, NotificationHandle, PayloadOptions, RetryPolicy, RunExitResult, RunHandle,
-    Target, TerminalFailure, UnresolvedFuture, VMOptions, Value, VM,
-};
+use restate_sdk_shared_core::{AttachInvocationTarget, AwaitResponse, AwakeableHandle, CoreVM, Error, Header, HeaderMap, NonEmptyValue, NotificationHandle, PayloadOptions, RetryPolicy, RunExitResult, RunHandle, State, Target, TerminalFailure, UnresolvedFuture, VMOptions, VMResult, Value, VM};
 use std::borrow::Cow;
 use std::convert::Infallible;
 use std::ffi::c_void;
@@ -69,6 +65,38 @@ pub struct VmHandle {
     vm: CoreVM,
     notification_scratch: Option<Option<Value>>,
     last_vm_error_scratch: Option<Error>,
+}
+
+impl VmHandle {
+    pub(crate) fn pack_handle_result(&mut self, res: VMResult<NotificationHandle>) -> u64 {
+        match res {
+            Ok(h) => (self.vm.state() as u8 as u64) | ((u32::from(h) as u64) << 32),
+            Err(e) => {
+                self.last_vm_error_scratch = Some(e);
+                ERROR_STATE as u64
+            }
+        }
+    }
+
+    pub(crate) fn pack_empty_result(&mut self, res: VMResult<()>) -> u32 {
+        match res {
+            Ok(()) => self.vm.state() as u8 as u32,
+            Err(e) => {
+                self.last_vm_error_scratch = Some(e);
+                ERROR_STATE
+            }
+        }
+    }
+
+    pub(crate) fn pack_struct_result<T: Default>(&mut self, res: VMResult<T>) -> T {
+        match res {
+            Ok(v) => v,
+            Err(e) => {
+                self.last_vm_error_scratch = Some(e);
+                T::default()
+            }
+        }
+    }
 }
 
 struct Headers(Vec<(String, String)>);
@@ -128,80 +156,27 @@ pub enum VmNewResult {
     Err { error: VmError },
 }
 
-/// Result of a call returning nothing (state mutations, completions, end). On
-/// `Err` the VM is closed, so only the error travels (no state piggyback).
-#[repr(C, u32)]
-pub enum EmptyResult {
-    Ok { state: u32 },
-    Err { error: VmError },
-}
+// The Java decoder maps a call's returned `state` ordinal to an `InvocationState` via these
+// constants. cbindgen can't const-eval `State::X as u8`, so it would silently drop such consts;
+// we hardcode the discriminants as plain literals (which it *does* export as `#define`s) and
+// statically assert below that they still match the core's `State` enum.
+pub const WAITING_START_STATE: u32 = 0;
+pub const REPLAYING_STATE: u32 = 1;
+pub const PROCESSING_STATE: u32 = 2;
+pub const CLOSED_STATE: u32 = 3;
 
-impl EmptyResult {
-    #[inline]
-    fn build(r: Result<(), Error>, state: u32) -> Self {
-        match r {
-            Ok(()) => EmptyResult::Ok { state },
-            Err(e) => EmptyResult::Err {
-                error: VmError::of(&e),
-            },
-        }
-    }
-}
-
-/// Result of a call returning a single notification handle.
-#[repr(C, u32)]
-pub enum HandleResult {
-    Ok { state: u32, handle: u32 },
-    Err { error: VmError },
-}
-
-impl HandleResult {
-    #[inline]
-    fn build(r: Result<NotificationHandle, Error>, state: u32) -> Self {
-        match r {
-            Ok(h) => HandleResult::Ok {
-                state,
-                handle: h.into(),
-            },
-            Err(e) => HandleResult::Err {
-                error: VmError::of(&e),
-            },
-        }
-    }
-}
-
-/// Result of `sys_call`: the invocation-id and result notification handles.
-#[repr(C, u32)]
-pub enum CallResult {
-    Ok {
-        state: u32,
-        invocation_id_handle: u32,
-        result_handle: u32,
-    },
-    Err {
-        error: VmError,
-    },
-}
-
-/// Result of `sys_run`: the run handle plus whether it was replayed.
-#[repr(C, u32)]
-pub enum RunResult {
-    Ok {
-        state: u32,
-        handle: u32,
-        replayed: u32,
-    },
-    Err {
-        error: VmError,
-    },
-}
-
-/// Result of `sys_awakeable`: the handle plus the owned awakeable id.
-#[repr(C, u32)]
-pub enum AwakeableResult {
-    Ok { state: u32, handle: u32, id: Slice },
-    Err { error: VmError },
-}
+const _: () = {
+    assert!(WAITING_START_STATE == State::WaitingPreFlight as u32);
+    assert!(REPLAYING_STATE == State::Replaying as u32);
+    assert!(PROCESSING_STATE == State::Processing as u32);
+    assert!(CLOSED_STATE == State::Closed as u32);
+};
+/// Sentinel `state` value meaning "error": the real detail is stashed in `last_vm_error_scratch` and
+/// fetched via `vm_take_last_vm_error`. `u32::MAX` is never a real `InvocationState` ordinal. Shared
+/// by every state-piggybacking result — the packed `HandleResult`/`EmptyResult` scalars and the
+/// `state` field of the `InputResult`/`CallResult`/`RunResult`/`AwakeableResult` structs. cbindgen
+/// exports it for the Java decoder.
+pub const ERROR_STATE: u32 = u32::MAX;
 
 #[inline]
 unsafe fn write_out<T>(out: *mut T, value: T) {
@@ -538,16 +513,21 @@ pub unsafe extern "C" fn _vm_take_notification_invocation_id(
 /// encoded `u32 len, bytes`; integers little-endian. The handler `input` payload stays a separate
 /// owned `Slice` — Java reinterprets it zero-copy and propagates it to the user deserialization
 /// layer rather than copying it out. `state` rides inline (the usual piggyback).
-#[repr(C, u32)]
-pub enum InputResult {
-    Ok {
-        state: u32,
-        metadata: Slice,
-        input: Slice,
-    },
-    Err {
-        error: VmError,
-    },
+#[repr(C)]
+pub struct InputResult {
+    pub state: u32,
+    pub metadata: Slice,
+    pub input: Slice,
+}
+
+impl Default for InputResult {
+    fn default() -> Self {
+        Self {
+            state: ERROR_STATE,
+            metadata: Slice::EMPTY,
+            input: Slice::EMPTY,
+        }
+    }
 }
 
 /// Writes the typed `Input` into an `InputResult`. Only `headers` is encoded as a
@@ -555,36 +535,31 @@ pub enum InputResult {
 #[export_name = "vm_sys_input"]
 pub unsafe extern "C" fn _vm_sys_input(handle: *mut VmHandle, out: *mut InputResult) {
     let h = vm_mut(handle);
-    write_out(out, vm_sys_input(&mut h.vm));
+    let res = vm_sys_input(&mut h.vm);
+    write_out(out, h.pack_struct_result(res));
 }
 
 #[inline]
-fn vm_sys_input(vm: &mut CoreVM) -> InputResult {
-    match VM::sys_input(vm) {
-        Ok(input) => {
-            // Pack everything the Java side copies out anyway into one blob (see `InputResult` doc).
-            let mut meta = Vec::new();
-            meta.put_u64_le(input.random_seed);
-            put_str(&mut meta, &input.invocation_id);
-            put_str(&mut meta, &input.key);
-            meta.put_u32_le(input.headers.len() as u32);
-            for header in &input.headers {
-                put_str(&mut meta, &header.key);
-                put_str(&mut meta, &header.value);
-            }
-            put_opt_str(&mut meta, input.scope.as_deref());
-            put_opt_str(&mut meta, input.limit_key.as_deref());
-            put_opt_str(&mut meta, input.idempotency_key.as_deref());
-            InputResult::Ok {
-                state: state_of(vm),
-                metadata: Slice::from_vec(meta),
-                input: Slice::from_bytes(input.input),
-            }
-        }
-        Err(e) => InputResult::Err {
-            error: VmError::of(&e),
-        },
+fn vm_sys_input(vm: &mut CoreVM) -> VMResult<InputResult> {
+    let input = VM::sys_input(vm)?;
+    // Pack everything the Java side copies out anyway into one blob (see `InputResult` doc).
+    let mut meta = Vec::new();
+    meta.put_u64_le(input.random_seed);
+    put_str(&mut meta, &input.invocation_id);
+    put_str(&mut meta, &input.key);
+    meta.put_u32_le(input.headers.len() as u32);
+    for header in &input.headers {
+        put_str(&mut meta, &header.key);
+        put_str(&mut meta, &header.value);
     }
+    put_opt_str(&mut meta, input.scope.as_deref());
+    put_opt_str(&mut meta, input.limit_key.as_deref());
+    put_opt_str(&mut meta, input.idempotency_key.as_deref());
+    Ok(InputResult {
+        state: state_of(vm),
+        metadata: Slice::from_vec(meta),
+        input: Slice::from_bytes(input.input),
+    })
 }
 
 // =========================================================================
@@ -592,31 +567,27 @@ fn vm_sys_input(vm: &mut CoreVM) -> InputResult {
 // =========================================================================
 
 #[export_name = "vm_sys_state_get"]
-pub unsafe extern "C" fn _vm_sys_state_get(
-    handle: *mut VmHandle,
-    key: ForeignSlice,
-    out: *mut HandleResult,
-) {
+pub unsafe extern "C" fn _vm_sys_state_get(handle: *mut VmHandle, key: ForeignSlice) -> u64 {
     let h = vm_mut(handle);
-    write_out(out, vm_sys_state_get(&mut h.vm, key.as_str()));
+    let res = vm_sys_state_get(&mut h.vm, key.as_str());
+    h.pack_handle_result(res)
 }
 
 #[inline]
-fn vm_sys_state_get(vm: &mut CoreVM, key: &str) -> HandleResult {
-    let r = VM::sys_state_get(vm, key.to_owned(), PayloadOptions::default());
-    HandleResult::build(r, state_of(vm))
+fn vm_sys_state_get(vm: &mut CoreVM, key: &str) -> VMResult<NotificationHandle> {
+    VM::sys_state_get(vm, key.to_owned(), PayloadOptions::default())
 }
 
 #[export_name = "vm_sys_state_get_keys"]
-pub unsafe extern "C" fn _vm_sys_state_get_keys(handle: *mut VmHandle, out: *mut HandleResult) {
+pub unsafe extern "C" fn _vm_sys_state_get_keys(handle: *mut VmHandle) -> u64 {
     let h = vm_mut(handle);
-    write_out(out, vm_sys_state_get_keys(&mut h.vm));
+    let res = vm_sys_state_get_keys(&mut h.vm);
+    h.pack_handle_result(res)
 }
 
 #[inline]
-fn vm_sys_state_get_keys(vm: &mut CoreVM) -> HandleResult {
-    let r = VM::sys_state_get_keys(vm);
-    HandleResult::build(r, state_of(vm))
+fn vm_sys_state_get_keys(vm: &mut CoreVM) -> VMResult<NotificationHandle> {
+    VM::sys_state_get_keys(vm)
 }
 
 #[export_name = "vm_sys_state_set"]
@@ -624,44 +595,39 @@ pub unsafe extern "C" fn _vm_sys_state_set(
     handle: *mut VmHandle,
     key: ForeignSlice,
     value: Slice,
-    out: *mut EmptyResult,
-) {
+) -> u32 {
     let h = vm_mut(handle);
-    write_out(out, vm_sys_state_set(&mut h.vm, key.as_str(), value.take()));
+    let res = vm_sys_state_set(&mut h.vm, key.as_str(), value.take());
+    h.pack_empty_result(res)
 }
 
 #[inline]
-fn vm_sys_state_set(vm: &mut CoreVM, key: &str, value: Bytes) -> EmptyResult {
-    let r = VM::sys_state_set(vm, key.to_owned(), value, PayloadOptions::default());
-    EmptyResult::build(r, state_of(vm))
+fn vm_sys_state_set(vm: &mut CoreVM, key: &str, value: Bytes) -> VMResult<()> {
+    VM::sys_state_set(vm, key.to_owned(), value, PayloadOptions::default())
 }
 
 #[export_name = "vm_sys_state_clear"]
-pub unsafe extern "C" fn _vm_sys_state_clear(
-    handle: *mut VmHandle,
-    key: ForeignSlice,
-    out: *mut EmptyResult,
-) {
+pub unsafe extern "C" fn _vm_sys_state_clear(handle: *mut VmHandle, key: ForeignSlice) -> u32 {
     let h = vm_mut(handle);
-    write_out(out, vm_sys_state_clear(&mut h.vm, key.as_str()));
+    let res = vm_sys_state_clear(&mut h.vm, key.as_str());
+    h.pack_empty_result(res)
 }
 
 #[inline]
-fn vm_sys_state_clear(vm: &mut CoreVM, key: &str) -> EmptyResult {
-    let r = VM::sys_state_clear(vm, key.to_owned());
-    EmptyResult::build(r, state_of(vm))
+fn vm_sys_state_clear(vm: &mut CoreVM, key: &str) -> VMResult<()> {
+    VM::sys_state_clear(vm, key.to_owned())
 }
 
 #[export_name = "vm_sys_state_clear_all"]
-pub unsafe extern "C" fn _vm_sys_state_clear_all(handle: *mut VmHandle, out: *mut EmptyResult) {
+pub unsafe extern "C" fn _vm_sys_state_clear_all(handle: *mut VmHandle) -> u32 {
     let h = vm_mut(handle);
-    write_out(out, vm_sys_state_clear_all(&mut h.vm));
+    let res = vm_sys_state_clear_all(&mut h.vm);
+    h.pack_empty_result(res)
 }
 
 #[inline]
-fn vm_sys_state_clear_all(vm: &mut CoreVM) -> EmptyResult {
-    let r = VM::sys_state_clear_all(vm);
-    EmptyResult::build(r, state_of(vm))
+fn vm_sys_state_clear_all(vm: &mut CoreVM) -> VMResult<()> {
+    VM::sys_state_clear_all(vm)
 }
 
 #[export_name = "vm_sys_sleep"]
@@ -670,18 +636,15 @@ pub unsafe extern "C" fn _vm_sys_sleep(
     name: ForeignSlice,
     wake_up_time_since_unix_epoch_millis: u64,
     now_since_unix_epoch_millis: u64,
-    out: *mut HandleResult,
-) {
+) -> u64 {
     let h = vm_mut(handle);
-    write_out(
-        out,
-        vm_sys_sleep(
-            &mut h.vm,
-            name.as_str(),
-            wake_up_time_since_unix_epoch_millis,
-            now_since_unix_epoch_millis,
-        ),
+    let r = vm_sys_sleep(
+        &mut h.vm,
+        name.as_str(),
+        wake_up_time_since_unix_epoch_millis,
+        now_since_unix_epoch_millis,
     );
+    h.pack_handle_result(r)
 }
 
 #[inline]
@@ -690,34 +653,47 @@ fn vm_sys_sleep(
     name: &str,
     wake_up_time_since_unix_epoch_millis: u64,
     now_since_unix_epoch_millis: u64,
-) -> HandleResult {
-    let r = VM::sys_sleep(
+) -> VMResult<NotificationHandle> {
+    VM::sys_sleep(
         vm,
         name.to_owned(),
         Duration::from_millis(wake_up_time_since_unix_epoch_millis),
         Some(Duration::from_millis(now_since_unix_epoch_millis)),
-    );
-    HandleResult::build(r, state_of(vm))
+    )
+}
+
+#[repr(C)]
+pub struct AwakeableResult {
+    pub state: u32,
+    pub handle: u32,
+    pub id: Slice,
+}
+
+impl Default for AwakeableResult {
+    fn default() -> Self {
+        Self {
+            state: ERROR_STATE,
+            handle: 0,
+            id: Slice::EMPTY,
+        }
+    }
 }
 
 #[export_name = "vm_sys_awakeable"]
 pub unsafe extern "C" fn _vm_sys_awakeable(handle: *mut VmHandle, out: *mut AwakeableResult) {
     let h = vm_mut(handle);
-    write_out(out, vm_sys_awakeable(&mut h.vm));
+    let res = vm_sys_awakeable(&mut h.vm);
+    write_out(out, h.pack_struct_result(res));
 }
 
 #[inline]
-fn vm_sys_awakeable(vm: &mut CoreVM) -> AwakeableResult {
-    match VM::sys_awakeable(vm) {
-        Ok(AwakeableHandle { id, handle }) => AwakeableResult::Ok {
-            state: state_of(vm),
-            handle: handle.into(),
-            id: Slice::from_string(id),
-        },
-        Err(e) => AwakeableResult::Err {
-            error: VmError::of(&e),
-        },
-    }
+fn vm_sys_awakeable(vm: &mut CoreVM) -> VMResult<AwakeableResult> {
+    let AwakeableHandle { id, handle } = VM::sys_awakeable(vm)?;
+    Ok(AwakeableResult {
+        state: state_of(vm),
+        handle: handle.into(),
+        id: Slice::from_string(id),
+    })
 }
 
 #[export_name = "vm_sys_complete_awakeable_success"]
@@ -725,17 +701,14 @@ pub unsafe extern "C" fn _vm_sys_complete_awakeable_success(
     handle: *mut VmHandle,
     id: ForeignSlice,
     value: Slice,
-    out: *mut EmptyResult,
-) {
+) -> u32 {
     let h = vm_mut(handle);
-    write_out(
-        out,
-        vm_sys_complete_awakeable_success(&mut h.vm, id.as_str(), value.take()),
-    );
+    let res = vm_sys_complete_awakeable_success(&mut h.vm, id.as_str(), value.take());
+    h.pack_empty_result(res)
 }
 
 #[inline]
-fn vm_sys_complete_awakeable_success(vm: &mut CoreVM, id: &str, value: Bytes) -> EmptyResult {
+fn vm_sys_complete_awakeable_success(vm: &mut CoreVM, id: &str, value: Bytes) -> VMResult<()> {
     complete_awakeable(vm, id, success_value(value))
 }
 
@@ -744,29 +717,42 @@ pub unsafe extern "C" fn _vm_sys_complete_awakeable_failure(
     handle: *mut VmHandle,
     id: ForeignSlice,
     failure: ForeignSlice,
-    out: *mut EmptyResult,
-) {
+) -> u32 {
     let h = vm_mut(handle);
-    write_out(
-        out,
-        vm_sys_complete_awakeable_failure(&mut h.vm, id.as_str(), failure.as_slice()),
-    );
+    let res = vm_sys_complete_awakeable_failure(&mut h.vm, id.as_str(), failure.as_slice());
+    h.pack_empty_result(res)
 }
 
 #[inline]
-fn vm_sys_complete_awakeable_failure(vm: &mut CoreVM, id: &str, failure: &[u8]) -> EmptyResult {
+fn vm_sys_complete_awakeable_failure(vm: &mut CoreVM, id: &str, failure: &[u8]) -> VMResult<()> {
     complete_awakeable(vm, id, failure_value(failure))
 }
 
 #[inline]
-fn complete_awakeable(vm: &mut CoreVM, id: &str, value: NonEmptyValue) -> EmptyResult {
-    let r = VM::sys_complete_awakeable(vm, id.to_owned(), value, PayloadOptions::default());
-    EmptyResult::build(r, state_of(vm))
+fn complete_awakeable(vm: &mut CoreVM, id: &str, value: NonEmptyValue) -> VMResult<()> {
+    VM::sys_complete_awakeable(vm, id.to_owned(), value, PayloadOptions::default())
 }
 
 // =========================================================================
 // Call / send / invocation
 // =========================================================================
+
+#[repr(C)]
+pub struct CallResult {
+    pub state: u32,
+    pub invocation_id_handle: u32,
+    pub result_handle: u32,
+}
+
+impl Default for CallResult {
+    fn default() -> Self {
+        Self {
+            state: ERROR_STATE,
+            invocation_id_handle: 0,
+            result_handle: 0,
+        }
+    }
+}
 
 #[export_name = "vm_sys_call"]
 pub unsafe extern "C" fn _vm_sys_call(
@@ -777,27 +763,24 @@ pub unsafe extern "C" fn _vm_sys_call(
     let h = vm_mut(handle);
     let target = args.borrow();
     let input = args.input.take();
-    write_out(out, vm_sys_call(&mut h.vm, target, input));
+    let res = vm_sys_call(&mut h.vm, target, input);
+    write_out(out, h.pack_struct_result(res));
 }
 
 #[inline]
-fn vm_sys_call(vm: &mut CoreVM, target: BorrowedTarget, input: Bytes) -> CallResult {
-    match VM::sys_call(
+fn vm_sys_call(vm: &mut CoreVM, target: BorrowedTarget, input: Bytes) -> VMResult<CallResult> {
+    let call_handle = VM::sys_call(
         vm,
         target.into_core(),
         input,
         None,
         PayloadOptions::default(),
-    ) {
-        Ok(call_handle) => CallResult::Ok {
-            state: state_of(vm),
-            invocation_id_handle: call_handle.invocation_id_notification_handle.into(),
-            result_handle: call_handle.call_notification_handle.into(),
-        },
-        Err(e) => CallResult::Err {
-            error: VmError::of(&e),
-        },
-    }
+    )?;
+    Ok(CallResult {
+        state: state_of(vm),
+        invocation_id_handle: call_handle.invocation_id_notification_handle.into(),
+        result_handle: call_handle.call_notification_handle.into(),
+    })
 }
 
 #[export_name = "vm_sys_send"]
@@ -805,12 +788,12 @@ pub unsafe extern "C" fn _vm_sys_send(
     handle: *mut VmHandle,
     args: CallArguments,
     delay_millis: u64,
-    out: *mut HandleResult,
-) {
+) -> u64 {
     let h = vm_mut(handle);
     let target = args.borrow();
     let input = args.input.take();
-    write_out(out, vm_sys_send(&mut h.vm, target, input, delay_millis));
+    let r = vm_sys_send(&mut h.vm, target, input, delay_millis);
+    h.pack_handle_result(r)
 }
 
 #[inline]
@@ -819,10 +802,10 @@ fn vm_sys_send(
     target: BorrowedTarget,
     input: Bytes,
     delay_millis: u64,
-) -> HandleResult {
+) -> VMResult<NotificationHandle> {
     // 0 means "no delay"; any non-zero value is the absolute wake-up time in epoch millis.
     let delay = (delay_millis != 0).then(|| Duration::from_millis(delay_millis));
-    let r = VM::sys_send(
+    VM::sys_send(
         vm,
         target.into_core(),
         input,
@@ -830,62 +813,55 @@ fn vm_sys_send(
         None,
         PayloadOptions::default(),
     )
-    .map(|s| s.invocation_id_notification_handle);
-    HandleResult::build(r, state_of(vm))
+    .map(|s| s.invocation_id_notification_handle)
 }
 
 #[export_name = "vm_sys_cancel_invocation"]
-pub unsafe extern "C" fn _vm_sys_cancel_invocation(
-    handle: *mut VmHandle,
-    id: ForeignSlice,
-    out: *mut EmptyResult,
-) {
+pub unsafe extern "C" fn _vm_sys_cancel_invocation(handle: *mut VmHandle, id: ForeignSlice) -> u32 {
     let h = vm_mut(handle);
-    write_out(out, vm_sys_cancel_invocation(&mut h.vm, id.as_slice()));
+    let res = vm_sys_cancel_invocation(&mut h.vm, id.as_slice());
+    h.pack_empty_result(res)
 }
 
 #[inline]
-fn vm_sys_cancel_invocation(vm: &mut CoreVM, invocation_id: &[u8]) -> EmptyResult {
-    let r = VM::sys_cancel_invocation(vm, utf8(invocation_id).to_owned());
-    EmptyResult::build(r, state_of(vm))
+fn vm_sys_cancel_invocation(vm: &mut CoreVM, invocation_id: &[u8]) -> VMResult<()> {
+    VM::sys_cancel_invocation(vm, utf8(invocation_id).to_owned())
 }
 
 #[export_name = "vm_sys_attach_invocation"]
-pub unsafe extern "C" fn _vm_sys_attach_invocation(
-    handle: *mut VmHandle,
-    id: ForeignSlice,
-    out: *mut HandleResult,
-) {
+pub unsafe extern "C" fn _vm_sys_attach_invocation(handle: *mut VmHandle, id: ForeignSlice) -> u64 {
     let h = vm_mut(handle);
-    write_out(out, vm_sys_attach_invocation(&mut h.vm, id.as_slice()));
+    let r = vm_sys_attach_invocation(&mut h.vm, id.as_slice());
+    h.pack_handle_result(r)
 }
 
 #[inline]
-fn vm_sys_attach_invocation(vm: &mut CoreVM, invocation_id: &[u8]) -> HandleResult {
-    let r = VM::sys_attach_invocation(
+fn vm_sys_attach_invocation(vm: &mut CoreVM, invocation_id: &[u8]) -> VMResult<NotificationHandle> {
+    VM::sys_attach_invocation(
         vm,
         AttachInvocationTarget::InvocationId(utf8(invocation_id).to_owned()),
-    );
-    HandleResult::build(r, state_of(vm))
+    )
 }
 
 #[export_name = "vm_sys_get_invocation_output"]
 pub unsafe extern "C" fn _vm_sys_get_invocation_output(
     handle: *mut VmHandle,
     id: ForeignSlice,
-    out: *mut HandleResult,
-) {
+) -> u64 {
     let h = vm_mut(handle);
-    write_out(out, vm_sys_get_invocation_output(&mut h.vm, id.as_slice()));
+    let r = vm_sys_get_invocation_output(&mut h.vm, id.as_slice());
+    h.pack_handle_result(r)
 }
 
 #[inline]
-fn vm_sys_get_invocation_output(vm: &mut CoreVM, invocation_id: &[u8]) -> HandleResult {
-    let r = VM::sys_get_invocation_output(
+fn vm_sys_get_invocation_output(
+    vm: &mut CoreVM,
+    invocation_id: &[u8],
+) -> VMResult<NotificationHandle> {
+    VM::sys_get_invocation_output(
         vm,
         AttachInvocationTarget::InvocationId(utf8(invocation_id).to_owned()),
-    );
-    HandleResult::build(r, state_of(vm))
+    )
 }
 
 // =========================================================================
@@ -893,35 +869,27 @@ fn vm_sys_get_invocation_output(vm: &mut CoreVM, invocation_id: &[u8]) -> Handle
 // =========================================================================
 
 #[export_name = "vm_sys_promise_get"]
-pub unsafe extern "C" fn _vm_sys_promise_get(
-    handle: *mut VmHandle,
-    key: ForeignSlice,
-    out: *mut HandleResult,
-) {
+pub unsafe extern "C" fn _vm_sys_promise_get(handle: *mut VmHandle, key: ForeignSlice) -> u64 {
     let h = vm_mut(handle);
-    write_out(out, vm_sys_promise_get(&mut h.vm, key.as_slice()));
+    let r = vm_sys_promise_get(&mut h.vm, key.as_slice());
+    h.pack_handle_result(r)
 }
 
 #[inline]
-fn vm_sys_promise_get(vm: &mut CoreVM, key: &[u8]) -> HandleResult {
-    let r = VM::sys_get_promise(vm, utf8(key).to_owned());
-    HandleResult::build(r, state_of(vm))
+fn vm_sys_promise_get(vm: &mut CoreVM, key: &[u8]) -> VMResult<NotificationHandle> {
+    VM::sys_get_promise(vm, utf8(key).to_owned())
 }
 
 #[export_name = "vm_sys_promise_peek"]
-pub unsafe extern "C" fn _vm_sys_promise_peek(
-    handle: *mut VmHandle,
-    key: ForeignSlice,
-    out: *mut HandleResult,
-) {
+pub unsafe extern "C" fn _vm_sys_promise_peek(handle: *mut VmHandle, key: ForeignSlice) -> u64 {
     let h = vm_mut(handle);
-    write_out(out, vm_sys_promise_peek(&mut h.vm, key.as_slice()));
+    let r = vm_sys_promise_peek(&mut h.vm, key.as_slice());
+    h.pack_handle_result(r)
 }
 
 #[inline]
-fn vm_sys_promise_peek(vm: &mut CoreVM, key: &[u8]) -> HandleResult {
-    let r = VM::sys_peek_promise(vm, utf8(key).to_owned());
-    HandleResult::build(r, state_of(vm))
+fn vm_sys_promise_peek(vm: &mut CoreVM, key: &[u8]) -> VMResult<NotificationHandle> {
+    VM::sys_peek_promise(vm, utf8(key).to_owned())
 }
 
 #[export_name = "vm_sys_promise_complete_success"]
@@ -929,17 +897,18 @@ pub unsafe extern "C" fn _vm_sys_promise_complete_success(
     handle: *mut VmHandle,
     key: ForeignSlice,
     value: Slice,
-    out: *mut HandleResult,
-) {
+) -> u64 {
     let h = vm_mut(handle);
-    write_out(
-        out,
-        vm_sys_promise_complete_success(&mut h.vm, key.as_slice(), value.take()),
-    );
+    let r = vm_sys_promise_complete_success(&mut h.vm, key.as_slice(), value.take());
+    h.pack_handle_result(r)
 }
 
 #[inline]
-fn vm_sys_promise_complete_success(vm: &mut CoreVM, key: &[u8], value: Bytes) -> HandleResult {
+fn vm_sys_promise_complete_success(
+    vm: &mut CoreVM,
+    key: &[u8],
+    value: Bytes,
+) -> VMResult<NotificationHandle> {
     promise_complete(vm, key, success_value(value))
 }
 
@@ -948,40 +917,43 @@ pub unsafe extern "C" fn _vm_sys_promise_complete_failure(
     handle: *mut VmHandle,
     key: ForeignSlice,
     failure: ForeignSlice,
-    out: *mut HandleResult,
-) {
+) -> u64 {
     let h = vm_mut(handle);
-    write_out(
-        out,
-        vm_sys_promise_complete_failure(&mut h.vm, key.as_slice(), failure.as_slice()),
-    );
+    let r = vm_sys_promise_complete_failure(&mut h.vm, key.as_slice(), failure.as_slice());
+    h.pack_handle_result(r)
 }
 
 #[inline]
-fn vm_sys_promise_complete_failure(vm: &mut CoreVM, key: &[u8], failure: &[u8]) -> HandleResult {
+fn vm_sys_promise_complete_failure(
+    vm: &mut CoreVM,
+    key: &[u8],
+    failure: &[u8],
+) -> VMResult<NotificationHandle> {
     promise_complete(vm, key, failure_value(failure))
 }
 
 #[inline]
-fn promise_complete(vm: &mut CoreVM, key: &[u8], value: NonEmptyValue) -> HandleResult {
-    let r = VM::sys_complete_promise(vm, utf8(key).to_owned(), value, PayloadOptions::default());
-    HandleResult::build(r, state_of(vm))
+fn promise_complete(
+    vm: &mut CoreVM,
+    key: &[u8],
+    value: NonEmptyValue,
+) -> VMResult<NotificationHandle> {
+    VM::sys_complete_promise(vm, utf8(key).to_owned(), value, PayloadOptions::default())
 }
 
 #[export_name = "vm_sys_create_signal_handle"]
 pub unsafe extern "C" fn _vm_sys_create_signal_handle(
     handle: *mut VmHandle,
     name: ForeignSlice,
-    out: *mut HandleResult,
-) {
+) -> u64 {
     let h = vm_mut(handle);
-    write_out(out, vm_sys_create_signal_handle(&mut h.vm, name.as_slice()));
+    let r = vm_sys_create_signal_handle(&mut h.vm, name.as_slice());
+    h.pack_handle_result(r)
 }
 
 #[inline]
-fn vm_sys_create_signal_handle(vm: &mut CoreVM, name: &[u8]) -> HandleResult {
-    let r = VM::create_signal_handle(vm, utf8(name).to_owned());
-    HandleResult::build(r, state_of(vm))
+fn vm_sys_create_signal_handle(vm: &mut CoreVM, name: &[u8]) -> VMResult<NotificationHandle> {
+    VM::create_signal_handle(vm, utf8(name).to_owned())
 }
 
 #[export_name = "vm_sys_complete_signal_success"]
@@ -990,13 +962,11 @@ pub unsafe extern "C" fn _vm_sys_complete_signal_success(
     target: ForeignSlice,
     name: ForeignSlice,
     value: Slice,
-    out: *mut EmptyResult,
-) {
+) -> u32 {
     let h = vm_mut(handle);
-    write_out(
-        out,
-        vm_sys_complete_signal_success(&mut h.vm, target.as_slice(), name.as_slice(), value.take()),
-    );
+    let res =
+        vm_sys_complete_signal_success(&mut h.vm, target.as_slice(), name.as_slice(), value.take());
+    h.pack_empty_result(res)
 }
 
 #[inline]
@@ -1005,7 +975,7 @@ fn vm_sys_complete_signal_success(
     target: &[u8],
     name: &[u8],
     value: Bytes,
-) -> EmptyResult {
+) -> VMResult<()> {
     complete_signal(vm, target, name, success_value(value))
 }
 
@@ -1015,18 +985,15 @@ pub unsafe extern "C" fn _vm_sys_complete_signal_failure(
     target: ForeignSlice,
     name: ForeignSlice,
     failure: ForeignSlice,
-    out: *mut EmptyResult,
-) {
+) -> u32 {
     let h = vm_mut(handle);
-    write_out(
-        out,
-        vm_sys_complete_signal_failure(
-            &mut h.vm,
-            target.as_slice(),
-            name.as_slice(),
-            failure.as_slice(),
-        ),
+    let res = vm_sys_complete_signal_failure(
+        &mut h.vm,
+        target.as_slice(),
+        name.as_slice(),
+        failure.as_slice(),
     );
+    h.pack_empty_result(res)
 }
 
 #[inline]
@@ -1035,7 +1002,7 @@ fn vm_sys_complete_signal_failure(
     target: &[u8],
     name: &[u8],
     failure: &[u8],
-) -> EmptyResult {
+) -> VMResult<()> {
     complete_signal(vm, target, name, failure_value(failure))
 }
 
@@ -1045,19 +1012,35 @@ fn complete_signal(
     target_invocation_id: &[u8],
     name: &[u8],
     value: NonEmptyValue,
-) -> EmptyResult {
-    let r = VM::sys_complete_signal(
+) -> VMResult<()> {
+    VM::sys_complete_signal(
         vm,
         utf8(target_invocation_id).to_owned(),
         utf8(name).to_owned(),
         value,
-    );
-    EmptyResult::build(r, state_of(vm))
+    )
 }
 
 // =========================================================================
 // Run
 // =========================================================================
+
+#[repr(C)]
+pub struct RunResult {
+    pub state: u32,
+    pub handle: u32,
+    pub replayed: u32,
+}
+
+impl Default for RunResult {
+    fn default() -> Self {
+        Self {
+            state: ERROR_STATE,
+            handle: 0,
+            replayed: 0,
+        }
+    }
+}
 
 #[export_name = "vm_sys_run"]
 pub unsafe extern "C" fn _vm_sys_run(
@@ -1066,21 +1049,18 @@ pub unsafe extern "C" fn _vm_sys_run(
     out: *mut RunResult,
 ) {
     let h = vm_mut(handle);
-    write_out(out, vm_sys_run(&mut h.vm, name.as_slice()));
+    let res = vm_sys_run(&mut h.vm, name.as_slice());
+    write_out(out, h.pack_struct_result(res));
 }
 
 #[inline]
-fn vm_sys_run(vm: &mut CoreVM, name: &[u8]) -> RunResult {
-    match VM::sys_run(vm, utf8(name).to_owned()) {
-        Ok(RunHandle { replayed, handle }) => RunResult::Ok {
-            state: state_of(vm),
-            handle: handle.into(),
-            replayed: replayed as u32,
-        },
-        Err(e) => RunResult::Err {
-            error: VmError::of(&e),
-        },
-    }
+fn vm_sys_run(vm: &mut CoreVM, name: &[u8]) -> VMResult<RunResult> {
+    let RunHandle { replayed, handle } = VM::sys_run(vm, utf8(name).to_owned())?;
+    Ok(RunResult {
+        state: state_of(vm),
+        handle: handle.into(),
+        replayed: replayed as u32,
+    })
 }
 
 /// Propose a successful run completion (`value` = run result bytes).
@@ -1089,13 +1069,10 @@ pub unsafe extern "C" fn _vm_propose_run_completion_success(
     handle: *mut VmHandle,
     run_handle: u32,
     value: Slice,
-    out: *mut EmptyResult,
-) {
+) -> u32 {
     let h = vm_mut(handle);
-    write_out(
-        out,
-        vm_propose_run_completion_success(&mut h.vm, run_handle, value.take()),
-    );
+    let res = vm_propose_run_completion_success(&mut h.vm, run_handle, value.take());
+    h.pack_empty_result(res)
 }
 
 #[inline]
@@ -1103,7 +1080,7 @@ fn vm_propose_run_completion_success(
     vm: &mut CoreVM,
     run_handle: u32,
     value: Bytes,
-) -> EmptyResult {
+) -> VMResult<()> {
     let result = RunExitResult::Success(value);
     propose_run_completion(vm, run_handle, result, RetryPolicy::default())
 }
@@ -1114,13 +1091,10 @@ pub unsafe extern "C" fn _vm_propose_run_completion_terminal_failure(
     handle: *mut VmHandle,
     run_handle: u32,
     failure: ForeignSlice,
-    out: *mut EmptyResult,
-) {
+) -> u32 {
     let h = vm_mut(handle);
-    write_out(
-        out,
-        vm_propose_run_completion_terminal_failure(&mut h.vm, run_handle, failure.as_slice()),
-    );
+    let res = vm_propose_run_completion_terminal_failure(&mut h.vm, run_handle, failure.as_slice());
+    h.pack_empty_result(res)
 }
 
 #[inline]
@@ -1128,7 +1102,7 @@ fn vm_propose_run_completion_terminal_failure(
     vm: &mut CoreVM,
     run_handle: u32,
     failure: &[u8],
-) -> EmptyResult {
+) -> VMResult<()> {
     let result = RunExitResult::TerminalFailure(decode_failure(&mut { failure }));
     propose_run_completion(vm, run_handle, result, RetryPolicy::default())
 }
@@ -1142,18 +1116,15 @@ pub unsafe extern "C" fn _vm_propose_run_completion_retryable_failure(
     run_handle: u32,
     attempt_duration_millis: u64,
     params: ForeignSlice,
-    out: *mut EmptyResult,
-) {
+) -> u32 {
     let h = vm_mut(handle);
-    write_out(
-        out,
-        vm_propose_run_completion_retryable_failure(
-            &mut h.vm,
-            run_handle,
-            attempt_duration_millis,
-            params.as_slice(),
-        ),
+    let res = vm_propose_run_completion_retryable_failure(
+        &mut h.vm,
+        run_handle,
+        attempt_duration_millis,
+        params.as_slice(),
     );
+    h.pack_empty_result(res)
 }
 
 #[inline]
@@ -1162,7 +1133,7 @@ fn vm_propose_run_completion_retryable_failure(
     run_handle: u32,
     attempt_duration_millis: u64,
     params: &[u8],
-) -> EmptyResult {
+) -> VMResult<()> {
     let mut r = params;
     let code = r.get_u16_le();
     let message = get_string(&mut r);
@@ -1184,9 +1155,8 @@ fn propose_run_completion(
     run_handle: u32,
     result: RunExitResult,
     retry_policy: RetryPolicy,
-) -> EmptyResult {
-    let r = VM::propose_run_completion(vm, run_handle.into(), result, retry_policy);
-    EmptyResult::build(r, state_of(vm))
+) -> VMResult<()> {
+    VM::propose_run_completion(vm, run_handle.into(), result, retry_policy)
 }
 
 // =========================================================================
@@ -1194,17 +1164,14 @@ fn propose_run_completion(
 // =========================================================================
 
 #[export_name = "vm_sys_write_output_success"]
-pub unsafe extern "C" fn _vm_sys_write_output_success(
-    handle: *mut VmHandle,
-    value: Slice,
-    out: *mut EmptyResult,
-) {
+pub unsafe extern "C" fn _vm_sys_write_output_success(handle: *mut VmHandle, value: Slice) -> u32 {
     let h = vm_mut(handle);
-    write_out(out, vm_sys_write_output_success(&mut h.vm, value.take()));
+    let res = vm_sys_write_output_success(&mut h.vm, value.take());
+    h.pack_empty_result(res)
 }
 
 #[inline]
-fn vm_sys_write_output_success(vm: &mut CoreVM, value: Bytes) -> EmptyResult {
+fn vm_sys_write_output_success(vm: &mut CoreVM, value: Bytes) -> VMResult<()> {
     write_output(vm, success_value(value))
 }
 
@@ -1212,36 +1179,32 @@ fn vm_sys_write_output_success(vm: &mut CoreVM, value: Bytes) -> EmptyResult {
 pub unsafe extern "C" fn _vm_sys_write_output_failure(
     handle: *mut VmHandle,
     failure: ForeignSlice,
-    out: *mut EmptyResult,
-) {
+) -> u32 {
     let h = vm_mut(handle);
-    write_out(
-        out,
-        vm_sys_write_output_failure(&mut h.vm, failure.as_slice()),
-    );
+    let res = vm_sys_write_output_failure(&mut h.vm, failure.as_slice());
+    h.pack_empty_result(res)
 }
 
 #[inline]
-fn vm_sys_write_output_failure(vm: &mut CoreVM, failure: &[u8]) -> EmptyResult {
+fn vm_sys_write_output_failure(vm: &mut CoreVM, failure: &[u8]) -> VMResult<()> {
     write_output(vm, failure_value(failure))
 }
 
 #[inline]
-fn write_output(vm: &mut CoreVM, value: NonEmptyValue) -> EmptyResult {
-    let r = VM::sys_write_output(vm, value, PayloadOptions::default());
-    EmptyResult::build(r, state_of(vm))
+fn write_output(vm: &mut CoreVM, value: NonEmptyValue) -> VMResult<()> {
+    VM::sys_write_output(vm, value, PayloadOptions::default())
 }
 
 #[export_name = "vm_sys_end"]
-pub unsafe extern "C" fn _vm_sys_end(handle: *mut VmHandle, out: *mut EmptyResult) {
+pub unsafe extern "C" fn _vm_sys_end(handle: *mut VmHandle) -> u32 {
     let h = vm_mut(handle);
-    write_out(out, vm_sys_end(&mut h.vm));
+    let res = vm_sys_end(&mut h.vm);
+    h.pack_empty_result(res)
 }
 
 #[inline]
-fn vm_sys_end(vm: &mut CoreVM) -> EmptyResult {
-    let r = VM::sys_end(vm);
-    EmptyResult::build(r, state_of(vm))
+fn vm_sys_end(vm: &mut CoreVM) -> VMResult<()> {
+    VM::sys_end(vm)
 }
 
 // =========================================================================
