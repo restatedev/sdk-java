@@ -13,7 +13,6 @@ import dev.restate.common.Target;
 import dev.restate.sdk.common.RetryPolicy;
 import dev.restate.sdk.common.TerminalException;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -66,45 +65,6 @@ public interface StateMachine extends AutoCloseable {
 
   // --- Async results
 
-  sealed interface UnresolvedFuture {
-    record Single(int handle) implements UnresolvedFuture {
-      @Override
-      public List<UnresolvedFuture> children() {
-        return List.of();
-      }
-    }
-
-    record FirstCompleted(List<UnresolvedFuture> children) implements UnresolvedFuture {}
-
-    record AllCompleted(List<UnresolvedFuture> children) implements UnresolvedFuture {}
-
-    record FirstSucceededOrAllFailed(List<UnresolvedFuture> children) implements UnresolvedFuture {}
-
-    record AllSucceededOrFirstFailed(List<UnresolvedFuture> children) implements UnresolvedFuture {}
-
-    record Unknown(List<UnresolvedFuture> children) implements UnresolvedFuture {}
-
-    /** Child await points; empty for {@link Single}. */
-    List<UnresolvedFuture> children();
-
-    /** The leaf ({@link Single}) handles of this await tree, in depth-first order. */
-    default List<Integer> handles() {
-      List<Integer> out = new ArrayList<>();
-      collectHandles(this, out);
-      return out;
-    }
-
-    private static void collectHandles(UnresolvedFuture future, List<Integer> out) {
-      if (future instanceof Single s) {
-        out.add(s.handle());
-      } else {
-        for (UnresolvedFuture child : future.children()) {
-          collectHandles(child, out);
-        }
-      }
-    }
-  }
-
   sealed interface AwaitResult {
     AwaitResult ANY_COMPLETED = new AnyCompleted();
     AwaitResult WAIT_EXTERNAL_PROGRESS = new WaitExternalProgress();
@@ -120,7 +80,8 @@ public interface StateMachine extends AutoCloseable {
   }
 
   /**
-   * Make progress on the given await tree.
+   * Make progress on the still-uncompleted await tree rooted at {@code future}, or return {@code
+   * null} when nothing is left to await (every node already resolved).
    *
    * <p>On suspension this does not return a value: it sneaky-throws {@code
    * AbortedExecutionException}, which should be treated as a clean abort of the user code, not a

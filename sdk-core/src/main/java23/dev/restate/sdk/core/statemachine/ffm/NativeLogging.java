@@ -17,7 +17,6 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.nio.charset.StandardCharsets;
-import java.util.Locale;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -129,7 +128,7 @@ final class NativeLogging {
   static int abiLevel() {
     String override = System.getProperty(LEVEL_OVERRIDE_PROPERTY);
     if (override != null) {
-      return switch (override.trim().toUpperCase(Locale.ROOT)) {
+      return switch (override.trim().toUpperCase()) {
         case "TRACE" -> 0;
         case "DEBUG" -> 1;
         case "WARN" -> 3;

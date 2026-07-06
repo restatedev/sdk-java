@@ -9,7 +9,6 @@
 package dev.restate.sdk.core;
 
 import dev.restate.common.Slice;
-import dev.restate.sdk.core.StateMachine;
 import dev.restate.sdk.core.legacy.LegacyStateMachine;
 import dev.restate.sdk.core.legacy.ProtoUtils;
 import dev.restate.sdk.core.statemachine.ffm.FfmStateMachine;

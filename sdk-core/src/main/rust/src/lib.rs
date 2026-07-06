@@ -26,7 +26,11 @@ pub use mem::{ForeignSlice, Slice};
 
 use crate::logging::init_logging;
 use bytes::{Buf, BufMut, Bytes};
-use restate_sdk_shared_core::{AttachInvocationTarget, AwaitResponse, AwakeableHandle, CoreVM, Error, Header, HeaderMap, NonEmptyValue, NotificationHandle, PayloadOptions, RetryPolicy, RunExitResult, RunHandle, State, Target, TerminalFailure, UnresolvedFuture, VMOptions, VMResult, Value, VM};
+use restate_sdk_shared_core::{
+    AttachInvocationTarget, AwaitResponse, AwakeableHandle, CoreVM, Error, Header, HeaderMap,
+    NonEmptyValue, NotificationHandle, PayloadOptions, RetryPolicy, RunExitResult, RunHandle,
+    State, Target, TerminalFailure, UnresolvedFuture, VMOptions, VMResult, Value, VM,
+};
 use std::borrow::Cow;
 use std::convert::Infallible;
 use std::ffi::c_void;
@@ -1107,22 +1111,29 @@ fn vm_propose_run_completion_terminal_failure(
     propose_run_completion(vm, run_handle, result, RetryPolicy::default())
 }
 
-/// Propose a retryable-failure run completion. `params`: `u16 code, str message,
-/// u8 has_stacktrace, [str stacktrace]`, then the retry-policy blob (see
-/// `decode_retry_policy`). The attempt duration is a direct arg.
+/// Propose a retryable-failure run completion. `message`/`stacktrace` are owned `alloc_buffer`
+/// buffers re-owned as `String`s via `Slice::take_string` (`stacktrace` ptr may be null); the retry
+/// policy is a borrowed `ForeignSlice` decoded by `decode_retry_policy` (a null/empty slice means no
+/// policy → the core's default). The attempt duration is a direct arg.
 #[export_name = "vm_propose_run_completion_retryable_failure"]
 pub unsafe extern "C" fn _vm_propose_run_completion_retryable_failure(
     handle: *mut VmHandle,
     run_handle: u32,
     attempt_duration_millis: u64,
-    params: ForeignSlice,
+    message: Slice,
+    stacktrace: Slice,
+    retry_policy: ForeignSlice,
 ) -> u32 {
     let h = vm_mut(handle);
+    let message = message.take_string();
+    let stacktrace = (!stacktrace.is_null()).then(|| stacktrace.take_string());
     let res = vm_propose_run_completion_retryable_failure(
         &mut h.vm,
         run_handle,
         attempt_duration_millis,
-        params.as_slice(),
+        message,
+        stacktrace,
+        retry_policy.as_slice(),
     );
     h.pack_empty_result(res)
 }
@@ -1132,21 +1143,19 @@ fn vm_propose_run_completion_retryable_failure(
     vm: &mut CoreVM,
     run_handle: u32,
     attempt_duration_millis: u64,
-    params: &[u8],
+    message: String,
+    stacktrace: Option<String>,
+    retry_policy: &[u8],
 ) -> VMResult<()> {
-    let mut r = params;
-    let code = r.get_u16_le();
-    let message = get_string(&mut r);
-    let mut error = Error::new(code, message);
-    if r.get_u8() != 0 {
-        error = error.with_stacktrace(get_string(&mut r));
+    let mut error = Error::new(500u16, Cow::Owned(message));
+    if let Some(stacktrace) = stacktrace {
+        error = error.with_stacktrace(stacktrace);
     }
-    let retry_policy = decode_retry_policy(&mut r);
     let result = RunExitResult::RetryableFailure {
         attempt_duration: Duration::from_millis(attempt_duration_millis),
         error,
     };
-    propose_run_completion(vm, run_handle, result, retry_policy)
+    propose_run_completion(vm, run_handle, result, decode_retry_policy(retry_policy))
 }
 
 #[inline]
@@ -1379,18 +1388,19 @@ fn decode_failure(buf: &mut &[u8]) -> TerminalFailure {
     }
 }
 
-/// Retry policy encoding: u8 has_policy; if 1: u64 initial, f32 factor,
-/// opt(u64 max_interval), opt(u32 max_attempts), opt(u64 max_duration).
-fn decode_retry_policy(buf: &mut &[u8]) -> RetryPolicy {
-    if buf.get_u8() == 0 {
+/// Retry policy encoding: an empty slice means no policy (the core's default); otherwise
+/// u64 initial, f32 factor, opt(u64 max_interval), opt(u32 max_attempts), opt(u64 max_duration).
+fn decode_retry_policy(buf: &[u8]) -> RetryPolicy {
+    if buf.is_empty() {
         return RetryPolicy::default();
     }
+    let mut r = buf;
     RetryPolicy::Exponential {
-        initial_interval: Duration::from_millis(buf.get_u64_le()),
-        factor: buf.get_f32_le(),
-        max_interval: get_opt_u64(buf).map(Duration::from_millis),
-        max_attempts: get_opt_u32(buf),
-        max_duration: get_opt_u64(buf).map(Duration::from_millis),
+        initial_interval: Duration::from_millis(r.get_u64_le()),
+        factor: r.get_f32_le(),
+        max_interval: get_opt_u64(&mut r).map(Duration::from_millis),
+        max_attempts: get_opt_u32(&mut r),
+        max_duration: get_opt_u64(&mut r).map(Duration::from_millis),
         on_max_attempts: Default::default(),
     }
 }

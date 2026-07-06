@@ -20,6 +20,7 @@ import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.EndpointRequestHandler;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.StateMachine;
+import dev.restate.sdk.core.UnresolvedFuture;
 import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.endpoint.HeadersAccessor;
 import java.io.ByteArrayOutputStream;
@@ -141,16 +142,22 @@ public final class LegacyStateMachine implements StateMachine {
 
   @Override
   public AwaitResult doAwait(UnresolvedFuture future) {
+    // Legacy only needs the flat list of still-uncompleted leaf handles (it ignores combinator
+    // structure and re-polls); collect them by walking the await tree directly.
+    List<Integer> handles = new ArrayList<>();
+    collectHandles(future, handles);
+    if (handles.isEmpty()) {
+      // Nothing left to await.
+      return AwaitResult.ANY_COMPLETED;
+    }
     // Implicit cancellation: the VM owns the cancellation protocol (mirroring the canonical native
-    // core's do_await). We implicitly await the cancel signal (handle 1) alongside the user's await
-    // tree. If the cancel signal fires, we resolve every tracked child invocation id, send a cancel
-    // signal to each, consume the cancel notification, and surface CancelSignalReceived. The
+    // core's do_await). We implicitly await the cancel signal (handle 1) alongside the user's
+    // handles. If the cancel signal fires, we resolve every tracked child invocation id, send a
+    // cancel signal to each, consume the cancel notification, and surface CancelSignalReceived. The
     // HandlerContextImpl only needs to cancel the awaited future on CancelSignalReceived.
-    UnresolvedFuture futureWithCancellation =
-        new UnresolvedFuture.FirstCompleted(
-            List.of(future, new UnresolvedFuture.Single(CANCEL_SIGNAL_ID)));
+    handles.add(CANCEL_SIGNAL_ID);
 
-    AwaitResult response = doProgress(futureWithCancellation.handles());
+    AwaitResult response = doProgress(handles);
     if (!(response instanceof AwaitResult.AnyCompleted)) {
       return response;
     }
@@ -188,6 +195,20 @@ public final class LegacyStateMachine implements StateMachine {
     // Consume the cancel notification and surface the cancellation.
     takeNotification(CANCEL_SIGNAL_ID);
     return AwaitResult.CANCEL_SIGNAL_RECEIVED;
+  }
+
+  /** Depth-first collect of the still-uncompleted leaf ({@code SINGLE}) handles. */
+  private static void collectHandles(UnresolvedFuture node, List<Integer> out) {
+    if (node.isDone()) {
+      return;
+    }
+    if (node.kind() == UnresolvedFuture.Kind.SINGLE) {
+      out.add(node.singleHandle());
+    } else {
+      for (UnresolvedFuture child : node.combinatorChildren()) {
+        collectHandles(child, out);
+      }
+    }
   }
 
   /**

@@ -12,12 +12,10 @@ import dev.restate.common.function.ThrowingFunction;
 import dev.restate.sdk.common.AbortedExecutionException;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.StateMachine.NotificationValue;
-import dev.restate.sdk.core.StateMachine.UnresolvedFuture;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import org.jspecify.annotations.Nullable;
 
 abstract class AsyncResults {
 
@@ -48,20 +46,13 @@ abstract class AsyncResults {
     return new AllAsyncResult(contextInternal, all);
   }
 
-  interface AsyncResultInternal<T> extends AsyncResult<T> {
-    boolean isDone();
+  non-sealed interface AsyncResultInternal<T> extends AsyncResult<T>, UnresolvedFuture {
 
     void tryCancel();
 
     void tryComplete(NotificationReader reader);
 
     CompletableFuture<T> publicFuture();
-
-    /**
-     * Tree representation of what this result is still awaiting on. Returns {@code null} when
-     * already done — callers must guard with {@link #isDone()}.
-     */
-    @Nullable UnresolvedFuture uncompletedFuture();
 
     HandlerContextInternal ctx();
   }
@@ -97,9 +88,19 @@ abstract class AsyncResults {
         ThrowingFunction<TerminalException, CompletableFuture<U>> failureMapper) {
       return new MappedSingleAsyncResultInternal<>(this, successMapper, failureMapper);
     }
+
+    @Override
+    public int singleHandle() {
+      throw new UnsupportedOperationException("singleHandle is only valid for a SINGLE await node");
+    }
+
+    @Override
+    public List<? extends UnresolvedFuture> combinatorChildren() {
+      return List.of();
+    }
   }
 
-  static class SingleAsyncResultInternal<T> extends BaseAsyncResultInternal<T> {
+  static final class SingleAsyncResultInternal<T> extends BaseAsyncResultInternal<T> {
 
     private final int handle;
     private final Completer<T> completer;
@@ -135,11 +136,13 @@ abstract class AsyncResults {
     }
 
     @Override
-    public @Nullable UnresolvedFuture uncompletedFuture() {
-      if (publicFuture.isDone()) {
-        return null;
-      }
-      return new UnresolvedFuture.Single(handle);
+    public Kind kind() {
+      return Kind.SINGLE;
+    }
+
+    @Override
+    public int singleHandle() {
+      return handle;
     }
 
     @Override
@@ -148,7 +151,7 @@ abstract class AsyncResults {
     }
   }
 
-  static class MappedSingleAsyncResultInternal<T, U> extends BaseAsyncResultInternal<U> {
+  static final class MappedSingleAsyncResultInternal<T, U> extends BaseAsyncResultInternal<U> {
     private final AsyncResultInternal<T> asyncResult;
 
     MappedSingleAsyncResultInternal(
@@ -175,13 +178,14 @@ abstract class AsyncResults {
     }
 
     @Override
-    public @Nullable UnresolvedFuture uncompletedFuture() {
-      if (isDone()) {
-        return null;
-      }
-      UnresolvedFuture inner = asyncResult.uncompletedFuture();
+    public Kind kind() {
       // Mapper is arbitrary user code; we can't promise any specific combinator semantics.
-      return inner != null ? new UnresolvedFuture.Unknown(List.of(inner)) : null;
+      return Kind.UNKNOWN;
+    }
+
+    @Override
+    public List<? extends UnresolvedFuture> combinatorChildren() {
+      return List.of(asyncResult);
     }
 
     @Override
@@ -268,7 +272,7 @@ abstract class AsyncResults {
     }
   }
 
-  static class AnyAsyncResult extends BaseAsyncResultInternal<Integer> {
+  static final class AnyAsyncResult extends BaseAsyncResultInternal<Integer> {
 
     private final HandlerContextInternal handlerContextInternal;
     private final List<AsyncResultInternal<?>> asyncResults;
@@ -298,24 +302,13 @@ abstract class AsyncResults {
     }
 
     @Override
-    public @Nullable UnresolvedFuture uncompletedFuture() {
-      if (isDone()) {
-        return null;
-      }
-      var children =
-          asyncResults.stream()
-              .map(AsyncResultInternal::uncompletedFuture)
-              .filter(Objects::nonNull)
-              .toList();
-      if (children.isEmpty()) {
-        // Every child is already resolved at the state-machine level, but this combinator's public
-        // future hasn't propagated completion yet (e.g. a child's downstream mapper still has to
-        // run). There is nothing left for the state machine to await: returning a tree here would
-        // make it suspend on no real progress. The public future will complete as the children
-        // propagate and resume the awaiting caller.
-        return null;
-      }
-      return new UnresolvedFuture.FirstCompleted(children);
+    public Kind kind() {
+      return Kind.FIRST_COMPLETED;
+    }
+
+    @Override
+    public List<? extends UnresolvedFuture> combinatorChildren() {
+      return asyncResults;
     }
 
     @Override
@@ -324,7 +317,7 @@ abstract class AsyncResults {
     }
   }
 
-  static class AllAsyncResult extends BaseAsyncResultInternal<Void> {
+  static final class AllAsyncResult extends BaseAsyncResultInternal<Void> {
 
     private final HandlerContextInternal handlerContextInternal;
     private final List<AsyncResultInternal<?>> asyncResults;
@@ -363,24 +356,13 @@ abstract class AsyncResults {
     }
 
     @Override
-    public @Nullable UnresolvedFuture uncompletedFuture() {
-      if (isDone()) {
-        return null;
-      }
-      var children =
-          asyncResults.stream()
-              .map(AsyncResultInternal::uncompletedFuture)
-              .filter(Objects::nonNull)
-              .toList();
-      if (children.isEmpty()) {
-        // Every child is already resolved at the state-machine level, but this combinator's public
-        // future hasn't propagated completion yet (e.g. a child's downstream mapper still has to
-        // run). There is nothing left for the state machine to await: returning a tree here would
-        // make it suspend on no real progress. The public future will complete as the children
-        // propagate and resume the awaiting caller.
-        return null;
-      }
-      return new UnresolvedFuture.AllSucceededOrFirstFailed(children);
+    public Kind kind() {
+      return Kind.ALL_SUCCEEDED_OR_FIRST_FAILED;
+    }
+
+    @Override
+    public List<? extends UnresolvedFuture> combinatorChildren() {
+      return asyncResults;
     }
 
     @Override

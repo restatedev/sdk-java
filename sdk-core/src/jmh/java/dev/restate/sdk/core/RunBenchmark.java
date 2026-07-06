@@ -9,7 +9,6 @@
 package dev.restate.sdk.core;
 
 import dev.restate.common.Slice;
-import dev.restate.sdk.core.StateMachine;
 import dev.restate.sdk.core.legacy.LegacyStateMachine;
 import dev.restate.sdk.core.legacy.ProtoUtils;
 import dev.restate.sdk.core.statemachine.ffm.FfmStateMachine;
@@ -87,7 +86,7 @@ public class RunBenchmark {
     sm.isReadyToExecute();
     sm.input();
     StateMachine.RunResultHandle run = sm.run("benchmark-run");
-    bh.consume(sm.doAwait(new StateMachine.UnresolvedFuture.Single(run.handle())));
+    bh.consume(sm.doAwait(AsyncResults.single(null, run.handle(), (value, future) -> {})));
     sm.proposeRunCompletion(run.handle(), payload);
     bh.consume(sm.takeOutput());
     sm.close();

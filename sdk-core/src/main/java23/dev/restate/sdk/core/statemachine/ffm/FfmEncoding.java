@@ -11,7 +11,7 @@ package dev.restate.sdk.core.statemachine.ffm;
 import dev.restate.common.Target;
 import dev.restate.sdk.common.RetryPolicy;
 import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.core.StateMachine;
+import dev.restate.sdk.core.UnresolvedFuture;
 import dev.restate.sdk.core.statemachine.ffm.generated.CallArguments;
 import dev.restate.sdk.core.statemachine.ffm.generated.ForeignSlice;
 import dev.restate.sdk.core.statemachine.ffm.generated.SharedCoreNative;
@@ -20,8 +20,9 @@ import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SegmentAllocator;
 import java.lang.foreign.ValueLayout;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -136,13 +137,6 @@ final class FfmEncoding {
     return fs;
   }
 
-  /** A by-value ForeignSlice borrowing a fresh copy of {@code bytes} (null/empty → null ptr). */
-  static MemorySegment foreignBytes(SegmentAllocator alloc, byte @Nullable [] bytes) {
-    MemorySegment fs = ForeignSlice.allocate(alloc);
-    setForeign(fs, allocateBytes(alloc, bytes));
-    return fs;
-  }
-
   /**
    * A by-value Slice transferring {@code slice}'s bytes (alloc_buffer buffer the callee re-owns).
    */
@@ -196,11 +190,12 @@ final class FfmEncoding {
 
   /**
    * Wraps an owned result {@link Slice} (Rust-allocated; must be released via {@code free_buffer})
-   * in a {@link MemorySegmentSlice} read zero-copy — no copy-out into a heap {@code byte[]}. The
-   * native buffer is freed when the returned slice becomes unreachable (GC-tied via {@link
-   * Arena#ofAuto()}), so it is safe to read later and from another thread (deserialization on a
-   * different dispatcher, or an async socket write). Returns {@link dev.restate.common.Slice#EMPTY}
-   * for the null/empty slice.
+   * as a zero-copy {@link dev.restate.common.Slice} over the native memory — no copy-out into a
+   * heap {@code byte[]}. The native buffer is freed when the returned slice (and any {@link
+   * ByteBuffer} views of it) become unreachable (GC-tied via {@link Arena#ofAuto()}): {@code
+   * asByteBuffer} keeps the segment's session reachable, so it is safe to read later and from
+   * another thread (deserialization on a different dispatcher, or an async socket write). Returns
+   * {@link dev.restate.common.Slice#EMPTY} for the null/empty slice.
    */
   static dev.restate.common.Slice wrapOwnedSlice(MemorySegment sliceStruct) {
     MemorySegment ptr = Slice.ptr(sliceStruct);
@@ -210,7 +205,7 @@ final class FfmEncoding {
     }
     MemorySegment seg =
         ptr.reinterpret(len, Arena.ofAuto(), s -> SharedCoreNative.free_buffer(s, len));
-    return new MemorySegmentSlice(seg);
+    return dev.restate.common.Slice.wrap(seg.asByteBuffer());
   }
 
   private static final byte[] EMPTY_BYTES = new byte[0];
@@ -241,225 +236,264 @@ final class FfmEncoding {
     setForeign(CallArguments.idempotency_key(t), allocateUtf8(alloc, idempotencyKey));
     setForeign(CallArguments.scope(t), allocateUtf8(alloc, scope));
     setForeign(CallArguments.limit_key(t), allocateUtf8(alloc, limitKey));
-    setForeign(CallArguments.headers(t), allocateBytes(alloc, encodeHeaderList(headers)));
+    setForeign(CallArguments.headers(t), allocateHeaderList(alloc, headers));
     // input is a Slice: ownership of the alloc_buffer-backed payload transfers into the core.
     setOwned(CallArguments.input(t), transferSlice(payload));
     return t;
   }
 
   // -------------------------------------------------------------------------
-  // Blob encoders (little-endian, matching the Rust decode_* functions)
+  // Blob encoders (little-endian, matching the Rust decode_* functions). Each precomputes its exact
+  // byte size, allocates the native segment once, and writes straight into the segment's
+  // little-endian ByteBuffer view — no intermediate heap buffer, no copy.
   // -------------------------------------------------------------------------
 
-  /** Encodes a header list as {@code u32 count, count*(str key, str value)}. */
-  static byte @Nullable [] encodeHeaderList(
-      @Nullable Collection<Map.Entry<String, String>> headers) {
+  /** A little-endian {@link ByteBuffer} view over the whole native segment. */
+  private static ByteBuffer leView(MemorySegment seg) {
+    return seg.asByteBuffer().order(ByteOrder.LITTLE_ENDIAN);
+  }
+
+  /** Wraps an already-written data segment as a by-value ForeignSlice. */
+  private static MemorySegment foreignOf(SegmentAllocator alloc, MemorySegment data) {
+    MemorySegment fs = ForeignSlice.allocate(alloc);
+    setForeign(fs, data);
+    return fs;
+  }
+
+  /** A header list ({@code u32 count, count*(str,str)}) as a native segment; NULL when empty. */
+  private static MemorySegment allocateHeaderList(
+      SegmentAllocator alloc, @Nullable Collection<Map.Entry<String, String>> headers) {
     if (headers == null || headers.isEmpty()) {
-      return null;
+      return MemorySegment.NULL;
     }
-    LeBuffer buf = new LeBuffer();
-    buf.putU32(headers.size());
+    byte[][] parts = new byte[headers.size() * 2][];
+    int size = 4;
+    int i = 0;
     for (Map.Entry<String, String> e : headers) {
-      buf.putStr(e.getKey());
-      buf.putStr(e.getValue());
+      byte[] k = e.getKey().getBytes(StandardCharsets.UTF_8);
+      byte[] v = e.getValue().getBytes(StandardCharsets.UTF_8);
+      parts[i++] = k;
+      parts[i++] = v;
+      size += 8 + k.length + v.length;
     }
-    return buf.toByteArray();
+    MemorySegment seg = alloc.allocate(size);
+    ByteBuffer bb = leView(seg);
+    bb.putInt(headers.size());
+    for (byte[] p : parts) {
+      bb.putInt(p.length);
+      bb.put(p);
+    }
+    return seg;
   }
 
-  /** Encodes a header list given as {@code key/value} string pairs. */
-  static byte @Nullable [] encodeHeaderPairs(@Nullable List<String[]> headers) {
+  /**
+   * A header list from {@code key/value} pairs as a by-value ForeignSlice ({@code u32 count,
+   * count*(str,str)}); null ptr when empty.
+   */
+  static MemorySegment foreignHeaderPairs(
+      SegmentAllocator alloc, @Nullable List<String[]> headers) {
     if (headers == null || headers.isEmpty()) {
+      return foreignOf(alloc, MemorySegment.NULL);
+    }
+    byte[][] parts = new byte[headers.size() * 2][];
+    int size = 4;
+    int i = 0;
+    for (String[] e : headers) {
+      byte[] k = e[0].getBytes(StandardCharsets.UTF_8);
+      byte[] v = e[1].getBytes(StandardCharsets.UTF_8);
+      parts[i++] = k;
+      parts[i++] = v;
+      size += 8 + k.length + v.length;
+    }
+    MemorySegment seg = alloc.allocate(size);
+    ByteBuffer bb = leView(seg);
+    bb.putInt(headers.size());
+    for (byte[] p : parts) {
+      bb.putInt(p.length);
+      bb.put(p);
+    }
+    return foreignOf(alloc, seg);
+  }
+
+  /**
+   * A {@code TerminalFailure} as a by-value ForeignSlice (see {@code decode_failure}): {@code u16
+   * code, str message, u32 meta_count, meta_count*(str,str)}.
+   */
+  static MemorySegment foreignFailure(SegmentAllocator alloc, TerminalException failure) {
+    byte[] message =
+        (failure.getMessage() != null ? failure.getMessage() : "").getBytes(StandardCharsets.UTF_8);
+    Map<String, String> metadata = failure.getMetadata();
+    int size = 2 + 4 + message.length + 4;
+    byte[][] meta = null;
+    if (metadata != null && !metadata.isEmpty()) {
+      meta = new byte[metadata.size() * 2][];
+      int i = 0;
+      for (Map.Entry<String, String> e : metadata.entrySet()) {
+        byte[] k = e.getKey().getBytes(StandardCharsets.UTF_8);
+        byte[] v = e.getValue().getBytes(StandardCharsets.UTF_8);
+        meta[i++] = k;
+        meta[i++] = v;
+        size += 8 + k.length + v.length;
+      }
+    }
+    MemorySegment seg = alloc.allocate(size);
+    ByteBuffer bb = leView(seg);
+    bb.putShort((short) failure.getCode());
+    bb.putInt(message.length);
+    bb.put(message);
+    if (meta == null) {
+      bb.putInt(0);
+    } else {
+      bb.putInt(meta.length / 2);
+      for (byte[] p : meta) {
+        bb.putInt(p.length);
+        bb.put(p);
+      }
+    }
+    return foreignOf(alloc, seg);
+  }
+
+  /**
+   * The retry policy as a by-value ForeignSlice, or a null ptr when there is no policy (the core's
+   * default). Layout (see {@code decode_retry_policy}): {@code u64 initial, f32 factor, opt(u64
+   * max_interval), opt(u32 max_attempts), opt(u64 max_duration)} — presence is the null-ness of the
+   * slice, so there is no {@code has_policy} flag.
+   */
+  static MemorySegment foreignRetryPolicy(
+      SegmentAllocator alloc, @Nullable RetryPolicy retryPolicy) {
+    if (retryPolicy == null) {
+      return foreignOf(alloc, MemorySegment.NULL);
+    }
+    int size = 8 + 4; // initial + factor
+    size += 1 + (retryPolicy.getMaxDelay() != null ? 8 : 0);
+    size += 1 + (retryPolicy.getMaxAttempts() != null ? 4 : 0);
+    size += 1 + (retryPolicy.getMaxDuration() != null ? 8 : 0);
+    MemorySegment seg = alloc.allocate(size);
+    ByteBuffer bb = leView(seg);
+    bb.putLong(retryPolicy.getInitialDelay().toMillis());
+    bb.putFloat(retryPolicy.getExponentiationFactor());
+    putOptU64(bb, retryPolicy.getMaxDelay() != null ? retryPolicy.getMaxDelay().toMillis() : null);
+    putOptU32(bb, retryPolicy.getMaxAttempts());
+    putOptU64(
+        bb, retryPolicy.getMaxDuration() != null ? retryPolicy.getMaxDuration().toMillis() : null);
+    return foreignOf(alloc, seg);
+  }
+
+  private static void putOptU32(ByteBuffer bb, @Nullable Integer value) {
+    if (value == null) {
+      bb.put((byte) 0);
+    } else {
+      bb.put((byte) 1);
+      bb.putInt(value);
+    }
+  }
+
+  private static void putOptU64(ByteBuffer bb, @Nullable Long value) {
+    if (value == null) {
+      bb.put((byte) 0);
+    } else {
+      bb.put((byte) 1);
+      bb.putLong(value);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Await future tree (see decode_future). Sized without a buffer: awaitTreeSize measures (pruning
+  // resolved nodes), then a single write into the segment's ByteBuffer back-patches each
+  // combinator's surviving-child count. Returns null when the whole tree resolved (nothing to
+  // await), so the caller can skip the downcall.
+  // -------------------------------------------------------------------------
+
+  /**
+   * The still-uncompleted await tree as a by-value ForeignSlice, or {@code null} when every node is
+   * already resolved (nothing left to await).
+   */
+  static @Nullable MemorySegment foreignAwaitTree(SegmentAllocator alloc, UnresolvedFuture future) {
+    int size = awaitTreeSize(future);
+    if (size == 0) {
       return null;
     }
-    LeBuffer buf = new LeBuffer();
-    buf.putU32(headers.size());
-    for (String[] e : headers) {
-      buf.putStr(e[0]);
-      buf.putStr(e[1]);
-    }
-    return buf.toByteArray();
+    MemorySegment seg = alloc.allocate(size);
+    writeAwaitTree(future, leView(seg));
+    return foreignOf(alloc, seg);
   }
 
   /**
-   * Encodes the await future tree (see {@code decode_future}): {@code u8 tag}; tag 0 (Single) →
-   * {@code u32 handle}; tags 1..=5 → {@code u32 count, count*node}.
+   * Encoded size of the still-uncompleted await tree in bytes, pruning resolved nodes: a leaf is
+   * {@code u8 0, u32 handle} = 5B; a combinator is {@code u8 tag, u32 count} + children = 5B +
+   * children; a combinator whose children all prune contributes 0. Must match {@link
+   * #writeAwaitTree} byte-for-byte.
    */
-  static byte[] encodeFuture(StateMachine.UnresolvedFuture future) {
-    LeBuffer buf = new LeBuffer();
-    encodeFutureInto(buf, future);
-    return buf.toByteArray();
-  }
-
-  private static void encodeFutureInto(LeBuffer buf, StateMachine.UnresolvedFuture future) {
-    switch (future) {
-      case StateMachine.UnresolvedFuture.Single s -> {
-        buf.putU8(0);
-        buf.putU32(s.handle());
+  private static int awaitTreeSize(UnresolvedFuture node) {
+    if (node.isDone()) {
+      return 0;
+    }
+    if (node.kind() == UnresolvedFuture.Kind.SINGLE) {
+      return 5; // u8 tag + u32 handle
+    }
+    int childrenSize = 0;
+    int children = 0;
+    for (UnresolvedFuture child : node.combinatorChildren()) {
+      int cs = awaitTreeSize(child);
+      if (cs > 0) {
+        childrenSize += cs;
+        children++;
       }
-      case StateMachine.UnresolvedFuture.FirstCompleted f -> encodeChildren(buf, 1, f.children());
-      case StateMachine.UnresolvedFuture.AllCompleted f -> encodeChildren(buf, 2, f.children());
-      case StateMachine.UnresolvedFuture.FirstSucceededOrAllFailed f ->
-          encodeChildren(buf, 3, f.children());
-      case StateMachine.UnresolvedFuture.AllSucceededOrFirstFailed f ->
-          encodeChildren(buf, 4, f.children());
-      case StateMachine.UnresolvedFuture.Unknown f -> encodeChildren(buf, 5, f.children());
     }
-  }
-
-  private static void encodeChildren(
-      LeBuffer buf, int tag, List<StateMachine.UnresolvedFuture> children) {
-    buf.putU8(tag);
-    buf.putU32(children.size());
-    for (StateMachine.UnresolvedFuture child : children) {
-      encodeFutureInto(buf, child);
-    }
+    return children == 0 ? 0 : 5 + childrenSize; // u8 tag + u32 count + children
   }
 
   /**
-   * Encodes a {@code TerminalFailure} (see {@code decode_failure}): {@code u16 code, str message,
-   * u32 meta_count, meta_count*(str key, str value)}.
+   * Writes the await tree into {@code bb}: a leaf is {@code u8 0, u32 handle}; a combinator is
+   * {@code u8 tag, u32 count, count*node}. Resolved nodes are pruned (a combinator whose children
+   * all prune rewinds its reserved header); each combinator's surviving count is back-patched.
+   * Writes exactly {@link #awaitTreeSize} bytes.
    */
-  static byte[] encodeFailure(TerminalException failure) {
-    LeBuffer buf = new LeBuffer();
-    encodeFailureInto(buf, failure);
-    return buf.toByteArray();
-  }
-
-  private static void encodeFailureInto(LeBuffer buf, TerminalException failure) {
-    buf.putU16(failure.getCode());
-    buf.putStr(failure.getMessage() != null ? failure.getMessage() : "");
-    Map<String, String> metadata = failure.getMetadata();
-    if (metadata == null || metadata.isEmpty()) {
-      buf.putU32(0);
-    } else {
-      buf.putU32(metadata.size());
-      for (Map.Entry<String, String> e : metadata.entrySet()) {
-        buf.putStr(e.getKey());
-        buf.putStr(e.getValue());
+  private static boolean writeAwaitTree(UnresolvedFuture node, ByteBuffer bb) {
+    if (node.isDone()) {
+      return false;
+    }
+    if (node.kind() == UnresolvedFuture.Kind.SINGLE) {
+      bb.put((byte) 0);
+      bb.putInt(node.singleHandle());
+      return true;
+    }
+    int mark = bb.position();
+    bb.put((byte) awaitTag(node.kind()));
+    int countPos = bb.position();
+    bb.putInt(0);
+    int written = 0;
+    for (UnresolvedFuture child : node.combinatorChildren()) {
+      if (writeAwaitTree(child, bb)) {
+        written++;
       }
     }
+    if (written == 0) {
+      bb.position(mark);
+      return false;
+    }
+    bb.putInt(countPos, written);
+    return true;
   }
 
-  /**
-   * Encodes the {@code propose_run_completion_retryable_failure} params buffer: {@code u16 code,
-   * str message, u8 has_stacktrace, [str stacktrace]}, then the retry-policy blob. The attempt
-   * duration is passed as a direct arg.
-   */
-  static byte[] encodeRetryableRunParams(
-      String message, @Nullable String stacktrace, @Nullable RetryPolicy retryPolicy) {
-    LeBuffer buf = new LeBuffer();
-    buf.putU16(500);
-    buf.putStr(message != null ? message : "");
-    if (stacktrace != null) {
-      buf.putU8(1);
-      buf.putStr(stacktrace);
-    } else {
-      buf.putU8(0);
-    }
-    encodeRetryPolicyInto(buf, retryPolicy);
-    return buf.toByteArray();
+  private static int awaitTag(UnresolvedFuture.Kind kind) {
+    return switch (kind) {
+      case SINGLE -> 0;
+      case FIRST_COMPLETED -> 1;
+      case ALL_COMPLETED -> 2;
+      case FIRST_SUCCEEDED_OR_ALL_FAILED -> 3;
+      case ALL_SUCCEEDED_OR_FIRST_FAILED -> 4;
+      case UNKNOWN -> 5;
+    };
   }
 
-  /**
-   * Encodes the retry policy (see {@code decode_retry_policy}): {@code u8 has_policy}; if 1: {@code
-   * u64 initial, f32 factor, opt(u64 max_interval), opt(u32 max_attempts), opt(u64 max_duration)}.
-   */
-  private static void encodeRetryPolicyInto(LeBuffer buf, @Nullable RetryPolicy retryPolicy) {
-    if (retryPolicy == null) {
-      buf.putU8(0);
-      return;
+  static String readString(ByteBuffer buf) {
+    int len = buf.getInt();
+    if (len == 0) {
+      return "";
     }
-    buf.putU8(1);
-    buf.putU64(retryPolicy.getInitialDelay().toMillis());
-    buf.putF32(retryPolicy.getExponentiationFactor());
-    putOptU64(buf, retryPolicy.getMaxDelay() != null ? retryPolicy.getMaxDelay().toMillis() : null);
-    putOptU32(buf, retryPolicy.getMaxAttempts());
-    putOptU64(
-        buf, retryPolicy.getMaxDuration() != null ? retryPolicy.getMaxDuration().toMillis() : null);
-  }
-
-  private static void putOptU32(LeBuffer buf, @Nullable Integer value) {
-    if (value == null) {
-      buf.putU8(0);
-    } else {
-      buf.putU8(1);
-      buf.putU32(value);
-    }
-  }
-
-  private static void putOptU64(LeBuffer buf, @Nullable Long value) {
-    if (value == null) {
-      buf.putU8(0);
-    } else {
-      buf.putU8(1);
-      buf.putU64(value);
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // Little-endian growable byte writer
-  // -------------------------------------------------------------------------
-
-  private static final class LeBuffer {
-    private byte[] buf;
-    private int pos;
-
-    LeBuffer() {
-      this.buf = new byte[64];
-    }
-
-    /** Ensure room for {@code extra} more bytes, doubling the backing array as needed. */
-    private void ensure(int extra) {
-      int need = pos + extra;
-      if (need > buf.length) {
-        int cap = buf.length;
-        do {
-          cap <<= 1;
-        } while (cap < need);
-        buf = Arrays.copyOf(buf, cap);
-      }
-    }
-
-    void putU8(int v) {
-      ensure(1);
-      buf[pos++] = (byte) v;
-    }
-
-    void putU16(int v) {
-      ensure(2);
-      buf[pos++] = (byte) v;
-      buf[pos++] = (byte) (v >>> 8);
-    }
-
-    void putU32(int v) {
-      ensure(4);
-      buf[pos++] = (byte) v;
-      buf[pos++] = (byte) (v >>> 8);
-      buf[pos++] = (byte) (v >>> 16);
-      buf[pos++] = (byte) (v >>> 24);
-    }
-
-    void putU64(long v) {
-      ensure(8);
-      for (int i = 0; i < 8; i++) {
-        buf[pos++] = (byte) (v >>> (8 * i));
-      }
-    }
-
-    void putF32(float v) {
-      putU32(Float.floatToRawIntBits(v));
-    }
-
-    void putStr(String s) {
-      byte[] bytes = s.getBytes(StandardCharsets.UTF_8);
-      putU32(bytes.length);
-      ensure(bytes.length);
-      System.arraycopy(bytes, 0, buf, pos, bytes.length);
-      pos += bytes.length;
-    }
-
-    byte[] toByteArray() {
-      return Arrays.copyOf(buf, pos);
-    }
+    byte[] data = new byte[len];
+    buf.get(data);
+    return new String(data, StandardCharsets.UTF_8);
   }
 }

@@ -437,17 +437,12 @@ class HandlerContextImpl implements HandlerContextInternal {
         return;
       }
 
-      // Build the tree of what we're still awaiting on
-      StateMachine.UnresolvedFuture future = asyncResult.uncompletedFuture();
-      if (future == null) {
-        // Nothing else to do!
-        return;
-      }
-
-      // Not ready yet, let's try to do some progress
+      // Not ready yet: make progress on what's still uncompleted. doAwait walks the async-result
+      // tree directly (asyncResult is the await tree) and returns null when nothing is left to
+      // await.
       StateMachine.AwaitResult response;
       try {
-        response = this.stateMachine.doAwait(future);
+        response = this.stateMachine.doAwait(asyncResult);
       } catch (Throwable e) {
         // doAwait sneaky-throws AbortedExecutionException on suspension. In this case, no need to
         // fail twice.
