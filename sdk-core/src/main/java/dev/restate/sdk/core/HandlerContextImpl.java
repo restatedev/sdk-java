@@ -419,17 +419,14 @@ class HandlerContextImpl implements HandlerContextInternal {
 
   private void pollAsyncResultInner(AsyncResultInternal<?> asyncResult) {
     while (true) {
-      if (this.stateMachine.state() == StateMachine.InvocationState.CLOSED) {
-        asyncResult.publicFuture().completeExceptionally(AbortedExecutionException.INSTANCE);
-        return;
-      }
-
       // Let's start by trying to complete it
       try {
         asyncResult.tryComplete(this::takeNotification);
       } catch (Throwable e) {
         // This can happen if the state machine was closed in the meantime.
-        failWithoutContextSwitch(e);
+        if (!ExceptionUtils.containsAbortedExecutionException(e)) {
+          this.failWithoutContextSwitch(e);
+        }
         asyncResult.publicFuture().completeExceptionally(AbortedExecutionException.INSTANCE);
         return;
       }
