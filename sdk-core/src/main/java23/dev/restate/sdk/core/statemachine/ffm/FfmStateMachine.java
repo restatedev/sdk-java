@@ -138,15 +138,9 @@ public final class FfmStateMachine implements StateMachine {
       return Slice.EMPTY;
     }
     try (Arena arena = Arena.ofConfined()) {
-      // take_output never fails: it writes a bare Slice (not a BufferResult). Copy the buffer out
-      // into a heap byte[] and free the native buffer immediately (takeSliceBytes). This is the
-      // safe
-      // default while we chase a GC-tied-lifetime flake in the bidi path: the zero-copy
-      // wrapOwnedSlice variant handed the buffer to the async output stream and could be collected
-      // before the stream consumed it, intermittently dropping a flushed chunk.
       MemorySegment out = FfmEncoding.allocateSliceStruct(arena);
       SharedCoreNative.vm_take_output(vmHandle, out);
-      return Slice.wrap(FfmEncoding.takeSliceBytes(out));
+      return FfmEncoding.wrapOwnedSlice(out);
     }
   }
 
