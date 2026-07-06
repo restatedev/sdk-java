@@ -122,6 +122,7 @@ abstract class AsyncResults {
 
     @Override
     public void tryComplete(NotificationReader reader) {
+      if (this.isDone()) return;
       reader
           .take(handle)
           .ifPresent(
@@ -174,6 +175,7 @@ abstract class AsyncResults {
 
     @Override
     public void tryComplete(NotificationReader reader) {
+      if (this.isDone()) return;
       asyncResult.tryComplete(reader);
     }
 
@@ -292,6 +294,7 @@ abstract class AsyncResults {
 
     @Override
     public void tryComplete(NotificationReader reader) {
+      if (this.isDone()) return;
       asyncResults.forEach(ar -> ar.tryComplete(reader));
       for (int i = 0; i < asyncResults.size(); i++) {
         if (asyncResults.get(i).isDone()) {
@@ -341,6 +344,7 @@ abstract class AsyncResults {
 
     @Override
     public void tryComplete(NotificationReader reader) {
+      if (this.isDone()) return;
       asyncResults.forEach(ar -> ar.tryComplete(reader));
       asyncResults.stream()
           .filter(ar -> ar.publicFuture().isCompletedExceptionally())

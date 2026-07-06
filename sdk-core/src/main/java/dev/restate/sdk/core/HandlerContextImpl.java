@@ -423,9 +423,6 @@ class HandlerContextImpl implements HandlerContextInternal {
         asyncResult.publicFuture().completeExceptionally(AbortedExecutionException.INSTANCE);
         return;
       }
-      if (asyncResult.isDone()) {
-        return;
-      }
 
       // Let's start by trying to complete it
       try {
@@ -434,6 +431,10 @@ class HandlerContextImpl implements HandlerContextInternal {
         // This can happen if the state machine was closed in the meantime.
         failWithoutContextSwitch(e);
         asyncResult.publicFuture().completeExceptionally(AbortedExecutionException.INSTANCE);
+        return;
+      }
+      // If done, nothing more to do here.
+      if (asyncResult.isDone()) {
         return;
       }
 
