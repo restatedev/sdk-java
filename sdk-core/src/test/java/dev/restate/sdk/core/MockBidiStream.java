@@ -79,10 +79,20 @@ public final class MockBidiStream implements TestDefinitions.TestExecutor {
               coreExecutor,
               true);
 
-      // Wire invocation
+      // Wire invocation.
+      //
+      // Subscribe the OUTPUT before the INPUT. Both subscriptions are dispatched onto the
+      // single-threaded coreExecutor (runSubscriptionOn), which runs them FIFO. The input
+      // subscription immediately starts feeding the state machine and can drive the handler to emit
+      // its first output chunk; if that emit happens before the output subscriber is attached,
+      // RequestProcessorImpl silently drops the chunk (outputSubscriber == null). Subscribing output
+      // first guarantees outputSubscriber is set before any input flows — matching production, where
+      // both adapters are wired synchronously before any (async) input arrives.
       AssertSubscriber<Slice> assertSubscriber = AssertSubscriber.create(Long.MAX_VALUE);
-
-      // Wire invocation and start it
+      Multi.createFrom()
+          .publisher(handler)
+          .runSubscriptionOn(coreExecutor)
+          .subscribe(assertSubscriber);
       Multi.createFrom()
           .iterable(definition.getInput())
           .runSubscriptionOn(coreExecutor)
@@ -92,10 +102,6 @@ public final class MockBidiStream implements TestDefinitions.TestExecutor {
           .using(inputPacer(definition.getInput()))
           .emitOn(coreExecutor)
           .subscribe(handler);
-      Multi.createFrom()
-          .publisher(handler)
-          .runSubscriptionOn(coreExecutor)
-          .subscribe(assertSubscriber);
 
       // Check completed
       assertSubscriber.awaitCompletion(Duration.ofSeconds(10000));
