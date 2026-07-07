@@ -444,6 +444,55 @@ public final class Restate {
   }
 
   /**
+   * Invoke another Restate service method, and await the response.
+   *
+   * <p>This is the low-level, generic invocation entrypoint accepting a pre-built {@link Request}.
+   * For the common case, prefer the type-safe methods {@link #service(Class)}, {@link
+   * #serviceHandle(Class)}, {@link #virtualObject(Class, String)}, {@link
+   * #virtualObjectHandle(Class, String)}, {@link #workflow(Class, String)} and {@link
+   * #workflowHandle(Class, String)}.
+   *
+   * @param request Request object describing the target, payload and response type.
+   * @return a {@link CallDurableFuture} that wraps the Restate service method result.
+   * @see #service(Class)
+   * @see #serviceHandle(Class)
+   */
+  public static <T, R> CallDurableFuture<R> call(Request<T, R> request) {
+    return Context.current().call(request);
+  }
+
+  /**
+   * Invoke another Restate service without waiting for the response (fire-and-forget).
+   *
+   * <p>This is the low-level, generic invocation entrypoint accepting a pre-built {@link Request}.
+   * For the common case, prefer the type-safe {@code send(...)} methods on {@link
+   * #serviceHandle(Class)}, {@link #virtualObjectHandle(Class, String)} and {@link
+   * #workflowHandle(Class, String)}.
+   *
+   * @param request Request object describing the target, payload and response type.
+   * @return an {@link InvocationHandle} that can be used to retrieve the invocation id, cancel the
+   *     invocation, or attach to its result.
+   * @see #send(Request, Duration)
+   * @see #serviceHandle(Class)
+   */
+  public static <T, R> InvocationHandle<R> send(Request<T, R> request) {
+    return Context.current().send(request);
+  }
+
+  /**
+   * Like {@link #send(Request)}, but scheduling the invocation after the given {@code delay}.
+   *
+   * @param request Request object describing the target, payload and response type.
+   * @param delay the delay after which the request should be executed.
+   * @return an {@link InvocationHandle} that can be used to retrieve the invocation id, cancel the
+   *     invocation, or attach to its result.
+   * @see #send(Request)
+   */
+  public static <T, R> InvocationHandle<R> send(Request<T, R> request, Duration delay) {
+    return Context.current().send(request, delay);
+  }
+
+  /**
    * Simple API to invoke a Restate service.
    *
    * <p>Create a proxy client that allows calling service methods directly and synchronously. This

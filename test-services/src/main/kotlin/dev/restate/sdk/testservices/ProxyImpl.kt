@@ -28,8 +28,7 @@ class ProxyImpl : Proxy {
   }
 
   override suspend fun call(request: Proxy.ProxyRequest): ByteArray {
-    return context()
-        .call(
+    return prepareRequest(
             Request.of(request.toTarget(), Serde.RAW, Serde.RAW, request.message).also {
               if (request.idempotencyKey != null) {
                 it.idempotencyKey = request.idempotencyKey
@@ -39,12 +38,12 @@ class ProxyImpl : Proxy {
               }
             }
         )
+        .call()
         .await()
   }
 
   override suspend fun oneWayCall(request: Proxy.ProxyRequest): String =
-      context()
-          .send(
+      prepareRequest(
               Request.of(request.toTarget(), Serde.RAW, Serde.SLICE, request.message).also {
                 if (request.idempotencyKey != null) {
                   it.idempotencyKey = request.idempotencyKey
@@ -52,9 +51,9 @@ class ProxyImpl : Proxy {
                 if (request.limitKey != null) {
                   it.limitKey = request.limitKey
                 }
-              },
-              request.delayMillis?.milliseconds ?: Duration.ZERO,
+              }
           )
+          .send(request.delayMillis?.milliseconds ?: Duration.ZERO)
           .invocationId()
 
   override suspend fun manyCalls(requests: List<Proxy.ManyCallRequest>) {
@@ -62,8 +61,7 @@ class ProxyImpl : Proxy {
 
     for (request in requests) {
       if (request.oneWayCall) {
-        context()
-            .send(
+        prepareRequest(
                 Request.of(
                         request.proxyRequest.toTarget(),
                         Serde.RAW,
@@ -77,13 +75,12 @@ class ProxyImpl : Proxy {
                       if (request.proxyRequest.limitKey != null) {
                         it.limitKey = request.proxyRequest.limitKey
                       }
-                    },
-                request.proxyRequest.delayMillis?.milliseconds ?: Duration.ZERO,
+                    }
             )
+            .send(request.proxyRequest.delayMillis?.milliseconds ?: Duration.ZERO)
       } else {
         val fut =
-            context()
-                .call(
+            prepareRequest(
                     Request.of(
                             request.proxyRequest.toTarget(),
                             Serde.RAW,
@@ -99,6 +96,7 @@ class ProxyImpl : Proxy {
                           }
                         }
                 )
+                .call()
         if (request.awaitAtTheEnd) {
           toAwait.add(fut)
         }
