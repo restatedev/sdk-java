@@ -18,19 +18,30 @@ public class RestateHttpServerProperties {
 
   private final int port;
   private final boolean disableBidirectionalStreaming;
+  private final int eventLoops;
 
   @ConstructorBinding
   public RestateHttpServerProperties(
       @Name("port") @DefaultValue(value = "9080") int port,
       @Name("disableBidirectionalStreaming") @DefaultValue(value = "false")
-          boolean disableBidirectionalStreaming) {
+          boolean disableBidirectionalStreaming,
+      @Name("eventLoops") @DefaultValue(value = "0") int eventLoops) {
     this.port = port;
     this.disableBidirectionalStreaming = disableBidirectionalStreaming;
+    this.eventLoops = eventLoops;
   }
 
   /** Port to expose the HTTP server. */
   public int getPort() {
     return port;
+  }
+
+  /**
+   * Number of event loops to run, spreading incoming connections across that many CPU cores. When
+   * {@code 0}, the default {@code 2 * availableProcessors} is used.
+   */
+  public int getEventLoops() {
+    return eventLoops;
   }
 
   /**
