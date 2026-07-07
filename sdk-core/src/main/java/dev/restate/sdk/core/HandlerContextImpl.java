@@ -417,7 +417,7 @@ class HandlerContextImpl implements HandlerContextInternal {
     try {
       this.pumpOutput();
       this.pollAsyncResultInner(asyncResult);
-    } catch (Exception e) {
+    } catch (Throwable e) {
       this.failWithoutContextSwitch(e);
     }
   }
@@ -428,10 +428,7 @@ class HandlerContextImpl implements HandlerContextInternal {
       try {
         asyncResult.tryComplete(this::takeNotification);
       } catch (Throwable e) {
-        // This can happen if the state machine was closed in the meantime.
-        if (!ExceptionUtils.containsAbortedExecutionException(e)) {
-          this.failWithoutContextSwitch(e);
-        }
+        this.failWithoutContextSwitch(e);
         asyncResult.publicFuture().completeExceptionally(AbortedExecutionException.INSTANCE);
         return;
       }
@@ -447,11 +444,7 @@ class HandlerContextImpl implements HandlerContextInternal {
       try {
         response = this.stateMachine.doAwait(asyncResult);
       } catch (Throwable e) {
-        // doAwait sneaky-throws AbortedExecutionException on suspension. In this case, no need to
-        // fail twice.
-        if (!ExceptionUtils.containsAbortedExecutionException(e)) {
-          this.failWithoutContextSwitch(e);
-        }
+        this.failWithoutContextSwitch(e);
         asyncResult.publicFuture().completeExceptionally(AbortedExecutionException.INSTANCE);
         return;
       }
@@ -480,7 +473,7 @@ class HandlerContextImpl implements HandlerContextInternal {
   public void proposeRunSuccess(int runHandle, Slice toWrite) {
     try {
       this.stateMachine.proposeRunCompletion(runHandle, toWrite);
-    } catch (Exception e) {
+    } catch (Throwable e) {
       this.failWithoutContextSwitch(e);
     }
     this.pumpOutput();
@@ -499,7 +492,7 @@ class HandlerContextImpl implements HandlerContextInternal {
       } else {
         this.stateMachine.proposeRunCompletion(runHandle, throwable, attemptDuration, retryPolicy);
       }
-    } catch (Exception e) {
+    } catch (Throwable e) {
       this.failWithoutContextSwitch(e);
     }
     this.pumpOutput();

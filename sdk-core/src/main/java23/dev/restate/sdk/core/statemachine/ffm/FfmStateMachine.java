@@ -40,9 +40,10 @@ import org.jspecify.annotations.Nullable;
  * <p>Each call is a direct FFM downcall. Results come back either register-packed into the scalar
  * return value (the invocation state, plus a handle for handle-returning calls) or, when too wide
  * to pack, written into a caller-provided out-param struct whose first field is the state. Owned
- * {@link Slice}s are copied out and freed by the caller. On error the state field carries the
- * {@link SharedCoreNative#ERROR_STATE()} sentinel; the detail is then fetched via {@code
- * vm_take_last_vm_error} and thrown as a {@link ProtocolException}.
+ * {@link Slice}s are copied out and freed by the caller. On the {@link
+ * SharedCoreNative#ERROR_STATE()} sentinel the core has already written its terminal message and
+ * closed, so we sneaky-throw {@link AbortedExecutionException} ({@link #abortAfterCoreClosed()});
+ * construction and {@code isReadyToExecute} errors surface as a {@link ProtocolException}.
  *
  * <p>An instance is driven by a single thread at a time (no reentrancy, per the contract); only
  * {@link #state()} — a volatile read — is safe from any thread. Each downcall allocates its
@@ -186,12 +187,9 @@ public final class FfmStateMachine implements StateMachine {
       packed = SharedCoreNative.vm_do_await(vmHandle, futureSeg);
     }
 
-    // Register-packed result (a bare u64, no out-param struct): the low byte is the variant tag,
-    // the
-    // high 32 bits carry the ExecuteRun run handle. On error the core stashed the detail and we
-    // fetch
-    // it via vm_take_last_vm_error. Suspension isn't a variant here — the driver surfaces it by
-    // sneaky-throwing AbortedExecutionException per the StateMachine contract.
+    // Register-packed u64: low byte = variant tag, high 32 bits = ExecuteRun handle. The ERROR
+    // variant also covers suspension (the core folds it in); either way the core already wrote its
+    // terminal message and closed, so we abort cleanly rather than fetch the discarded detail.
     int variant = (int) packed;
     if (variant == SharedCoreNative.AWAIT_VARIANT_ANY_COMPLETED()) {
       return AwaitResult.ANY_COMPLETED;
@@ -202,20 +200,9 @@ public final class FfmStateMachine implements StateMachine {
     } else if (variant == SharedCoreNative.AWAIT_VARIANT_CANCEL_SIGNAL_RECEIVED()) {
       return AwaitResult.CANCEL_SIGNAL_RECEIVED;
     } else if (variant == SharedCoreNative.AWAIT_VARIANT_ERROR()) {
-      throw takeLastVmError();
+      abortAfterCoreClosed();
     }
     throw new IllegalStateException("Unknown do_await variant: " + variant);
-  }
-
-  /**
-   * Fetches + maps the error the core stashed on the last failing packed-result call (cold path).
-   */
-  private ProtocolException takeLastVmError() {
-    try (Arena arena = Arena.ofConfined()) {
-      MemorySegment err = VmError.allocate(arena);
-      SharedCoreNative.vm_take_last_vm_error(vmHandle, err);
-      return closeVmAndMapError(err);
-    }
   }
 
   @Override
@@ -293,7 +280,7 @@ public final class FfmStateMachine implements StateMachine {
       SharedCoreNative.vm_sys_input(vmHandle, out);
       int state = InputResult.state(out);
       if (state == SharedCoreNative.ERROR_STATE()) {
-        throw takeLastVmError();
+        abortAfterCoreClosed();
       }
       updateState(state);
 
@@ -429,7 +416,7 @@ public final class FfmStateMachine implements StateMachine {
       SharedCoreNative.vm_sys_call(vmHandle, args, out);
       int state = CallResult.state(out);
       if (state == SharedCoreNative.ERROR_STATE()) {
-        throw takeLastVmError();
+        abortAfterCoreClosed();
       }
       updateState(state);
       return new CallHandle(CallResult.invocation_id_handle(out), CallResult.result_handle(out));
@@ -469,7 +456,7 @@ public final class FfmStateMachine implements StateMachine {
       SharedCoreNative.vm_sys_awakeable(vmHandle, out);
       int state = AwakeableResult.state(out);
       if (state == SharedCoreNative.ERROR_STATE()) {
-        throw takeLastVmError();
+        abortAfterCoreClosed();
       }
       updateState(state);
       return new Awakeable(
@@ -592,7 +579,7 @@ public final class FfmStateMachine implements StateMachine {
       SharedCoreNative.vm_sys_run(vmHandle, FfmEncoding.foreignUtf8(arena, name), out);
       int state = RunResult.state(out);
       if (state == SharedCoreNative.ERROR_STATE()) {
-        throw takeLastVmError();
+        abortAfterCoreClosed();
       }
       updateState(state);
       return new RunResultHandle(RunResult.replayed(out) != 0, RunResult.handle(out));
@@ -715,12 +702,12 @@ public final class FfmStateMachine implements StateMachine {
   /**
    * Decodes a register-packed handle result ({@code u64}): low 32 bits = state (or the {@link
    * SharedCoreNative#ERROR_STATE()} sentinel), high 32 bits = handle. On the error sentinel we
-   * fetch + throw the stashed error; otherwise update the cached state and return the handle.
+   * {@link #abortAfterCoreClosed()}; otherwise update the cached state and return the handle.
    */
   private int parseHandleResult(long packed) {
     int state = (int) packed;
     if (state == SharedCoreNative.ERROR_STATE()) {
-      throw takeLastVmError();
+      abortAfterCoreClosed();
     }
     updateState(state);
     return (int) (packed >>> 32);
@@ -728,12 +715,12 @@ public final class FfmStateMachine implements StateMachine {
 
   /**
    * Applies a register-packed empty result (a bare {@code u32}): the new state, or the {@link
-   * SharedCoreNative#ERROR_STATE()} sentinel. On the error sentinel we fetch + throw the stashed
-   * error; otherwise update the cached state.
+   * SharedCoreNative#ERROR_STATE()} sentinel. On the error sentinel we {@link
+   * #abortAfterCoreClosed()}; otherwise update the cached state.
    */
   private void consumeEmptyResult(int packed) {
     if (packed == SharedCoreNative.ERROR_STATE()) {
-      throw takeLastVmError();
+      abortAfterCoreClosed();
     }
     updateState(packed);
   }
@@ -764,6 +751,16 @@ public final class FfmStateMachine implements StateMachine {
     if (freed) {
       AbortedExecutionException.sneakyThrow();
     }
+  }
+
+  /**
+   * Mark the state machine as closed and throw AbortedExecutionException.
+   *
+   * <p>A subsequent notifyError will no-op.
+   */
+  private void abortAfterCoreClosed() {
+    cachedState = InvocationState.CLOSED;
+    AbortedExecutionException.sneakyThrow();
   }
 
   private static String formatThrowableMessage(Throwable throwable) {
