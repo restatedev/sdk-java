@@ -65,6 +65,9 @@ public final class Scope {
   }
 
   /**
+   * <b>NOTE:</b> To use scopes with virtual objects you must enable the additional experimental
+   * feature in restate-server, via {@code RESTATE_EXPERIMENTAL_ENABLE_SCOPED_VIRTUAL_OBJECTS=true}
+   *
    * @see Restate#virtualObject(Class, String)
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
@@ -89,6 +92,9 @@ public final class Scope {
   }
 
   /**
+   * <b>NOTE:</b> To use scopes with virtual objects you must enable the additional experimental
+   * feature in restate-server, via {@code RESTATE_EXPERIMENTAL_ENABLE_SCOPED_VIRTUAL_OBJECTS=true}
+   *
    * @see Restate#virtualObjectHandle(Class, String)
    */
   @org.jetbrains.annotations.ApiStatus.Experimental
