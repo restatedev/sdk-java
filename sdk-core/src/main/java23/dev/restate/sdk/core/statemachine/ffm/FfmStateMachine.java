@@ -30,6 +30,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -50,6 +51,11 @@ import org.jspecify.annotations.Nullable;
  * out-param and inputs in a confined {@link Arena} for the duration of the call.
  */
 public final class FfmStateMachine implements StateMachine {
+
+  // Same logger as the native tracing bridge, so SDK- and core-emitted lines interleave.
+  private static final Logger LOG = NativeLogging.LOG;
+
+  private static final int SUSPENDED_ERROR_CODE = 599;
 
   private final MemorySegment vmHandle;
   private final String responseContentType;
@@ -756,10 +762,23 @@ public final class FfmStateMachine implements StateMachine {
   /**
    * Mark the state machine as closed and throw AbortedExecutionException.
    *
-   * <p>A subsequent notifyError will no-op.
+   * <p>A subsequent notifyError will no-op. Before aborting we surface the failure the core stashed
+   * (skipping the fetch when WARN is off, and skipping suspensions, which ride the same channel).
    */
   private void abortAfterCoreClosed() {
     cachedState = InvocationState.CLOSED;
+    if (LOG.isWarnEnabled()) {
+      try (Arena arena = Arena.ofConfined()) {
+        MemorySegment err = VmError.allocate(arena);
+        SharedCoreNative.vm_take_last_vm_error(vmHandle, err);
+        int code = VmError.code(err);
+        // takeSliceString also frees the owned message Slice, so decode it even when not logging.
+        String message = FfmEncoding.takeSliceString(VmError.message(err));
+        if (code != SUSPENDED_ERROR_CODE) {
+          LOG.warn("Invocation failed: {}", message);
+        }
+      }
+    }
     AbortedExecutionException.sneakyThrow();
   }
 
