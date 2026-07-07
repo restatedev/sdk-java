@@ -18,9 +18,7 @@
 
   [libraries.jackson-annotations]
     module = 'com.fasterxml.jackson.core:jackson-annotations'
-
-    [libraries.jackson-annotations.version]
-      ref = 'jackson'
+    version = '2.22'
 
   [libraries.jackson-core]
     module = 'com.fasterxml.jackson.core:jackson-core'
