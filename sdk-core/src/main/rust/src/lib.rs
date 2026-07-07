@@ -156,8 +156,13 @@ impl VmError {
 /// prior call and the caller starts at `WAITING_START`.
 #[repr(C, u32)]
 pub enum VmNewResult {
-    Ok { handle: *mut VmHandle },
-    Err { error: VmError },
+    Ok {
+        handle: *mut VmHandle,
+        response_content_type: Slice,
+    },
+    Err {
+        error: VmError,
+    },
 }
 
 // The Java decoder maps a call's returned `state` ordinal to an `InvocationState` via these
@@ -192,13 +197,14 @@ unsafe fn write_out<T>(out: *mut T, value: T) {
 // Lifecycle
 // =========================================================================
 
-/// Create a new VM from the encoded header list, writing the typed result into
-/// `out`: `Ok { handle }` on success, `Err { error }` on failure.
 #[export_name = "vm_new"]
 pub unsafe extern "C" fn _vm_new(headers: ForeignSlice, out: *mut VmNewResult) {
     let r = match vm_new(headers.as_slice()) {
-        Ok(vm) => VmNewResult::Ok {
+        Ok((response_content_type, vm)) => VmNewResult::Ok {
             handle: Box::into_raw(vm),
+            response_content_type: response_content_type
+                .map(Slice::from_string)
+                .unwrap_or(Slice::EMPTY),
         },
         Err(e) => VmNewResult::Err {
             error: VmError::of(&e),
@@ -208,14 +214,22 @@ pub unsafe extern "C" fn _vm_new(headers: ForeignSlice, out: *mut VmNewResult) {
 }
 
 #[inline]
-fn vm_new(headers_buf: &[u8]) -> Result<Box<VmHandle>, Error> {
+fn vm_new(headers_buf: &[u8]) -> Result<(Option<String>, Box<VmHandle>), Error> {
     let headers = decode_header_list(headers_buf);
     CoreVM::new(Headers(headers), VMOptions::default()).map(|vm| {
-        Box::new(VmHandle {
-            vm,
-            notification_scratch: None,
-            last_vm_error_scratch: None,
-        })
+        let response_content_type = VM::get_response_head(&vm)
+            .headers
+            .into_iter()
+            .find(|h| h.key.eq_ignore_ascii_case("content-type"))
+            .map(|h| h.value.into_owned());
+        (
+            response_content_type,
+            Box::new(VmHandle {
+                vm,
+                notification_scratch: None,
+                last_vm_error_scratch: None,
+            }),
+        )
     })
 }
 
@@ -298,29 +312,6 @@ pub unsafe extern "C" fn _vm_take_output(handle: *mut VmHandle, out: *mut Slice)
 #[inline]
 fn vm_take_output(vm: &mut CoreVM) -> Slice {
     Slice::from_bytes(VM::take_output(vm))
-}
-
-/// Infallible: returns the response's `content-type` header value as an owned `Slice` (empty when
-/// absent). The header scan lives here so the boundary needn't ship the whole header list just to
-/// look up one value; the caller copies it out + frees it via `free_buffer`.
-#[export_name = "vm_get_response_content_type"]
-pub unsafe extern "C" fn _vm_get_response_content_type(handle: *mut VmHandle, out: *mut Slice) {
-    let h = vm_mut(handle);
-    write_out(
-        out,
-        vm_get_response_content_type(&mut h.vm)
-            .map(Slice::from_string)
-            .unwrap_or(Slice::EMPTY),
-    );
-}
-
-#[inline]
-fn vm_get_response_content_type(vm: &mut CoreVM) -> Option<String> {
-    VM::get_response_head(vm)
-        .headers
-        .into_iter()
-        .find(|h| h.key.eq_ignore_ascii_case("content-type"))
-        .map(|h| h.value.into_owned())
 }
 
 /// Result of `is_ready_to_execute`: a boolean in `value` (0/1).

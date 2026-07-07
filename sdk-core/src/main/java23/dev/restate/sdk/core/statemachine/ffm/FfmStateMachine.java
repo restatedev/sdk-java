@@ -51,6 +51,7 @@ import org.jspecify.annotations.Nullable;
 public final class FfmStateMachine implements StateMachine {
 
   private final MemorySegment vmHandle;
+  private final String responseContentType;
   private boolean freed = false;
 
   /**
@@ -85,6 +86,9 @@ public final class FfmStateMachine implements StateMachine {
         throw closeVmAndMapError(VmNewResult_Err_Body.error(VmNewResult.err(out)));
       }
       this.vmHandle = VmNewResult_Ok_Body.handle(VmNewResult.ok(out));
+      this.responseContentType =
+          FfmEncoding.takeSliceString(
+              VmNewResult_Ok_Body.response_content_type(VmNewResult.ok(out)));
     }
   }
 
@@ -146,14 +150,7 @@ public final class FfmStateMachine implements StateMachine {
 
   @Override
   public String getResponseContentType() {
-    verifyNotFreed();
-    try (Arena arena = Arena.ofConfined()) {
-      // Infallible: the core scans its own header list and returns just the content-type value as a
-      // bare owned Slice (empty when absent), which we copy out + free.
-      MemorySegment out = FfmEncoding.allocateSliceStruct(arena);
-      SharedCoreNative.vm_get_response_content_type(vmHandle, out);
-      return FfmEncoding.takeSliceString(out);
-    }
+    return responseContentType;
   }
 
   @Override
