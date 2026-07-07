@@ -176,6 +176,71 @@ class KotlinxSerdeTest {
     )
   }
 
+  @Serializable
+  enum class TaskStatus {
+    TODO,
+    IN_PROGRESS,
+    DONE,
+  }
+
+  @Serializable
+  enum class PriorityOrder {
+    HIGH,
+    MID,
+    LOW,
+  }
+
+  @Serializable
+  data class Task(val title: String, val status: TaskStatus, val priority: PriorityOrder)
+
+  @Test
+  fun schemaGenWithExternalEnum() {
+    testSchemaGen<Task>(
+        $$"""
+        {
+                 "type": "object",
+                 "required": [
+                    "title",
+                    "status",
+                    "priority"
+                 ],
+                 "properties": {
+                    "title": {
+                       "type": "string"
+                    },
+                    "priority": {
+                       "$ref": "#/$defs/PriorityOrder"
+                    },
+                    "status": {
+                       "$ref": "#/$defs/TaskStatus"
+                    }
+                 },
+                 "title": "Task",
+                 "$schema": "https://json-schema.org/draft/2020-12/schema",
+                 "$defs": {
+                    "TaskStatus": {
+                       "enum": [
+                          "TODO",
+                          "IN_PROGRESS",
+                          "DONE"
+                       ],
+                       "title": "TaskStatus"
+                    },
+                    "PriorityOrder": {
+                       "enum": [
+                          "HIGH",
+                          "MID",
+                          "LOW"
+                       ],
+                       "title": "PriorityOrder"
+                    }
+                 }
+              }
+        """
+            .trimIndent()
+    )
+  }
+
   inline fun <reified T : Any?> testSchemaGen(expectedSchema: String) {
     val expectedJsonElement = Json.decodeFromString<JsonElement>(expectedSchema)
     val actualSchema =

@@ -23,7 +23,6 @@ import io.github.smiley4.schemakenerator.jsonschema.jsonDsl.array
 import io.github.smiley4.schemakenerator.serialization.SerializationSteps.analyzeTypeUsingKotlinxSerialization
 import io.github.smiley4.schemakenerator.serialization.SerializationSteps.initial
 import io.github.smiley4.schemakenerator.serialization.SerializationSteps.renameMembers
-import kotlin.collections.set
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
@@ -126,8 +125,10 @@ object DefaultJsonSchemaFactory : KotlinSerializationSerdeFactory.JsonSchemaFact
   private fun JsonObject.fixRefsPrefix(rootDefinition: String) {
     this.properties.computeIfPresent("\$ref") { key, node ->
       if (node is JsonTextValue) {
-        if (node.value.startsWith(rootDefinition)) {
-          JsonTextValue("#/" + node.value.removePrefix(rootDefinition))
+        if (node.value == rootDefinition) {
+          JsonTextValue("#/")
+        } else if (node.value.startsWith("$rootDefinition/")) {
+          JsonTextValue("#/" + node.value.removePrefix("$rootDefinition/"))
         } else {
           JsonTextValue("#/\$defs/" + node.value.removePrefix("#/definitions/"))
         }
