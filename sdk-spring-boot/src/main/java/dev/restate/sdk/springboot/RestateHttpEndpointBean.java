@@ -12,8 +12,14 @@ import dev.restate.sdk.auth.signing.RestateRequestIdentityVerifier;
 import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.http.vertx.HttpEndpointRequestHandler;
 import dev.restate.sdk.http.vertx.RestateHttpServer;
-import io.vertx.core.http.HttpServer;
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.DeploymentOptions;
+import io.vertx.core.Promise;
+import io.vertx.core.Vertx;
+import io.vertx.core.VertxOptions;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
@@ -29,15 +35,18 @@ public class RestateHttpEndpointBean implements InitializingBean, SmartLifecycle
 
   private volatile boolean running;
 
-  private final HttpServer server;
+  private final @Nullable HttpEndpointRequestHandler handler;
+
+  private volatile @Nullable Vertx vertx;
+
+  private volatile int actualPort = -1;
 
   public RestateHttpEndpointBean(
       Endpoint endpoint, RestateHttpServerProperties restateHttpServerProperties) {
     this.restateHttpServerProperties = restateHttpServerProperties;
-    this.server =
-        RestateHttpServer.fromHandler(
-            HttpEndpointRequestHandler.fromEndpoint(
-                endpoint, this.restateHttpServerProperties.isDisableBidirectionalStreaming()));
+    this.handler =
+        HttpEndpointRequestHandler.fromEndpoint(
+            endpoint, restateHttpServerProperties.isDisableBidirectionalStreaming());
   }
 
   @Deprecated
@@ -52,7 +61,7 @@ public class RestateHttpEndpointBean implements InitializingBean, SmartLifecycle
 
     if (restateComponents.isEmpty()) {
       logger.info("No @RestateComponent discovered");
-      this.server = null;
+      this.handler = null;
       // Don't start anything, if no service is registered
       return;
     }
@@ -80,10 +89,10 @@ public class RestateHttpEndpointBean implements InitializingBean, SmartLifecycle
           RestateRequestIdentityVerifier.fromKey(restateEndpointProperties.getIdentityKey()));
     }
 
-    this.server =
-        RestateHttpServer.fromHandler(
-            HttpEndpointRequestHandler.fromEndpoint(
-                builder.build(), restateHttpServerProperties.isDisableBidirectionalStreaming()));
+    Endpoint endpoint = builder.build();
+    this.handler =
+        HttpEndpointRequestHandler.fromEndpoint(
+            endpoint, restateHttpServerProperties.isDisableBidirectionalStreaming());
   }
 
   @Deprecated
@@ -92,13 +101,39 @@ public class RestateHttpEndpointBean implements InitializingBean, SmartLifecycle
 
   @Override
   public void start() {
+    HttpEndpointRequestHandler handler = this.handler;
+    if (handler == null) {
+      // No service registered, nothing to start.
+      this.running = true;
+      return;
+    }
+    int instances =
+        this.restateHttpServerProperties.getEventLoops() > 0
+            ? this.restateHttpServerProperties.getEventLoops()
+            : VertxOptions.DEFAULT_EVENT_LOOP_POOL_SIZE;
+    Vertx vertx = Vertx.vertx(new VertxOptions().setEventLoopPoolSize(instances));
+    this.vertx = vertx;
+    // A negative port makes all the server instances share the same random port, whereas port 0
+    // would make each instance bind a different random port.
+    int listenPort =
+        this.restateHttpServerProperties.getPort() == 0
+            ? -1
+            : this.restateHttpServerProperties.getPort();
+    AtomicInteger actualPortHolder = new AtomicInteger();
     try {
-      this.server
-          .listen(this.restateHttpServerProperties.getPort())
+      // Deploy one HttpServer (and one handler) per event loop, spreading connections across them.
+      vertx
+          .deployVerticle(
+              () -> new ServerVerticle(handler, listenPort, actualPortHolder),
+              new DeploymentOptions().setInstances(instances))
           .toCompletionStage()
           .toCompletableFuture()
           .get();
-      logger.info("Started Restate Spring HTTP server on port {}", this.server.actualPort());
+      this.actualPort = actualPortHolder.get();
+      logger.info(
+          "Started Restate Spring HTTP server on port {} with {} event loop(s)",
+          this.actualPort,
+          instances);
     } catch (Exception e) {
       logger.error(
           "Error when starting Restate Spring HTTP server on port {}",
@@ -111,11 +146,16 @@ public class RestateHttpEndpointBean implements InitializingBean, SmartLifecycle
   @Override
   public void stop() {
     try {
-      this.server.close().toCompletionStage().toCompletableFuture().get();
+      Vertx vertx = this.vertx;
+      if (vertx != null) {
+        vertx.close().toCompletionStage().toCompletableFuture().get();
+        this.vertx = null;
+      }
       logger.info("Stopped Restate Spring HTTP server");
     } catch (Exception e) {
       logger.error("Error when stopping the Restate Spring HTTP server", e);
     }
+    this.actualPort = -1;
     this.running = false;
   }
 
@@ -128,6 +168,35 @@ public class RestateHttpEndpointBean implements InitializingBean, SmartLifecycle
     if (!this.isRunning()) {
       return -1;
     }
-    return this.server.actualPort();
+    return this.actualPort;
+  }
+
+  /**
+   * Verticle deployed once per event loop, each creating its own {@link
+   * HttpEndpointRequestHandler}.
+   */
+  private static final class ServerVerticle extends AbstractVerticle {
+
+    private final HttpEndpointRequestHandler handler;
+    private final int port;
+    private final AtomicInteger actualPort;
+
+    private ServerVerticle(HttpEndpointRequestHandler handler, int port, AtomicInteger actualPort) {
+      this.handler = handler;
+      this.port = port;
+      this.actualPort = actualPort;
+    }
+
+    @Override
+    public void start(Promise<Void> startPromise) {
+      RestateHttpServer.fromHandler(vertx, handler)
+          .listen(port)
+          .onSuccess(
+              server -> {
+                actualPort.set(server.actualPort());
+                startPromise.complete();
+              })
+          .onFailure(startPromise::fail);
+    }
   }
 }
