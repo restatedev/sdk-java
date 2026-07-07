@@ -18,11 +18,13 @@ import kotlin.time.Duration.Companion.milliseconds
 
 class ProxyImpl : Proxy {
   private fun Proxy.ProxyRequest.toTarget(): Target {
-    return if (this.virtualObjectKey == null) {
-      Target.service(this.serviceName, this.handlerName)
-    } else {
-      Target.virtualObject(this.serviceName, this.virtualObjectKey, this.handlerName)
-    }
+    val target =
+        if (this.virtualObjectKey == null) {
+          Target.service(this.serviceName, this.handlerName)
+        } else {
+          Target.virtualObject(this.serviceName, this.virtualObjectKey, this.handlerName)
+        }
+    return if (this.scope != null) target.scoped(this.scope) else target
   }
 
   override suspend fun call(request: Proxy.ProxyRequest): ByteArray {
@@ -31,6 +33,9 @@ class ProxyImpl : Proxy {
             Request.of(request.toTarget(), Serde.RAW, Serde.RAW, request.message).also {
               if (request.idempotencyKey != null) {
                 it.idempotencyKey = request.idempotencyKey
+              }
+              if (request.limitKey != null) {
+                it.limitKey = request.limitKey
               }
             }
         )
@@ -43,6 +48,9 @@ class ProxyImpl : Proxy {
               Request.of(request.toTarget(), Serde.RAW, Serde.SLICE, request.message).also {
                 if (request.idempotencyKey != null) {
                   it.idempotencyKey = request.idempotencyKey
+                }
+                if (request.limitKey != null) {
+                  it.limitKey = request.limitKey
                 }
               },
               request.delayMillis?.milliseconds ?: Duration.ZERO,
@@ -66,6 +74,9 @@ class ProxyImpl : Proxy {
                       if (request.proxyRequest.idempotencyKey != null) {
                         it.idempotencyKey = request.proxyRequest.idempotencyKey
                       }
+                      if (request.proxyRequest.limitKey != null) {
+                        it.limitKey = request.proxyRequest.limitKey
+                      }
                     },
                 request.proxyRequest.delayMillis?.milliseconds ?: Duration.ZERO,
             )
@@ -82,6 +93,9 @@ class ProxyImpl : Proxy {
                         .also {
                           if (request.proxyRequest.idempotencyKey != null) {
                             it.idempotencyKey = request.proxyRequest.idempotencyKey
+                          }
+                          if (request.proxyRequest.limitKey != null) {
+                            it.limitKey = request.proxyRequest.limitKey
                           }
                         }
                 )

@@ -1,0 +1,9 @@
+# Tests excluded when the SDK runs on the legacy (pure-Java) state machine, i.e. on JRE < 23,
+# where the Panama/FFM state machine is unavailable and only service protocol v6 is negotiated.
+#
+# Scope and limit key require service protocol v7 (native/FFM state machine, JRE >= 23), so these
+# tests must be skipped on the legacy state machine. This file is passed via `--exclusions-file`
+# only for the JRE 17 and 21 CI legs; the JRE 25 leg runs them.
+exclusions:
+  "default":
+  - "dev.restate.sdktesting.tests.ServiceToServiceScopeConcurrency.scopeAndLimitKeyArePropagatedOnServiceToServiceCalls"
