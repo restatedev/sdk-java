@@ -45,8 +45,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
  * test methods. Because of this behaviour, the extension sets the {@link TestInstance} as {@link
  * TestInstance.Lifecycle#PER_CLASS} automatically.
  *
- * <p>Use the annotations {@link RestateClient}, {@link RestateURL} and {@link RestateAdminClient}
- * to interact with the deployed environment:
+ * <p>Use the annotations {@link RestateClient}, {@link RestateURL} and {@link RestateAdminURL} to
+ * interact with the deployed environment:
  *
  * <pre>
  * {@code @Test}

@@ -143,6 +143,8 @@ public class RestateRunner implements AutoCloseable, ExtensionContext.Store.Clos
   }
 
   /** Run restate, run the embedded service endpoint server, and register the services. */
+  @SuppressWarnings(
+      "deprecation") // Internally still uses the deprecated code-generated admin client
   public void start() {
     // Start listening the local server
     try {
@@ -234,6 +236,7 @@ public class RestateRunner implements AutoCloseable, ExtensionContext.Store.Clos
 
   // -- Methods used by the JUnit5 extension
 
+  @SuppressWarnings("deprecation") // Returns the deprecated code-generated admin client
   ApiClient getAdminClient() {
     return new ApiClient()
         .setHost(runtimeContainer.getHost())
