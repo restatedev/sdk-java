@@ -52,9 +52,9 @@ final class NativeLogging {
   private NativeLogging() {}
 
   /** Dedicated logger all native (shared-core) events are routed through. */
-  static final String LOGGER_NAME = "dev.restate.sdk.core.StateMachine";
+  private static final String LOGGER_NAME = "dev.restate.sdk.core.StateMachine";
 
-  private static final Logger LOG = LogManager.getLogger(LOGGER_NAME);
+  static final Logger LOG = LogManager.getLogger(LOGGER_NAME);
 
   /**
    * Optional override for the native max level, bypassing the Log4j2-derived value. Accepts {@code
