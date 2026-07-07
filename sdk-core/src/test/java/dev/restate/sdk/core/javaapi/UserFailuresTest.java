@@ -13,8 +13,10 @@ import static dev.restate.sdk.core.javaapi.JavaAPITests.testDefinitionForService
 import dev.restate.sdk.common.AbortedExecutionException;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
+import dev.restate.sdk.core.TestSerdes;
 import dev.restate.sdk.core.UserFailuresTestSuite;
 import dev.restate.serde.Serde;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class UserFailuresTest extends UserFailuresTestSuite {
@@ -80,6 +82,32 @@ public class UserFailuresTest extends UserFailuresTestSuite {
               () -> {
                 throw new TerminalException(code, message);
               });
+          throw new IllegalStateException("This should not be reached");
+        });
+  }
+
+  @Override
+  protected TestInvocationBuilder sideEffectThrowTerminalExceptionReturningMetadata() {
+    return testDefinitionForService(
+        "SideEffectThrowTerminalExceptionReturningMetadata",
+        Serde.VOID,
+        TestSerdes.STRING,
+        (ctx, unused) -> {
+          try {
+            ctx.run(
+                () -> {
+                  throw new TerminalException(TerminalException.INTERNAL_SERVER_ERROR_CODE);
+                });
+          } catch (TerminalException e) {
+            StringBuilder sb = new StringBuilder();
+            for (Map.Entry<String, String> entry : e.getMetadata().entrySet()) {
+              if (sb.length() > 0) {
+                sb.append(",");
+              }
+              sb.append(entry.getKey()).append(":").append(entry.getValue());
+            }
+            return sb.toString();
+          }
           throw new IllegalStateException("This should not be reached");
         });
   }

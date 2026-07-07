@@ -8,7 +8,6 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core.lambda;
 
-import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.amazonaws.services.lambda.runtime.ClientContext;
@@ -18,60 +17,18 @@ import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.protobuf.ByteString;
-import com.google.protobuf.MessageLite;
+import dev.restate.sdk.core.DiscoveryProtocol;
 import dev.restate.sdk.core.generated.manifest.EndpointManifestSchema;
 import dev.restate.sdk.core.generated.manifest.Service;
-import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.core.lambda.testservices.JavaCounterServiceHandlers;
 import dev.restate.sdk.core.lambda.testservices.MyServicesHandler;
-import dev.restate.sdk.core.statemachine.MessageHeader;
-import dev.restate.sdk.core.statemachine.ProtoUtils;
 import dev.restate.sdk.lambda.BaseRestateLambdaHandler;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.Base64;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class LambdaHandlerTest {
-
-  @Test
-  public void testInvoke() throws IOException {
-    MyServicesHandler handler = new MyServicesHandler();
-
-    // Mock request
-    APIGatewayProxyRequestEvent request = new APIGatewayProxyRequestEvent();
-    request.setHeaders(Map.of("content-type", ProtoUtils.serviceProtocolContentTypeHeader(false)));
-    request.setPath(
-        "/a/path/prefix/invoke/" + JavaCounterServiceHandlers.Metadata.SERVICE_NAME + "/get");
-    request.setHttpMethod("POST");
-    request.setIsBase64Encoded(true);
-    request.setBody(
-        Base64.getEncoder()
-            .encodeToString(
-                serializeEntries(
-                    Protocol.StartMessage.newBuilder()
-                        .setDebugId("123")
-                        .setId(ByteString.copyFromUtf8("123"))
-                        .setKnownEntries(1)
-                        .setPartialState(true)
-                        .build(),
-                    inputCmd())));
-
-    // Send request
-    APIGatewayProxyResponseEvent response = handler.handleRequest(request, mockContext());
-
-    // Assert response
-    assertThat(response.getStatusCode()).isEqualTo(200);
-    assertThat(response.getHeaders())
-        .containsEntry("content-type", ProtoUtils.serviceProtocolContentTypeHeader(false));
-    assertThat(response.getIsBase64Encoded()).isTrue();
-    assertThat(response.getBody())
-        .asBase64Decoded()
-        .isEqualTo(serializeEntries(getLazyStateCmd(1, "counter").build(), suspensionMessage(1)));
-  }
 
   @Test
   public void testDiscovery() throws IOException {
@@ -80,7 +37,7 @@ class LambdaHandlerTest {
     // Mock request
     APIGatewayProxyRequestEvent request = new APIGatewayProxyRequestEvent();
     request.setPath("/a/path/prefix/discover");
-    request.setHeaders(Map.of("accept", ProtoUtils.serviceProtocolDiscoveryContentTypeHeader()));
+    request.setHeaders(Map.of("accept", DiscoveryProtocol.Version.MAX.getHeader()));
 
     // Send request
     APIGatewayProxyResponseEvent response = handler.handleRequest(request, mockContext());
@@ -88,7 +45,7 @@ class LambdaHandlerTest {
     // Assert response
     assertThat(response.getStatusCode()).isEqualTo(200);
     assertThat(response.getHeaders())
-        .containsEntry("content-type", ProtoUtils.serviceProtocolDiscoveryContentTypeHeader());
+        .containsEntry("content-type", DiscoveryProtocol.Version.MAX.getHeader());
     assertThat(response.getIsBase64Encoded()).isTrue();
     byte[] decodedStringResponse = Base64.getDecoder().decode(response.getBody());
     // Compute response and write it back
@@ -98,17 +55,6 @@ class LambdaHandlerTest {
     assertThat(discoveryResponse.getServices())
         .map(Service::getName)
         .containsOnly(JavaCounterServiceHandlers.Metadata.SERVICE_NAME);
-  }
-
-  private static byte[] serializeEntries(MessageLite... msgs) throws IOException {
-    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-    for (MessageLite msg : msgs) {
-      ByteBuffer headerBuf = ByteBuffer.allocate(8);
-      headerBuf.putLong(MessageHeader.fromMessage(msg).encode());
-      outputStream.write(headerBuf.array());
-      msg.writeTo(outputStream);
-    }
-    return outputStream.toByteArray();
   }
 
   private Context mockContext() {

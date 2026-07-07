@@ -13,9 +13,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.MessageLiteOrBuilder;
 import dev.restate.sdk.core.generated.protocol.Protocol;
-import dev.restate.sdk.core.statemachine.InvocationInput;
-import dev.restate.sdk.core.statemachine.MessageHeader;
-import dev.restate.sdk.core.statemachine.ProtoUtils;
+import dev.restate.sdk.core.legacy.InvocationInput;
+import dev.restate.sdk.core.legacy.MessageHeader;
+import dev.restate.sdk.core.legacy.ProtoUtils;
 import dev.restate.sdk.endpoint.definition.HandlerRunner;
 import dev.restate.sdk.endpoint.definition.ServiceDefinition;
 import dev.restate.sdk.endpoint.definition.ServiceDefinitionFactories;
@@ -62,7 +62,7 @@ public final class TestDefinitions {
   public interface TestExecutor {
     boolean buffered();
 
-    void executeTest(TestDefinition definition);
+    void executeTest(TestDefinition definition) throws Exception;
   }
 
   public static TestInvocationBuilder testInvocation(Supplier<Object> svcSupplier, String handler) {

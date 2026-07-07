@@ -11,12 +11,13 @@ package dev.restate.sdk.core;
 import static dev.restate.sdk.core.AssertUtils.containsOnlyExactErrorMessage;
 import static dev.restate.sdk.core.AssertUtils.exactErrorMessage;
 import static dev.restate.sdk.core.TestDefinitions.*;
-import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
+import static dev.restate.sdk.core.legacy.ProtoUtils.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.generated.protocol.Protocol;
-import dev.restate.sdk.core.statemachine.ProtoUtils;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
@@ -25,6 +26,20 @@ public abstract class UserFailuresTestSuite implements TestSuite {
   public static final String MY_ERROR = "my error";
 
   public static final String WHATEVER = "Whatever";
+
+  // Insertion order intentionally differs from the HashMap iteration order of these keys, so a
+  // non-order-preserving deserialization of the metadata map would produce a different string.
+  public static final Map<String, String> ERROR_METADATA = new LinkedHashMap<>();
+
+  static {
+    ERROR_METADATA.put("region", "eu");
+    ERROR_METADATA.put("zone", "a");
+    ERROR_METADATA.put("cell", "c1");
+    ERROR_METADATA.put("shard", "s1");
+    ERROR_METADATA.put("host", "h1");
+  }
+
+  public static final String ERROR_METADATA_ITERATED = "region:eu,zone:a,cell:c1,shard:s1,host:h1";
 
   protected abstract TestInvocationBuilder throwIllegalStateException();
 
@@ -35,6 +50,13 @@ public abstract class UserFailuresTestSuite implements TestSuite {
 
   protected abstract TestInvocationBuilder sideEffectThrowTerminalException(
       int code, String message);
+
+  /**
+   * The returned handler must: run a {@code ctx.run}, catch the {@link TerminalException} it
+   * throws, iterate the exception's metadata map appending {@code key:value} entries joined by
+   * {@code ,}, and return the resulting string.
+   */
+  protected abstract TestInvocationBuilder sideEffectThrowTerminalExceptionReturningMetadata();
 
   @Override
   public Stream<TestDefinition> definitions() {
@@ -73,8 +95,7 @@ public abstract class UserFailuresTestSuite implements TestSuite {
                 Protocol.RunCommandMessage.newBuilder().setResultCompletionId(1),
                 Protocol.ProposeRunCompletionMessage.newBuilder()
                     .setResultCompletionId(1)
-                    .setFailure(
-                        ProtoUtils.failure(TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR)),
+                    .setFailure(failure(TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR)),
                 suspensionMessage(1))
             .named("With internal error"),
         this.sideEffectThrowTerminalException(501, WHATEVER)
@@ -83,7 +104,7 @@ public abstract class UserFailuresTestSuite implements TestSuite {
                 Protocol.RunCommandMessage.newBuilder().setResultCompletionId(1),
                 Protocol.ProposeRunCompletionMessage.newBuilder()
                     .setResultCompletionId(1)
-                    .setFailure(ProtoUtils.failure(501, WHATEVER)),
+                    .setFailure(failure(501, WHATEVER)),
                 suspensionMessage(1))
             .named("With unknown error"),
         this.sideEffectThrowTerminalException(
@@ -99,6 +120,15 @@ public abstract class UserFailuresTestSuite implements TestSuite {
         this.sideEffectThrowTerminalException(501, WHATEVER)
             .withInput(startMessage(3), inputCmd(), runCmd(1), runCompletion(1, 501, WHATEVER))
             .expectingOutput(outputCmd(501, WHATEVER), END_MESSAGE)
-            .named("With unknown error during replay"));
+            .named("With unknown error during replay"),
+        this.sideEffectThrowTerminalExceptionReturningMetadata()
+            .withInput(
+                startMessage(3),
+                inputCmd(),
+                runCmd(1),
+                runCompletion(
+                    1, TerminalException.INTERNAL_SERVER_ERROR_CODE, MY_ERROR, ERROR_METADATA))
+            .expectingOutput(outputCmd(ERROR_METADATA_ITERATED), END_MESSAGE)
+            .named("Metadata map iterates deterministically"));
   }
 }

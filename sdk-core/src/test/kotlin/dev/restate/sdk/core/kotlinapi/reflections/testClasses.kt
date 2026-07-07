@@ -169,6 +169,12 @@ open class MyWorkflow {
       workflow<MyWorkflow>(workflowKey()).sharedHandler(myInput)
 }
 
+@Service
+@Name("MyExplicitName")
+interface GreeterWithExplicitName {
+  @Handler @Name("my_greeter") suspend fun greet(request: String): String
+}
+
 @Suppress("UNCHECKED_CAST")
 class MyCustomSerdeFactory : SerdeFactory {
   override fun <T> create(typeTag: TypeTag<T?>): Serde<T?> {
@@ -196,10 +202,4 @@ class CustomSerdeService {
   suspend fun echo(input: Byte): Byte {
     return input
   }
-}
-
-@Service
-@Name("MyExplicitName")
-interface GreeterWithExplicitName {
-  @Handler @Name("my_greeter") suspend fun greet(request: String): String
 }

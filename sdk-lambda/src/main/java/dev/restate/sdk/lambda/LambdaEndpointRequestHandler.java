@@ -21,7 +21,8 @@ import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.version.Version;
 import java.util.*;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -49,58 +50,83 @@ public final class LambdaEndpointRequestHandler {
 
     // Parse request body
     final Slice requestBody = parseInputBody(input);
-    final Executor coreExecutor = Executors.newSingleThreadExecutor();
-
-    RequestProcessor requestProcessor;
+    final ExecutorService coreExecutor = Executors.newSingleThreadExecutor();
     try {
-      requestProcessor =
-          this.endpoint.processorForRequest(
-              path,
-              HeadersAccessor.wrap(input.getHeaders()),
-              EndpointRequestHandler.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
-              coreExecutor,
-              false);
-    } catch (ProtocolException e) {
-      // We can handle protocol exceptions by returning back the correct response
-      LOG.warn("Error when handling the request", e);
-      return new APIGatewayProxyResponseEvent()
-          .withStatusCode(e.getCode())
-          .withHeaders(
-              Map.of("content-type", "text/plain", "x-restate-server", Version.X_RESTATE_SERVER))
-          .withBody(e.getMessage());
+      final BufferedPublisher publisher = new BufferedPublisher(requestBody);
+      final ResultSubscriber subscriber = new ResultSubscriber();
+
+      // Create the request processor and wire both streams on the coreExecutor thread, subscribing
+      // the OUTPUT before the INPUT. Both run in order on the single-threaded coreExecutor, so the
+      // output subscriber is attached before the input starts feeding the state machine; otherwise
+      // the input subscription would drive the handler to emit its first output chunk before the
+      // output subscriber is attached, and RequestProcessorImpl silently drops output emitted while
+      // it has no subscriber. Creating the processor here also keeps the native state machine on
+      // the
+      // thread that drives it.
+      RequestProcessor requestProcessor;
+      try {
+        requestProcessor =
+            coreExecutor
+                .submit(
+                    () -> {
+                      RequestProcessor handler =
+                          this.endpoint.processorForRequest(
+                              path,
+                              HeadersAccessor.wrap(input.getHeaders()),
+                              EndpointRequestHandler.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
+                              coreExecutor,
+                              false);
+                      handler.subscribe(subscriber);
+                      publisher.subscribe(handler);
+                      return handler;
+                    })
+                .get();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(e);
+      } catch (ExecutionException e) {
+        if (e.getCause() instanceof ProtocolException pe) {
+          // We can handle protocol exceptions by returning back the correct response
+          LOG.warn("Error when handling the request", pe);
+          return new APIGatewayProxyResponseEvent()
+              .withStatusCode(pe.getCode())
+              .withHeaders(
+                  Map.of(
+                      "content-type", "text/plain", "x-restate-server", Version.X_RESTATE_SERVER))
+              .withBody(pe.getMessage());
+        }
+        throw new RuntimeException(e.getCause() != null ? e.getCause() : e);
+      }
+
+      // Await the result
+      byte[] responseBody;
+      try {
+        responseBody = subscriber.getResult();
+      } catch (Error | RuntimeException e) {
+        throw e;
+      } catch (Throwable e) {
+        throw new RuntimeException(e);
+      }
+
+      // Clear logging
+      ThreadContext.clearAll();
+
+      final APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent();
+      response.setHeaders(
+          Map.of(
+              "content-type",
+              requestProcessor.responseContentType(),
+              "x-restate-server",
+              Version.X_RESTATE_SERVER));
+      response.setIsBase64Encoded(true);
+      response.setStatusCode(requestProcessor.statusCode());
+      response.setBody(Base64.getEncoder().encodeToString(responseBody));
+      return response;
+    } finally {
+      // Shut down the per-request state-machine executor so its (non-daemon) thread does not leak
+      // across warm Lambda invocations; the invocation has completed by the time we get here.
+      coreExecutor.shutdown();
     }
-
-    BufferedPublisher publisher = new BufferedPublisher(requestBody);
-    ResultSubscriber subscriber = new ResultSubscriber();
-
-    // Wire handler
-    coreExecutor.execute(() -> publisher.subscribe(requestProcessor));
-    requestProcessor.subscribe(subscriber);
-
-    // Await the result
-    byte[] responseBody;
-    try {
-      responseBody = subscriber.getResult();
-    } catch (Error | RuntimeException e) {
-      throw e;
-    } catch (Throwable e) {
-      throw new RuntimeException(e);
-    }
-
-    // Clear logging
-    ThreadContext.clearAll();
-
-    final APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent();
-    response.setHeaders(
-        Map.of(
-            "content-type",
-            requestProcessor.responseContentType(),
-            "x-restate-server",
-            Version.X_RESTATE_SERVER));
-    response.setIsBase64Encoded(true);
-    response.setStatusCode(requestProcessor.statusCode());
-    response.setBody(Base64.getEncoder().encodeToString(responseBody));
-    return response;
   }
 
   // --- Utils

@@ -8,7 +8,7 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk.core.javaapi;
 
-import static dev.restate.sdk.core.statemachine.ProtoUtils.GREETER_SERVICE_TARGET;
+import static dev.restate.sdk.core.legacy.ProtoUtils.GREETER_SERVICE_TARGET;
 
 import dev.restate.common.Request;
 import dev.restate.common.function.ThrowingBiFunction;
@@ -31,7 +31,7 @@ public class JavaAPITests extends TestRunner {
 
   @Override
   protected Stream<TestExecutor> executors() {
-    return Stream.of(MockRequestResponse.INSTANCE, MockBidiStream.INSTANCE);
+    return Stream.concat(MockRequestResponse.getExecutors(), MockBidiStream.getExecutors());
   }
 
   @Override

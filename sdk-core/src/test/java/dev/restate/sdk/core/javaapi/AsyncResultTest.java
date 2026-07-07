@@ -9,10 +9,11 @@
 package dev.restate.sdk.core.javaapi;
 
 import static dev.restate.sdk.core.javaapi.JavaAPITests.*;
-import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
+import static dev.restate.sdk.core.legacy.ProtoUtils.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.restate.sdk.DurableFuture;
+import dev.restate.sdk.HandlerRunner;
 import dev.restate.sdk.Select;
 import dev.restate.sdk.common.StateKey;
 import dev.restate.sdk.common.TimeoutException;
@@ -20,8 +21,15 @@ import dev.restate.sdk.core.AsyncResultTestSuite;
 import dev.restate.sdk.core.TestDefinitions;
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import dev.restate.sdk.core.TestSerdes;
+import dev.restate.sdk.endpoint.definition.HandlerDefinition;
+import dev.restate.sdk.endpoint.definition.HandlerType;
+import dev.restate.sdk.endpoint.definition.ServiceDefinition;
+import dev.restate.sdk.endpoint.definition.ServiceType;
 import dev.restate.serde.Serde;
+import dev.restate.serde.jackson.JacksonSerdeFactory;
 import java.time.Duration;
+import java.util.List;
+import java.util.concurrent.Executor;
 import java.util.stream.Stream;
 
 public class AsyncResultTest extends AsyncResultTestSuite {
@@ -167,25 +175,54 @@ public class AsyncResultTest extends AsyncResultTestSuite {
         });
   }
 
+  private static final ThreadLocal<String> THREAD_LOCAL = new ThreadLocal<>();
+
+  private static void assertThreadLocal() {
+    assertThat(THREAD_LOCAL.get()).isEqualTo("UserThread");
+  }
+
   private TestInvocationBuilder checkAwaitableMapThread() {
-    return testDefinitionForService(
-        "CheckAwaitableThread",
-        Serde.VOID,
-        Serde.VOID,
-        (ctx, unused) -> {
-          var currentThreadName = Thread.currentThread().getName().split("-");
-          var currentThreadPool = currentThreadName[0] + "-" + currentThreadName[1];
+    Executor executor = new HandlerRunner.Options().executor();
+    Executor wrappedExecutor =
+        runnable ->
+            executor.execute(
+                () -> {
+                  THREAD_LOCAL.set("UserThread");
+                  try {
+                    runnable.run();
+                  } finally {
+                    THREAD_LOCAL.remove();
+                  }
+                });
+    return TestDefinitions.testInvocation(
+        ServiceDefinition.of(
+            "CheckAwaitableThread",
+            ServiceType.SERVICE,
+            List.of(
+                HandlerDefinition.of(
+                    "run",
+                    HandlerType.SHARED,
+                    Serde.VOID,
+                    Serde.VOID,
+                    HandlerRunner.of(
+                        (ctx, unused) -> {
+                          assertThreadLocal();
 
-          callGreeterGreetService(ctx, "Francesco")
-              .map(
-                  u -> {
-                    assertThat(Thread.currentThread().getName()).startsWith(currentThreadPool);
-                    return null;
-                  })
-              .await();
+                          callGreeterGreetService(ctx, "Francesco")
+                              .map(
+                                  u -> {
+                                    assertThreadLocal();
+                                    return null;
+                                  })
+                              .await();
 
-          return null;
-        });
+                          assertThreadLocal();
+
+                          return null;
+                        },
+                        new JacksonSerdeFactory(),
+                        new HandlerRunner.Options().setExecutor(wrappedExecutor))))),
+        "run");
   }
 
   @Override

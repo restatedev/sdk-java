@@ -1,0 +1,22 @@
+[package]
+name = "restate-sdk-shared-core-ffm"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+# Native dynamic library called from Java via the Panama FFM API.
+name = "restate_sdk_core"
+crate-type = ["cdylib"]
+
+[dependencies]
+restate-sdk-shared-core = { version = "7.0.0", features = ["tracing_pretty"] }
+bytes = "1.9" # Bytes::from_owner (zero-copy input ownership transfer) requires >= 1.9
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
+
+[build-dependencies]
+cbindgen = "0.27"
+
+[profile.release]
+opt-level = 3
+lto = true

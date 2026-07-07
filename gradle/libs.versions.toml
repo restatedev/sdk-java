@@ -255,6 +255,7 @@
   shadow = 'com.gradleup.shadow:9.0.0-beta8'
   spotless = 'com.diffplug.spotless:7.2.1'
   spring-dependency-management = 'io.spring.dependency-management:1.1.6'
+  jextract = 'de.infolektuell.jextract:1.4.0'
 
   [plugins.ksp]
     id = 'com.google.devtools.ksp'

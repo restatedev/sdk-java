@@ -24,6 +24,14 @@ dependencies {
   implementation(libs.jackson.databind)
 }
 
+// Jib validates the base image's Java version against targetCompatibility. Our bytecode is built at
+// --release 17 (via the conventions), but targetCompatibility otherwise reports the toolchain's 25,
+// making Jib reject the Java 17 base image. Declare 17 so Jib sees the real target.
+java {
+  sourceCompatibility = JavaVersion.VERSION_17
+  targetCompatibility = JavaVersion.VERSION_17
+}
+
 // Configuration of jib container images parameters
 
 fun testHostArchitecture(): String {
@@ -43,20 +51,14 @@ fun testHostArchitecture(): String {
   }
 }
 
-fun testBaseImage(): String {
-  return when (testHostArchitecture()) {
-    "arm64" ->
-        "eclipse-temurin:17-jre@sha256:61c5fee7a5c40a1ca93231a11b8caf47775f33e3438c56bf3a1ea58b7df1ee1b"
-    "amd64" ->
-        "eclipse-temurin:17-jre@sha256:ff7a89fe868ba504b09f93e3080ad30a75bd3d4e4e7b3e037e91705f8c6994b3"
-    else ->
-        throw IllegalArgumentException("No image for host architecture: ${testHostArchitecture()}")
-  }
-}
+// JRE version of the test-services image. Parameterized so the conformance suite can run against
+// both the minimum supported Java (17 -> pure-Java state machine) and a JDK that activates the
+// Panama/FFM state machine (>= 23). Override with -PtestServicesJre=25.
+val testServicesJre: String = (project.findProperty("testServicesJre") as String?) ?: "17"
 
 jib {
   to.image = "restatedev/test-services-java"
-  from.image = testBaseImage()
+  from.image = "eclipse-temurin:$testServicesJre-jre"
 
   from {
     platforms {
@@ -65,6 +67,10 @@ jib {
         os = "linux"
       }
     }
+  }
+
+  if (testServicesJre.toInt() >= 23) {
+    container { jvmFlags = listOf("--enable-native-access=dev.restate.sdk.core") }
   }
 }
 

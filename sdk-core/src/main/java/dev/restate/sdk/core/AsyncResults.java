@@ -11,19 +11,22 @@ package dev.restate.sdk.core;
 import dev.restate.common.function.ThrowingFunction;
 import dev.restate.sdk.common.AbortedExecutionException;
 import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.core.statemachine.NotificationValue;
-import dev.restate.sdk.core.statemachine.StateMachine;
+import dev.restate.sdk.core.StateMachine.NotificationValue;
 import dev.restate.sdk.endpoint.definition.AsyncResult;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.stream.Stream;
 
 abstract class AsyncResults {
 
   @FunctionalInterface
   interface Completer<T> {
     void complete(NotificationValue value, CompletableFuture<T> future);
+  }
+
+  @FunctionalInterface
+  interface NotificationReader {
+    java.util.Optional<NotificationValue> take(int handle);
   }
 
   private AsyncResults() {}
@@ -43,16 +46,13 @@ abstract class AsyncResults {
     return new AllAsyncResult(contextInternal, all);
   }
 
-  interface AsyncResultInternal<T> extends AsyncResult<T> {
-    boolean isDone();
+  non-sealed interface AsyncResultInternal<T> extends AsyncResult<T>, UnresolvedFuture {
 
     void tryCancel();
 
-    void tryComplete(StateMachine stateMachine);
+    void tryComplete(NotificationReader reader);
 
     CompletableFuture<T> publicFuture();
-
-    Stream<Integer> uncompletedLeaves();
 
     HandlerContextInternal ctx();
   }
@@ -88,9 +88,19 @@ abstract class AsyncResults {
         ThrowingFunction<TerminalException, CompletableFuture<U>> failureMapper) {
       return new MappedSingleAsyncResultInternal<>(this, successMapper, failureMapper);
     }
+
+    @Override
+    public int singleHandle() {
+      throw new UnsupportedOperationException("singleHandle is only valid for a SINGLE await node");
+    }
+
+    @Override
+    public List<? extends UnresolvedFuture> combinatorChildren() {
+      return List.of();
+    }
   }
 
-  static class SingleAsyncResultInternal<T> extends BaseAsyncResultInternal<T> {
+  static final class SingleAsyncResultInternal<T> extends BaseAsyncResultInternal<T> {
 
     private final int handle;
     private final Completer<T> completer;
@@ -111,9 +121,10 @@ abstract class AsyncResults {
     }
 
     @Override
-    public void tryComplete(StateMachine stateMachine) {
-      stateMachine
-          .takeNotification(handle)
+    public void tryComplete(NotificationReader reader) {
+      if (this.isDone()) return;
+      reader
+          .take(handle)
           .ifPresent(
               value -> {
                 try {
@@ -126,11 +137,13 @@ abstract class AsyncResults {
     }
 
     @Override
-    public Stream<Integer> uncompletedLeaves() {
-      if (publicFuture.isDone()) {
-        return Stream.empty();
-      }
-      return Stream.of(handle);
+    public Kind kind() {
+      return Kind.SINGLE;
+    }
+
+    @Override
+    public int singleHandle() {
+      return handle;
     }
 
     @Override
@@ -139,7 +152,7 @@ abstract class AsyncResults {
     }
   }
 
-  static class MappedSingleAsyncResultInternal<T, U> extends BaseAsyncResultInternal<U> {
+  static final class MappedSingleAsyncResultInternal<T, U> extends BaseAsyncResultInternal<U> {
     private final AsyncResultInternal<T> asyncResult;
 
     MappedSingleAsyncResultInternal(
@@ -161,13 +174,20 @@ abstract class AsyncResults {
     }
 
     @Override
-    public void tryComplete(StateMachine stateMachine) {
-      asyncResult.tryComplete(stateMachine);
+    public void tryComplete(NotificationReader reader) {
+      if (this.isDone()) return;
+      asyncResult.tryComplete(reader);
     }
 
     @Override
-    public Stream<Integer> uncompletedLeaves() {
-      return asyncResult.uncompletedLeaves();
+    public Kind kind() {
+      // Mapper is arbitrary user code; we can't promise any specific combinator semantics.
+      return Kind.UNKNOWN;
+    }
+
+    @Override
+    public List<? extends UnresolvedFuture> combinatorChildren() {
+      return List.of(asyncResult);
     }
 
     @Override
@@ -254,7 +274,7 @@ abstract class AsyncResults {
     }
   }
 
-  static class AnyAsyncResult extends BaseAsyncResultInternal<Integer> {
+  static final class AnyAsyncResult extends BaseAsyncResultInternal<Integer> {
 
     private final HandlerContextInternal handlerContextInternal;
     private final List<AsyncResultInternal<?>> asyncResults;
@@ -273,8 +293,9 @@ abstract class AsyncResults {
     }
 
     @Override
-    public void tryComplete(StateMachine stateMachine) {
-      asyncResults.forEach(ar -> ar.tryComplete(stateMachine));
+    public void tryComplete(NotificationReader reader) {
+      if (this.isDone()) return;
+      asyncResults.forEach(ar -> ar.tryComplete(reader));
       for (int i = 0; i < asyncResults.size(); i++) {
         if (asyncResults.get(i).isDone()) {
           publicFuture.complete(i);
@@ -284,11 +305,13 @@ abstract class AsyncResults {
     }
 
     @Override
-    public Stream<Integer> uncompletedLeaves() {
-      if (isDone()) {
-        return Stream.empty();
-      }
-      return asyncResults.stream().flatMap(AsyncResultInternal::uncompletedLeaves);
+    public Kind kind() {
+      return Kind.FIRST_COMPLETED;
+    }
+
+    @Override
+    public List<? extends UnresolvedFuture> combinatorChildren() {
+      return asyncResults;
     }
 
     @Override
@@ -297,7 +320,7 @@ abstract class AsyncResults {
     }
   }
 
-  static class AllAsyncResult extends BaseAsyncResultInternal<Void> {
+  static final class AllAsyncResult extends BaseAsyncResultInternal<Void> {
 
     private final HandlerContextInternal handlerContextInternal;
     private final List<AsyncResultInternal<?>> asyncResults;
@@ -320,8 +343,9 @@ abstract class AsyncResults {
     }
 
     @Override
-    public void tryComplete(StateMachine stateMachine) {
-      asyncResults.forEach(ar -> ar.tryComplete(stateMachine));
+    public void tryComplete(NotificationReader reader) {
+      if (this.isDone()) return;
+      asyncResults.forEach(ar -> ar.tryComplete(reader));
       asyncResults.stream()
           .filter(ar -> ar.publicFuture().isCompletedExceptionally())
           .findFirst()
@@ -336,11 +360,13 @@ abstract class AsyncResults {
     }
 
     @Override
-    public Stream<Integer> uncompletedLeaves() {
-      if (isDone()) {
-        return Stream.empty();
-      }
-      return asyncResults.stream().flatMap(AsyncResultInternal::uncompletedLeaves);
+    public Kind kind() {
+      return Kind.ALL_SUCCEEDED_OR_FIRST_FAILED;
+    }
+
+    @Override
+    public List<? extends UnresolvedFuture> combinatorChildren() {
+      return asyncResults;
     }
 
     @Override

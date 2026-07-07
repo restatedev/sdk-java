@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     kotlin("jvm")
     kotlin("plugin.serialization")
@@ -5,11 +7,20 @@ plugins {
 }
 
 java {
-    toolchain { languageVersion = JavaLanguageVersion.of(17) }
+    toolchain { languageVersion = JavaLanguageVersion.of(25) }
 
     withJavadocJar()
     withSourcesJar()
 }
+
+// Dance to make sure we compile Java 17 compatible bytecode
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
+        freeCompilerArgs.add("-Xjdk-release=17")
+    }
+}
+tasks.withType<JavaCompile>().configureEach { options.release = 17 }
 
 tasks.withType<Test> { useJUnitPlatform() }
 

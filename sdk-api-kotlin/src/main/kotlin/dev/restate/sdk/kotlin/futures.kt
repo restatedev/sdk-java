@@ -23,7 +23,6 @@ import kotlin.time.Duration
 import kotlin.time.toJavaDuration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.future.await
 import kotlinx.coroutines.launch
 
 internal abstract class BaseDurableFutureImpl<T : Any?> : DurableFuture<T> {

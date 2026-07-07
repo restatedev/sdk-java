@@ -10,7 +10,7 @@ package dev.restate.sdk.core.vertx
 
 import dev.restate.sdk.core.TestDefinitions
 import dev.restate.sdk.core.TestDefinitions.testInvocation
-import dev.restate.sdk.core.statemachine.ProtoUtils.*
+import dev.restate.sdk.core.legacy.ProtoUtils.*
 import dev.restate.sdk.endpoint.definition.HandlerDefinition
 import dev.restate.sdk.endpoint.definition.HandlerType
 import dev.restate.sdk.endpoint.definition.ServiceDefinition

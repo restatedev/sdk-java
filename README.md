@@ -29,7 +29,7 @@ This SDK features:
 ## Using the SDK
 
 ### Prerequisites
-- JDK >= 17
+- JDK >= 17 (JDK >= 23 recommended — required for the latest Restate features; see [Native access on JDK 23+](#native-access-on-jdk-23))
 
 ### tl;dr Use project templates
 
@@ -198,6 +198,46 @@ You can now upload the generated Jar in AWS Lambda, and configure `MyLambdaHandl
 
 ### Additional setup
 
+#### Native access on JDK 23+
+
+On JDK 23 and later the SDK runs its state machine through the native Restate shared-core library, via
+the Java Foreign Function & Memory API. **This is required to support the latest Restate features.** On
+older JDKs the SDK falls back to a pure-Java state machine, which is **deprecated and will be removed in
+a future release** — so running on JDK 23+ is strongly recommended.
+
+Using the native library requires _native access_ to be enabled for the application. If it isn't, the
+SDK still works but the JVM prints a one-time warning at startup (e.g. _"A restricted method ... has
+been called ... Use --enable-native-access=ALL-UNNAMED to avoid a warning"_), and a future JDK will turn
+that warning into an error — so it's worth enabling.
+
+The cleanest way to enable it **without a command-line flag** is to add this attribute to the manifest
+of your application's runnable (fat) jar — for example with the Gradle Shadow plugin:
+
+```kotlin
+tasks.shadowJar {
+  manifest { attributes("Enable-Native-Access" to "ALL-UNNAMED") }
+}
+```
+
+(`ALL-UNNAMED` is the only accepted value.) For launchers that don't run the app via `java -jar`
+(custom entrypoints, containers, `java -cp`), pass `--enable-native-access=ALL-UNNAMED` directly or via
+the `JDK_JAVA_OPTIONS` environment variable.
+
+If you'd rather grant native access **selectively** (the integrity-friendly approach recommended by the
+JDK) instead of to the whole class path, put the SDK jars on the **module path** and enable access only
+for the module that performs it — `sdk-core` publishes the stable automatic-module name
+`dev.restate.sdk.core`:
+
+```
+java --module-path libs --enable-native-access=dev.restate.sdk.core ...
+```
+
+(`sdk-core` works unchanged on the class path too; the module name is simply ignored there.)
+
+To force the pure-Java state machine instead (no native access needed), set
+`-Ddev.restate.sdk.statemachine.disableNewCore=true`. On JDK < 23 the pure-Java state machine is
+always used.
+
 #### Logging
 
 The SDK uses log4j2 as logging facade, to configure it add the file `resources/log4j2.properties`:
@@ -270,7 +310,7 @@ We know that your time is precious and, therefore, deeply value any effort to co
 
 Prerequisites:
 
-- JDK >= 17
+- JDK >= 25
 - Docker or Podman
 
 To build the SDK:

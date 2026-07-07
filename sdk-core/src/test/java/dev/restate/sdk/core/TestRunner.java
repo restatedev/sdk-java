@@ -16,7 +16,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import dev.restate.sdk.core.TestDefinitions.TestDefinition;
 import dev.restate.sdk.core.TestDefinitions.TestExecutor;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
-import dev.restate.sdk.core.statemachine.MessageType;
+import dev.restate.sdk.core.legacy.MessageType;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
@@ -53,7 +53,7 @@ public abstract class TestRunner {
                         executor ->
                             arguments(
                                 "["
-                                    + executor.getClass().getSimpleName()
+                                    + executor
                                     + "]["
                                     + entry.getKey()
                                     + "] "
@@ -121,7 +121,8 @@ public abstract class TestRunner {
   @ParameterizedTest(name = "{index}: {0}")
   @MethodSource("source")
   @Execution(ExecutionMode.CONCURRENT)
-  void executeTest(String testName, TestExecutor executor, TestDefinition definition) {
+  void executeTest(String testName, TestExecutor executor, TestDefinition definition)
+      throws Exception {
     executor.executeTest(definition);
   }
 }

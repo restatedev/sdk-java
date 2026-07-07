@@ -10,7 +10,7 @@ package dev.restate.sdk.core;
 
 import static dev.restate.sdk.core.AssertUtils.*;
 import static dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
-import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
+import static dev.restate.sdk.core.legacy.ProtoUtils.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
 
@@ -58,7 +58,7 @@ public abstract class StateMachineFailuresTestSuite implements TestDefinitions.T
                 msgs -> {
                   assertThat(msgs)
                       .satisfiesExactly(
-                          protocolExceptionErrorMessage(ProtocolException.JOURNAL_MISMATCH_CODE));
+                          errorMessageCodeEquals(ProtocolException.JOURNAL_MISMATCH_CODE));
                   assertThat(nonTerminalExceptionsSeenTest1).hasValue(0);
                 })
             .named("Protocol Exception"),
@@ -72,7 +72,7 @@ public abstract class StateMachineFailuresTestSuite implements TestDefinitions.T
                 msgs -> {
                   assertThat(msgs)
                       .satisfiesExactly(
-                          errorDescriptionStartingWith(
+                          errorMessageStacktraceStartingWith(
                               NumberFormatException.class.getCanonicalName()));
                   assertThat(nonTerminalExceptionsSeenTest2).hasValue(0);
                 })
@@ -83,7 +83,7 @@ public abstract class StateMachineFailuresTestSuite implements TestDefinitions.T
                 msgs ->
                     assertThat(msgs.get(1))
                         .satisfies(
-                            errorDescriptionStartingWith(
+                            errorMessageStacktraceStartingWith(
                                 IllegalStateException.class.getCanonicalName())))
             .named("Serde serialization error"),
         this.sideEffectFailure(FAILING_DESERIALIZATION_INTEGER_TYPE_TAG)
@@ -97,7 +97,8 @@ public abstract class StateMachineFailuresTestSuite implements TestDefinitions.T
                     .build())
             .assertingOutput(
                 containsOnly(
-                    errorDescriptionStartingWith(IllegalStateException.class.getCanonicalName())))
+                    errorMessageStacktraceStartingWith(
+                        IllegalStateException.class.getCanonicalName())))
             .named("Serde deserialization error"),
         // --- Uncompleted doProgress during replay (bad await) tests
         this.awaitRunAfterProgressWasMade()

@@ -13,7 +13,7 @@ import dev.restate.sdk.core.*
 import dev.restate.sdk.core.TestDefinitions.TestExecutor
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder
 import dev.restate.sdk.core.kotlinapi.reflections.ReflectionTest
-import dev.restate.sdk.core.statemachine.ProtoUtils
+import dev.restate.sdk.core.legacy.ProtoUtils
 import dev.restate.sdk.endpoint.definition.HandlerDefinition
 import dev.restate.sdk.endpoint.definition.HandlerType
 import dev.restate.sdk.endpoint.definition.ServiceDefinition
@@ -25,7 +25,7 @@ import kotlinx.coroutines.Dispatchers
 
 class KotlinAPITests : TestRunner() {
   override fun executors(): Stream<TestExecutor> {
-    return Stream.of(MockRequestResponse.INSTANCE, MockBidiStream.INSTANCE)
+    return Stream.concat(MockRequestResponse.getExecutors(), MockBidiStream.getExecutors())
   }
 
   public override fun definitions(): Stream<TestDefinitions.TestSuite> {

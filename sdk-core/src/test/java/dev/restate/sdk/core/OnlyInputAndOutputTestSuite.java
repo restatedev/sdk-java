@@ -9,7 +9,7 @@
 package dev.restate.sdk.core;
 
 import static dev.restate.sdk.core.TestDefinitions.TestDefinition;
-import static dev.restate.sdk.core.statemachine.ProtoUtils.*;
+import static dev.restate.sdk.core.legacy.ProtoUtils.*;
 
 import dev.restate.sdk.core.TestDefinitions.TestInvocationBuilder;
 import dev.restate.sdk.core.TestDefinitions.TestSuite;
