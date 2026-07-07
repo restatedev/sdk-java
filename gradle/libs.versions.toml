@@ -1,5 +1,5 @@
 [libraries]
-  assertj = 'org.assertj:assertj-core:3.27.4'
+  assertj = 'org.assertj:assertj-core:3.27.7'
   aws-lambda-core = 'com.amazonaws:aws-lambda-java-core:1.2.3'
   aws-lambda-events = 'com.amazonaws:aws-lambda-java-events:3.11.5'
   google-findbugs-jsr305 = 'com.google.code.findbugs:jsr305:3.0.2'
@@ -18,9 +18,7 @@
 
   [libraries.jackson-annotations]
     module = 'com.fasterxml.jackson.core:jackson-annotations'
-
-    [libraries.jackson-annotations.version]
-      ref = 'jackson'
+    version = '2.22'
 
   [libraries.jackson-core]
     module = 'com.fasterxml.jackson.core:jackson-core'
@@ -264,7 +262,7 @@
       ref = 'ksp'
 
 [versions]
-  jackson = '2.19.4'
+  jackson = '2.22.0'
   junit = '5.14.1'
   kotlinx-coroutines = '1.10.2'
   kotlinx-serialization = '1.9.0'
