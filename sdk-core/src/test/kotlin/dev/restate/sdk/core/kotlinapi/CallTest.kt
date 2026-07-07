@@ -13,6 +13,7 @@ import dev.restate.common.Slice
 import dev.restate.common.Target
 import dev.restate.sdk.core.CallTestSuite
 import dev.restate.sdk.core.kotlinapi.KotlinAPITests.Companion.testDefinitionForService
+import dev.restate.sdk.kotlin.prepareRequest
 import dev.restate.serde.Serde
 
 class CallTest : CallTestSuite() {
@@ -23,18 +24,21 @@ class CallTest : CallTestSuite() {
       headers: Map<String, String>,
       body: Slice,
   ) =
-      testDefinitionForService("OneWayCall") { ctx, _: Unit ->
+      testDefinitionForService("OneWayCall") { _, _: Unit ->
         val ignored =
-            ctx.send(
-                Request.of<Slice, ByteArray>(target, Serde.SLICE, Serde.RAW, body)
-                    .headers(headers)
-                    .idempotencyKey(idempotencyKey)
-            )
+            prepareRequest(
+                    Request.of<Slice, ByteArray>(target, Serde.SLICE, Serde.RAW, body)
+                        .headers(headers)
+                        .idempotencyKey(idempotencyKey)
+                )
+                .send()
       }
 
   override fun implicitCancellation(target: Target, body: Slice) =
-      testDefinitionForService("ImplicitCancellation") { ctx, _: Unit ->
+      testDefinitionForService("ImplicitCancellation") { _, _: Unit ->
         val ignored =
-            ctx.call(Request.of<Slice, ByteArray>(target, Serde.SLICE, Serde.RAW, body)).await()
+            prepareRequest(Request.of<Slice, ByteArray>(target, Serde.SLICE, Serde.RAW, body))
+                .call()
+                .await()
       }
 }

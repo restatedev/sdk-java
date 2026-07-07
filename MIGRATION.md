@@ -32,6 +32,7 @@ one service at a time.
 | Code-generated clients (Service)                | `Restate.service(Class)` / `Restate.serviceHandle(Class)`                         |
 | Code-generated clients (Virtual Object)         | `Restate.virtualObject(Class, key)` / `Restate.virtualObjectHandle(Class, key)`   |
 | Code-generated clients (Workflow)               | `Restate.workflow(Class, key)` / `Restate.workflowHandle(Class, key)`             |
+| `ctx.call(request)` / `ctx.send(request, delay)` (raw `Request`) | `Restate.call(request)` / `Restate.send(request[, delay])`      |
 
 From **outside** a handler (the ingress client), the equivalents live on `dev.restate.client.Client`:
 `client.service(Class)` / `client.serviceHandle(Class)` / `client.virtualObject(Class, key)` / etc.
@@ -52,6 +53,7 @@ From **outside** a handler (the ingress client), the equivalents live on `dev.re
 | Code-generated clients (Service)                    | `service<T>()` / `toService<T>()`                       |
 | Code-generated clients (Virtual Object)             | `virtualObject<T>(key)` / `toVirtualObject<T>(key)`     |
 | Code-generated clients (Workflow)                   | `workflow<T>(key)` / `toWorkflow<T>(key)`               |
+| `ctx.call(request)` / `ctx.send(request, delay)` (raw `Request`) | `prepareRequest(request).call()` / `prepareRequest(request).send(delay)` |
 
 All the top-level functions are in the `dev.restate.sdk.kotlin` package — add `import dev.restate.sdk.kotlin.*`.
 
@@ -143,6 +145,34 @@ int idempotentCount = Restate.virtualObjectHandle(Counter.class, "my-counter")
     .await();
 ```
 
+### 5. Generic / dynamic-target invocation (advanced)
+
+The old codegen `<Service>Handlers` request builders produced a `Request` you passed to
+`ctx.call(...)` / `ctx.send(...)`. Those builders are going away. When the target is only known at
+runtime — or you otherwise need to build a `Request` by hand rather than through the typed proxies
+above — use the generic `Restate.call` / `Restate.send` overloads:
+
+```java
+// Before
+GreetingResponse response = ctx.call(GreeterHandlers.greet(new Greeting("Alice"))).await();
+
+// After — build the Request manually and pass it to Restate.call / Restate.send
+Request<Greeting, GreetingResponse> request =
+    Request.of(
+            Target.service("Greeter", "greet"),
+            TypeTag.of(Greeting.class),
+            TypeTag.of(GreetingResponse.class),
+            new Greeting("Alice"))
+        .idempotencyKey("my-idempotency-key")
+        .build();
+
+GreetingResponse response = Restate.call(request).await();
+
+// Fire-and-forget, optionally with a delay
+Restate.send(request);
+Restate.send(request, Duration.ofMinutes(5));
+```
+
 ---
 
 ## Kotlin migration
@@ -231,6 +261,37 @@ val idempotentCount = toVirtualObject<Counter>("my-counter")
     .options { idempotencyKey = "my-idempotency-key" }
     .call()
     .await()
+```
+
+### 5. Generic / dynamic-target invocation (advanced)
+
+When the target is only known at runtime — or you otherwise need to build a `Request` by hand rather
+than through the typed `toService` / `toVirtualObject` / `toWorkflow` builders — wrap the `Request`
+with `prepareRequest(...)`, which exposes the same `options {}` / `call()` / `send()` DSL. This
+replaces a raw `ctx.call(request)` / `ctx.send(request, delay)`:
+
+```kotlin
+// Before
+val response = ctx.call(request).await()
+
+// After — build the Request manually (e.g. via Request.of) and wrap it with prepareRequest
+val request =
+    Request.of(
+        Target.service("Greeter", "greet"),
+        typeTag<Greeting>(),
+        typeTag<GreetingResponse>(),
+        Greeting("Alice"),
+    )
+
+val response =
+    prepareRequest(request)
+        .options { idempotencyKey = "my-idempotency-key" }
+        .call()
+        .await()
+
+// Fire-and-forget, optionally with a delay
+prepareRequest(request).send()
+prepareRequest(request).send(delay = 5.minutes)
 ```
 
 ### Kotlin gotcha: proxy clients need non-final classes

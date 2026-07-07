@@ -1468,7 +1468,11 @@ private class KRequestImpl<Req, Res>(private val request: Request<Req, Res>) :
     val builder = InvocationOptions.builder()
     builder.block()
     return KRequestImpl(
-        this.toBuilder().headers(builder.headers).idempotencyKey(builder.idempotencyKey).build()
+        this.toBuilder()
+            .headers(builder.headers)
+            .idempotencyKey(builder.idempotencyKey)
+            .limitKey(builder.limitKey)
+            .build()
     )
   }
 
@@ -1479,6 +1483,26 @@ private class KRequestImpl<Req, Res>(private val request: Request<Req, Res>) :
   override suspend fun send(delay: Duration?): InvocationHandle<Res> {
     return context().send(request, delay)
   }
+}
+
+/**
+ * Wrap a pre-built [Request] into an invocable [KRequest].
+ *
+ * This is the low-level, generic invocation entrypoint. For the common case, prefer the type-safe
+ * [toService]/[toVirtualObject]/[toWorkflow] (and [service]/[virtualObject]/[workflow]) builders.
+ *
+ * ```
+ * prepareRequest(Request.of(target, Serde.RAW, Serde.RAW, payload).build())
+ *     .options { idempotencyKey = "my-key" }
+ *     .call()
+ *     .await()
+ * ```
+ *
+ * @param request the request describing the target, payload and response type.
+ * @return an invocable [KRequest].
+ */
+fun <Req, Res> prepareRequest(request: Request<Req, Res>): KRequest<Req, Res> {
+  return KRequestImpl(request)
 }
 
 /**
