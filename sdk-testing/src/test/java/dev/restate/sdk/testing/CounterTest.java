@@ -11,6 +11,11 @@ package dev.restate.sdk.testing;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.restate.client.Client;
+import java.net.URI;
+import java.net.URL;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
@@ -26,5 +31,16 @@ class CounterTest {
 
     long response = client.get();
     assertThat(response).isEqualTo(0L);
+  }
+
+  @Test
+  @Timeout(value = 10)
+  void adminUrlIsInjected(@RestateAdminURL URL adminUrl) throws Exception {
+    HttpResponse<Void> response =
+        HttpClient.newHttpClient()
+            .send(
+                HttpRequest.newBuilder(URI.create(adminUrl.toString()).resolve("/health")).build(),
+                HttpResponse.BodyHandlers.discarding());
+    assertThat(response.statusCode()).isEqualTo(200);
   }
 }

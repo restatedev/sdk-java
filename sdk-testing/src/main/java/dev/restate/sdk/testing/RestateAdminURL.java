@@ -12,15 +12,13 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.net.URI;
+import java.net.URL;
 
 /**
- * Inject the Restate {@link dev.restate.admin.client.ApiClient}, useful to build admin clients,
- * such as {@link dev.restate.admin.api.DeploymentApi}.
- *
- * @deprecated The code-generated admin client (the {@code dev.restate.admin} package) is
- *     deprecated. Use {@link RestateAdminURL} instead to inject the admin URL.
+ * Inject Restate's admin URL (either {@link String} or {@link URL} or {@link URI}) to interact with
+ * the <a href="https://docs.restate.dev/references/admin-api">admin API</a> of the deployed server.
  */
-@Deprecated
 @Target(value = ElementType.PARAMETER)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface RestateAdminClient {}
+public @interface RestateAdminURL {}

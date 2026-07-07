@@ -33,6 +33,8 @@ public class RestateExtension implements BeforeAllCallback, ParameterResolver {
   }
 
   @Override
+  @SuppressWarnings(
+      "deprecation") // RestateAdminClient/ApiClient are deprecated but still supported
   public boolean supportsParameter(
       ParameterContext parameterContext, ExtensionContext extensionContext)
       throws ParameterResolutionException {
@@ -42,11 +44,14 @@ public class RestateExtension implements BeforeAllCallback, ParameterResolver {
         || (parameterContext.isAnnotated(RestateClient.class)
             && Client.class.isAssignableFrom(parameterContext.getParameter().getType()))
         || (parameterContext.isAnnotated(RestateURL.class)
-            && (String.class.isAssignableFrom(parameterContext.getParameter().getType())
-                || URL.class.isAssignableFrom(parameterContext.getParameter().getType())));
+            && isStringOrUrlOrUri(parameterContext.getParameter().getType()))
+        || (parameterContext.isAnnotated(RestateAdminURL.class)
+            && isStringOrUrlOrUri(parameterContext.getParameter().getType()));
   }
 
   @Override
+  @SuppressWarnings(
+      "deprecation") // RestateAdminClient/ApiClient are deprecated but still supported
   public Object resolveParameter(
       ParameterContext parameterContext, ExtensionContext extensionContext)
       throws ParameterResolutionException {
@@ -57,20 +62,31 @@ public class RestateExtension implements BeforeAllCallback, ParameterResolver {
       URL url = runner.getIngressUrl();
       return Client.connect(url.toString());
     } else if (parameterContext.isAnnotated(RestateURL.class)) {
-      URL url = runner.getIngressUrl();
-      if (parameterContext.getParameter().getType().equals(String.class)) {
-        return url.toString();
-      }
-      if (parameterContext.getParameter().getType().equals(URI.class)) {
-        try {
-          return url.toURI();
-        } catch (URISyntaxException e) {
-          throw new RuntimeException(e);
-        }
-      }
-      return url;
+      return convertUrl(parameterContext.getParameter().getType(), runner.getIngressUrl());
+    } else if (parameterContext.isAnnotated(RestateAdminURL.class)) {
+      return convertUrl(parameterContext.getParameter().getType(), runner.getAdminUrl());
     }
     throw new ParameterResolutionException("The parameter is not supported");
+  }
+
+  private static boolean isStringOrUrlOrUri(Class<?> type) {
+    return String.class.isAssignableFrom(type)
+        || URL.class.isAssignableFrom(type)
+        || URI.class.isAssignableFrom(type);
+  }
+
+  private static Object convertUrl(Class<?> type, URL url) {
+    if (type.equals(String.class)) {
+      return url.toString();
+    }
+    if (type.equals(URI.class)) {
+      try {
+        return url.toURI();
+      } catch (URISyntaxException e) {
+        throw new RuntimeException(e);
+      }
+    }
+    return url;
   }
 
   private RestateRunner getOrCreateRunner(ExtensionContext extensionContext) {

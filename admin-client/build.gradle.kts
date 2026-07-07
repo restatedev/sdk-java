@@ -43,6 +43,14 @@ tasks.withType<GenerateTask> {
 
   configOptions.put("openApiNullable", "false")
 
+  // This whole client is deprecated in favour of dev.restate.client.Client. We deprecate every
+  // generated type:
+  // * The custom generatedAnnotation.mustache template (see openapi-templates) adds @Deprecated to
+  //   all the api/model/invoker classes, right after the @Generated annotation.
+  // * additionalEnumTypeAnnotations covers the standalone enums, which don't carry @Generated.
+  templateDir.set("$projectDir/openapi-templates")
+  configOptions.put("additionalEnumTypeAnnotations", "@Deprecated")
+
   finalizedBy("spotlessJava")
 }
 
