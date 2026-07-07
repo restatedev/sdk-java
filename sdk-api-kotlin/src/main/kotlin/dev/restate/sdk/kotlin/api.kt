@@ -1361,6 +1361,7 @@ class KRequestBuilder<SVC : Any>
 internal constructor(
     private val clazz: Class<SVC>,
     private val key: String?,
+    private val scope: String? = null,
 ) {
   /**
    * Create a request by invoking a method on the target.
@@ -1374,7 +1375,7 @@ internal constructor(
   @Suppress("UNCHECKED_CAST")
   suspend fun <Res> request(block: suspend SVC.() -> Res): KRequest<Any?, Res> {
     return KRequestImpl(
-        RequestCaptureProxy(clazz, key).capture(block as suspend SVC.() -> Any?).toRequest()
+        RequestCaptureProxy(clazz, key, scope).capture(block as suspend SVC.() -> Any?).toRequest()
     )
         as KRequest<Any?, Res>
   }
@@ -1542,7 +1543,12 @@ internal constructor(
     return service(SVC::class.java, scopeKey)
   }
 
-  /** @see virtualObject */
+  /**
+   * *NOTE:* To use scopes with virtual objects you must enable the additional experimental feature
+   * in restate-server, via `RESTATE_EXPERIMENTAL_ENABLE_SCOPED_VIRTUAL_OBJECTS=true`.
+   *
+   * @see virtualObject
+   */
   @org.jetbrains.annotations.ApiStatus.Experimental
   suspend inline fun <reified SVC : Any> virtualObject(key: String): SVC {
     return virtualObject(SVC::class.java, key, scopeKey)
@@ -1552,6 +1558,41 @@ internal constructor(
   @org.jetbrains.annotations.ApiStatus.Experimental
   suspend inline fun <reified SVC : Any> workflow(key: String): SVC {
     return workflow(SVC::class.java, key, scopeKey)
+  }
+
+  /** @see toService */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  inline fun <reified SVC : Any> toService(): KRequestBuilder<SVC> {
+    ReflectionUtils.mustHaveServiceAnnotation(SVC::class.java)
+    require(ReflectionUtils.isKotlinClass(SVC::class.java)) {
+      "Using Java classes with Kotlin's API is not supported"
+    }
+    return KRequestBuilder(SVC::class.java, null, scopeKey)
+  }
+
+  /**
+   * *NOTE:* To use scopes with virtual objects you must enable the additional experimental feature
+   * in restate-server, via `RESTATE_EXPERIMENTAL_ENABLE_SCOPED_VIRTUAL_OBJECTS=true`.
+   *
+   * @see toVirtualObject
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  inline fun <reified SVC : Any> toVirtualObject(key: String): KRequestBuilder<SVC> {
+    ReflectionUtils.mustHaveVirtualObjectAnnotation(SVC::class.java)
+    require(ReflectionUtils.isKotlinClass(SVC::class.java)) {
+      "Using Java classes with Kotlin's API is not supported"
+    }
+    return KRequestBuilder(SVC::class.java, key, scopeKey)
+  }
+
+  /** @see toWorkflow */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  inline fun <reified SVC : Any> toWorkflow(key: String): KRequestBuilder<SVC> {
+    ReflectionUtils.mustHaveWorkflowAnnotation(SVC::class.java)
+    require(ReflectionUtils.isKotlinClass(SVC::class.java)) {
+      "Using Java classes with Kotlin's API is not supported"
+    }
+    return KRequestBuilder(SVC::class.java, key, scopeKey)
   }
 }
 

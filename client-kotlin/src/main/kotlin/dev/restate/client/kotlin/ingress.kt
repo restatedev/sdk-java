@@ -330,7 +330,12 @@ internal constructor(
     return service(client, SVC::class.java, scopeKey)
   }
 
-  /** @see Client.virtualObject */
+  /**
+   * *NOTE:* To use scopes with virtual objects you must enable the additional experimental feature
+   * in restate-server, via `RESTATE_EXPERIMENTAL_ENABLE_SCOPED_VIRTUAL_OBJECTS=true`.
+   *
+   * @see Client.virtualObject
+   */
   @org.jetbrains.annotations.ApiStatus.Experimental
   inline fun <reified SVC : Any> virtualObject(key: String): SVC {
     return virtualObject(client, SVC::class.java, key, scopeKey)
@@ -352,7 +357,12 @@ internal constructor(
     return KClientRequestBuilder(client, SVC::class.java, null, scopeKey)
   }
 
-  /** @see Client.toVirtualObject */
+  /**
+   * *NOTE:* To use scopes with virtual objects you must enable the additional experimental feature
+   * in restate-server, via `RESTATE_EXPERIMENTAL_ENABLE_SCOPED_VIRTUAL_OBJECTS=true`.
+   *
+   * @see Client.toVirtualObject
+   */
   @org.jetbrains.annotations.ApiStatus.Experimental
   inline fun <reified SVC : Any> toVirtualObject(key: String): KClientRequestBuilder<SVC> {
     ReflectionUtils.mustHaveVirtualObjectAnnotation(SVC::class.java)

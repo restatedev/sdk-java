@@ -30,17 +30,17 @@ import java.util.function.Function;
  *
  * <pre>{@code
  * // 1. Use call() with method reference and await the result
- * GreetingResponse response = Restate.toService(Greeter.class)
+ * GreetingResponse response = Restate.serviceHandle(Greeter.class)
  *   .call(Greeter::greet, new Greeting("Alice"))
  *   .await();
  *
  * // 2. Use send() for one-way invocation without waiting
- * InvocationHandle<GreetingResponse> handle = Restate.toService(Greeter.class)
+ * InvocationHandle<GreetingResponse> handle = Restate.serviceHandle(Greeter.class)
  *   .send(Greeter::greet, new Greeting("Alice"));
  * }</pre>
  *
- * <p>Create instances using {@link Restate#toService(Class)}, {@link Restate#toVirtualObject(Class,
- * String)}, or {@link Restate#toWorkflow(Class, String)}.
+ * <p>Create instances using {@link Restate#serviceHandle(Class)}, {@link
+ * Restate#virtualObjectHandle(Class, String)}, or {@link Restate#workflowHandle(Class, String)}.
  *
  * <p>For simple synchronous request-response interactions, consider using the simple proxy API
  * instead: {@link Restate#service(Class)}, {@link Restate#virtualObject(Class, String)}, or {@link
