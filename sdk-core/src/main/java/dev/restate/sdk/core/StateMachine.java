@@ -87,7 +87,7 @@ public interface StateMachine extends AutoCloseable {
    * AbortedExecutionException}, which should be treated as a clean abort of the user code, not a
    * failure to re-report.
    */
-   AwaitResult doAwait(UnresolvedFuture future);
+  AwaitResult doAwait(UnresolvedFuture future);
 
   sealed interface NotificationValue {
 

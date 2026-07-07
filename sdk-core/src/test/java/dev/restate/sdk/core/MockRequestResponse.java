@@ -25,6 +25,7 @@ import io.smallrye.mutiny.helpers.test.AssertSubscriber;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -68,36 +69,51 @@ public final class MockRequestResponse implements TestExecutor {
       EndpointRequestHandler server =
           new EndpointRequestHandler(null, builder.build(), stateMachineFactory);
 
-      // Start invocation
-      RequestProcessor handler =
-          server.processorForRequest(
-              "/" + serviceDefinition.getServiceName() + "/" + definition.getMethod(),
-              HeadersAccessor.wrap(
-                  Map.of("content-type", ProtoUtils.serviceProtocolContentTypeHeader())),
-              EndpointRequestHandler.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
-              coreExecutor,
-              false);
-
-      // Wire invocation.
+      // Initialize and wire the request processor on the coreExecutor thread. In production the
+      // processor is created and both I/O adapters are subscribed on the same I/O thread, before
+      // any
+      // (async) input arrives; mirror that here so (a) the native state machine is created on the
+      // thread that drives it, and (b) input cannot drive the handler to emit before the output
+      // subscriber is attached.
       //
-      // Subscribe the OUTPUT before the INPUT. Both subscriptions are dispatched onto the
-      // single-threaded coreExecutor (runSubscriptionOn), which runs them FIFO. The input
-      // subscription immediately starts feeding the state machine and can drive the handler to emit
-      // its first output chunk; if that emit happens before the output subscriber is attached,
-      // RequestProcessorImpl silently drops the chunk (outputSubscriber == null). Subscribing output
-      // first guarantees outputSubscriber is set before any input flows — matching production, where
-      // both adapters are wired synchronously before any (async) input arrives.
+      // Within that setup, subscribe the OUTPUT before the INPUT: both subscriptions run FIFO on
+      // the
+      // single-threaded coreExecutor, so the output subscriber is attached before input starts
+      // feeding the state machine. Otherwise RequestProcessorImpl would silently drop any output
+      // chunk emitted while outputSubscriber == null.
       AssertSubscriber<Slice> assertSubscriber = AssertSubscriber.create(Long.MAX_VALUE);
-      Multi.createFrom()
-          .publisher(handler)
-          .runSubscriptionOn(coreExecutor)
-          .subscribe(assertSubscriber);
-      Multi.createFrom()
-          .iterable(definition.getInput())
-          .runSubscriptionOn(coreExecutor)
-          .map(ProtoUtils::invocationInputToByteString)
-          .map(Slice::wrap)
-          .subscribe(handler);
+      try {
+        coreExecutor
+            .submit(
+                () -> {
+                  RequestProcessor handler =
+                      server.processorForRequest(
+                          "/" + serviceDefinition.getServiceName() + "/" + definition.getMethod(),
+                          HeadersAccessor.wrap(
+                              Map.of(
+                                  "content-type", ProtoUtils.serviceProtocolContentTypeHeader())),
+                          EndpointRequestHandler.LoggingContextSetter.THREAD_LOCAL_INSTANCE,
+                          coreExecutor,
+                          false);
+                  Multi.createFrom()
+                      .publisher(handler)
+                      .runSubscriptionOn(coreExecutor)
+                      .subscribe(assertSubscriber);
+                  Multi.createFrom()
+                      .iterable(definition.getInput())
+                      .runSubscriptionOn(coreExecutor)
+                      .map(ProtoUtils::invocationInputToByteString)
+                      .map(Slice::wrap)
+                      .subscribe(handler);
+                  return null;
+                })
+            .get();
+      } catch (ExecutionException e) {
+        if (e.getCause() instanceof Exception cause) {
+          throw cause;
+        }
+        throw e;
+      }
 
       // Check completed
       assertSubscriber.awaitCompletion(Duration.ofSeconds(10000));
