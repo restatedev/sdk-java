@@ -13,12 +13,6 @@ import dev.restate.sdk.annotation.Handler;
 import dev.restate.sdk.annotation.Service;
 import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.http.vertx.RestateHttpServer;
-import io.vertx.core.AbstractVerticle;
-import io.vertx.core.Promise;
-import io.vertx.core.Vertx;
-import io.vertx.core.VertxOptions;
-import io.vertx.core.http.Http2Settings;
-import io.vertx.core.http.HttpServerOptions;
 import java.time.Duration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -46,29 +40,6 @@ public class Greeter {
   }
 
   public static void main(String[] args) {
-    var vertxOptions = new VertxOptions();
-    var eventLoopPoolSize = vertxOptions.getEventLoopPoolSize();
-    var vertx = Vertx.vertx(new VertxOptions());
-    var httpServerOptions =
-        new HttpServerOptions().setInitialSettings(new Http2Settings().setMaxConcurrentStreams(10));
-
-    var endpoint = Endpoint.bind(new Greeter()).bind(new Counter()).build();
-
-    for (int i = 0; i < eventLoopPoolSize; i++) {
-      vertx.deployVerticle(
-          new AbstractVerticle() {
-            @Override
-            public void start(Promise<Void> startPromise) {
-              RestateHttpServer.fromEndpoint(vertx, endpoint, httpServerOptions)
-                  .listen(9080)
-                  .map(
-                      server -> {
-                        LOG.info("Server started on port {}", server.actualPort());
-                        return (Void) null;
-                      })
-                  .andThen(startPromise);
-            }
-          });
-    }
+    RestateHttpServer.listen(Endpoint.bind(new Greeter()).bind(new Counter()));
   }
 }
