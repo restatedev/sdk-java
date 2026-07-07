@@ -117,9 +117,12 @@ jobs:
 
       - name: Run test tool
         continue-on-error: ${{ inputs.continueOnError == 'true' }}
-        uses: restatedev/e2e/sdk-tests@v2.1
+        uses: restatedev/e2e/sdk-tests@v2.2
         with:
           envVars: ${{ inputs.envVars }}
+          # Scope/limit key need the FFM state machine (protocol v7, JRE >= 23). On the legacy
+          # state machine (JRE < 23) those tests can't pass, so exclude them there.
+          exclusionsFile: ${{ matrix.jreVersion < 23 && '.tools/exclusions-legacy-statemachine.yaml' || '' }}
           testArtifactOutput: ${{ inputs.testArtifactOutput != '' && format('{0}-jre{1}', inputs.testArtifactOutput, matrix.jreVersion) || format('sdk-java-jre{0}-integration-test-report', matrix.jreVersion) }}
           restateContainerImage: ${{ inputs.restateCommit != '' && 'localhost/restatedev/restate-commit-download:latest' || (inputs.restateImage != '' && inputs.restateImage || 'ghcr.io/restatedev/restate:main') }}
           serviceContainerImage: ${{ inputs.serviceImage != '' && inputs.serviceImage || 'restatedev/test-services-java' }}

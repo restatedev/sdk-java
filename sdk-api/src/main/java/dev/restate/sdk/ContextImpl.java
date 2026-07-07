@@ -137,6 +137,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
                 request.getTarget(),
                 input,
                 request.getIdempotencyKey(),
+                request.getLimitKey(),
                 request.getHeaders() == null
                     ? Collections.emptyList()
                     : request.getHeaders().entrySet()));
@@ -169,6 +170,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
                     request.getTarget(),
                     input,
                     request.getIdempotencyKey(),
+                    request.getLimitKey(),
                     request.getHeaders() == null
                         ? Collections.emptyList()
                         : request.getHeaders().entrySet(),

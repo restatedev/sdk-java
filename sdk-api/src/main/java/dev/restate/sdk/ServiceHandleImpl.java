@@ -27,14 +27,20 @@ final class ServiceHandleImpl<SVC> implements ServiceHandle<SVC> {
   private final Class<SVC> clazz;
   private final String serviceName;
   private final @Nullable String key;
+  private final @Nullable String scope;
 
   // To use call/send
   private MethodInfoCollector<SVC> methodInfoCollector;
 
   ServiceHandleImpl(Class<SVC> clazz, @Nullable String key) {
+    this(clazz, key, null);
+  }
+
+  ServiceHandleImpl(Class<SVC> clazz, @Nullable String key, @Nullable String scope) {
     this.clazz = clazz;
     this.serviceName = ReflectionUtils.extractServiceName(clazz);
     this.key = key;
+    this.scope = scope;
   }
 
   @SuppressWarnings("unchecked")
@@ -45,6 +51,7 @@ final class ServiceHandleImpl<SVC> implements ServiceHandle<SVC> {
     return Context.current()
         .call(
             toRequest(
+                scope,
                 serviceName,
                 key,
                 methodInfo.getHandlerName(),
@@ -62,6 +69,7 @@ final class ServiceHandleImpl<SVC> implements ServiceHandle<SVC> {
     return Context.current()
         .call(
             toRequest(
+                scope,
                 serviceName,
                 key,
                 methodInfo.getHandlerName(),
@@ -78,6 +86,7 @@ final class ServiceHandleImpl<SVC> implements ServiceHandle<SVC> {
     return Context.current()
         .call(
             toRequest(
+                scope,
                 serviceName,
                 key,
                 methodInfo.getHandlerName(),
@@ -93,6 +102,7 @@ final class ServiceHandleImpl<SVC> implements ServiceHandle<SVC> {
     return Context.current()
         .call(
             toRequest(
+                scope,
                 serviceName,
                 key,
                 methodInfo.getHandlerName(),
@@ -110,6 +120,7 @@ final class ServiceHandleImpl<SVC> implements ServiceHandle<SVC> {
     return Context.current()
         .send(
             toRequest(
+                scope,
                 serviceName,
                 key,
                 methodInfo.getHandlerName(),
@@ -128,6 +139,7 @@ final class ServiceHandleImpl<SVC> implements ServiceHandle<SVC> {
     return Context.current()
         .send(
             toRequest(
+                scope,
                 serviceName,
                 key,
                 methodInfo.getHandlerName(),
@@ -146,6 +158,7 @@ final class ServiceHandleImpl<SVC> implements ServiceHandle<SVC> {
     return Context.current()
         .send(
             toRequest(
+                scope,
                 serviceName,
                 key,
                 methodInfo.getHandlerName(),
@@ -163,6 +176,7 @@ final class ServiceHandleImpl<SVC> implements ServiceHandle<SVC> {
     return Context.current()
         .send(
             toRequest(
+                scope,
                 serviceName,
                 key,
                 methodInfo.getHandlerName(),

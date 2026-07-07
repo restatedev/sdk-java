@@ -24,6 +24,8 @@ interface Proxy {
       val message: ByteArray,
       val delayMillis: Int? = null,
       val idempotencyKey: String? = null,
+      val scope: String? = null,
+      val limitKey: String? = null,
   )
 
   @Serializable

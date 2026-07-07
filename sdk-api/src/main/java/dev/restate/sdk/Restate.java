@@ -688,6 +688,61 @@ public final class Restate {
     return toWorkflow(clazz, key);
   }
 
+  /**
+   * <b>PREVIEW:</b> Returns a {@link Scope} that routes all outgoing calls within the given scope.
+   *
+   * <p><b>NOTE:</b> This API is in preview and is not enabled by default. To use it in
+   * restate-server 1.7, enable the flow control and protocol v7 experimental features, via {@code
+   * RESTATE_EXPERIMENTAL_ENABLE_PROTOCOL_V7=true} and {@code
+   * RESTATE_EXPERIMENTAL_ENABLE_VQUEUES=true}. These can be enabled only on <b>new clusters</b>,
+   * for more info check out https://docs.restate.dev/services/flow-control#enabling-flow-control.
+   * If these experimental features aren't enabled, the call fails with a retryable error and keeps
+   * retrying until they are.
+   *
+   * <p>A scope is a sub-grouping of resources (invocations, virtual object instances, workflow
+   * instances, concurrency limits) within the Restate cluster. It becomes part of the target
+   * identity tuple:
+   *
+   * <ul>
+   *   <li>{@code scope, service, handler, idempotencyKey?}
+   *   <li>{@code scope, virtualObject, objectKey, handler, idempotencyKey?}
+   *   <li>{@code scope, workflow, workflowKey, handler}
+   * </ul>
+   *
+   * <p>Under the hood, the scope contributes to the partition key, so all resources in a scope get
+   * co-located by the restate-server.
+   *
+   * <p>Omitting the scope (i.e. using the regular {@link #service(Class)} / {@link #workflow(Class,
+   * String)} methods) is equivalent to calling with no scope, which is the existing behavior.
+   *
+   * <p>The scope key must consist only of {@code [a-zA-Z0-9_.-]} characters, with {@code 1 <=
+   * length <= 36} chars.
+   *
+   * <pre>{@code
+   * // Route a call into a named scope
+   * Restate.scope("tenant-123").service(MyService.class).process(payload);
+   *
+   * // Idempotency keys are scoped — "req-1" in "tenant-123" is distinct from "req-1" in "tenant-456"
+   * Restate.scope("tenant-123").serviceHandle(MyService.class)
+   *     .call(MyService::process, payload, InvocationOptions.idempotencyKey("req-1").build())
+   *     .await();
+   *
+   * // Combine with a limit key to enforce per-scope concurrency limits
+   * Restate.scope("tenant-123").workflowHandle(MyWorkflow.class, "wf-key")
+   *     .call(MyWorkflow::run, input, InvocationOptions.limitKey("api-key/user42").build())
+   *     .await();
+   * }</pre>
+   *
+   * @param scopeKey the scope identifier
+   * @return a {@link Scope}
+   * @see <a
+   *     href="https://docs.restate.dev/services/flow-control">https://docs.restate.dev/services/flow-control</a>
+   */
+  @org.jetbrains.annotations.ApiStatus.Experimental
+  public static Scope scope(String scopeKey) {
+    return new Scope(scopeKey);
+  }
+
   /** Interface to interact with this Virtual Object/Workflow state. */
   public interface State {
 

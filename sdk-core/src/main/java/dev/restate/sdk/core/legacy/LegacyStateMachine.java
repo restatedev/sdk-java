@@ -342,6 +342,9 @@ public final class LegacyStateMachine implements StateMachine {
       @Nullable String limitKey,
       @Nullable Collection<Map.Entry<String, String>> headers) {
     LOG.debug("Executing 'Call {}'", target);
+    if (scope != null || limitKey != null) {
+      throw ProtocolException.scopeOrLimitKeyUnsupported();
+    }
     if (idempotencyKey != null && idempotencyKey.isBlank()) {
       throw ProtocolException.idempotencyKeyIsEmpty();
     }
@@ -400,6 +403,9 @@ public final class LegacyStateMachine implements StateMachine {
       LOG.debug("Executing 'Delayed send {} with delay {}'", target, delay);
     } else {
       LOG.debug("Executing 'Send {}'", target);
+    }
+    if (scope != null || limitKey != null) {
+      throw ProtocolException.scopeOrLimitKeyUnsupported();
     }
     if (idempotencyKey != null && idempotencyKey.isBlank()) {
       throw ProtocolException.idempotencyKeyIsEmpty();
