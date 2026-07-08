@@ -272,7 +272,7 @@
   micrometer-context-propagation = '1.1.3'
   opentelemetry = '1.58.0'
   protobuf = '4.29.3'
-  restate = '2.9.0'
+  restate = '2.10.0-SNAPSHOT'
   schema-kenerator = '2.1.2'
   spring-boot = '3.4.13'
   vertx = '4.5.24'
