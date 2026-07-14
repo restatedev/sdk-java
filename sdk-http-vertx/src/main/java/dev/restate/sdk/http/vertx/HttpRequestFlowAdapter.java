@@ -31,6 +31,10 @@ class HttpRequestFlowAdapter implements Flow.Publisher<Slice> {
   HttpRequestFlowAdapter(HttpServerRequest httpServerRequest) {
     this.httpServerRequest = httpServerRequest;
     this.buffers = new ArrayDeque<>();
+    // Companion fix for https://github.com/restatedev/sdk-java/issues/614: switch the request
+    // stream to pull mode so Vert.x only delivers buffers as the subscriber signals demand (see
+    // fetch below), instead of pushing the whole body into the queue above without bound.
+    this.httpServerRequest.pause();
   }
 
   @Override
@@ -73,6 +77,12 @@ class HttpRequestFlowAdapter implements Flow.Publisher<Slice> {
     }
 
     tryProgress();
+
+    // Mirror the subscriber demand into Vert.x pull-mode demand: at most this many buffers will
+    // be delivered to handleIncomingBuffer, so the queue is bounded by what was requested.
+    if (!this.httpServerRequest.isEnded()) {
+      this.httpServerRequest.fetch(l);
+    }
   }
 
   private void handleIncomingBuffer(Buffer buffer) {

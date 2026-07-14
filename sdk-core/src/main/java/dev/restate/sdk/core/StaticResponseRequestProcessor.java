@@ -10,6 +10,7 @@ package dev.restate.sdk.core;
 
 import dev.restate.common.Slice;
 import java.util.concurrent.Flow;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 class StaticResponseRequestProcessor implements RequestProcessor {
 
@@ -37,11 +38,20 @@ class StaticResponseRequestProcessor implements RequestProcessor {
   public void subscribe(Flow.Subscriber<? super Slice> subscriber) {
     subscriber.onSubscribe(
         new Flow.Subscription() {
+          // Reactive Streams rules 1.7/2.12: the single response body must be emitted exactly
+          // once, no matter how many times request() is invoked. Re-emitting on every request()
+          // used to be masked by subscribers requesting Long.MAX_VALUE exactly once, and
+          // duplicated the whole response once subscribers switched to bounded re-requests.
+          private final AtomicBoolean emitted = new AtomicBoolean(false);
+
           @Override
           public void request(long l) {
             if (l <= 0) {
               subscriber.onError(
                   new IllegalStateException("subscription request is negative: " + l));
+              return;
+            }
+            if (this.emitted.getAndSet(true)) {
               return;
             }
             subscriber.onNext(responseBody);

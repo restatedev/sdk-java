@@ -23,4 +23,8 @@ dependencies {
     // Version of vertx is pinned above
     exclude(group = "io.vertx")
   }
+
+  testImplementation(libs.junit.jupiter)
+  testImplementation(libs.assertj)
+  testRuntimeOnly(libs.junit.platform.launcher)
 }
