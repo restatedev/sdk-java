@@ -33,8 +33,6 @@ import kotlinx.coroutines.test.runTest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
-// --- Test service definitions (interfaces so the JDK proxy can be used, no bytebuddy needed) ---
-
 @Service
 @Name("Greeter")
 private interface Greeter {
@@ -45,6 +43,8 @@ private interface Greeter {
 @Name("Counter")
 private interface Counter {
   @Exclusive suspend fun add(value: Int): Int
+
+  @Exclusive suspend fun label(name: String): String
 }
 
 @Workflow
@@ -53,22 +53,24 @@ private interface SignupWorkflow {
   @Workflow suspend fun run(email: String): String
 }
 
-/**
- * A [Client] test double built on top of [BaseClient] (so all the handle factory methods come for
- * free). It records the last [Request] that the API produced and returns canned responses without
- * hitting the network.
- */
-private class RecordingClient :
+private object NoHeaders : ResponseHead.Headers {
+  override fun get(key: String): String? = null
+
+  override fun keys(): Set<String> = emptySet()
+
+  override fun toLowercaseMap(): Map<String, String> = emptyMap()
+}
+
+private class RequestRecordingClient(private val mockResponse: Any? = null) :
     BaseClient(URI.create("http://localhost:8080"), KotlinSerializationSerdeFactory(), null) {
 
   var lastRequest: Request<*, *>? = null
   var lastDelay: Duration? = null
-  var cannedResponse: Any? = null
 
   override fun <Req, Res> callAsync(request: Request<Req, Res>): CompletableFuture<Response<Res>> {
     lastRequest = request
     @Suppress("UNCHECKED_CAST")
-    return CompletableFuture.completedFuture(Response(200, NoHeaders, cannedResponse as Res))
+    return CompletableFuture.completedFuture(Response(200, NoHeaders, mockResponse as Res))
   }
 
   override fun <Req, Res> sendAsync(
@@ -83,9 +85,7 @@ private class RecordingClient :
 
           override fun attachAsync(options: RequestOptions): CompletableFuture<Response<Res>> {
             @Suppress("UNCHECKED_CAST")
-            return CompletableFuture.completedFuture(
-                Response(200, NoHeaders, cannedResponse as Res)
-            )
+            return CompletableFuture.completedFuture(Response(200, NoHeaders, mockResponse as Res))
           }
 
           override fun getOutputAsync(
@@ -97,7 +97,6 @@ private class RecordingClient :
     )
   }
 
-  // Never reached: callAsync/sendAsync are overridden to short-circuit the network.
   override fun <Res> doPostRequest(
       target: URI,
       headers: Stream<Map.Entry<String, String>>,
@@ -110,14 +109,33 @@ private class RecordingClient :
       headers: Stream<Map.Entry<String, String>>,
       responseMapper: ResponseMapper<Res>,
   ): CompletableFuture<Res> = throw UnsupportedOperationException()
+}
 
-  private object NoHeaders : ResponseHead.Headers {
-    override fun get(key: String): String? = null
+private class UriRecordingClient :
+    BaseClient(URI.create("http://localhost:8080"), KotlinSerializationSerdeFactory(), null) {
 
-    override fun keys(): Set<String> = emptySet()
+  var lastUri: URI? = null
 
-    override fun toLowercaseMap(): Map<String, String> = emptyMap()
+  override fun <Res> doPostRequest(
+      target: URI,
+      headers: Stream<Map.Entry<String, String>>,
+      payload: Slice,
+      responseMapper: ResponseMapper<Res>,
+  ): CompletableFuture<Res> {
+    lastUri = target
+    val path = target.path
+    val isSend = path.endsWith("/send") || path.contains("/send/")
+    val body =
+        if (isSend) Slice.wrap("""{"invocationId":"inv-123","status":"Accepted"}""")
+        else Slice.wrap("\"ok\"")
+    return CompletableFuture.completedFuture(responseMapper.mapResponse(200, NoHeaders, body))
   }
+
+  override fun <Res> doGetRequest(
+      target: URI,
+      headers: Stream<Map.Entry<String, String>>,
+      responseMapper: ResponseMapper<Res>,
+  ): CompletableFuture<Res> = throw UnsupportedOperationException()
 }
 
 class ScopedClientTest {
@@ -125,14 +143,13 @@ class ScopedClientTest {
   @Test
   fun `scope returns the platform ScopedClient, not a Kotlin-specific type`() {
     // Guards against the regression where a Kotlin Client.scope extension shadowed the Java member.
-    val client = RecordingClient()
+    val client = RequestRecordingClient()
     assertThat(client.scope("tenant-1")).isInstanceOf(ScopedClient::class.java)
   }
 
   @Test
   fun `scoped service proxy routes the call within the scope`() = runTest {
-    val client = RecordingClient()
-    client.cannedResponse = "Hello Alice"
+    val client = RequestRecordingClient("Hello Alice")
 
     val response = client.scope("tenant-1").service<Greeter>().greet("Alice")
 
@@ -147,8 +164,7 @@ class ScopedClientTest {
 
   @Test
   fun `scoped virtualObject proxy carries scope and key`() = runTest {
-    val client = RecordingClient()
-    client.cannedResponse = 42
+    val client = RequestRecordingClient(42)
 
     val response = client.scope("tenant-1").virtualObject<Counter>("my-key").add(1)
 
@@ -163,8 +179,7 @@ class ScopedClientTest {
 
   @Test
   fun `scoped toService builder forwards idempotencyKey and limitKey`() = runTest {
-    val client = RecordingClient()
-    client.cannedResponse = "Hi Bob"
+    val client = RequestRecordingClient("Hi Bob")
 
     val response =
         client
@@ -189,8 +204,7 @@ class ScopedClientTest {
 
   @Test
   fun `toService builder forwards limitKey even without a scope`() = runTest {
-    val client = RecordingClient()
-    client.cannedResponse = "Hi Carol"
+    val client = RequestRecordingClient("Hi Carol")
 
     client.toService<Greeter>().request { greet("Carol") }.options { limitKey = "limit-2" }.call()
 
@@ -201,8 +215,7 @@ class ScopedClientTest {
 
   @Test
   fun `scoped toWorkflow builder submits within the scope`() = runTest {
-    val client = RecordingClient()
-    client.cannedResponse = "queued"
+    val client = RequestRecordingClient("queued")
 
     val sendResponse =
         client
@@ -218,5 +231,59 @@ class ScopedClientTest {
     assertThat(request.target.key).isEqualTo("wf-1")
     assertThat(request.target.handler).isEqualTo("run")
     assertThat(request.request).isEqualTo("a@b.com")
+  }
+
+  @Test
+  fun `scoped call encodes scope in the path`() = runTest {
+    val client = UriRecordingClient()
+
+    client.scope("tenant-1").toService<Greeter>().request { greet("A") }.call()
+
+    assertThat(client.lastUri!!.path).isEqualTo("/restate/scope/tenant-1/call/Greeter/greet")
+    assertThat(client.lastUri!!.query).isNull()
+  }
+
+  @Test
+  fun `scoped keyed send encodes scope, key and send verb in the path`() = runTest {
+    val client = UriRecordingClient()
+
+    client.scope("tenant-1").toVirtualObject<Counter>("my-key").request { label("x") }.send()
+
+    assertThat(client.lastUri!!.path).isEqualTo("/restate/scope/tenant-1/send/Counter/my-key/label")
+  }
+
+  @Test
+  fun `scoped send with limit key uses the limit-key query param`() = runTest {
+    val client = UriRecordingClient()
+
+    client
+        .scope("tenant-1")
+        .toService<Greeter>()
+        .request { greet("A") }
+        .options { limitKey = "api-key/user42" }
+        .send()
+
+    assertThat(client.lastUri!!.path).isEqualTo("/restate/scope/tenant-1/send/Greeter/greet")
+    // The runtime reads "limit-key" (kebab-case), not "limitKey".
+    assertThat(client.lastUri!!.query).isEqualTo("limit-key=api-key/user42")
+  }
+
+  @Test
+  fun `unscoped call keeps the unversioned path`() = runTest {
+    val client = UriRecordingClient()
+
+    client.toService<Greeter>().request { greet("A") }.call()
+
+    assertThat(client.lastUri!!.path).isEqualTo("/Greeter/greet")
+    assertThat(client.lastUri!!.query).isNull()
+  }
+
+  @Test
+  fun `unscoped send keeps the unversioned path`() = runTest {
+    val client = UriRecordingClient()
+
+    client.toService<Greeter>().request { greet("A") }.send()
+
+    assertThat(client.lastUri!!.path).isEqualTo("/Greeter/greet/send")
   }
 }

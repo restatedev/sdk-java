@@ -437,22 +437,33 @@ public abstract class BaseClient implements Client {
 
   private URI toRequestURI(
       Target target, boolean isSend, @Nullable Duration delay, @Nullable String limitKey) {
-    StringBuilder builder = new StringBuilder(targetToURI(target));
-    if (isSend) {
-      builder.append("/send");
-    }
-    String separator = "?";
+    StringBuilder builder = new StringBuilder();
     if (target.getScope() != null) {
+      // Scoped requests must use the versioned ingress API, which carries the scope in the path:
+      //   /restate/scope/{scopeKey}/{call|send}/{service}[/{key}]/{handler}
+      // The scope is NOT accepted as a query parameter by the runtime.
       builder
-          .append(separator)
-          .append("scope=")
-          .append(URLEncoder.encode(target.getScope(), StandardCharsets.UTF_8));
-      separator = "&";
+          .append("/restate/scope/")
+          .append(URLEncoder.encode(target.getScope(), StandardCharsets.UTF_8))
+          .append(isSend ? "/send" : "/call")
+          .append(targetToURI(target));
+    } else {
+      // Unscoped requests use the unversioned ingress API:
+      //   /{service}[/{key}]/{handler}[/send]
+      // TODO eventually drop this branch and always use the versioned /restate/{call|send}/... API.
+      builder.append(targetToURI(target));
+      if (isSend) {
+        builder.append("/send");
+      }
     }
+
+    String separator = "?";
     if (limitKey != null) {
+      // The runtime reads the limit key from the "limit-key" query param (or the
+      // x-restate-limit-key header); it requires a scope to be set.
       builder
           .append(separator)
-          .append("limitKey=")
+          .append("limit-key=")
           .append(URLEncoder.encode(limitKey, StandardCharsets.UTF_8));
       separator = "&";
     }
