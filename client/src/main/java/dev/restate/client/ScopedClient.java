@@ -34,6 +34,22 @@ public final class ScopedClient {
   }
 
   /**
+   * @return the underlying {@link Client}.
+   */
+  @org.jetbrains.annotations.ApiStatus.Internal
+  public Client getInnerClient() {
+    return client;
+  }
+
+  /**
+   * @return the scope key.
+   */
+  @org.jetbrains.annotations.ApiStatus.Internal
+  public String getScope() {
+    return scope;
+  }
+
+  /**
    * @see Client#service(Class)
    */
   @org.jetbrains.annotations.ApiStatus.Experimental

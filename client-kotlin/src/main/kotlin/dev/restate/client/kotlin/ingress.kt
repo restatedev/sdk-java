@@ -12,6 +12,7 @@ import dev.restate.client.Client
 import dev.restate.client.RequestOptions
 import dev.restate.client.Response
 import dev.restate.client.ResponseHead
+import dev.restate.client.ScopedClient
 import dev.restate.client.SendResponse
 import dev.restate.common.InvocationOptions
 import dev.restate.common.Output
@@ -272,30 +273,7 @@ val <Res> SendResponse<Res>.sendStatus: SendResponse.SendStatus
   get() = this.sendStatus()
 
 /**
- * **PREVIEW:** Returns a [ScopedKotlinClient] that routes all outgoing calls within the given
- * scope.
- *
- * **NOTE:** This API is in preview and is not enabled by default. To use it in restate-server 1.7,
- * enable the flow control and protocol v7 experimental features, via
- * `RESTATE_EXPERIMENTAL_ENABLE_PROTOCOL_V7=true` and `RESTATE_EXPERIMENTAL_ENABLE_VQUEUES=true`.
- * These can be enabled only on **new clusters**, for more info check out
- * https://docs.restate.dev/services/flow-control#enabling-flow-control. If these experimental
- * features aren't enabled, the call fails with a retryable error and keeps retrying until they are.
- *
- * A scope is a sub-grouping of resources (invocations, virtual object instances, workflow
- * instances, concurrency limits) within the Restate cluster. It becomes part of the target identity
- * tuple:
- * - `scope, service, handler, idempotencyKey?`
- * - `scope, virtualObject, objectKey, handler, idempotencyKey?`
- * - `scope, workflow, workflowKey, handler`
- *
- * Under the hood, the scope contributes to the partition key, so all resources in a scope get
- * co-located by the restate-server.
- *
- * Omitting the scope (i.e. using the regular `service` / `workflow` methods) is equivalent to
- * calling with no scope, which is the existing behavior.
- *
- * The scope key must consist only of `[a-zA-Z0-9_.-]` characters, with `1 <= length <= 36` chars.
+ * **PREVIEW:** Create a proxy client for a Restate service within the given [scope][Client.scope].
  *
  * Example usage:
  * ```kotlin
@@ -303,20 +281,140 @@ val <Res> SendResponse<Res>.sendStatus: SendResponse.SendStatus
  * client.scope("tenant-123").service<MyService>().process(payload)
  * ```
  *
- * @param scopeKey the scope identifier
- * @see <a
- *   href="https://docs.restate.dev/services/flow-control">https://docs.restate.dev/services/flow-control</a>
+ * @param SVC the service class annotated with @Service
+ * @return a proxy client to invoke the service
+ * @see Client.scope
  */
+@org.jetbrains.annotations.ApiStatus.Experimental
+inline fun <reified SVC : Any> ScopedClient.service(): SVC {
+  return service(this.innerClient, SVC::class.java, this.scope)
+}
+
+/**
+ * **PREVIEW:** Create a proxy client for a Restate virtual object within the given
+ * [scope][Client.scope].
+ *
+ * *NOTE:* To use scopes with virtual objects you must enable the additional experimental feature in
+ * restate-server, via `RESTATE_EXPERIMENTAL_ENABLE_SCOPED_VIRTUAL_OBJECTS=true`.
+ *
+ * @param SVC the virtual object class annotated with @VirtualObject
+ * @param key the key identifying the specific virtual object instance
+ * @return a proxy client to invoke the virtual object
+ * @see Client.scope
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+inline fun <reified SVC : Any> ScopedClient.virtualObject(key: String): SVC {
+  return virtualObject(this.innerClient, SVC::class.java, key, this.scope)
+}
+
+/**
+ * **PREVIEW:** Create a proxy client for a Restate workflow within the given [scope][Client.scope].
+ *
+ * @param SVC the workflow class annotated with @Workflow
+ * @param key the key identifying the specific workflow instance
+ * @return a proxy client to invoke the workflow
+ * @see Client.scope
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+inline fun <reified SVC : Any> ScopedClient.workflow(key: String): SVC {
+  return workflow(this.innerClient, SVC::class.java, key, this.scope)
+}
+
+/**
+ * **PREVIEW:** Create a builder for invoking a Restate service within the given
+ * [scope][Client.scope].
+ *
+ * Example usage:
+ * ```kotlin
+ * client.scope("tenant-123").toService<MyService>()
+ *     .request { process(payload) }
+ *     .options { idempotencyKey = "req-1" }
+ *     .call()
+ * ```
+ *
+ * @param SVC the service class annotated with @Service
+ * @return a builder for creating typed requests
+ * @see Client.scope
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+inline fun <reified SVC : Any> ScopedClient.toService(): KClientRequestBuilder<SVC> {
+  ReflectionUtils.mustHaveServiceAnnotation(SVC::class.java)
+  require(ReflectionUtils.isKotlinClass(SVC::class.java)) {
+    "Using Java classes with Kotlin's API is not supported"
+  }
+  return KClientRequestBuilder(this.innerClient, SVC::class.java, null, this.scope)
+}
+
+/**
+ * **PREVIEW:** Create a builder for invoking a Restate virtual object within the given
+ * [scope][Client.scope].
+ *
+ * *NOTE:* To use scopes with virtual objects you must enable the additional experimental feature in
+ * restate-server, via `RESTATE_EXPERIMENTAL_ENABLE_SCOPED_VIRTUAL_OBJECTS=true`.
+ *
+ * @param SVC the virtual object class annotated with @VirtualObject
+ * @param key the key identifying the specific virtual object instance
+ * @return a builder for creating typed requests
+ * @see Client.scope
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+inline fun <reified SVC : Any> ScopedClient.toVirtualObject(
+    key: String
+): KClientRequestBuilder<SVC> {
+  ReflectionUtils.mustHaveVirtualObjectAnnotation(SVC::class.java)
+  require(ReflectionUtils.isKotlinClass(SVC::class.java)) {
+    "Using Java classes with Kotlin's API is not supported"
+  }
+  return KClientRequestBuilder(this.innerClient, SVC::class.java, key, this.scope)
+}
+
+/**
+ * **PREVIEW:** Create a builder for invoking a Restate workflow within the given
+ * [scope][Client.scope].
+ *
+ * @param SVC the workflow class annotated with @Workflow
+ * @param key the key identifying the specific workflow instance
+ * @return a builder for creating typed requests
+ * @see Client.scope
+ */
+@org.jetbrains.annotations.ApiStatus.Experimental
+inline fun <reified SVC : Any> ScopedClient.toWorkflow(key: String): KClientRequestBuilder<SVC> {
+  ReflectionUtils.mustHaveWorkflowAnnotation(SVC::class.java)
+  require(ReflectionUtils.isKotlinClass(SVC::class.java)) {
+    "Using Java classes with Kotlin's API is not supported"
+  }
+  return KClientRequestBuilder(this.innerClient, SVC::class.java, key, this.scope)
+}
+
+/**
+ * **PREVIEW:** Returns a [ScopedKotlinClient] that routes all outgoing calls within the given
+ * scope.
+ *
+ * This extension has the same signature as the [Client.scope] member on the Java `Client` interface
+ * (which returns the platform [ScopedClient]), so it is shadowed by the member and is only
+ * reachable via an aliased import. Prefer `client.scope(scopeKey)`, which returns [ScopedClient]
+ * and now exposes the Kotlin `service`/`virtualObject`/`workflow`/`toService`/... extensions
+ * directly.
+ *
+ * @param scopeKey the scope identifier
+ */
+@Deprecated(
+    "Use client.scope(scopeKey), which returns a ScopedClient exposing the Kotlin extension methods. " +
+        "This extension is shadowed by the Client.scope member and only reachable via an aliased import."
+)
+@Suppress("DEPRECATION")
 @org.jetbrains.annotations.ApiStatus.Experimental
 fun Client.scope(scopeKey: String): ScopedKotlinClient = ScopedKotlinClient(this, scopeKey)
 
 /**
  * **PREVIEW:** A client for making RPC calls within a specific scope.
  *
- * Obtain an instance via [Client.scope].
- *
- * @see Client.scope
+ * Use the extension methods on the platform [ScopedClient] instead, obtained via
+ * `client.scope(scopeKey)`.
  */
+@Deprecated(
+    "Use the extension methods on ScopedClient, obtained via client.scope(scopeKey).",
+)
 @org.jetbrains.annotations.ApiStatus.Experimental
 class ScopedKotlinClient
 @PublishedApi
@@ -673,7 +771,11 @@ private class KClientRequestImpl<Req, Res>(
     builder.block()
     return KClientRequestImpl(
         client,
-        this.toBuilder().headers(builder.headers).idempotencyKey(builder.idempotencyKey).build(),
+        this.toBuilder()
+            .headers(builder.headers)
+            .idempotencyKey(builder.idempotencyKey)
+            .limitKey(builder.limitKey)
+            .build(),
     )
   }
 
