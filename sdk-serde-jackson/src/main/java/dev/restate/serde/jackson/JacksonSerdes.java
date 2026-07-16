@@ -16,6 +16,9 @@ import com.github.victools.jsonschema.module.jackson.JacksonModule;
 import com.github.victools.jsonschema.module.jackson.JacksonOption;
 import dev.restate.serde.Serde;
 import java.util.stream.StreamSupport;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.jspecify.annotations.Nullable;
 
 /**
  * {@link Serde} implementations for Jackson.
@@ -42,52 +45,68 @@ public final class JacksonSerdes {
 
   private JacksonSerdes() {}
 
+  private static final Logger LOG = LogManager.getLogger(JacksonSerdes.class);
+
   static final ObjectMapper defaultMapper;
-  static final SchemaGenerator schemaGenerator;
+
+  static final @Nullable SchemaGenerator schemaGenerator;
 
   static {
     defaultMapper = new ObjectMapper();
     // Find modules through SPI (e.g. jackson-datatype-jsr310)
     defaultMapper.findAndRegisterModules();
 
-    JacksonModule module =
-        new JacksonModule(
-            JacksonOption.RESPECT_JSONPROPERTY_REQUIRED, JacksonOption.INLINE_TRANSFORMED_SUBTYPES);
-    SchemaGeneratorConfigBuilder configBuilder =
-        new SchemaGeneratorConfigBuilder(
-                defaultMapper, SchemaVersion.DRAFT_2020_12, OptionPreset.PLAIN_JSON)
-            .with(module);
+    schemaGenerator = buildSchemaGenerator(defaultMapper);
+  }
 
-    // Make sure we use `title` for types
-    configBuilder
-        .forTypesInGeneral()
-        .withTypeAttributeOverride(
-            (schema, scope, context) -> {
-              if (schema.isObject()
-                  && !schema.hasNonNull(
-                      SchemaKeyword.TAG_TITLE.forVersion(
-                          context.getGeneratorConfig().getSchemaVersion()))) {
-                JsonNode typeKeyword =
-                    schema.get(
-                        SchemaKeyword.TAG_TYPE.forVersion(
-                            context.getGeneratorConfig().getSchemaVersion()));
-                boolean isObjectSchema =
-                    typeKeyword != null
-                        && ((typeKeyword.isTextual() && "object".equals(typeKeyword.textValue()))
-                            || (typeKeyword.isArray()
-                                && StreamSupport.stream(typeKeyword.spliterator(), false)
-                                    .anyMatch(
-                                        el -> el.isTextual() && "object".equals(el.textValue()))));
-                if (isObjectSchema) {
-                  schema.put(
-                      SchemaKeyword.TAG_TITLE.forVersion(
-                          context.getGeneratorConfig().getSchemaVersion()),
-                      scope.getSimpleTypeDescription());
+  private static @Nullable SchemaGenerator buildSchemaGenerator(ObjectMapper mapper) {
+    try {
+      JacksonModule module =
+          new JacksonModule(
+              JacksonOption.RESPECT_JSONPROPERTY_REQUIRED,
+              JacksonOption.INLINE_TRANSFORMED_SUBTYPES);
+      SchemaGeneratorConfigBuilder configBuilder =
+          new SchemaGeneratorConfigBuilder(
+                  mapper, SchemaVersion.DRAFT_2020_12, OptionPreset.PLAIN_JSON)
+              .with(module);
+
+      // Make sure we use `title` for types
+      configBuilder
+          .forTypesInGeneral()
+          .withTypeAttributeOverride(
+              (schema, scope, context) -> {
+                if (schema.isObject()
+                    && !schema.hasNonNull(
+                        SchemaKeyword.TAG_TITLE.forVersion(
+                            context.getGeneratorConfig().getSchemaVersion()))) {
+                  JsonNode typeKeyword =
+                      schema.get(
+                          SchemaKeyword.TAG_TYPE.forVersion(
+                              context.getGeneratorConfig().getSchemaVersion()));
+                  boolean isObjectSchema =
+                      typeKeyword != null
+                          && ((typeKeyword.isTextual() && "object".equals(typeKeyword.textValue()))
+                              || (typeKeyword.isArray()
+                                  && StreamSupport.stream(typeKeyword.spliterator(), false)
+                                      .anyMatch(
+                                          el ->
+                                              el.isTextual() && "object".equals(el.textValue()))));
+                  if (isObjectSchema) {
+                    schema.put(
+                        SchemaKeyword.TAG_TITLE.forVersion(
+                            context.getGeneratorConfig().getSchemaVersion()),
+                        scope.getSimpleTypeDescription());
+                  }
                 }
-              }
-            });
+              });
 
-    schemaGenerator = new SchemaGenerator(configBuilder.build());
+      return new SchemaGenerator(configBuilder.build());
+    } catch (LinkageError t) {
+      LOG.warn(
+          "Cannot initialize the Jackson JSON Schema generator due to an incompatible version of com.github.victools:jsonschema-generator.",
+          t);
+      return null;
+    }
   }
 
   /** Serialize/Deserialize class using the default object mapper. */

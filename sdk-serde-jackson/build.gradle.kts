@@ -12,6 +12,8 @@ dependencies {
 
   implementation(project(":common"))
 
+  implementation(libs.log4j.api)
+
   api(libs.jackson.databind)
   implementation(libs.jackson.jsr310)
   implementation(libs.jackson.core)
