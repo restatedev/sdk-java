@@ -274,6 +274,6 @@
   protobuf = '4.29.3'
   restate = '2.10.0-SNAPSHOT'
   schema-kenerator = '2.1.2'
-  spring-boot = '3.4.13'
-  vertx = '4.5.24'
+  spring-boot = '3.5.16'
+  vertx = '4.5.30'
   victools-json-schema = '4.38.0'
