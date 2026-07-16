@@ -22,6 +22,7 @@ import dev.restate.serde.TypeRef;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class implements {@link SerdeFactory} using Jackson's {@link ObjectMapper}.
@@ -35,7 +36,7 @@ public class JacksonSerdeFactory implements SerdeFactory {
   public static final JacksonSerdeFactory DEFAULT = new JacksonSerdeFactory();
 
   private final ObjectMapper mapper;
-  private final SchemaGenerator schemaGenerator;
+  private final @Nullable SchemaGenerator schemaGenerator;
 
   public JacksonSerdeFactory() {
     this(JacksonSerdes.defaultMapper);
@@ -45,7 +46,7 @@ public class JacksonSerdeFactory implements SerdeFactory {
     this(mapper, JacksonSerdes.schemaGenerator);
   }
 
-  public JacksonSerdeFactory(ObjectMapper mapper, SchemaGenerator schemaGenerator) {
+  public JacksonSerdeFactory(ObjectMapper mapper, @Nullable SchemaGenerator schemaGenerator) {
     this.mapper = mapper;
     this.schemaGenerator = schemaGenerator;
   }
@@ -64,11 +65,16 @@ public class JacksonSerdeFactory implements SerdeFactory {
   static <T> Serde<T> create(
       JavaType constructedType,
       Type originalType,
-      SchemaGenerator schemaGenerator,
+      @Nullable SchemaGenerator schemaGenerator,
       ObjectMapper mapper) {
     return new Serde<>() {
       @Override
-      public Schema jsonSchema() {
+      public @Nullable Schema jsonSchema() {
+        // schemaGenerator is null when an incompatible victools version is on the classpath,
+        // see JacksonSerdes#buildSchemaGenerator.
+        if (schemaGenerator == null) {
+          return null;
+        }
         return new Serde.JsonSchema(schemaGenerator.generateSchema(originalType));
       }
 
