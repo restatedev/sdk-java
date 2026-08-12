@@ -20,6 +20,11 @@
 
 mod logging;
 mod mem;
+/// The relay-tunnel C ABI (`relay_tunnel_*`). `pub` so its `#[repr(C)]` result
+/// type is part of the crate's reachable surface (matching the `vm_*` types in
+/// this file) — otherwise its FFI-only, write-then-read-by-Java fields trip the
+/// dead-code lint.
+pub mod relay_tunnel;
 
 pub use logging::AbiLogLevel;
 pub use mem::{ForeignSlice, Slice};

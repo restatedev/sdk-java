@@ -9,10 +9,14 @@ name = "restate_sdk_core"
 crate-type = ["cdylib"]
 
 [dependencies]
-restate-sdk-shared-core = { version = "7.0.1", features = ["tracing_pretty"] }
+# Pinned to the `relay` branch, which adds the embedded relay-tunnel receiver
+# behind the `tunnel` feature (the `relay_tunnel_*` C ABI below wraps it). Swap
+# back to a crates.io `version = "…"` once that lands in a release.
+restate-sdk-shared-core = { git = "https://github.com/restatedev/sdk-shared-core.git", branch = "relay", features = ["tracing_pretty", "tunnel"] }
 bytes = "1.9"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
+serde_json = "1"
 
 [build-dependencies]
 cbindgen = "0.27"
