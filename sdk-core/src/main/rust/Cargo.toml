@@ -9,7 +9,7 @@ name = "restate_sdk_core"
 crate-type = ["cdylib"]
 
 [dependencies]
-restate-sdk-shared-core = { version = "7.0.1", features = ["tracing_pretty"] }
+restate-sdk-shared-core = { version = "7.0.3", features = ["tracing_pretty"] }
 bytes = "1.9"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
