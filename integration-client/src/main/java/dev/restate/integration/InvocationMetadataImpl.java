@@ -18,7 +18,7 @@ import java.util.Map;
  * extends this and reuses the same builder; when the object is used as producer defaults, {@link
  * #toDefaults()} projects the shared fields onto an {@link IngestionDefaults}.
  */
-class InvocationMetadataImpl implements InvocationMetadata {
+sealed class InvocationMetadataImpl implements InvocationMetadata permits InvocationImpl {
 
   final IngestionInvocation.Builder builder = IngestionInvocation.newBuilder();
 

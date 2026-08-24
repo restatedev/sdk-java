@@ -20,7 +20,8 @@ import java.util.concurrent.CompletableFuture;
  * replication the slot name. Because deduplication happens on {@code (producerId, offset)}, it is
  * then safe to replay from your last checkpoint after a crash: already-committed offsets are
  * dropped, and {@link #flush} / {@link #waitAcknowledged(long)} reports how far Restate has durably
- * caught up so you can advance the checkpoint.
+ * caught up so you can advance the checkpoint. After a stream failure, {@link
+ * #lastAcknowledgedOffset()} remains available so you can determine where to resume.
  *
  * <h2>Sending</h2>
  *

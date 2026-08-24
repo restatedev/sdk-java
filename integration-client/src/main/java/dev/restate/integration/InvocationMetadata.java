@@ -17,7 +17,7 @@ import java.util.Map;
  * producer.
  */
 @org.jetbrains.annotations.ApiStatus.Experimental
-public interface InvocationMetadata {
+public sealed interface InvocationMetadata permits Invocation, InvocationMetadataImpl {
 
   /** Create a standalone metadata object, e.g. to use as producer defaults. */
   static InvocationMetadata create() {

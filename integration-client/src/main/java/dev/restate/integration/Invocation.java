@@ -18,7 +18,7 @@ import java.util.Map;
  * <p>Instances are created via {@link #create()}.
  */
 @org.jetbrains.annotations.ApiStatus.Experimental
-public interface Invocation extends InvocationMetadata {
+public sealed interface Invocation extends InvocationMetadata permits InvocationImpl {
 
   /** Create a standalone invocation, not bound to any producer, to fill in and send. */
   static Invocation create() {
