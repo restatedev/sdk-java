@@ -13,6 +13,7 @@ import dev.restate.ingestion.v1.IngestionInvocation;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Mutable {@link Invocation} backed directly by the {@link IngestionInvocation.Builder} inherited
@@ -22,7 +23,7 @@ import java.util.Map;
 final class InvocationImpl extends InvocationMetadataImpl implements Invocation {
 
   @Override
-  public Invocation setBody(byte[] body) {
+  public Invocation setBody(byte @Nullable [] body) {
     if (body == null) {
       builder.clearPayload();
     } else {
@@ -37,7 +38,7 @@ final class InvocationImpl extends InvocationMetadataImpl implements Invocation 
   }
 
   @Override
-  public Invocation setDelay(Duration delay) {
+  public Invocation setDelay(@Nullable Duration delay) {
     if (delay == null) {
       builder.clearDelayMs();
     } else {
@@ -48,12 +49,12 @@ final class InvocationImpl extends InvocationMetadataImpl implements Invocation 
   }
 
   @Override
-  public Duration getDelay() {
+  public @Nullable Duration getDelay() {
     return builder.hasDelayMs() ? Duration.ofMillis(builder.getDelayMs()) : null;
   }
 
   @Override
-  public Invocation setInvokeTime(Instant invokeTime) {
+  public Invocation setInvokeTime(@Nullable Instant invokeTime) {
     if (invokeTime == null) {
       builder.clearInvokeTimeTsMs();
     } else {
@@ -64,12 +65,12 @@ final class InvocationImpl extends InvocationMetadataImpl implements Invocation 
   }
 
   @Override
-  public Instant getInvokeTime() {
+  public @Nullable Instant getInvokeTime() {
     return builder.hasInvokeTimeTsMs() ? Instant.ofEpochMilli(builder.getInvokeTimeTsMs()) : null;
   }
 
   @Override
-  public Invocation setTraceparent(String traceparent) {
+  public Invocation setTraceparent(@Nullable String traceparent) {
     if (traceparent == null) {
       builder.clearTraceparent();
     } else {
@@ -79,12 +80,12 @@ final class InvocationImpl extends InvocationMetadataImpl implements Invocation 
   }
 
   @Override
-  public String getTraceparent() {
+  public @Nullable String getTraceparent() {
     return builder.hasTraceparent() ? builder.getTraceparent() : null;
   }
 
   @Override
-  public Invocation setTracestate(String tracestate) {
+  public Invocation setTracestate(@Nullable String tracestate) {
     if (tracestate == null) {
       builder.clearTracestate();
     } else {
@@ -94,7 +95,7 @@ final class InvocationImpl extends InvocationMetadataImpl implements Invocation 
   }
 
   @Override
-  public String getTracestate() {
+  public @Nullable String getTracestate() {
     return builder.hasTracestate() ? builder.getTracestate() : null;
   }
 
@@ -102,37 +103,37 @@ final class InvocationImpl extends InvocationMetadataImpl implements Invocation 
   // lives once in InvocationMetadataImpl (against the shared builder); these only refine the type.
 
   @Override
-  public Invocation setServiceName(String serviceName) {
+  public Invocation setServiceName(@Nullable String serviceName) {
     super.setServiceName(serviceName);
     return this;
   }
 
   @Override
-  public Invocation setHandlerName(String handlerName) {
+  public Invocation setHandlerName(@Nullable String handlerName) {
     super.setHandlerName(handlerName);
     return this;
   }
 
   @Override
-  public Invocation setKey(String key) {
+  public Invocation setKey(@Nullable String key) {
     super.setKey(key);
     return this;
   }
 
   @Override
-  public Invocation setScope(String scope) {
+  public Invocation setScope(@Nullable String scope) {
     super.setScope(scope);
     return this;
   }
 
   @Override
-  public Invocation setLimitKey(String limitKey) {
+  public Invocation setLimitKey(@Nullable String limitKey) {
     super.setLimitKey(limitKey);
     return this;
   }
 
   @Override
-  public Invocation setIdempotencyKey(String idempotencyKey) {
+  public Invocation setIdempotencyKey(@Nullable String idempotencyKey) {
     super.setIdempotencyKey(idempotencyKey);
     return this;
   }
@@ -144,7 +145,7 @@ final class InvocationImpl extends InvocationMetadataImpl implements Invocation 
   }
 
   @Override
-  public Invocation setHeaders(Map<String, String> headers) {
+  public Invocation setHeaders(@Nullable Map<String, String> headers) {
     super.setHeaders(headers);
     return this;
   }

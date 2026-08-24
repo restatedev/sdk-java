@@ -11,6 +11,7 @@ package dev.restate.integration;
 import dev.restate.ingestion.v1.IngestionDefaults;
 import dev.restate.ingestion.v1.IngestionInvocation;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Mutable {@link InvocationMetadata} backed directly by an {@link IngestionInvocation.Builder}, so
@@ -47,7 +48,7 @@ sealed class InvocationMetadataImpl implements InvocationMetadata permits Invoca
   }
 
   @Override
-  public InvocationMetadata setServiceName(String serviceName) {
+  public InvocationMetadata setServiceName(@Nullable String serviceName) {
     if (serviceName == null) {
       builder.clearService();
     } else {
@@ -57,12 +58,12 @@ sealed class InvocationMetadataImpl implements InvocationMetadata permits Invoca
   }
 
   @Override
-  public String getServiceName() {
+  public @Nullable String getServiceName() {
     return builder.hasService() ? builder.getService() : null;
   }
 
   @Override
-  public InvocationMetadata setHandlerName(String handlerName) {
+  public InvocationMetadata setHandlerName(@Nullable String handlerName) {
     if (handlerName == null) {
       builder.clearHandler();
     } else {
@@ -72,12 +73,12 @@ sealed class InvocationMetadataImpl implements InvocationMetadata permits Invoca
   }
 
   @Override
-  public String getHandlerName() {
+  public @Nullable String getHandlerName() {
     return builder.hasHandler() ? builder.getHandler() : null;
   }
 
   @Override
-  public InvocationMetadata setKey(String key) {
+  public InvocationMetadata setKey(@Nullable String key) {
     if (key == null) {
       builder.clearKey();
     } else {
@@ -87,12 +88,12 @@ sealed class InvocationMetadataImpl implements InvocationMetadata permits Invoca
   }
 
   @Override
-  public String getKey() {
+  public @Nullable String getKey() {
     return builder.hasKey() ? builder.getKey() : null;
   }
 
   @Override
-  public InvocationMetadata setScope(String scope) {
+  public InvocationMetadata setScope(@Nullable String scope) {
     if (scope == null) {
       builder.clearScope();
     } else {
@@ -102,12 +103,12 @@ sealed class InvocationMetadataImpl implements InvocationMetadata permits Invoca
   }
 
   @Override
-  public String getScope() {
+  public @Nullable String getScope() {
     return builder.hasScope() ? builder.getScope() : null;
   }
 
   @Override
-  public InvocationMetadata setLimitKey(String limitKey) {
+  public InvocationMetadata setLimitKey(@Nullable String limitKey) {
     if (limitKey == null) {
       builder.clearLimitKey();
     } else {
@@ -117,12 +118,12 @@ sealed class InvocationMetadataImpl implements InvocationMetadata permits Invoca
   }
 
   @Override
-  public String getLimitKey() {
+  public @Nullable String getLimitKey() {
     return builder.hasLimitKey() ? builder.getLimitKey() : null;
   }
 
   @Override
-  public InvocationMetadata setIdempotencyKey(String idempotencyKey) {
+  public InvocationMetadata setIdempotencyKey(@Nullable String idempotencyKey) {
     if (idempotencyKey == null) {
       builder.clearIdempotencyKey();
     } else {
@@ -132,7 +133,7 @@ sealed class InvocationMetadataImpl implements InvocationMetadata permits Invoca
   }
 
   @Override
-  public String getIdempotencyKey() {
+  public @Nullable String getIdempotencyKey() {
     return builder.hasIdempotencyKey() ? builder.getIdempotencyKey() : null;
   }
 
@@ -143,7 +144,7 @@ sealed class InvocationMetadataImpl implements InvocationMetadata permits Invoca
   }
 
   @Override
-  public InvocationMetadata setHeaders(Map<String, String> headers) {
+  public InvocationMetadata setHeaders(@Nullable Map<String, String> headers) {
     builder.clearAdditionalHeaders();
     if (headers != null) {
       builder.putAllAdditionalHeaders(headers);

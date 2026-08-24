@@ -11,6 +11,7 @@ package dev.restate.integration;
 import dev.restate.ingestion.v1.IngestionDefaults;
 import java.time.Duration;
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
 /** Configuration shared by at-least-once and exactly-once producers. */
 @org.jetbrains.annotations.ApiStatus.Experimental
@@ -72,7 +73,7 @@ public final class ProducerOptions {
   public static final class Builder {
     private long bufferMemory = DEFAULT_BUFFER_MEMORY;
     private Duration maxBlockTime = DEFAULT_MAX_BLOCK_TIME;
-    private InvocationMetadata defaultMetadata;
+    private @Nullable InvocationMetadata defaultMetadata;
 
     private Builder() {}
 

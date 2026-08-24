@@ -9,6 +9,7 @@
 package dev.restate.integration;
 
 import java.net.URI;
+import org.jspecify.annotations.Nullable;
 
 /** Where to reach the Restate ingestion gRPC endpoint, parsed from an http(s) URL. */
 final class IngressEndpoint {
@@ -38,7 +39,7 @@ final class IngressEndpoint {
       throw new IllegalArgumentException("ingress url is not a valid URL: '" + raw + "'", e);
     }
     boolean tls;
-    String scheme = uri.getScheme() == null ? null : uri.getScheme().toLowerCase();
+    @Nullable String scheme = uri.getScheme() == null ? null : uri.getScheme().toLowerCase();
     if ("https".equals(scheme)) {
       tls = true;
     } else if ("http".equals(scheme)) {
@@ -51,7 +52,7 @@ final class IngressEndpoint {
               + raw
               + "'");
     }
-    String host = uri.getHost();
+    @Nullable String host = uri.getHost();
     if (host == null) {
       throw new IllegalArgumentException("ingress url has no host: '" + raw + "'");
     }
