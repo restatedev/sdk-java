@@ -13,6 +13,11 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Common producer offsets, acknowledgement, flushing, and lifecycle operations.
  *
+ * <p>Producer futures can complete inline on a transport callback. A synchronous continuation must
+ * not invoke an operation that would block, such as {@link #flush()}; offload the continuation to
+ * an executor instead. A reentrant call that would block is rejected with {@link
+ * IllegalStateException} rather than deadlocking the transport callback lane.
+ *
  * @see Producer
  * @see ExactlyOnceProducer
  */
@@ -58,6 +63,8 @@ public interface ProducerBase extends AutoCloseable {
    * @return the highest durably committed offset
    * @throws IntegrationClientException if the producer fails before all invocations are
    *     acknowledged
+   * @throws IllegalStateException if a reentrant producer callback invokes this method when it
+   *     would block
    * @throws java.util.ConcurrentModificationException if the producer is used concurrently from
    *     another thread
    */

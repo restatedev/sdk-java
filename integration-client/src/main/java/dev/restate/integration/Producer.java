@@ -79,6 +79,8 @@ public interface Producer extends ProducerBase {
    * @return a future completing, once the invocation is durably committed by Restate.
    * @throws ProducerBufferExhaustedException if the producer cannot admit the invocation before the
    *     configured maximum blocking time elapses, or the thread is interrupted while waiting
+   * @throws IllegalStateException if a reentrant producer callback invokes this method when it
+   *     would block
    * @throws IllegalArgumentException if buffering is enabled and the serialized invocation is
    *     larger than {@link ProducerOptions#bufferMemory()}
    * @throws java.util.ConcurrentModificationException if the producer is used concurrently from

@@ -94,6 +94,8 @@ public interface ExactlyOnceProducer extends ProducerBase {
    *     SendResult} carrying {@code offset}
    * @throws ProducerBufferExhaustedException if the producer cannot admit the invocation before the
    *     configured maximum blocking time elapses, or the thread is interrupted while waiting
+   * @throws IllegalStateException if a reentrant producer callback invokes this method when it
+   *     would block
    * @throws IllegalArgumentException if {@code offset} is not strictly greater than {@link
    *     #lastSentOffset()}, or buffering is enabled and the serialized invocation is larger than
    *     {@link ProducerOptions#bufferMemory()}
