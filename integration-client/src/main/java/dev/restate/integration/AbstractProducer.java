@@ -313,10 +313,13 @@ abstract class AbstractProducer implements ProducerBase {
     return committed.thenApply(ignored -> new SendResultImpl(prepared.offset()));
   }
 
-  /** Hand a zero-buffer invocation directly to gRPC, failing the producer if the write is refused. */
+  /**
+   * Hand a zero-buffer invocation directly to gRPC, failing the producer if the write is refused.
+   */
   private void writeDirect(IngestionRequest request) {
     try {
-      Objects.requireNonNull(callObserver, "gRPC request stream was not initialized").onNext(request);
+      Objects.requireNonNull(callObserver, "gRPC request stream was not initialized")
+          .onNext(request);
     } catch (RuntimeException e) {
       IntegrationClientException cause =
           new IntegrationClientException(
