@@ -11,40 +11,66 @@ package dev.restate.integration;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Like {@link Producer}, but with exactly-once semantics.
- *
- * <h2>Exactly once</h2>
- *
- * Pick a producer id that is <b>stable across restarts</b> and <b>distinct per independent offset
- * sequence</b>. E.g., for a Kafka consumer {@code groupId/topic/partition}, for Postgres logical
- * replication the slot name. Because deduplication happens on {@code (producerId, offset)}, it is
- * then safe to replay from your last checkpoint after a crash: already-committed offsets are
- * dropped, and {@link #flush()} / {@link #waitAcknowledged(long)} reports how far Restate has
- * durably caught up so you can advance the checkpoint. After a stream failure, {@link
- * #lastAcknowledgedOffset()} remains available so you can determine where to resume.
- *
- * <h2>Sending</h2>
- *
- * {@link #send} admits the record into a byte-bounded local buffer, waiting up to {@link
- * ProducerOptions#maxBlockTime()} for capacity, and returns a future that completes once Restate
- * has durably committed it. Use {@link #trySend} when the calling thread must never block.
- *
- * <p>Awaiting each {@code send} future before the next send serializes to one in-flight record. To
- * parallelize sending, just keep {@code send}ing and use {@link #flush} to await durability in
- * bulk.
+ * Sends invocations to Restate with exactly-once deduplication.
  *
  * <pre>{@code
- * producer.send(lsn, Invocation.create().setBody(payload));
- * long committed = producer.flush();
- * checkpoint.store(committed);
+ * try (IntegrationClient client = IntegrationClient.builder("http://localhost:8080").build();
+ *     ExactlyOnceProducer producer =
+ *         client.newExactlyOnceProducer("group-a/orders/0")) {
+ *   long offset = checkpoint.load() + 1;
+ *   producer.send(
+ *       offset,
+ *       Invocation.create()
+ *           .setServiceName("Orders")
+ *           .setHandlerName("ingest")
+ *           .setBody(payload));
+ *   checkpoint.store(producer.flush());
+ * }
  * }</pre>
  *
- * <p>{@link #close()} does not flush. Call {@link #flush()} before closing, or await {@link
- * #flushAsync()}, when accepted invocations must be durably committed.
+ * <h2>Buffering</h2>
  *
- * <h2>Thread safety</h2>
+ * {@link #send} first admits the invocation to a local buffer, bounded by {@link
+ * ProducerOptions#bufferMemory()}, while it waits to be handed to the transport. If the buffer is
+ * full, {@code send} waits up to {@link ProducerOptions#maxBlockTime()} and then throws {@link
+ * ProducerBufferExhaustedException}. The returned future tracks durable acknowledgement, not buffer
+ * admission. Send several invocations without awaiting each future, then use {@link #flush()} or
+ * {@link #flushAsync()} to await them in bulk. {@link #close()} does not flush.
  *
- * A producer is <b>not thread-safe</b> and fails fast with {@link
+ * <h2>Non-blocking admission</h2>
+ *
+ * For event-loop or callback-based code, {@link #trySend} does not wait for buffer capacity. {@link
+ * SendAttempt.Accepted} contains the durable-acknowledgement future. On {@link
+ * SendAttempt.Backpressured}, use {@link SendAttempt.Backpressured#ready()} to schedule a retry of
+ * the same offset and invocation on the event loop; readiness is a notification, not a capacity
+ * reservation.
+ *
+ * <pre>{@code
+ * static CompletableFuture<SendResult> sendWithoutBlocking(
+ *     ExactlyOnceProducer producer, long offset, Invocation invocation, Executor eventLoop) {
+ *   SendAttempt attempt = producer.trySend(offset, invocation);
+ *   if (attempt instanceof SendAttempt.Accepted accepted) {
+ *     return accepted.acknowledgement();
+ *   }
+ *   return ((SendAttempt.Backpressured) attempt)
+ *       .ready()
+ *       .thenComposeAsync(
+ *           ignored -> sendWithoutBlocking(producer, offset, invocation, eventLoop), eventLoop);
+ * }
+ * }</pre>
+ *
+ * <h2>Producer identity and deduplication</h2>
+ *
+ * Each invocation has a strictly increasing offset. Restate deduplicates on {@code (producerId,
+ * offset)}, so choose a producer id that is <b>stable across restarts</b> and <b>distinct per
+ * independent offset sequence</b>: for example, a Kafka {@code groupId/topic/partition} or a
+ * Postgres logical-replication slot.
+ *
+ * <p>After a crash, replay from the last checkpoint; Restate drops already-committed offsets.
+ * {@link #flush()} and {@link #waitAcknowledged(long)} report the durable watermark to checkpoint,
+ * and {@link #lastAcknowledgedOffset()} remains available after a stream failure.
+ *
+ * <p>A producer is <b>not thread-safe</b> and fails fast with {@link
  * java.util.ConcurrentModificationException} if used from more than one thread at once.
  */
 @org.jetbrains.annotations.ApiStatus.Experimental
