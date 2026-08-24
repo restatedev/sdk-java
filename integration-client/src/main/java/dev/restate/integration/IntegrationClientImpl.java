@@ -52,30 +52,8 @@ final class IntegrationClientImpl implements IntegrationClient {
   }
 
   @Override
-  public Producer newProducer() {
-    return newProducer(ProducerOptions.defaults());
-  }
-
-  @Override
-  public Producer newProducer(InvocationMetadata defaultMetadata) {
-    return newProducer(ProducerOptions.builder().defaultMetadata(defaultMetadata).build());
-  }
-
-  @Override
   public Producer newProducer(ProducerOptions options) {
     return new ProducerImpl(stub, Objects.requireNonNull(options, "options"), integration);
-  }
-
-  @Override
-  public ExactlyOnceProducer newExactlyOnceProducer(String producerId) {
-    return newExactlyOnceProducer(producerId, ProducerOptions.defaults());
-  }
-
-  @Override
-  public ExactlyOnceProducer newExactlyOnceProducer(
-      String producerId, InvocationMetadata defaultMetadata) {
-    return newExactlyOnceProducer(
-        producerId, ProducerOptions.builder().defaultMetadata(defaultMetadata).build());
   }
 
   @Override

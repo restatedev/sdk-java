@@ -22,7 +22,7 @@ public final class ProducerOptions {
   /** Kafka-compatible default maximum admission wait: one minute. */
   public static final Duration DEFAULT_MAX_BLOCK_TIME = Duration.ofMinutes(1);
 
-  private static final ProducerOptions DEFAULTS = builder().build();
+  static final ProducerOptions DEFAULTS = builder().build();
 
   private final long bufferMemory;
   private final Duration maxBlockTime;
@@ -35,15 +35,6 @@ public final class ProducerOptions {
         builder.defaultMetadata == null
             ? IngestionDefaults.getDefaultInstance()
             : ((InvocationMetadataImpl) builder.defaultMetadata).toDefaults();
-  }
-
-  /**
-   * Returns options with the standard defaults.
-   *
-   * @return the shared default options
-   */
-  public static ProducerOptions defaults() {
-    return DEFAULTS;
   }
 
   /**
@@ -71,16 +62,6 @@ public final class ProducerOptions {
    */
   public Duration maxBlockTime() {
     return maxBlockTime;
-  }
-
-  /**
-   * Returns a mutable copy of the default invocation metadata captured by these options. Mutating
-   * the returned object does not change these options.
-   *
-   * @return a mutable copy of the default invocation metadata
-   */
-  public InvocationMetadata defaultMetadata() {
-    return InvocationMetadataImpl.fromDefaults(defaultMetadata);
   }
 
   IngestionDefaults toDefaults() {
