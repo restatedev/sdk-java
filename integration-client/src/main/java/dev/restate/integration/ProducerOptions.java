@@ -48,7 +48,9 @@ public final class ProducerOptions {
   }
 
   /**
-   * Maximum serialized bytes retained while invocations wait to be handed to the transport.
+   * Maximum serialized bytes retained while invocations wait to be handed to the transport. A value
+   * of zero disables local buffering: {@code send} waits until the invocation can be handed
+   * directly to the transport, and {@code trySend} reports backpressure until that is possible.
    *
    * @return the local buffer limit in bytes
    */
@@ -57,7 +59,9 @@ public final class ProducerOptions {
   }
 
   /**
-   * Maximum time {@code send} waits for buffer capacity before refusing an invocation.
+   * Maximum time {@code send} waits for admission before refusing an invocation. Admission requires
+   * buffer capacity when buffering is enabled, or protocol and transport readiness when {@link
+   * #bufferMemory()} is zero.
    *
    * @return the maximum admission wait
    */
@@ -79,21 +83,21 @@ public final class ProducerOptions {
 
     /**
      * Sets the maximum serialized bytes retained while invocations wait to be handed to the
-     * transport.
+     * transport. Set this to zero to disable local buffering.
      *
-     * @param bytes a positive byte count
+     * @param bytes a non-negative byte count
      */
     public Builder bufferMemory(long bytes) {
-      if (bytes <= 0) {
-        throw new IllegalArgumentException("bufferMemory must be greater than zero");
+      if (bytes < 0) {
+        throw new IllegalArgumentException("bufferMemory must not be negative");
       }
       this.bufferMemory = bytes;
       return this;
     }
 
     /**
-     * Sets how long {@code send} waits for buffer capacity. {@link Duration#ZERO} makes {@code
-     * send} fail immediately when the buffer is full.
+     * Sets how long {@code send} waits for admission. {@link Duration#ZERO} makes {@code send} fail
+     * immediately under backpressure.
      */
     public Builder maxBlockTime(Duration duration) {
       Objects.requireNonNull(duration, "maxBlockTime");
