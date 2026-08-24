@@ -9,22 +9,25 @@
 package dev.restate.integration;
 
 import dev.restate.ingestion.v1.IngestionSvcGrpc;
+import io.grpc.Channel;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import org.jspecify.annotations.Nullable;
 
-/** {@link IntegrationClient} backed by a single gRPC {@link ManagedChannel} shared by producers. */
+/** {@link IntegrationClient} backed by a single gRPC {@link Channel} shared by producers. */
 final class IntegrationClientImpl implements IntegrationClient {
 
-  private final ManagedChannel channel;
+  private final @Nullable ManagedChannel ownedChannel;
   private final IngestionSvcGrpc.IngestionSvcStub stub;
   private final String integration;
 
   private IntegrationClientImpl(
-      ManagedChannel channel, IngestionSvcGrpc.IngestionSvcStub stub, String integration) {
-    this.channel = channel;
+      @Nullable ManagedChannel ownedChannel,
+      IngestionSvcGrpc.IngestionSvcStub stub,
+      String integration) {
+    this.ownedChannel = ownedChannel;
     this.stub = stub;
     this.integration = integration;
   }
@@ -40,16 +43,23 @@ final class IntegrationClientImpl implements IntegrationClient {
     }
     ManagedChannel channel = builder.build();
 
+    return create(channel, authToken, integration, channel);
+  }
+
+  static IntegrationClient create(Channel channel, @Nullable String authToken, String integration) {
+    return create(Objects.requireNonNull(channel, "channel"), authToken, integration, null);
+  }
+
+  private static IntegrationClient create(
+      Channel channel,
+      @Nullable String authToken,
+      String integration,
+      @Nullable ManagedChannel ownedChannel) {
     IngestionSvcGrpc.IngestionSvcStub stub = IngestionSvcGrpc.newStub(channel);
     if (authToken != null && !authToken.isBlank()) {
       stub = stub.withInterceptors(new AuthInterceptor(authToken));
     }
-    return new IntegrationClientImpl(channel, stub, integration);
-  }
-
-  /** Visible for testing: build a client over an already-created channel (e.g. gRPC in-process). */
-  static IntegrationClient forChannel(ManagedChannel channel, String integration) {
-    return new IntegrationClientImpl(channel, IngestionSvcGrpc.newStub(channel), integration);
+    return new IntegrationClientImpl(ownedChannel, stub, integration);
   }
 
   @Override
@@ -69,6 +79,10 @@ final class IntegrationClientImpl implements IntegrationClient {
 
   @Override
   public void close() {
+    ManagedChannel channel = ownedChannel;
+    if (channel == null) {
+      return;
+    }
     channel.shutdown();
     try {
       if (!channel.awaitTermination(5, TimeUnit.SECONDS)) {

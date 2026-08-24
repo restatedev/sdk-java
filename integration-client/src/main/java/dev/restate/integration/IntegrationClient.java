@@ -95,12 +95,22 @@ public interface IntegrationClient extends AutoCloseable {
 
   /** Builder for {@link IntegrationClient}. */
   final class Builder {
-    private final String target;
+    @FunctionalInterface
+    interface Factory {
+      IntegrationClient create(@Nullable String authToken, String integration);
+    }
+
+    private final Factory factory;
     private @Nullable String authToken;
     private String integration = Version.INTEGRATION;
 
     private Builder(String target) {
-      this.target = target;
+      this(
+          (authToken, integration) -> IntegrationClientImpl.create(target, authToken, integration));
+    }
+
+    Builder(Factory factory) {
+      this.factory = factory;
     }
 
     /** Bearer token sent as the {@code Authorization} header on the ingestion stream. */
@@ -119,7 +129,7 @@ public interface IntegrationClient extends AutoCloseable {
     }
 
     public IntegrationClient build() {
-      return IntegrationClientImpl.create(target, authToken, integration);
+      return factory.create(authToken, integration);
     }
   }
 }

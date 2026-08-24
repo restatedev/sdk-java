@@ -53,7 +53,7 @@ class IntegrationClientTest {
     fake = new FakeIngestionService();
     server = InProcessServerBuilder.forName(name).directExecutor().addService(fake).build().start();
     channel = InProcessChannelBuilder.forName(name).directExecutor().build();
-    client = IntegrationClientImpl.forChannel(channel, INTEGRATION);
+    client = GrpcIntegrationClient.builder(channel).integration("test-integration", "1.0").build();
   }
 
   @AfterEach
@@ -61,9 +61,20 @@ class IntegrationClientTest {
     if (client != null) {
       client.close();
     }
+    if (channel != null) {
+      channel.shutdownNow();
+    }
     if (server != null) {
       server.shutdownNow();
     }
+  }
+
+  @Test
+  void grpcBridgeDoesNotCloseCallerOwnedChannel() {
+    client.close();
+
+    assertThat(channel.isShutdown()).isFalse();
+    client = null;
   }
 
   @Test
