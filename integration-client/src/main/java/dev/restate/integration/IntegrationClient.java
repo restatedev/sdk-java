@@ -17,7 +17,9 @@ public interface IntegrationClient extends AutoCloseable {
    *
    * @return a new producer
    */
-  Producer newProducer();
+  default Producer newProducer() {
+    return newProducer(ProducerOptions.DEFAULTS);
+  }
 
   /**
    * Creates at-least-once {@link Producer} with the given stream defaults.
@@ -26,7 +28,9 @@ public interface IntegrationClient extends AutoCloseable {
    * @return a new producer
    * @throws NullPointerException if {@code defaultMetadata} is {@code null}
    */
-  Producer newProducer(InvocationMetadata defaultMetadata);
+  default Producer newProducer(InvocationMetadata defaultMetadata) {
+    return newProducer(ProducerOptions.builder().defaultMetadata(defaultMetadata).build());
+  }
 
   /**
    * Creates an at-least-once {@link Producer} with the given options.
@@ -44,7 +48,9 @@ public interface IntegrationClient extends AutoCloseable {
    * @return a new exactly-once producer
    * @throws IllegalArgumentException if {@code producerId} is {@code null} or blank
    */
-  ExactlyOnceProducer newExactlyOnceProducer(String producerId);
+  default ExactlyOnceProducer newExactlyOnceProducer(String producerId) {
+    return newExactlyOnceProducer(producerId, ProducerOptions.DEFAULTS);
+  }
 
   /**
    * Creates an {@link ExactlyOnceProducer} identified by {@code producerId} with the given stream
@@ -56,7 +62,11 @@ public interface IntegrationClient extends AutoCloseable {
    * @throws IllegalArgumentException if {@code producerId} is {@code null} or blank
    * @throws NullPointerException if {@code defaultMetadata} is {@code null}
    */
-  ExactlyOnceProducer newExactlyOnceProducer(String producerId, InvocationMetadata defaultMetadata);
+  default ExactlyOnceProducer newExactlyOnceProducer(
+      String producerId, InvocationMetadata defaultMetadata) {
+    return newExactlyOnceProducer(
+        producerId, ProducerOptions.builder().defaultMetadata(defaultMetadata).build());
+  }
 
   /**
    * Creates an {@link ExactlyOnceProducer} identified by {@code producerId} with the given options.
