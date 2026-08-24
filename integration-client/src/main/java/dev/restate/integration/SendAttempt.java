@@ -28,8 +28,8 @@ public sealed interface SendAttempt {
   }
 
   /**
-   * The invocation was not accepted because the local buffer was full. {@code ready} completes when
-   * retrying may succeed; it is a notification, not a capacity reservation.
+   * The invocation was not accepted because the producer was backpressured. {@code ready} completes
+   * when retrying may succeed; it is a notification, not an admission reservation.
    *
    * @param ready future completed when retrying may succeed
    */

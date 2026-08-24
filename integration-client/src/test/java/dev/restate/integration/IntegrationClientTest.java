@@ -108,7 +108,8 @@ class IntegrationClientTest {
 
   @Test
   void producerOptionsValidateBufferAndBlockTime() {
-    assertThatThrownBy(() -> ProducerOptions.builder().bufferMemory(0))
+    assertThat(ProducerOptions.builder().bufferMemory(0).build().bufferMemory()).isZero();
+    assertThatThrownBy(() -> ProducerOptions.builder().bufferMemory(-1))
         .isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(() -> ProducerOptions.builder().maxBlockTime(Duration.ofMillis(-1)))
         .isInstanceOf(IllegalArgumentException.class);
@@ -199,6 +200,79 @@ class IntegrationClientTest {
 
     fake.ack(0L);
     assertThat(get(acknowledgement).offset()).isEqualTo(0L);
+  }
+
+  @Test
+  void zeroBufferTrySendWaitsForDirectWriteReadiness() throws Exception {
+    Producer producer =
+        client.newProducer(
+            ProducerOptions.builder().bufferMemory(0).maxBlockTime(Duration.ZERO).build());
+    fake.take(); // Start
+
+    SendAttempt first = producer.trySend(newBody("a".repeat(100)));
+    assertThat(first).isInstanceOf(SendAttempt.Backpressured.class);
+    CompletableFuture<Void> ready = ((SendAttempt.Backpressured) first).ready();
+    assertThat(ready).isNotDone();
+    assertThat(producer.lastSentOffset()).isEqualTo(-1L);
+    fake.assertNoRequest();
+
+    // Any positive protocol credit permits one direct write, even when the invocation overshoots
+    // the remaining byte window.
+    fake.grantWindow(1);
+    get(ready);
+
+    SendAttempt.Accepted accepted =
+        (SendAttempt.Accepted) producer.trySend(newBody("a".repeat(100)));
+    assertThat(producer.lastSentOffset()).isEqualTo(0L);
+    assertThat(fake.take().getInvocation().getOffset()).isEqualTo(0L);
+
+    // The first invocation exhausted the window, so another direct write is backpressured.
+    assertThat(producer.trySend(newBody("b"))).isInstanceOf(SendAttempt.Backpressured.class);
+    assertThat(producer.lastSentOffset()).isEqualTo(0L);
+
+    fake.ack(0L);
+    assertThat(get(accepted.acknowledgement()).offset()).isEqualTo(0L);
+  }
+
+  @Test
+  void zeroBufferSendBlocksUntilDirectWriteReadiness() throws Exception {
+    Producer producer =
+        client.newProducer(
+            ProducerOptions.builder().bufferMemory(0).maxBlockTime(Duration.ofSeconds(5)).build());
+    fake.take(); // Start
+
+    CountDownLatch attempting = new CountDownLatch(1);
+    CompletableFuture<CompletableFuture<SendResult>> blocked =
+        CompletableFuture.supplyAsync(
+            () -> {
+              attempting.countDown();
+              return producer.send(newBody("a"));
+            });
+    assertThat(attempting.await(5, TimeUnit.SECONDS)).isTrue();
+    Thread.sleep(50);
+    assertThat(blocked).isNotDone();
+    fake.assertNoRequest();
+
+    fake.grantWindow(10_000);
+    CompletableFuture<SendResult> acknowledgement = get(blocked);
+    assertThat(fake.take().getInvocation().getOffset()).isEqualTo(0L);
+
+    fake.ack(0L);
+    assertThat(get(acknowledgement).offset()).isEqualTo(0L);
+  }
+
+  @Test
+  void zeroBufferAndZeroMaxBlockTimeFailWithoutConsumingOffset() throws Exception {
+    Producer producer =
+        client.newProducer(
+            ProducerOptions.builder().bufferMemory(0).maxBlockTime(Duration.ZERO).build());
+    fake.take(); // Start
+
+    assertThatThrownBy(() -> producer.send(newBody("a")))
+        .isInstanceOf(ProducerBufferExhaustedException.class)
+        .hasMessageContaining("backpressured");
+    assertThat(producer.lastSentOffset()).isEqualTo(-1L);
+    fake.assertNoRequest();
   }
 
   @Test

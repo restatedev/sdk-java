@@ -34,9 +34,11 @@ import org.jspecify.annotations.Nullable;
  * Owns exactly one ingestion bidi stream and all its send-side state. See {@link ProducerBase} and
  * the module docs for the concurrency contract.
  *
- * <p>Accepted records wait in a byte-bounded queue until Restate's send-window has credit ({@code
- * budget}) and the transport is writable ({@code callObserver.isReady()}). Once handed to gRPC,
- * only their acknowledgement futures remain until the commit watermark passes their offsets.
+ * <p>When buffering is enabled, accepted records wait in a byte-bounded queue until Restate's
+ * send-window has credit ({@code budget}) and the transport is writable ({@code
+ * callObserver.isReady()}). With buffering disabled, records are accepted only when they can be
+ * handed directly to gRPC. Once handed off, only their acknowledgement futures remain until the
+ * commit watermark passes their offsets.
  *
  * <p>Two-tier concurrency:
  *
@@ -64,7 +66,7 @@ abstract class AbstractProducer implements ProducerBase {
   private long lastCommitted = -1; // ack watermark; -1 == nothing committed yet
   private final ArrayDeque<BufferedSend> bufferedSends = new ArrayDeque<>();
   private long bufferedBytes = 0;
-  private final List<CapacityWaiter> capacityWaiters = new ArrayList<>();
+  private final List<AdmissionWaiter> admissionWaiters = new ArrayList<>();
   private final TreeMap<Long, List<CompletableFuture<Long>>> ackWaiters = new TreeMap<>();
   private boolean closed = false;
   private @Nullable IntegrationClientException failure;
@@ -192,7 +194,7 @@ abstract class AbstractProducer implements ProducerBase {
 
   // ---- send path, shared by the subclasses (caller holds the guard) ----
 
-  /** Admit a record, blocking up to the configured maximum when the local buffer is full. */
+  /** Admit a record, blocking up to the configured maximum while the producer is backpressured. */
   final CompletableFuture<SendResult> doSend(long offset, InvocationImpl invocation)
       throws ProducerBufferExhaustedException {
     PreparedSend prepared = prepare(offset, invocation);
@@ -201,7 +203,7 @@ abstract class AbstractProducer implements ProducerBase {
     long waitStarted = System.nanoTime();
     synchronized (lock) {
       ensureOpenLocked();
-      while (!hasCapacityLocked(prepared.bufferSize())) {
+      while (!canAdmitLocked(prepared.bufferSize())) {
         if (maxBlockNanos == 0) {
           throw admissionTimeout();
         }
@@ -216,7 +218,7 @@ abstract class AbstractProducer implements ProducerBase {
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           throw new ProducerBufferExhaustedException(
-              "interrupted while waiting for producer buffer capacity", e);
+              "interrupted while waiting for producer admission", e);
         }
         ensureOpenLocked();
       }
@@ -227,25 +229,25 @@ abstract class AbstractProducer implements ProducerBase {
     return acknowledgement;
   }
 
-  /** Attempt to admit a record without blocking or consuming an offset when capacity is absent. */
+  /** Attempt to admit a record without blocking or consuming an offset under backpressure. */
   final SendAttempt doTrySend(long offset, InvocationImpl invocation) {
     PreparedSend prepared = prepare(offset, invocation);
     List<CompletableFuture<@Nullable Void>> ready;
     SendAttempt result;
     synchronized (lock) {
       ensureOpenLocked();
-      if (hasCapacityLocked(prepared.bufferSize())) {
+      if (canAdmitLocked(prepared.bufferSize())) {
         result = new SendAttempt.Accepted(acceptLocked(prepared));
         ready = drainLocked();
       } else {
         CompletableFuture<@Nullable Void> future = new CompletableFuture<>();
-        CapacityWaiter waiter = new CapacityWaiter(prepared.bufferSize(), future);
-        capacityWaiters.add(waiter);
+        AdmissionWaiter waiter = new AdmissionWaiter(prepared.bufferSize(), future);
+        admissionWaiters.add(waiter);
         future.whenComplete(
             (ignored, failure) -> {
               if (future.isCancelled()) {
                 synchronized (lock) {
-                  capacityWaiters.remove(waiter);
+                  admissionWaiters.remove(waiter);
                 }
               }
             });
@@ -263,7 +265,7 @@ abstract class AbstractProducer implements ProducerBase {
     IngestionRequest request =
         IngestionRequest.newBuilder().setInvocation(invocation.toProtoInvocation(offset)).build();
     long bufferSize = request.getSerializedSize();
-    if (bufferSize > bufferMemory) {
+    if (bufferMemory > 0 && bufferSize > bufferMemory) {
       throw new IllegalArgumentException(
           "serialized invocation requires "
               + bufferSize
@@ -274,22 +276,46 @@ abstract class AbstractProducer implements ProducerBase {
         offset, request, request.getInvocation().getSerializedSize(), bufferSize);
   }
 
-  private boolean hasCapacityLocked(long requiredBytes) {
+  private boolean canAdmitLocked(long requiredBytes) {
+    if (bufferMemory == 0) {
+      ClientCallStreamObserver<IngestionRequest> observer =
+          Objects.requireNonNull(callObserver, "gRPC request stream was not initialized");
+      return budget > 0 && observer.isReady();
+    }
     return requiredBytes <= bufferMemory - bufferedBytes;
   }
 
   private CompletableFuture<SendResult> acceptLocked(PreparedSend prepared) {
-    bufferedSends.addLast(
-        new BufferedSend(prepared.request(), prepared.windowDebit(), prepared.bufferSize()));
-    bufferedBytes += prepared.bufferSize();
     lastSent = prepared.offset();
     CompletableFuture<Long> committed = new CompletableFuture<>();
     ackWaiters.computeIfAbsent(prepared.offset(), ignored -> new ArrayList<>()).add(committed);
+    if (bufferMemory == 0) {
+      budget -= prepared.windowDebit();
+      Objects.requireNonNull(callObserver, "gRPC request stream was not initialized")
+          .onNext(prepared.request());
+    } else {
+      bufferedSends.addLast(
+          new BufferedSend(prepared.request(), prepared.windowDebit(), prepared.bufferSize()));
+      bufferedBytes += prepared.bufferSize();
+    }
     return committed.thenApply(ignored -> new SendResultImpl(prepared.offset()));
   }
 
   /** Write as many queued records as transport and protocol flow control currently permit. */
   private List<CompletableFuture<@Nullable Void>> drainLocked() {
+    if (bufferMemory == 0) {
+      if (!canAdmitLocked(0)) {
+        return List.of();
+      }
+      lock.notifyAll();
+      List<CompletableFuture<@Nullable Void>> ready = new ArrayList<>(admissionWaiters.size());
+      for (AdmissionWaiter waiter : admissionWaiters) {
+        ready.add(waiter.future());
+      }
+      admissionWaiters.clear();
+      return ready;
+    }
+
     boolean freedCapacity = false;
     ClientCallStreamObserver<IngestionRequest> observer =
         Objects.requireNonNull(callObserver, "gRPC request stream was not initialized");
@@ -308,8 +334,8 @@ abstract class AbstractProducer implements ProducerBase {
     lock.notifyAll();
     long available = bufferMemory - bufferedBytes;
     List<CompletableFuture<@Nullable Void>> ready = new ArrayList<>();
-    for (Iterator<CapacityWaiter> it = capacityWaiters.iterator(); it.hasNext(); ) {
-      CapacityWaiter waiter = it.next();
+    for (Iterator<AdmissionWaiter> it = admissionWaiters.iterator(); it.hasNext(); ) {
+      AdmissionWaiter waiter = it.next();
       if (waiter.requiredBytes() <= available) {
         ready.add(waiter.future());
         it.remove();
@@ -339,8 +365,9 @@ abstract class AbstractProducer implements ProducerBase {
   }
 
   private ProducerBufferExhaustedException admissionTimeout() {
-    return new ProducerBufferExhaustedException(
-        "producer buffer remained full for " + maxBlockTime);
+    String condition =
+        bufferMemory == 0 ? "producer remained backpressured" : "producer buffer remained full";
+    return new ProducerBufferExhaustedException(condition + " for " + maxBlockTime);
   }
 
   private static long awaitFlush(CompletableFuture<Long> flush) {
@@ -426,11 +453,11 @@ abstract class AbstractProducer implements ProducerBase {
       }
       closed = true;
       failure = cause;
-      capacity = new ArrayList<>(capacityWaiters.size());
-      for (CapacityWaiter waiter : capacityWaiters) {
+      capacity = new ArrayList<>(admissionWaiters.size());
+      for (AdmissionWaiter waiter : admissionWaiters) {
         capacity.add(waiter.future());
       }
-      capacityWaiters.clear();
+      admissionWaiters.clear();
       bufferedSends.clear();
       bufferedBytes = 0;
       lock.notifyAll();
@@ -537,7 +564,7 @@ abstract class AbstractProducer implements ProducerBase {
 
   private record BufferedSend(IngestionRequest request, long windowDebit, long bufferSize) {}
 
-  private record CapacityWaiter(long requiredBytes, CompletableFuture<@Nullable Void> future) {}
+  private record AdmissionWaiter(long requiredBytes, CompletableFuture<@Nullable Void> future) {}
 
   private record SendResultImpl(long offset) implements SendResult {}
 }

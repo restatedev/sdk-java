@@ -27,19 +27,20 @@ import java.util.concurrent.CompletableFuture;
  *
  * <h2>Buffering</h2>
  *
- * {@link #send} first admits the invocation to a local buffer, bounded by {@link
- * ProducerOptions#bufferMemory()}, while it waits to be handed to the transport. If the buffer is
- * full, {@code send} waits up to {@link ProducerOptions#maxBlockTime()} and then throws {@link
- * ProducerBufferExhaustedException}. The returned future tracks durable acknowledgement, not buffer
- * admission. Send several invocations without awaiting each future, then use {@link #flush()} or
- * {@link #flushAsync()} to await them in bulk. {@link #close()} does not flush.
+ * With a positive {@link ProducerOptions#bufferMemory()}, {@link #send} first admits the invocation
+ * to a byte-bounded local buffer while it waits to be handed to the transport. A value of zero
+ * disables local buffering, so {@code send} instead waits until the protocol and transport are
+ * writable. Either wait is bounded by {@link ProducerOptions#maxBlockTime()}. The returned future
+ * tracks durable acknowledgement, not admission. Send several invocations without awaiting each
+ * future, then use {@link #flush()} or {@link #flushAsync()} to await them in bulk. {@link
+ * #close()} does not flush.
  *
  * <h2>Non-blocking admission</h2>
  *
- * For event-loop or callback-based code, {@link #trySend} does not wait for buffer capacity. {@link
+ * For event-loop or callback-based code, {@link #trySend} does not wait for admission. {@link
  * SendAttempt.Accepted} contains the durable-acknowledgement future. On {@link
  * SendAttempt.Backpressured}, use {@link SendAttempt.Backpressured#ready()} to schedule a retry on
- * the event loop; readiness is a notification, not a capacity reservation.
+ * the event loop; readiness is a notification, not an admission reservation.
  *
  * <pre>{@code
  * static CompletableFuture<SendResult> sendWithoutBlocking(
@@ -67,18 +68,19 @@ public interface Producer extends ProducerBase {
   /**
    * Sends an invocation.
    *
-   * <p>If the local buffer is full, this method waits up to {@link ProducerOptions#maxBlockTime()}
-   * for capacity. The invocation is refused with {@link ProducerBufferExhaustedException} if the
-   * timeout elapses. A zero duration makes this method fail immediately under backpressure.
+   * <p>This method waits up to {@link ProducerOptions#maxBlockTime()} when the local buffer is
+   * full, or, when buffering is disabled, until protocol and transport readiness permit a direct
+   * write. The invocation is refused with {@link ProducerBufferExhaustedException} if the timeout
+   * elapses. A zero duration makes this method fail immediately under backpressure.
    *
    * <p>The returned future completes when the invocation is durably committed by Restate.
    *
    * @param invocation the invocation to send
    * @return a future completing, once the invocation is durably committed by Restate.
-   * @throws ProducerBufferExhaustedException if buffer capacity does not become available before
-   *     the configured maximum blocking time elapses, or the thread is interrupted while waiting
-   * @throws IllegalArgumentException if the serialized invocation is larger than {@link
-   *     ProducerOptions#bufferMemory()}
+   * @throws ProducerBufferExhaustedException if the producer cannot admit the invocation before the
+   *     configured maximum blocking time elapses, or the thread is interrupted while waiting
+   * @throws IllegalArgumentException if buffering is enabled and the serialized invocation is
+   *     larger than {@link ProducerOptions#bufferMemory()}
    * @throws java.util.ConcurrentModificationException if the producer is used concurrently from
    *     another thread
    */
@@ -89,12 +91,12 @@ public interface Producer extends ProducerBase {
    *
    * <p>An {@link SendAttempt.Accepted} carries the durable-acknowledgement future. A {@link
    * SendAttempt.Backpressured} carries a future that completes when retrying may succeed; the
-   * notification does not reserve capacity.
+   * notification does not reserve admission.
    *
    * @param invocation the invocation to send
    * @return the admission result
-   * @throws IllegalArgumentException if the serialized invocation is larger than {@link
-   *     ProducerOptions#bufferMemory()}
+   * @throws IllegalArgumentException if buffering is enabled and the serialized invocation is
+   *     larger than {@link ProducerOptions#bufferMemory()}
    * @throws java.util.ConcurrentModificationException if the producer is used concurrently from
    *     another thread
    */
