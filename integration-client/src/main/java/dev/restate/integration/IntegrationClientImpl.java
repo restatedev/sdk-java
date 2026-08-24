@@ -13,6 +13,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import org.jspecify.annotations.Nullable;
 
 /** {@link IntegrationClient} backed by a single gRPC {@link ManagedChannel} shared by producers. */
 final class IntegrationClientImpl implements IntegrationClient {
@@ -28,7 +29,7 @@ final class IntegrationClientImpl implements IntegrationClient {
     this.integration = integration;
   }
 
-  static IntegrationClient create(String target, String authToken, String integration) {
+  static IntegrationClient create(String target, @Nullable String authToken, String integration) {
     IngressEndpoint endpoint = IngressEndpoint.parse(target);
     ManagedChannelBuilder<?> builder =
         ManagedChannelBuilder.forAddress(endpoint.host, endpoint.port);

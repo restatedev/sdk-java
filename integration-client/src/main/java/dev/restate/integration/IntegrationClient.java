@@ -8,6 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.integration;
 
+import org.jspecify.annotations.Nullable;
+
 /** Entry point for producing invocations to Restate ingress over the ingestion API. */
 @org.jetbrains.annotations.ApiStatus.Experimental
 public interface IntegrationClient extends AutoCloseable {
@@ -94,7 +96,7 @@ public interface IntegrationClient extends AutoCloseable {
   /** Builder for {@link IntegrationClient}. */
   final class Builder {
     private final String target;
-    private String authToken;
+    private @Nullable String authToken;
     private String integration = Version.INTEGRATION;
 
     private Builder(String target) {

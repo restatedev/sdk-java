@@ -23,10 +23,12 @@ import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Owns exactly one ingestion bidi stream and all its send-side state. See {@link ProducerBase} and
@@ -51,10 +53,10 @@ abstract class AbstractProducer implements ProducerBase {
   private final Object lock = new Object();
 
   // Set once, synchronously, in beforeStart() before the constructor sends the Start frame.
-  private volatile ClientCallStreamObserver<IngestionRequest> callObserver;
+  private volatile @Nullable ClientCallStreamObserver<IngestionRequest> callObserver;
 
   // ---- fail-fast single-thread guard ----
-  private final AtomicReference<Thread> owner = new AtomicReference<>();
+  private final AtomicReference<@Nullable Thread> owner = new AtomicReference<>();
   private int reentrancy;
 
   // ---- state guarded by `lock` ----
@@ -65,7 +67,7 @@ abstract class AbstractProducer implements ProducerBase {
   private final List<CapacityWaiter> capacityWaiters = new ArrayList<>();
   private final TreeMap<Long, List<CompletableFuture<Long>>> ackWaiters = new TreeMap<>();
   private boolean closed = false;
-  private IntegrationClientException failure;
+  private @Nullable IntegrationClientException failure;
 
   private final long bufferMemory;
   private final Duration maxBlockTime;
@@ -97,7 +99,7 @@ abstract class AbstractProducer implements ProducerBase {
                     .setDefaults(options.toDefaults()))
             .build();
     synchronized (lock) {
-      callObserver.onNext(start);
+      Objects.requireNonNull(callObserver, "gRPC request stream was not initialized").onNext(start);
     }
   }
 
@@ -163,7 +165,8 @@ abstract class AbstractProducer implements ProducerBase {
   private CompletableFuture<Long> registerAckWaiter(long offset) {
     synchronized (lock) {
       if (closed) {
-        return CompletableFuture.failedFuture(failure);
+        return CompletableFuture.failedFuture(
+            Objects.requireNonNull(failure, "closed producer has no failure"));
       }
       if (offset <= lastCommitted) {
         return CompletableFuture.completedFuture(lastCommitted);
@@ -193,7 +196,7 @@ abstract class AbstractProducer implements ProducerBase {
   final CompletableFuture<SendResult> doSend(long offset, InvocationImpl invocation)
       throws ProducerBufferExhaustedException {
     PreparedSend prepared = prepare(offset, invocation);
-    List<CompletableFuture<Void>> ready;
+    List<CompletableFuture<@Nullable Void>> ready;
     CompletableFuture<SendResult> acknowledgement;
     long waitStarted = System.nanoTime();
     synchronized (lock) {
@@ -227,7 +230,7 @@ abstract class AbstractProducer implements ProducerBase {
   /** Attempt to admit a record without blocking or consuming an offset when capacity is absent. */
   final SendAttempt doTrySend(long offset, InvocationImpl invocation) {
     PreparedSend prepared = prepare(offset, invocation);
-    List<CompletableFuture<Void>> ready;
+    List<CompletableFuture<@Nullable Void>> ready;
     SendAttempt result;
     synchronized (lock) {
       ensureOpenLocked();
@@ -235,7 +238,7 @@ abstract class AbstractProducer implements ProducerBase {
         result = new SendAttempt.Accepted(acceptLocked(prepared));
         ready = drainLocked();
       } else {
-        CompletableFuture<Void> future = new CompletableFuture<>();
+        CompletableFuture<@Nullable Void> future = new CompletableFuture<>();
         CapacityWaiter waiter = new CapacityWaiter(prepared.bufferSize(), future);
         capacityWaiters.add(waiter);
         future.whenComplete(
@@ -286,14 +289,16 @@ abstract class AbstractProducer implements ProducerBase {
   }
 
   /** Write as many queued records as transport and protocol flow control currently permit. */
-  private List<CompletableFuture<Void>> drainLocked() {
+  private List<CompletableFuture<@Nullable Void>> drainLocked() {
     boolean freedCapacity = false;
-    while (!closed && budget > 0 && callObserver.isReady() && !bufferedSends.isEmpty()) {
+    ClientCallStreamObserver<IngestionRequest> observer =
+        Objects.requireNonNull(callObserver, "gRPC request stream was not initialized");
+    while (!closed && budget > 0 && observer.isReady() && !bufferedSends.isEmpty()) {
       BufferedSend send = bufferedSends.removeFirst();
       bufferedBytes -= send.bufferSize();
       budget -= send.windowDebit();
       freedCapacity = true;
-      callObserver.onNext(send.request());
+      observer.onNext(send.request());
     }
 
     if (!freedCapacity) {
@@ -302,7 +307,7 @@ abstract class AbstractProducer implements ProducerBase {
 
     lock.notifyAll();
     long available = bufferMemory - bufferedBytes;
-    List<CompletableFuture<Void>> ready = new ArrayList<>();
+    List<CompletableFuture<@Nullable Void>> ready = new ArrayList<>();
     for (Iterator<CapacityWaiter> it = capacityWaiters.iterator(); it.hasNext(); ) {
       CapacityWaiter waiter = it.next();
       if (waiter.requiredBytes() <= available) {
@@ -314,15 +319,15 @@ abstract class AbstractProducer implements ProducerBase {
   }
 
   private void drainAndWake() {
-    List<CompletableFuture<Void>> ready;
+    List<CompletableFuture<@Nullable Void>> ready;
     synchronized (lock) {
       ready = drainLocked();
     }
     completeReady(ready);
   }
 
-  private static void completeReady(List<CompletableFuture<Void>> ready) {
-    for (CompletableFuture<Void> future : ready) {
+  private static void completeReady(List<CompletableFuture<@Nullable Void>> ready) {
+    for (CompletableFuture<@Nullable Void> future : ready) {
       future.complete(null);
     }
   }
@@ -346,12 +351,16 @@ abstract class AbstractProducer implements ProducerBase {
       throw new IntegrationClientException(
           IntegrationClientException.Kind.UNKNOWN, "interrupted while flushing producer", e);
     } catch (ExecutionException e) {
-      Throwable cause = e.getCause();
+      @Nullable Throwable cause = e.getCause();
       if (cause instanceof RuntimeException runtimeException) {
         throw runtimeException;
       }
       if (cause instanceof Error error) {
         throw error;
+      }
+      if (cause == null) {
+        throw new IntegrationClientException(
+            IntegrationClientException.Kind.UNKNOWN, "producer flush failed");
       }
       throw new IntegrationClientException(
           IntegrationClientException.Kind.UNKNOWN, "producer flush failed", cause);
@@ -367,10 +376,10 @@ abstract class AbstractProducer implements ProducerBase {
   }
 
   private void onResponse(IngestionResponse resp) {
-    List<CompletableFuture<Long>> acksToComplete = null;
+    @Nullable List<CompletableFuture<Long>> acksToComplete = null;
     long watermark = -1;
     boolean drain = false;
-    IntegrationClientException err = null;
+    @Nullable IntegrationClientException err = null;
     synchronized (lock) {
       if (closed) {
         return;
@@ -409,7 +418,7 @@ abstract class AbstractProducer implements ProducerBase {
 
   /** Mark the producer terminally closed and fail every pending future with {@code cause}. */
   private void terminate(IntegrationClientException cause, boolean halfClose) {
-    List<CompletableFuture<Void>> capacity;
+    List<CompletableFuture<@Nullable Void>> capacity;
     List<CompletableFuture<Long>> acks = new ArrayList<>();
     synchronized (lock) {
       if (closed) {
@@ -431,7 +440,7 @@ abstract class AbstractProducer implements ProducerBase {
       ackWaiters.clear();
     }
     if (halfClose) {
-      ClientCallStreamObserver<IngestionRequest> obs = callObserver;
+      @Nullable ClientCallStreamObserver<IngestionRequest> obs = callObserver;
       if (obs != null) {
         try {
           obs.onCompleted();
@@ -440,7 +449,7 @@ abstract class AbstractProducer implements ProducerBase {
         }
       }
     }
-    for (CompletableFuture<Void> f : capacity) {
+    for (CompletableFuture<@Nullable Void> f : capacity) {
       f.completeExceptionally(cause);
     }
     for (CompletableFuture<Long> f : acks) {
@@ -528,7 +537,7 @@ abstract class AbstractProducer implements ProducerBase {
 
   private record BufferedSend(IngestionRequest request, long windowDebit, long bufferSize) {}
 
-  private record CapacityWaiter(long requiredBytes, CompletableFuture<Void> future) {}
+  private record CapacityWaiter(long requiredBytes, CompletableFuture<@Nullable Void> future) {}
 
   private record SendResultImpl(long offset) implements SendResult {}
 }

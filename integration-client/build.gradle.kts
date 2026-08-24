@@ -25,6 +25,7 @@ dependencies {
 
   // @ApiStatus.Experimental markers on the public API.
   compileOnly(libs.jetbrains.annotations)
+  compileOnly(libs.jspecify)
 
   testImplementation(libs.junit.jupiter)
   testImplementation(libs.assertj)

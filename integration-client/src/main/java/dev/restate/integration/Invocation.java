@@ -11,11 +11,15 @@ package dev.restate.integration;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A single invocation to send through a {@link Producer} / {@link ExactlyOnceProducer}.
  *
  * <p>Instances are created via {@link #create()}.
+ *
+ * <p>Passing {@code null} to a setter clears that field. Optional getters return {@code null} when
+ * the corresponding field is not set.
  */
 @org.jetbrains.annotations.ApiStatus.Experimental
 public sealed interface Invocation extends InvocationMetadata permits InvocationImpl {
@@ -26,51 +30,51 @@ public sealed interface Invocation extends InvocationMetadata permits Invocation
   }
 
   /** The invocation payload. */
-  Invocation setBody(byte[] body);
+  Invocation setBody(byte @Nullable [] body);
 
   byte[] getBody();
 
   /** Schedule the invocation after a delay. Mutually exclusive with {@link #setInvokeTime}. */
-  Invocation setDelay(Duration delay);
+  Invocation setDelay(@Nullable Duration delay);
 
-  Duration getDelay();
+  @Nullable Duration getDelay();
 
   /** Schedule the invocation at an absolute time. Mutually exclusive with {@link #setDelay}. */
-  Invocation setInvokeTime(Instant invokeTime);
+  Invocation setInvokeTime(@Nullable Instant invokeTime);
 
-  Instant getInvokeTime();
+  @Nullable Instant getInvokeTime();
 
   /** W3C {@code traceparent}. */
-  Invocation setTraceparent(String traceparent);
+  Invocation setTraceparent(@Nullable String traceparent);
 
-  String getTraceparent();
+  @Nullable String getTraceparent();
 
   /** W3C {@code tracestate}. */
-  Invocation setTracestate(String tracestate);
+  Invocation setTracestate(@Nullable String tracestate);
 
-  String getTracestate();
-
-  @Override
-  Invocation setServiceName(String serviceName);
+  @Nullable String getTracestate();
 
   @Override
-  Invocation setHandlerName(String handlerName);
+  Invocation setServiceName(@Nullable String serviceName);
 
   @Override
-  Invocation setKey(String key);
+  Invocation setHandlerName(@Nullable String handlerName);
 
   @Override
-  Invocation setScope(String scope);
+  Invocation setKey(@Nullable String key);
 
   @Override
-  Invocation setLimitKey(String limitKey);
+  Invocation setScope(@Nullable String scope);
 
   @Override
-  Invocation setIdempotencyKey(String idempotencyKey);
+  Invocation setLimitKey(@Nullable String limitKey);
+
+  @Override
+  Invocation setIdempotencyKey(@Nullable String idempotencyKey);
 
   @Override
   Invocation putHeader(String key, String value);
 
   @Override
-  Invocation setHeaders(Map<String, String> headers);
+  Invocation setHeaders(@Nullable Map<String, String> headers);
 }

@@ -9,12 +9,16 @@
 package dev.restate.integration;
 
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Invocation metadata.
  *
  * <p>When used as producer defaults, these will be used for all invocations sent through that
  * producer.
+ *
+ * <p>Passing {@code null} to a setter clears that field. Getters return {@code null} when the
+ * corresponding field is not set.
  */
 @org.jetbrains.annotations.ApiStatus.Experimental
 public sealed interface InvocationMetadata permits Invocation, InvocationMetadataImpl {
@@ -25,40 +29,40 @@ public sealed interface InvocationMetadata permits Invocation, InvocationMetadat
   }
 
   /** Target service name. */
-  InvocationMetadata setServiceName(String serviceName);
+  InvocationMetadata setServiceName(@Nullable String serviceName);
 
-  String getServiceName();
+  @Nullable String getServiceName();
 
   /** Target handler name. */
-  InvocationMetadata setHandlerName(String handlerName);
+  InvocationMetadata setHandlerName(@Nullable String handlerName);
 
-  String getHandlerName();
+  @Nullable String getHandlerName();
 
   /** Target key (required when the target is a Virtual Object or Workflow). */
-  InvocationMetadata setKey(String key);
+  InvocationMetadata setKey(@Nullable String key);
 
-  String getKey();
+  @Nullable String getKey();
 
   /** Scope. */
-  InvocationMetadata setScope(String scope);
+  InvocationMetadata setScope(@Nullable String scope);
 
-  String getScope();
+  @Nullable String getScope();
 
   /** Rate/concurrency limit key. */
-  InvocationMetadata setLimitKey(String limitKey);
+  InvocationMetadata setLimitKey(@Nullable String limitKey);
 
-  String getLimitKey();
+  @Nullable String getLimitKey();
 
   /** Idempotency key used by Restate to deduplicate the invocation. */
-  InvocationMetadata setIdempotencyKey(String idempotencyKey);
+  InvocationMetadata setIdempotencyKey(@Nullable String idempotencyKey);
 
-  String getIdempotencyKey();
+  @Nullable String getIdempotencyKey();
 
   /** Add or replace a single header. */
   InvocationMetadata putHeader(String key, String value);
 
   /** Replace the whole header map. */
-  InvocationMetadata setHeaders(Map<String, String> headers);
+  InvocationMetadata setHeaders(@Nullable Map<String, String> headers);
 
   Map<String, String> getHeaders();
 }

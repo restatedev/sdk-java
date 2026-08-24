@@ -10,6 +10,7 @@ package dev.restate.integration;
 
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import org.jspecify.annotations.Nullable;
 
 /** Result of a non-blocking producer admission attempt. */
 @org.jetbrains.annotations.ApiStatus.Experimental
@@ -32,7 +33,7 @@ public sealed interface SendAttempt {
    *
    * @param ready future completed when retrying may succeed
    */
-  record Backpressured(CompletableFuture<Void> ready) implements SendAttempt {
+  record Backpressured(CompletableFuture<@Nullable Void> ready) implements SendAttempt {
     public Backpressured {
       Objects.requireNonNull(ready, "ready");
     }

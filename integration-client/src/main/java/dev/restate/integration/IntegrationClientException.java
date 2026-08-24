@@ -28,7 +28,8 @@ public class IntegrationClientException extends RuntimeException {
   private final Kind kind;
 
   public IntegrationClientException(Kind kind, String message) {
-    this(kind, message, null);
+    super(message != null ? message : kind.name());
+    this.kind = kind;
   }
 
   public IntegrationClientException(Kind kind, String message, Throwable cause) {

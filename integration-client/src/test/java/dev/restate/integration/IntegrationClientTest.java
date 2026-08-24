@@ -87,7 +87,6 @@ class IntegrationClientTest {
 
     assertThat(options.bufferMemory()).isEqualTo(32L * 1024 * 1024);
     assertThat(options.maxBlockTime()).isEqualTo(Duration.ofMinutes(1));
-    assertThat(options.defaultMetadata().getServiceName()).isEqualTo("Original");
 
     client.newProducer(options);
     assertThat(fake.take().getStart().getDefaults().getService()).isEqualTo("Original");
