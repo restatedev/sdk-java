@@ -27,6 +27,19 @@ public interface ProducerBase extends AutoCloseable {
   long lastSentOffset();
 
   /**
+   * Returns the highest offset durably acknowledged by Restate.
+   *
+   * <p>This value remains available after the producer closes or fails, so an exactly-once
+   * producer can use it to determine where to resume.
+   *
+   * @return the highest durably acknowledged offset, or {@code -1} if nothing has been acknowledged
+   *     yet
+   * @throws java.util.ConcurrentModificationException if the producer is used concurrently from
+   *     another thread
+   */
+  long lastAcknowledgedOffset();
+
+  /**
    * Awaits capacity to send another invocation. Await this after {@code send} throws {@link
    * ProducerNotReadyException}, then retry the send.
    *

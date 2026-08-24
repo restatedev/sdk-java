@@ -101,6 +101,8 @@ class IntegrationClientTest {
     fake.take(); // Start
     fake.grantWindow(10_000);
 
+    assertThat(producer.lastAcknowledgedOffset()).isEqualTo(-1L);
+
     CompletableFuture<SendResult> a = producer.send(newBody("a"));
     CompletableFuture<SendResult> b = producer.send(newBody("b"));
     CompletableFuture<SendResult> c = producer.send(newBody("c"));
@@ -116,6 +118,29 @@ class IntegrationClientTest {
     assertThat(get(a).offset()).isEqualTo(0L);
     assertThat(get(b).offset()).isEqualTo(1L);
     assertThat(get(c).offset()).isEqualTo(2L);
+    assertThat(producer.lastAcknowledgedOffset()).isEqualTo(2L);
+  }
+
+  @Test
+  void lastAcknowledgedOffsetRemainsAvailableAfterFailure() throws Exception {
+    Producer producer = client.newProducer();
+    fake.take(); // Start
+    fake.grantWindow(10_000);
+    producer.send(newBody("a"));
+    producer.send(newBody("b"));
+
+    fake.error(ErrorKind.ERROR_KIND_BAD_REQUEST, "nope", 0L);
+
+    assertThat(producer.lastAcknowledgedOffset()).isEqualTo(0L);
+  }
+
+  @Test
+  void invocationTypesAreSealedToSdkImplementations() {
+    assertThat(Invocation.class.getPermittedSubclasses()).containsExactly(InvocationImpl.class);
+    assertThat(InvocationMetadata.class.getPermittedSubclasses())
+        .containsExactlyInAnyOrder(Invocation.class, InvocationMetadataImpl.class);
+    assertThat(InvocationMetadataImpl.class.getPermittedSubclasses())
+        .containsExactly(InvocationImpl.class);
   }
 
   @Test
@@ -311,6 +336,16 @@ class IntegrationClientTest {
     void error(ErrorKind kind, String message) {
       responses.onNext(
           IngestionResponse.newBuilder()
+              .setError(
+                  dev.restate.ingestion.v1.Error.newBuilder().setKind(kind).setMessage(message))
+              .build());
+      responses.onCompleted();
+    }
+
+    void error(ErrorKind kind, String message, long lastCommitted) {
+      responses.onNext(
+          IngestionResponse.newBuilder()
+              .setLastCommitted(lastCommitted)
               .setError(
                   dev.restate.ingestion.v1.Error.newBuilder().setKind(kind).setMessage(message))
               .build());

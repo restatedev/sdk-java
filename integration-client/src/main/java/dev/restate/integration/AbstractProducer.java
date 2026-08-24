@@ -105,6 +105,18 @@ abstract class AbstractProducer implements ProducerBase {
   }
 
   @Override
+  public long lastAcknowledgedOffset() {
+    acquire();
+    try {
+      synchronized (lock) {
+        return lastCommitted;
+      }
+    } finally {
+      release();
+    }
+  }
+
+  @Override
   public CompletableFuture<Void> waitReady() {
     acquire();
     try {

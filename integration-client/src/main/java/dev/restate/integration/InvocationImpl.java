@@ -19,7 +19,7 @@ import java.util.Map;
  * from {@link InvocationMetadataImpl}; {@link #toProtoInvocation(long)} just stamps the offset and
  * builds, with no field copying.
  */
-class InvocationImpl extends InvocationMetadataImpl implements Invocation {
+final class InvocationImpl extends InvocationMetadataImpl implements Invocation {
 
   @Override
   public Invocation setBody(byte[] body) {
