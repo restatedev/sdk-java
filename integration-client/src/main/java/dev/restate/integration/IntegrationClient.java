@@ -24,8 +24,18 @@ public interface IntegrationClient extends AutoCloseable {
    *
    * @param defaultMetadata invocation fields applied to every record unless overridden per record
    * @return a new producer
+   * @throws NullPointerException if {@code defaultMetadata} is {@code null}
    */
   Producer newProducer(InvocationMetadata defaultMetadata);
+
+  /**
+   * Creates an at-least-once {@link Producer} with the given options.
+   *
+   * @param options producer buffering, blocking, and invocation-default options
+   * @return a new producer
+   * @throws NullPointerException if {@code options} is {@code null}
+   */
+  Producer newProducer(ProducerOptions options);
 
   /**
    * Creates an {@link ExactlyOnceProducer} identified by {@code producerId}.
@@ -44,8 +54,20 @@ public interface IntegrationClient extends AutoCloseable {
    * @param defaultMetadata invocation fields applied to every record unless overridden per record
    * @return a new exactly-once producer
    * @throws IllegalArgumentException if {@code producerId} is {@code null} or blank
+   * @throws NullPointerException if {@code defaultMetadata} is {@code null}
    */
   ExactlyOnceProducer newExactlyOnceProducer(String producerId, InvocationMetadata defaultMetadata);
+
+  /**
+   * Creates an {@link ExactlyOnceProducer} identified by {@code producerId} with the given options.
+   *
+   * @param producerId stable identity of the producer; must be non-empty
+   * @param options producer buffering, blocking, and invocation-default options
+   * @return a new exactly-once producer
+   * @throws IllegalArgumentException if {@code producerId} is {@code null} or blank
+   * @throws NullPointerException if {@code options} is {@code null}
+   */
+  ExactlyOnceProducer newExactlyOnceProducer(String producerId, ProducerOptions options);
 
   /** Shuts down the underlying client. */
   @Override

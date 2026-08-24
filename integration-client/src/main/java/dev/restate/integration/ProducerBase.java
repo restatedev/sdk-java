@@ -11,6 +11,8 @@ package dev.restate.integration;
 import java.util.concurrent.CompletableFuture;
 
 /**
+ * Common producer offsets, acknowledgement, flushing, and lifecycle operations.
+ *
  * @see Producer
  * @see ExactlyOnceProducer
  */
@@ -18,9 +20,9 @@ import java.util.concurrent.CompletableFuture;
 public interface ProducerBase extends AutoCloseable {
 
   /**
-   * Returns the highest offset handed to {@code send} so far.
+   * Returns the highest offset successfully accepted by {@code send} or {@code trySend} so far.
    *
-   * @return the highest offset sent, or {@code -1} if nothing has been sent yet
+   * @return the highest offset accepted, or {@code -1} if nothing has been accepted yet
    * @throws java.util.ConcurrentModificationException if the producer is used concurrently from
    *     another thread
    */
@@ -29,8 +31,8 @@ public interface ProducerBase extends AutoCloseable {
   /**
    * Returns the highest offset durably acknowledged by Restate.
    *
-   * <p>This value remains available after the producer closes or fails, so an exactly-once
-   * producer can use it to determine where to resume.
+   * <p>This value remains available after the producer closes or fails, so an exactly-once producer
+   * can use it to determine where to resume.
    *
    * @return the highest durably acknowledged offset, or {@code -1} if nothing has been acknowledged
    *     yet
@@ -38,16 +40,6 @@ public interface ProducerBase extends AutoCloseable {
    *     another thread
    */
   long lastAcknowledgedOffset();
-
-  /**
-   * Awaits capacity to send another invocation. Await this after {@code send} throws {@link
-   * ProducerNotReadyException}, then retry the send.
-   *
-   * @return a future completing once the producer can accept more invocations.
-   * @throws java.util.ConcurrentModificationException if the producer is used concurrently from
-   *     another thread
-   */
-  CompletableFuture<Void> waitReady();
 
   /**
    * Awaits durable acknowledgement of all invocations up to and including {@code offset}.

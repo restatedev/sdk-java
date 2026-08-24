@@ -8,10 +8,10 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.integration;
 
-import dev.restate.ingestion.v1.IngestionDefaults;
 import dev.restate.ingestion.v1.IngestionSvcGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 /** {@link IntegrationClient} backed by a single gRPC {@link ManagedChannel} shared by producers. */
@@ -53,27 +53,39 @@ final class IntegrationClientImpl implements IntegrationClient {
 
   @Override
   public Producer newProducer() {
-    return newProducer(null);
+    return newProducer(ProducerOptions.defaults());
   }
 
   @Override
   public Producer newProducer(InvocationMetadata defaultMetadata) {
-    return new ProducerImpl(stub, defaultsOf(defaultMetadata), integration);
+    return newProducer(ProducerOptions.builder().defaultMetadata(defaultMetadata).build());
+  }
+
+  @Override
+  public Producer newProducer(ProducerOptions options) {
+    return new ProducerImpl(stub, Objects.requireNonNull(options, "options"), integration);
   }
 
   @Override
   public ExactlyOnceProducer newExactlyOnceProducer(String producerId) {
-    return newExactlyOnceProducer(producerId, null);
+    return newExactlyOnceProducer(producerId, ProducerOptions.defaults());
   }
 
   @Override
   public ExactlyOnceProducer newExactlyOnceProducer(
       String producerId, InvocationMetadata defaultMetadata) {
+    return newExactlyOnceProducer(
+        producerId, ProducerOptions.builder().defaultMetadata(defaultMetadata).build());
+  }
+
+  @Override
+  public ExactlyOnceProducer newExactlyOnceProducer(String producerId, ProducerOptions options) {
     if (producerId == null || producerId.isBlank()) {
       throw new IllegalArgumentException(
           "producerId must be non-empty for an exactly-once producer");
     }
-    return new ExactlyOnceProducerImpl(stub, producerId, defaultsOf(defaultMetadata), integration);
+    return new ExactlyOnceProducerImpl(
+        stub, producerId, Objects.requireNonNull(options, "options"), integration);
   }
 
   @Override
@@ -87,11 +99,5 @@ final class IntegrationClientImpl implements IntegrationClient {
       channel.shutdownNow();
       Thread.currentThread().interrupt();
     }
-  }
-
-  private static IngestionDefaults defaultsOf(InvocationMetadata metadata) {
-    return metadata == null
-        ? IngestionDefaults.getDefaultInstance()
-        : ((InvocationMetadataImpl) metadata).toDefaults();
   }
 }

@@ -10,15 +10,17 @@ package dev.restate.integration;
 
 import dev.restate.ingestion.v1.DeduplicationMode;
 import dev.restate.ingestion.v1.ErrorKind;
-import dev.restate.ingestion.v1.IngestionDefaults;
 import dev.restate.ingestion.v1.IngestionRequest;
 import dev.restate.ingestion.v1.IngestionResponse;
 import dev.restate.ingestion.v1.IngestionStart;
 import dev.restate.ingestion.v1.IngestionSvcGrpc;
 import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.ClientResponseObserver;
+import java.time.Duration;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -29,12 +31,9 @@ import java.util.concurrent.atomic.AtomicReference;
  * Owns exactly one ingestion bidi stream and all its send-side state. See {@link ProducerBase} and
  * the module docs for the concurrency contract.
  *
- * <p>There is <b>no client-side record queue</b>: {@link #doSend} writes the record straight to the
- * gRPC stream when the producer is ready — Restate's byte send-window has credit ({@code budget})
- * <i>and</i> the transport is writable ({@code callObserver.isReady()}) — or throws {@link
- * ProducerNotReadyException} otherwise. In-flight records live on the wire; the only per-record
- * client state until commit is a future parked in {@link #ackWaiters}, completed when the ack
- * watermark passes its offset.
+ * <p>Accepted records wait in a byte-bounded queue until Restate's send-window has credit ({@code
+ * budget}) and the transport is writable ({@code callObserver.isReady()}). Once handed to gRPC,
+ * only their acknowledgement futures remain until the commit watermark passes their offsets.
  *
  * <p>Two-tier concurrency:
  *
@@ -60,10 +59,16 @@ abstract class AbstractProducer implements ProducerBase {
   // ---- state guarded by `lock` ----
   private long budget = 0; // remaining Restate send window, in bytes; may go one message negative
   private long lastCommitted = -1; // ack watermark; -1 == nothing committed yet
-  private final List<CompletableFuture<Void>> readyWaiters = new ArrayList<>();
+  private final ArrayDeque<BufferedSend> bufferedSends = new ArrayDeque<>();
+  private long bufferedBytes = 0;
+  private final List<CapacityWaiter> capacityWaiters = new ArrayList<>();
   private final TreeMap<Long, List<CompletableFuture<Long>>> ackWaiters = new TreeMap<>();
   private boolean closed = false;
   private IntegrationClientException failure;
+
+  private final long bufferMemory;
+  private final Duration maxBlockTime;
+  private final long maxBlockNanos;
 
   // Written only by the (guarded) caller thread; never touched by gRPC callbacks.
   long lastSent = -1;
@@ -72,8 +77,11 @@ abstract class AbstractProducer implements ProducerBase {
       IngestionSvcGrpc.IngestionSvcStub stub,
       String producerId,
       DeduplicationMode deduplicationMode,
-      IngestionDefaults defaults,
+      ProducerOptions options,
       String integration) {
+    this.bufferMemory = options.bufferMemory();
+    this.maxBlockTime = options.maxBlockTime();
+    this.maxBlockNanos = toNanosSaturated(maxBlockTime);
     // Opening the call invokes beforeStart() synchronously, wiring callObserver + the ready
     // handler.
     stub.ingest(new ResponseObserver());
@@ -85,7 +93,7 @@ abstract class AbstractProducer implements ProducerBase {
                     .setProducerId(producerId)
                     .setIntegration(integration)
                     .setDeduplicationMode(deduplicationMode)
-                    .setDefaults(defaults))
+                    .setDefaults(options.toDefaults()))
             .build();
     synchronized (lock) {
       callObserver.onNext(start);
@@ -110,26 +118,6 @@ abstract class AbstractProducer implements ProducerBase {
     try {
       synchronized (lock) {
         return lastCommitted;
-      }
-    } finally {
-      release();
-    }
-  }
-
-  @Override
-  public CompletableFuture<Void> waitReady() {
-    acquire();
-    try {
-      synchronized (lock) {
-        if (closed) {
-          return CompletableFuture.failedFuture(failure);
-        }
-        if (isReadyLocked()) {
-          return CompletableFuture.completedFuture(null);
-        }
-        CompletableFuture<Void> f = new CompletableFuture<>();
-        readyWaiters.add(f);
-        return f;
       }
     } finally {
       release();
@@ -180,66 +168,166 @@ abstract class AbstractProducer implements ProducerBase {
 
   // ---- send path, shared by the subclasses (caller holds the guard) ----
 
-  /**
-   * Send at {@code offset}: write it to the stream now if the producer is ready, else throw {@link
-   * ProducerNotReadyException}. Returns a future that completes with a {@link SendResult} once the
-   * record is durably committed by Restate. There is no buffering — a not-ready producer refuses
-   * rather than parking the record.
-   */
+  /** Admit a record, blocking up to the configured maximum when the local buffer is full. */
   final CompletableFuture<SendResult> doSend(long offset, InvocationImpl invocation)
       throws ProducerNotReadyException {
-    IngestionRequest req =
-        IngestionRequest.newBuilder().setInvocation(invocation.toProtoInvocation(offset)).build();
-    long debit = req.getInvocation().getSerializedSize();
+    PreparedSend prepared = prepare(offset, invocation);
+    List<CompletableFuture<Void>> ready;
+    CompletableFuture<SendResult> acknowledgement;
+    long waitStarted = System.nanoTime();
     synchronized (lock) {
-      if (closed) {
-        throw new IllegalStateException("producer is closed", failure);
+      ensureOpenLocked();
+      while (!hasCapacityLocked(prepared.bufferSize())) {
+        if (maxBlockNanos == 0) {
+          throw admissionTimeout();
+        }
+        long remaining = maxBlockNanos - (System.nanoTime() - waitStarted);
+        if (remaining <= 0) {
+          throw admissionTimeout();
+        }
+        try {
+          long millis = remaining / 1_000_000;
+          int nanos = (int) (remaining % 1_000_000);
+          lock.wait(millis, nanos);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new ProducerNotReadyException(
+              "interrupted while waiting for producer buffer capacity", e);
+        }
+        ensureOpenLocked();
       }
-      if (!isReadyLocked()) {
-        throw new ProducerNotReadyException("producer is not ready");
-      }
-      writeLocked(req, debit);
-      lastSent = offset;
-      CompletableFuture<Long> committed = new CompletableFuture<>();
-      ackWaiters.computeIfAbsent(offset, k -> new ArrayList<>()).add(committed);
-      return committed.thenApply(watermark -> new SendResultImpl(offset));
+      acknowledgement = acceptLocked(prepared);
+      ready = drainLocked();
     }
+    completeReady(ready);
+    return acknowledgement;
+  }
+
+  /** Attempt to admit a record without blocking or consuming an offset when capacity is absent. */
+  final SendAttempt doTrySend(long offset, InvocationImpl invocation) {
+    PreparedSend prepared = prepare(offset, invocation);
+    List<CompletableFuture<Void>> ready;
+    SendAttempt result;
+    synchronized (lock) {
+      ensureOpenLocked();
+      if (hasCapacityLocked(prepared.bufferSize())) {
+        result = new SendAttempt.Accepted(acceptLocked(prepared));
+        ready = drainLocked();
+      } else {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        CapacityWaiter waiter = new CapacityWaiter(prepared.bufferSize(), future);
+        capacityWaiters.add(waiter);
+        future.whenComplete(
+            (ignored, failure) -> {
+              if (future.isCancelled()) {
+                synchronized (lock) {
+                  capacityWaiters.remove(waiter);
+                }
+              }
+            });
+        result = new SendAttempt.Backpressured(future);
+        ready = List.of();
+      }
+    }
+    completeReady(ready);
+    return result;
   }
 
   // ---- internals (all `*Locked` methods require `lock`) ----
 
-  private boolean isReadyLocked() {
-    return !closed && budget > 0 && callObserver.isReady();
+  private PreparedSend prepare(long offset, InvocationImpl invocation) {
+    IngestionRequest request =
+        IngestionRequest.newBuilder().setInvocation(invocation.toProtoInvocation(offset)).build();
+    long bufferSize = request.getSerializedSize();
+    if (bufferSize > bufferMemory) {
+      throw new IllegalArgumentException(
+          "serialized invocation requires "
+              + bufferSize
+              + " bytes, exceeding bufferMemory "
+              + bufferMemory);
+    }
+    return new PreparedSend(
+        offset, request, request.getInvocation().getSerializedSize(), bufferSize);
   }
 
-  private void writeLocked(IngestionRequest req, long debit) {
-    callObserver.onNext(req);
-    budget -= debit;
+  private boolean hasCapacityLocked(long requiredBytes) {
+    return requiredBytes <= bufferMemory - bufferedBytes;
   }
 
-  /** Wake readiness waiters once the stream can accept writes again (window credit + writable). */
-  private void wakeReadyWaiters() {
-    List<CompletableFuture<Void>> wakeReady = null;
-    synchronized (lock) {
-      if (closed) {
-        return;
-      }
-      if (isReadyLocked() && !readyWaiters.isEmpty()) {
-        wakeReady = new ArrayList<>(readyWaiters);
-        readyWaiters.clear();
+  private CompletableFuture<SendResult> acceptLocked(PreparedSend prepared) {
+    bufferedSends.addLast(
+        new BufferedSend(prepared.request(), prepared.windowDebit(), prepared.bufferSize()));
+    bufferedBytes += prepared.bufferSize();
+    lastSent = prepared.offset();
+    CompletableFuture<Long> committed = new CompletableFuture<>();
+    ackWaiters.computeIfAbsent(prepared.offset(), ignored -> new ArrayList<>()).add(committed);
+    return committed.thenApply(ignored -> new SendResultImpl(prepared.offset()));
+  }
+
+  /** Write as many queued records as transport and protocol flow control currently permit. */
+  private List<CompletableFuture<Void>> drainLocked() {
+    boolean freedCapacity = false;
+    while (!closed && budget > 0 && callObserver.isReady() && !bufferedSends.isEmpty()) {
+      BufferedSend send = bufferedSends.removeFirst();
+      bufferedBytes -= send.bufferSize();
+      budget -= send.windowDebit();
+      freedCapacity = true;
+      callObserver.onNext(send.request());
+    }
+
+    if (!freedCapacity) {
+      return List.of();
+    }
+
+    lock.notifyAll();
+    long available = bufferMemory - bufferedBytes;
+    List<CompletableFuture<Void>> ready = new ArrayList<>();
+    for (Iterator<CapacityWaiter> it = capacityWaiters.iterator(); it.hasNext(); ) {
+      CapacityWaiter waiter = it.next();
+      if (waiter.requiredBytes() <= available) {
+        ready.add(waiter.future());
+        it.remove();
       }
     }
-    if (wakeReady != null) {
-      for (CompletableFuture<Void> f : wakeReady) {
-        f.complete(null);
-      }
+    return ready;
+  }
+
+  private void drainAndWake() {
+    List<CompletableFuture<Void>> ready;
+    synchronized (lock) {
+      ready = drainLocked();
+    }
+    completeReady(ready);
+  }
+
+  private static void completeReady(List<CompletableFuture<Void>> ready) {
+    for (CompletableFuture<Void> future : ready) {
+      future.complete(null);
+    }
+  }
+
+  private void ensureOpenLocked() {
+    if (closed) {
+      throw new IllegalStateException("producer is closed", failure);
+    }
+  }
+
+  private ProducerNotReadyException admissionTimeout() {
+    return new ProducerNotReadyException("producer buffer remained full for " + maxBlockTime);
+  }
+
+  private static long toNanosSaturated(Duration duration) {
+    try {
+      return duration.toNanos();
+    } catch (ArithmeticException ignored) {
+      return Long.MAX_VALUE;
     }
   }
 
   private void onResponse(IngestionResponse resp) {
     List<CompletableFuture<Long>> acksToComplete = null;
     long watermark = -1;
-    boolean wakeReady = false;
+    boolean drain = false;
     IntegrationClientException err = null;
     synchronized (lock) {
       if (closed) {
@@ -260,26 +348,26 @@ abstract class AbstractProducer implements ProducerBase {
       if (resp.hasWindowUpdate()) {
         // increment_bytes is a uint32; read it as unsigned.
         budget += Integer.toUnsignedLong(resp.getWindowUpdate().getIncrementBytes());
-        wakeReady = true;
+        drain = true;
       } else if (resp.hasError()) {
         err = mapError(resp.getError());
       }
+    }
+    if (err != null) {
+      terminate(err, false);
+    } else if (drain) {
+      drainAndWake();
     }
     if (acksToComplete != null) {
       for (CompletableFuture<Long> f : acksToComplete) {
         f.complete(watermark);
       }
     }
-    if (err != null) {
-      terminate(err, false);
-    } else if (wakeReady) {
-      wakeReadyWaiters();
-    }
   }
 
   /** Mark the producer terminally closed and fail every pending future with {@code cause}. */
   private void terminate(IntegrationClientException cause, boolean halfClose) {
-    List<CompletableFuture<Void>> ready;
+    List<CompletableFuture<Void>> capacity;
     List<CompletableFuture<Long>> acks = new ArrayList<>();
     synchronized (lock) {
       if (closed) {
@@ -287,8 +375,14 @@ abstract class AbstractProducer implements ProducerBase {
       }
       closed = true;
       failure = cause;
-      ready = new ArrayList<>(readyWaiters);
-      readyWaiters.clear();
+      capacity = new ArrayList<>(capacityWaiters.size());
+      for (CapacityWaiter waiter : capacityWaiters) {
+        capacity.add(waiter.future());
+      }
+      capacityWaiters.clear();
+      bufferedSends.clear();
+      bufferedBytes = 0;
+      lock.notifyAll();
       for (List<CompletableFuture<Long>> waiters : ackWaiters.values()) {
         acks.addAll(waiters);
       }
@@ -304,7 +398,7 @@ abstract class AbstractProducer implements ProducerBase {
         }
       }
     }
-    for (CompletableFuture<Void> f : ready) {
+    for (CompletableFuture<Void> f : capacity) {
       f.completeExceptionally(cause);
     }
     for (CompletableFuture<Long> f : acks) {
@@ -360,7 +454,7 @@ abstract class AbstractProducer implements ProducerBase {
     @Override
     public void beforeStart(ClientCallStreamObserver<IngestionRequest> requestStream) {
       callObserver = requestStream;
-      requestStream.setOnReadyHandler(AbstractProducer.this::wakeReadyWaiters);
+      requestStream.setOnReadyHandler(AbstractProducer.this::drainAndWake);
     }
 
     @Override
@@ -386,6 +480,13 @@ abstract class AbstractProducer implements ProducerBase {
           false);
     }
   }
+
+  private record PreparedSend(
+      long offset, IngestionRequest request, long windowDebit, long bufferSize) {}
+
+  private record BufferedSend(IngestionRequest request, long windowDebit, long bufferSize) {}
+
+  private record CapacityWaiter(long requiredBytes, CompletableFuture<Void> future) {}
 
   private record SendResultImpl(long offset) implements SendResult {}
 }

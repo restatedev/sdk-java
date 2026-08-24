@@ -22,6 +22,30 @@ sealed class InvocationMetadataImpl implements InvocationMetadata permits Invoca
 
   final IngestionInvocation.Builder builder = IngestionInvocation.newBuilder();
 
+  static InvocationMetadataImpl fromDefaults(IngestionDefaults defaults) {
+    InvocationMetadataImpl metadata = new InvocationMetadataImpl();
+    if (defaults.hasService()) {
+      metadata.builder.setService(defaults.getService());
+    }
+    if (defaults.hasHandler()) {
+      metadata.builder.setHandler(defaults.getHandler());
+    }
+    if (defaults.hasKey()) {
+      metadata.builder.setKey(defaults.getKey());
+    }
+    if (defaults.hasScope()) {
+      metadata.builder.setScope(defaults.getScope());
+    }
+    if (defaults.hasLimitKey()) {
+      metadata.builder.setLimitKey(defaults.getLimitKey());
+    }
+    if (defaults.hasIdempotencyKey()) {
+      metadata.builder.setIdempotencyKey(defaults.getIdempotencyKey());
+    }
+    metadata.builder.putAllAdditionalHeaders(defaults.getHeadersMap());
+    return metadata;
+  }
+
   @Override
   public InvocationMetadata setServiceName(String serviceName) {
     if (serviceName == null) {
