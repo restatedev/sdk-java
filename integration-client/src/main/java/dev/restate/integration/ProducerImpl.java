@@ -27,7 +27,7 @@ import java.util.Objects;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantLock;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -52,24 +52,27 @@ import org.jspecify.annotations.Nullable;
  */
 final class ProducerImpl implements Producer, ExactlyOnceProducer {
 
+  // Blocking from an inline transport/future callback can deadlock gRPC's serialized callback lane.
+  private static final ThreadLocal<Boolean> INLINE_CALLBACK = new ThreadLocal<>();
+
   private final Object lock = new Object();
 
   // Set once, synchronously, in beforeStart() before the constructor sends the Start frame.
   private volatile @Nullable ClientCallStreamObserver<IngestionRequest> callObserver;
 
-  // ---- fail-fast single-thread guard ----
-  private final AtomicReference<@Nullable Thread> owner = new AtomicReference<>();
-  private int reentrancy;
+  // Reentrant because completing a future can synchronously call back into this producer.
+  private final ReentrantLock usageGuard = new ReentrantLock();
 
   // ---- state guarded by `lock` ----
   private long budget = 0; // remaining Restate send window, in bytes; may go one message negative
   private long lastCommitted = -1; // ack watermark; -1 == nothing committed yet
-  private final ArrayDeque<BufferedSend> bufferedSends = new ArrayDeque<>();
+  private final ArrayDeque<PreparedSend> pendingWrites = new ArrayDeque<>();
   private long bufferedBytes = 0;
   private final List<AdmissionWaiter> admissionWaiters = new ArrayList<>();
-  private final TreeMap<Long, List<CompletableFuture<Long>>> ackWaiters = new TreeMap<>();
-  private boolean closed = false;
-  private @Nullable IntegrationClientException failure;
+  private final TreeMap<Long, CompletableFuture<Long>> ackWaiters = new TreeMap<>();
+  private @Nullable IntegrationClientException terminalFailure;
+  private boolean writeInProgress = false;
+  private boolean halfClosePending = false;
 
   private final long bufferMemory;
   private final Duration maxBlockTime;
@@ -81,7 +84,7 @@ final class ProducerImpl implements Producer, ExactlyOnceProducer {
 
   ProducerImpl(
       IngestionSvcGrpc.IngestionSvcStub stub, ProducerOptions options, String integration) {
-    this(stub, "", DeduplicationMode.DISABLED, false, options, integration);
+    this(stub, "", DeduplicationMode.DISABLED, options, integration);
   }
 
   ProducerImpl(
@@ -89,20 +92,19 @@ final class ProducerImpl implements Producer, ExactlyOnceProducer {
       String producerId,
       ProducerOptions options,
       String integration) {
-    this(stub, producerId, DeduplicationMode.OFFSET_BASED, true, options, integration);
+    this(stub, producerId, DeduplicationMode.OFFSET_BASED, options, integration);
   }
 
   private ProducerImpl(
       IngestionSvcGrpc.IngestionSvcStub stub,
       String producerId,
       DeduplicationMode deduplicationMode,
-      boolean exactlyOnce,
       ProducerOptions options,
       String integration) {
     this.bufferMemory = options.bufferMemory();
     this.maxBlockTime = options.maxBlockTime();
     this.maxBlockNanos = toNanosSaturated(maxBlockTime);
-    this.exactlyOnce = exactlyOnce;
+    this.exactlyOnce = deduplicationMode == DeduplicationMode.OFFSET_BASED;
     // Opening the call invokes beforeStart() synchronously, wiring callObserver + the ready
     // handler.
     stub.ingest(new ResponseObserver());
@@ -116,9 +118,7 @@ final class ProducerImpl implements Producer, ExactlyOnceProducer {
                     .setDeduplicationMode(deduplicationMode)
                     .setDefaults(options.toDefaults()))
             .build();
-    synchronized (lock) {
-      Objects.requireNonNull(callObserver, "gRPC request stream was not initialized").onNext(start);
-    }
+    writeToTransport(start);
   }
 
   // ---- Producer / ExactlyOnceProducer ----
@@ -225,7 +225,11 @@ final class ProducerImpl implements Producer, ExactlyOnceProducer {
   public long flush() {
     acquire();
     try {
-      return awaitFlush(registerAckWaiter(lastSent));
+      CompletableFuture<Long> flush = registerAckWaiter(lastSent);
+      if (cannotBlockInline() && !flush.isDone()) {
+        throw new IllegalStateException("cannot block in a reentrant producer call");
+      }
+      return awaitFlush(flush);
     } finally {
       release();
     }
@@ -248,17 +252,19 @@ final class ProducerImpl implements Producer, ExactlyOnceProducer {
    */
   private CompletableFuture<Long> registerAckWaiter(long offset) {
     synchronized (lock) {
-      if (closed) {
-        return CompletableFuture.failedFuture(
-            Objects.requireNonNull(failure, "closed producer has no failure"));
+      if (terminalFailure != null) {
+        return CompletableFuture.failedFuture(terminalFailure);
       }
-      if (offset <= lastCommitted) {
-        return CompletableFuture.completedFuture(lastCommitted);
-      }
-      CompletableFuture<Long> f = new CompletableFuture<>();
-      ackWaiters.computeIfAbsent(offset, k -> new ArrayList<>()).add(f);
-      return f;
+      return ackBarrierLocked(offset).copy();
     }
+  }
+
+  /** Returns the internal completion barrier shared by all waiters for {@code offset}. */
+  private CompletableFuture<Long> ackBarrierLocked(long offset) {
+    if (offset <= lastCommitted) {
+      return CompletableFuture.completedFuture(lastCommitted);
+    }
+    return ackWaiters.computeIfAbsent(offset, ignored -> new CompletableFuture<>());
   }
 
   @Override
@@ -280,15 +286,16 @@ final class ProducerImpl implements Producer, ExactlyOnceProducer {
   private CompletableFuture<SendResult> doSend(long offset, InvocationImpl invocation)
       throws ProducerBufferExhaustedException {
     PreparedSend prepared = prepare(offset, invocation);
-    List<CompletableFuture<@Nullable Void>> ready;
     CompletableFuture<SendResult> acknowledgement;
-    boolean directWrite;
     long waitStarted = System.nanoTime();
     synchronized (lock) {
       ensureOpenLocked();
       while (!canAdmitLocked(prepared.bufferSize())) {
         if (maxBlockNanos == 0) {
           throw admissionTimeout();
+        }
+        if (cannotBlockInline()) {
+          throw new IllegalStateException("cannot block in a reentrant producer call");
         }
         long remaining = maxBlockNanos - (System.nanoTime() - waitStarted);
         if (remaining <= 0) {
@@ -306,30 +313,21 @@ final class ProducerImpl implements Producer, ExactlyOnceProducer {
         ensureOpenLocked();
       }
       acknowledgement = acceptLocked(prepared);
-      directWrite = bufferMemory == 0;
-      ready = directWrite ? List.of() : drainLocked();
     }
-    if (directWrite) {
-      writeDirect(prepared.request());
-      drainAndWake();
-    } else {
-      completeReady(ready);
-    }
+    dispatchAccepted(prepared);
     return acknowledgement;
   }
 
   /** Attempt to admit a record without blocking or consuming an offset under backpressure. */
   private SendAttempt doTrySend(long offset, InvocationImpl invocation) {
     PreparedSend prepared = prepare(offset, invocation);
-    List<CompletableFuture<@Nullable Void>> ready;
     SendAttempt result;
-    boolean directWrite = false;
+    boolean accepted = false;
     synchronized (lock) {
       ensureOpenLocked();
       if (canAdmitLocked(prepared.bufferSize())) {
         result = new SendAttempt.Accepted(acceptLocked(prepared));
-        directWrite = bufferMemory == 0;
-        ready = directWrite ? List.of() : drainLocked();
+        accepted = true;
       } else {
         CompletableFuture<@Nullable Void> future = new CompletableFuture<>();
         AdmissionWaiter waiter = new AdmissionWaiter(prepared.bufferSize(), future);
@@ -343,14 +341,10 @@ final class ProducerImpl implements Producer, ExactlyOnceProducer {
               }
             });
         result = new SendAttempt.Backpressured(future);
-        ready = List.of();
       }
     }
-    if (directWrite) {
-      writeDirect(prepared.request());
-      drainAndWake();
-    } else {
-      completeReady(ready);
+    if (accepted) {
+      dispatchAccepted(prepared);
     }
     return result;
   }
@@ -376,73 +370,176 @@ final class ProducerImpl implements Producer, ExactlyOnceProducer {
     if (bufferMemory == 0) {
       ClientCallStreamObserver<IngestionRequest> observer =
           Objects.requireNonNull(callObserver, "gRPC request stream was not initialized");
-      return budget > 0 && observer.isReady();
+      return !writeInProgress && budget > 0 && observer.isReady();
     }
     return requiredBytes <= bufferMemory - bufferedBytes;
   }
 
   private CompletableFuture<SendResult> acceptLocked(PreparedSend prepared) {
     lastSent = prepared.offset();
-    CompletableFuture<Long> committed = new CompletableFuture<>();
-    ackWaiters.computeIfAbsent(prepared.offset(), ignored -> new ArrayList<>()).add(committed);
+    CompletableFuture<Long> committed = ackBarrierLocked(prepared.offset());
     if (bufferMemory == 0) {
       budget -= prepared.windowDebit();
+      writeInProgress = true;
     } else {
-      bufferedSends.addLast(
-          new BufferedSend(prepared.request(), prepared.windowDebit(), prepared.bufferSize()));
+      pendingWrites.addLast(prepared);
       bufferedBytes += prepared.bufferSize();
     }
     return committed.thenApply(ignored -> new SendResultImpl(prepared.offset()));
   }
 
-  /**
-   * Hand a zero-buffer invocation directly to gRPC, failing the producer if the write is refused.
-   */
-  private void writeDirect(IngestionRequest request) {
-    try {
-      Objects.requireNonNull(callObserver, "gRPC request stream was not initialized")
-          .onNext(request);
-    } catch (RuntimeException e) {
-      IntegrationClientException cause =
-          new IntegrationClientException(
-              IntegrationClientException.Kind.UNKNOWN,
-              "failed to write invocation to the ingestion stream",
-              e);
-      terminate(cause, false);
-      throw cause;
+  private void dispatchAccepted(PreparedSend prepared) {
+    if (bufferMemory == 0) {
+      writeDirect(prepared.request());
+      wakeDirectAdmission();
+    } else {
+      drainBuffered();
     }
   }
 
-  /** Write as many queued records as transport and protocol flow control currently permit. */
-  private List<CompletableFuture<@Nullable Void>> drainLocked() {
-    if (bufferMemory == 0) {
-      if (!canAdmitLocked(0)) {
-        return List.of();
+  /** Writes one request without holding {@link #lock}, terminating the producer on failure. */
+  private void writeToTransport(IngestionRequest request) {
+    ClientCallStreamObserver<IngestionRequest> observer =
+        Objects.requireNonNull(callObserver, "gRPC request stream was not initialized");
+    try {
+      runInlineCallbacks(() -> observer.onNext(request));
+    } catch (RuntimeException e) {
+      IntegrationClientException cause = transportWriteFailure(e);
+      failTransportWrite(observer, cause);
+      throw cause;
+    } catch (Error e) {
+      IntegrationClientException cause = transportWriteFailure(e);
+      failTransportWrite(observer, cause);
+      throw e;
+    }
+  }
+
+  private static IntegrationClientException transportWriteFailure(Throwable cause) {
+    return new IntegrationClientException(
+        IntegrationClientException.Kind.UNKNOWN,
+        "failed to write invocation to the ingestion stream",
+        cause);
+  }
+
+  private void failTransportWrite(
+      ClientCallStreamObserver<IngestionRequest> observer, IntegrationClientException cause) {
+    @Nullable Termination termination;
+    synchronized (lock) {
+      termination = beginTerminationLocked(cause, false);
+    }
+    cancelTransport(observer, cause);
+    if (termination != null) {
+      finishTermination(termination);
+    }
+  }
+
+  private static void cancelTransport(
+      ClientCallStreamObserver<IngestionRequest> observer, IntegrationClientException cause) {
+    try {
+      observer.cancel(cause.getMessage(), cause);
+    } catch (RuntimeException ignored) {
+      // The failed write may already have torn down the call.
+    }
+  }
+
+  private void writeDirect(IngestionRequest request) {
+    boolean failed = true;
+    try {
+      writeToTransport(request);
+      failed = false;
+    } finally {
+      finishWrite(failed);
+    }
+  }
+
+  private void drainFromCallback() {
+    try {
+      if (bufferMemory == 0) {
+        wakeDirectAdmission();
+      } else {
+        drainBuffered();
+      }
+    } catch (IntegrationClientException ignored) {
+      // writeToTransport already made the failure terminal and failed pending futures.
+    }
+  }
+
+  private void wakeDirectAdmission() {
+    List<CompletableFuture<@Nullable Void>> ready;
+    synchronized (lock) {
+      if (terminalFailure != null || !canAdmitLocked(0)) {
+        return;
       }
       lock.notifyAll();
-      List<CompletableFuture<@Nullable Void>> ready = new ArrayList<>(admissionWaiters.size());
+      ready = new ArrayList<>(admissionWaiters.size());
       for (AdmissionWaiter waiter : admissionWaiters) {
         ready.add(waiter.future());
       }
       admissionWaiters.clear();
-      return ready;
     }
+    completeReady(ready);
+  }
 
-    boolean freedCapacity = false;
-    ClientCallStreamObserver<IngestionRequest> observer =
-        Objects.requireNonNull(callObserver, "gRPC request stream was not initialized");
-    while (!closed && budget > 0 && observer.isReady() && !bufferedSends.isEmpty()) {
-      BufferedSend send = bufferedSends.removeFirst();
-      bufferedBytes -= send.bufferSize();
-      budget -= send.windowDebit();
-      freedCapacity = true;
-      observer.onNext(send.request());
+  /** Serializes buffered writes while invoking gRPC only outside the state monitor. */
+  private void drainBuffered() {
+    while (true) {
+      PreparedSend send;
+      synchronized (lock) {
+        if (terminalFailure != null || writeInProgress) {
+          return;
+        }
+        ClientCallStreamObserver<IngestionRequest> observer =
+            Objects.requireNonNull(callObserver, "gRPC request stream was not initialized");
+        if (budget <= 0 || !observer.isReady() || pendingWrites.isEmpty()) {
+          return;
+        }
+        writeInProgress = true;
+        send = pendingWrites.getFirst();
+        budget -= send.windowDebit();
+      }
+
+      try {
+        writeToTransport(send.request());
+      } catch (RuntimeException | Error e) {
+        finishWrite(true);
+        throw e;
+      }
+
+      List<CompletableFuture<@Nullable Void>> ready;
+      boolean halfClose;
+      synchronized (lock) {
+        if (pendingWrites.peekFirst() == send) {
+          pendingWrites.removeFirst();
+          bufferedBytes -= send.bufferSize();
+          ready = takeCapacityWaitersLocked();
+        } else {
+          // A synchronous terminal callback cleared the queue during the write.
+          ready = List.of();
+        }
+        writeInProgress = false;
+        halfClose = halfClosePending;
+        halfClosePending = false;
+      }
+      if (halfClose) {
+        completeRequestStream();
+      }
+      completeReady(ready);
     }
+  }
 
-    if (!freedCapacity) {
-      return List.of();
+  private void finishWrite(boolean failed) {
+    boolean halfClose;
+    synchronized (lock) {
+      writeInProgress = false;
+      halfClose = halfClosePending && !failed;
+      halfClosePending = false;
     }
+    if (halfClose) {
+      completeRequestStream();
+    }
+  }
 
+  private List<CompletableFuture<@Nullable Void>> takeCapacityWaitersLocked() {
     lock.notifyAll();
     long available = bufferMemory - bufferedBytes;
     List<CompletableFuture<@Nullable Void>> ready = new ArrayList<>();
@@ -456,23 +553,36 @@ final class ProducerImpl implements Producer, ExactlyOnceProducer {
     return ready;
   }
 
-  private void drainAndWake() {
-    List<CompletableFuture<@Nullable Void>> ready;
-    synchronized (lock) {
-      ready = drainLocked();
+  private boolean cannotBlockInline() {
+    return usageGuard.getHoldCount() > 1 || INLINE_CALLBACK.get() != null;
+  }
+
+  private static void runInlineCallbacks(Runnable action) {
+    boolean alreadyInline = INLINE_CALLBACK.get() != null;
+    if (!alreadyInline) {
+      INLINE_CALLBACK.set(true);
     }
-    completeReady(ready);
+    try {
+      action.run();
+    } finally {
+      if (!alreadyInline) {
+        INLINE_CALLBACK.remove();
+      }
+    }
   }
 
   private static void completeReady(List<CompletableFuture<@Nullable Void>> ready) {
-    for (CompletableFuture<@Nullable Void> future : ready) {
-      future.complete(null);
-    }
+    runInlineCallbacks(
+        () -> {
+          for (CompletableFuture<@Nullable Void> future : ready) {
+            future.complete(null);
+          }
+        });
   }
 
   private void ensureOpenLocked() {
-    if (closed) {
-      throw new IllegalStateException("producer is closed", failure);
+    if (terminalFailure != null) {
+      throw new IllegalStateException("producer is closed", terminalFailure);
     }
   }
 
@@ -515,84 +625,109 @@ final class ProducerImpl implements Producer, ExactlyOnceProducer {
   }
 
   private void onResponse(IngestionResponse resp) {
-    @Nullable List<CompletableFuture<Long>> acksToComplete = null;
+    List<CompletableFuture<Long>> acksToComplete = List.of();
     long watermark = -1;
     boolean drain = false;
-    @Nullable IntegrationClientException err = null;
+    @Nullable Termination termination = null;
     synchronized (lock) {
-      if (closed) {
+      if (terminalFailure != null) {
         return;
       }
       if (resp.hasLastCommitted() && resp.getLastCommitted() > lastCommitted) {
         lastCommitted = resp.getLastCommitted();
         watermark = lastCommitted;
         if (!ackWaiters.isEmpty()) {
-          acksToComplete = new ArrayList<>();
-          Map<Long, List<CompletableFuture<Long>>> head = ackWaiters.headMap(watermark, true);
-          for (List<CompletableFuture<Long>> waiters : head.values()) {
-            acksToComplete.addAll(waiters);
-          }
+          Map<Long, CompletableFuture<Long>> head = ackWaiters.headMap(watermark, true);
+          acksToComplete = new ArrayList<>(head.values());
           head.clear();
         }
       }
-      if (resp.hasWindowUpdate()) {
+      if (resp.hasError()) {
+        IntegrationClientException cause = mapError(resp.getError());
+        termination = beginTerminationLocked(cause, false);
+      } else if (resp.hasWindowUpdate()) {
         // increment_bytes is a uint32; read it as unsigned.
         budget += Integer.toUnsignedLong(resp.getWindowUpdate().getIncrementBytes());
         drain = true;
-      } else if (resp.hasError()) {
-        err = mapError(resp.getError());
       }
     }
-    if (err != null) {
-      terminate(err, false);
-    } else if (drain) {
-      drainAndWake();
+    if (termination != null) {
+      finishTermination(termination);
     }
-    if (acksToComplete != null) {
-      for (CompletableFuture<Long> f : acksToComplete) {
-        f.complete(watermark);
-      }
+    List<CompletableFuture<Long>> completedAcks = acksToComplete;
+    long committed = watermark;
+    runInlineCallbacks(
+        () -> {
+          for (CompletableFuture<Long> future : completedAcks) {
+            future.complete(committed);
+          }
+        });
+    if (drain) {
+      drainFromCallback();
     }
   }
 
   /** Mark the producer terminally closed and fail every pending future with {@code cause}. */
   private void terminate(IntegrationClientException cause, boolean halfClose) {
-    List<CompletableFuture<@Nullable Void>> capacity;
-    List<CompletableFuture<Long>> acks = new ArrayList<>();
+    @Nullable Termination termination;
     synchronized (lock) {
-      if (closed) {
-        return;
-      }
-      closed = true;
-      failure = cause;
-      capacity = new ArrayList<>(admissionWaiters.size());
-      for (AdmissionWaiter waiter : admissionWaiters) {
-        capacity.add(waiter.future());
-      }
-      admissionWaiters.clear();
-      bufferedSends.clear();
-      bufferedBytes = 0;
-      lock.notifyAll();
-      for (List<CompletableFuture<Long>> waiters : ackWaiters.values()) {
-        acks.addAll(waiters);
-      }
-      ackWaiters.clear();
+      termination = beginTerminationLocked(cause, halfClose);
     }
-    if (halfClose) {
-      @Nullable ClientCallStreamObserver<IngestionRequest> obs = callObserver;
-      if (obs != null) {
-        try {
-          obs.onCompleted();
-        } catch (RuntimeException ignored) {
-          // Already torn down transport-side; nothing to half-close.
-        }
-      }
+    if (termination != null) {
+      finishTermination(termination);
     }
-    for (CompletableFuture<@Nullable Void> f : capacity) {
-      f.completeExceptionally(cause);
+  }
+
+  private @Nullable Termination beginTerminationLocked(
+      IntegrationClientException cause, boolean halfClose) {
+    if (terminalFailure != null) {
+      return null;
     }
-    for (CompletableFuture<Long> f : acks) {
-      f.completeExceptionally(cause);
+    terminalFailure = cause;
+
+    List<CompletableFuture<@Nullable Void>> capacity = new ArrayList<>(admissionWaiters.size());
+    for (AdmissionWaiter waiter : admissionWaiters) {
+      capacity.add(waiter.future());
+    }
+    admissionWaiters.clear();
+    pendingWrites.clear();
+    bufferedBytes = 0;
+    lock.notifyAll();
+
+    List<CompletableFuture<Long>> acks = new ArrayList<>(ackWaiters.values());
+    ackWaiters.clear();
+
+    boolean completeStream = halfClose && !writeInProgress;
+    if (halfClose && writeInProgress) {
+      halfClosePending = true;
+    }
+    return new Termination(cause, capacity, acks, completeStream);
+  }
+
+  private void finishTermination(Termination termination) {
+    if (termination.completeStream()) {
+      completeRequestStream();
+    }
+    runInlineCallbacks(
+        () -> {
+          for (CompletableFuture<@Nullable Void> future : termination.capacity()) {
+            future.completeExceptionally(termination.cause());
+          }
+          for (CompletableFuture<Long> future : termination.acknowledgements()) {
+            future.completeExceptionally(termination.cause());
+          }
+        });
+  }
+
+  private void completeRequestStream() {
+    @Nullable ClientCallStreamObserver<IngestionRequest> observer = callObserver;
+    if (observer == null) {
+      return;
+    }
+    try {
+      observer.onCompleted();
+    } catch (RuntimeException ignored) {
+      // Already torn down transport-side; nothing to half-close.
     }
   }
 
@@ -622,21 +757,13 @@ final class ProducerImpl implements Producer, ExactlyOnceProducer {
   // ---- fail-fast guard ----
 
   private void acquire() {
-    Thread current = Thread.currentThread();
-    if (owner.get() == current) {
-      reentrancy++;
-      return;
-    }
-    if (!owner.compareAndSet(null, current)) {
+    if (!usageGuard.tryLock()) {
       throw new ConcurrentModificationException("Producer is not safe for multi-threaded access");
     }
-    reentrancy = 1;
   }
 
   private void release() {
-    if (--reentrancy == 0) {
-      owner.set(null);
-    }
+    usageGuard.unlock();
   }
 
   private final class ResponseObserver
@@ -644,7 +771,7 @@ final class ProducerImpl implements Producer, ExactlyOnceProducer {
     @Override
     public void beforeStart(ClientCallStreamObserver<IngestionRequest> requestStream) {
       callObserver = requestStream;
-      requestStream.setOnReadyHandler(ProducerImpl.this::drainAndWake);
+      requestStream.setOnReadyHandler(ProducerImpl.this::drainFromCallback);
     }
 
     @Override
@@ -674,9 +801,13 @@ final class ProducerImpl implements Producer, ExactlyOnceProducer {
   private record PreparedSend(
       long offset, IngestionRequest request, long windowDebit, long bufferSize) {}
 
-  private record BufferedSend(IngestionRequest request, long windowDebit, long bufferSize) {}
-
   private record AdmissionWaiter(long requiredBytes, CompletableFuture<@Nullable Void> future) {}
+
+  private record Termination(
+      IntegrationClientException cause,
+      List<CompletableFuture<@Nullable Void>> capacity,
+      List<CompletableFuture<Long>> acknowledgements,
+      boolean completeStream) {}
 
   private record SendResultImpl(long offset) implements SendResult {}
 }

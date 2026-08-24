@@ -36,6 +36,7 @@ import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ConcurrentModificationException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -240,11 +241,16 @@ class IntegrationClientTest {
     Producer producer = client.newProducer();
     fake.take(); // Start
     fake.grantWindow(10_000);
-    producer.send(newBody("a"));
-    producer.send(newBody("b"));
+    CompletableFuture<SendResult> committed = producer.send(newBody("a"));
+    CompletableFuture<SendResult> rejected = producer.send(newBody("b"));
 
     fake.error(ErrorKind.ERROR_KIND_BAD_REQUEST, "nope", 0L);
 
+    assertThat(get(committed).offset()).isZero();
+    assertThatThrownBy(() -> get(rejected))
+        .isInstanceOf(ExecutionException.class)
+        .cause()
+        .isInstanceOf(IntegrationClientException.class);
     assertThat(producer.lastAcknowledgedOffset()).isEqualTo(0L);
   }
 
@@ -354,14 +360,16 @@ class IntegrationClientTest {
     fake.assertNoRequest();
   }
 
-  @Test
-  void zeroBufferDirectWriteFailureTerminatesProducer() throws Exception {
+  @ParameterizedTest(name = "bufferMemory={0}")
+  @ValueSource(longs = {0L, 128L})
+  void writeFailureTerminatesProducer(long bufferMemory) throws Exception {
     client.close();
     client =
         GrpcIntegrationClient.builder(new FailingSecondWriteChannel(channel))
             .integration("test-integration", "1.0")
             .build();
-    Producer producer = client.newProducer(ProducerOptions.builder().bufferMemory(0).build());
+    Producer producer =
+        client.newProducer(ProducerOptions.builder().bufferMemory(bufferMemory).build());
     fake.take(); // Start is the first write and succeeds.
     fake.grantWindow(10_000);
 
@@ -376,6 +384,124 @@ class IntegrationClientTest {
     assertThatThrownBy(() -> producer.send(newBody("b")))
         .isInstanceOf(IllegalStateException.class)
         .hasCauseInstanceOf(IntegrationClientException.class);
+  }
+
+  @Test
+  void callbackDrivenWriteFailureTerminatesProducer() throws Exception {
+    client.close();
+    client =
+        GrpcIntegrationClient.builder(new FailingSecondWriteChannel(channel))
+            .integration("test-integration", "1.0")
+            .build();
+    Producer producer = client.newProducer(ProducerOptions.builder().bufferMemory(128).build());
+    fake.take(); // Start is the first write and succeeds.
+
+    CompletableFuture<SendResult> acknowledgement = producer.send(newBody("a"));
+    fake.grantWindow(10_000);
+
+    assertThatThrownBy(() -> get(acknowledgement))
+        .isInstanceOf(ExecutionException.class)
+        .cause()
+        .isInstanceOf(IntegrationClientException.class);
+    assertThatThrownBy(() -> producer.send(newBody("b")))
+        .isInstanceOf(IllegalStateException.class)
+        .hasCauseInstanceOf(IntegrationClientException.class);
+  }
+
+  @ParameterizedTest(name = "bufferMemory={0}")
+  @ValueSource(longs = {0L, 128L})
+  void closeDuringWriteDefersHalfClose(long bufferMemory) throws Exception {
+    client.close();
+    DuringInvocationWriteChannel duringWrite = new DuringInvocationWriteChannel(channel);
+    client =
+        GrpcIntegrationClient.builder(duringWrite).integration("test-integration", "1.0").build();
+    Producer producer =
+        client.newProducer(ProducerOptions.builder().bufferMemory(bufferMemory).build());
+    duringWrite.runDuringInvocation(producer::close);
+    fake.take(); // Start
+    fake.grantWindow(10_000);
+
+    CompletableFuture<SendResult> acknowledgement = producer.send(newBody("a"));
+
+    assertThatThrownBy(() -> get(acknowledgement))
+        .isInstanceOf(ExecutionException.class)
+        .cause()
+        .isInstanceOf(IntegrationClientException.class);
+    assertThat(duringWrite.halfCloseCount()).isOne();
+    assertThat(duringWrite.halfClosedDuringWrite()).isFalse();
+  }
+
+  @ParameterizedTest(name = "bufferMemory={0}")
+  @ValueSource(longs = {0L, ProducerOptions.DEFAULT_BUFFER_MEMORY})
+  void replayBelowKnownWatermarkIsAlreadyAcknowledged(long bufferMemory) throws Exception {
+    ExactlyOnceProducer producer =
+        client.newExactlyOnceProducer(
+            "p1", ProducerOptions.builder().bufferMemory(bufferMemory).build());
+    fake.take(); // Start
+    fake.ack(10L);
+    fake.grantWindow(10_000);
+
+    CompletableFuture<SendResult> replay = producer.send(5L, newBody("replay"));
+
+    assertThat(get(replay).offset()).isEqualTo(5L);
+    assertThat(producer.lastAcknowledgedOffset()).isEqualTo(10L);
+    assertThat(fake.take().getInvocation().getOffset()).isEqualTo(5L);
+  }
+
+  @Test
+  void reentrantTrySendPreservesTransportOrder() throws Exception {
+    client.close();
+    DuringInvocationWriteChannel duringWrite = new DuringInvocationWriteChannel(channel);
+    client =
+        GrpcIntegrationClient.builder(duringWrite).integration("test-integration", "1.0").build();
+    Producer producer = client.newProducer(ProducerOptions.builder().bufferMemory(128).build());
+    AtomicReference<SendAttempt> reentrantAttempt = new AtomicReference<>();
+    duringWrite.runDuringInvocation(
+        () -> reentrantAttempt.set(producer.trySend(newBody("second"))));
+    fake.take(); // Start
+    fake.grantWindow(10_000);
+
+    producer.send(newBody("first"));
+
+    assertThat(reentrantAttempt.get()).isInstanceOf(SendAttempt.Accepted.class);
+    assertThat(fake.take().getInvocation().getOffset()).isZero();
+    assertThat(fake.take().getInvocation().getOffset()).isOne();
+  }
+
+  @ParameterizedTest(name = "bufferMemory={0}")
+  @ValueSource(longs = {0L, 128L})
+  void reentrantBlockingSendIsRejected(long bufferMemory) throws Exception {
+    client.close();
+    DuringInvocationWriteChannel duringWrite = new DuringInvocationWriteChannel(channel);
+    client =
+        GrpcIntegrationClient.builder(duringWrite).integration("test-integration", "1.0").build();
+    Producer producer =
+        client.newProducer(
+            ProducerOptions.builder()
+                .bufferMemory(bufferMemory)
+                .maxBlockTime(Duration.ofMillis(100))
+                .build());
+    AtomicReference<Throwable> reentrantFailure = new AtomicReference<>();
+    duringWrite.runDuringInvocation(
+        () -> {
+          try {
+            producer.send(newBody("b".repeat(80)));
+          } catch (Throwable t) {
+            reentrantFailure.set(t);
+          }
+        });
+    fake.take(); // Start
+    fake.grantWindow(10_000);
+
+    CompletableFuture<SendResult> first = producer.send(newBody("a".repeat(80)));
+
+    assertThat(reentrantFailure.get())
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("reentrant");
+    assertThat(fake.take().getInvocation().getOffset()).isZero();
+    fake.assertNoRequest();
+    fake.ack(0L);
+    assertThat(get(first).offset()).isZero();
   }
 
   @Test
@@ -511,6 +637,23 @@ class IntegrationClientTest {
   }
 
   @Test
+  void cancellingAcknowledgementViewsDoesNotCancelSharedBarrier() throws Exception {
+    Producer producer = client.newProducer();
+    fake.take(); // Start
+    fake.grantWindow(10_000);
+
+    CompletableFuture<SendResult> send = producer.send(newBody("a"));
+    CompletableFuture<Long> wait = producer.waitAcknowledged(0L);
+    CompletableFuture<Long> flush = producer.flushAsync();
+    assertThat(send.cancel(false)).isTrue();
+    assertThat(wait.cancel(false)).isTrue();
+
+    fake.ack(0L);
+
+    assertThat(get(flush)).isZero();
+  }
+
+  @Test
   void flushAsyncCompletesWhenEverythingSentIsCommitted() throws Exception {
     Producer producer = client.newProducer();
     fake.take(); // Start
@@ -552,6 +695,68 @@ class IntegrationClientTest {
 
     fake.ack(0L);
     assertThat(get(flushed)).isEqualTo(0L);
+  }
+
+  @Test
+  void concurrentUseFailsFastAndSequentialThreadHandoffWorks() throws Exception {
+    Producer producer = client.newProducer();
+    fake.take(); // Start
+    fake.grantWindow(10_000);
+    producer.send(newBody("a"));
+    fake.take();
+
+    CountDownLatch flushing = new CountDownLatch(1);
+    AtomicReference<Long> result = new AtomicReference<>();
+    AtomicReference<Throwable> failure = new AtomicReference<>();
+    Thread flusher =
+        new Thread(
+            () -> {
+              flushing.countDown();
+              try {
+                result.set(producer.flush());
+              } catch (Throwable t) {
+                failure.set(t);
+              }
+            });
+    flusher.setDaemon(true);
+    flusher.start();
+    assertThat(flushing.await(5, TimeUnit.SECONDS)).isTrue();
+
+    try {
+      awaitState(flusher, Thread.State.WAITING);
+      assertThatThrownBy(producer::lastSentOffset)
+          .isInstanceOf(ConcurrentModificationException.class);
+    } finally {
+      fake.ack(0L);
+      flusher.join(TimeUnit.SECONDS.toMillis(5));
+    }
+
+    assertThat(flusher.isAlive()).isFalse();
+    assertThat(failure.get()).isNull();
+    assertThat(result.get()).isZero();
+    assertThat(producer.lastSentOffset()).isZero();
+  }
+
+  @Test
+  void blockingFlushFromInlineAcknowledgementCallbackIsRejected() throws Exception {
+    Producer producer = client.newProducer();
+    fake.take(); // Start
+    fake.grantWindow(10_000);
+    CompletableFuture<SendResult> first = producer.send(newBody("a"));
+    CompletableFuture<SendResult> second = producer.send(newBody("b"));
+    fake.take();
+    fake.take();
+    CompletableFuture<Void> continuation = first.thenRun(producer::flush);
+
+    get(CompletableFuture.runAsync(() -> fake.ack(0L)));
+
+    assertThatThrownBy(() -> get(continuation))
+        .isInstanceOf(ExecutionException.class)
+        .cause()
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("reentrant");
+    fake.ack(1L);
+    assertThat(get(second).offset()).isOne();
   }
 
   @Test
@@ -673,6 +878,21 @@ class IntegrationClientTest {
     return f.get(5, TimeUnit.SECONDS);
   }
 
+  private static void awaitState(Thread thread, Thread.State expected) throws InterruptedException {
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+    while (System.nanoTime() < deadline) {
+      if (thread.getState() == expected) {
+        return;
+      }
+      if (!thread.isAlive()) {
+        throw new AssertionError("thread terminated before reaching " + expected);
+      }
+      Thread.sleep(1);
+    }
+    throw new AssertionError(
+        "thread did not reach " + expected + "; current state is " + thread.getState());
+  }
+
   /** Fake service capturing requests and scripting responses. */
   private static final class FakeIngestionService extends IngestionSvcGrpc.IngestionSvcImplBase {
 
@@ -761,6 +981,67 @@ class IntegrationClientTest {
             throw new IllegalStateException("simulated transport write failure");
           }
           super.sendMessage(message);
+        }
+      };
+    }
+
+    @Override
+    public String authority() {
+      return delegate.authority();
+    }
+  }
+
+  private static final class DuringInvocationWriteChannel extends Channel {
+
+    private final Channel delegate;
+    private volatile Runnable duringInvocation = () -> {};
+    private volatile boolean insideInvocationWrite;
+    private volatile boolean halfClosedDuringWrite;
+    private volatile int halfCloseCount;
+
+    private DuringInvocationWriteChannel(Channel delegate) {
+      this.delegate = delegate;
+    }
+
+    void runDuringInvocation(Runnable action) {
+      this.duringInvocation = action;
+    }
+
+    boolean halfClosedDuringWrite() {
+      return halfClosedDuringWrite;
+    }
+
+    int halfCloseCount() {
+      return halfCloseCount;
+    }
+
+    @Override
+    public <RequestT, ResponseT> ClientCall<RequestT, ResponseT> newCall(
+        MethodDescriptor<RequestT, ResponseT> methodDescriptor, CallOptions callOptions) {
+      return new ForwardingClientCall.SimpleForwardingClientCall<>(
+          delegate.newCall(methodDescriptor, callOptions)) {
+        private int writes;
+
+        @Override
+        public void sendMessage(RequestT message) {
+          if (++writes != 2) {
+            super.sendMessage(message);
+            return;
+          }
+          insideInvocationWrite = true;
+          try {
+            duringInvocation.run();
+            super.sendMessage(message);
+          } finally {
+            insideInvocationWrite = false;
+          }
+        }
+
+        @Override
+        public void halfClose() {
+          halfCloseCount++;
+          halfClosedDuringWrite |= insideInvocationWrite;
+          super.halfClose();
         }
       };
     }
