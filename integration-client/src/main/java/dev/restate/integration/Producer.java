@@ -17,9 +17,9 @@ import java.util.concurrent.CompletableFuture;
  *
  * <h2>Sending</h2>
  *
- * {@link #send} writes the record straight to the stream and returns a future that completes once
- * Restate has durably committed it. If the producer is not ready {@code send} throws {@link
- * ProducerNotReadyException} rather than queueing. Catch it, await {@link #waitReady()}, and retry.
+ * {@link #send} admits the record into a byte-bounded local buffer, waiting up to {@link
+ * ProducerOptions#maxBlockTime()} for capacity, and returns a future that completes once Restate
+ * has durably committed it. Use {@link #trySend} when the calling thread must never block.
  *
  * <p>Awaiting each {@code send} future before the next send serializes to one in-flight record. To
  * parallelize sending, just keep {@code send}ing and use {@link #flush} to await durability in
@@ -29,15 +29,7 @@ import java.util.concurrent.CompletableFuture;
  * try (IntegrationClient client = IntegrationClient.builder("http://localhost:8080").build();
  *     Producer producer = client.newProducer()) {
  *   for (byte[] payload : payloads) {
- *     Invocation invocation = Invocation.create().setBody(payload);
- *     while (true) {
- *       try {
- *         producer.send(invocation);
- *         break;
- *       } catch (ProducerNotReadyException notReady) {
- *         producer.waitReady().get(); // block until there is capacity, then retry
- *       }
- *     }
+ *     producer.send(Invocation.create().setBody(payload));
  *   }
  *   producer.flush().get(); // block until everything sent so far is durably committed
  * }
@@ -45,9 +37,10 @@ import java.util.concurrent.CompletableFuture;
  *
  * <h2>Stream defaults</h2>
  *
- * Pass an {@link InvocationMetadata} to {@link IntegrationClient#newProducer(InvocationMetadata)}
- * to set fields shared by every record (e.g. the target service/handler) once; per-invocation
- * fields override them.
+ * Pass an {@link InvocationMetadata} to {@link IntegrationClient#newProducer(InvocationMetadata)},
+ * or set {@link ProducerOptions.Builder#defaultMetadata(InvocationMetadata)}, to configure fields
+ * shared by every record (e.g. the target service/handler) once; per-invocation fields override
+ * them.
  *
  * <pre>{@code
  * Producer producer =
@@ -58,7 +51,7 @@ import java.util.concurrent.CompletableFuture;
  * <h2>Thread safety</h2>
  *
  * A producer is <b>not thread-safe</b> and fails fast with {@link
- * java.util.ConcurrentModificationException}) if used from more than one thread at once.
+ * java.util.ConcurrentModificationException} if used from more than one thread at once.
  */
 @org.jetbrains.annotations.ApiStatus.Experimental
 public interface Producer extends ProducerBase {
@@ -66,17 +59,36 @@ public interface Producer extends ProducerBase {
   /**
    * Sends an invocation.
    *
-   * <p>If the internal buffer is full, or the producer doesn't have enough window credit, sending
-   * is refused with a {@link ProducerNotReadyException} exception, await {@link #waitReady()}, and
-   * retry. See the example in {@link Producer} for more details.
+   * <p>If the local buffer is full, this method waits up to {@link ProducerOptions#maxBlockTime()}
+   * for capacity. The invocation is refused with {@link ProducerNotReadyException} if the timeout
+   * elapses. A zero duration makes this method fail immediately under backpressure.
    *
    * <p>The returned future completes when the invocation is durably committed by Restate.
    *
    * @param invocation the invocation to send
    * @return a future completing, once the invocation is durably committed by Restate.
-   * @throws ProducerNotReadyException if the producer cannot accept a record right now
+   * @throws ProducerNotReadyException if buffer capacity does not become available before the
+   *     configured maximum blocking time elapses
+   * @throws IllegalArgumentException if the serialized invocation is larger than {@link
+   *     ProducerOptions#bufferMemory()}
    * @throws java.util.ConcurrentModificationException if the producer is used concurrently from
    *     another thread
    */
   CompletableFuture<SendResult> send(Invocation invocation) throws ProducerNotReadyException;
+
+  /**
+   * Attempts to send an invocation without blocking.
+   *
+   * <p>An {@link SendAttempt.Accepted} carries the durable-acknowledgement future. A {@link
+   * SendAttempt.Backpressured} carries a future that completes when retrying may succeed; the
+   * notification does not reserve capacity.
+   *
+   * @param invocation the invocation to send
+   * @return the admission result
+   * @throws IllegalArgumentException if the serialized invocation is larger than {@link
+   *     ProducerOptions#bufferMemory()}
+   * @throws java.util.ConcurrentModificationException if the producer is used concurrently from
+   *     another thread
+   */
+  SendAttempt trySend(Invocation invocation);
 }

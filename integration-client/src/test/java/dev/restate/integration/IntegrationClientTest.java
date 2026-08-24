@@ -25,8 +25,10 @@ import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -75,6 +77,46 @@ class IntegrationClientTest {
     assertThat(start.getStart().getIntegration()).isEqualTo(INTEGRATION);
     assertThat(start.getStart().getDeduplicationMode()).isEqualTo(DeduplicationMode.DISABLED);
     assertThat(start.getStart().getDefaults().getService()).isEqualTo("Svc");
+  }
+
+  @Test
+  void producerOptionsHaveKafkaCompatibleDefaultsAndSnapshotMetadata() throws Exception {
+    InvocationMetadata metadata = InvocationMetadata.create().setServiceName("Original");
+    ProducerOptions options = ProducerOptions.builder().defaultMetadata(metadata).build();
+    metadata.setServiceName("Changed");
+
+    assertThat(options.bufferMemory()).isEqualTo(32L * 1024 * 1024);
+    assertThat(options.maxBlockTime()).isEqualTo(Duration.ofMinutes(1));
+    assertThat(options.defaultMetadata().getServiceName()).isEqualTo("Original");
+
+    client.newProducer(options);
+    assertThat(fake.take().getStart().getDefaults().getService()).isEqualTo("Original");
+  }
+
+  @Test
+  void exactlyOnceProducerAcceptsProducerOptions() throws Exception {
+    ProducerOptions options =
+        ProducerOptions.builder()
+            .defaultMetadata(InvocationMetadata.create().setHandlerName("handle"))
+            .build();
+
+    client.newExactlyOnceProducer("producer-1", options);
+
+    IngestionRequest start = fake.take();
+    assertThat(start.getStart().getProducerId()).isEqualTo("producer-1");
+    assertThat(start.getStart().getDefaults().getHandler()).isEqualTo("handle");
+  }
+
+  @Test
+  void producerOptionsValidateBufferAndBlockTime() {
+    assertThatThrownBy(() -> ProducerOptions.builder().bufferMemory(0))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> ProducerOptions.builder().maxBlockTime(Duration.ofMillis(-1)))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> ProducerOptions.builder().maxBlockTime(null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> ProducerOptions.builder().defaultMetadata(null))
+        .isInstanceOf(NullPointerException.class);
   }
 
   @Test
@@ -144,31 +186,98 @@ class IntegrationClientTest {
   }
 
   @Test
-  void sendThrowsWhenNotReadyThenSucceedsAfterGrant() throws Exception {
+  void sendBuffersBeforeInitialWindowGrant() throws Exception {
     Producer producer = client.newProducer();
     fake.take(); // Start
 
-    Invocation inv = newBody("a");
-    assertThatThrownBy(() -> producer.send(inv)).isInstanceOf(ProducerNotReadyException.class);
+    CompletableFuture<SendResult> acknowledgement = producer.send(newBody("a"));
+    assertThat(producer.lastSentOffset()).isEqualTo(0L);
+    assertThat(acknowledgement).isNotDone();
+    fake.assertNoRequest();
 
     fake.grantWindow(10_000);
-    CompletableFuture<SendResult> f = producer.send(newBody("b"));
     assertThat(fake.take().getInvocation().getOffset()).isEqualTo(0L);
 
     fake.ack(0L);
-    assertThat(get(f).offset()).isEqualTo(0L);
+    assertThat(get(acknowledgement).offset()).isEqualTo(0L);
   }
 
   @Test
-  void waitReadyCompletesOnWindowGrant() throws Exception {
-    Producer producer = client.newProducer();
+  void trySendReportsBackpressureAndSignalsWhenCapacityReturns() throws Exception {
+    Producer producer =
+        client.newProducer(
+            ProducerOptions.builder().bufferMemory(128).maxBlockTime(Duration.ZERO).build());
     fake.take(); // Start
 
-    CompletableFuture<Void> ready = producer.waitReady();
+    SendAttempt first = producer.trySend(newBody("a".repeat(80)));
+    assertThat(first).isInstanceOf(SendAttempt.Accepted.class);
+
+    SendAttempt second = producer.trySend(newBody("b".repeat(80)));
+    assertThat(second).isInstanceOf(SendAttempt.Backpressured.class);
+    CompletableFuture<Void> ready = ((SendAttempt.Backpressured) second).ready();
+    assertThat(producer.lastSentOffset()).isEqualTo(0L);
     assertThat(ready).isNotDone();
 
     fake.grantWindow(10_000);
     get(ready);
+
+    SendAttempt retried = producer.trySend(newBody("b".repeat(80)));
+    assertThat(retried).isInstanceOf(SendAttempt.Accepted.class);
+    assertThat(producer.lastSentOffset()).isEqualTo(1L);
+    assertThat(fake.take().getInvocation().getOffset()).isEqualTo(0L);
+    assertThat(fake.take().getInvocation().getOffset()).isEqualTo(1L);
+  }
+
+  @Test
+  void sendBlocksUntilBufferCapacityReturns() throws Exception {
+    Producer producer =
+        client.newProducer(
+            ProducerOptions.builder()
+                .bufferMemory(128)
+                .maxBlockTime(Duration.ofSeconds(5))
+                .build());
+    fake.take(); // Start
+    producer.send(newBody("a".repeat(80)));
+
+    CountDownLatch attempting = new CountDownLatch(1);
+    CompletableFuture<CompletableFuture<SendResult>> blocked =
+        CompletableFuture.supplyAsync(
+            () -> {
+              attempting.countDown();
+              return producer.send(newBody("b".repeat(80)));
+            });
+    assertThat(attempting.await(5, TimeUnit.SECONDS)).isTrue();
+    Thread.sleep(50);
+    assertThat(blocked).isNotDone();
+
+    fake.grantWindow(10_000);
+    get(blocked);
+    assertThat(fake.take().getInvocation().getOffset()).isEqualTo(0L);
+    assertThat(fake.take().getInvocation().getOffset()).isEqualTo(1L);
+  }
+
+  @Test
+  void zeroMaxBlockTimeFailsWithoutConsumingOffset() throws Exception {
+    Producer producer =
+        client.newProducer(
+            ProducerOptions.builder().bufferMemory(128).maxBlockTime(Duration.ZERO).build());
+    fake.take(); // Start
+    producer.send(newBody("a".repeat(80)));
+
+    assertThatThrownBy(() -> producer.send(newBody("b".repeat(80))))
+        .isInstanceOf(ProducerNotReadyException.class);
+    assertThat(producer.lastSentOffset()).isEqualTo(0L);
+  }
+
+  @Test
+  void oversizedInvocationIsRejectedWithoutConsumingOffset() throws Exception {
+    Producer producer = client.newProducer(ProducerOptions.builder().bufferMemory(64).build());
+    fake.take(); // Start
+
+    assertThatThrownBy(() -> producer.send(newBody("a".repeat(100))))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("exceeding bufferMemory");
+    assertThat(producer.lastSentOffset()).isEqualTo(-1L);
   }
 
   @Test
@@ -235,6 +344,25 @@ class IntegrationClientTest {
   }
 
   @Test
+  void streamErrorFailsBufferedAcknowledgementsAndBackpressureWaiters() throws Exception {
+    Producer producer =
+        client.newProducer(
+            ProducerOptions.builder().bufferMemory(128).maxBlockTime(Duration.ZERO).build());
+    fake.take(); // Start
+
+    SendAttempt.Accepted accepted =
+        (SendAttempt.Accepted) producer.trySend(newBody("a".repeat(80)));
+    SendAttempt.Backpressured backpressured =
+        (SendAttempt.Backpressured) producer.trySend(newBody("b".repeat(80)));
+
+    fake.error(ErrorKind.ERROR_KIND_BAD_REQUEST, "nope");
+
+    assertThatThrownBy(() -> get(accepted.acknowledgement()))
+        .isInstanceOf(ExecutionException.class);
+    assertThatThrownBy(() -> get(backpressured.ready())).isInstanceOf(ExecutionException.class);
+  }
+
+  @Test
   void exactlyOnceRejectsNonIncreasingOffsets() throws Exception {
     ExactlyOnceProducer producer = client.newExactlyOnceProducer("p1");
     fake.take(); // Start
@@ -249,6 +377,27 @@ class IntegrationClientTest {
         .isInstanceOf(IllegalArgumentException.class);
 
     producer.send(6L, newBody("d"));
+    assertThat(producer.lastSentOffset()).isEqualTo(6L);
+  }
+
+  @Test
+  void exactlyOnceTrySendDoesNotConsumeBackpressuredOffset() throws Exception {
+    ExactlyOnceProducer producer =
+        client.newExactlyOnceProducer(
+            "p1", ProducerOptions.builder().bufferMemory(128).maxBlockTime(Duration.ZERO).build());
+    fake.take(); // Start
+
+    assertThat(producer.trySend(5L, newBody("a".repeat(80))))
+        .isInstanceOf(SendAttempt.Accepted.class);
+    SendAttempt rejected = producer.trySend(6L, newBody("b".repeat(80)));
+    assertThat(rejected).isInstanceOf(SendAttempt.Backpressured.class);
+    assertThat(producer.lastSentOffset()).isEqualTo(5L);
+
+    fake.grantWindow(10_000);
+    get(((SendAttempt.Backpressured) rejected).ready());
+
+    assertThat(producer.trySend(6L, newBody("b".repeat(80))))
+        .isInstanceOf(SendAttempt.Accepted.class);
     assertThat(producer.lastSentOffset()).isEqualTo(6L);
   }
 
@@ -320,6 +469,10 @@ class IntegrationClientTest {
         throw new AssertionError("timed out waiting for a request frame");
       }
       return req;
+    }
+
+    void assertNoRequest() {
+      assertThat(received.poll()).isNull();
     }
 
     void grantWindow(long bytes) {

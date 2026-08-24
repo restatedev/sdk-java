@@ -9,7 +9,6 @@
 package dev.restate.integration;
 
 import dev.restate.ingestion.v1.DeduplicationMode;
-import dev.restate.ingestion.v1.IngestionDefaults;
 import dev.restate.ingestion.v1.IngestionSvcGrpc;
 import java.util.concurrent.CompletableFuture;
 
@@ -19,9 +18,20 @@ final class ExactlyOnceProducerImpl extends AbstractProducer implements ExactlyO
   ExactlyOnceProducerImpl(
       IngestionSvcGrpc.IngestionSvcStub stub,
       String producerId,
-      IngestionDefaults defaults,
+      ProducerOptions options,
       String integration) {
-    super(stub, producerId, DeduplicationMode.OFFSET_BASED, defaults, integration);
+    super(stub, producerId, DeduplicationMode.OFFSET_BASED, options, integration);
+  }
+
+  @Override
+  public SendAttempt trySend(long offset, Invocation invocation) {
+    acquire();
+    try {
+      checkOffset(offset);
+      return doTrySend(offset, (InvocationImpl) invocation);
+    } finally {
+      release();
+    }
   }
 
   @Override

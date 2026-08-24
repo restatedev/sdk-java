@@ -9,7 +9,6 @@
 package dev.restate.integration;
 
 import dev.restate.ingestion.v1.DeduplicationMode;
-import dev.restate.ingestion.v1.IngestionDefaults;
 import dev.restate.ingestion.v1.IngestionSvcGrpc;
 import java.util.concurrent.CompletableFuture;
 
@@ -17,8 +16,8 @@ import java.util.concurrent.CompletableFuture;
 final class ProducerImpl extends AbstractProducer implements Producer {
 
   ProducerImpl(
-      IngestionSvcGrpc.IngestionSvcStub stub, IngestionDefaults defaults, String integration) {
-    super(stub, "", DeduplicationMode.DISABLED, defaults, integration);
+      IngestionSvcGrpc.IngestionSvcStub stub, ProducerOptions options, String integration) {
+    super(stub, "", DeduplicationMode.DISABLED, options, integration);
   }
 
   @Override
@@ -27,6 +26,16 @@ final class ProducerImpl extends AbstractProducer implements Producer {
     acquire();
     try {
       return doSend(lastSent + 1, (InvocationImpl) invocation);
+    } finally {
+      release();
+    }
+  }
+
+  @Override
+  public SendAttempt trySend(Invocation invocation) {
+    acquire();
+    try {
+      return doTrySend(lastSent + 1, (InvocationImpl) invocation);
     } finally {
       release();
     }

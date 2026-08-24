@@ -9,13 +9,16 @@
 package dev.restate.integration;
 
 /**
- * Thrown by {@code send} when the producer cannot accept a record right now (the send window is
- * depleted or the transport is not writable). Unchecked: catch it to pace, or await {@link
- * ProducerBase#waitReady()} before sending.
+ * Thrown by {@code send} when local buffer capacity does not become available within the configured
+ * {@link ProducerOptions#maxBlockTime()}.
  */
 @org.jetbrains.annotations.ApiStatus.Experimental
 public class ProducerNotReadyException extends RuntimeException {
   public ProducerNotReadyException(String message) {
     super(message);
+  }
+
+  public ProducerNotReadyException(String message, Throwable cause) {
+    super(message, cause);
   }
 }
