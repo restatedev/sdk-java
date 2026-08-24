@@ -11,49 +11,54 @@ package dev.restate.integration;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * An at-least-once producer: the client assigns a monotonically increasing offset to each
- * invocation. Deduplication is disabled (empty producer id); add an idempotency key on the
- * invocations if you need handler-level dedup.
- *
- * <h2>Sending</h2>
- *
- * {@link #send} admits the record into a byte-bounded local buffer, waiting up to {@link
- * ProducerOptions#maxBlockTime()} for capacity, and returns a future that completes once Restate
- * has durably committed it. Use {@link #trySend} when the calling thread must never block.
- *
- * <p>Awaiting each {@code send} future before the next send serializes to one in-flight record. To
- * parallelize sending, just keep {@code send}ing and use {@link #flush} to await durability in
- * bulk.
+ * Sends invocations to Restate with at-least-once delivery.
  *
  * <pre>{@code
  * try (IntegrationClient client = IntegrationClient.builder("http://localhost:8080").build();
  *     Producer producer = client.newProducer()) {
- *   for (byte[] payload : payloads) {
- *     producer.send(Invocation.create().setBody(payload));
- *   }
- *   producer.flush(); // block until everything sent so far is durably committed
+ *   producer.send(
+ *       Invocation.create()
+ *           .setServiceName("Greeter")
+ *           .setHandlerName("greet")
+ *           .setBody(payload));
+ *   producer.flush();
  * }
  * }</pre>
  *
- * <p>{@link #close()} does not flush. Call {@link #flush()} before closing, or await {@link
- * #flushAsync()}, when accepted invocations must be durably committed.
+ * <h2>Buffering</h2>
  *
- * <h2>Stream defaults</h2>
+ * {@link #send} first admits the invocation to a local buffer, bounded by {@link
+ * ProducerOptions#bufferMemory()}, while it waits to be handed to the transport. If the buffer is
+ * full, {@code send} waits up to {@link ProducerOptions#maxBlockTime()} and then throws {@link
+ * ProducerBufferExhaustedException}. The returned future tracks durable acknowledgement, not buffer
+ * admission. Send several invocations without awaiting each future, then use {@link #flush()} or
+ * {@link #flushAsync()} to await them in bulk. {@link #close()} does not flush.
  *
- * Pass an {@link InvocationMetadata} to {@link IntegrationClient#newProducer(InvocationMetadata)},
- * or set {@link ProducerOptions.Builder#defaultMetadata(InvocationMetadata)}, to configure fields
- * shared by every record (e.g. the target service/handler) once; per-invocation fields override
- * them.
+ * <h2>Non-blocking admission</h2>
+ *
+ * For event-loop or callback-based code, {@link #trySend} does not wait for buffer capacity. {@link
+ * SendAttempt.Accepted} contains the durable-acknowledgement future. On {@link
+ * SendAttempt.Backpressured}, use {@link SendAttempt.Backpressured#ready()} to schedule a retry on
+ * the event loop; readiness is a notification, not a capacity reservation.
  *
  * <pre>{@code
- * Producer producer =
- *     client.newProducer(
- *         InvocationMetadata.create().setServiceName("Greeter").setHandlerName("greet"));
+ * static CompletableFuture<SendResult> sendWithoutBlocking(
+ *     Producer producer, Invocation invocation, Executor eventLoop) {
+ *   SendAttempt attempt = producer.trySend(invocation);
+ *   if (attempt instanceof SendAttempt.Accepted accepted) {
+ *     return accepted.acknowledgement();
+ *   }
+ *   return ((SendAttempt.Backpressured) attempt)
+ *       .ready()
+ *       .thenComposeAsync(
+ *           ignored -> sendWithoutBlocking(producer, invocation, eventLoop), eventLoop);
+ * }
  * }</pre>
  *
- * <h2>Thread safety</h2>
+ * <p>The client assigns monotonically increasing offsets. Producer-level deduplication is disabled;
+ * set an idempotency key on an invocation when handler-level deduplication is required.
  *
- * A producer is <b>not thread-safe</b> and fails fast with {@link
+ * <p>A producer is <b>not thread-safe</b> and fails fast with {@link
  * java.util.ConcurrentModificationException} if used from more than one thread at once.
  */
 @org.jetbrains.annotations.ApiStatus.Experimental
