@@ -22,7 +22,7 @@ final class ProducerImpl extends AbstractProducer implements Producer {
 
   @Override
   public CompletableFuture<SendResult> send(Invocation invocation)
-      throws ProducerNotReadyException {
+      throws ProducerBufferExhaustedException {
     acquire();
     try {
       return doSend(lastSent + 1, (InvocationImpl) invocation);

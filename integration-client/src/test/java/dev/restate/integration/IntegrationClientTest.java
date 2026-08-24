@@ -265,7 +265,7 @@ class IntegrationClientTest {
     producer.send(newBody("a".repeat(80)));
 
     assertThatThrownBy(() -> producer.send(newBody("b".repeat(80))))
-        .isInstanceOf(ProducerNotReadyException.class);
+        .isInstanceOf(ProducerBufferExhaustedException.class);
     assertThat(producer.lastSentOffset()).isEqualTo(0L);
   }
 
@@ -299,14 +299,14 @@ class IntegrationClientTest {
   }
 
   @Test
-  void flushCompletesWhenEverythingSentIsCommitted() throws Exception {
+  void flushAsyncCompletesWhenEverythingSentIsCommitted() throws Exception {
     Producer producer = client.newProducer();
     fake.take(); // Start
     fake.grantWindow(10_000);
     CompletableFuture<SendResult> a = producer.send(newBody("a")); // offset 0
     CompletableFuture<SendResult> b = producer.send(newBody("b")); // offset 1
 
-    CompletableFuture<Long> flushed = producer.flush(); // waits up to the last sent offset (1)
+    CompletableFuture<Long> flushed = producer.flushAsync(); // waits up to the last sent offset (1)
     assertThat(a).isNotDone();
     assertThat(flushed).isNotDone();
 
@@ -318,6 +318,28 @@ class IntegrationClientTest {
     fake.ack(1L);
     assertThat(get(b).offset()).isEqualTo(1L);
     assertThat(get(flushed)).isEqualTo(1L); // last durably committed offset
+  }
+
+  @Test
+  void flushBlocksUntilEverythingSentIsCommitted() throws Exception {
+    Producer producer = client.newProducer();
+    fake.take(); // Start
+    fake.grantWindow(10_000);
+    producer.send(newBody("a"));
+
+    CountDownLatch flushing = new CountDownLatch(1);
+    CompletableFuture<Long> flushed =
+        CompletableFuture.supplyAsync(
+            () -> {
+              flushing.countDown();
+              return producer.flush();
+            });
+    assertThat(flushing.await(5, TimeUnit.SECONDS)).isTrue();
+    Thread.sleep(50);
+    assertThat(flushed).isNotDone();
+
+    fake.ack(0L);
+    assertThat(get(flushed)).isEqualTo(0L);
   }
 
   @Test
