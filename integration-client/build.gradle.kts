@@ -30,8 +30,12 @@ dependencies {
   testImplementation(libs.junit.jupiter)
   testImplementation(libs.assertj)
   testImplementation(libs.protobuf.java)
+  testImplementation(project(":sdk-api"))
+  testImplementation(project(":sdk-serde-jackson"))
+  testImplementation(project(":sdk-testing"))
   // In-process transport to drive the client against a fake IngestionSvc in unit tests.
   testImplementation(libs.grpc.inprocess)
+  testRuntimeOnly(libs.log4j.core)
   testRuntimeOnly(libs.junit.platform.launcher)
 }
 

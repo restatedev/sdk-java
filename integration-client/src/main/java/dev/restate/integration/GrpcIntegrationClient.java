@@ -9,7 +9,6 @@
 package dev.restate.integration;
 
 import io.grpc.Channel;
-import java.util.Objects;
 import org.jetbrains.annotations.ApiStatus;
 
 /**
@@ -26,8 +25,6 @@ public final class GrpcIntegrationClient {
   private GrpcIntegrationClient() {}
 
   public static IntegrationClient.Builder builder(Channel channel) {
-    Objects.requireNonNull(channel, "channel");
-    return new IntegrationClient.Builder(
-        (authToken, integration) -> IntegrationClientImpl.create(channel, authToken, integration));
+    return new IntegrationClient.Builder(channel);
   }
 }

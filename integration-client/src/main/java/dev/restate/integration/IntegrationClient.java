@@ -8,6 +8,8 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.integration;
 
+import io.grpc.Channel;
+import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
 /** Entry point for producing invocations to Restate ingress over the ingestion API. */
@@ -95,22 +97,19 @@ public interface IntegrationClient extends AutoCloseable {
 
   /** Builder for {@link IntegrationClient}. */
   final class Builder {
-    @FunctionalInterface
-    interface Factory {
-      IntegrationClient create(@Nullable String authToken, String integration);
-    }
-
-    private final Factory factory;
+    private final @Nullable String target;
+    private final @Nullable Channel channel;
     private @Nullable String authToken;
     private String integration = Version.INTEGRATION;
 
     private Builder(String target) {
-      this(
-          (authToken, integration) -> IntegrationClientImpl.create(target, authToken, integration));
+      this.target = target;
+      this.channel = null;
     }
 
-    Builder(Factory factory) {
-      this.factory = factory;
+    Builder(Channel channel) {
+      this.target = null;
+      this.channel = Objects.requireNonNull(channel, "channel");
     }
 
     /** Bearer token sent as the {@code Authorization} header on the ingestion stream. */
@@ -129,7 +128,11 @@ public interface IntegrationClient extends AutoCloseable {
     }
 
     public IntegrationClient build() {
-      return factory.create(authToken, integration);
+      if (channel != null) {
+        return IntegrationClientImpl.create(channel, authToken, integration);
+      }
+      return IntegrationClientImpl.create(
+          Objects.requireNonNull(target, "target"), authToken, integration);
     }
   }
 }
