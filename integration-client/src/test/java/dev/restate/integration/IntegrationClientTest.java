@@ -18,7 +18,12 @@ import dev.restate.ingestion.v1.IngestionRequest;
 import dev.restate.ingestion.v1.IngestionResponse;
 import dev.restate.ingestion.v1.IngestionSvcGrpc;
 import dev.restate.ingestion.v1.WindowUpdate;
+import io.grpc.CallOptions;
+import io.grpc.Channel;
+import io.grpc.ClientCall;
+import io.grpc.ForwardingClientCall;
 import io.grpc.ManagedChannel;
+import io.grpc.MethodDescriptor;
 import io.grpc.Server;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
@@ -238,8 +243,15 @@ class IntegrationClientTest {
     assertThat(fake.take().getInvocation().getOffset()).isEqualTo(0L);
 
     // The first invocation exhausted the window, so another direct write is backpressured.
-    assertThat(producer.trySend(newBody("b"))).isInstanceOf(SendAttempt.Backpressured.class);
+    SendAttempt.Backpressured second = (SendAttempt.Backpressured) producer.trySend(newBody("b"));
     assertThat(producer.lastSentOffset()).isEqualTo(0L);
+
+    // Window updates must first repay the overshoot; readiness is signalled only once the budget
+    // becomes positive again.
+    fake.grantWindow(1);
+    assertThat(second.ready()).isNotDone();
+    fake.grantWindow(10_000);
+    get(second.ready());
 
     fake.ack(0L);
     assertThat(get(accepted.acknowledgement()).offset()).isEqualTo(0L);
@@ -284,6 +296,66 @@ class IntegrationClientTest {
         .hasMessageContaining("backpressured");
     assertThat(producer.lastSentOffset()).isEqualTo(-1L);
     fake.assertNoRequest();
+  }
+
+  @Test
+  void zeroBufferDirectWriteFailureTerminatesProducer() throws Exception {
+    client.close();
+    client =
+        GrpcIntegrationClient.builder(new FailingSecondWriteChannel(channel))
+            .integration("test-integration", "1.0")
+            .build();
+    Producer producer = client.newProducer(ProducerOptions.builder().bufferMemory(0).build());
+    fake.take(); // Start is the first write and succeeds.
+    fake.grantWindow(10_000);
+
+    assertThatThrownBy(() -> producer.send(newBody("a")))
+        .isInstanceOf(IntegrationClientException.class)
+        .hasMessageContaining("failed to write invocation");
+    assertThat(producer.lastSentOffset()).isZero();
+    assertThatThrownBy(() -> get(producer.flushAsync()))
+        .isInstanceOf(ExecutionException.class)
+        .cause()
+        .isInstanceOf(IntegrationClientException.class);
+    assertThatThrownBy(() -> producer.send(newBody("b")))
+        .isInstanceOf(IllegalStateException.class)
+        .hasCauseInstanceOf(IntegrationClientException.class);
+  }
+
+  @Test
+  void zeroBufferStreamErrorFailsReadinessWaiter() throws Exception {
+    Producer producer = client.newProducer(ProducerOptions.builder().bufferMemory(0).build());
+    fake.take(); // Start
+
+    SendAttempt.Backpressured backpressured =
+        (SendAttempt.Backpressured) producer.trySend(newBody("a"));
+    fake.error(ErrorKind.ERROR_KIND_GO_AWAY, "go away");
+
+    assertThatThrownBy(() -> get(backpressured.ready()))
+        .isInstanceOf(ExecutionException.class)
+        .cause()
+        .isInstanceOf(IntegrationClientException.class)
+        .extracting(t -> ((IntegrationClientException) t).getKind())
+        .isEqualTo(IntegrationClientException.Kind.GO_AWAY);
+  }
+
+  @Test
+  void exactlyOnceZeroBufferBackpressureDoesNotConsumeOffset() throws Exception {
+    ExactlyOnceProducer producer =
+        client.newExactlyOnceProducer(
+            "p1", ProducerOptions.builder().bufferMemory(0).maxBlockTime(Duration.ZERO).build());
+    fake.take(); // Start
+
+    SendAttempt.Backpressured backpressured =
+        (SendAttempt.Backpressured) producer.trySend(5, newBody("a"));
+    assertThatThrownBy(() -> producer.send(5, newBody("a")))
+        .isInstanceOf(ProducerBufferExhaustedException.class);
+    assertThat(producer.lastSentOffset()).isEqualTo(-1L);
+
+    fake.grantWindow(10_000);
+    get(backpressured.ready());
+    assertThat(producer.trySend(5, newBody("a"))).isInstanceOf(SendAttempt.Accepted.class);
+    assertThat(fake.take().getInvocation().getOffset()).isEqualTo(5L);
   }
 
   @Test
@@ -609,6 +681,37 @@ class IntegrationClientTest {
                   dev.restate.ingestion.v1.Error.newBuilder().setKind(kind).setMessage(message))
               .build());
       responses.onCompleted();
+    }
+  }
+
+  private static final class FailingSecondWriteChannel extends Channel {
+
+    private final Channel delegate;
+
+    private FailingSecondWriteChannel(Channel delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public <RequestT, ResponseT> ClientCall<RequestT, ResponseT> newCall(
+        MethodDescriptor<RequestT, ResponseT> methodDescriptor, CallOptions callOptions) {
+      return new ForwardingClientCall.SimpleForwardingClientCall<>(
+          delegate.newCall(methodDescriptor, callOptions)) {
+        private int writes;
+
+        @Override
+        public void sendMessage(RequestT message) {
+          if (++writes == 2) {
+            throw new IllegalStateException("simulated transport write failure");
+          }
+          super.sendMessage(message);
+        }
+      };
+    }
+
+    @Override
+    public String authority() {
+      return delegate.authority();
     }
   }
 }
