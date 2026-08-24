@@ -200,6 +200,7 @@ abstract class AbstractProducer implements ProducerBase {
     PreparedSend prepared = prepare(offset, invocation);
     List<CompletableFuture<@Nullable Void>> ready;
     CompletableFuture<SendResult> acknowledgement;
+    boolean directWrite;
     long waitStarted = System.nanoTime();
     synchronized (lock) {
       ensureOpenLocked();
@@ -223,9 +224,15 @@ abstract class AbstractProducer implements ProducerBase {
         ensureOpenLocked();
       }
       acknowledgement = acceptLocked(prepared);
-      ready = drainLocked();
+      directWrite = bufferMemory == 0;
+      ready = directWrite ? List.of() : drainLocked();
     }
-    completeReady(ready);
+    if (directWrite) {
+      writeDirect(prepared.request());
+      drainAndWake();
+    } else {
+      completeReady(ready);
+    }
     return acknowledgement;
   }
 
@@ -234,11 +241,13 @@ abstract class AbstractProducer implements ProducerBase {
     PreparedSend prepared = prepare(offset, invocation);
     List<CompletableFuture<@Nullable Void>> ready;
     SendAttempt result;
+    boolean directWrite = false;
     synchronized (lock) {
       ensureOpenLocked();
       if (canAdmitLocked(prepared.bufferSize())) {
         result = new SendAttempt.Accepted(acceptLocked(prepared));
-        ready = drainLocked();
+        directWrite = bufferMemory == 0;
+        ready = directWrite ? List.of() : drainLocked();
       } else {
         CompletableFuture<@Nullable Void> future = new CompletableFuture<>();
         AdmissionWaiter waiter = new AdmissionWaiter(prepared.bufferSize(), future);
@@ -255,7 +264,12 @@ abstract class AbstractProducer implements ProducerBase {
         ready = List.of();
       }
     }
-    completeReady(ready);
+    if (directWrite) {
+      writeDirect(prepared.request());
+      drainAndWake();
+    } else {
+      completeReady(ready);
+    }
     return result;
   }
 
@@ -291,14 +305,27 @@ abstract class AbstractProducer implements ProducerBase {
     ackWaiters.computeIfAbsent(prepared.offset(), ignored -> new ArrayList<>()).add(committed);
     if (bufferMemory == 0) {
       budget -= prepared.windowDebit();
-      Objects.requireNonNull(callObserver, "gRPC request stream was not initialized")
-          .onNext(prepared.request());
     } else {
       bufferedSends.addLast(
           new BufferedSend(prepared.request(), prepared.windowDebit(), prepared.bufferSize()));
       bufferedBytes += prepared.bufferSize();
     }
     return committed.thenApply(ignored -> new SendResultImpl(prepared.offset()));
+  }
+
+  /** Hand a zero-buffer invocation directly to gRPC, failing the producer if the write is refused. */
+  private void writeDirect(IngestionRequest request) {
+    try {
+      Objects.requireNonNull(callObserver, "gRPC request stream was not initialized").onNext(request);
+    } catch (RuntimeException e) {
+      IntegrationClientException cause =
+          new IntegrationClientException(
+              IntegrationClientException.Kind.UNKNOWN,
+              "failed to write invocation to the ingestion stream",
+              e);
+      terminate(cause, false);
+      throw cause;
+    }
   }
 
   /** Write as many queued records as transport and protocol flow control currently permit. */
