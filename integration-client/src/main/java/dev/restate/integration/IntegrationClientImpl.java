@@ -12,12 +12,17 @@ import dev.restate.ingestion.v1.IngestionSvcGrpc;
 import io.grpc.Channel;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.Metadata;
+import io.grpc.stub.MetadataUtils;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import org.jspecify.annotations.Nullable;
 
 /** {@link IntegrationClient} backed by a single gRPC {@link Channel} shared by producers. */
 final class IntegrationClientImpl implements IntegrationClient {
+
+  private static final Metadata.Key<String> AUTHORIZATION =
+      Metadata.Key.of("authorization", Metadata.ASCII_STRING_MARSHALLER);
 
   private final @Nullable ManagedChannel ownedChannel;
   private final IngestionSvcGrpc.IngestionSvcStub stub;
@@ -57,7 +62,9 @@ final class IntegrationClientImpl implements IntegrationClient {
       @Nullable ManagedChannel ownedChannel) {
     IngestionSvcGrpc.IngestionSvcStub stub = IngestionSvcGrpc.newStub(channel);
     if (authToken != null && !authToken.isBlank()) {
-      stub = stub.withInterceptors(new AuthInterceptor(authToken));
+      Metadata headers = new Metadata();
+      headers.put(AUTHORIZATION, "Bearer " + authToken);
+      stub = stub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(headers));
     }
     return new IntegrationClientImpl(ownedChannel, stub, integration);
   }
@@ -73,7 +80,7 @@ final class IntegrationClientImpl implements IntegrationClient {
       throw new IllegalArgumentException(
           "producerId must be non-empty for an exactly-once producer");
     }
-    return new ExactlyOnceProducerImpl(
+    return new ProducerImpl(
         stub, producerId, Objects.requireNonNull(options, "options"), integration);
   }
 

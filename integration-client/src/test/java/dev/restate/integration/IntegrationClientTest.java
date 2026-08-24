@@ -23,8 +23,13 @@ import io.grpc.Channel;
 import io.grpc.ClientCall;
 import io.grpc.ForwardingClientCall;
 import io.grpc.ManagedChannel;
+import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.grpc.Server;
+import io.grpc.ServerCall;
+import io.grpc.ServerCallHandler;
+import io.grpc.ServerInterceptor;
+import io.grpc.ServerInterceptors;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
@@ -38,25 +43,48 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /** Drives the producer client against an in-process fake {@code IngestionSvc}. */
 class IntegrationClientTest {
 
   private static final String INTEGRATION = "test-integration/1.0";
+  private static final Metadata.Key<String> AUTHORIZATION =
+      Metadata.Key.of("authorization", Metadata.ASCII_STRING_MARSHALLER);
 
   private Server server;
   private ManagedChannel channel;
   private FakeIngestionService fake;
   private IntegrationClient client;
+  private final AtomicReference<String> authorization = new AtomicReference<>();
 
   @BeforeEach
   void setUp() throws IOException {
     String name = InProcessServerBuilder.generateName();
     fake = new FakeIngestionService();
-    server = InProcessServerBuilder.forName(name).directExecutor().addService(fake).build().start();
+    server =
+        InProcessServerBuilder.forName(name)
+            .directExecutor()
+            .addService(
+                ServerInterceptors.intercept(
+                    fake,
+                    new ServerInterceptor() {
+                      @Override
+                      public <RequestT, ResponseT> ServerCall.Listener<RequestT> interceptCall(
+                          ServerCall<RequestT, ResponseT> call,
+                          Metadata headers,
+                          ServerCallHandler<RequestT, ResponseT> next) {
+                        authorization.set(headers.get(AUTHORIZATION));
+                        return next.startCall(call, headers);
+                      }
+                    }))
+            .build()
+            .start();
     channel = InProcessChannelBuilder.forName(name).directExecutor().build();
     client = GrpcIntegrationClient.builder(channel).integration("test-integration", "1.0").build();
   }
@@ -80,6 +108,18 @@ class IntegrationClientTest {
 
     assertThat(channel.isShutdown()).isFalse();
     client = null;
+  }
+
+  @ParameterizedTest(name = "authToken={0}")
+  @ValueSource(strings = {"secret-token", "", " "})
+  void authTokenIsAttachedAsBearerMetadata(String authToken) throws Exception {
+    client.close();
+    client = GrpcIntegrationClient.builder(channel).authToken(authToken).build();
+
+    client.newProducer();
+    fake.take(); // Start
+
+    assertThat(authorization.get()).isEqualTo(authToken.isBlank() ? null : "Bearer " + authToken);
   }
 
   @Test
@@ -151,6 +191,22 @@ class IntegrationClientTest {
         .isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(() -> client.newExactlyOnceProducer(null))
         .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @ParameterizedTest(name = "exactlyOnce={0}")
+  @ValueSource(booleans = {false, true})
+  void producerRejectsMethodsFromTheOtherMode(boolean exactlyOnce) throws Exception {
+    Object producer =
+        exactlyOnce ? client.newExactlyOnceProducer("producer-1") : client.newProducer();
+    fake.take(); // Start
+
+    Runnable wrongSend =
+        exactlyOnce
+            ? () -> ((Producer) producer).send(newBody("a"))
+            : () -> ((ExactlyOnceProducer) producer).send(0L, newBody("a"));
+
+    assertThatThrownBy(wrongSend::run).isInstanceOf(IllegalStateException.class);
+    fake.assertNoRequest();
   }
 
   @Test
