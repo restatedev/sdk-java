@@ -31,9 +31,12 @@ import java.util.concurrent.CompletableFuture;
  *   for (byte[] payload : payloads) {
  *     producer.send(Invocation.create().setBody(payload));
  *   }
- *   producer.flush().get(); // block until everything sent so far is durably committed
+ *   producer.flush(); // block until everything sent so far is durably committed
  * }
  * }</pre>
+ *
+ * <p>{@link #close()} does not flush. Call {@link #flush()} before closing, or await {@link
+ * #flushAsync()}, when accepted invocations must be durably committed.
  *
  * <h2>Stream defaults</h2>
  *
@@ -60,21 +63,21 @@ public interface Producer extends ProducerBase {
    * Sends an invocation.
    *
    * <p>If the local buffer is full, this method waits up to {@link ProducerOptions#maxBlockTime()}
-   * for capacity. The invocation is refused with {@link ProducerNotReadyException} if the timeout
-   * elapses. A zero duration makes this method fail immediately under backpressure.
+   * for capacity. The invocation is refused with {@link ProducerBufferExhaustedException} if the
+   * timeout elapses. A zero duration makes this method fail immediately under backpressure.
    *
    * <p>The returned future completes when the invocation is durably committed by Restate.
    *
    * @param invocation the invocation to send
    * @return a future completing, once the invocation is durably committed by Restate.
-   * @throws ProducerNotReadyException if buffer capacity does not become available before the
-   *     configured maximum blocking time elapses
+   * @throws ProducerBufferExhaustedException if buffer capacity does not become available before
+   *     the configured maximum blocking time elapses, or the thread is interrupted while waiting
    * @throws IllegalArgumentException if the serialized invocation is larger than {@link
    *     ProducerOptions#bufferMemory()}
    * @throws java.util.ConcurrentModificationException if the producer is used concurrently from
    *     another thread
    */
-  CompletableFuture<SendResult> send(Invocation invocation) throws ProducerNotReadyException;
+  CompletableFuture<SendResult> send(Invocation invocation) throws ProducerBufferExhaustedException;
 
   /**
    * Attempts to send an invocation without blocking.

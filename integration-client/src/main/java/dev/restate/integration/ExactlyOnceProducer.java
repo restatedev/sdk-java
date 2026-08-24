@@ -19,8 +19,8 @@ import java.util.concurrent.CompletableFuture;
  * sequence</b>. E.g., for a Kafka consumer {@code groupId/topic/partition}, for Postgres logical
  * replication the slot name. Because deduplication happens on {@code (producerId, offset)}, it is
  * then safe to replay from your last checkpoint after a crash: already-committed offsets are
- * dropped, and {@link #flush} / {@link #waitAcknowledged(long)} reports how far Restate has durably
- * caught up so you can advance the checkpoint. After a stream failure, {@link
+ * dropped, and {@link #flush()} / {@link #waitAcknowledged(long)} reports how far Restate has
+ * durably caught up so you can advance the checkpoint. After a stream failure, {@link
  * #lastAcknowledgedOffset()} remains available so you can determine where to resume.
  *
  * <h2>Sending</h2>
@@ -35,9 +35,12 @@ import java.util.concurrent.CompletableFuture;
  *
  * <pre>{@code
  * producer.send(lsn, Invocation.create().setBody(payload));
- * long committed = producer.flush().get();
+ * long committed = producer.flush();
  * checkpoint.store(committed);
  * }</pre>
+ *
+ * <p>{@link #close()} does not flush. Call {@link #flush()} before closing, or await {@link
+ * #flushAsync()}, when accepted invocations must be durably committed.
  *
  * <h2>Thread safety</h2>
  *
@@ -51,8 +54,8 @@ public interface ExactlyOnceProducer extends ProducerBase {
    * Sends an invocation at {@code offset}.
    *
    * <p>If the local buffer is full, this method waits up to {@link ProducerOptions#maxBlockTime()}
-   * for capacity. The invocation is refused with {@link ProducerNotReadyException} if the timeout
-   * elapses. A zero duration makes this method fail immediately under backpressure.
+   * for capacity. The invocation is refused with {@link ProducerBufferExhaustedException} if the
+   * timeout elapses. A zero duration makes this method fail immediately under backpressure.
    *
    * <p>The returned future completes when the invocation is durably committed by Restate.
    *
@@ -61,8 +64,8 @@ public interface ExactlyOnceProducer extends ProducerBase {
    * @param invocation the invocation to send
    * @return a future completing, once the record is durably committed by Restate, with the {@link
    *     SendResult} carrying {@code offset}
-   * @throws ProducerNotReadyException if buffer capacity does not become available before the
-   *     configured maximum blocking time elapses
+   * @throws ProducerBufferExhaustedException if buffer capacity does not become available before
+   *     the configured maximum blocking time elapses, or the thread is interrupted while waiting
    * @throws IllegalArgumentException if {@code offset} is not strictly greater than {@link
    *     #lastSentOffset()}, or the serialized invocation is larger than {@link
    *     ProducerOptions#bufferMemory()}
@@ -70,7 +73,7 @@ public interface ExactlyOnceProducer extends ProducerBase {
    *     another thread
    */
   CompletableFuture<SendResult> send(long offset, Invocation invocation)
-      throws ProducerNotReadyException;
+      throws ProducerBufferExhaustedException;
 
   /**
    * Attempts to send an invocation at {@code offset} without blocking.

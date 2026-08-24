@@ -36,7 +36,7 @@ final class ExactlyOnceProducerImpl extends AbstractProducer implements ExactlyO
 
   @Override
   public CompletableFuture<SendResult> send(long offset, Invocation invocation)
-      throws ProducerNotReadyException {
+      throws ProducerBufferExhaustedException {
     acquire();
     try {
       checkOffset(offset);

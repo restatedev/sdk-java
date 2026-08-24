@@ -53,20 +53,33 @@ public interface ProducerBase extends AutoCloseable {
   CompletableFuture<Long> waitAcknowledged(long offset);
 
   /**
-   * Awaits durable acknowledgement of every invocation sent so far.
+   * Blocks until every invocation accepted before this call is durably acknowledged.
    *
-   * @return a future completing, once all invocations sent so far are durably acknowledged by
-   *     Restate, with the highest durably committed offset
+   * @return the highest durably committed offset
+   * @throws IntegrationClientException if the producer fails before all invocations are
+   *     acknowledged
    * @throws java.util.ConcurrentModificationException if the producer is used concurrently from
    *     another thread
    */
-  default CompletableFuture<Long> flush() {
-    return waitAcknowledged(lastSentOffset());
-  }
+  long flush();
 
   /**
-   * Closes the producer and shuts down its stream. Any not-yet-acknowledged invocation completes
-   * its future exceptionally with an {@link IntegrationClientException}.
+   * Asynchronously awaits durable acknowledgement of every invocation accepted before this call.
+   *
+   * @return a future completing with the highest durably committed offset once all invocations sent
+   *     so far are acknowledged
+   * @throws java.util.ConcurrentModificationException if the producer is used concurrently from
+   *     another thread
+   */
+  CompletableFuture<Long> flushAsync();
+
+  /**
+   * Immediately closes the producer and shuts down its stream without flushing. Any
+   * not-yet-acknowledged invocation completes its future exceptionally with an {@link
+   * IntegrationClientException}.
+   *
+   * <p>Call {@link #flush()} before closing, or await {@link #flushAsync()}, when accepted
+   * invocations must be durably committed.
    *
    * @throws java.util.ConcurrentModificationException if the producer is used concurrently from
    *     another thread

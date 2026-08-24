@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -134,6 +135,26 @@ abstract class AbstractProducer implements ProducerBase {
     }
   }
 
+  @Override
+  public long flush() {
+    acquire();
+    try {
+      return awaitFlush(registerAckWaiter(lastSent));
+    } finally {
+      release();
+    }
+  }
+
+  @Override
+  public CompletableFuture<Long> flushAsync() {
+    acquire();
+    try {
+      return registerAckWaiter(lastSent);
+    } finally {
+      release();
+    }
+  }
+
   /**
    * Register an ack waiter for {@code offset}. The returned future completes with the ack watermark
    * once it reaches {@code offset}. Only touches {@code lock}-guarded state (Java monitors are
@@ -170,7 +191,7 @@ abstract class AbstractProducer implements ProducerBase {
 
   /** Admit a record, blocking up to the configured maximum when the local buffer is full. */
   final CompletableFuture<SendResult> doSend(long offset, InvocationImpl invocation)
-      throws ProducerNotReadyException {
+      throws ProducerBufferExhaustedException {
     PreparedSend prepared = prepare(offset, invocation);
     List<CompletableFuture<Void>> ready;
     CompletableFuture<SendResult> acknowledgement;
@@ -191,7 +212,7 @@ abstract class AbstractProducer implements ProducerBase {
           lock.wait(millis, nanos);
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
-          throw new ProducerNotReadyException(
+          throw new ProducerBufferExhaustedException(
               "interrupted while waiting for producer buffer capacity", e);
         }
         ensureOpenLocked();
@@ -312,8 +333,29 @@ abstract class AbstractProducer implements ProducerBase {
     }
   }
 
-  private ProducerNotReadyException admissionTimeout() {
-    return new ProducerNotReadyException("producer buffer remained full for " + maxBlockTime);
+  private ProducerBufferExhaustedException admissionTimeout() {
+    return new ProducerBufferExhaustedException(
+        "producer buffer remained full for " + maxBlockTime);
+  }
+
+  private static long awaitFlush(CompletableFuture<Long> flush) {
+    try {
+      return flush.get();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IntegrationClientException(
+          IntegrationClientException.Kind.UNKNOWN, "interrupted while flushing producer", e);
+    } catch (ExecutionException e) {
+      Throwable cause = e.getCause();
+      if (cause instanceof RuntimeException runtimeException) {
+        throw runtimeException;
+      }
+      if (cause instanceof Error error) {
+        throw error;
+      }
+      throw new IntegrationClientException(
+          IntegrationClientException.Kind.UNKNOWN, "producer flush failed", cause);
+    }
   }
 
   private static long toNanosSaturated(Duration duration) {

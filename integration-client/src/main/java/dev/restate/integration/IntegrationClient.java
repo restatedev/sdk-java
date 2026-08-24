@@ -69,7 +69,10 @@ public interface IntegrationClient extends AutoCloseable {
    */
   ExactlyOnceProducer newExactlyOnceProducer(String producerId, ProducerOptions options);
 
-  /** Shuts down the underlying client. */
+  /**
+   * Shuts down the underlying client. Flush and close any producers first when their accepted
+   * invocations must be durably committed.
+   */
   @Override
   void close();
 

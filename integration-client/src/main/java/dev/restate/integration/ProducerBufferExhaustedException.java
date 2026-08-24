@@ -10,15 +10,15 @@ package dev.restate.integration;
 
 /**
  * Thrown by {@code send} when local buffer capacity does not become available within the configured
- * {@link ProducerOptions#maxBlockTime()}.
+ * {@link ProducerOptions#maxBlockTime()}, or the thread is interrupted while waiting for capacity.
  */
 @org.jetbrains.annotations.ApiStatus.Experimental
-public class ProducerNotReadyException extends RuntimeException {
-  public ProducerNotReadyException(String message) {
+public class ProducerBufferExhaustedException extends RuntimeException {
+  public ProducerBufferExhaustedException(String message) {
     super(message);
   }
 
-  public ProducerNotReadyException(String message, Throwable cause) {
+  public ProducerBufferExhaustedException(String message, Throwable cause) {
     super(message, cause);
   }
 }
