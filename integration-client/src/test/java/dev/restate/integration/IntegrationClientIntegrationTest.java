@@ -20,36 +20,35 @@ import dev.restate.sdk.testing.BindService;
 import dev.restate.sdk.testing.RestateClient;
 import dev.restate.sdk.testing.RestateTest;
 import dev.restate.sdk.testing.RestateURL;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 @RestateTest(containerImage = "ghcr.io/restatedev/restate:pr5026")
 @Timeout(value = 30)
 class IntegrationClientIntegrationTest {
 
   private static final String SERVICE = "IntegrationClientCounter";
-  private static final byte[] ONE = "1".getBytes(StandardCharsets.UTF_8);
 
   @BindService private final IntegrationClientCounter counter = new IntegrationClientCounterImpl();
 
-  @Test
-  void zeroBufferProducerDeliversAndAcknowledges(
-      @RestateURL String ingressUrl, @RestateClient Client ingressClient) throws Exception {
+  @BufferMemoryTest
+  void producerDeliversAndAcknowledges(
+      long bufferMemory, @RestateURL String ingressUrl, @RestateClient Client ingressClient)
+      throws Exception {
     String key = UUID.randomUUID().toString();
 
     try (IntegrationClient client = IntegrationClient.builder(ingressUrl).build();
-        Producer producer =
-            client.newProducer(
-                ProducerOptions.builder()
-                    .bufferMemory(0)
-                    .maxBlockTime(Duration.ofSeconds(10))
-                    .defaultMetadata(counterMetadata(key))
-                    .build())) {
-      SendResult result = producer.send(Invocation.create().setBody(ONE)).get(10, TimeUnit.SECONDS);
+        Producer producer = client.newProducer(producerOptions(key, bufferMemory))) {
+      SendResult result = producer.send(invocation(1)).get(10, TimeUnit.SECONDS);
 
       assertThat(result.offset()).isZero();
       assertThat(producer.lastAcknowledgedOffset()).isZero();
@@ -59,33 +58,114 @@ class IntegrationClientIntegrationTest {
         .isEqualTo(1L);
   }
 
-  @Test
+  @BufferMemoryTest
   void exactlyOnceProducerDeduplicatesAcrossStreams(
-      @RestateURL String ingressUrl, @RestateClient Client ingressClient) throws Exception {
+      long bufferMemory, @RestateURL String ingressUrl, @RestateClient Client ingressClient) {
     String key = UUID.randomUUID().toString();
     String producerId = "integration-test/" + UUID.randomUUID();
-    ProducerOptions options =
-        ProducerOptions.builder()
-            .bufferMemory(0)
-            .maxBlockTime(Duration.ofSeconds(10))
-            .defaultMetadata(counterMetadata(key))
-            .build();
+    ProducerOptions options = producerOptions(key, bufferMemory);
 
-    sendExactlyOnce(ingressUrl, producerId, options);
-    sendExactlyOnce(ingressUrl, producerId, options);
+    sendExactlyOnce(ingressUrl, producerId, options, record(0, 1));
+    sendExactlyOnce(ingressUrl, producerId, options, record(0, 100));
 
     assertThat(ingressClient.virtualObject(IntegrationClientCounter.class, key).get())
         .isEqualTo(1L);
   }
 
-  private static void sendExactlyOnce(String ingressUrl, String producerId, ProducerOptions options)
+  @BufferMemoryTest
+  void exactlyOnceProducerReplaysCommittedPrefixAndAcceptsNewOffsets(
+      long bufferMemory, @RestateURL String ingressUrl, @RestateClient Client ingressClient) {
+    String key = UUID.randomUUID().toString();
+    String producerId = "integration-test/" + UUID.randomUUID();
+    ProducerOptions options = producerOptions(key, bufferMemory);
+
+    sendExactlyOnce(ingressUrl, producerId, options, record(0, 1), record(1, 10));
+    sendExactlyOnce(
+        ingressUrl, producerId, options, record(0, 100), record(1, 1_000), record(2, 10_000));
+
+    assertThat(ingressClient.virtualObject(IntegrationClientCounter.class, key).get())
+        .isEqualTo(10_011L);
+  }
+
+  @BufferMemoryTest
+  void exactlyOnceProducerDropsOffsetsBelowCommittedWatermark(
+      long bufferMemory, @RestateURL String ingressUrl, @RestateClient Client ingressClient) {
+    String key = UUID.randomUUID().toString();
+    String producerId = "integration-test/" + UUID.randomUUID();
+    ProducerOptions options = producerOptions(key, bufferMemory);
+
+    sendExactlyOnce(ingressUrl, producerId, options, record(10, 1));
+    sendExactlyOnce(
+        ingressUrl, producerId, options, record(0, 100), record(9, 1_000), record(11, 10));
+
+    assertThat(ingressClient.virtualObject(IntegrationClientCounter.class, key).get())
+        .isEqualTo(11L);
+  }
+
+  @BufferMemoryTest
+  void exactlyOnceDeduplicationIsScopedByProducerId(
+      long bufferMemory, @RestateURL String ingressUrl, @RestateClient Client ingressClient) {
+    String key = UUID.randomUUID().toString();
+    ProducerOptions options = producerOptions(key, bufferMemory);
+
+    sendExactlyOnce(ingressUrl, "integration-test/" + UUID.randomUUID(), options, record(0, 1));
+    sendExactlyOnce(ingressUrl, "integration-test/" + UUID.randomUUID(), options, record(0, 10));
+
+    assertThat(ingressClient.virtualObject(IntegrationClientCounter.class, key).get())
+        .isEqualTo(11L);
+  }
+
+  @BufferMemoryTest
+  void atLeastOnceProducerDoesNotDeduplicateAcrossStreams(
+      long bufferMemory, @RestateURL String ingressUrl, @RestateClient Client ingressClient)
       throws Exception {
+    String key = UUID.randomUUID().toString();
+    ProducerOptions options = producerOptions(key, bufferMemory);
+
+    sendAtLeastOnce(ingressUrl, options, 1);
+    sendAtLeastOnce(ingressUrl, options, 10);
+
+    assertThat(ingressClient.virtualObject(IntegrationClientCounter.class, key).get())
+        .isEqualTo(11L);
+  }
+
+  private static void sendExactlyOnce(
+      String ingressUrl, String producerId, ProducerOptions options, TestRecord... records) {
     try (IntegrationClient client = IntegrationClient.builder(ingressUrl).build();
         ExactlyOnceProducer producer = client.newExactlyOnceProducer(producerId, options)) {
-      SendResult result =
-          producer.send(0, Invocation.create().setBody(ONE)).get(10, TimeUnit.SECONDS);
+      for (TestRecord record : records) {
+        producer.send(record.offset(), invocation(record.value()));
+      }
+
+      long lastOffset = records[records.length - 1].offset();
+      assertThat(producer.flush()).isEqualTo(lastOffset);
+      assertThat(producer.lastAcknowledgedOffset()).isEqualTo(lastOffset);
+    }
+  }
+
+  private static void sendAtLeastOnce(String ingressUrl, ProducerOptions options, long value)
+      throws Exception {
+    try (IntegrationClient client = IntegrationClient.builder(ingressUrl).build();
+        Producer producer = client.newProducer(options)) {
+      SendResult result = producer.send(invocation(value)).get(10, TimeUnit.SECONDS);
       assertThat(result.offset()).isZero();
     }
+  }
+
+  private static TestRecord record(long offset, long value) {
+    return new TestRecord(offset, value);
+  }
+
+  private static Invocation invocation(long value) {
+    return Invocation.create().setBody(Long.toString(value).getBytes(StandardCharsets.UTF_8));
+  }
+
+  private static ProducerOptions producerOptions(String key, long bufferMemory) {
+    return ProducerOptions.builder()
+        .bufferMemory(bufferMemory)
+        .maxBlockTime(Duration.ofSeconds(10))
+        .defaultMetadata(counterMetadata(key))
+        .build();
   }
 
   private static InvocationMetadata counterMetadata(String key) {
@@ -95,6 +175,14 @@ class IntegrationClientIntegrationTest {
         .setKey(key)
         .putHeader("content-type", "application/json");
   }
+
+  private record TestRecord(long offset, long value) {}
+
+  @Target(ElementType.METHOD)
+  @Retention(RetentionPolicy.RUNTIME)
+  @ParameterizedTest(name = "{displayName}: bufferMemory={0}")
+  @ValueSource(longs = {0L, ProducerOptions.DEFAULT_BUFFER_MEMORY})
+  private @interface BufferMemoryTest {}
 
   @VirtualObject
   @Name(SERVICE)
