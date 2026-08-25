@@ -22,6 +22,7 @@ import io.grpc.CallOptions;
 import io.grpc.Channel;
 import io.grpc.ClientCall;
 import io.grpc.ForwardingClientCall;
+import io.grpc.ForwardingClientCallListener;
 import io.grpc.ManagedChannel;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
@@ -34,6 +35,7 @@ import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ConcurrentModificationException;
@@ -46,6 +48,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantLock;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -472,6 +475,30 @@ class IntegrationClientTest {
     assertThat(duringWrite.halfClosedDuringWrite()).isFalse();
   }
 
+  @Test
+  void writeFailureAfterReentrantCloseCancelsWithTheFirstTerminalCause() throws Exception {
+    client.close();
+    DuringInvocationWriteChannel duringWrite = new DuringInvocationWriteChannel(channel);
+    client =
+        GrpcIntegrationClient.builder(duringWrite).integration("test-integration", "1.0").build();
+    Producer producer = client.newProducer(ProducerOptions.builder().bufferMemory(128).build());
+    duringWrite.runDuringInvocation(producer::close);
+    duringWrite.failAfterInvocationAction();
+    fake.take(); // Start
+    fake.grantWindow(10_000);
+
+    assertThatThrownBy(() -> producer.send(newBody("a")))
+        .isInstanceOf(IntegrationClientException.class)
+        .hasMessage("producer closed");
+    assertThatThrownBy(() -> get(producer.flushAsync()))
+        .isInstanceOf(ExecutionException.class)
+        .cause()
+        .isInstanceOf(IntegrationClientException.class)
+        .hasMessage("producer closed");
+    assertThat(duringWrite.halfCloseCount()).isZero();
+    assertThat(duringWrite.cancelCount()).isOne();
+  }
+
   @ParameterizedTest(name = "bufferMemory={0}")
   @ValueSource(longs = {0L, ProducerOptions.DEFAULT_BUFFER_MEMORY})
   void replayBelowKnownWatermarkIsAlreadyAcknowledged(long bufferMemory) throws Exception {
@@ -487,6 +514,22 @@ class IntegrationClientTest {
     assertThat(get(replay).offset()).isEqualTo(5L);
     assertThat(producer.lastAcknowledgedOffset()).isEqualTo(10L);
     assertThat(fake.take().getInvocation().getOffset()).isEqualTo(5L);
+  }
+
+  @Test
+  void unsignedCommittedWatermarkCoversTheLongOffsetRange() throws Exception {
+    Producer producer = client.newProducer();
+    fake.take(); // Start
+    fake.grantWindow(10_000);
+    CompletableFuture<SendResult> acknowledgement = producer.send(newBody("a"));
+    fake.take(); // Invocation
+
+    // uint64 2^63 is exposed by protobuf as the signed Java value Long.MIN_VALUE.
+    fake.ack(Long.MIN_VALUE);
+
+    assertThat(get(acknowledgement).offset()).isZero();
+    assertThat(producer.lastAcknowledgedOffset()).isEqualTo(Long.MAX_VALUE);
+    assertThat(get(producer.waitAcknowledged(Long.MAX_VALUE))).isEqualTo(Long.MAX_VALUE);
   }
 
   @Test
@@ -588,6 +631,97 @@ class IntegrationClientTest {
         .isInstanceOf(IntegrationClientException.class)
         .extracting(t -> ((IntegrationClientException) t).getKind())
         .isEqualTo(IntegrationClientException.Kind.GO_AWAY);
+  }
+
+  @Test
+  void terminalCallbackDuringReadyCheckDoesNotAcceptOrWrite() throws Exception {
+    client.close();
+    DuringReadyCheckChannel duringReady = new DuringReadyCheckChannel(channel);
+    client =
+        GrpcIntegrationClient.builder(duringReady).integration("test-integration", "1.0").build();
+    Producer producer = client.newProducer(ProducerOptions.builder().bufferMemory(0).build());
+    fake.take(); // Start
+    fake.grantWindow(10_000);
+    duringReady.runOnce(
+        () -> fake.errorWithoutCompleting(ErrorKind.ERROR_KIND_GO_AWAY, "terminal"));
+
+    assertThatThrownBy(() -> producer.trySend(newBody("a")))
+        .isInstanceOf(IllegalStateException.class)
+        .hasCauseInstanceOf(IntegrationClientException.class);
+    assertThat(producer.lastSentOffset()).isEqualTo(-1L);
+    fake.assertNoRequest();
+  }
+
+  @Test
+  void readySignalDuringReadinessCheckIsNotLost() throws Exception {
+    client.close();
+    ReadySignalDuringCheckChannel readyDuringCheck = new ReadySignalDuringCheckChannel(channel);
+    client =
+        GrpcIntegrationClient.builder(readyDuringCheck)
+            .integration("test-integration", "1.0")
+            .build();
+    Producer producer = client.newProducer(ProducerOptions.builder().bufferMemory(0).build());
+    fake.take(); // Start
+    fake.grantWindow(10_000);
+    readyDuringCheck.signalDuringNextCheck();
+
+    SendAttempt attempt = producer.trySend(newBody("a"));
+
+    assertThat(attempt).isInstanceOf(SendAttempt.Accepted.class);
+    assertThat(fake.take().getInvocation().getOffset()).isZero();
+  }
+
+  @Test
+  void zeroBufferBusyObservationCannotMissCompletedReadinessCheck() throws Exception {
+    client.close();
+    client =
+        GrpcIntegrationClient.builder(new AlwaysReadyWithoutSignalsChannel(channel))
+            .integration("test-integration", "1.0")
+            .build();
+    Producer producer = client.newProducer(ProducerOptions.builder().bufferMemory(0).build());
+    fake.take(); // Start
+
+    CoordinatedOutboundLock outboundLock = new CoordinatedOutboundLock();
+    Field field = ProducerImpl.class.getDeclaredField("outboundLock");
+    field.setAccessible(true);
+    field.set(producer, outboundLock);
+
+    CompletableFuture<Void> callback =
+        CompletableFuture.runAsync(
+            () -> {
+              outboundLock.designateCallbackThread();
+              fake.grantWindow(10_000);
+            });
+    CompletableFuture<SendAttempt> attempted = null;
+    try {
+      assertThat(outboundLock.awaitCallbackGate()).isTrue();
+      attempted =
+          CompletableFuture.supplyAsync(
+              () -> {
+                outboundLock.designateSenderThread();
+                return producer.trySend(newBody("a"));
+              });
+      assertThat(outboundLock.awaitSenderBusy()).isTrue();
+
+      // The callback has already reserved the outbound gate, but has not yet published that fact.
+      // Let it finish a successful readiness check while the sender is still returning BUSY. No
+      // later transport onReady signal will repair a waiter registered from that stale result.
+      outboundLock.releaseCallback();
+      get(callback);
+      outboundLock.releaseSender();
+
+      SendAttempt attempt = get(attempted);
+      if (attempt instanceof SendAttempt.Backpressured backpressured) {
+        get(backpressured.ready());
+        attempt = producer.trySend(newBody("a"));
+      }
+
+      assertThat(attempt).isInstanceOf(SendAttempt.Accepted.class);
+      assertThat(fake.take().getInvocation().getOffset()).isZero();
+    } finally {
+      outboundLock.releaseCallback();
+      outboundLock.releaseSender();
+    }
   }
 
   @Test
@@ -816,6 +950,39 @@ class IntegrationClientTest {
   }
 
   @Test
+  void interruptedFlushRestoresInterruptAndReleasesUsageGuard() throws Exception {
+    Producer producer = client.newProducer();
+    fake.take(); // Start
+    producer.send(newBody("a"));
+
+    AtomicReference<Throwable> failure = new AtomicReference<>();
+    AtomicReference<Boolean> interrupted = new AtomicReference<>(false);
+    Thread flusher =
+        new Thread(
+            () -> {
+              try {
+                producer.flush();
+              } catch (Throwable t) {
+                failure.set(t);
+                interrupted.set(Thread.currentThread().isInterrupted());
+              }
+            });
+    flusher.setDaemon(true);
+    flusher.start();
+    awaitState(flusher, Thread.State.WAITING);
+
+    flusher.interrupt();
+    flusher.join(TimeUnit.SECONDS.toMillis(5));
+
+    assertThat(flusher.isAlive()).isFalse();
+    assertThat(failure.get())
+        .isInstanceOf(IntegrationClientException.class)
+        .hasCauseInstanceOf(InterruptedException.class);
+    assertThat(interrupted.get()).isTrue();
+    assertThat(producer.lastSentOffset()).isZero();
+  }
+
+  @Test
   void concurrentUseFailsFastAndSequentialThreadHandoffWorks() throws Exception {
     Producer producer = client.newProducer();
     fake.take(); // Start
@@ -898,6 +1065,22 @@ class IntegrationClientTest {
 
     // Subsequent sends fail fast.
     assertThatThrownBy(() -> producer.send(newBody("b"))).isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void protocolErrorIncludesRecordOffsetAndCancelsOutboundStream() throws Exception {
+    Producer producer = client.newProducer();
+    fake.take(); // Start
+    CompletableFuture<SendResult> pending = producer.send(newBody("a"));
+
+    fake.errorAtWithoutCompleting(ErrorKind.ERROR_KIND_BAD_REQUEST, "nope", -1L);
+
+    assertThatThrownBy(() -> get(pending))
+        .isInstanceOf(ExecutionException.class)
+        .cause()
+        .isInstanceOf(IntegrationClientException.class)
+        .hasMessage("[offset=18446744073709551615] nope");
+    assertThat(fake.awaitRequestFailure()).isTrue();
   }
 
   @Test
@@ -1043,6 +1226,7 @@ class IntegrationClientTest {
   private static final class FakeIngestionService extends IngestionSvcGrpc.IngestionSvcImplBase {
 
     private final BlockingQueue<IngestionRequest> received = new LinkedBlockingQueue<>();
+    private final CountDownLatch requestFailed = new CountDownLatch(1);
     private volatile StreamObserver<IngestionResponse> responses;
 
     @Override
@@ -1056,7 +1240,9 @@ class IntegrationClientTest {
         }
 
         @Override
-        public void onError(Throwable t) {}
+        public void onError(Throwable t) {
+          requestFailed.countDown();
+        }
 
         @Override
         public void onCompleted() {}
@@ -1103,6 +1289,29 @@ class IntegrationClientTest {
                   dev.restate.ingestion.v1.Error.newBuilder().setKind(kind).setMessage(message))
               .build());
       responses.onCompleted();
+    }
+
+    void errorWithoutCompleting(ErrorKind kind, String message) {
+      responses.onNext(
+          IngestionResponse.newBuilder()
+              .setError(
+                  dev.restate.ingestion.v1.Error.newBuilder().setKind(kind).setMessage(message))
+              .build());
+    }
+
+    void errorAtWithoutCompleting(ErrorKind kind, String message, long invocationOffset) {
+      responses.onNext(
+          IngestionResponse.newBuilder()
+              .setError(
+                  dev.restate.ingestion.v1.Error.newBuilder()
+                      .setKind(kind)
+                      .setMessage(message)
+                      .setInvocationOffset(invocationOffset))
+              .build());
+    }
+
+    boolean awaitRequestFailure() throws InterruptedException {
+      return requestFailed.await(5, TimeUnit.SECONDS);
     }
   }
 
@@ -1175,6 +1384,187 @@ class IntegrationClientTest {
     }
   }
 
+  private static final class DuringReadyCheckChannel extends Channel {
+
+    private final Channel delegate;
+    private final AtomicReference<Runnable> action = new AtomicReference<>();
+
+    private DuringReadyCheckChannel(Channel delegate) {
+      this.delegate = delegate;
+    }
+
+    void runOnce(Runnable action) {
+      this.action.set(action);
+    }
+
+    @Override
+    public <RequestT, ResponseT> ClientCall<RequestT, ResponseT> newCall(
+        MethodDescriptor<RequestT, ResponseT> methodDescriptor, CallOptions callOptions) {
+      return new ForwardingClientCall.SimpleForwardingClientCall<>(
+          delegate.newCall(methodDescriptor, callOptions)) {
+        @Override
+        public boolean isReady() {
+          boolean ready = super.isReady();
+          Runnable once = action.getAndSet(null);
+          if (once != null) {
+            once.run();
+          }
+          return ready;
+        }
+      };
+    }
+
+    @Override
+    public String authority() {
+      return delegate.authority();
+    }
+  }
+
+  private static final class ReadySignalDuringCheckChannel extends Channel {
+
+    private final Channel delegate;
+    private final AtomicInteger mode = new AtomicInteger();
+
+    private ReadySignalDuringCheckChannel(Channel delegate) {
+      this.delegate = delegate;
+    }
+
+    void signalDuringNextCheck() {
+      mode.set(1);
+    }
+
+    @Override
+    public <RequestT, ResponseT> ClientCall<RequestT, ResponseT> newCall(
+        MethodDescriptor<RequestT, ResponseT> methodDescriptor, CallOptions callOptions) {
+      return new ForwardingClientCall.SimpleForwardingClientCall<>(
+          delegate.newCall(methodDescriptor, callOptions)) {
+        private ClientCall.Listener<ResponseT> listener;
+
+        @Override
+        public void start(ClientCall.Listener<ResponseT> listener, Metadata headers) {
+          this.listener = listener;
+          super.start(listener, headers);
+        }
+
+        @Override
+        public boolean isReady() {
+          if (mode.compareAndSet(1, 2)) {
+            listener.onReady();
+            return false;
+          }
+          if (mode.get() == 2) {
+            return true;
+          }
+          return super.isReady();
+        }
+      };
+    }
+
+    @Override
+    public String authority() {
+      return delegate.authority();
+    }
+  }
+
+  /** Reports readiness when sampled, but deliberately suppresses asynchronous onReady signals. */
+  private static final class AlwaysReadyWithoutSignalsChannel extends Channel {
+
+    private final Channel delegate;
+
+    private AlwaysReadyWithoutSignalsChannel(Channel delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public <RequestT, ResponseT> ClientCall<RequestT, ResponseT> newCall(
+        MethodDescriptor<RequestT, ResponseT> methodDescriptor, CallOptions callOptions) {
+      return new ForwardingClientCall.SimpleForwardingClientCall<>(
+          delegate.newCall(methodDescriptor, callOptions)) {
+        @Override
+        public void start(ClientCall.Listener<ResponseT> listener, Metadata headers) {
+          super.start(
+              new ForwardingClientCallListener.SimpleForwardingClientCallListener<>(listener) {
+                @Override
+                public void onReady() {
+                  // This fixture only exposes readiness through isReady().
+                }
+              },
+              headers);
+        }
+
+        @Override
+        public boolean isReady() {
+          return true;
+        }
+      };
+    }
+
+    @Override
+    public String authority() {
+      return delegate.authority();
+    }
+  }
+
+  /** Pauses the two tryLock calls around the stale BUSY observation under test. */
+  private static final class CoordinatedOutboundLock extends ReentrantLock {
+
+    private final CountDownLatch callbackHasGate = new CountDownLatch(1);
+    private final CountDownLatch allowCallback = new CountDownLatch(1);
+    private final CountDownLatch senderSawBusy = new CountDownLatch(1);
+    private final CountDownLatch allowSender = new CountDownLatch(1);
+    private volatile Thread callbackThread;
+    private volatile Thread senderThread;
+
+    void designateCallbackThread() {
+      callbackThread = Thread.currentThread();
+    }
+
+    void designateSenderThread() {
+      senderThread = Thread.currentThread();
+    }
+
+    boolean awaitCallbackGate() throws InterruptedException {
+      return callbackHasGate.await(5, TimeUnit.SECONDS);
+    }
+
+    boolean awaitSenderBusy() throws InterruptedException {
+      return senderSawBusy.await(5, TimeUnit.SECONDS);
+    }
+
+    void releaseCallback() {
+      allowCallback.countDown();
+    }
+
+    void releaseSender() {
+      allowSender.countDown();
+    }
+
+    @Override
+    public boolean tryLock() {
+      boolean acquired = super.tryLock();
+      Thread current = Thread.currentThread();
+      if (current == callbackThread && acquired) {
+        callbackHasGate.countDown();
+        await(allowCallback, "callback readiness check");
+      } else if (current == senderThread && !acquired) {
+        senderSawBusy.countDown();
+        await(allowSender, "sender BUSY observation");
+      }
+      return acquired;
+    }
+
+    private static void await(CountDownLatch latch, String operation) {
+      try {
+        if (!latch.await(5, TimeUnit.SECONDS)) {
+          throw new AssertionError("timed out coordinating " + operation);
+        }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new AssertionError("interrupted while coordinating " + operation, e);
+      }
+    }
+  }
+
   private static final class GatedWriteChannel extends Channel {
 
     private final Channel delegate;
@@ -1242,6 +1632,8 @@ class IntegrationClientTest {
     private volatile boolean insideInvocationWrite;
     private volatile boolean halfClosedDuringWrite;
     private volatile int halfCloseCount;
+    private volatile int cancelCount;
+    private volatile boolean failAfterInvocationAction;
 
     private DuringInvocationWriteChannel(Channel delegate) {
       this.delegate = delegate;
@@ -1251,12 +1643,20 @@ class IntegrationClientTest {
       this.duringInvocation = action;
     }
 
+    void failAfterInvocationAction() {
+      failAfterInvocationAction = true;
+    }
+
     boolean halfClosedDuringWrite() {
       return halfClosedDuringWrite;
     }
 
     int halfCloseCount() {
       return halfCloseCount;
+    }
+
+    int cancelCount() {
+      return cancelCount;
     }
 
     @Override
@@ -1275,6 +1675,9 @@ class IntegrationClientTest {
           insideInvocationWrite = true;
           try {
             duringInvocation.run();
+            if (failAfterInvocationAction) {
+              throw new IllegalStateException("simulated failure after invocation action");
+            }
             super.sendMessage(message);
           } finally {
             insideInvocationWrite = false;
@@ -1286,6 +1689,12 @@ class IntegrationClientTest {
           halfCloseCount++;
           halfClosedDuringWrite |= insideInvocationWrite;
           super.halfClose();
+        }
+
+        @Override
+        public void cancel(String message, Throwable cause) {
+          cancelCount++;
+          super.cancel(message, cause);
         }
       };
     }
