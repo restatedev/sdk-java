@@ -48,9 +48,10 @@ public final class ProducerOptions {
   }
 
   /**
-   * Maximum serialized bytes retained while invocations wait to be handed to the transport. A value
-   * of zero disables local buffering: {@code send} waits until the invocation can be handed
-   * directly to the transport, and {@code trySend} reports backpressure until that is possible.
+   * Maximum combined serialized size of accepted invocations retained while they wait to be handed
+   * to the transport. A value of zero disables local buffering: {@code send} waits until the
+   * invocation can be handed directly to the transport, and {@code trySend} reports backpressure
+   * until that is possible.
    *
    * @return the local buffer limit in bytes
    */
@@ -82,8 +83,8 @@ public final class ProducerOptions {
     private Builder() {}
 
     /**
-     * Sets the maximum serialized bytes retained while invocations wait to be handed to the
-     * transport. Set this to zero to disable local buffering.
+     * Sets the maximum combined serialized size of accepted invocations retained while they wait to
+     * be handed to the transport. Set this to zero to disable local buffering.
      *
      * @param bytes a non-negative byte count
      */
