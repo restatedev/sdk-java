@@ -56,8 +56,9 @@ import java.util.concurrent.CompletableFuture;
  * }
  * }</pre>
  *
- * <p>The client assigns monotonically increasing offsets. Producer-level deduplication is disabled;
- * set an idempotency key on an invocation when handler-level deduplication is required.
+ * <p>The client assigns monotonically increasing offsets from {@code 0} through {@link
+ * Long#MAX_VALUE}. Producer-level deduplication is disabled; set an idempotency key on an
+ * invocation when handler-level deduplication is required.
  *
  * <p>A producer is <b>not thread-safe</b> and fails fast with {@link
  * java.util.ConcurrentModificationException} if used from more than one thread at once.
@@ -79,8 +80,8 @@ public interface Producer extends ProducerBase {
    * @return a future completing, once the invocation is durably committed by Restate.
    * @throws ProducerBufferExhaustedException if the producer cannot admit the invocation before the
    *     configured maximum blocking time elapses, or the thread is interrupted while waiting
-   * @throws IllegalStateException if a reentrant producer callback invokes this method when it
-   *     would block
+   * @throws IllegalStateException if the producer has exhausted the {@code long} offset range, or a
+   *     reentrant producer callback invokes this method when it would block
    * @throws IllegalArgumentException if buffering is enabled and the serialized invocation is
    *     larger than {@link ProducerOptions#bufferMemory()}
    * @throws java.util.ConcurrentModificationException if the producer is used concurrently from
@@ -99,6 +100,7 @@ public interface Producer extends ProducerBase {
    * @return the admission result
    * @throws IllegalArgumentException if buffering is enabled and the serialized invocation is
    *     larger than {@link ProducerOptions#bufferMemory()}
+   * @throws IllegalStateException if the producer has exhausted the {@code long} offset range
    * @throws java.util.ConcurrentModificationException if the producer is used concurrently from
    *     another thread
    */

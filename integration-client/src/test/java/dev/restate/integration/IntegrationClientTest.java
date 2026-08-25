@@ -44,6 +44,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -252,6 +253,22 @@ class IntegrationClientTest {
         .cause()
         .isInstanceOf(IntegrationClientException.class);
     assertThat(producer.lastAcknowledgedOffset()).isEqualTo(0L);
+    assertThat(get(producer.waitAcknowledged(0L))).isZero();
+    assertThatThrownBy(() -> get(producer.flushAsync())).isInstanceOf(ExecutionException.class);
+  }
+
+  @Test
+  void fullyAcknowledgedFlushRemainsAvailableAfterFailure() throws Exception {
+    Producer producer = client.newProducer();
+    fake.take(); // Start
+    fake.grantWindow(10_000);
+    CompletableFuture<SendResult> sent = producer.send(newBody("a"));
+
+    fake.error(ErrorKind.ERROR_KIND_BAD_REQUEST, "stream failed after commit", 0L);
+
+    assertThat(get(sent).offset()).isZero();
+    assertThat(get(producer.flushAsync())).isZero();
+    assertThat(producer.flush()).isZero();
   }
 
   @Test
@@ -358,6 +375,30 @@ class IntegrationClientTest {
         .hasMessageContaining("backpressured");
     assertThat(producer.lastSentOffset()).isEqualTo(-1L);
     fake.assertNoRequest();
+  }
+
+  @ParameterizedTest(name = "trySend={0}")
+  @ValueSource(booleans = {false, true})
+  void zeroBufferAdmissionReservesObservedReadiness(boolean trySend) throws Exception {
+    client.close();
+    OneShotReadyChannel oneShotReady = new OneShotReadyChannel(channel);
+    client =
+        GrpcIntegrationClient.builder(oneShotReady).integration("test-integration", "1.0").build();
+    Producer producer =
+        client.newProducer(
+            ProducerOptions.builder().bufferMemory(0).maxBlockTime(Duration.ZERO).build());
+    fake.take(); // Start
+    fake.grantWindow(10_000);
+    oneShotReady.allowOneReadyCheck();
+
+    CompletableFuture<SendResult> acknowledgement =
+        trySend
+            ? ((SendAttempt.Accepted) producer.trySend(newBody("a"))).acknowledgement()
+            : producer.send(newBody("a"));
+
+    assertThat(fake.take().getInvocation().getOffset()).isZero();
+    fake.ack(0L);
+    assertThat(get(acknowledgement).offset()).isZero();
   }
 
   @ParameterizedTest(name = "bufferMemory={0}")
@@ -468,6 +509,34 @@ class IntegrationClientTest {
     assertThat(fake.take().getInvocation().getOffset()).isOne();
   }
 
+  @Test
+  void concurrentBufferedSendDoesNotOverlapTransportWrites() throws Exception {
+    client.close();
+    GatedWriteChannel gatedWrite = new GatedWriteChannel(channel, 2);
+    client =
+        GrpcIntegrationClient.builder(gatedWrite).integration("test-integration", "1.0").build();
+    Producer producer = client.newProducer(ProducerOptions.builder().bufferMemory(1_024).build());
+    fake.take(); // Start
+    CompletableFuture<SendResult> first = producer.send(newBody("first"));
+
+    CompletableFuture<Void> granting = CompletableFuture.runAsync(() -> fake.grantWindow(10_000));
+    assertThat(gatedWrite.awaitEntered()).isTrue();
+    try {
+      CompletableFuture<SendResult> second = producer.send(newBody("second"));
+      assertThat(gatedWrite.maxActiveWrites()).isOne();
+
+      gatedWrite.release();
+      get(granting);
+      assertThat(fake.take().getInvocation().getOffset()).isZero();
+      assertThat(fake.take().getInvocation().getOffset()).isOne();
+      fake.ack(1L);
+      assertThat(get(first).offset()).isZero();
+      assertThat(get(second).offset()).isOne();
+    } finally {
+      gatedWrite.release();
+    }
+  }
+
   @ParameterizedTest(name = "bufferMemory={0}")
   @ValueSource(longs = {0L, 128L})
   void reentrantBlockingSendIsRejected(long bufferMemory) throws Exception {
@@ -567,6 +636,38 @@ class IntegrationClientTest {
   }
 
   @Test
+  void bufferedReadinessIsSignalledAfterEachHandoff() throws Exception {
+    client.close();
+    GatedWriteChannel gatedWrite = new GatedWriteChannel(channel, 3);
+    client =
+        GrpcIntegrationClient.builder(gatedWrite).integration("test-integration", "1.0").build();
+    Invocation invocation = newBody("a".repeat(80));
+    long nonZeroOffsetSize =
+        ((InvocationImpl) invocation).toProtoInvocation(1L).getSerializedSize();
+    Producer producer =
+        client.newProducer(ProducerOptions.builder().bufferMemory(2 * nonZeroOffsetSize).build());
+    fake.take(); // Start
+
+    assertThat(producer.trySend(invocation)).isInstanceOf(SendAttempt.Accepted.class);
+    assertThat(producer.trySend(invocation)).isInstanceOf(SendAttempt.Accepted.class);
+    SendAttempt.Backpressured third = (SendAttempt.Backpressured) producer.trySend(invocation);
+
+    CompletableFuture<Void> granting = CompletableFuture.runAsync(() -> fake.grantWindow(10_000));
+    assertThat(gatedWrite.awaitEntered()).isTrue();
+    try {
+      assertThat(third.ready()).isDone();
+    } finally {
+      gatedWrite.release();
+    }
+    get(granting);
+    assertThat(fake.take().getInvocation().getOffset()).isZero();
+    assertThat(fake.take().getInvocation().getOffset()).isOne();
+
+    assertThat(producer.trySend(invocation)).isInstanceOf(SendAttempt.Accepted.class);
+    assertThat(fake.take().getInvocation().getOffset()).isEqualTo(2L);
+  }
+
+  @Test
   void sendBlocksUntilBufferCapacityReturns() throws Exception {
     Producer producer =
         client.newProducer(
@@ -616,6 +717,23 @@ class IntegrationClientTest {
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("exceeding bufferMemory");
     assertThat(producer.lastSentOffset()).isEqualTo(-1L);
+  }
+
+  @Test
+  void invocationExactlyMatchingBufferLimitIsAccepted() throws Exception {
+    Invocation invocation = newBody("a".repeat(100));
+    long serializedSize = ((InvocationImpl) invocation).toProtoInvocation(0L).getSerializedSize();
+    Producer producer =
+        client.newProducer(ProducerOptions.builder().bufferMemory(serializedSize).build());
+    fake.take(); // Start
+
+    CompletableFuture<SendResult> acknowledgement = producer.send(invocation);
+
+    assertThat(producer.lastSentOffset()).isZero();
+    fake.grantWindow(10_000);
+    assertThat(fake.take().getInvocation().getOffset()).isZero();
+    fake.ack(0L);
+    assertThat(get(acknowledgement).offset()).isZero();
   }
 
   @Test
@@ -802,6 +920,34 @@ class IntegrationClientTest {
   }
 
   @Test
+  void closeDoesNotFlushAndFailsPendingWork() throws Exception {
+    Producer producer =
+        client.newProducer(
+            ProducerOptions.builder().bufferMemory(128).maxBlockTime(Duration.ZERO).build());
+    fake.take(); // Start
+
+    SendAttempt.Accepted accepted =
+        (SendAttempt.Accepted) producer.trySend(newBody("a".repeat(80)));
+    SendAttempt.Backpressured backpressured =
+        (SendAttempt.Backpressured) producer.trySend(newBody("b".repeat(80)));
+
+    producer.close();
+    producer.close(); // Idempotent.
+
+    assertThatThrownBy(() -> get(accepted.acknowledgement()))
+        .isInstanceOf(ExecutionException.class)
+        .cause()
+        .isInstanceOf(IntegrationClientException.class);
+    assertThatThrownBy(() -> get(backpressured.ready()))
+        .isInstanceOf(ExecutionException.class)
+        .cause()
+        .isInstanceOf(IntegrationClientException.class);
+    assertThat(producer.lastSentOffset()).isZero();
+    assertThat(producer.lastAcknowledgedOffset()).isEqualTo(-1L);
+    fake.assertNoRequest();
+  }
+
+  @Test
   void exactlyOnceRejectsNonIncreasingOffsets() throws Exception {
     ExactlyOnceProducer producer = client.newExactlyOnceProducer("p1");
     fake.take(); // Start
@@ -981,6 +1127,104 @@ class IntegrationClientTest {
             throw new IllegalStateException("simulated transport write failure");
           }
           super.sendMessage(message);
+        }
+      };
+    }
+
+    @Override
+    public String authority() {
+      return delegate.authority();
+    }
+  }
+
+  private static final class OneShotReadyChannel extends Channel {
+
+    private final Channel delegate;
+    private final AtomicInteger readyMode = new AtomicInteger();
+
+    private OneShotReadyChannel(Channel delegate) {
+      this.delegate = delegate;
+    }
+
+    void allowOneReadyCheck() {
+      readyMode.set(1);
+    }
+
+    @Override
+    public <RequestT, ResponseT> ClientCall<RequestT, ResponseT> newCall(
+        MethodDescriptor<RequestT, ResponseT> methodDescriptor, CallOptions callOptions) {
+      return new ForwardingClientCall.SimpleForwardingClientCall<>(
+          delegate.newCall(methodDescriptor, callOptions)) {
+        @Override
+        public boolean isReady() {
+          int mode = readyMode.get();
+          if (mode == 0) {
+            return super.isReady();
+          }
+          if (readyMode.compareAndSet(1, 2)) {
+            return true;
+          }
+          return false;
+        }
+      };
+    }
+
+    @Override
+    public String authority() {
+      return delegate.authority();
+    }
+  }
+
+  private static final class GatedWriteChannel extends Channel {
+
+    private final Channel delegate;
+    private final int gatedWrite;
+    private final AtomicInteger writes = new AtomicInteger();
+    private final AtomicInteger activeWrites = new AtomicInteger();
+    private final AtomicInteger maxActiveWrites = new AtomicInteger();
+    private final CountDownLatch entered = new CountDownLatch(1);
+    private final CountDownLatch released = new CountDownLatch(1);
+
+    private GatedWriteChannel(Channel delegate, int gatedWrite) {
+      this.delegate = delegate;
+      this.gatedWrite = gatedWrite;
+    }
+
+    boolean awaitEntered() throws InterruptedException {
+      return entered.await(5, TimeUnit.SECONDS);
+    }
+
+    void release() {
+      released.countDown();
+    }
+
+    int maxActiveWrites() {
+      return maxActiveWrites.get();
+    }
+
+    @Override
+    public <RequestT, ResponseT> ClientCall<RequestT, ResponseT> newCall(
+        MethodDescriptor<RequestT, ResponseT> methodDescriptor, CallOptions callOptions) {
+      return new ForwardingClientCall.SimpleForwardingClientCall<>(
+          delegate.newCall(methodDescriptor, callOptions)) {
+        @Override
+        public void sendMessage(RequestT message) {
+          int active = activeWrites.incrementAndGet();
+          maxActiveWrites.accumulateAndGet(active, Math::max);
+          try {
+            if (writes.incrementAndGet() == gatedWrite) {
+              entered.countDown();
+              if (!released.await(5, TimeUnit.SECONDS)) {
+                throw new AssertionError("timed out waiting to release transport write");
+              }
+            }
+            super.sendMessage(message);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError("interrupted while gating transport write", e);
+          } finally {
+            activeWrites.decrementAndGet();
+          }
         }
       };
     }
