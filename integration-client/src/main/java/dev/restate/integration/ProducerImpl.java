@@ -56,6 +56,12 @@ final class ProducerImpl implements Producer, ExactlyOnceProducer {
   private static final ThreadLocal<Boolean> INLINE_CALLBACK = new ThreadLocal<>();
   private static final ReadinessObservation BUFFERED_READY = new ReadinessObservation(true, -1);
 
+  // The protocol guarantees a hard-coded minimum send window of 32 KiB. The client assumes this as
+  // its initial credit and starts sending without waiting for the server's first WindowUpdate; the
+  // server never sends an initial one, never lowers the window below this floor, and only grows it
+  // via additive increments.
+  private static final long INITIAL_WINDOW = 32L * 1024;
+
   private final Object lock = new Object();
   // Held across each actual outbound observer call. Terminal state is always recorded under
   // `lock` before waiting for this gate, so a terminal callback cannot starve behind the drain.
@@ -68,7 +74,9 @@ final class ProducerImpl implements Producer, ExactlyOnceProducer {
   private final ReentrantLock usageGuard = new ReentrantLock();
 
   // ---- state guarded by `lock` ----
-  private long budget = 0; // remaining Restate send window, in bytes; may go one message negative
+  // remaining Restate send window, in bytes; starts at the protocol's hard-coded 32 KiB minimum and
+  // may go one message negative
+  private long budget = INITIAL_WINDOW;
   private long lastCommitted = -1; // ack watermark; -1 == nothing committed yet
   private final ArrayDeque<PreparedSend> pendingWrites = new ArrayDeque<>();
   private long bufferedBytes = 0;
