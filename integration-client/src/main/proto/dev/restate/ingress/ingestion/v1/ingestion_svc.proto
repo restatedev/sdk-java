@@ -193,6 +193,16 @@ message IngestionRequest {
 // It tells the client how many more bytes it can send
 // before it must wait for the next window update.
 //
+// The minimum send window is hard-coded to 32 KiB
+// (32768 bytes). A client may assume this as its initial
+// window and start sending immediately, without waiting
+// for a first WindowUpdate: the server does not send an
+// initial WindowUpdate to open the stream. `increment_bytes`
+// is always applied additively on top of the current
+// window, so the server uses it only to grow the window
+// above the 32 KiB floor (and to ack, see below); it can
+// never lower the window below that floor.
+//
 // WindowUpdate also doubles as an explicit ack: the
 // server can send an update with a 0 increment to
 // acknowledge commits up to `Response.last_committed`

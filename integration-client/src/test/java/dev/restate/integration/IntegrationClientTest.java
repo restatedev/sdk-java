@@ -284,16 +284,14 @@ class IntegrationClientTest {
   }
 
   @Test
-  void sendBuffersBeforeInitialWindowGrant() throws Exception {
+  void sendUsesAssumedInitialWindowWithoutGrant() throws Exception {
     Producer producer = client.newProducer();
     fake.take(); // Start
 
+    // The client assumes the protocol's hard-coded 32 KiB initial window, so the first record is
+    // sent immediately without waiting for a server WindowUpdate.
     CompletableFuture<SendResult> acknowledgement = producer.send(newBody("a"));
     assertThat(producer.lastSentOffset()).isEqualTo(0L);
-    assertThat(acknowledgement).isNotDone();
-    fake.assertNoRequest();
-
-    fake.grantWindow(10_000);
     assertThat(fake.take().getInvocation().getOffset()).isEqualTo(0L);
 
     fake.ack(0L);
@@ -306,6 +304,7 @@ class IntegrationClientTest {
         client.newProducer(
             ProducerOptions.builder().bufferMemory(0).maxBlockTime(Duration.ZERO).build());
     fake.take(); // Start
+    exhaustSendWindow(producer);
 
     SendAttempt first = producer.trySend(newBody("a".repeat(100)));
     assertThat(first).isInstanceOf(SendAttempt.Backpressured.class);
@@ -345,6 +344,7 @@ class IntegrationClientTest {
         client.newProducer(
             ProducerOptions.builder().bufferMemory(0).maxBlockTime(Duration.ofSeconds(5)).build());
     fake.take(); // Start
+    exhaustSendWindow(producer);
 
     CountDownLatch attempting = new CountDownLatch(1);
     CompletableFuture<CompletableFuture<SendResult>> blocked =
@@ -372,6 +372,7 @@ class IntegrationClientTest {
         client.newProducer(
             ProducerOptions.builder().bufferMemory(0).maxBlockTime(Duration.ZERO).build());
     fake.take(); // Start
+    exhaustSendWindow(producer);
 
     assertThatThrownBy(() -> producer.send(newBody("a")))
         .isInstanceOf(ProducerBufferExhaustedException.class)
@@ -439,6 +440,7 @@ class IntegrationClientTest {
             .build();
     Producer producer = client.newProducer(ProducerOptions.builder().bufferMemory(128).build());
     fake.take(); // Start is the first write and succeeds.
+    exhaustSendWindow(producer);
 
     CompletableFuture<SendResult> acknowledgement = producer.send(newBody("a"));
     fake.grantWindow(10_000);
@@ -560,6 +562,7 @@ class IntegrationClientTest {
         GrpcIntegrationClient.builder(gatedWrite).integration("test-integration", "1.0").build();
     Producer producer = client.newProducer(ProducerOptions.builder().bufferMemory(1_024).build());
     fake.take(); // Start
+    exhaustSendWindow(producer);
     CompletableFuture<SendResult> first = producer.send(newBody("first"));
 
     CompletableFuture<Void> granting = CompletableFuture.runAsync(() -> fake.grantWindow(10_000));
@@ -620,6 +623,7 @@ class IntegrationClientTest {
   void zeroBufferStreamErrorFailsReadinessWaiter() throws Exception {
     Producer producer = client.newProducer(ProducerOptions.builder().bufferMemory(0).build());
     fake.take(); // Start
+    exhaustSendWindow(producer);
 
     SendAttempt.Backpressured backpressured =
         (SendAttempt.Backpressured) producer.trySend(newBody("a"));
@@ -730,6 +734,7 @@ class IntegrationClientTest {
         client.newExactlyOnceProducer(
             "p1", ProducerOptions.builder().bufferMemory(0).maxBlockTime(Duration.ZERO).build());
     fake.take(); // Start
+    exhaustSendWindow(producer);
 
     SendAttempt.Backpressured backpressured =
         (SendAttempt.Backpressured) producer.trySend(5, newBody("a"));
@@ -749,6 +754,7 @@ class IntegrationClientTest {
         client.newProducer(
             ProducerOptions.builder().bufferMemory(128).maxBlockTime(Duration.ZERO).build());
     fake.take(); // Start
+    exhaustSendWindow(producer);
 
     SendAttempt first = producer.trySend(newBody("a".repeat(80)));
     assertThat(first).isInstanceOf(SendAttempt.Accepted.class);
@@ -781,6 +787,7 @@ class IntegrationClientTest {
     Producer producer =
         client.newProducer(ProducerOptions.builder().bufferMemory(2 * nonZeroOffsetSize).build());
     fake.take(); // Start
+    exhaustSendWindow(producer);
 
     assertThat(producer.trySend(invocation)).isInstanceOf(SendAttempt.Accepted.class);
     assertThat(producer.trySend(invocation)).isInstanceOf(SendAttempt.Accepted.class);
@@ -810,6 +817,7 @@ class IntegrationClientTest {
                 .maxBlockTime(Duration.ofSeconds(5))
                 .build());
     fake.take(); // Start
+    exhaustSendWindow(producer);
     producer.send(newBody("a".repeat(80)));
 
     CountDownLatch attempting = new CountDownLatch(1);
@@ -835,6 +843,7 @@ class IntegrationClientTest {
         client.newProducer(
             ProducerOptions.builder().bufferMemory(128).maxBlockTime(Duration.ZERO).build());
     fake.take(); // Start
+    exhaustSendWindow(producer);
     producer.send(newBody("a".repeat(80)));
 
     assertThatThrownBy(() -> producer.send(newBody("b".repeat(80))))
@@ -1089,6 +1098,7 @@ class IntegrationClientTest {
         client.newProducer(
             ProducerOptions.builder().bufferMemory(128).maxBlockTime(Duration.ZERO).build());
     fake.take(); // Start
+    exhaustSendWindow(producer);
 
     SendAttempt.Accepted accepted =
         (SendAttempt.Accepted) producer.trySend(newBody("a".repeat(80)));
@@ -1108,6 +1118,7 @@ class IntegrationClientTest {
         client.newProducer(
             ProducerOptions.builder().bufferMemory(128).maxBlockTime(Duration.ZERO).build());
     fake.take(); // Start
+    exhaustSendWindow(producer);
 
     SendAttempt.Accepted accepted =
         (SendAttempt.Accepted) producer.trySend(newBody("a".repeat(80)));
@@ -1154,6 +1165,7 @@ class IntegrationClientTest {
         client.newExactlyOnceProducer(
             "p1", ProducerOptions.builder().bufferMemory(128).maxBlockTime(Duration.ZERO).build());
     fake.take(); // Start
+    exhaustSendWindow(producer);
 
     assertThat(producer.trySend(5L, newBody("a".repeat(80))))
         .isInstanceOf(SendAttempt.Accepted.class);
@@ -1200,6 +1212,20 @@ class IntegrationClientTest {
 
   private static Invocation newBody(String body) {
     return Invocation.create().setBody(body.getBytes(StandardCharsets.UTF_8));
+  }
+
+  /**
+   * Drives the producer's send window to zero: the depleted-window state that gates further sends.
+   * The protocol's assumed 32 KiB initial window is exercised by {@link
+   * #sendUsesAssumedInitialWindowWithoutGrant()}; the backpressure tests below start from the
+   * depleted state a producer reaches once that window is spent, which is only reachable at runtime
+   * by sending ~32 KiB of records. Set on the freshly created, still single-threaded producer
+   * before any send.
+   */
+  private static void exhaustSendWindow(Object producer) throws Exception {
+    Field budget = ProducerImpl.class.getDeclaredField("budget");
+    budget.setAccessible(true);
+    budget.setLong(producer, 0L);
   }
 
   private static <T> T get(CompletableFuture<T> f)
