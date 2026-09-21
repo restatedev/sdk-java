@@ -32,7 +32,7 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-@RestateTest(containerImage = "ghcr.io/restatedev/restate:pr5026")
+@RestateTest(containerImage = "ghcr.io/restatedev/restate:main")
 @Timeout(value = 30)
 class IntegrationClientIntegrationTest {
 
