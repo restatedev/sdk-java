@@ -8,7 +8,6 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.integration;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
@@ -34,12 +33,7 @@ public sealed interface Invocation extends InvocationMetadata permits Invocation
 
   byte[] getBody();
 
-  /** Schedule the invocation after a delay. Mutually exclusive with {@link #setInvokeTime}. */
-  Invocation setDelay(@Nullable Duration delay);
-
-  @Nullable Duration getDelay();
-
-  /** Schedule the invocation at an absolute time. Mutually exclusive with {@link #setDelay}. */
+  /** Schedule the invocation at an absolute time. */
   Invocation setInvokeTime(@Nullable Instant invokeTime);
 
   @Nullable Instant getInvokeTime();
@@ -53,6 +47,11 @@ public sealed interface Invocation extends InvocationMetadata permits Invocation
   Invocation setTracestate(@Nullable String tracestate);
 
   @Nullable String getTracestate();
+
+  /** Idempotency key used by Restate to deduplicate the invocation. */
+  Invocation setIdempotencyKey(@Nullable String idempotencyKey);
+
+  @Nullable String getIdempotencyKey();
 
   @Override
   Invocation setServiceName(@Nullable String serviceName);
@@ -68,9 +67,6 @@ public sealed interface Invocation extends InvocationMetadata permits Invocation
 
   @Override
   Invocation setLimitKey(@Nullable String limitKey);
-
-  @Override
-  Invocation setIdempotencyKey(@Nullable String idempotencyKey);
 
   @Override
   Invocation putHeader(String key, String value);

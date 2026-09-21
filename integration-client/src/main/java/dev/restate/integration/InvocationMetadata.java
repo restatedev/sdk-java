@@ -53,11 +53,6 @@ public sealed interface InvocationMetadata permits Invocation, InvocationMetadat
 
   @Nullable String getLimitKey();
 
-  /** Idempotency key used by Restate to deduplicate the invocation. */
-  InvocationMetadata setIdempotencyKey(@Nullable String idempotencyKey);
-
-  @Nullable String getIdempotencyKey();
-
   /** Add or replace a single header. */
   InvocationMetadata putHeader(String key, String value);
 
