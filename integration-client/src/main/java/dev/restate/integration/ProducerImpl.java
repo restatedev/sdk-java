@@ -619,9 +619,17 @@ final class ProducerImpl implements Producer, ExactlyOnceProducer {
       }
       start = pendingStart;
       pendingStart = null;
-      startWritten = true;
+      // startWritten stays false across the write below. Publishing it before the Start is actually
+      // handed to the outbound observer would let a concurrent sender admit an invocation and race
+      // its write ahead of the Start on the transport (both writes contend on `outboundLock`).
     }
     writeToTransport(start);
+    synchronized (lock) {
+      startWritten = true;
+      // Wake any sender blocked in doSend() waiting on the Start; trySend admission waiters and
+      // buffered records are handled by the drain that follows this call.
+      lock.notifyAll();
+    }
   }
 
   /**
