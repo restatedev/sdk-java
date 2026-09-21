@@ -90,6 +90,16 @@ final class ProducerImpl implements Producer, ExactlyOnceProducer {
   private OutboundAction pendingOutboundAction = OutboundAction.NONE;
   private long readinessEpoch = 0;
 
+  // The mandatory Start handshake frame, written to the transport before any invocation. It is
+  // written lazily, on the first transport-ready signal, rather than eagerly in the constructor:
+  // some transports (e.g. the Vert.x gRPC bridge) deliver the initial onReady synchronously while
+  // the request is still being set up, which would otherwise let the onReady-driven drain flush
+  // buffered invocations ahead of an eagerly-queued Start. `startWritten` gates invocation writes
+  // so
+  // none can precede the Start regardless of when onReady fires.
+  private @Nullable IngestionRequest pendingStart;
+  private boolean startWritten = false;
+
   private final long bufferMemory;
   private final Duration maxBlockTime;
   private final long maxBlockNanos;
@@ -121,24 +131,31 @@ final class ProducerImpl implements Producer, ExactlyOnceProducer {
     this.maxBlockTime = options.maxBlockTime();
     this.maxBlockNanos = toNanosSaturated(maxBlockTime);
     this.exactlyOnce = deduplicationMode == DeduplicationMode.OFFSET_BASED;
+    // Mandatory Start handshake: the first frame on the stream (not flow-controlled). It is written
+    // lazily by writeStartIfNeeded() on the first transport-ready signal, ahead of any invocation;
+    // see the pendingStart/startWritten fields. Stage it before opening the call so a transport
+    // that
+    // delivers onReady synchronously during stub.ingest() still finds it.
+    synchronized (lock) {
+      pendingStart =
+          IngestionRequest.newBuilder()
+              .setStart(
+                  IngestionStart.newBuilder()
+                      .setProducerId(producerId)
+                      .setIntegration(integration)
+                      .setDeduplicationMode(deduplicationMode)
+                      .setDefaults(options.toDefaults()))
+              .build();
+    }
     // Opening the call invokes beforeStart() synchronously, wiring callObserver + the ready
     // handler.
     stub.ingest(new ResponseObserver());
-    // Mandatory Start handshake: the first frame on the stream (not flow-controlled).
-    IngestionRequest start =
-        IngestionRequest.newBuilder()
-            .setStart(
-                IngestionStart.newBuilder()
-                    .setProducerId(producerId)
-                    .setIntegration(integration)
-                    .setDeduplicationMode(deduplicationMode)
-                    .setDefaults(options.toDefaults()))
-            .build();
-    if (!writeToTransport(start)) {
-      synchronized (lock) {
-        throw new IllegalStateException(
-            "ingestion stream terminated before the producer Start frame", terminalFailure);
-      }
+    // If the transport is already writable, write the Start now: some transports report readiness
+    // without ever emitting an onReady callback, so we cannot wait for one. Transports that are not
+    // yet ready (e.g. a connection still being established) instead write it from onTransportReady.
+    ClientCallStreamObserver<IngestionRequest> observer = callObserver;
+    if (observer != null && observer.isReady()) {
+      writeStartIfNeeded();
     }
   }
 
@@ -414,7 +431,9 @@ final class ProducerImpl implements Producer, ExactlyOnceProducer {
 
   private boolean canAdmitLocked(long requiredBytes, boolean transportReady) {
     if (bufferMemory == 0) {
+      // startWritten: a direct write may only proceed once the Start frame is on the wire.
       return terminalFailure == null
+          && startWritten
           && !draining
           && pendingWrites.isEmpty()
           && budget > 0
@@ -579,7 +598,30 @@ final class ProducerImpl implements Producer, ExactlyOnceProducer {
       readinessEpoch++;
       lock.notifyAll();
     }
+    // Write the Start frame before draining any invocation, so it is always the first frame on the
+    // wire even when this ready signal is delivered synchronously while the request is being set
+    // up.
+    writeStartIfNeeded();
     drainFromCallback();
+  }
+
+  /**
+   * Writes the pending Start handshake frame exactly once, on the first transport-ready signal.
+   * Invocation writes are gated on {@link #startWritten} (see {@link #nextWriteLocked} and {@link
+   * #canAdmitLocked}), so this guarantees the Start is the first frame regardless of whether the
+   * transport delivers onReady synchronously or asynchronously.
+   */
+  private void writeStartIfNeeded() {
+    IngestionRequest start;
+    synchronized (lock) {
+      if (pendingStart == null || terminalFailure != null || outboundTerminated) {
+        return;
+      }
+      start = pendingStart;
+      pendingStart = null;
+      startWritten = true;
+    }
+    writeToTransport(start);
   }
 
   /**
@@ -679,7 +721,12 @@ final class ProducerImpl implements Producer, ExactlyOnceProducer {
   }
 
   private @Nullable PreparedSend nextWriteLocked(boolean transportReady) {
-    if (terminalFailure != null || pendingWrites.isEmpty() || budget <= 0 || !transportReady) {
+    // startWritten: no invocation may be written before the Start handshake frame.
+    if (!startWritten
+        || terminalFailure != null
+        || pendingWrites.isEmpty()
+        || budget <= 0
+        || !transportReady) {
       return null;
     }
     PreparedSend send = pendingWrites.getFirst();
