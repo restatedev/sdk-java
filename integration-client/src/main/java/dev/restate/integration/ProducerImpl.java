@@ -1082,14 +1082,12 @@ final class ProducerImpl implements Producer, ExactlyOnceProducer {
   }
 
   private static IntegrationClientException mapError(dev.restate.ingestion.v1.Error error) {
+    Long invocationOffset = error.hasInvocationOffset() ? error.getInvocationOffset() : null;
     String detail =
-        error.hasInvocationOffset()
-            ? "[offset="
-                + Long.toUnsignedString(error.getInvocationOffset())
-                + "] "
-                + error.getMessage()
+        invocationOffset != null
+            ? "[offset=" + Long.toUnsignedString(invocationOffset) + "] " + error.getMessage()
             : error.getMessage();
-    return new IntegrationClientException(mapKind(error.getKind()), detail);
+    return new IntegrationClientException(mapKind(error.getKind()), detail, invocationOffset);
   }
 
   private static IntegrationClientException.Kind mapKind(ErrorKind kind) {
