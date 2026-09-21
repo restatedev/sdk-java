@@ -10,7 +10,6 @@ package dev.restate.integration;
 
 import com.google.protobuf.ByteString;
 import dev.restate.ingestion.v1.IngestionInvocation;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
@@ -38,28 +37,11 @@ final class InvocationImpl extends InvocationMetadataImpl implements Invocation 
   }
 
   @Override
-  public Invocation setDelay(@Nullable Duration delay) {
-    if (delay == null) {
-      builder.clearDelayMs();
-    } else {
-      builder.setDelayMs(delay.toMillis());
-      builder.clearInvokeTimeTsMs(); // mutually exclusive
-    }
-    return this;
-  }
-
-  @Override
-  public @Nullable Duration getDelay() {
-    return builder.hasDelayMs() ? Duration.ofMillis(builder.getDelayMs()) : null;
-  }
-
-  @Override
   public Invocation setInvokeTime(@Nullable Instant invokeTime) {
     if (invokeTime == null) {
       builder.clearInvokeTimeTsMs();
     } else {
       builder.setInvokeTimeTsMs(invokeTime.toEpochMilli());
-      builder.clearDelayMs(); // mutually exclusive
     }
     return this;
   }
@@ -99,6 +81,21 @@ final class InvocationImpl extends InvocationMetadataImpl implements Invocation 
     return builder.hasTracestate() ? builder.getTracestate() : null;
   }
 
+  @Override
+  public Invocation setIdempotencyKey(@Nullable String idempotencyKey) {
+    if (idempotencyKey == null) {
+      builder.clearIdempotencyKey();
+    } else {
+      builder.setIdempotencyKey(idempotencyKey);
+    }
+    return this;
+  }
+
+  @Override
+  public @Nullable String getIdempotencyKey() {
+    return builder.hasIdempotencyKey() ? builder.getIdempotencyKey() : null;
+  }
+
   // Covariant overrides so per-invocation chaining keeps the Invocation type. The mutation logic
   // lives once in InvocationMetadataImpl (against the shared builder); these only refine the type.
 
@@ -129,12 +126,6 @@ final class InvocationImpl extends InvocationMetadataImpl implements Invocation 
   @Override
   public Invocation setLimitKey(@Nullable String limitKey) {
     super.setLimitKey(limitKey);
-    return this;
-  }
-
-  @Override
-  public Invocation setIdempotencyKey(@Nullable String idempotencyKey) {
-    super.setIdempotencyKey(idempotencyKey);
     return this;
   }
 

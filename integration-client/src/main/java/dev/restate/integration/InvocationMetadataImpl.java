@@ -99,21 +99,6 @@ sealed class InvocationMetadataImpl implements InvocationMetadata permits Invoca
   }
 
   @Override
-  public InvocationMetadata setIdempotencyKey(@Nullable String idempotencyKey) {
-    if (idempotencyKey == null) {
-      builder.clearIdempotencyKey();
-    } else {
-      builder.setIdempotencyKey(idempotencyKey);
-    }
-    return this;
-  }
-
-  @Override
-  public @Nullable String getIdempotencyKey() {
-    return builder.hasIdempotencyKey() ? builder.getIdempotencyKey() : null;
-  }
-
-  @Override
   public InvocationMetadata putHeader(String key, String value) {
     builder.putAdditionalHeaders(key, value);
     return this;
@@ -150,9 +135,6 @@ sealed class InvocationMetadataImpl implements InvocationMetadata permits Invoca
     }
     if (builder.hasLimitKey()) {
       d.setLimitKey(builder.getLimitKey());
-    }
-    if (builder.hasIdempotencyKey()) {
-      d.setIdempotencyKey(builder.getIdempotencyKey());
     }
     d.putAllHeaders(builder.getAdditionalHeadersMap());
     return d.build();
