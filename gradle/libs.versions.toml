@@ -16,6 +16,30 @@
   bytebuddy = "net.bytebuddy:byte-buddy:1.18.3"
   objenesis = "org.objenesis:objenesis:3.4"
 
+  [libraries.grpc-protobuf]
+    module = 'io.grpc:grpc-protobuf'
+
+    [libraries.grpc-protobuf.version]
+      ref = 'grpc'
+
+  [libraries.grpc-stub]
+    module = 'io.grpc:grpc-stub'
+
+    [libraries.grpc-stub.version]
+      ref = 'grpc'
+
+  [libraries.grpc-netty-shaded]
+    module = 'io.grpc:grpc-netty-shaded'
+
+    [libraries.grpc-netty-shaded.version]
+      ref = 'grpc'
+
+  [libraries.grpc-inprocess]
+    module = 'io.grpc:grpc-inprocess'
+
+    [libraries.grpc-inprocess.version]
+      ref = 'grpc'
+
   [libraries.jackson-annotations]
     module = 'com.fasterxml.jackson.core:jackson-annotations'
     version = '2.22'
@@ -262,6 +286,7 @@
       ref = 'ksp'
 
 [versions]
+  grpc = '1.70.0'
   jackson = '2.22.0'
   junit = '5.14.1'
   kotlinx-coroutines = '1.10.2'

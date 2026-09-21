@@ -68,6 +68,7 @@ val dokkaDocumentedProjects =
               "examples",
               "sdk-aggregated-javadocs",
               "admin-client",
+              "integration-client",
               "test-services",
           )
     }

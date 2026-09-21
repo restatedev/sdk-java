@@ -18,6 +18,7 @@ include(
     "common-kotlin",
     "client",
     "client-kotlin",
+    "integration-client",
     "sdk-common",
     "sdk-api",
     "sdk-api-kotlin",
