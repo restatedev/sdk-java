@@ -8,9 +8,9 @@
 // https://github.com/restatedev/sdk-java/blob/main/LICENSE
 package dev.restate.sdk;
 
-import dev.restate.sdk.endpoint.definition.AsyncResult;
+import dev.restate.common.Slice;
+import dev.restate.common.function.ThrowingFunction;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
-import java.util.concurrent.Executor;
 
 /**
  * {@link DurableFuture} returned by a call to another service.
@@ -18,19 +18,19 @@ import java.util.concurrent.Executor;
  * <p>You can retrieve the call invocation id using {@link #invocationId()}, and you can cancel the
  * invocation using {@link #cancel()}.
  */
-public final class CallDurableFuture<T> extends DurableFuture<T> {
+public final class CallDurableFuture<T> extends DurableFutureImpl.Delegating<T> {
 
-  private final HandlerContext context;
-  private final AsyncResult<T> asyncResult;
   private final DurableFuture<String> invocationIdDurableFuture;
 
   CallDurableFuture(
-      HandlerContext context,
-      AsyncResult<T> callAsyncResult,
-      DurableFuture<String> invocationIdDurableFuture) {
-    this.context = context;
-    this.asyncResult = callAsyncResult;
-    this.invocationIdDurableFuture = invocationIdDurableFuture;
+      HandlerContext handlerContext,
+      HandlerContext.CallHandles callHandles,
+      ThrowingFunction<Slice, T> responseDeserializer) {
+    super(
+        new DurableFutureImpl.Single<>(
+            handlerContext, callHandles.resultHandle(), responseDeserializer));
+    this.invocationIdDurableFuture =
+        DurableFutureImpl.single(handlerContext, callHandles.invocationIdHandle());
   }
 
   /**
@@ -42,16 +42,6 @@ public final class CallDurableFuture<T> extends DurableFuture<T> {
 
   /** Cancel this invocation */
   public void cancel() {
-    Util.awaitCompletableFuture(context.cancelInvocation(invocationId()));
-  }
-
-  @Override
-  protected AsyncResult<T> asyncResult() {
-    return asyncResult;
-  }
-
-  @Override
-  protected Executor serviceExecutor() {
-    return invocationIdDurableFuture.serviceExecutor();
+    Util.awaitCompletableFuture(handlerContext().cancelInvocation(invocationId()));
   }
 }

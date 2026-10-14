@@ -13,6 +13,8 @@ import dev.restate.sdk.core.legacy.LegacyStateMachine;
 import dev.restate.sdk.core.legacy.ProtoUtils;
 import dev.restate.sdk.core.statemachine.ffm.FfmStateMachine;
 import dev.restate.sdk.endpoint.HeadersAccessor;
+import dev.restate.sdk.endpoint.definition.HandlerContext.Handle;
+import dev.restate.sdk.endpoint.definition.HandlerContext.UnresolvedFuture;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -86,9 +88,16 @@ public class RunBenchmark {
     sm.isReadyToExecute();
     sm.input();
     StateMachine.RunResultHandle run = sm.run("benchmark-run");
-    bh.consume(sm.doAwait(AsyncResults.single(null, run.handle(), (value, future) -> {})));
+    bh.consume(sm.doAwait(new PendingSingle(NotificationHandle.successOrFailure(run.handle()))));
     sm.proposeRunCompletion(run.handle(), payload);
     bh.consume(sm.takeOutput());
     sm.close();
+  }
+
+  private record PendingSingle(Handle<?> handle) implements UnresolvedFuture.Single {
+    @Override
+    public boolean isDone() {
+      return false;
+    }
   }
 }

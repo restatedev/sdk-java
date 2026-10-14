@@ -16,6 +16,7 @@ import dev.restate.sdk.DurableFuture;
 import dev.restate.sdk.HandlerRunner;
 import dev.restate.sdk.Select;
 import dev.restate.sdk.common.StateKey;
+import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.common.TimeoutException;
 import dev.restate.sdk.core.AsyncResultTestSuite;
 import dev.restate.sdk.core.TestDefinitions;
@@ -172,6 +173,111 @@ public class AsyncResultTest extends AsyncResultTestSuite {
           }
 
           return result;
+        });
+  }
+
+  @Override
+  protected TestInvocationBuilder anyWithMapperAwaitingFirstChild() {
+    return testDefinitionForVirtualObject(
+        "AnyWithMapperAwaitingFirstChild",
+        Serde.VOID,
+        TestSerdes.STRING,
+        (ctx, unused) -> {
+          DurableFuture<String> a1 = ctx.awakeable(String.class);
+          DurableFuture<String> a2 = ctx.awakeable(String.class);
+          DurableFuture<String> mappedA2 =
+              a2.map(
+                  v -> {
+                    ctx.set(StateKey.of("MAPPED", TestSerdes.STRING), v);
+                    return v + "-" + a1.await();
+                  });
+
+          return String.valueOf(DurableFuture.any(a1, mappedA2).await());
+        });
+  }
+
+  @Override
+  protected TestInvocationBuilder mapFailureRecoversInAll() {
+    return testDefinitionForService(
+        "MapFailureRecoversInAll",
+        Serde.VOID,
+        TestSerdes.STRING,
+        (ctx, unused) -> {
+          DurableFuture<String> a1 =
+              callGreeterGreetService(ctx, "Francesco").mapFailure(e -> "fallback");
+          DurableFuture<String> a2 = callGreeterGreetService(ctx, "Till");
+
+          DurableFuture.all(a1, a2).await();
+
+          return a1.await() + "-" + a2.await();
+        });
+  }
+
+  @Override
+  protected TestInvocationBuilder awaitWithTimeoutOnMappedFuture() {
+    return testDefinitionForService(
+        "AwaitWithTimeoutOnMappedFuture",
+        Serde.VOID,
+        TestSerdes.STRING,
+        (ctx, unused) ->
+            callGreeterGreetService(ctx, "Francesco").map(s -> s + "!").await(Duration.ofDays(1)));
+  }
+
+  @Override
+  protected TestInvocationBuilder mapperThrowingTerminalException() {
+    return testDefinitionForService(
+        "MapperThrowingTerminalException",
+        Serde.VOID,
+        TestSerdes.STRING,
+        (ctx, unused) -> {
+          DurableFuture<String> mapped =
+              callGreeterGreetService(ctx, "Francesco")
+                  .map(
+                      s -> {
+                        throw new TerminalException("mapped " + s);
+                      });
+          try {
+            return mapped.await();
+          } catch (TerminalException e) {
+            return e.getMessage();
+          }
+        });
+  }
+
+  @Override
+  protected TestInvocationBuilder anyThenAllOnCompletedAwakeables() {
+    return testDefinitionForService(
+        "AnyThenAllOnCompletedAwakeables",
+        Serde.VOID,
+        TestSerdes.STRING,
+        (ctx, unused) -> {
+          DurableFuture<String> a1 = ctx.awakeable(String.class);
+          DurableFuture<String> a2 = ctx.awakeable(String.class);
+          DurableFuture<String> a3 = ctx.awakeable(String.class);
+
+          int index = DurableFuture.any(a1, DurableFuture.all(a2, a3)).await();
+          DurableFuture.all(a2, a3).await();
+
+          return index + a2.await() + a3.await();
+        });
+  }
+
+  @Override
+  protected TestInvocationBuilder mapperNotRunWhenNotAwaited() {
+    return testDefinitionForVirtualObject(
+        "MapperNotRunWhenNotAwaited",
+        Serde.VOID,
+        TestSerdes.STRING,
+        (ctx, unused) -> {
+          DurableFuture<String> a1 = ctx.awakeable(String.class);
+          DurableFuture<String> unusedMapped =
+              a1.map(
+                  v -> {
+                    ctx.set(StateKey.of("MAPPED", TestSerdes.STRING), v);
+                    return v;
+                  });
+
+          return a1.await();
         });
   }
 

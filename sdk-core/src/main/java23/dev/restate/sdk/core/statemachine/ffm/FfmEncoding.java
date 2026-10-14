@@ -11,11 +11,12 @@ package dev.restate.sdk.core.statemachine.ffm;
 import dev.restate.common.Target;
 import dev.restate.sdk.common.RetryPolicy;
 import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.core.UnresolvedFuture;
+import dev.restate.sdk.core.UnresolvedFutureUtils;
 import dev.restate.sdk.core.statemachine.ffm.generated.CallArguments;
 import dev.restate.sdk.core.statemachine.ffm.generated.ForeignSlice;
 import dev.restate.sdk.core.statemachine.ffm.generated.SharedCoreNative;
 import dev.restate.sdk.core.statemachine.ffm.generated.Slice;
+import dev.restate.sdk.endpoint.definition.HandlerContext.UnresolvedFuture;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SegmentAllocator;
@@ -419,7 +420,7 @@ final class FfmEncoding {
   }
 
   /**
-   * Encoded size of the still-uncompleted await tree in bytes, pruning resolved nodes: a leaf is
+   * Encoded size of the still-uncompleted await tree in bytes, pruning resolved nodes: a single is
    * {@code u8 0, u32 handle} = 5B; a combinator is {@code u8 tag, u32 count} + children = 5B +
    * children; a combinator whose children all prune contributes 0. Must match {@link
    * #writeAwaitTree} byte-for-byte.
@@ -428,13 +429,15 @@ final class FfmEncoding {
     if (node.isDone()) {
       return 0;
     }
-    if (node.kind() == UnresolvedFuture.Kind.SINGLE) {
+    UnresolvedFutureUtils.NodeType nodeType = UnresolvedFutureUtils.nodeType(node);
+    if (nodeType == UnresolvedFutureUtils.NodeType.SINGLE) {
       return 5; // u8 tag + u32 handle
     }
     int childrenSize = 0;
     int children = 0;
-    for (UnresolvedFuture child : node.combinatorChildren()) {
-      int cs = awaitTreeSize(child);
+    int childrenCount = UnresolvedFutureUtils.childrenCount(node);
+    for (int i = 0; i < childrenCount; i++) {
+      int cs = awaitTreeSize(UnresolvedFutureUtils.child(node, i));
       if (cs > 0) {
         childrenSize += cs;
         children++;
@@ -444,7 +447,7 @@ final class FfmEncoding {
   }
 
   /**
-   * Writes the await tree into {@code bb}: a leaf is {@code u8 0, u32 handle}; a combinator is
+   * Writes the await tree into {@code bb}: a single is {@code u8 0, u32 handle}; a combinator is
    * {@code u8 tag, u32 count, count*node}. Resolved nodes are pruned (a combinator whose children
    * all prune rewinds its reserved header); each combinator's surviving count is back-patched.
    * Writes exactly {@link #awaitTreeSize} bytes.
@@ -453,18 +456,20 @@ final class FfmEncoding {
     if (node.isDone()) {
       return false;
     }
-    if (node.kind() == UnresolvedFuture.Kind.SINGLE) {
+    UnresolvedFutureUtils.NodeType nodeType = UnresolvedFutureUtils.nodeType(node);
+    if (nodeType == UnresolvedFutureUtils.NodeType.SINGLE) {
       bb.put((byte) 0);
-      bb.putInt(node.singleHandle());
+      bb.putInt(UnresolvedFutureUtils.handle(node));
       return true;
     }
     int mark = bb.position();
-    bb.put((byte) awaitTag(node.kind()));
+    bb.put((byte) awaitTag(nodeType));
     int countPos = bb.position();
     bb.putInt(0);
     int written = 0;
-    for (UnresolvedFuture child : node.combinatorChildren()) {
-      if (writeAwaitTree(child, bb)) {
+    int childrenCount = UnresolvedFutureUtils.childrenCount(node);
+    for (int i = 0; i < childrenCount; i++) {
+      if (writeAwaitTree(UnresolvedFutureUtils.child(node, i), bb)) {
         written++;
       }
     }
@@ -476,12 +481,11 @@ final class FfmEncoding {
     return true;
   }
 
-  private static int awaitTag(UnresolvedFuture.Kind kind) {
-    return switch (kind) {
+  private static int awaitTag(UnresolvedFutureUtils.NodeType nodeType) {
+    // Tags 2 (ALL_COMPLETED) and 3 (FIRST_SUCCEEDED_OR_ALL_FAILED) are not used by the SDK.
+    return switch (nodeType) {
       case SINGLE -> 0;
       case FIRST_COMPLETED -> 1;
-      case ALL_COMPLETED -> 2;
-      case FIRST_SUCCEEDED_OR_ALL_FAILED -> 3;
       case ALL_SUCCEEDED_OR_FIRST_FAILED -> 4;
       case UNKNOWN -> 5;
     };

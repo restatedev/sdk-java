@@ -20,9 +20,10 @@ import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.core.EndpointRequestHandler;
 import dev.restate.sdk.core.ProtocolException;
 import dev.restate.sdk.core.StateMachine;
-import dev.restate.sdk.core.UnresolvedFuture;
+import dev.restate.sdk.core.UnresolvedFutureUtils;
 import dev.restate.sdk.core.generated.protocol.Protocol;
 import dev.restate.sdk.endpoint.HeadersAccessor;
+import dev.restate.sdk.endpoint.definition.HandlerContext.UnresolvedFuture;
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.time.Duration;
@@ -142,7 +143,7 @@ public final class LegacyStateMachine implements StateMachine {
 
   @Override
   public AwaitResult doAwait(UnresolvedFuture future) {
-    // Legacy only needs the flat list of still-uncompleted leaf handles (it ignores combinator
+    // Legacy only needs the flat list of still-uncompleted single handles (it ignores combinator
     // structure and re-polls); collect them by walking the await tree directly.
     List<Integer> handles = new ArrayList<>();
     collectHandles(future, handles);
@@ -197,16 +198,17 @@ public final class LegacyStateMachine implements StateMachine {
     return AwaitResult.CANCEL_SIGNAL_RECEIVED;
   }
 
-  /** Depth-first collect of the still-uncompleted leaf ({@code SINGLE}) handles. */
+  /** Depth-first collect of the still-uncompleted single handles. */
   private static void collectHandles(UnresolvedFuture node, List<Integer> out) {
     if (node.isDone()) {
       return;
     }
-    if (node.kind() == UnresolvedFuture.Kind.SINGLE) {
-      out.add(node.singleHandle());
+    if (UnresolvedFutureUtils.nodeType(node) == UnresolvedFutureUtils.NodeType.SINGLE) {
+      out.add(UnresolvedFutureUtils.handle(node));
     } else {
-      for (UnresolvedFuture child : node.combinatorChildren()) {
-        collectHandles(child, out);
+      int childrenCount = UnresolvedFutureUtils.childrenCount(node);
+      for (int i = 0; i < childrenCount; i++) {
+        collectHandles(UnresolvedFutureUtils.child(node, i), out);
       }
     }
   }

@@ -10,13 +10,8 @@ package dev.restate.sdk;
 
 import dev.restate.common.function.ThrowingFunction;
 import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.endpoint.definition.AsyncResult;
-import dev.restate.sdk.endpoint.definition.HandlerContext;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
-import java.util.stream.Collectors;
 
 /**
  * Select lets you await concurrently for multiple {@link DurableFuture}s to complete, and for the
@@ -45,13 +40,17 @@ import java.util.stream.Collectors;
  *
  * @param <T> the output value
  */
-public final class Select<T> extends DurableFuture<T> {
+public final class Select<T> extends DurableFutureImpl.Delegating<T> {
 
-  private final List<DurableFuture<?>> durableFutures;
-  private AsyncResult<T> asyncResult;
+  private final List<DurableFutureImpl<T>> durableFutures;
 
   Select() {
-    this.durableFutures = new ArrayList<>();
+    this(new ArrayList<>());
+  }
+
+  private Select(List<DurableFutureImpl<T>> durableFutures) {
+    super(new DurableFutureImpl.FirstCompleted<>(durableFutures));
+    this.durableFutures = durableFutures;
   }
 
   /**
@@ -69,8 +68,7 @@ public final class Select<T> extends DurableFuture<T> {
    * @return this, so it can be used fluently.
    */
   public Select<T> or(DurableFuture<T> durableFuture) {
-    this.durableFutures.add(durableFuture);
-    this.asyncResult = null;
+    this.durableFutures.add(DurableFutureImpl.of(durableFuture));
     return this;
   }
 
@@ -86,8 +84,7 @@ public final class Select<T> extends DurableFuture<T> {
    * @return this, so it can be used fluently.
    */
   public <U> Select<T> when(DurableFuture<U> durableFuture, ThrowingFunction<U, T> successMapper) {
-    this.durableFutures.add(durableFuture.map(successMapper));
-    this.asyncResult = null;
+    this.durableFutures.add(DurableFutureImpl.of(durableFuture.map(successMapper)));
     return this;
   }
 
@@ -109,39 +106,7 @@ public final class Select<T> extends DurableFuture<T> {
       DurableFuture<U> durableFuture,
       ThrowingFunction<U, T> successMapper,
       ThrowingFunction<TerminalException, T> failureMapper) {
-    this.durableFutures.add(durableFuture.map(successMapper, failureMapper));
-    this.asyncResult = null;
+    this.durableFutures.add(DurableFutureImpl.of(durableFuture.map(successMapper, failureMapper)));
     return this;
-  }
-
-  @Override
-  protected AsyncResult<T> asyncResult() {
-    if (this.asyncResult == null) {
-      recreateAsyncResult();
-    }
-    return this.asyncResult;
-  }
-
-  @Override
-  protected Executor serviceExecutor() {
-    checkNonEmpty();
-    return durableFutures.get(0).serviceExecutor();
-  }
-
-  private void checkNonEmpty() {
-    if (durableFutures.isEmpty()) {
-      throw new IllegalArgumentException("Select is empty");
-    }
-  }
-
-  private void recreateAsyncResult() {
-    checkNonEmpty();
-    List<DurableFuture<?>> durableFutures = List.copyOf(this.durableFutures);
-    List<AsyncResult<?>> ars =
-        durableFutures.stream().map(DurableFuture::asyncResult).collect(Collectors.toList());
-    HandlerContext ctx = ars.get(0).ctx();
-    //noinspection unchecked
-    this.asyncResult =
-        ctx.createAnyAsyncResult(ars).map(i -> (CompletableFuture<T>) ars.get(i).poll());
   }
 }

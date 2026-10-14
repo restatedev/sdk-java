@@ -11,24 +11,22 @@ package dev.restate.sdk.fake;
 import dev.restate.common.Output;
 import dev.restate.common.Slice;
 import dev.restate.common.Target;
-import dev.restate.common.function.ThrowingFunction;
 import dev.restate.sdk.common.HandlerRequest;
 import dev.restate.sdk.common.InvocationId;
 import dev.restate.sdk.common.RetryPolicy;
 import dev.restate.sdk.common.TerminalException;
-import dev.restate.sdk.core.ExceptionUtils;
 import dev.restate.sdk.endpoint.HeadersAccessor;
-import dev.restate.sdk.endpoint.definition.AsyncResult;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
 import io.opentelemetry.context.Context;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.junit.jupiter.api.Assertions;
@@ -110,13 +108,13 @@ class FakeHandlerContext implements HandlerContext {
   }
 
   @Override
-  public CompletableFuture<AsyncResult<Optional<Slice>>> get(String s) {
+  public CompletableFuture<Handle<Optional<Slice>>> get(String s) {
     throw new UnsupportedOperationException(
         "FakeHandlerContext doesn't currently support mocking this operation");
   }
 
   @Override
-  public CompletableFuture<AsyncResult<Collection<String>>> getKeys() {
+  public CompletableFuture<Handle<Collection<String>>> getKeys() {
     throw new UnsupportedOperationException(
         "FakeHandlerContext doesn't currently support mocking this operation");
   }
@@ -140,16 +138,16 @@ class FakeHandlerContext implements HandlerContext {
   }
 
   @Override
-  public CompletableFuture<AsyncResult<Void>> timer(Duration duration, String s) {
+  public CompletableFuture<Handle<Void>> timer(Duration duration, String s) {
     CompletableFuture<Void> upstreamFuture =
         expectations.completeTimerIf().test(duration, s)
             ? CompletableFuture.completedFuture(null)
             : new CompletableFuture<>();
-    return CompletableFuture.completedFuture(new MockAsyncResult<>(this, upstreamFuture));
+    return CompletableFuture.completedFuture(new MockHandle<>(upstreamFuture));
   }
 
   @Override
-  public CompletableFuture<CallResult> call(
+  public CompletableFuture<CallHandles> call(
       Target target,
       Slice slice,
       String s,
@@ -160,7 +158,7 @@ class FakeHandlerContext implements HandlerContext {
   }
 
   @Override
-  public CompletableFuture<AsyncResult<String>> send(
+  public CompletableFuture<Handle<String>> send(
       Target target,
       Slice slice,
       String s,
@@ -172,7 +170,7 @@ class FakeHandlerContext implements HandlerContext {
   }
 
   @Override
-  public CompletableFuture<AsyncResult<Slice>> submitRun(
+  public CompletableFuture<Handle<Slice>> submitRun(
       String runName, Consumer<RunCompleter> consumer) {
     var runExpectation =
         this.expectations
@@ -181,8 +179,7 @@ class FakeHandlerContext implements HandlerContext {
 
     if (runExpectation == ContextExpectations.RunExpectation.DONT_EXECUTE) {
       // Don't run the side effect at all
-      return CompletableFuture.completedFuture(
-          new MockAsyncResult<>(this, new CompletableFuture<>()));
+      return CompletableFuture.completedFuture(new MockHandle<>(new CompletableFuture<>()));
     }
 
     CompletableFuture<Slice> upstreamFuture =
@@ -218,7 +215,7 @@ class FakeHandlerContext implements HandlerContext {
                 })
             .thenCompose(Function.identity());
 
-    return CompletableFuture.completedFuture(new MockAsyncResult<>(this, upstreamFuture));
+    return CompletableFuture.completedFuture(new MockHandle<>(upstreamFuture));
   }
 
   @Override
@@ -240,31 +237,31 @@ class FakeHandlerContext implements HandlerContext {
   }
 
   @Override
-  public CompletableFuture<AsyncResult<Slice>> promise(String s) {
+  public CompletableFuture<Handle<Slice>> promise(String s) {
     throw new UnsupportedOperationException(
         "FakeHandlerContext doesn't currently support mocking this operation");
   }
 
   @Override
-  public CompletableFuture<AsyncResult<Output<Slice>>> peekPromise(String s) {
+  public CompletableFuture<Handle<Output<Slice>>> peekPromise(String s) {
     throw new UnsupportedOperationException(
         "FakeHandlerContext doesn't currently support mocking this operation");
   }
 
   @Override
-  public CompletableFuture<AsyncResult<Void>> resolvePromise(String s, Slice slice) {
+  public CompletableFuture<Handle<Void>> resolvePromise(String s, Slice slice) {
     throw new UnsupportedOperationException(
         "FakeHandlerContext doesn't currently support mocking this operation");
   }
 
   @Override
-  public CompletableFuture<AsyncResult<Void>> rejectPromise(String s, TerminalException e) {
+  public CompletableFuture<Handle<Void>> rejectPromise(String s, TerminalException e) {
     throw new UnsupportedOperationException(
         "FakeHandlerContext doesn't currently support mocking this operation");
   }
 
   @Override
-  public CompletableFuture<AsyncResult<Slice>> signal(String name) {
+  public CompletableFuture<Handle<Slice>> signal(String name) {
     throw new UnsupportedOperationException(
         "FakeHandlerContext doesn't currently support mocking this operation");
   }
@@ -289,13 +286,13 @@ class FakeHandlerContext implements HandlerContext {
   }
 
   @Override
-  public CompletableFuture<AsyncResult<Slice>> attachInvocation(String s) {
+  public CompletableFuture<Handle<Slice>> attachInvocation(String s) {
     throw new UnsupportedOperationException(
         "FakeHandlerContext doesn't currently support mocking this operation");
   }
 
   @Override
-  public CompletableFuture<AsyncResult<Output<Slice>>> getInvocationOutput(String s) {
+  public CompletableFuture<Handle<Output<Slice>>> getInvocationOutput(String s) {
     throw new UnsupportedOperationException(
         "FakeHandlerContext doesn't currently support mocking this operation");
   }
@@ -306,44 +303,60 @@ class FakeHandlerContext implements HandlerContext {
   }
 
   @Override
-  public AsyncResult<Integer> createAnyAsyncResult(List<AsyncResult<?>> list) {
-    CompletableFuture<Integer> upstreamFuture = new CompletableFuture<>();
-    for (int i = 0; i < list.size(); i++) {
-      int finalI = i;
-      list.get(i)
-          .poll()
-          .whenComplete(
-              (res, t) -> {
-                if (t != null && !(t instanceof TerminalException)) {
-                  upstreamFuture.completeExceptionally(t);
-                } else {
-                  upstreamFuture.complete(finalI);
-                }
-              });
+  public CompletableFuture<AwaitResult> await(UnresolvedFuture tree) {
+    List<UnresolvedFuture.Single> pendingSingles = new ArrayList<>();
+    collectPendingSingles(tree, pendingSingles);
+    if (pendingSingles.isEmpty()) {
+      return CompletableFuture.failedFuture(
+          new IllegalStateException("The awaited future is already completed"));
     }
-    return new MockAsyncResult<>(this, upstreamFuture);
+
+    return CompletableFuture.anyOf(
+            pendingSingles.stream()
+                .map(single -> ((MockHandle<?>) single.handle()).future)
+                .toArray(CompletableFuture[]::new))
+        .handle(
+            (ignoredValue, ignoredThrowable) -> {
+              // Pick the first completed single, in depth-first order
+              for (UnresolvedFuture.Single single : pendingSingles) {
+                CompletableFuture<?> future = ((MockHandle<?>) single.handle()).future;
+                if (future.isDone()) {
+                  return new AwaitResult.AnyCompleted(single, toResult(future));
+                }
+              }
+              throw new IllegalStateException("No completed single");
+            });
   }
 
-  @Override
-  public AsyncResult<Void> createAllAsyncResult(List<AsyncResult<?>> list) {
-    CompletableFuture<Void> upstreamFuture = new CompletableFuture<>();
-    AtomicInteger completedCount = new AtomicInteger(0);
-    for (int i = 0; i < list.size(); i++) {
-      list.get(i)
-          .poll()
-          .whenComplete(
-              (res, t) -> {
-                if (t != null && !(t instanceof TerminalException)) {
-                  upstreamFuture.completeExceptionally(t);
-                } else {
-                  var completed = completedCount.addAndGet(1);
-                  if (completed == list.size()) {
-                    upstreamFuture.complete(null);
-                  }
-                }
-              });
+  private static Result<?> toResult(CompletableFuture<?> future) {
+    try {
+      return new Result.Success<>(future.join());
+    } catch (CompletionException e) {
+      if (e.getCause() instanceof TerminalException terminalException) {
+        return new Result.Failure<>(terminalException);
+      }
+      // Not a terminal failure: propagate it as is
+      sneakyThrow(e.getCause());
+      return null;
     }
-    return new MockAsyncResult<>(this, upstreamFuture);
+  }
+
+  private static void collectPendingSingles(
+      UnresolvedFuture node, List<UnresolvedFuture.Single> out) {
+    if (node.isDone()) {
+      return;
+    }
+    if (node instanceof UnresolvedFuture.Single single) {
+      out.add(single);
+    } else if (node instanceof UnresolvedFuture.Combinator combinator) {
+      for (int i = 0; i < combinator.childrenCount(); i++) {
+        collectPendingSingles(combinator.child(i), out);
+      }
+    } else if (node instanceof UnresolvedFuture.Mapped mapped) {
+      collectPendingSingles(mapped.upstream(), out);
+    } else {
+      throw new IllegalArgumentException("Unknown future tree node " + node.getClass());
+    }
   }
 
   @SuppressWarnings("unchecked")
@@ -351,94 +364,5 @@ class FakeHandlerContext implements HandlerContext {
     throw (E) e;
   }
 
-  private static class MockAsyncResult<T> implements AsyncResult<T> {
-    private final CompletableFuture<T> upstreamFuture;
-    private final HandlerContext ctx;
-
-    private MockAsyncResult(HandlerContext ctx, CompletableFuture<T> upstreamFuture) {
-      this.upstreamFuture = upstreamFuture;
-      this.ctx = ctx;
-    }
-
-    @Override
-    public CompletableFuture<T> poll() {
-      return upstreamFuture;
-    }
-
-    @Override
-    public HandlerContext ctx() {
-      return ctx;
-    }
-
-    @Override
-    public <U> AsyncResult<U> map(
-        ThrowingFunction<T, CompletableFuture<U>> successMapper,
-        ThrowingFunction<TerminalException, CompletableFuture<U>> failureMapper) {
-      CompletableFuture<U> downstreamFuture = new CompletableFuture<>();
-
-      upstreamFuture.whenComplete(
-          (t, throwable) -> {
-            if (ExceptionUtils.isTerminalException(throwable)) {
-              // Upstream future failed with Terminal exception
-              if (failureMapper != null) {
-                try {
-                  failureMapper
-                      .apply((TerminalException) throwable)
-                      .whenCompleteAsync(
-                          (u, mapperT) -> {
-                            if (ExceptionUtils.isTerminalException(mapperT)) {
-                              downstreamFuture.completeExceptionally(mapperT);
-                            } else if (mapperT != null) {
-                              downstreamFuture.completeExceptionally(mapperT);
-                            } else {
-                              downstreamFuture.complete(u);
-                            }
-                          });
-                } catch (Throwable mapperT) {
-                  if (ExceptionUtils.isTerminalException(mapperT)) {
-                    downstreamFuture.completeExceptionally(mapperT);
-                  } else {
-                    downstreamFuture.completeExceptionally(mapperT);
-                  }
-                }
-              } else {
-                downstreamFuture.completeExceptionally(throwable);
-              }
-            } else if (throwable != null) {
-              // Aborted exception/some other exception. Just propagate it through
-              downstreamFuture.completeExceptionally(throwable);
-            } else {
-              // Success case!
-              if (successMapper != null) {
-                try {
-                  successMapper
-                      .apply(t)
-                      .whenCompleteAsync(
-                          (u, mapperT) -> {
-                            if (ExceptionUtils.isTerminalException(mapperT)) {
-                              downstreamFuture.completeExceptionally(mapperT);
-                            } else if (mapperT != null) {
-                              downstreamFuture.completeExceptionally(mapperT);
-                            } else {
-                              downstreamFuture.complete(u);
-                            }
-                          });
-                } catch (Throwable mapperT) {
-                  if (ExceptionUtils.isTerminalException(mapperT)) {
-                    downstreamFuture.completeExceptionally(mapperT);
-                  } else {
-                    downstreamFuture.completeExceptionally(mapperT);
-                  }
-                }
-              } else {
-                // Type checked by the API itself
-                //noinspection unchecked
-                downstreamFuture.complete((U) t);
-              }
-            }
-          });
-
-      return new MockAsyncResult<>(this.ctx, downstreamFuture);
-    }
-  }
+  private record MockHandle<T>(CompletableFuture<T> future) implements Handle<T> {}
 }

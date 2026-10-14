@@ -9,10 +9,8 @@
 package dev.restate.sdk;
 
 import dev.restate.common.Slice;
-import dev.restate.sdk.endpoint.definition.AsyncResult;
+import dev.restate.sdk.endpoint.definition.HandlerContext;
 import dev.restate.serde.Serde;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 
 /**
  * An {@link Awakeable} is a special type of {@link DurableFuture} which can be arbitrarily
@@ -28,18 +26,17 @@ import java.util.concurrent.Executor;
  * <p>NOTE: This interface MUST NOT be accessed concurrently since it can lead to different
  * orderings of user actions, corrupting the execution of the invocation.
  */
-public final class Awakeable<T> extends DurableFuture<T> {
+public final class Awakeable<T> extends DurableFutureImpl.Delegating<T> {
 
   private final String identifier;
-  private final AsyncResult<T> asyncResult;
-  private final Executor serviceExecutor;
 
   Awakeable(
-      AsyncResult<Slice> asyncResult, Executor serviceExecutor, Serde<T> serde, String identifier) {
+      HandlerContext handlerContext,
+      HandlerContext.Handle<Slice> handle,
+      Serde<T> serde,
+      String identifier) {
+    super(new DurableFutureImpl.Single<>(handlerContext, handle, serde::deserialize));
     this.identifier = identifier;
-    this.asyncResult =
-        asyncResult.map(s -> CompletableFuture.completedFuture(serde.deserialize(s)));
-    this.serviceExecutor = serviceExecutor;
   }
 
   /**
@@ -47,15 +44,5 @@ public final class Awakeable<T> extends DurableFuture<T> {
    */
   public String id() {
     return identifier;
-  }
-
-  @Override
-  protected AsyncResult<T> asyncResult() {
-    return asyncResult;
-  }
-
-  @Override
-  protected Executor serviceExecutor() {
-    return serviceExecutor;
   }
 }
