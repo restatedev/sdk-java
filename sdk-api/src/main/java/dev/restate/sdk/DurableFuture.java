@@ -12,15 +12,11 @@ import dev.restate.common.function.ThrowingFunction;
 import dev.restate.sdk.common.AbortedExecutionException;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.common.TimeoutException;
-import dev.restate.sdk.endpoint.definition.AsyncResult;
-import dev.restate.sdk.endpoint.definition.HandlerContext;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
-import java.util.stream.Collectors;
 
 /**
  * A {@link DurableFuture} allows to await an asynchronous result. Once {@link #await()} is called,
@@ -34,11 +30,7 @@ import java.util.stream.Collectors;
  *
  * @param <T> type of the future result
  */
-public abstract class DurableFuture<T> {
-
-  protected abstract AsyncResult<T> asyncResult();
-
-  protected abstract Executor serviceExecutor();
+public sealed interface DurableFuture<T> permits DurableFutureImpl {
 
   /**
    * Wait for this {@link DurableFuture} to complete.
@@ -51,37 +43,19 @@ public abstract class DurableFuture<T> {
    *
    * @throws TerminalException if this future was completed with a failure
    */
-  public final T await() throws TerminalException {
-    ContextImpl.checkNotInsideRun();
-    return Util.awaitCompletableFuture(asyncResult().poll());
-  }
+  T await() throws TerminalException;
 
   /**
    * Same as {@link #await()}, but throws a {@link TimeoutException} if this {@link DurableFuture}
    * doesn't complete before the provided {@code timeout}.
    */
-  public final T await(Duration timeout) throws TerminalException {
-    return this.withTimeout(timeout).await();
-  }
+  T await(Duration timeout) throws TerminalException;
 
   /**
    * @return a {@link DurableFuture} that throws a {@link TimeoutException} if this future doesn't
    *     complete before the provided {@code timeout}.
    */
-  public final DurableFuture<T> withTimeout(Duration timeout) {
-    return any(
-            this,
-            fromAsyncResult(
-                Util.awaitCompletableFuture(asyncResult().ctx().timer(timeout, null)),
-                this.serviceExecutor()))
-        .mapWithoutExecutor(
-            i -> {
-              if (i == 1) {
-                throw new TimeoutException("Timed out waiting for durable future after " + timeout);
-              }
-              return this.await();
-            });
-  }
+  DurableFuture<T> withTimeout(Duration timeout);
 
   /**
    * Map the success result of this {@link DurableFuture}.
@@ -91,24 +65,7 @@ public abstract class DurableFuture<T> {
    *     DurableFuture}.
    * @return a new {@link DurableFuture} with the mapped result, when completed
    */
-  public final <U> DurableFuture<U> map(ThrowingFunction<T, U> mapper) {
-    return fromAsyncResult(
-        asyncResult()
-            .map(
-                t ->
-                    CompletableFuture.supplyAsync(
-                        () -> {
-                          try {
-                            return mapper.apply(t);
-                          } catch (Throwable e) {
-                            Util.sneakyThrow(e);
-                            return null;
-                          }
-                        },
-                        serviceExecutor()),
-                null),
-        this.serviceExecutor());
-  }
+  <U> DurableFuture<U> map(ThrowingFunction<T, U> mapper);
 
   /**
    * Map both the success and the failure result of this {@link DurableFuture}.
@@ -121,35 +78,8 @@ public abstract class DurableFuture<T> {
    *     {@link DurableFuture}.
    * @return a new {@link DurableFuture} with the mapped result, when completed
    */
-  public final <U> DurableFuture<U> map(
-      ThrowingFunction<T, U> successMapper, ThrowingFunction<TerminalException, U> failureMapper) {
-    return fromAsyncResult(
-        asyncResult()
-            .map(
-                t ->
-                    CompletableFuture.supplyAsync(
-                        () -> {
-                          try {
-                            return successMapper.apply(t);
-                          } catch (Throwable e) {
-                            Util.sneakyThrow(e);
-                            return null;
-                          }
-                        },
-                        serviceExecutor()),
-                t ->
-                    CompletableFuture.supplyAsync(
-                        () -> {
-                          try {
-                            return failureMapper.apply(t);
-                          } catch (Throwable e) {
-                            Util.sneakyThrow(e);
-                            return null;
-                          }
-                        },
-                        serviceExecutor())),
-        this.serviceExecutor());
-  }
+  <U> DurableFuture<U> map(
+      ThrowingFunction<T, U> successMapper, ThrowingFunction<TerminalException, U> failureMapper);
 
   /**
    * Map the failure result of this {@link DurableFuture}.
@@ -159,38 +89,7 @@ public abstract class DurableFuture<T> {
    *     {@link DurableFuture}.
    * @return a new {@link DurableFuture} with the mapped result, when completed
    */
-  public final DurableFuture<T> mapFailure(ThrowingFunction<TerminalException, T> failureMapper) {
-    return fromAsyncResult(
-        asyncResult()
-            .mapFailure(
-                t ->
-                    CompletableFuture.supplyAsync(
-                        () -> {
-                          try {
-                            return failureMapper.apply(t);
-                          } catch (Throwable e) {
-                            Util.sneakyThrow(e);
-                            return null;
-                          }
-                        },
-                        serviceExecutor())),
-        this.serviceExecutor());
-  }
-
-  /**
-   * Map without executor switching. This is an optimization used only internally for operations
-   * safe to perform without switching executor.
-   */
-  final <U> DurableFuture<U> mapWithoutExecutor(ThrowingFunction<T, U> mapper) {
-    return fromAsyncResult(
-        asyncResult().map(i -> CompletableFuture.completedFuture(mapper.apply(i)), null),
-        this.serviceExecutor());
-  }
-
-  static <T> DurableFuture<T> fromAsyncResult(
-      AsyncResult<T> asyncResult, Executor serviceExecutor) {
-    return new SingleDurableFuture<>(asyncResult, serviceExecutor);
-  }
+  DurableFuture<T> mapFailure(ThrowingFunction<TerminalException, T> failureMapper);
 
   /**
    * Create an {@link DurableFuture} that awaits any of the given futures. The resulting {@link
@@ -198,13 +97,13 @@ public abstract class DurableFuture<T> {
    *
    * @see Select
    */
-  public static DurableFuture<Integer> any(
+  static DurableFuture<Integer> any(
       DurableFuture<?> first, DurableFuture<?> second, DurableFuture<?>... others) {
     List<DurableFuture<?>> durableFutures = new ArrayList<>(2 + others.length);
     durableFutures.add(first);
     durableFutures.add(second);
     durableFutures.addAll(Arrays.asList(others));
-    return any(durableFutures);
+    return new DurableFutureImpl.Any(DurableFutureImpl.fromList(durableFutures));
   }
 
   /**
@@ -215,14 +114,11 @@ public abstract class DurableFuture<T> {
    *
    * @see Select
    */
-  public static DurableFuture<Integer> any(List<DurableFuture<?>> durableFutures) {
+  static DurableFuture<Integer> any(List<DurableFuture<?>> durableFutures) {
     if (durableFutures.isEmpty()) {
       throw new IllegalArgumentException("DurableFuture.any doesn't support an empty list");
     }
-    List<AsyncResult<?>> ars =
-        durableFutures.stream().map(DurableFuture::asyncResult).collect(Collectors.toList());
-    HandlerContext ctx = ars.get(0).ctx();
-    return fromAsyncResult(ctx.createAnyAsyncResult(ars), durableFutures.get(0).serviceExecutor());
+    return new DurableFutureImpl.Any(List.copyOf(DurableFutureImpl.fromList(durableFutures)));
   }
 
   /**
@@ -231,14 +127,14 @@ public abstract class DurableFuture<T> {
    * <p>The behavior is the same as {@link
    * java.util.concurrent.CompletableFuture#allOf(CompletableFuture[])}.
    */
-  public static DurableFuture<Void> all(
+  static DurableFuture<Void> all(
       DurableFuture<?> first, DurableFuture<?> second, DurableFuture<?>... others) {
     List<DurableFuture<?>> durableFutures = new ArrayList<>(2 + others.length);
     durableFutures.add(first);
     durableFutures.add(second);
     durableFutures.addAll(Arrays.asList(others));
 
-    return all(durableFutures);
+    return new DurableFutureImpl.All(DurableFutureImpl.fromList(durableFutures));
   }
 
   /**
@@ -249,39 +145,13 @@ public abstract class DurableFuture<T> {
    * <p>The behavior is the same as {@link
    * java.util.concurrent.CompletableFuture#allOf(CompletableFuture[])}.
    */
-  public static DurableFuture<Void> all(List<DurableFuture<?>> durableFutures) {
+  static DurableFuture<Void> all(List<DurableFuture<?>> durableFutures) {
     if (durableFutures.isEmpty()) {
       throw new IllegalArgumentException("DurableFuture.all doesn't support an empty list");
     }
     if (durableFutures.size() == 1) {
-      return durableFutures.get(0).mapWithoutExecutor(unused -> null);
-    } else {
-      List<AsyncResult<?>> ars =
-          durableFutures.stream().map(DurableFuture::asyncResult).collect(Collectors.toList());
-      HandlerContext ctx = ars.get(0).ctx();
-      return fromAsyncResult(
-          ctx.createAllAsyncResult(ars), durableFutures.get(0).serviceExecutor());
+      return durableFutures.get(0).map(unused -> null);
     }
-  }
-
-  static final class SingleDurableFuture<T> extends DurableFuture<T> {
-
-    private final AsyncResult<T> asyncResult;
-    private final Executor serviceExecutor;
-
-    SingleDurableFuture(AsyncResult<T> asyncResult, Executor serviceExecutor) {
-      this.asyncResult = asyncResult;
-      this.serviceExecutor = serviceExecutor;
-    }
-
-    @Override
-    protected AsyncResult<T> asyncResult() {
-      return this.asyncResult;
-    }
-
-    @Override
-    protected Executor serviceExecutor() {
-      return serviceExecutor;
-    }
+    return new DurableFutureImpl.All(List.copyOf(DurableFutureImpl.fromList(durableFutures)));
   }
 }

@@ -536,6 +536,9 @@ sealed interface DurableFuture<T> {
   /**
    * Map the success result of this [DurableFuture].
    *
+   * The [transform] is executed when awaiting the returned [DurableFuture], or a [DurableFuture]
+   * combining it.
+   *
    * @param transform the mapper to execute if this [DurableFuture] completes with success. The
    *   mapper can throw a [dev.restate.sdk.common.TerminalException], thus failing the returned
    *   [DurableFuture].
@@ -545,6 +548,9 @@ sealed interface DurableFuture<T> {
 
   /**
    * Map both the success and the failure result of this [DurableFuture].
+   *
+   * The transforms are executed when awaiting the returned [DurableFuture], or a [DurableFuture]
+   * combining it.
    *
    * @param transformSuccess the mapper to execute if this [DurableFuture] completes with success.
    *   The mapper can throw a [dev.restate.sdk.common.TerminalException], thus failing the returned
@@ -561,6 +567,9 @@ sealed interface DurableFuture<T> {
 
   /**
    * Map the failure result of this [DurableFuture].
+   *
+   * The [transform] is executed when awaiting the returned [DurableFuture], or a [DurableFuture]
+   * combining it.
    *
    * @param transform the mapper to execute if this [DurableFuture] completes with failure. The
    *   mapper can throw a [dev.restate.sdk.common.TerminalException], thus failing the returned

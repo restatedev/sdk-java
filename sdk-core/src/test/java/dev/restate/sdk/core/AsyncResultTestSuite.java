@@ -35,6 +35,39 @@ public abstract class AsyncResultTestSuite implements TestSuite {
 
   protected abstract TestInvocationBuilder awaitWithTimeout();
 
+  /**
+   * Awakeables a1 and a2, a2 mapped with a mapper setting the state MAPPED to its value and then
+   * awaiting a1. Returns the index of {@code any(a1, mappedA2)}.
+   */
+  protected abstract TestInvocationBuilder anyWithMapperAwaitingFirstChild();
+
+  /**
+   * Calls Francesco and Till: Francesco is mapped with mapFailure to "fallback", then awaited with
+   * Till in an all combinator. Returns Francesco-Till.
+   */
+  protected abstract TestInvocationBuilder mapFailureRecoversInAll();
+
+  /** Calls Francesco, maps the result appending "!", and awaits with a timeout of 1 day. */
+  protected abstract TestInvocationBuilder awaitWithTimeoutOnMappedFuture();
+
+  /**
+   * Calls Francesco, maps the result throwing a TerminalException with message "mapped " + result,
+   * then catches it, returning the message.
+   */
+  protected abstract TestInvocationBuilder mapperThrowingTerminalException();
+
+  /**
+   * Awakeables a1, a2, a3: awaits any(a1, all(a2, a3)), then all(a2, a3), returns any index + a2 +
+   * a3.
+   */
+  protected abstract TestInvocationBuilder anyThenAllOnCompletedAwakeables();
+
+  /**
+   * Awakeable a1, mapped with a mapper setting the state MAPPED. The mapped future is never
+   * awaited, a1 is. Returns a1.
+   */
+  protected abstract TestInvocationBuilder mapperNotRunWhenNotAwaited();
+
   protected Stream<TestDefinition> anyTestDefinitions(
       Supplier<TestInvocationBuilder> testInvocation) {
     return Stream.of(
@@ -318,6 +351,69 @@ public abstract class AsyncResultTestSuite implements TestSuite {
                       assertThat(messages).element(2).isEqualTo(outputCmd("timeout"));
                       assertThat(messages).element(3).isEqualTo(END_MESSAGE);
                     })
-                .named("Fires timeout")));
+                .named("Fires timeout"),
+
+            // --- Mappers are executed lazily, and combinators see the mapped outcome
+            this.anyWithMapperAwaitingFirstChild()
+                .withInput(
+                    startMessage(3),
+                    inputCmd(),
+                    signalNotification(17, "1"),
+                    signalNotification(18, "2"))
+                .expectingOutput(outputCmd("0"), END_MESSAGE)
+                .named("First child completed first, the second child mapper doesn't run"),
+            this.anyWithMapperAwaitingFirstChild()
+                .withInput(
+                    startMessage(3),
+                    inputCmd(),
+                    signalNotification(18, "2"),
+                    signalNotification(17, "1"))
+                .expectingOutput(setStateCmd("MAPPED", "2"), outputCmd("0"), END_MESSAGE)
+                .named("Second child completed first, its mapper awaits the first child"),
+            this.mapFailureRecoversInAll()
+                .withInput(
+                    startMessage(1),
+                    inputCmd(),
+                    callCompletion(2, new TerminalException("My error")),
+                    callCompletion(4, "TILL"))
+                .onlyBidiStream()
+                .expectingOutput(
+                    callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
+                    callCmd(3, 4, GREETER_SERVICE_TARGET, "Till"),
+                    outputCmd("fallback-TILL"),
+                    END_MESSAGE),
+            this.awaitWithTimeoutOnMappedFuture()
+                .withInput(startMessage(1), inputCmd(), callCompletion(2, "FRANCESCO"))
+                .onlyBidiStream()
+                .assertingOutput(
+                    messages -> {
+                      assertThat(messages).hasSize(4);
+                      assertThat(messages)
+                          .element(0)
+                          .isEqualTo(callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco").build());
+                      assertThat(messages)
+                          .element(1)
+                          .isInstanceOf(Protocol.SleepCommandMessage.class);
+                      assertThat(messages).element(2).isEqualTo(outputCmd("FRANCESCO!"));
+                      assertThat(messages).element(3).isEqualTo(END_MESSAGE);
+                    }),
+            this.mapperThrowingTerminalException()
+                .withInput(
+                    startMessage(2),
+                    inputCmd(),
+                    callCmd(1, 2, GREETER_SERVICE_TARGET, "Francesco"),
+                    callCompletion(2, "FRANCESCO"))
+                .expectingOutput(outputCmd("mapped FRANCESCO"), END_MESSAGE),
+            this.anyThenAllOnCompletedAwakeables()
+                .withInput(
+                    startMessage(4),
+                    inputCmd(),
+                    signalNotification(17, "1"),
+                    signalNotification(18, "2"),
+                    signalNotification(19, "3"))
+                .expectingOutput(outputCmd("023"), END_MESSAGE),
+            this.mapperNotRunWhenNotAwaited()
+                .withInput(startMessage(2), inputCmd(), signalNotification(17, "1"))
+                .expectingOutput(outputCmd("1"), END_MESSAGE)));
   }
 }

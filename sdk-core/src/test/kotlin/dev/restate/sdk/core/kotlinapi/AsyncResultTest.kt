@@ -9,15 +9,18 @@
 package dev.restate.sdk.core.kotlinapi
 
 import dev.restate.sdk.common.StateKey
+import dev.restate.sdk.common.TerminalException
 import dev.restate.sdk.common.TimeoutException
 import dev.restate.sdk.core.AsyncResultTestSuite
 import dev.restate.sdk.core.TestDefinitions.*
 import dev.restate.sdk.core.TestSerdes
 import dev.restate.sdk.core.kotlinapi.KotlinAPITests.Companion.callGreeterGreetService
 import dev.restate.sdk.core.kotlinapi.KotlinAPITests.Companion.testDefinitionForVirtualObject
+import dev.restate.sdk.core.legacy.ProtoUtils.*
 import dev.restate.sdk.kotlin.*
 import java.util.stream.Stream
 import kotlin.time.Duration.Companion.days
+import kotlinx.coroutines.coroutineScope
 
 class AsyncResultTest : AsyncResultTestSuite() {
   override fun reverseAwaitOrder(): TestInvocationBuilder =
@@ -119,6 +122,89 @@ class AsyncResultTest : AsyncResultTestSuite() {
         }
       }
 
+  override fun anyWithMapperAwaitingFirstChild(): TestInvocationBuilder =
+      testDefinitionForVirtualObject("AnyWithMapperAwaitingFirstChild") { ctx, _: Unit ->
+        val a1 = ctx.awakeable(TestSerdes.STRING)
+        val a2 = ctx.awakeable(TestSerdes.STRING)
+        val mappedA2 =
+            a2.map { v ->
+              ctx.set(StateKey.of("MAPPED", TestSerdes.STRING), v)
+              "$v-${a1.await()}"
+            }
+
+        return@testDefinitionForVirtualObject DurableFuture.any(a1, mappedA2).await().toString()
+      }
+
+  override fun mapFailureRecoversInAll(): TestInvocationBuilder =
+      testDefinitionForVirtualObject("MapFailureRecoversInAll") { ctx, _: Unit ->
+        val a1 = callGreeterGreetService(ctx, "Francesco").mapFailure { "fallback" }
+        val a2 = callGreeterGreetService(ctx, "Till")
+
+        DurableFuture.all(a1, a2).await()
+
+        return@testDefinitionForVirtualObject "${a1.await()}-${a2.await()}"
+      }
+
+  override fun awaitWithTimeoutOnMappedFuture(): TestInvocationBuilder =
+      testDefinitionForVirtualObject("AwaitWithTimeoutOnMappedFuture") { ctx, _: Unit ->
+        return@testDefinitionForVirtualObject callGreeterGreetService(ctx, "Francesco")
+            .map { "$it!" }
+            .await(1.days)
+      }
+
+  override fun mapperThrowingTerminalException(): TestInvocationBuilder =
+      testDefinitionForVirtualObject("MapperThrowingTerminalException") { ctx, _: Unit ->
+        val mapped =
+            callGreeterGreetService(ctx, "Francesco").map<String> {
+              throw TerminalException("mapped $it")
+            }
+        return@testDefinitionForVirtualObject try {
+          mapped.await()
+        } catch (e: TerminalException) {
+          e.message!!
+        }
+      }
+
+  override fun anyThenAllOnCompletedAwakeables(): TestInvocationBuilder =
+      testDefinitionForVirtualObject("AnyThenAllOnCompletedAwakeables") { ctx, _: Unit ->
+        val a1 = ctx.awakeable(TestSerdes.STRING)
+        val a2 = ctx.awakeable(TestSerdes.STRING)
+        val a3 = ctx.awakeable(TestSerdes.STRING)
+
+        val index = DurableFuture.any(a1, DurableFuture.all(a2, a3)).await()
+        DurableFuture.all(a2, a3).await()
+
+        return@testDefinitionForVirtualObject "$index${a2.await()}${a3.await()}"
+      }
+
+  override fun mapperNotRunWhenNotAwaited(): TestInvocationBuilder =
+      testDefinitionForVirtualObject("MapperNotRunWhenNotAwaited") { ctx, _: Unit ->
+        val a1 = ctx.awakeable(TestSerdes.STRING)
+        @Suppress("UNUSED_VARIABLE")
+        val unusedMapped =
+            a1.map { v ->
+              ctx.set(StateKey.of("MAPPED", TestSerdes.STRING), v)
+              v
+            }
+
+        return@testDefinitionForVirtualObject a1.await()
+      }
+
+  /** Mapping in a scope whose Job completes before the mapped future is awaited. */
+  private fun mapInCompletedScope(): TestInvocationBuilder =
+      testDefinitionForVirtualObject("MapInCompletedScope") { ctx, _: Unit ->
+        val a1 = ctx.awakeable(TestSerdes.STRING)
+        val mapped = coroutineScope { a1.map { "$it!" } }
+        return@testDefinitionForVirtualObject mapped.await()
+      }
+
   override fun definitions(): Stream<TestDefinition> =
-      Stream.concat(super.definitions(), super.anyTestDefinitions { awaitSelect() })
+      Stream.concat(
+          Stream.concat(super.definitions(), super.anyTestDefinitions { awaitSelect() }),
+          Stream.of(
+              mapInCompletedScope()
+                  .withInput(startMessage(2), inputCmd(), signalNotification(17, "1"))
+                  .expectingOutput(outputCmd("1!"), END_MESSAGE)
+          ),
+      )
 }

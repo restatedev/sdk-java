@@ -12,6 +12,7 @@ import dev.restate.common.Slice;
 import dev.restate.common.Target;
 import dev.restate.sdk.common.RetryPolicy;
 import dev.restate.sdk.common.TerminalException;
+import dev.restate.sdk.endpoint.definition.HandlerContext.UnresolvedFuture;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
