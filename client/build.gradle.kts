@@ -16,4 +16,8 @@ dependencies {
 
   implementation(libs.jackson.core)
   implementation(libs.log4j.api)
+
+  testImplementation(libs.junit.jupiter)
+  testImplementation(libs.assertj)
+  testRuntimeOnly(libs.junit.platform.launcher)
 }

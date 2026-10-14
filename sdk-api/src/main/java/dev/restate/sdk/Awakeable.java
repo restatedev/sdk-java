@@ -9,8 +9,8 @@
 package dev.restate.sdk;
 
 import dev.restate.common.Slice;
+import dev.restate.common.function.ThrowingFunction;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
-import dev.restate.serde.Serde;
 
 /**
  * An {@link Awakeable} is a special type of {@link DurableFuture} which can be arbitrarily
@@ -33,9 +33,9 @@ public final class Awakeable<T> extends DurableFutureImpl.Delegating<T> {
   Awakeable(
       HandlerContext handlerContext,
       HandlerContext.Handle<Slice> handle,
-      Serde<T> serde,
+      ThrowingFunction<Slice, T> deserializer,
       String identifier) {
-    super(new DurableFutureImpl.Single<>(handlerContext, handle, serde::deserialize));
+    super(new DurableFutureImpl.Single<>(handlerContext, handle, deserializer));
     this.identifier = identifier;
   }
 

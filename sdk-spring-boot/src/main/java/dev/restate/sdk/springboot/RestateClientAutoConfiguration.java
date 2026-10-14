@@ -11,6 +11,7 @@ package dev.restate.sdk.springboot;
 import dev.restate.client.Client;
 import dev.restate.client.RequestOptions;
 import dev.restate.client.jdk.JdkClient;
+import dev.restate.serde.PayloadCodec;
 import java.net.http.HttpClient;
 import java.util.Collections;
 import java.util.Map;
@@ -30,6 +31,12 @@ import org.springframework.context.annotation.Configuration;
  * HttpClient instrumentation</a> is on the classpath and a {@code MeterRegistry} bean is available,
  * the underlying {@link HttpClient} is instrumented. To enable it, make sure {@code
  * spring-boot-starter-actuator} and {@code io.micrometer:micrometer-java11} are in the classpath.
+ *
+ * <h2>Payload codec</h2>
+ *
+ * <p>When a {@link PayloadCodec} bean is available, it is used by the client to encode request
+ * bodies and decode response bodies. The same bean is used by the Restate endpoint for all the
+ * services.
  *
  * @see RestateClientProperties
  */
@@ -71,6 +78,8 @@ public class RestateClientAutoConfiguration {
         httpClient,
         restateClientProperties.getBaseUri(),
         null,
+        // Fails if there are multiple candidates, rather than silently not encoding the values
+        context.getBeanProvider(PayloadCodec.class).getIfAvailable(),
         RequestOptions.withHeaders(headers).build());
   }
 }

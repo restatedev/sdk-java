@@ -66,6 +66,7 @@ public final class MockRequestResponse implements TestExecutor {
       if (definition.isEnablePreviewContext()) {
         builder.enablePreviewContext();
       }
+      builder.withPayloadCodec(definition.getPayloadCodec());
       EndpointRequestHandler server =
           new EndpointRequestHandler(null, builder.build(), stateMachineFactory);
 

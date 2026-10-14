@@ -13,6 +13,7 @@ import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.endpoint.definition.HandlerDefinition;
 import dev.restate.sdk.endpoint.definition.ServiceType;
+import dev.restate.serde.PayloadCodec;
 import io.opentelemetry.context.Context;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -47,6 +48,7 @@ final class RequestProcessorImpl implements RequestProcessor {
   private final Context otelContext;
   private final HeadersAccessor attemptHeaders;
   private final Executor syscallsExecutor;
+  private final PayloadCodec payloadCodec;
   private final AtomicReference<Runnable> onClosedInvocationStreamHook;
   private final ExternalProgressChannel externalProgressChannel;
 
@@ -64,7 +66,8 @@ final class RequestProcessorImpl implements RequestProcessor {
       HandlerDefinition<?, ?> handlerDefinition,
       Context otelContext,
       HeadersAccessor attemptHeaders,
-      Executor syscallExecutor) {
+      Executor syscallExecutor,
+      PayloadCodec payloadCodec) {
     this.serviceName = serviceName;
     this.handlerName = handlerName;
     this.stateMachine = stateMachine;
@@ -75,6 +78,7 @@ final class RequestProcessorImpl implements RequestProcessor {
     // The deprecated EndpointRequestHandler.processorForRequest overload might not provide the
     // executor: in that case, run everything on the caller thread.
     this.syscallsExecutor = syscallExecutor != null ? syscallExecutor : Runnable::run;
+    this.payloadCodec = payloadCodec;
     this.onClosedInvocationStreamHook = new AtomicReference<>();
     this.externalProgressChannel = new ExternalProgressChannel();
   }
@@ -263,6 +267,7 @@ final class RequestProcessorImpl implements RequestProcessor {
             externalProgressChannel,
             this::onNextOutputSlice,
             this.syscallsExecutor,
+            this.payloadCodec,
             serviceName,
             handlerName,
             serviceType,

@@ -197,14 +197,14 @@ internal abstract class BaseDurableFutureImpl<T : Any?> : DurableFuture<T> {
 internal open class SingleDurableFutureImpl<R : Any?, T : Any?>(
     final override val handlerContext: HandlerContext,
     private val handle: HandlerContext.Handle<R>,
-    private val mapper: (R) -> T,
+    private val mapper: suspend (R) -> T,
 ) : BaseDurableFutureImpl<T>(), HandlerContext.UnresolvedFuture.Single {
 
   final override fun handle(): HandlerContext.Handle<R> = handle
 
   /** Complete with the result of the handle, returned by [HandlerContext.await]. */
   @Suppress("UNCHECKED_CAST")
-  internal fun complete(handleResult: HandlerContext.Result<*>) {
+  internal suspend fun complete(handleResult: HandlerContext.Result<*>) {
     when (handleResult) {
       is HandlerContext.Result.Failure<*> -> fail(handleResult.exception())
       is HandlerContext.Result.Success<*> -> completeWith { mapper(handleResult.value() as R) }
@@ -364,7 +364,7 @@ internal class CallDurableFutureImpl<T : Any?>
 internal constructor(
     handlerContext: HandlerContext,
     callHandles: HandlerContext.CallHandles,
-    responseDeserializer: (Slice) -> T,
+    responseDeserializer: suspend (Slice) -> T,
 ) :
     SingleDurableFutureImpl<Slice, T>(
         handlerContext,
@@ -400,7 +400,7 @@ internal constructor(
         handlerContext,
         handlerContext.attachInvocation(invocationId()).await(),
     ) {
-      responseSerde.deserialize(it)
+      contextImpl.decode(responseSerde, it)
     }
   }
 
@@ -410,7 +410,7 @@ internal constructor(
             handlerContext,
             handlerContext.getInvocationOutput(invocationId()).await(),
         ) {
-          it.map { responseSerde.deserialize(it) }
+          contextImpl.decodeOutput(responseSerde, it)
         }
         .await()
   }
@@ -425,11 +425,9 @@ internal class AwakeableImpl<T : Any?>
 internal constructor(
     handlerContext: HandlerContext,
     handle: HandlerContext.Handle<Slice>,
-    serde: Serde<T>,
+    deserializer: suspend (Slice) -> T,
     override val id: String,
-) :
-    SingleDurableFutureImpl<Slice, T>(handlerContext, handle, { serde.deserialize(it) }),
-    Awakeable<T>
+) : SingleDurableFutureImpl<Slice, T>(handlerContext, handle, deserializer), Awakeable<T>
 
 internal class AwakeableHandleImpl(val contextImpl: ContextImpl, val id: String) : AwakeableHandle {
   override suspend fun <T : Any> resolve(typeTag: TypeTag<T>, payload: T) {

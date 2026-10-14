@@ -20,6 +20,7 @@ import dev.restate.sdk.interceptor.RunContextPropagator;
 import dev.restate.sdk.interceptor.RunInterceptor;
 import dev.restate.serde.Serde;
 import dev.restate.serde.SerdeFactory;
+import dev.restate.serde.SerdePipeline;
 import dev.restate.serde.TypeTag;
 import java.time.Duration;
 import java.util.Collection;
@@ -37,21 +38,29 @@ class ContextImpl implements ObjectContext, WorkflowContext {
   private static final ThreadLocal<Boolean> INSIDE_RUN = new ThreadLocal<>();
 
   private final HandlerContext handlerContext;
+  private final HandlerRequest request;
   private final Executor serviceExecutor;
   private final SerdeFactory serdeFactory;
+  private final SerdePipeline serdePipeline;
   private final RestateRandom random;
   private final RunInterceptor runInterceptor;
   private final RunContextPropagator runContextPropagator;
 
+  /**
+   * @param request the request of the invocation, with the decoded body.
+   */
   ContextImpl(
       HandlerContext handlerContext,
+      HandlerRequest request,
       Executor serviceExecutor,
       SerdeFactory serdeFactory,
       RunInterceptor runInterceptor,
       RunContextPropagator runContextPropagator) {
     this.handlerContext = handlerContext;
+    this.request = request;
     this.serviceExecutor = serviceExecutor;
     this.serdeFactory = serdeFactory;
+    this.serdePipeline = new SerdePipeline(serdeFactory, handlerContext.payloadCodec());
     this.random = new RestateRandom(this.request().invocationId().toRandomSeed());
     this.runInterceptor = runInterceptor;
     this.runContextPropagator = runContextPropagator;
@@ -73,7 +82,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
 
   @Override
   public HandlerRequest request() {
-    return handlerContext.request();
+    return this.request;
   }
 
   @Override
@@ -82,7 +91,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
     return DurableFutureImpl.single(
             handlerContext,
             Util.awaitCompletableFuture(handlerContext.get(key.name())),
-            opt -> opt.map(serdeFactory.create(key.serdeInfo())::deserialize))
+            opt -> opt.map(s -> decode(key.serdeInfo(), s)))
         .await();
   }
 
@@ -109,11 +118,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
   @Override
   public <T> void set(StateKey<T> key, @NonNull T value) {
     checkNotInsideRun();
-    Util.awaitCompletableFuture(
-        handlerContext.set(
-            key.name(),
-            Util.executeOrFail(
-                handlerContext, serdeFactory.create(key.serdeInfo())::serialize, value)));
+    Util.awaitCompletableFuture(handlerContext.set(key.name(), encode(key.serdeInfo(), value)));
   }
 
   @Override
@@ -126,11 +131,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
   @Override
   public <T, R> CallDurableFuture<R> call(Request<T, R> request) {
     checkNotInsideRun();
-    Slice input =
-        Util.executeOrFail(
-            handlerContext,
-            serdeFactory.create(request.getRequestTypeTag())::serialize,
-            request.getRequest());
+    Slice input = encode(request.getRequestTypeTag(), request.getRequest());
     HandlerContext.CallHandles callHandles =
         Util.awaitCompletableFuture(
             handlerContext.call(
@@ -143,20 +144,14 @@ class ContextImpl implements ObjectContext, WorkflowContext {
                     : request.getHeaders().entrySet()));
 
     return new CallDurableFuture<>(
-        handlerContext,
-        callHandles,
-        s -> serdeFactory.create(request.getResponseTypeTag()).deserialize(s));
+        handlerContext, callHandles, s -> decode(request.getResponseTypeTag(), s));
   }
 
   @Override
   public <Req, Res> InvocationHandle<Res> send(
       Request<Req, Res> request, @Nullable Duration delay) {
     checkNotInsideRun();
-    Slice input =
-        Util.executeOrFail(
-            handlerContext,
-            serdeFactory.create(request.getRequestTypeTag())::serialize,
-            request.getRequest());
+    Slice input = encode(request.getRequestTypeTag(), request.getRequest());
 
     var invocationIdAwaitable =
         DurableFutureImpl.single(
@@ -213,7 +208,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
       return DurableFutureImpl.single(
           handlerContext,
           Util.awaitCompletableFuture(handlerContext.attachInvocation(invocationId())),
-          responseSerde::deserialize);
+          s -> decode(responseSerde, s));
     }
 
     @Override
@@ -222,7 +217,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
       return DurableFutureImpl.single(
               handlerContext,
               Util.awaitCompletableFuture(handlerContext.getInvocationOutput(invocationId())),
-              o -> o.map(responseSerde::deserialize))
+              o -> o.map(s -> decode(responseSerde, s)))
           .await();
     }
 
@@ -234,11 +229,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
         public <T> void resolve(TypeTag<T> typeTag, T payload) {
           checkNotInsideRun();
           Util.awaitCompletableFuture(
-              handlerContext.resolveSignal(
-                  invocationId,
-                  name,
-                  Util.executeOrFail(
-                      handlerContext, serdeFactory.create(typeTag)::serialize, payload)));
+              handlerContext.resolveSignal(invocationId, name, encode(typeTag, payload)));
         }
 
         @Override
@@ -271,7 +262,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
     return DurableFutureImpl.single(
         handlerContext,
         Util.awaitCompletableFuture(handlerContext.submitRun(name, runClosure)),
-        serde::deserialize);
+        s -> decode(serde, s));
   }
 
   private <T> void executeRunAction(
@@ -303,12 +294,21 @@ class ContextImpl implements ObjectContext, WorkflowContext {
         };
 
     try {
-      runInterceptor.aroundRun(
-          new RunInterceptor.Context(handlerContext.request(), name), userAction);
-      runCompleter.proposeSuccess(resultHolder.get());
+      runInterceptor.aroundRun(new RunInterceptor.Context(this.request, name), userAction);
     } catch (Throwable t) {
       runCompleter.proposeFailure(t, retryPolicy);
+      return;
     }
+
+    // Encoding failures are not run failures, but fail the invocation, which is then retried.
+    Slice result;
+    try {
+      result = Util.awaitCompletableFuture(serdePipeline.payloadCodec().encode(resultHolder.get()));
+    } catch (Throwable t) {
+      handlerContext.fail(t);
+      return;
+    }
+    runCompleter.proposeSuccess(result);
   }
 
   @SuppressWarnings("unchecked")
@@ -322,7 +322,8 @@ class ContextImpl implements ObjectContext, WorkflowContext {
     Serde<T> serde = serdeFactory.create(typeTag);
     // Retrieve the awakeable
     HandlerContext.Awakeable awakeable = Util.awaitCompletableFuture(handlerContext.awakeable());
-    return new Awakeable<>(handlerContext, awakeable.handle(), serde, awakeable.id());
+    return new Awakeable<>(
+        handlerContext, awakeable.handle(), s -> decode(serde, s), awakeable.id());
   }
 
   @Override
@@ -331,11 +332,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
       @Override
       public <T> void resolve(TypeTag<T> serde, @NonNull T payload) {
         checkNotInsideRun();
-        Util.awaitCompletableFuture(
-            handlerContext.resolveAwakeable(
-                id,
-                Util.executeOrFail(
-                    handlerContext, serdeFactory.create(serde)::serialize, payload)));
+        Util.awaitCompletableFuture(handlerContext.resolveAwakeable(id, encode(serde, payload)));
       }
 
       @Override
@@ -354,7 +351,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
     return DurableFutureImpl.single(
         handlerContext,
         Util.awaitCompletableFuture(handlerContext.signal(name)),
-        serde::deserialize);
+        s -> decode(serde, s));
   }
 
   @Override
@@ -371,7 +368,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
         return DurableFutureImpl.single(
             handlerContext,
             Util.awaitCompletableFuture(handlerContext.promise(key.name())),
-            s -> serdeFactory.create(key.serdeInfo()).deserialize(s));
+            s -> decode(key.serdeInfo(), s));
       }
 
       @Override
@@ -380,7 +377,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
         return DurableFutureImpl.single(
                 handlerContext,
                 Util.awaitCompletableFuture(handlerContext.peekPromise(key.name())),
-                o -> o.map(serdeFactory.create(key.serdeInfo())::deserialize))
+                o -> o.map(s -> decode(key.serdeInfo(), s)))
             .await();
       }
     };
@@ -395,12 +392,7 @@ class ContextImpl implements ObjectContext, WorkflowContext {
         DurableFutureImpl.single(
                 handlerContext,
                 Util.awaitCompletableFuture(
-                    handlerContext.resolvePromise(
-                        key.name(),
-                        Util.executeOrFail(
-                            handlerContext,
-                            serdeFactory.create(key.serdeInfo())::serialize,
-                            payload))))
+                    handlerContext.resolvePromise(key.name(), encode(key.serdeInfo(), payload))))
             .await();
       }
 
@@ -414,5 +406,22 @@ class ContextImpl implements ObjectContext, WorkflowContext {
             .await();
       }
     };
+  }
+
+  // -- Serialization and payload codec
+
+  /** Serialize and encode the value. Failures fail the invocation. */
+  private <T> Slice encode(TypeTag<T> typeTag, T value) {
+    return Util.executeOrFail(
+        handlerContext, () -> Util.awaitCompletableFuture(serdePipeline.encode(typeTag, value)));
+  }
+
+  /**
+   * Decode and deserialize the value. This is used as mapper of the {@link
+   * DurableFutureImpl.Single} nodes, so it runs when the node is completed, before evaluating the
+   * rest of the future tree.
+   */
+  private <T> T decode(TypeTag<T> typeTag, Slice value) {
+    return Util.awaitCompletableFuture(serdePipeline.decode(typeTag, value));
   }
 }

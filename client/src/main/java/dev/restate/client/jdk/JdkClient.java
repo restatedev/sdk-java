@@ -11,6 +11,7 @@ package dev.restate.client.jdk;
 import dev.restate.client.*;
 import dev.restate.client.base.BaseClient;
 import dev.restate.common.*;
+import dev.restate.serde.PayloadCodec;
 import dev.restate.serde.SerdeFactory;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -28,8 +29,12 @@ public class JdkClient extends BaseClient {
   private final HttpClient httpClient;
 
   private JdkClient(
-      URI baseUri, SerdeFactory serdeFactory, RequestOptions baseOptions, HttpClient httpClient) {
-    super(baseUri, serdeFactory, baseOptions);
+      URI baseUri,
+      @Nullable SerdeFactory serdeFactory,
+      @Nullable PayloadCodec payloadCodec,
+      @Nullable RequestOptions baseOptions,
+      HttpClient httpClient) {
+    super(baseUri, serdeFactory, payloadCodec, baseOptions);
     this.httpClient = httpClient;
   }
 
@@ -115,12 +120,41 @@ public class JdkClient extends BaseClient {
       String baseUri,
       @Nullable SerdeFactory serdeFactory,
       @Nullable RequestOptions options) {
-    return new JdkClient(URI.create(baseUri), serdeFactory, options, httpClient);
+    return of(httpClient, baseUri, serdeFactory, null, options);
+  }
+
+  /**
+   * Create a new JDK Client.
+   *
+   * @param payloadCodec codec used to encode request bodies and decode response bodies. It must
+   *     match the codec configured on the services invoked through this client.
+   */
+  public static JdkClient of(
+      HttpClient httpClient,
+      String baseUri,
+      @Nullable SerdeFactory serdeFactory,
+      @Nullable PayloadCodec payloadCodec,
+      @Nullable RequestOptions options) {
+    return new JdkClient(URI.create(baseUri), serdeFactory, payloadCodec, options, httpClient);
   }
 
   /** Create a new JDK Client */
   public static JdkClient of(
       String baseUri, @Nullable SerdeFactory serdeFactory, @Nullable RequestOptions options) {
-    return new JdkClient(URI.create(baseUri), serdeFactory, options, HttpClient.newHttpClient());
+    return of(baseUri, serdeFactory, null, options);
+  }
+
+  /**
+   * Create a new JDK Client.
+   *
+   * @param payloadCodec codec used to encode request bodies and decode response bodies. It must
+   *     match the codec configured on the services invoked through this client.
+   */
+  public static JdkClient of(
+      String baseUri,
+      @Nullable SerdeFactory serdeFactory,
+      @Nullable PayloadCodec payloadCodec,
+      @Nullable RequestOptions options) {
+    return of(HttpClient.newHttpClient(), baseUri, serdeFactory, payloadCodec, options);
   }
 }

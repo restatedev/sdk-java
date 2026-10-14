@@ -15,7 +15,9 @@ import dev.restate.sdk.endpoint.Endpoint;
 import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.endpoint.definition.HandlerDefinition;
 import dev.restate.sdk.endpoint.definition.ServiceDefinition;
+import dev.restate.serde.PayloadCodec;
 import io.opentelemetry.context.propagation.TextMapGetter;
+import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.regex.Pattern;
@@ -206,15 +208,25 @@ public final class EndpointRequestHandler {
     loggingContextSetter.set(
         LoggingContextSetter.INVOCATION_TARGET_KEY, fullyQualifiedServiceMethod);
 
+    // Setup payload codec
+    PayloadCodec payloadCodec =
+        Objects.requireNonNullElse(this.endpoint.getPayloadCodec(), PayloadCodec.NOOP);
+    boolean isJournalCodecEnabled = payloadCodec != PayloadCodec.NOOP;
+
     return new RequestProcessorImpl(
-        stateMachineFactory.create(headersAccessor, loggingContextSetter),
+        stateMachineFactory.create(
+            headersAccessor,
+            loggingContextSetter,
+            isJournalCodecEnabled,
+            !payloadCodec.isEncodingDeterministic()),
         serviceName,
         handlerName,
         svc.getServiceType(),
         handler,
         otelContext,
         headersAccessor,
-        coreExecutor);
+        coreExecutor,
+        payloadCodec);
   }
 
   StaticResponseRequestProcessor handleDiscoveryRequest(

@@ -28,9 +28,17 @@ import org.jspecify.annotations.Nullable;
 @FunctionalInterface
 interface StateMachineFactory {
 
+  /**
+   * @param payloadCodecEnabled whether a {@link dev.restate.serde.PayloadCodec} is configured for
+   *     this invocation. Only the native state machine supports it.
+   * @param disablePayloadChecks whether to skip the payload equality checks on replay, required
+   *     when the payload codec encoding is not deterministic.
+   */
   StateMachine create(
       HeadersAccessor headersAccessor,
-      EndpointRequestHandler.LoggingContextSetter loggingContextSetter);
+      EndpointRequestHandler.LoggingContextSetter loggingContextSetter,
+      boolean payloadCodecEnabled,
+      boolean disablePayloadChecks);
 
   static StateMachineFactory get() {
     return Loader.FACTORY;
@@ -46,14 +54,33 @@ interface StateMachineFactory {
 
     private static final Logger LOG = LogManager.getLogger(StateMachineFactory.Loader.class);
 
-    static final StateMachineFactory LEGACY_FACTORY = LegacyStateMachine::new;
+    static final StateMachineFactory LEGACY_FACTORY =
+        (headersAccessor, loggingContextSetter, payloadCodecEnabled, disablePayloadChecks) -> {
+          if (payloadCodecEnabled) {
+            throw new IllegalStateException(
+                "A PayloadCodec is configured, but it's not supported by the Java-only Restate"
+                    + " state machine. To use it, run on Java "
+                    + Loader.FFM_MIN_JAVA_FEATURE
+                    + "+ on a platform supported by the native Restate state machine, and make sure"
+                    + " -Ddev.restate.sdk.statemachine.disableNewCore is not set.");
+          }
+          return new LegacyStateMachine(headersAccessor, loggingContextSetter);
+        };
     static final @Nullable StateMachineFactory FFM_FACTORY = resolveFfmFactory();
 
     static final StateMachineFactory FACTORY =
-        (headersAccessor, loggingContextSetter) ->
+        (headersAccessor, loggingContextSetter, payloadCodecEnabled, disablePayloadChecks) ->
             FFM_FACTORY != null
-                ? FFM_FACTORY.create(headersAccessor, loggingContextSetter)
-                : LEGACY_FACTORY.create(headersAccessor, loggingContextSetter);
+                ? FFM_FACTORY.create(
+                    headersAccessor,
+                    loggingContextSetter,
+                    payloadCodecEnabled,
+                    disablePayloadChecks)
+                : LEGACY_FACTORY.create(
+                    headersAccessor,
+                    loggingContextSetter,
+                    payloadCodecEnabled,
+                    disablePayloadChecks);
 
     /** First JDK whose stable FFM API matches the jextract-generated bindings. */
     private static final int FFM_MIN_JAVA_FEATURE = 23;
@@ -90,10 +117,10 @@ interface StateMachineFactory {
             .invoke(null);
         Constructor<?> ctor =
             Class.forName("dev.restate.sdk.core.statemachine.ffm.FfmStateMachine")
-                .getConstructor(HeadersAccessor.class);
-        return (headersAccessor, ignored) -> {
+                .getConstructor(HeadersAccessor.class, boolean.class);
+        return (headersAccessor, ignored, payloadCodecEnabled, disablePayloadChecks) -> {
           try {
-            return (StateMachine) ctor.newInstance(headersAccessor);
+            return (StateMachine) ctor.newInstance(headersAccessor, disablePayloadChecks);
           } catch (InvocationTargetException e) {
             // Unwrap so VM/protocol errors thrown by the constructor propagate unchanged.
             Throwable cause = e.getCause() != null ? e.getCause() : e;

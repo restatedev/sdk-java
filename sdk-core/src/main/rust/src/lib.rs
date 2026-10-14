@@ -28,8 +28,9 @@ use crate::logging::init_logging;
 use bytes::{Buf, BufMut, Bytes};
 use restate_sdk_shared_core::{
     AttachInvocationTarget, AwaitResponse, AwakeableHandle, CoreVM, Error, Header, HeaderMap,
-    NonEmptyValue, NotificationHandle, PayloadOptions, RetryPolicy, RunExitResult, RunHandle,
-    State, Target, TerminalFailure, UnresolvedFuture, VMOptions, VMResult, Value, VM,
+    NonDeterministicChecksOption, NonEmptyValue, NotificationHandle, PayloadOptions, RetryPolicy,
+    RunExitResult, RunHandle, State, Target, TerminalFailure, UnresolvedFuture, VMOptions,
+    VMResult, Value, VM,
 };
 use std::borrow::Cow;
 use std::convert::Infallible;
@@ -198,8 +199,12 @@ unsafe fn write_out<T>(out: *mut T, value: T) {
 // =========================================================================
 
 #[export_name = "vm_new"]
-pub unsafe extern "C" fn _vm_new(headers: ForeignSlice, out: *mut VmNewResult) {
-    let r = match vm_new(headers.as_slice()) {
+pub unsafe extern "C" fn _vm_new(
+    headers: ForeignSlice,
+    disable_payload_checks: bool,
+    out: *mut VmNewResult,
+) {
+    let r = match vm_new(headers.as_slice(), disable_payload_checks) {
         Ok((response_content_type, vm)) => VmNewResult::Ok {
             handle: Box::into_raw(vm),
             response_content_type: response_content_type
@@ -214,9 +219,22 @@ pub unsafe extern "C" fn _vm_new(headers: ForeignSlice, out: *mut VmNewResult) {
 }
 
 #[inline]
-fn vm_new(headers_buf: &[u8]) -> Result<(Option<String>, Box<VmHandle>), Error> {
+fn vm_new(
+    headers_buf: &[u8],
+    disable_payload_checks: bool,
+) -> Result<(Option<String>, Box<VmHandle>), Error> {
     let headers = decode_header_list(headers_buf);
-    CoreVM::new(Headers(headers), VMOptions::default()).map(|vm| {
+    let options = VMOptions {
+        // Set when the payload codec is not deterministic (e.g. encryption with a random
+        // IV): encoded payloads differ on every execution, so they can't be compared on replay.
+        non_determinism_checks: if disable_payload_checks {
+            NonDeterministicChecksOption::PayloadChecksDisabled
+        } else {
+            NonDeterministicChecksOption::Enabled
+        },
+        ..VMOptions::default()
+    };
+    CoreVM::new(Headers(headers), options).map(|vm| {
         let response_content_type = VM::get_response_head(&vm)
             .headers
             .into_iter()
