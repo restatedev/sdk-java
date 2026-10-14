@@ -32,18 +32,18 @@ abstract class AsyncResults {
   private AsyncResults() {}
 
   static <T> AsyncResultInternal<T> single(
-      HandlerContextInternal contextInternal, int handle, Completer<T> completer) {
-    return new SingleAsyncResultInternal<>(handle, completer, contextInternal);
+      HandlerContextImpl handlerContext, int handle, Completer<T> completer) {
+    return new SingleAsyncResultInternal<>(handle, completer, handlerContext);
   }
 
   static AsyncResultInternal<Integer> any(
-      HandlerContextInternal contextInternal, List<AsyncResultInternal<?>> any) {
-    return new AnyAsyncResult(contextInternal, any);
+      HandlerContextImpl handlerContext, List<AsyncResultInternal<?>> any) {
+    return new AnyAsyncResult(handlerContext, any);
   }
 
   static AsyncResultInternal<Void> all(
-      HandlerContextInternal contextInternal, List<AsyncResultInternal<?>> all) {
-    return new AllAsyncResult(contextInternal, all);
+      HandlerContextImpl handlerContext, List<AsyncResultInternal<?>> all) {
+    return new AllAsyncResult(handlerContext, all);
   }
 
   non-sealed interface AsyncResultInternal<T> extends AsyncResult<T>, UnresolvedFuture {
@@ -54,7 +54,7 @@ abstract class AsyncResults {
 
     CompletableFuture<T> publicFuture();
 
-    HandlerContextInternal ctx();
+    HandlerContextImpl ctx();
   }
 
   abstract static class BaseAsyncResultInternal<T> implements AsyncResultInternal<T> {
@@ -104,14 +104,14 @@ abstract class AsyncResults {
 
     private final int handle;
     private final Completer<T> completer;
-    private final HandlerContextInternal contextInternal;
+    private final HandlerContextImpl handlerContext;
 
     private SingleAsyncResultInternal(
-        int handle, Completer<T> completer, HandlerContextInternal contextInternal) {
+        int handle, Completer<T> completer, HandlerContextImpl handlerContext) {
       super(new CompletableFuture<>());
       this.handle = handle;
       this.completer = completer;
-      this.contextInternal = contextInternal;
+      this.handlerContext = handlerContext;
     }
 
     @Override
@@ -130,7 +130,7 @@ abstract class AsyncResults {
                 try {
                   completer.complete(value, publicFuture);
                 } catch (Throwable e) {
-                  contextInternal.fail(e);
+                  handlerContext.fail(e);
                   publicFuture.completeExceptionally(AbortedExecutionException.INSTANCE);
                 }
               });
@@ -147,8 +147,8 @@ abstract class AsyncResults {
     }
 
     @Override
-    public HandlerContextInternal ctx() {
-      return this.contextInternal;
+    public HandlerContextImpl ctx() {
+      return this.handlerContext;
     }
   }
 
@@ -191,12 +191,12 @@ abstract class AsyncResults {
     }
 
     @Override
-    public HandlerContextInternal ctx() {
+    public HandlerContextImpl ctx() {
       return asyncResult.ctx();
     }
 
     private static <T, U> CompletableFuture<U> compose(
-        HandlerContextInternal ctx,
+        HandlerContextImpl ctx,
         CompletableFuture<T> upstreamFuture,
         ThrowingFunction<T, CompletableFuture<U>> successMapper,
         ThrowingFunction<TerminalException, CompletableFuture<U>> failureMapper) {
@@ -276,13 +276,12 @@ abstract class AsyncResults {
 
   static final class AnyAsyncResult extends BaseAsyncResultInternal<Integer> {
 
-    private final HandlerContextInternal handlerContextInternal;
+    private final HandlerContextImpl handlerContext;
     private final List<AsyncResultInternal<?>> asyncResults;
 
-    AnyAsyncResult(
-        HandlerContextInternal handlerContextInternal, List<AsyncResultInternal<?>> asyncResults) {
+    AnyAsyncResult(HandlerContextImpl handlerContext, List<AsyncResultInternal<?>> asyncResults) {
       super(new CompletableFuture<>());
-      this.handlerContextInternal = handlerContextInternal;
+      this.handlerContext = handlerContext;
       this.asyncResults = asyncResults;
     }
 
@@ -315,24 +314,23 @@ abstract class AsyncResults {
     }
 
     @Override
-    public HandlerContextInternal ctx() {
-      return handlerContextInternal;
+    public HandlerContextImpl ctx() {
+      return handlerContext;
     }
   }
 
   static final class AllAsyncResult extends BaseAsyncResultInternal<Void> {
 
-    private final HandlerContextInternal handlerContextInternal;
+    private final HandlerContextImpl handlerContext;
     private final List<AsyncResultInternal<?>> asyncResults;
 
-    AllAsyncResult(
-        HandlerContextInternal handlerContextInternal, List<AsyncResultInternal<?>> asyncResults) {
+    AllAsyncResult(HandlerContextImpl handlerContext, List<AsyncResultInternal<?>> asyncResults) {
       super(
           CompletableFuture.allOf(
               asyncResults.stream()
                   .map(AsyncResultInternal::publicFuture)
                   .toArray(CompletableFuture<?>[]::new)));
-      this.handlerContextInternal = handlerContextInternal;
+      this.handlerContext = handlerContext;
       this.asyncResults = asyncResults;
     }
 
@@ -370,8 +368,8 @@ abstract class AsyncResults {
     }
 
     @Override
-    public HandlerContextInternal ctx() {
-      return handlerContextInternal;
+    public HandlerContextImpl ctx() {
+      return handlerContext;
     }
   }
 }

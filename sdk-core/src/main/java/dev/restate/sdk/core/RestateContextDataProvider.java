@@ -24,9 +24,9 @@ import org.apache.logging.log4j.core.util.ContextDataProvider;
 public class RestateContextDataProvider implements ContextDataProvider {
   @Override
   public Map<String, String> supplyContextData() {
-    HandlerContextInternal handlerContextInternal =
-        (HandlerContextInternal) HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL.get();
-    if (handlerContextInternal == null) {
+    HandlerContextImpl handlerContext =
+        (HandlerContextImpl) HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL.get();
+    if (handlerContext == null) {
       return Collections.emptyMap();
     }
 
@@ -35,13 +35,13 @@ public class RestateContextDataProvider implements ContextDataProvider {
     HashMap<String, String> m = new HashMap<>(3);
     m.put(
         EndpointRequestHandler.LoggingContextSetter.INVOCATION_ID_KEY,
-        handlerContextInternal.request().invocationId().toString());
+        handlerContext.request().invocationId().toString());
     m.put(
         EndpointRequestHandler.LoggingContextSetter.INVOCATION_TARGET_KEY,
-        handlerContextInternal.getFullyQualifiedMethodName());
+        handlerContext.getFullyQualifiedMethodName());
     m.put(
         EndpointRequestHandler.LoggingContextSetter.INVOCATION_STATUS_KEY,
-        handlerContextInternal.getInvocationState().toString());
+        handlerContext.getInvocationState().toString());
     return m;
   }
 }

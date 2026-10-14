@@ -72,7 +72,9 @@ final class RequestProcessorImpl implements RequestProcessor {
     this.otelContext = otelContext;
     this.attemptHeaders = attemptHeaders;
     this.handlerDefinition = (HandlerDefinition<Object, Object>) handlerDefinition;
-    this.syscallsExecutor = syscallExecutor;
+    // The deprecated EndpointRequestHandler.processorForRequest overload might not provide the
+    // executor: in that case, run everything on the caller thread.
+    this.syscallsExecutor = syscallExecutor != null ? syscallExecutor : Runnable::run;
     this.onClosedInvocationStreamHook = new AtomicReference<>();
     this.externalProgressChannel = new ExternalProgressChannel();
   }
@@ -256,30 +258,18 @@ final class RequestProcessorImpl implements RequestProcessor {
     StateMachine.Input stateMachineInput = stateMachine.input();
 
     HandlerContextImpl ctx =
-        syscallsExecutor != null
-            ? new ExecutorSwitchingHandlerContextImpl(
-                stateMachine,
-                externalProgressChannel,
-                this::onNextOutputSlice,
-                serviceName,
-                handlerName,
-                serviceType,
-                handlerDefinition.getHandlerType(),
-                otelContext,
-                attemptHeaders,
-                stateMachineInput,
-                this.syscallsExecutor)
-            : new HandlerContextImpl(
-                stateMachine,
-                externalProgressChannel,
-                this::onNextOutputSlice,
-                serviceName,
-                handlerName,
-                serviceType,
-                handlerDefinition.getHandlerType(),
-                otelContext,
-                attemptHeaders,
-                stateMachineInput);
+        new HandlerContextImpl(
+            stateMachine,
+            externalProgressChannel,
+            this::onNextOutputSlice,
+            this.syscallsExecutor,
+            serviceName,
+            handlerName,
+            serviceType,
+            handlerDefinition.getHandlerType(),
+            otelContext,
+            attemptHeaders,
+            stateMachineInput);
 
     CompletableFuture<Slice> handlerResultFut =
         this.handlerDefinition
@@ -293,11 +283,7 @@ final class RequestProcessorImpl implements RequestProcessor {
     // Wire up the completion of the handler result back to this class.
     // Because the handler result fut gets completed on the user executor, we need to trampoline
     // back on the thread where we're executing here.
-    if (this.syscallsExecutor != null) {
-      handlerResultFut.whenCompleteAsync(this::onUserCodeResult, this.syscallsExecutor);
-    } else {
-      handlerResultFut.whenComplete(this::onUserCodeResult);
-    }
+    handlerResultFut.whenCompleteAsync(this::onUserCodeResult, this.syscallsExecutor);
   }
 
   private void cancelInputSubscription() {
