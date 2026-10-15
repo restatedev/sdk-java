@@ -15,6 +15,7 @@ import dev.restate.sdk.endpoint.definition.HandlerDefinition;
 import dev.restate.sdk.endpoint.definition.HandlerRunner;
 import dev.restate.sdk.endpoint.definition.InvocationRetryPolicy;
 import dev.restate.sdk.endpoint.definition.ServiceDefinition;
+import dev.restate.serde.PayloadCodec;
 import java.util.*;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
@@ -161,6 +162,13 @@ public class RestateEndpointConfiguration {
     if (restateEndpointProperties.getIdentityKey() != null) {
       builder.withRequestIdentityVerifier(
           RestateRequestIdentityVerifier.fromKey(restateEndpointProperties.getIdentityKey()));
+    }
+    // If there's a PayloadCodec bean, use it for all the services.
+    // Fails if there are multiple candidates, rather than silently not encoding the journal.
+    PayloadCodec payloadCodec =
+        applicationContext.getBeanProvider(PayloadCodec.class).getIfAvailable();
+    if (payloadCodec != null) {
+      builder.withPayloadCodec(payloadCodec);
     }
     return builder.build();
   }

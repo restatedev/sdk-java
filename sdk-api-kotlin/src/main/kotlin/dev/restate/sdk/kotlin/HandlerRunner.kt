@@ -11,12 +11,14 @@
 package dev.restate.sdk.kotlin
 
 import dev.restate.common.Slice
+import dev.restate.sdk.common.HandlerRequest
 import dev.restate.sdk.common.TerminalException
 import dev.restate.sdk.endpoint.definition.HandlerContext
 import dev.restate.sdk.kotlin.HandlerRunner.Options.Companion.DEFAULT
 import dev.restate.sdk.kotlin.interceptor.HandlerInterceptor
 import dev.restate.sdk.kotlin.interceptor.RunInterceptor
 import dev.restate.sdk.kotlin.internal.RestateContextElement
+import dev.restate.serde.PayloadCodec
 import dev.restate.serde.Serde
 import dev.restate.serde.SerdeFactory
 import io.opentelemetry.extension.kotlin.asContextElement
@@ -28,6 +30,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asContextElement
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.apache.logging.log4j.LogManager
 
 /** Adapter class for [dev.restate.sdk.endpoint.definition.HandlerRunner] to use the Kotlin API. */
@@ -114,13 +117,9 @@ internal constructor(
       responseSerde: Serde<RES>,
       onClosedInvocationStreamHook: AtomicReference<Runnable>,
   ): CompletableFuture<Slice> {
-    // Interceptor chains were combined once when Options was constructed; reuse them here.
-    val ctx: Context = ContextImpl(handlerContext, contextSerdeFactory, runInterceptor)
-
     val scope =
         CoroutineScope(
             coroutineContext +
-                RestateContextElement(ctx) +
                 dev.restate.sdk.endpoint.definition.HandlerRunner.HANDLER_CONTEXT_THREAD_LOCAL
                     .asContextElement(handlerContext) +
                 // TODO(tracing-plumbing): deprecate, superseded by sdk-interceptor-opentelemetry
@@ -130,13 +129,28 @@ internal constructor(
     val completableFuture = CompletableFuture<Slice>()
     val job =
         scope.launch {
+          val payloadCodec = handlerContext.payloadCodec()
+
+          // Decode the request body. Decoding failures are not terminal, the invocation is retried
+          val request =
+              try {
+                decodeRequest(handlerContext.request(), payloadCodec)
+              } catch (t: Throwable) {
+                completableFuture.completeExceptionally(t)
+                return@launch
+              }
+
+          // Interceptor chains were combined once when Options was constructed; reuse them here.
+          val ctx: Context =
+              ContextImpl(handlerContext, request, contextSerdeFactory, runInterceptor)
+
           val resultHolder = AtomicReference(Slice.EMPTY)
 
           val userBlock: suspend () -> Unit = {
             // Parse input
             val req: REQ =
                 try {
-                  requestSerde.deserialize(handlerContext.request().body())
+                  requestSerde.deserialize(request.body())
                 } catch (e: Exception) {
                   LOG.warn("Error deserializing request", e)
                   throw TerminalException(
@@ -159,14 +173,20 @@ internal constructor(
           }
 
           try {
-            handlerInterceptor.aroundHandler(
-                HandlerInterceptor.Context(
-                    handlerContext.request(),
-                    handlerContext.attemptHeaders(),
-                ),
-                userBlock,
-            )
-            completableFuture.complete(resultHolder.get())
+            withContext(RestateContextElement(ctx)) {
+              handlerInterceptor.aroundHandler(
+                  HandlerInterceptor.Context(request, handlerContext.attemptHeaders()),
+                  userBlock,
+              )
+            }
+          } catch (t: Throwable) {
+            completableFuture.completeExceptionally(t)
+            return@launch
+          }
+
+          // Encode the output. Encoding failures are not terminal, the invocation is retried
+          try {
+            completableFuture.complete(encodeOutput(resultHolder.get(), payloadCodec))
           } catch (t: Throwable) {
             completableFuture.completeExceptionally(t)
           }
@@ -174,6 +194,33 @@ internal constructor(
     onClosedInvocationStreamHook.set { job.cancel() }
 
     return completableFuture
+  }
+
+  private suspend fun decodeRequest(
+      request: HandlerRequest,
+      payloadCodec: PayloadCodec,
+  ): HandlerRequest {
+    if (payloadCodec === PayloadCodec.NOOP) {
+      return request
+    }
+    return HandlerRequest(
+        request.invocationId(),
+        request.openTelemetryContext(),
+        payloadCodec.decode(request.body()).await(),
+        request.headers(),
+        request.scope(),
+        request.limitKey(),
+        request.idempotencyKey(),
+        request.serviceName(),
+        request.handlerName(),
+    )
+  }
+
+  private suspend fun encodeOutput(output: Slice, payloadCodec: PayloadCodec): Slice {
+    if (payloadCodec === PayloadCodec.NOOP) {
+      return output
+    }
+    return payloadCodec.encode(output).await()
   }
 
   /**

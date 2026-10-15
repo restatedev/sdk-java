@@ -16,6 +16,12 @@
   bytebuddy = "net.bytebuddy:byte-buddy:1.18.3"
   objenesis = "org.objenesis:objenesis:3.4"
 
+  [libraries.aws-sdk-kms]
+    module = 'software.amazon.awssdk:kms'
+
+    [libraries.aws-sdk-kms.version]
+      ref = 'aws-sdk'
+
   [libraries.jackson-annotations]
     module = 'com.fasterxml.jackson.core:jackson-annotations'
     version = '2.22'
@@ -102,6 +108,12 @@
 
     [libraries.log4j-core.version]
       ref = 'log4j'
+
+  [libraries.netty-bom]
+    module = 'io.netty:netty-bom'
+
+    [libraries.netty-bom.version]
+      ref = 'netty'
 
   [libraries.opentelemetry-api]
     module = 'io.opentelemetry:opentelemetry-api'
@@ -262,6 +274,7 @@
       ref = 'ksp'
 
 [versions]
+  aws-sdk = '2.55.16'
   jackson = '2.22.0'
   junit = '5.14.1'
   kotlinx-coroutines = '1.10.2'
@@ -270,6 +283,8 @@
   log4j = '2.24.3'
   micrometer = '1.14.14'
   micrometer-context-propagation = '1.1.3'
+  # Must match the Netty version used by vertx
+  netty = '4.1.136.Final'
   opentelemetry = '1.58.0'
   protobuf = '4.29.3'
   restate = '2.10.0-SNAPSHOT'

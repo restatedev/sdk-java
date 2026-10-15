@@ -19,6 +19,7 @@ import dev.restate.sdk.core.legacy.ProtoUtils;
 import dev.restate.sdk.endpoint.definition.HandlerRunner;
 import dev.restate.sdk.endpoint.definition.ServiceDefinition;
 import dev.restate.sdk.endpoint.definition.ServiceDefinitionFactories;
+import dev.restate.serde.PayloadCodec;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -41,6 +42,10 @@ public final class TestDefinitions {
     boolean isOnlyUnbuffered();
 
     boolean isEnablePreviewContext();
+
+    default @Nullable PayloadCodec getPayloadCodec() {
+      return null;
+    }
 
     List<InvocationInput> getInput();
 

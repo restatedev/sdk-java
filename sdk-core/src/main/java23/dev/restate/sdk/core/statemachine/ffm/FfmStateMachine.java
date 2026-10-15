@@ -77,6 +77,14 @@ public final class FfmStateMachine implements StateMachine {
   }
 
   public FfmStateMachine(HeadersAccessor headersAccessor) {
+    this(headersAccessor, false);
+  }
+
+  /**
+   * @param disablePayloadChecks whether to skip the payload equality checks on replay, required
+   *     when the payload codec encoding is not deterministic.
+   */
+  public FfmStateMachine(HeadersAccessor headersAccessor, boolean disablePayloadChecks) {
     List<String[]> headers = new ArrayList<>();
     for (String key : headersAccessor.keys()) {
       String value = headersAccessor.get(key);
@@ -88,7 +96,8 @@ public final class FfmStateMachine implements StateMachine {
     try (Arena arena = Arena.ofConfined()) {
       MemorySegment out = VmNewResult.allocate(arena);
 
-      SharedCoreNative.vm_new(FfmEncoding.foreignHeaderPairs(arena, headers), out);
+      SharedCoreNative.vm_new(
+          FfmEncoding.foreignHeaderPairs(arena, headers), disablePayloadChecks, out);
       if (VmNewResult.tag(out) == SharedCoreNative.VmNewResult_Err()) {
         throw closeVmAndMapError(VmNewResult_Err_Body.error(VmNewResult.err(out)));
       }

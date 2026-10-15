@@ -23,18 +23,24 @@ import dev.restate.sdk.kotlin.internal.InsideRunElement
 import dev.restate.sdk.kotlin.internal.InsideRunElement.Key.checkNotInsideRun
 import dev.restate.serde.Serde
 import dev.restate.serde.SerdeFactory
+import dev.restate.serde.SerdePipeline
 import dev.restate.serde.TypeTag
 import kotlin.jvm.optionals.getOrNull
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
 import kotlinx.coroutines.*
 
+/** @param request the request of the invocation, with the decoded body. */
 internal class ContextImpl
 internal constructor(
     internal val handlerContext: HandlerContext,
+    private val request: HandlerRequest,
     internal val contextSerdeFactory: SerdeFactory,
     internal val runInterceptor: RunInterceptor = RunInterceptor { _, next -> next() },
 ) : WorkflowContext {
+
+  private val serdePipeline: SerdePipeline =
+      SerdePipeline(contextSerdeFactory, handlerContext.payloadCodec())
 
   internal val random: RestateRandom =
       RestateRandom(handlerContext.request().invocationId().toRandomSeed())
@@ -44,7 +50,7 @@ internal constructor(
   }
 
   override fun request(): HandlerRequest {
-    return this.handlerContext.request()
+    return this.request
   }
 
   override suspend fun <T : Any> get(key: StateKey<T>): T? {
@@ -52,7 +58,7 @@ internal constructor(
     return resolveSerde<T?>(key.serdeInfo())
         .let { serde ->
           SingleDurableFutureImpl(handlerContext, handlerContext.get(key.name()).await()) {
-            it.getOrNull()?.let { serde.deserialize(it) }
+            it.getOrNull()?.let { decode(serde, it) }
           }
         }
         .await()
@@ -102,9 +108,7 @@ internal constructor(
               )
               .await()
 
-      return@let CallDurableFutureImpl(handlerContext, callHandles) {
-        responseSerde.deserialize(it)
-      }
+      return@let CallDurableFutureImpl(handlerContext, callHandles) { decode(responseSerde, it) }
     }
   }
 
@@ -178,25 +182,33 @@ internal constructor(
                 val closure: suspend () -> Unit = { resultHolder.set(serde.serialize(block())) }
 
                 try {
-                  runInterceptor.aroundRun(
-                      RunInterceptor.Context(handlerContext.request(), name),
-                      closure,
-                  )
-                  completer.proposeSuccess(resultHolder.get())
+                  runInterceptor.aroundRun(RunInterceptor.Context(request, name), closure)
                 } catch (t: Throwable) {
                   completer.proposeFailure(t, javaRetryPolicy)
+                  return@launch
                 }
+
+                // Encoding failures are not run failures, but fail the invocation, which is then
+                // retried.
+                val result =
+                    try {
+                      serdePipeline.payloadCodec().encode(resultHolder.get()).await()
+                    } catch (t: Throwable) {
+                      handlerContext.fail(t)
+                      return@launch
+                    }
+                completer.proposeSuccess(result)
               }
             }
             .await()
-    return SingleDurableFutureImpl(handlerContext, runHandle) { serde.deserialize(it) }
+    return SingleDurableFutureImpl(handlerContext, runHandle) { decode(serde, it) }
   }
 
   override suspend fun <T : Any> awakeable(typeTag: TypeTag<T>): Awakeable<T> {
     checkNotInsideRun()
     val serde: Serde<T> = resolveSerde(typeTag)
     val awk = handlerContext.awakeable().await()
-    return AwakeableImpl(handlerContext, awk.handle, serde, awk.id)
+    return AwakeableImpl(handlerContext, awk.handle, { decode(serde, it) }, awk.id)
   }
 
   override fun awakeableHandle(id: String): AwakeableHandle {
@@ -207,7 +219,7 @@ internal constructor(
     checkNotInsideRun()
     val serde: Serde<T> = resolveSerde(typeTag)
     return SingleDurableFutureImpl(handlerContext, handlerContext.signal(name).await()) {
-      serde.deserialize(it)
+      decode(serde, it)
     }
   }
 
@@ -230,7 +242,7 @@ internal constructor(
     override suspend fun future(): DurableFuture<T> {
       checkNotInsideRun()
       return SingleDurableFutureImpl(handlerContext, handlerContext.promise(key.name()).await()) {
-        serde.deserialize(it)
+        decode(serde, it)
       }
     }
 
@@ -240,7 +252,7 @@ internal constructor(
               handlerContext,
               handlerContext.peekPromise(key.name()).await(),
           ) {
-            it.map { serde.deserialize(it) }
+            decodeOutput(serde, it)
           }
           .await()
     }
@@ -257,7 +269,7 @@ internal constructor(
               handlerContext
                   .resolvePromise(
                       key.name(),
-                      serde.serializeWrappingException(handlerContext, payload),
+                      resolveAndSerialize(serde, payload),
                   )
                   .await(),
           ) {}
@@ -274,14 +286,31 @@ internal constructor(
     }
   }
 
-  internal fun <T : Any?> resolveAndSerialize(typeTag: TypeTag<T>, value: T): Slice {
+  /** Serialize and encode the value. Failures fail the invocation. */
+  internal suspend fun <T : Any?> resolveAndSerialize(typeTag: TypeTag<T>, value: T): Slice {
     return try {
-      val serde = contextSerdeFactory.create<T>(typeTag)
-      serde.serialize(value)
+      serdePipeline.encode(typeTag, value).await()
+    } catch (e: CancellationException) {
+      throw e
     } catch (e: Exception) {
       handlerContext.fail(e)
       throw CancellationException("Failed serialization", e)
     }
+  }
+
+  /**
+   * Decode and deserialize the value. This is used as mapper of the [SingleDurableFutureImpl]
+   * nodes, so it runs when the node is completed, before evaluating the rest of the future tree.
+   */
+  internal suspend fun <T : Any?> decode(typeTag: TypeTag<T>, value: Slice): T {
+    return serdePipeline.decode(typeTag, value).await()
+  }
+
+  internal suspend fun <T : Any?> decodeOutput(
+      typeTag: TypeTag<T>,
+      output: Output<Slice>,
+  ): Output<T> {
+    return if (output.isReady) Output.ready(decode(typeTag, output.value)) else Output.notReady()
   }
 
   private fun <T : Any?> resolveSerde(typeTag: TypeTag<T>): Serde<T> {

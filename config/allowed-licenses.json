@@ -20,6 +20,9 @@
     },
     {
       "moduleName": "org.jetbrains.kotlin:kotlin-stdlib-common"
+    },
+    {
+      "moduleLicense": "MIT-0"
     }
   ]
 }

@@ -18,6 +18,7 @@ import dev.restate.common.reflections.ReflectionUtils;
 import dev.restate.sdk.annotation.Service;
 import dev.restate.sdk.annotation.VirtualObject;
 import dev.restate.sdk.annotation.Workflow;
+import dev.restate.serde.PayloadCodec;
 import dev.restate.serde.SerdeFactory;
 import dev.restate.serde.TypeTag;
 import java.time.Duration;
@@ -873,6 +874,26 @@ public interface Client {
    * @param options default options to use in all the requests.
    */
   static Client connect(String baseUri, SerdeFactory serdeFactory, RequestOptions options) {
+    return connect(baseUri, serdeFactory, null, options);
+  }
+
+  /**
+   * Create a default JDK client.
+   *
+   * @param baseUri uri to connect to
+   * @param serdeFactory Serde factory to use. If you're just wrapping this client in a
+   *     code-generated client, you don't need to provide this parameter.
+   * @param payloadCodec codec used to encode request bodies after serialization, and decode
+   *     response bodies before deserialization. It must match the codec configured on the services
+   *     invoked through this client.
+   * @param options default options to use in all the requests.
+   * @see PayloadCodec
+   */
+  static Client connect(
+      String baseUri,
+      @Nullable SerdeFactory serdeFactory,
+      @Nullable PayloadCodec payloadCodec,
+      @Nullable RequestOptions options) {
     // We load through reflections to avoid CNF exceptions in JVMs
     // where JDK's HttpClient is not available (see Android!)
     try {
@@ -886,8 +907,9 @@ public interface Client {
     try {
       return (Client)
           Class.forName("dev.restate.client.jdk.JdkClient")
-              .getMethod("of", String.class, SerdeFactory.class, RequestOptions.class)
-              .invoke(null, baseUri, serdeFactory, options);
+              .getMethod(
+                  "of", String.class, SerdeFactory.class, PayloadCodec.class, RequestOptions.class)
+              .invoke(null, baseUri, serdeFactory, payloadCodec, options);
     } catch (Exception e) {
       throw new IllegalStateException("Cannot instantiate the client", e);
     }

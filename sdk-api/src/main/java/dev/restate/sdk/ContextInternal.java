@@ -20,6 +20,7 @@ public class ContextInternal {
       HandlerContext handlerContext, Executor serviceExecutor, SerdeFactory serdeFactory) {
     return new ContextImpl(
         handlerContext,
+        handlerContext.request(),
         serviceExecutor,
         serdeFactory,
         (ctx, next) -> next.proceed(),

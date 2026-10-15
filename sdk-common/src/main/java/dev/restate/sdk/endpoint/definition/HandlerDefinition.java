@@ -225,8 +225,8 @@ public final class HandlerDefinition<REQ, RES> {
         inactivityTimeout,
         abortTimeout,
         idempotencyRetention,
-        journalRetention,
         workflowRetention,
+        journalRetention,
         ingressPrivate,
         enableLazyState,
         invocationRetryPolicy);

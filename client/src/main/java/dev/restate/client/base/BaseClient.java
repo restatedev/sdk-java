@@ -13,8 +13,10 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import dev.restate.client.*;
 import dev.restate.common.*;
+import dev.restate.serde.PayloadCodec;
 import dev.restate.serde.Serde;
 import dev.restate.serde.SerdeFactory;
+import dev.restate.serde.SerdePipeline;
 import dev.restate.serde.TypeRef;
 import dev.restate.serde.TypeTag;
 import dev.restate.serde.provider.DefaultSerdeFactoryProvider;
@@ -27,6 +29,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -42,27 +45,41 @@ public abstract class BaseClient implements Client {
   private static final JsonFactory JSON_FACTORY = new JsonFactory();
 
   private final URI baseUri;
-  private final SerdeFactory serdeFactory;
+  private final SerdePipeline serdePipeline;
   private final RequestOptions baseOptions;
 
   protected BaseClient(
       URI baseUri, @Nullable SerdeFactory serdeFactory, @Nullable RequestOptions baseOptions) {
+    this(baseUri, serdeFactory, null, baseOptions);
+  }
+
+  /**
+   * @param payloadCodec codec used to encode request bodies after serialization, and decode
+   *     response bodies before deserialization. It must match the codec configured on the services
+   *     invoked through this client.
+   */
+  protected BaseClient(
+      URI baseUri,
+      @Nullable SerdeFactory serdeFactory,
+      @Nullable PayloadCodec payloadCodec,
+      @Nullable RequestOptions baseOptions) {
     this.baseUri = Objects.requireNonNull(baseUri, "Base uri cannot be null");
     if (!this.baseUri.isAbsolute()) {
       throw new IllegalArgumentException(
           "The base uri " + baseUri + " is not absolute. This is not supported.");
     }
-    this.serdeFactory =
-        serdeFactory == null
-            ? DefaultSerdeFactorySingleton.INSTANCE.getLoadedFactory()
-            : serdeFactory;
+    this.serdePipeline =
+        new SerdePipeline(
+            serdeFactory == null
+                ? DefaultSerdeFactorySingleton.INSTANCE.getLoadedFactory()
+                : serdeFactory,
+            payloadCodec);
     this.baseOptions = baseOptions == null ? RequestOptions.DEFAULT : baseOptions;
   }
 
   @Override
   public <Req, Res> CompletableFuture<Response<Res>> callAsync(Request<Req, Res> request) {
-    Serde<Req> reqSerde = this.serdeFactory.create(request.getRequestTypeTag());
-    Serde<Res> resSerde = this.serdeFactory.create(request.getResponseTypeTag());
+    Serde<Req> reqSerde = this.serdePipeline.serdeFactory().create(request.getRequestTypeTag());
 
     URI requestUri = toRequestURI(request.getTarget(), false, null, request.getLimitKey());
     Stream<Map.Entry<String, String>> headersStream =
@@ -81,16 +98,22 @@ public abstract class BaseClient implements Client {
           Stream.concat(
               headersStream, Stream.of(Map.entry("idempotency-key", request.getIdempotencyKey())));
     }
-    Slice requestBody = reqSerde.serialize(request.getRequest());
-
-    return doPostRequest(
-        requestUri, headersStream, requestBody, callResponseMapper("POST", requestUri, resSerde));
+    Stream<Map.Entry<String, String>> finalHeadersStream = headersStream;
+    return encodeRequestBody(requestUri, reqSerde, request.getRequest())
+        .thenCompose(
+            requestBody ->
+                doPostRequest(
+                    requestUri,
+                    finalHeadersStream,
+                    requestBody,
+                    callResponseMapper("POST", requestUri)))
+        .thenCompose(res -> decodeResponse("POST", requestUri, res, request.getResponseTypeTag()));
   }
 
   @Override
   public <Req, Res> CompletableFuture<SendResponse<Res>> sendAsync(
       Request<Req, Res> request, @Nullable Duration delay) {
-    Serde<Req> reqSerde = this.serdeFactory.create(request.getRequestTypeTag());
+    Serde<Req> reqSerde = this.serdePipeline.serdeFactory().create(request.getRequestTypeTag());
 
     URI requestUri = toRequestURI(request.getTarget(), true, delay, request.getLimitKey());
     Stream<Map.Entry<String, String>> headersStream =
@@ -109,8 +132,19 @@ public abstract class BaseClient implements Client {
           Stream.concat(
               headersStream, Stream.of(Map.entry("idempotency-key", request.getIdempotencyKey())));
     }
-    Slice requestBody = reqSerde.serialize(request.getRequest());
+    Stream<Map.Entry<String, String>> finalHeadersStream = headersStream;
+    return encodeRequestBody(requestUri, reqSerde, request.getRequest())
+        .thenCompose(
+            requestBody ->
+                sendRequest(
+                    requestUri, finalHeadersStream, requestBody, request.getResponseTypeTag()));
+  }
 
+  private <Res> CompletableFuture<SendResponse<Res>> sendRequest(
+      URI requestUri,
+      Stream<Map.Entry<String, String>> headersStream,
+      Slice requestBody,
+      TypeTag<Res> responseTypeTag) {
     return doPostRequest(
         requestUri,
         headersStream,
@@ -166,7 +200,7 @@ public abstract class BaseClient implements Client {
               statusCode,
               responseHeaders,
               status,
-              invocationHandle(fields.get("invocationId"), request.getResponseTypeTag()));
+              invocationHandle(fields.get("invocationId"), responseTypeTag));
         });
   }
 
@@ -176,8 +210,7 @@ public abstract class BaseClient implements Client {
       @Override
       public <T> CompletableFuture<Response<Void>> resolveAsync(
           TypeTag<T> serde, @NonNull T payload, RequestOptions options) {
-        Serde<T> reqSerde = serdeFactory.create(serde);
-        Slice requestBody = reqSerde.serialize(payload);
+        Serde<T> reqSerde = serdePipeline.serdeFactory().create(serde);
 
         URI requestUri = baseUri.resolve("/restate/awakeables/" + id + "/resolve");
         Stream<Map.Entry<String, String>> headersStream =
@@ -189,11 +222,15 @@ public abstract class BaseClient implements Client {
                   headersStream, Stream.of(Map.entry("content-type", reqSerde.contentType())));
         }
 
-        return doPostRequest(
-            requestUri,
-            headersStream,
-            requestBody,
-            handleVoidResponse("POST", requestUri.toString()));
+        Stream<Map.Entry<String, String>> finalHeadersStream = headersStream;
+        return encodeRequestBody(requestUri, reqSerde, payload)
+            .thenCompose(
+                requestBody ->
+                    doPostRequest(
+                        requestUri,
+                        finalHeadersStream,
+                        requestBody,
+                        handleVoidResponse("POST", requestUri.toString())));
       }
 
       @Override
@@ -218,7 +255,6 @@ public abstract class BaseClient implements Client {
   @Override
   public <Res> InvocationHandle<Res> invocationHandle(
       String invocationId, TypeTag<Res> resTypeTag) {
-    Serde<Res> resSerde = serdeFactory.create(resTypeTag);
 
     return new InvocationHandle<>() {
       @Override
@@ -233,8 +269,8 @@ public abstract class BaseClient implements Client {
             Stream.concat(
                 baseOptions.headers().entrySet().stream(), options.headers().entrySet().stream());
 
-        return doGetRequest(
-            requestUri, headersStream, callResponseMapper("GET", requestUri, resSerde));
+        return doGetRequest(requestUri, headersStream, callResponseMapper("GET", requestUri))
+            .thenCompose(res -> decodeResponse("GET", requestUri, res, resTypeTag));
       }
 
       @Override
@@ -244,8 +280,8 @@ public abstract class BaseClient implements Client {
             Stream.concat(
                 baseOptions.headers().entrySet().stream(), options.headers().entrySet().stream());
 
-        return doGetRequest(
-            requestUri, headersStream, getOutputResponseMapper("GET", requestUri, resSerde));
+        return doGetRequest(requestUri, headersStream, getOutputResponseMapper(requestUri))
+            .thenCompose(res -> decodeOutputResponse(requestUri, res, resTypeTag));
       }
 
       @Override
@@ -261,7 +297,6 @@ public abstract class BaseClient implements Client {
     return new IdempotentInvocationHandle<>() {
       @Override
       public CompletableFuture<Response<Res>> attachAsync(RequestOptions options) {
-        Serde<Res> resSerde = serdeFactory.create(resTypeTag);
 
         URI requestUri =
             baseUri.resolve(
@@ -274,13 +309,12 @@ public abstract class BaseClient implements Client {
             Stream.concat(
                 baseOptions.headers().entrySet().stream(), options.headers().entrySet().stream());
 
-        return doGetRequest(
-            requestUri, headersStream, callResponseMapper("GET", requestUri, resSerde));
+        return doGetRequest(requestUri, headersStream, callResponseMapper("GET", requestUri))
+            .thenCompose(res -> decodeResponse("GET", requestUri, res, resTypeTag));
       }
 
       @Override
       public CompletableFuture<Response<Output<Res>>> getOutputAsync(RequestOptions options) {
-        Serde<Res> resSerde = serdeFactory.create(resTypeTag);
 
         URI requestUri =
             baseUri.resolve(
@@ -293,8 +327,8 @@ public abstract class BaseClient implements Client {
             Stream.concat(
                 baseOptions.headers().entrySet().stream(), options.headers().entrySet().stream());
 
-        return doGetRequest(
-            requestUri, headersStream, getOutputResponseMapper("GET", requestUri, resSerde));
+        return doGetRequest(requestUri, headersStream, getOutputResponseMapper(requestUri))
+            .thenCompose(res -> decodeOutputResponse(requestUri, res, resTypeTag));
       }
     };
   }
@@ -305,7 +339,6 @@ public abstract class BaseClient implements Client {
     return new WorkflowHandle<>() {
       @Override
       public CompletableFuture<Response<Res>> attachAsync(RequestOptions options) {
-        Serde<Res> resSerde = serdeFactory.create(resTypeTag);
 
         URI requestUri =
             baseUri.resolve(
@@ -318,13 +351,12 @@ public abstract class BaseClient implements Client {
             Stream.concat(
                 baseOptions.headers().entrySet().stream(), options.headers().entrySet().stream());
 
-        return doGetRequest(
-            requestUri, headersStream, callResponseMapper("GET", requestUri, resSerde));
+        return doGetRequest(requestUri, headersStream, callResponseMapper("GET", requestUri))
+            .thenCompose(res -> decodeResponse("GET", requestUri, res, resTypeTag));
       }
 
       @Override
       public CompletableFuture<Response<Output<Res>>> getOutputAsync(RequestOptions options) {
-        Serde<Res> resSerde = serdeFactory.create(resTypeTag);
 
         URI requestUri =
             baseUri.resolve(
@@ -337,8 +369,8 @@ public abstract class BaseClient implements Client {
             Stream.concat(
                 baseOptions.headers().entrySet().stream(), options.headers().entrySet().stream());
 
-        return doGetRequest(
-            requestUri, headersStream, getOutputResponseMapper("GET", requestUri, resSerde));
+        return doGetRequest(requestUri, headersStream, getOutputResponseMapper(requestUri))
+            .thenCompose(res -> decodeOutputResponse(requestUri, res, resTypeTag));
       }
     };
   }
@@ -357,8 +389,9 @@ public abstract class BaseClient implements Client {
   protected abstract <Res> CompletableFuture<Res> doGetRequest(
       URI target, Stream<Map.Entry<String, String>> headers, ResponseMapper<Res> responseMapper);
 
-  private <Res> @NonNull ResponseMapper<Response<Res>> callResponseMapper(
-      String requestMethod, URI requestUri, Serde<Res> resSerde) {
+  /** Validates the response, returning the raw body. */
+  private @NonNull ResponseMapper<Response<Slice>> callResponseMapper(
+      String requestMethod, URI requestUri) {
     return (statusCode, responseHeaders, responseBody) -> {
       if (statusCode >= 300) {
         handleNonSuccessResponse(
@@ -374,22 +407,12 @@ public abstract class BaseClient implements Client {
             null,
             null);
       }
-      try {
-        return new Response<>(statusCode, responseHeaders, resSerde.deserialize(responseBody));
-      } catch (Exception e) {
-        throw new IngressException(
-            "Cannot deserialize the response",
-            requestMethod,
-            requestUri.toString(),
-            statusCode,
-            responseBody.toByteArray(),
-            e);
-      }
+      return new Response<>(statusCode, responseHeaders, responseBody);
     };
   }
 
-  private <Res> @NonNull ResponseMapper<Response<Output<Res>>> getOutputResponseMapper(
-      String requestMethod, URI requestUri, Serde<Res> resSerde) {
+  /** Validates the response, returning the raw body if the output is ready. */
+  private @NonNull ResponseMapper<Response<Output<Slice>>> getOutputResponseMapper(URI requestUri) {
     return (statusCode, responseHeaders, responseBody) -> {
       if (statusCode == 470) {
         return new Response<>(statusCode, responseHeaders, Output.notReady());
@@ -403,25 +426,74 @@ public abstract class BaseClient implements Client {
       if (responseBody == null) {
         throw new IngressException(
             "Expecting a response body, but got none",
-            requestMethod,
+            "GET",
             requestUri.toString(),
             statusCode,
             null,
             null);
       }
-      try {
-        return new Response<>(
-            statusCode, responseHeaders, Output.ready(resSerde.deserialize(responseBody)));
-      } catch (Exception e) {
-        throw new IngressException(
-            "Cannot deserialize the response",
-            requestMethod,
-            requestUri.toString(),
-            statusCode,
-            responseBody.toByteArray(),
-            e);
-      }
+      return new Response<>(statusCode, responseHeaders, Output.ready(responseBody));
     };
+  }
+
+  /** Serializes and encodes the request body. */
+  private <T> CompletableFuture<Slice> encodeRequestBody(
+      URI requestUri, TypeTag<T> typeTag, T value) {
+    return serdePipeline
+        .encode(typeTag, value)
+        .handle(
+            (body, t) -> {
+              if (t != null) {
+                throw new IngressException(
+                    "Cannot serialize the request body",
+                    "POST",
+                    requestUri.toString(),
+                    -1,
+                    null,
+                    unwrapCompletionException(t));
+              }
+              return body;
+            });
+  }
+
+  /** Decodes and deserializes the response body. */
+  private <Res> CompletableFuture<Response<Res>> decodeResponse(
+      String requestMethod, URI requestUri, Response<Slice> response, TypeTag<Res> typeTag) {
+    return serdePipeline
+        .decode(typeTag, response.response())
+        .handle(
+            (value, t) -> {
+              if (t != null) {
+                throw new IngressException(
+                    "Cannot deserialize the response",
+                    requestMethod,
+                    requestUri.toString(),
+                    response.statusCode(),
+                    response.response().toByteArray(),
+                    unwrapCompletionException(t));
+              }
+              return new Response<>(response.statusCode(), response.headers(), value);
+            });
+  }
+
+  private <Res> CompletableFuture<Response<Output<Res>>> decodeOutputResponse(
+      URI requestUri, Response<Output<Slice>> response, TypeTag<Res> typeTag) {
+    if (!response.response().isReady()) {
+      return CompletableFuture.completedFuture(
+          new Response<>(response.statusCode(), response.headers(), Output.notReady()));
+    }
+    return decodeResponse(
+            "GET",
+            requestUri,
+            new Response<>(
+                response.statusCode(), response.headers(), response.response().getValue()),
+            typeTag)
+        .thenApply(
+            res -> new Response<>(res.statusCode(), res.headers(), Output.ready(res.response())));
+  }
+
+  private static Throwable unwrapCompletionException(Throwable t) {
+    return t instanceof CompletionException && t.getCause() != null ? t.getCause() : t;
   }
 
   /** Contains prefix / but not postfix / */

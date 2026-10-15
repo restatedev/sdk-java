@@ -11,6 +11,7 @@ package dev.restate.sdk.endpoint;
 import dev.restate.sdk.endpoint.definition.HandlerRunner;
 import dev.restate.sdk.endpoint.definition.ServiceDefinition;
 import dev.restate.sdk.endpoint.definition.ServiceDefinitionFactories;
+import dev.restate.serde.PayloadCodec;
 import io.opentelemetry.api.OpenTelemetry;
 import java.util.*;
 import java.util.function.Consumer;
@@ -25,16 +26,19 @@ public final class Endpoint {
   private final OpenTelemetry openTelemetry;
   private final RequestIdentityVerifier requestIdentityVerifier;
   private final boolean experimentalContextEnabled;
+  private final PayloadCodec payloadCodec;
 
   private Endpoint(
       Map<String, ServiceDefinition> services,
       OpenTelemetry openTelemetry,
       RequestIdentityVerifier requestIdentityVerifier,
-      boolean experimentalContextEnabled) {
+      boolean experimentalContextEnabled,
+      PayloadCodec payloadCodec) {
     this.services = services;
     this.openTelemetry = openTelemetry;
     this.requestIdentityVerifier = requestIdentityVerifier;
     this.experimentalContextEnabled = experimentalContextEnabled;
+    this.payloadCodec = payloadCodec;
   }
 
   public static class Builder {
@@ -42,6 +46,7 @@ public final class Endpoint {
     private RequestIdentityVerifier requestIdentityVerifier = RequestIdentityVerifier.noop();
     private OpenTelemetry openTelemetry = OpenTelemetry.noop();
     private boolean experimentalContextEnabled = false;
+    private PayloadCodec payloadCodec = PayloadCodec.NOOP;
 
     /**
      * Add a Restate service to the endpoint. This will automatically discover the generated factory
@@ -167,6 +172,31 @@ public final class Endpoint {
       return this.requestIdentityVerifier;
     }
 
+    /**
+     * Set the {@link PayloadCodec} for all the services of this endpoint, e.g. to encrypt the
+     * journal values.
+     *
+     * <p>The same instance is shared among all the invocations.
+     *
+     * @see PayloadCodec
+     */
+    public Builder withPayloadCodec(PayloadCodec payloadCodec) {
+      this.payloadCodec = payloadCodec;
+      return this;
+    }
+
+    /** Same as {@link #withPayloadCodec(PayloadCodec)}. */
+    public void setPayloadCodec(PayloadCodec payloadCodec) {
+      this.withPayloadCodec(payloadCodec);
+    }
+
+    /**
+     * @return the configured payload codec
+     */
+    public PayloadCodec getPayloadCodec() {
+      return this.payloadCodec;
+    }
+
     public Builder enablePreviewContext() {
       this.experimentalContextEnabled = true;
       return this;
@@ -178,7 +208,8 @@ public final class Endpoint {
               .collect(Collectors.toMap(ServiceDefinition::getServiceName, Function.identity())),
           this.openTelemetry,
           this.requestIdentityVerifier,
-          this.experimentalContextEnabled);
+          this.experimentalContextEnabled,
+          this.payloadCodec);
     }
   }
 
@@ -246,6 +277,10 @@ public final class Endpoint {
 
   public RequestIdentityVerifier getRequestIdentityVerifier() {
     return requestIdentityVerifier;
+  }
+
+  public PayloadCodec getPayloadCodec() {
+    return payloadCodec;
   }
 
   public boolean isExperimentalContextEnabled() {

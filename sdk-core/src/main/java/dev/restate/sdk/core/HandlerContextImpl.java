@@ -18,6 +18,7 @@ import dev.restate.sdk.endpoint.HeadersAccessor;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
 import dev.restate.sdk.endpoint.definition.HandlerType;
 import dev.restate.sdk.endpoint.definition.ServiceType;
+import dev.restate.serde.PayloadCodec;
 import io.opentelemetry.context.Context;
 import java.time.Duration;
 import java.time.Instant;
@@ -41,6 +42,7 @@ final class HandlerContextImpl implements HandlerContext {
   private final ExternalProgressChannel externalProgressChannel;
   private final Consumer<Slice> outputSink;
   private final Executor coreExecutor;
+  private final PayloadCodec payloadCodec;
 
   private final HandlerRequest handlerRequest;
   private final HeadersAccessor attemptHeaders;
@@ -55,6 +57,7 @@ final class HandlerContextImpl implements HandlerContext {
       ExternalProgressChannel externalProgressChannel,
       Consumer<Slice> outputSink,
       Executor coreExecutor,
+      PayloadCodec payloadCodec,
       String serviceName,
       String handlerName,
       ServiceType serviceType,
@@ -66,6 +69,7 @@ final class HandlerContextImpl implements HandlerContext {
     this.externalProgressChannel = externalProgressChannel;
     this.outputSink = outputSink;
     this.coreExecutor = coreExecutor;
+    this.payloadCodec = payloadCodec;
 
     this.handlerRequest =
         new HandlerRequest(
@@ -98,6 +102,11 @@ final class HandlerContextImpl implements HandlerContext {
   @Override
   public HeadersAccessor attemptHeaders() {
     return this.attemptHeaders;
+  }
+
+  @Override
+  public PayloadCodec payloadCodec() {
+    return this.payloadCodec;
   }
 
   @Override
@@ -450,7 +459,13 @@ final class HandlerContextImpl implements HandlerContext {
 
   @Override
   public void fail(Throwable cause) {
-    coreExecutor.execute(() -> this.failWithoutContextSwitch(cause));
+    coreExecutor.execute(
+        () -> {
+          this.failWithoutContextSwitch(cause);
+          // This might be invoked while awaiting, e.g. from a run closure: wake up the await loop,
+          // so it gets aborted.
+          this.externalProgressChannel.signal();
+        });
   }
 
   private void failWithoutContextSwitch(Throwable cause) {

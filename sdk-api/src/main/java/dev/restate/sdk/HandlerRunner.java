@@ -10,12 +10,14 @@ package dev.restate.sdk;
 
 import dev.restate.common.Slice;
 import dev.restate.common.function.*;
+import dev.restate.sdk.common.HandlerRequest;
 import dev.restate.sdk.common.TerminalException;
 import dev.restate.sdk.endpoint.definition.HandlerContext;
 import dev.restate.sdk.interceptor.HandlerInterceptor;
 import dev.restate.sdk.interceptor.RunContextPropagator;
 import dev.restate.sdk.interceptor.RunInterceptor;
 import dev.restate.sdk.internal.ContextThreadLocal;
+import dev.restate.serde.PayloadCodec;
 import dev.restate.serde.Serde;
 import dev.restate.serde.SerdeFactory;
 import io.opentelemetry.context.Scope;
@@ -87,10 +89,22 @@ public class HandlerRunner<REQ, RES>
 
     serviceExecutor.execute(
         () -> {
+          PayloadCodec payloadCodec = handlerContext.payloadCodec();
+
+          // Decode the request body. Decoding failures are not terminal, the invocation is retried
+          HandlerRequest request;
+          try {
+            request = decodeRequest(handlerContext.request(), payloadCodec);
+          } catch (Throwable e) {
+            returnFuture.completeExceptionally(e);
+            return;
+          }
+
           // Any context switching, if necessary, will be done by ResolvedEndpointHandler
           Context ctx =
               new ContextImpl(
                   handlerContext,
+                  request,
                   serviceExecutor,
                   contextSerdeFactory,
                   runInterceptor,
@@ -103,7 +117,7 @@ public class HandlerRunner<REQ, RES>
                 // Parse input
                 REQ req;
                 try {
-                  req = requestSerde.deserialize(handlerContext.request().body());
+                  req = requestSerde.deserialize(request.body());
                 } catch (Throwable e) {
                   LOG.warn("Cannot deserialize input", e);
                   throw new TerminalException(
@@ -139,16 +153,46 @@ public class HandlerRunner<REQ, RES>
 
           try {
             handlerInterceptor.aroundHandler(
-                new HandlerInterceptor.Context(
-                    handlerContext.request(), handlerContext.attemptHeaders()),
+                new HandlerInterceptor.Context(request, handlerContext.attemptHeaders()),
                 userBlock);
-            returnFuture.complete(resultHolder.get());
+          } catch (Throwable t) {
+            returnFuture.completeExceptionally(t);
+            return;
+          }
+
+          // Encode the output. Encoding failures are not terminal, the invocation is retried
+          try {
+            returnFuture.complete(encodeOutput(resultHolder.get(), payloadCodec));
           } catch (Throwable t) {
             returnFuture.completeExceptionally(t);
           }
         });
 
     return returnFuture;
+  }
+
+  private static HandlerRequest decodeRequest(HandlerRequest request, PayloadCodec payloadCodec) {
+    if (payloadCodec == PayloadCodec.NOOP) {
+      return request;
+    }
+    return new HandlerRequest(
+        request.invocationId(),
+        request.openTelemetryContext(),
+        Util.awaitCompletableFuture(payloadCodec.decode(request.body())),
+        request.headers(),
+        request.scope(),
+        request.limitKey(),
+        request.idempotencyKey(),
+        request.serviceName(),
+        request.handlerName());
+  }
+
+  private static @Nullable Slice encodeOutput(@Nullable Slice output, PayloadCodec payloadCodec) {
+    if (payloadCodec == PayloadCodec.NOOP) {
+      return output;
+    }
+    return Util.awaitCompletableFuture(
+        payloadCodec.encode(Objects.requireNonNullElse(output, Slice.EMPTY)));
   }
 
   /** Factory method for {@link HandlerRunner}, used by codegen */

@@ -13,6 +13,7 @@ import dev.restate.common.Slice;
 import dev.restate.common.Target;
 import dev.restate.sdk.common.*;
 import dev.restate.sdk.endpoint.HeadersAccessor;
+import dev.restate.serde.PayloadCodec;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -38,6 +39,14 @@ public interface HandlerContext {
    * retries.
    */
   HeadersAccessor attemptHeaders();
+
+  /**
+   * @return the codec to apply to the payloads, after serializing them and before deserializing
+   *     them. Payloads passed to and returned by this interface are always encoded.
+   */
+  default PayloadCodec payloadCodec() {
+    return PayloadCodec.NOOP;
+  }
 
   boolean canReadState();
 
