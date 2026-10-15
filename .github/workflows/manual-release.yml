@@ -1,9 +1,0 @@
-name: Trigger publish manually
-
-on:
-  workflow_dispatch:
-
-jobs:
-  publish:
-    uses: ./.github/workflows/release.yml
-    secrets: inherit

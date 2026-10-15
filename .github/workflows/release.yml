@@ -1,20 +1,66 @@
 name: Publish release
 
+# What gets published depends on the ref this runs on:
+# * a branch (push to main, or manual dispatch) with a -SNAPSHOT version: publishes a snapshot.
+# * a branch with a release version: publishes nothing. The bump commit lands on main before its
+#   tag is pushed, and releases are published only from the tag.
+# * a tag vX.Y.Z: publishes and releases X.Y.Z. The version in libs.versions.toml must match it.
+
 on:
-  workflow_call:
+  push:
+    branches:
+      - main
+    tags:
+      - v**
+  workflow_dispatch:
 
 jobs:
+  check:
+    if: github.repository == 'restatedev/sdk-java'
+    name: Check what to publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      publish: ${{ steps.check.outputs.publish }}
+      release: ${{ steps.check.outputs.release }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check SDK version against ref
+        id: check
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("gradle/libs.versions.toml", "rb"))["versions"]["restate"])')
+          echo "SDK version $version, $REF_TYPE $REF_NAME"
+          if [ "$REF_TYPE" = "tag" ]; then
+            if [[ "$version" == *-SNAPSHOT ]] || [ "$REF_NAME" != "v$version" ]; then
+              echo "::error::Tag $REF_NAME needs version ${REF_NAME#v} in gradle/libs.versions.toml, found $version"
+              exit 1
+            fi
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          elif [[ "$version" == *-SNAPSHOT ]]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Release version $version is published only from tag v$version, skipping"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          fi
+
   # Cross-compile the Rust shared-core for every supported platform. Each job uploads its library
   # already laid out as dev/restate/sdk/core/native/<classifier>/librestate_sdk_core.<ext>, so the
   # publish job below can reassemble the full tree and overlay it into the sdk-core uber jar. This
   # runs for both snapshots (push to main) and tagged releases.
   build-native:
-    if: github.repository == 'restatedev/sdk-java'
+    needs: check
+    if: needs.check.outputs.publish == 'true'
     uses: ./.github/workflows/native.yaml
 
   publish:
-    if: github.repository == 'restatedev/sdk-java'
-    needs: build-native
+    needs: [check, build-native]
+    if: needs.check.outputs.publish == 'true'
     name: Publish
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -49,13 +95,6 @@ jobs:
       - name: Show downloaded native libraries
         run: find native-libs -type f | sort
 
-      # Retrieve the version of the SDK
-      - name: Install dasel
-        run: curl -sSLf "$(curl -sSLf https://api.github.com/repos/tomwright/dasel/releases/latest | grep browser_download_url | grep linux_amd64 | grep -v .gz | cut -d\" -f 4)" -L -o dasel && chmod +x dasel && mv ./dasel /usr/local/bin/dasel
-      - name: Parse published sdk version
-        run: |
-          echo "PUBLISHED_SDK_VERSION=$(cat gradle/libs.versions.toml | dasel -i toml versions.restate -o yaml)" >> "$GITHUB_ENV"
-
       # Dry run — builds the uber jar with the multi-platform overlay and checks signing.
       - name: Publish dry-run
         env:
@@ -77,7 +116,7 @@ jobs:
         run: ./gradlew -PnativeLibsDir="${{ github.workspace }}/native-libs" publishToSonatype
 
       - name: Release staging area
-        if: "!contains(env.PUBLISHED_SDK_VERSION, '-SNAPSHOT')"
+        if: needs.check.outputs.release == 'true'
         env:
           MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           MAVEN_CENTRAL_TOKEN: ${{ secrets.MAVEN_CENTRAL_TOKEN }}
