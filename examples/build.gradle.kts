@@ -24,6 +24,13 @@ dependencies {
 
   implementation(libs.log4j.core)
   implementation(libs.vertx.core)
+
+  // Used by the KMS journal encryption example, through the async client backed by Netty.
+  implementation(libs.aws.sdk.kms) {
+    exclude(group = "software.amazon.awssdk", module = "apache-client")
+  }
+  // Align the Netty version used by the AWS SDK with the one used by Vert.x
+  implementation(enforcedPlatform(libs.netty.bom))
 }
 
 application {
