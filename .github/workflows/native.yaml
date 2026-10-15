@@ -69,6 +69,11 @@ jobs:
 
       - name: Install cross
         if: ${{ matrix.cross }}
+        env:
+          # setup-rust-toolchain exports RUSTFLAGS="-D warnings" by default. That must not apply to
+          # building a third-party tool: new rustc lints in cross's code would fail the release (e.g.
+          # Rust 1.99's semicolon_in_expressions_from_non_local_macros).
+          RUSTFLAGS: ""
         run: cargo install cross --git https://github.com/cross-rs/cross --locked
 
       - name: Build cdylib
