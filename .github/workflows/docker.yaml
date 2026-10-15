@@ -49,10 +49,29 @@ jobs:
           username: ${{ env.GHCR_REGISTRY_USERNAME }}
           password: ${{ env.GHCR_REGISTRY_TOKEN }}
 
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/restatedev/test-services-java
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+          # Every tag (latest included) gets the JRE suffix, e.g. main-jre17, 2.9.4-jre21, latest-jre25,
+          # otherwise the matrix jobs would overwrite each other's tags.
+          flavor: |
+            suffix=-jre${{ matrix.jreVersion }},onlatest=true
+
       - name: Build restatedev/test-services-java image (JRE ${{ matrix.jreVersion }})
         run: ./gradlew -Djib.console=plain :test-services:jibDockerBuild -PtestServicesJre=${{ matrix.jreVersion }}
 
       - name: Push restatedev/test-services-java image
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
         run: |
-          docker tag restatedev/test-services-java ghcr.io/restatedev/test-services-java:main-jre${{ matrix.jreVersion }}
-          docker push ghcr.io/restatedev/test-services-java:main-jre${{ matrix.jreVersion }}
+          for tag in $TAGS; do
+            docker tag restatedev/test-services-java "$tag"
+            docker push "$tag"
+          done
