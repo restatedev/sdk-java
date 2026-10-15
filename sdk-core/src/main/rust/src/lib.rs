@@ -389,6 +389,9 @@ fn vm_do_await(h: &mut VmHandle, future_buf: &[u8]) -> u64 {
         }
         Ok(AwaitResponse::ExecuteRun(run)) => (AWAIT_VARIANT_EXECUTE_RUN, run.into()),
         Ok(AwaitResponse::CancelSignalReceived) => (AWAIT_VARIANT_CANCEL_SIGNAL_RECEIVED, 0),
+        Ok(AwaitResponse::EphemeralNotificationReady(_)) => {
+            unimplemented!("Ephemeral requests are not supported in the Java SDK currently.")
+        }
         Err(e) => {
             h.last_vm_error_scratch = Some(e);
             (AWAIT_VARIANT_ERROR, 0)
