@@ -1,3 +1,4 @@
+import com.google.devtools.ksp.gradle.KspAATask
 import org.gradle.kotlin.dsl.withType
 import org.jetbrains.dokka.gradle.tasks.DokkaGenerateTask
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
@@ -261,8 +262,8 @@ tasks
 // ===========================================================================
 // Code generation: protobuf, jsonSchema2Pojo, ksp
 //
-// Downstream consumers of the generated sources (compile/jar/dokka) are wired in the Compilation
-// section below.
+// Downstream consumers of the generated sources (compile/ksp/jar/dokka) are wired in the
+// Compilation section below.
 // ===========================================================================
 
 // Protobuf: the Restate wire protocol for the pure-Java state machine.
@@ -322,6 +323,9 @@ tasks {
     )
   }
   withType<KotlinCompile>().configureEach { dependsOn(*codegen) }
+  // KSP scans the main source dirs, which include the generated proto sources. Not the full
+  // `codegen`: generateJsonSchema2Pojo depends on processResources, which depends on kspKotlin.
+  withType<KspAATask>().configureEach { dependsOn("generateProto") }
   withType<org.gradle.jvm.tasks.Jar>().configureEach {
     // Multi-release jar so the FFM overlay under META-INF/versions/23 is honored on JDK >= 23.
     manifest { attributes("Multi-Release" to "true") }
