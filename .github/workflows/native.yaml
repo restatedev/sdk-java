@@ -54,10 +54,10 @@ jobs:
             cross: false
             rustflags: ""
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.1.0
 
       - name: Install Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: actions-rust-lang/setup-rust-toolchain@v1.17.0
         with:
           target: ${{ matrix.target }}
           cache-workspaces: sdk-core/src/main/rust
@@ -120,7 +120,7 @@ jobs:
           cp "${{ steps.lib.outputs.file }}" "$dest/"
 
       - name: Upload native library
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: native-${{ matrix.classifier }}
           path: native-staging

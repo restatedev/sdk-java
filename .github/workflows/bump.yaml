@@ -11,13 +11,13 @@ jobs:
     name: Bump release version
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.1.0
       - name: Install dasel
         run: curl -sSLf "https://github.com/tomwright/dasel/releases/download/v2.8.1/dasel_linux_amd64" -L -o dasel && chmod +x dasel && mv ./dasel /usr/local/bin/dasel
       - name: Bump version overwriting libs.versions.toml
         run: dasel put -f gradle/libs.versions.toml -t string -v "${{ github.event.inputs.version }}" 'versions.restate'
       - name: Create version bump PR
-        uses: peter-evans/create-pull-request@v8
+        uses: peter-evans/create-pull-request@v8.1.1
         with:
           title: "[Release] Bump to ${{ github.event.inputs.version }}"
           token: ${{ secrets.GITHUB_TOKEN }}
