@@ -591,7 +591,7 @@ pub unsafe extern "C" fn _vm_sys_state_get(handle: *mut VmHandle, key: ForeignSl
 
 #[inline]
 fn vm_sys_state_get(vm: &mut CoreVM, key: &str) -> VMResult<NotificationHandle> {
-    VM::sys_state_get(vm, key.to_owned(), PayloadOptions::default())
+    VM::sys_state_get(vm, key.to_owned(), None, PayloadOptions::default())
 }
 
 #[export_name = "vm_sys_state_get_keys"]
@@ -603,7 +603,7 @@ pub unsafe extern "C" fn _vm_sys_state_get_keys(handle: *mut VmHandle) -> u64 {
 
 #[inline]
 fn vm_sys_state_get_keys(vm: &mut CoreVM) -> VMResult<NotificationHandle> {
-    VM::sys_state_get_keys(vm)
+    VM::sys_state_get_keys(vm, None)
 }
 
 #[export_name = "vm_sys_state_set"]
@@ -619,7 +619,7 @@ pub unsafe extern "C" fn _vm_sys_state_set(
 
 #[inline]
 fn vm_sys_state_set(vm: &mut CoreVM, key: &str, value: Bytes) -> VMResult<()> {
-    VM::sys_state_set(vm, key.to_owned(), value, PayloadOptions::default())
+    VM::sys_state_set(vm, key.to_owned(), value, None, PayloadOptions::default())
 }
 
 #[export_name = "vm_sys_state_clear"]
@@ -631,7 +631,7 @@ pub unsafe extern "C" fn _vm_sys_state_clear(handle: *mut VmHandle, key: Foreign
 
 #[inline]
 fn vm_sys_state_clear(vm: &mut CoreVM, key: &str) -> VMResult<()> {
-    VM::sys_state_clear(vm, key.to_owned())
+    VM::sys_state_clear(vm, key.to_owned(), None)
 }
 
 #[export_name = "vm_sys_state_clear_all"]
@@ -643,7 +643,7 @@ pub unsafe extern "C" fn _vm_sys_state_clear_all(handle: *mut VmHandle) -> u32 {
 
 #[inline]
 fn vm_sys_state_clear_all(vm: &mut CoreVM) -> VMResult<()> {
-    VM::sys_state_clear_all(vm)
+    VM::sys_state_clear_all(vm, None)
 }
 
 #[export_name = "vm_sys_sleep"]
