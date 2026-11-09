@@ -50,7 +50,7 @@ jobs:
           #   rustflags: ""
           - target: aarch64-apple-darwin
             classifier: darwin-aarch64
-            runner: macos-14
+            runner: macos-latest
             cross: false
             rustflags: ""
     steps:
