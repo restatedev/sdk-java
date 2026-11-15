@@ -9,6 +9,7 @@
 package dev.restate.serde.kotlinx
 
 import dev.restate.serde.Serde
+import io.github.smiley4.schemakenerator.core.annotations.Description
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -236,6 +237,43 @@ class KotlinxSerdeTest {
                     }
                  }
               }
+        """
+            .trimIndent()
+    )
+  }
+
+  @Serializable
+  @Description("A greeting request")
+  data class Greeting(
+      @Description("Who to greet") val name: String,
+      @Description("How many times to greet") val count: Int = 1,
+  )
+
+  @Test
+  fun schemaGenWithDescriptions() {
+    testSchemaGen<Greeting>(
+        $$"""
+        {
+           "type": "object",
+           "required": [
+              "name"
+           ],
+           "properties": {
+              "name": {
+                 "type": "string",
+                 "description": "Who to greet"
+              },
+              "count": {
+                 "type": "integer",
+                 "minimum": -2147483648,
+                 "maximum": 2147483647,
+                 "description": "How many times to greet"
+              }
+           },
+           "description": "A greeting request",
+           "title": "Greeting",
+           "$schema": "https://json-schema.org/draft/2020-12/schema"
+        }
         """
             .trimIndent()
     )

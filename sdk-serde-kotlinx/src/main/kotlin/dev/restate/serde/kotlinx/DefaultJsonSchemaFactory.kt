@@ -12,6 +12,7 @@ import dev.restate.serde.Serde
 import io.github.smiley4.schemakenerator.jsonschema.JsonSchemaSteps
 import io.github.smiley4.schemakenerator.jsonschema.JsonSchemaSteps.compileReferencing
 import io.github.smiley4.schemakenerator.jsonschema.JsonSchemaSteps.generateJsonSchema
+import io.github.smiley4.schemakenerator.jsonschema.JsonSchemaSteps.handleCoreAnnotations
 import io.github.smiley4.schemakenerator.jsonschema.TitleBuilder
 import io.github.smiley4.schemakenerator.jsonschema.data.IntermediateJsonSchemaData
 import io.github.smiley4.schemakenerator.jsonschema.data.RefType
@@ -42,9 +43,11 @@ object DefaultJsonSchemaFactory : KotlinSerializationSerdeFactory.JsonSchemaFact
                 }
 
                 val intermediateStep =
-                    initialStep.generateJsonSchema {
-                      optionalHandling = JsonSchemaSteps.OptionalHandling.NON_REQUIRED
-                    }
+                    initialStep
+                        .generateJsonSchema {
+                          optionalHandling = JsonSchemaSteps.OptionalHandling.NON_REQUIRED
+                        }
+                        .handleCoreAnnotations()
                 intermediateStep.writeTitles()
                 val compiledSchema = intermediateStep.compileReferencing(RefType.SIMPLE)
 
