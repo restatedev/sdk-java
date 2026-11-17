@@ -1,0 +1,52 @@
+// Copyright (c) 2023 - Restate Software, Inc., Restate GmbH
+//
+// This file is part of the Restate Java SDK,
+// which is released under the MIT license.
+//
+// You can find a copy of the license in file LICENSE in the root
+// directory of this repository or package, or at
+// https://github.com/restatedev/sdk-java/blob/main/LICENSE
+
+// Test-only subset of service protocol V7: the messages the vendored V6 protocol.proto
+// (src/main/service-protocol) lacks or defines differently. Field numbers match
+// restatedev/service-protocol; the proto and Java packages differ on purpose, so these don't clash
+// with the main generated classes. Drop this file if the vendored protocol.proto moves to V7.
+syntax = "proto3";
+
+package dev.restate.service.protocol.v7test;
+
+option java_package = "dev.restate.sdk.core.generated.protocolv7";
+option java_outer_classname = "ProtocolV7";
+
+enum CombinatorType {
+  COMBINATOR_TYPE_UNKNOWN = 0;
+  FIRST_COMPLETED = 1;
+  ALL_COMPLETED = 2;
+  FIRST_SUCCEEDED_OR_ALL_FAILED = 3;
+  ALL_SUCCEEDED_OR_FIRST_FAILED = 4;
+}
+
+message Future {
+  repeated uint32 waiting_completions = 1;
+  repeated uint32 waiting_signals = 2;
+  repeated string waiting_named_signals = 3;
+  repeated Future nested_futures = 4;
+  CombinatorType combinator_type = 5;
+}
+
+// Type: 0x0001. In V7 the V6 waiting_* fields are replaced by awaiting_on.
+message SuspensionMessage {
+  reserved 1, 2, 3;
+  Future awaiting_on = 4;
+}
+
+// Type: 0x0006
+message AwaitingOnMessage {
+  Future awaiting_on = 1;
+  bool executing_side_effects = 2;
+}
+
+// Type: 0x0007
+message ProposeRunCompletionAckMessage {
+  uint32 completion_id = 1;
+}
