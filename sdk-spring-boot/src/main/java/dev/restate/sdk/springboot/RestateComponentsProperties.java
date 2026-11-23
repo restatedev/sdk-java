@@ -36,6 +36,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * restate.components.MyService.idempotency-retention=1d
  * restate.components.MyService.journal-retention=7d
  * restate.components.MyService.ingress-private=false
+ * restate.components.MyService.preemptable=false
  * restate.components.MyService.enable-lazy-state=true
  * restate.components.MyService.documentation=My service description
  * restate.components.MyService.metadata.version=1.0
@@ -65,6 +66,7 @@ public class RestateComponentsProperties {
   @Nullable private Duration workflowRetention;
   @Nullable private Duration journalRetention;
   @Nullable private Boolean ingressPrivate;
+  @Nullable private Boolean preemptable;
   @Nullable private Boolean enableLazyState;
   @Nullable private RetryPolicyProperties retryPolicy;
 
@@ -273,6 +275,32 @@ public class RestateComponentsProperties {
    */
   public void setIngressPrivate(@Nullable Boolean ingressPrivate) {
     this.ingressPrivate = ingressPrivate;
+  }
+
+  /**
+   * Default preemptable setting for all services. Can be overridden per-service in {@link
+   * #getComponents()}.
+   *
+   * <p><b>NOTE:</b> This setting requires a restate-server supporting the service discovery
+   * protocol V6. When registering against an older restate-server, this setting is ignored, as
+   * older restate-server versions never preempt invocations.
+   *
+   * @see RestateComponentProperties#getPreemptable()
+   */
+  public @Nullable Boolean getPreemptable() {
+    return preemptable;
+  }
+
+  /**
+   * Default preemptable setting for all services. Can be overridden per-service in {@link
+   * #getComponents()}.
+   *
+   * <p><b>NOTE:</b> This setting requires a restate-server supporting the service discovery
+   * protocol V6. When registering against an older restate-server, this setting is ignored, as
+   * older restate-server versions never preempt invocations.
+   */
+  public void setPreemptable(@Nullable Boolean preemptable) {
+    this.preemptable = preemptable;
   }
 
   /**

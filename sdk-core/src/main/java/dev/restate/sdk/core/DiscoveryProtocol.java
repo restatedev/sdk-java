@@ -16,10 +16,10 @@ import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
 import dev.restate.sdk.core.generated.manifest.EndpointManifestSchema;
 import dev.restate.sdk.core.generated.manifest.Handler;
 import dev.restate.sdk.core.generated.manifest.Service;
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class DiscoveryProtocol {
@@ -27,7 +27,11 @@ public class DiscoveryProtocol {
     V1("application/vnd.restate.endpointmanifest.v1+json"),
     V2("application/vnd.restate.endpointmanifest.v2+json"),
     V3("application/vnd.restate.endpointmanifest.v3+json"),
-    V4("application/vnd.restate.endpointmanifest.v4+json");
+    V4("application/vnd.restate.endpointmanifest.v4+json"),
+    // V5 adds eagerStateKeysWhitelist, which this SDK doesn't implement. It's not supported, so
+    // runtimes offering at most V5 keep negotiating V4. Declared because getNumber() is ordinal.
+    V5("application/vnd.restate.endpointmanifest.v5+json"),
+    V6("application/vnd.restate.endpointmanifest.v6+json");
 
     private final String header;
 
@@ -44,12 +48,11 @@ public class DiscoveryProtocol {
     }
 
     public boolean isSupported() {
-      // We support all versions so far
-      return true;
+      return this != V5;
     }
 
     public static final Version MIN = Version.V1;
-    public static final Version MAX = Version.V4;
+    public static final Version MAX = Version.V6;
 
     public static Optional<Version> fromHeader(String headerValue) {
       String trimmed = headerValue.trim();
@@ -117,6 +120,8 @@ public class DiscoveryProtocol {
           "retryPolicyMaxAttempts",
           "retryPolicyExponentiationFactor",
           "retryPolicyOnMaxAttempts");
+  // Runtimes older than V6 never preempt invocations, so dropping this field for them is safe.
+  static final Set<String> DISCOVERY_FIELDS_ADDED_IN_V6 = Set.of("preemptable");
 
   @JsonFilter("DiscoveryFieldsFilter")
   interface FieldsMixin {}
@@ -131,28 +136,24 @@ public class DiscoveryProtocol {
       Version serviceDiscoveryProtocolVersion, EndpointManifestSchema response)
       throws ProtocolException {
     try {
-      SimpleBeanPropertyFilter filter;
-      if (serviceDiscoveryProtocolVersion == Version.V1) {
-        filter =
-            SimpleBeanPropertyFilter.serializeAllExcept(
-                Stream.concat(
-                        Stream.concat(
-                            DISCOVERY_FIELDS_ADDED_IN_V2.stream(),
-                            DISCOVERY_FIELDS_ADDED_IN_V3.stream()),
-                        DISCOVERY_FIELDS_ADDED_IN_V4.stream())
-                    .collect(Collectors.toSet()));
-      } else if (serviceDiscoveryProtocolVersion == Version.V2) {
-        filter =
-            SimpleBeanPropertyFilter.serializeAllExcept(
-                Stream.concat(
-                        DISCOVERY_FIELDS_ADDED_IN_V3.stream(),
-                        DISCOVERY_FIELDS_ADDED_IN_V4.stream())
-                    .collect(Collectors.toSet()));
-      } else if (serviceDiscoveryProtocolVersion == Version.V3) {
-        filter = SimpleBeanPropertyFilter.serializeAllExcept(DISCOVERY_FIELDS_ADDED_IN_V4);
-      } else {
-        filter = SimpleBeanPropertyFilter.serializeAll();
+      int version = serviceDiscoveryProtocolVersion.getNumber();
+      Set<String> excludedFields = new HashSet<>();
+      if (version < Version.V2.getNumber()) {
+        excludedFields.addAll(DISCOVERY_FIELDS_ADDED_IN_V2);
       }
+      if (version < Version.V3.getNumber()) {
+        excludedFields.addAll(DISCOVERY_FIELDS_ADDED_IN_V3);
+      }
+      if (version < Version.V4.getNumber()) {
+        excludedFields.addAll(DISCOVERY_FIELDS_ADDED_IN_V4);
+      }
+      if (version < Version.V6.getNumber()) {
+        excludedFields.addAll(DISCOVERY_FIELDS_ADDED_IN_V6);
+      }
+      SimpleBeanPropertyFilter filter =
+          excludedFields.isEmpty()
+              ? SimpleBeanPropertyFilter.serializeAll()
+              : SimpleBeanPropertyFilter.serializeAllExcept(excludedFields);
 
       return MANIFEST_OBJECT_MAPPER
           .writer(new SimpleFilterProvider().addFilter("DiscoveryFieldsFilter", filter))
