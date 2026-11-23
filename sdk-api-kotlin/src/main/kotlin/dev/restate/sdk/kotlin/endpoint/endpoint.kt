@@ -166,6 +166,31 @@ var ServiceDefinition.Configurator.ingressPrivate: Boolean?
   }
 
 /**
+ * When set to `false`, Restate never preempts invocations to this service, with all its handlers.
+ * Preemption means that when the restate-server runs out of concurrency capacity, it can eagerly
+ * suspend an invocation that is waiting on an await point (e.g. a timer, a call response, an
+ * awakeable), to free up capacity for other invocations. Non-preemptable invocations still suspend
+ * when the [inactivityTimeout] fires.
+ *
+ * Use this when suspending and later replaying invocations of this service is undesirable, e.g.
+ * because resuming them is expensive.
+ *
+ * If unset, the restate-server treats the service as preemptable (`true`). A handler can override
+ * this value with [HandlerDefinition.Configurator.preemptable].
+ *
+ * *NOTE:* This setting requires a restate-server supporting the service discovery protocol V6. When
+ * registering against an older restate-server, this setting is ignored, as older restate-server
+ * versions never preempt invocations.
+ */
+var ServiceDefinition.Configurator.preemptable: Boolean?
+  get() {
+    return this.preemptable()
+  }
+  set(value) {
+    this.preemptable(value)
+  }
+
+/**
  * Retry policy used by Restate when invoking this service.
  *
  * <p><b>NOTE:</b> You can set this field only if you register this service against
@@ -313,6 +338,31 @@ var HandlerDefinition.Configurator.ingressPrivate: Boolean?
   }
   set(value) {
     this.ingressPrivate(value)
+  }
+
+/**
+ * When set to `false`, Restate never preempts invocations to this handler. Preemption means that
+ * when the restate-server runs out of concurrency capacity, it can eagerly suspend an invocation
+ * that is waiting on an await point (e.g. a timer, a call response, an awakeable), to free up
+ * capacity for other invocations. Non-preemptable invocations still suspend when the
+ * [inactivityTimeout] fires.
+ *
+ * Use this when suspending and later replaying invocations of this handler is undesirable, e.g.
+ * because resuming them is expensive.
+ *
+ * This overrides the value set for the service. If unset both here and on the service, the
+ * restate-server treats the handler as preemptable (`true`).
+ *
+ * *NOTE:* This setting requires a restate-server supporting the service discovery protocol V6. When
+ * registering against an older restate-server, this setting is ignored, as older restate-server
+ * versions never preempt invocations.
+ */
+var HandlerDefinition.Configurator.preemptable: Boolean?
+  get() {
+    return this.preemptable()
+  }
+  set(value) {
+    this.preemptable(value)
   }
 
 /**

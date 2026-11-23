@@ -28,6 +28,7 @@ public final class ServiceDefinition {
   private final @Nullable Duration idempotencyRetention;
   private final @Nullable Duration journalRetention;
   private final @Nullable Boolean ingressPrivate;
+  private final @Nullable Boolean preemptable;
   private final @Nullable Boolean enableLazyState;
   private final @Nullable InvocationRetryPolicy invocationRetryPolicy;
 
@@ -42,6 +43,7 @@ public final class ServiceDefinition {
       @Nullable Duration idempotencyRetention,
       @Nullable Duration journalRetention,
       @Nullable Boolean ingressPrivate,
+      @Nullable Boolean preemptable,
       @Nullable Boolean enableLazyState,
       @Nullable InvocationRetryPolicy invocationRetryPolicy) {
     this.serviceName = serviceName;
@@ -54,6 +56,7 @@ public final class ServiceDefinition {
     this.idempotencyRetention = idempotencyRetention;
     this.journalRetention = journalRetention;
     this.ingressPrivate = ingressPrivate;
+    this.preemptable = preemptable;
     this.enableLazyState = enableLazyState;
     this.invocationRetryPolicy = invocationRetryPolicy;
   }
@@ -143,6 +146,15 @@ public final class ServiceDefinition {
   }
 
   /**
+   * @return false if the restate-server must never preempt (eagerly suspend) invocations to this
+   *     service, with all its handlers. Null if unset, meaning preemptable.
+   * @see Configurator#preemptable(Boolean)
+   */
+  public @Nullable Boolean getPreemptable() {
+    return preemptable;
+  }
+
+  /**
    * @return true if the service, with all its handlers, will use lazy state.
    * @see Configurator#enableLazyState(Boolean)
    */
@@ -170,6 +182,7 @@ public final class ServiceDefinition {
         idempotencyRetention,
         journalRetention,
         ingressPrivate,
+        preemptable,
         enableLazyState,
         invocationRetryPolicy);
   }
@@ -186,6 +199,7 @@ public final class ServiceDefinition {
         idempotencyRetention,
         journalRetention,
         ingressPrivate,
+        preemptable,
         enableLazyState,
         invocationRetryPolicy);
   }
@@ -204,6 +218,7 @@ public final class ServiceDefinition {
             idempotencyRetention,
             journalRetention,
             ingressPrivate,
+            preemptable,
             enableLazyState,
             invocationRetryPolicy);
     configurator.accept(configuratorObj);
@@ -218,6 +233,7 @@ public final class ServiceDefinition {
         configuratorObj.idempotencyRetention,
         configuratorObj.journalRetention,
         configuratorObj.ingressPrivate,
+        configuratorObj.preemptable,
         configuratorObj.enableLazyState,
         configuratorObj.invocationRetryPolicy);
   }
@@ -233,6 +249,7 @@ public final class ServiceDefinition {
     private @Nullable Duration idempotencyRetention;
     private @Nullable Duration journalRetention;
     private @Nullable Boolean ingressPrivate;
+    private @Nullable Boolean preemptable;
     private @Nullable Boolean enableLazyState;
     private @Nullable InvocationRetryPolicy invocationRetryPolicy;
 
@@ -245,6 +262,7 @@ public final class ServiceDefinition {
         @Nullable Duration idempotencyRetention,
         @Nullable Duration journalRetention,
         @Nullable Boolean ingressPrivate,
+        @Nullable Boolean preemptable,
         @Nullable Boolean enableLazyState,
         @Nullable InvocationRetryPolicy invocationRetryPolicy) {
       this.handlers = new HashMap<>(handlers);
@@ -255,6 +273,7 @@ public final class ServiceDefinition {
       this.idempotencyRetention = idempotencyRetention;
       this.journalRetention = journalRetention;
       this.ingressPrivate = ingressPrivate;
+      this.preemptable = preemptable;
       this.enableLazyState = enableLazyState;
       this.invocationRetryPolicy = invocationRetryPolicy;
     }
@@ -468,6 +487,38 @@ public final class ServiceDefinition {
     }
 
     /**
+     * @return configured preemptable.
+     * @see #preemptable(Boolean)
+     */
+    public @Nullable Boolean preemptable() {
+      return preemptable;
+    }
+
+    /**
+     * When set to {@code false}, Restate never preempts invocations to this service, with all its
+     * handlers. Preemption means that when the restate-server runs out of concurrency capacity, it
+     * can eagerly suspend an invocation that is waiting on an await point (e.g. a timer, a call
+     * response, an awakeable), to free up capacity for other invocations. Non-preemptable
+     * invocations still suspend when the {@link #inactivityTimeout(Duration)} fires.
+     *
+     * <p>Use this when suspending and later replaying invocations of this service is undesirable,
+     * e.g. because resuming them is expensive.
+     *
+     * <p>If unset, the restate-server treats the service as preemptable ({@code true}). A handler
+     * can override this value with {@link HandlerDefinition.Configurator#preemptable(Boolean)}.
+     *
+     * <p><b>NOTE:</b> This setting requires a restate-server supporting the service discovery
+     * protocol V6. When registering against an older restate-server, this setting is ignored, as
+     * older restate-server versions never preempt invocations.
+     *
+     * @return this
+     */
+    public Configurator preemptable(@Nullable Boolean preemptable) {
+      this.preemptable = preemptable;
+      return this;
+    }
+
+    /**
      * @return configured enable lazy state.
      * @see #enableLazyState(Boolean)
      */
@@ -548,6 +599,7 @@ public final class ServiceDefinition {
         && Objects.equals(idempotencyRetention, that.idempotencyRetention)
         && Objects.equals(journalRetention, that.journalRetention)
         && Objects.equals(ingressPrivate, that.ingressPrivate)
+        && Objects.equals(preemptable, that.preemptable)
         && Objects.equals(enableLazyState, that.enableLazyState)
         && Objects.equals(invocationRetryPolicy, that.invocationRetryPolicy);
   }
@@ -565,6 +617,7 @@ public final class ServiceDefinition {
         idempotencyRetention,
         journalRetention,
         ingressPrivate,
+        preemptable,
         enableLazyState,
         invocationRetryPolicy);
   }
@@ -578,6 +631,7 @@ public final class ServiceDefinition {
             .collect(Collectors.toMap(HandlerDefinition::getName, Function.identity())),
         null,
         Collections.emptyMap(),
+        null,
         null,
         null,
         null,

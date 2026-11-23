@@ -29,6 +29,7 @@ public class RestateHandlerProperties {
   @Nullable private Duration workflowRetention;
   @Nullable private Duration journalRetention;
   @Nullable private Boolean ingressPrivate;
+  @Nullable private Boolean preemptable;
   @Nullable private Boolean enableLazyState;
   @Nullable private RetryPolicyProperties retryPolicy;
 
@@ -45,6 +46,32 @@ public class RestateHandlerProperties {
       @Nullable Boolean ingressPrivate,
       @Nullable Boolean enableLazyState,
       @Nullable RetryPolicyProperties retryPolicy) {
+    this(
+        documentation,
+        metadata,
+        inactivityTimeout,
+        abortTimeout,
+        idempotencyRetention,
+        workflowRetention,
+        journalRetention,
+        ingressPrivate,
+        null,
+        enableLazyState,
+        retryPolicy);
+  }
+
+  public RestateHandlerProperties(
+      @Nullable String documentation,
+      @Nullable Map<String, String> metadata,
+      @Nullable Duration inactivityTimeout,
+      @Nullable Duration abortTimeout,
+      @Nullable Duration idempotencyRetention,
+      @Nullable Duration workflowRetention,
+      @Nullable Duration journalRetention,
+      @Nullable Boolean ingressPrivate,
+      @Nullable Boolean preemptable,
+      @Nullable Boolean enableLazyState,
+      @Nullable RetryPolicyProperties retryPolicy) {
     this.documentation = documentation;
     this.metadata = metadata;
     this.inactivityTimeout = inactivityTimeout;
@@ -53,6 +80,7 @@ public class RestateHandlerProperties {
     this.workflowRetention = workflowRetention;
     this.journalRetention = journalRetention;
     this.ingressPrivate = ingressPrivate;
+    this.preemptable = preemptable;
     this.enableLazyState = enableLazyState;
     this.retryPolicy = retryPolicy;
   }
@@ -250,6 +278,42 @@ public class RestateHandlerProperties {
   }
 
   /**
+   * When set to {@code false}, Restate never preempts invocations to this handler. Preemption means
+   * that when the restate-server runs out of concurrency capacity, it can eagerly suspend an
+   * invocation that is waiting on an await point (e.g. a timer, a call response, an awakeable), to
+   * free up capacity for other invocations. Non-preemptable invocations still suspend when the
+   * inactivity timeout fires.
+   *
+   * <p>This overrides the value set for the service. If unset both here and on the service, the
+   * restate-server treats the handler as preemptable ({@code true}).
+   *
+   * <p><b>NOTE:</b> This setting requires a restate-server supporting the service discovery
+   * protocol V6. When registering against an older restate-server, this setting is ignored, as
+   * older restate-server versions never preempt invocations.
+   */
+  public @Nullable Boolean getPreemptable() {
+    return preemptable;
+  }
+
+  /**
+   * When set to {@code false}, Restate never preempts invocations to this handler. Preemption means
+   * that when the restate-server runs out of concurrency capacity, it can eagerly suspend an
+   * invocation that is waiting on an await point (e.g. a timer, a call response, an awakeable), to
+   * free up capacity for other invocations. Non-preemptable invocations still suspend when the
+   * inactivity timeout fires.
+   *
+   * <p>This overrides the value set for the service. If unset both here and on the service, the
+   * restate-server treats the handler as preemptable ({@code true}).
+   *
+   * <p><b>NOTE:</b> This setting requires a restate-server supporting the service discovery
+   * protocol V6. When registering against an older restate-server, this setting is ignored, as
+   * older restate-server versions never preempt invocations.
+   */
+  public void setPreemptable(@Nullable Boolean preemptable) {
+    this.preemptable = preemptable;
+  }
+
+  /**
    * When set to {@code true}, lazy state will be enabled for all invocations to this handler. This
    * is relevant only for workflows and virtual objects.
    *
@@ -302,6 +366,7 @@ public class RestateHandlerProperties {
         && Objects.equals(getWorkflowRetention(), that.getWorkflowRetention())
         && Objects.equals(getJournalRetention(), that.getJournalRetention())
         && Objects.equals(getIngressPrivate(), that.getIngressPrivate())
+        && Objects.equals(getPreemptable(), that.getPreemptable())
         && Objects.equals(getEnableLazyState(), that.getEnableLazyState())
         && Objects.equals(getRetryPolicy(), that.getRetryPolicy());
   }
@@ -317,6 +382,7 @@ public class RestateHandlerProperties {
         getWorkflowRetention(),
         getJournalRetention(),
         getIngressPrivate(),
+        getPreemptable(),
         getEnableLazyState(),
         getRetryPolicy());
   }
@@ -341,6 +407,8 @@ public class RestateHandlerProperties {
         + journalRetention
         + ", ingressPrivate="
         + ingressPrivate
+        + ", preemptable="
+        + preemptable
         + ", enableLazyState="
         + enableLazyState
         + ", retryPolicy="

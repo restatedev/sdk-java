@@ -24,4 +24,8 @@ enum ServiceDiscoveryProtocolVersion {
   V3 = 3;
   // add lambda compression
   V4 = 4;
+  // add alwaysEagerStateKeys (eager-preload whitelist when lazy state is enabled)
+  V5 = 5;
+  // add preemptable (opt out of eager suspension when concurrency capacity runs out)
+  V6 = 6;
 }

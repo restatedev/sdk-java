@@ -40,7 +40,9 @@ final class EndpointManifest {
             .withMinProtocolVersion(5L)
             .withMaxProtocolVersion(StateMachineFactory.maxSupportedProtocolVersion())
             .withServices(this.services);
-    // Verify that the user didn't set fields that we don't support in the discovery version we set
+    // Verify that the user didn't set fields that we don't support in the discovery version we set.
+    // Fields that are safe to ignore on older runtimes (e.g. preemptable) are not verified here,
+    // they're dropped by DiscoveryProtocol.serializeManifest instead.
     for (var service : manifest.getServices()) {
       if (version.getNumber() < DiscoveryProtocol.Version.V2.getNumber()) {
         verifyFieldNotSet(
@@ -107,6 +109,7 @@ final class EndpointManifest {
         .withAbortTimeout(svc.getAbortTimeout() != null ? svc.getAbortTimeout().toMillis() : null)
         .withEnableLazyState(svc.getEnableLazyState())
         .withIngressPrivate(svc.getIngressPrivate())
+        .withPreemptable(svc.getPreemptable())
         .withRetryPolicyInitialInterval(
             svc.getInvocationRetryPolicy() != null
                     && svc.getInvocationRetryPolicy().initialInterval() != null
@@ -185,6 +188,7 @@ final class EndpointManifest {
             handler.getAbortTimeout() != null ? handler.getAbortTimeout().toMillis() : null)
         .withEnableLazyState(handler.getEnableLazyState())
         .withIngressPrivate(handler.getIngressPrivate())
+        .withPreemptable(handler.getPreemptable())
         .withRetryPolicyInitialInterval(
             handler.getInvocationRetryPolicy() != null
                     && handler.getInvocationRetryPolicy().initialInterval() != null

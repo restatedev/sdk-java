@@ -29,6 +29,7 @@ public class RestateComponentProperties {
   @Nullable private Duration workflowRetention;
   @Nullable private Duration journalRetention;
   @Nullable private Boolean ingressPrivate;
+  @Nullable private Boolean preemptable;
   @Nullable private Boolean enableLazyState;
   @Nullable private RetryPolicyProperties retryPolicy;
   @Nullable private Map<String, RestateHandlerProperties> handlers;
@@ -48,6 +49,36 @@ public class RestateComponentProperties {
       @Nullable Boolean enableLazyState,
       @Nullable RetryPolicyProperties retryPolicy,
       @Nullable Map<String, RestateHandlerProperties> handlers) {
+    this(
+        executor,
+        documentation,
+        metadata,
+        inactivityTimeout,
+        abortTimeout,
+        idempotencyRetention,
+        workflowRetention,
+        journalRetention,
+        ingressPrivate,
+        null,
+        enableLazyState,
+        retryPolicy,
+        handlers);
+  }
+
+  public RestateComponentProperties(
+      @Nullable String executor,
+      @Nullable String documentation,
+      @Nullable Map<String, String> metadata,
+      @Nullable Duration inactivityTimeout,
+      @Nullable Duration abortTimeout,
+      @Nullable Duration idempotencyRetention,
+      @Nullable Duration workflowRetention,
+      @Nullable Duration journalRetention,
+      @Nullable Boolean ingressPrivate,
+      @Nullable Boolean preemptable,
+      @Nullable Boolean enableLazyState,
+      @Nullable RetryPolicyProperties retryPolicy,
+      @Nullable Map<String, RestateHandlerProperties> handlers) {
     this.executor = executor;
     this.documentation = documentation;
     this.metadata = metadata;
@@ -57,6 +88,7 @@ public class RestateComponentProperties {
     this.workflowRetention = workflowRetention;
     this.journalRetention = journalRetention;
     this.ingressPrivate = ingressPrivate;
+    this.preemptable = preemptable;
     this.enableLazyState = enableLazyState;
     this.retryPolicy = retryPolicy;
     this.handlers = handlers;
@@ -279,6 +311,42 @@ public class RestateComponentProperties {
   }
 
   /**
+   * When set to {@code false}, Restate never preempts invocations to this service, with all its
+   * handlers. Preemption means that when the restate-server runs out of concurrency capacity, it
+   * can eagerly suspend an invocation that is waiting on an await point (e.g. a timer, a call
+   * response, an awakeable), to free up capacity for other invocations. Non-preemptable invocations
+   * still suspend when the inactivity timeout fires.
+   *
+   * <p>If unset, the restate-server treats the service as preemptable ({@code true}). Can be
+   * overridden per-handler in {@link #getHandlers()}.
+   *
+   * <p><b>NOTE:</b> This setting requires a restate-server supporting the service discovery
+   * protocol V6. When registering against an older restate-server, this setting is ignored, as
+   * older restate-server versions never preempt invocations.
+   */
+  public @Nullable Boolean getPreemptable() {
+    return preemptable;
+  }
+
+  /**
+   * When set to {@code false}, Restate never preempts invocations to this service, with all its
+   * handlers. Preemption means that when the restate-server runs out of concurrency capacity, it
+   * can eagerly suspend an invocation that is waiting on an await point (e.g. a timer, a call
+   * response, an awakeable), to free up capacity for other invocations. Non-preemptable invocations
+   * still suspend when the inactivity timeout fires.
+   *
+   * <p>If unset, the restate-server treats the service as preemptable ({@code true}). Can be
+   * overridden per-handler in {@link #getHandlers()}.
+   *
+   * <p><b>NOTE:</b> This setting requires a restate-server supporting the service discovery
+   * protocol V6. When registering against an older restate-server, this setting is ignored, as
+   * older restate-server versions never preempt invocations.
+   */
+  public void setPreemptable(@Nullable Boolean preemptable) {
+    this.preemptable = preemptable;
+  }
+
+  /**
    * When set to {@code true}, lazy state will be enabled for all invocations to this service. This
    * is relevant only for workflows and virtual objects.
    *
@@ -342,6 +410,7 @@ public class RestateComponentProperties {
         && Objects.equals(getWorkflowRetention(), that.getWorkflowRetention())
         && Objects.equals(getJournalRetention(), that.getJournalRetention())
         && Objects.equals(getIngressPrivate(), that.getIngressPrivate())
+        && Objects.equals(getPreemptable(), that.getPreemptable())
         && Objects.equals(getEnableLazyState(), that.getEnableLazyState())
         && Objects.equals(getRetryPolicy(), that.getRetryPolicy())
         && Objects.equals(getHandlers(), that.getHandlers());
@@ -359,6 +428,7 @@ public class RestateComponentProperties {
         getWorkflowRetention(),
         getJournalRetention(),
         getIngressPrivate(),
+        getPreemptable(),
         getEnableLazyState(),
         getRetryPolicy(),
         getHandlers());
@@ -387,6 +457,8 @@ public class RestateComponentProperties {
         + journalRetention
         + ", ingressPrivate="
         + ingressPrivate
+        + ", preemptable="
+        + preemptable
         + ", enableLazyState="
         + enableLazyState
         + ", retryPolicy="

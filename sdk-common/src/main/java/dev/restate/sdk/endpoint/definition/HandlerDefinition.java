@@ -34,6 +34,7 @@ public final class HandlerDefinition<REQ, RES> {
   private final @Nullable Duration workflowRetention;
   private final @Nullable Duration journalRetention;
   private final @Nullable Boolean ingressPrivate;
+  private final @Nullable Boolean preemptable;
   private final @Nullable Boolean enableLazyState;
   private final @Nullable InvocationRetryPolicy invocationRetryPolicy;
 
@@ -52,6 +53,7 @@ public final class HandlerDefinition<REQ, RES> {
       @Nullable Duration workflowRetention,
       @Nullable Duration journalRetention,
       @Nullable Boolean ingressPrivate,
+      @Nullable Boolean preemptable,
       @Nullable Boolean enableLazyState,
       @Nullable InvocationRetryPolicy invocationRetryPolicy) {
     this.name = name;
@@ -68,6 +70,7 @@ public final class HandlerDefinition<REQ, RES> {
     this.workflowRetention = workflowRetention;
     this.journalRetention = journalRetention;
     this.ingressPrivate = ingressPrivate;
+    this.preemptable = preemptable;
     this.enableLazyState = enableLazyState;
     this.invocationRetryPolicy = invocationRetryPolicy;
   }
@@ -177,6 +180,15 @@ public final class HandlerDefinition<REQ, RES> {
   }
 
   /**
+   * @return false if the restate-server must never preempt (eagerly suspend) invocations to this
+   *     handler. Null if unset, meaning the service-level setting applies.
+   * @see Configurator#preemptable(Boolean)
+   */
+  public @Nullable Boolean getPreemptable() {
+    return preemptable;
+  }
+
+  /**
    * @return true if this handler will use lazy state.
    * @see Configurator#enableLazyState(Boolean)
    */
@@ -208,6 +220,7 @@ public final class HandlerDefinition<REQ, RES> {
         workflowRetention,
         journalRetention,
         ingressPrivate,
+        preemptable,
         enableLazyState,
         invocationRetryPolicy);
   }
@@ -228,6 +241,7 @@ public final class HandlerDefinition<REQ, RES> {
         workflowRetention,
         journalRetention,
         ingressPrivate,
+        preemptable,
         enableLazyState,
         invocationRetryPolicy);
   }
@@ -248,6 +262,7 @@ public final class HandlerDefinition<REQ, RES> {
         workflowRetention,
         journalRetention,
         ingressPrivate,
+        preemptable,
         enableLazyState,
         invocationRetryPolicy);
   }
@@ -269,6 +284,7 @@ public final class HandlerDefinition<REQ, RES> {
             workflowRetention,
             journalRetention,
             ingressPrivate,
+            preemptable,
             enableLazyState,
             invocationRetryPolicy);
     configurator.accept(configuratorObj);
@@ -288,6 +304,7 @@ public final class HandlerDefinition<REQ, RES> {
         configuratorObj.workflowRetention,
         configuratorObj.journalRetention,
         configuratorObj.ingressPrivate,
+        configuratorObj.preemptable,
         configuratorObj.enableLazyState,
         configuratorObj.invocationRetryPolicy);
   }
@@ -305,6 +322,7 @@ public final class HandlerDefinition<REQ, RES> {
     private @Nullable Duration workflowRetention;
     private @Nullable Duration journalRetention;
     private @Nullable Boolean ingressPrivate;
+    private @Nullable Boolean preemptable;
     private @Nullable Boolean enableLazyState;
     private @Nullable InvocationRetryPolicy invocationRetryPolicy;
 
@@ -319,6 +337,7 @@ public final class HandlerDefinition<REQ, RES> {
         @Nullable Duration workflowRetention,
         @Nullable Duration journalRetention,
         @Nullable Boolean ingressPrivate,
+        @Nullable Boolean preemptable,
         @Nullable Boolean enableLazyState,
         @Nullable InvocationRetryPolicy invocationRetryPolicy) {
       this.handlerType = handlerType;
@@ -331,6 +350,7 @@ public final class HandlerDefinition<REQ, RES> {
       this.workflowRetention = workflowRetention;
       this.journalRetention = journalRetention;
       this.ingressPrivate = ingressPrivate;
+      this.preemptable = preemptable;
       this.enableLazyState = enableLazyState;
       this.invocationRetryPolicy = invocationRetryPolicy;
     }
@@ -554,6 +574,38 @@ public final class HandlerDefinition<REQ, RES> {
     }
 
     /**
+     * @return configured preemptable.
+     * @see #preemptable(Boolean)
+     */
+    public @Nullable Boolean preemptable() {
+      return preemptable;
+    }
+
+    /**
+     * When set to {@code false}, Restate never preempts invocations to this handler. Preemption
+     * means that when the restate-server runs out of concurrency capacity, it can eagerly suspend
+     * an invocation that is waiting on an await point (e.g. a timer, a call response, an
+     * awakeable), to free up capacity for other invocations. Non-preemptable invocations still
+     * suspend when the {@link #inactivityTimeout(Duration)} fires.
+     *
+     * <p>Use this when suspending and later replaying invocations of this handler is undesirable,
+     * e.g. because resuming them is expensive.
+     *
+     * <p>This overrides the value set for the service. If unset both here and on the service, the
+     * restate-server treats the handler as preemptable ({@code true}).
+     *
+     * <p><b>NOTE:</b> This setting requires a restate-server supporting the service discovery
+     * protocol V6. When registering against an older restate-server, this setting is ignored, as
+     * older restate-server versions never preempt invocations.
+     *
+     * @return this
+     */
+    public Configurator preemptable(@Nullable Boolean preemptable) {
+      this.preemptable = preemptable;
+      return this;
+    }
+
+    /**
      * @return configured enable lazy state.
      * @see #enableLazyState(Boolean)
      */
@@ -629,6 +681,7 @@ public final class HandlerDefinition<REQ, RES> {
         null,
         null,
         null,
+        null,
         null);
   }
 
@@ -649,6 +702,7 @@ public final class HandlerDefinition<REQ, RES> {
         && Objects.equals(getWorkflowRetention(), that.getWorkflowRetention())
         && Objects.equals(getJournalRetention(), that.getJournalRetention())
         && Objects.equals(getIngressPrivate(), that.getIngressPrivate())
+        && Objects.equals(getPreemptable(), that.getPreemptable())
         && Objects.equals(getEnableLazyState(), that.getEnableLazyState())
         && Objects.equals(getInvocationRetryPolicy(), that.getInvocationRetryPolicy());
   }
@@ -670,6 +724,7 @@ public final class HandlerDefinition<REQ, RES> {
         getWorkflowRetention(),
         getJournalRetention(),
         getIngressPrivate(),
+        getPreemptable(),
         getEnableLazyState(),
         getInvocationRetryPolicy());
   }

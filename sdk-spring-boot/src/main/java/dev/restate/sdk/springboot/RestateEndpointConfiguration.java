@@ -206,6 +206,9 @@ public class RestateEndpointConfiguration {
     if (properties.getIngressPrivate() != null) {
       configurator.ingressPrivate(properties.getIngressPrivate());
     }
+    if (properties.getPreemptable() != null) {
+      configurator.preemptable(properties.getPreemptable());
+    }
     if (properties.getEnableLazyState() != null) {
       configurator.enableLazyState(properties.getEnableLazyState());
     }
@@ -245,6 +248,9 @@ public class RestateEndpointConfiguration {
     if (properties.getIngressPrivate() != null) {
       configurator.ingressPrivate(properties.getIngressPrivate());
     }
+    if (properties.getPreemptable() != null) {
+      configurator.preemptable(properties.getPreemptable());
+    }
     if (properties.getEnableLazyState() != null) {
       configurator.enableLazyState(properties.getEnableLazyState());
     }
@@ -278,6 +284,9 @@ public class RestateEndpointConfiguration {
     }
     if (properties.getIngressPrivate() != null) {
       configurator.ingressPrivate(properties.getIngressPrivate());
+    }
+    if (properties.getPreemptable() != null) {
+      configurator.preemptable(properties.getPreemptable());
     }
     if (properties.getEnableLazyState() != null) {
       configurator.enableLazyState(properties.getEnableLazyState());
